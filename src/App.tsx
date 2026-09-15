@@ -25,6 +25,7 @@ import { SubscriptionPage } from './components/SubscriptionPage';
 import { SubscriptionGateModal } from './components/SubscriptionGateModal';
 import { DeveloperAdminPanel } from './components/DeveloperAdminPanel';
 import { PreTradePlan } from './components/PreTradePlan';
+import { SbtModelsHub } from './components/sbt/SbtModelsHub';
 import { FundamentalCalendar } from './components/FundamentalCalendar';
 import { FreehandWorkspace } from './components/FreehandWorkspace';
 import { CommunityChat } from './components/CommunityChat';
@@ -802,8 +803,13 @@ export default function App() {
             trades={trades}
             onSaveTrade={handleSaveTrade}
             onNavigateToJournal={() => setActiveTab('JOURNAL')}
+            onNavigateToLotSize={() => setActiveTab('LOT_SIZE')}
             onNavigateToCalendar={() => setActiveTab('FUNDAMENTAL_CALENDAR')}
           />
+        )}
+
+        {activeTab === 'SBT_MODELS' && (
+          <SbtModelsHub />
         )}
 
         {activeTab === 'FUNDAMENTAL_CALENDAR' && (

@@ -25,6 +25,7 @@ import {
   Cpu,
   Lock,
   ChevronRight,
+  Layers,
 } from 'lucide-react';
 import { MainNavTab } from './Header';
 import { UserAccount } from '../types';
@@ -59,6 +60,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'COMPOUNDING' as MainNavTab, label: 'Compounding Tool', desc: 'Long-term growth simulator', icon: Calculator, section: 'Execution' },
       { id: 'REPORTS' as MainNavTab, label: 'Performance Reports', desc: 'Weekly & monthly summaries', icon: FileText, section: 'Execution' },
       { id: 'PRE_TRADE_PLAN' as MainNavTab, label: 'Pre-Trade Plan', desc: 'Execution checklist protocol', icon: ShieldAlert, highlight: true, section: 'Execution' },
+      { id: 'SBT_MODELS' as MainNavTab, label: 'SBT Models', desc: '10 Structure-Based Trading models & 3D diagrams', icon: Layers, highlight: true, section: 'Intelligence' },
 
       { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: 'Fundamental Calendar', desc: 'Macro news & high-impact releases', icon: Calendar, highlight: true, section: 'Intelligence' },
       { id: 'RESEARCH' as MainNavTab, label: 'Trading Research', desc: 'Institutional playbooks & SMC', icon: Compass, comingSoon: true, section: 'Intelligence' },

@@ -39,6 +39,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
+  Layers,
 } from 'lucide-react';
 import { AccountSettings, TraderPerformanceScores, UserAccount } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
@@ -66,6 +67,7 @@ export type MainNavTab =
   | 'FUNDAMENTAL_CALENDAR'
   | 'FREEHAND_WORKSPACE'
   | 'PRE_TRADE_PLAN'
+  | 'SBT_MODELS'
   | 'COMMUNITY'
   | 'BOOK_SESSION'
   | 'ACCOUNTS'
@@ -291,13 +293,14 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'DASHBOARD' as MainNavTab, label: 'DASHBOARD', icon: Activity },
     { id: 'JOURNAL' as MainNavTab, label: 'TRADE JOURNAL', icon: BookOpen },
     { id: 'PERFORMANCE' as MainNavTab, label: 'PERFORMANCE', icon: BarChart3 },
-    { id: 'RESEARCH' as MainNavTab, label: 'TRADING RESEARCH', icon: Compass, comingSoon: true, locked: true },
+    { id: 'RESEARCH' as MainNavTab, label: 'ACADEMIC RESEARCH', icon: Compass, highlight: true },
     { id: 'SIGNALS' as MainNavTab, label: 'PREMIUM SIGNALS', icon: Radio, highlight: true, comingSoon: true, locked: true },
     { id: 'RISK' as MainNavTab, label: 'RISK MANAGEMENT', icon: Crosshair },
     { id: 'LOT_SIZE' as MainNavTab, label: 'LOT SIZE CALCULATOR', icon: Calculator },
     { id: 'COMPOUNDING' as MainNavTab, label: 'COMPOUNDING TOOL', icon: Calculator },
     { id: 'REPORTS' as MainNavTab, label: 'PERFORMANCE REPORTS', icon: FileText },
     { id: 'PRE_TRADE_PLAN' as MainNavTab, label: 'PRE-TRADE PLAN', icon: ShieldAlert, highlight: true },
+    { id: 'SBT_MODELS' as MainNavTab, label: 'SBT MODELS', icon: Layers, highlight: true },
     { id: 'DAILY_DEV' as MainNavTab, label: 'DAILY DEVELOPMENT', icon: Award },
     { id: 'PSYCHOLOGY' as MainNavTab, label: 'PSYCHOLOGY CENTER', icon: Brain, highlight: true },
     { id: 'CALMING_TOOLS' as MainNavTab, label: 'CALMING TOOLS SUITE', icon: Wind, highlight: true },
