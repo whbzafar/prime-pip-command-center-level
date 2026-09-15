@@ -77,8 +77,8 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
   onNavigateToLotSize,
   onNavigateToCalendar,
 }) => {
-  // Feature Lock State: Fully locked by default as requested
-  const [isLocked, setIsLocked] = useState(true);
+  // Feature Lock State: Unlocked by default so traders can execute the 3-Phase protocol immediately
+  const [isLocked, setIsLocked] = useState(false);
   const [unlockPin, setUnlockPin] = useState('');
   const [showPinInput, setShowPinInput] = useState(false);
   const [unlockError, setUnlockError] = useState('');

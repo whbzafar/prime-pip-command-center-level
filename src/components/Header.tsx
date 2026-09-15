@@ -288,35 +288,28 @@ export const Header: React.FC<HeaderProps> = ({
   const isLimitReached = tradesToday >= maxDailyTrades;
   const isOneTradeRemaining = tradesToday === 1 && maxDailyTrades === 2;
 
-  // Complete List of All Navigation Categories Displayed Directly
+  // Complete List of All 20 Navigation Categories in STRICT Order (01-20)
   const allNavCategories = [
-    { id: 'DASHBOARD' as MainNavTab, label: 'DASHBOARD', icon: Activity },
-    { id: 'JOURNAL' as MainNavTab, label: 'TRADE JOURNAL', icon: BookOpen },
-    { id: 'PERFORMANCE' as MainNavTab, label: 'PERFORMANCE', icon: BarChart3 },
-    { id: 'RESEARCH' as MainNavTab, label: 'ACADEMIC RESEARCH', icon: Compass, highlight: true },
-    { id: 'SIGNALS' as MainNavTab, label: 'PREMIUM SIGNALS', icon: Radio, highlight: true, comingSoon: true, locked: true },
-    { id: 'RISK' as MainNavTab, label: 'RISK MANAGEMENT', icon: Crosshair },
-    { id: 'LOT_SIZE' as MainNavTab, label: 'LOT SIZE CALCULATOR', icon: Calculator },
-    { id: 'COMPOUNDING' as MainNavTab, label: 'COMPOUNDING TOOL', icon: Calculator },
-    { id: 'REPORTS' as MainNavTab, label: 'PERFORMANCE REPORTS', icon: FileText },
-    { id: 'PRE_TRADE_PLAN' as MainNavTab, label: 'PRE-TRADE PLAN', icon: ShieldAlert, highlight: true },
-    { id: 'SBT_MODELS' as MainNavTab, label: 'SBT MODELS', icon: Layers, highlight: true },
-    { id: 'DAILY_DEV' as MainNavTab, label: 'DAILY DEVELOPMENT', icon: Award },
-    { id: 'PSYCHOLOGY' as MainNavTab, label: 'PSYCHOLOGY CENTER', icon: Brain, highlight: true },
-    { id: 'CALMING_TOOLS' as MainNavTab, label: 'CALMING TOOLS SUITE', icon: Wind, highlight: true },
-    { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: 'FUNDAMENTAL CALENDAR', icon: Calendar, highlight: true },
-    { id: 'FREEHAND_WORKSPACE' as MainNavTab, label: 'FREEHAND CANVAS', icon: PenTool },
-    { id: 'COMMUNITY' as MainNavTab, label: 'TRADER COMMUNITY FEED', icon: Users },
-    { id: 'BOOK_SESSION' as MainNavTab, label: 'BOOK A SESSION', icon: MessageSquare, highlight: true },
-    { id: 'SETTINGS' as MainNavTab, label: 'DATA EXPORT & BACKUP', icon: Settings2 },
-    ...(currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' || currentUser?.isDeveloper || currentUser?.username === 'primepipfx-admin'
-      ? [
-          { id: 'ADMIN' as MainNavTab, label: 'ADMIN PANEL — OWNER', icon: ShieldCheck, highlight: true },
-          { id: 'EVOLUTION' as MainNavTab, label: 'EVOLUTION ENGINE', icon: Cpu, highlight: true },
-        ]
-      : [
-          { id: 'ADMIN' as MainNavTab, label: 'ADMIN PANEL — OWNER', icon: ShieldCheck, highlight: false },
-        ]),
+    { id: 'DASHBOARD' as MainNavTab, label: '01. DASHBOARD', icon: Activity },
+    { id: 'JOURNAL' as MainNavTab, label: '02. TRADE JOURNAL', icon: BookOpen },
+    { id: 'SBT_MODELS' as MainNavTab, label: '03. SBT MODELS', icon: Layers, highlight: true },
+    { id: 'LOT_SIZE' as MainNavTab, label: '04. LOT SIZE CALCULATOR', icon: Calculator },
+    { id: 'RISK' as MainNavTab, label: '05. RISK MANAGEMENT', icon: Crosshair },
+    { id: 'PRE_TRADE_PLAN' as MainNavTab, label: '06. PRE-TRADE PLAN', icon: ShieldAlert, highlight: true },
+    { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: '07. FUNDAMENTAL CALENDAR', icon: Calendar, highlight: true },
+    { id: 'SIGNALS' as MainNavTab, label: '08. PREMIUM SIGNALS', icon: Radio, highlight: true, comingSoon: true, locked: true },
+    { id: 'COMPOUNDING' as MainNavTab, label: '09. COMPOUNDING TOOLS', icon: Calculator },
+    { id: 'PERFORMANCE' as MainNavTab, label: '10. PERFORMANCE REPORT', icon: BarChart3 },
+    { id: 'DAILY_DEV' as MainNavTab, label: '11. DAILY DEVELOPMENT', icon: Award },
+    { id: 'PSYCHOLOGY' as MainNavTab, label: '12. PSYCHOLOGICAL CENTER', icon: Brain, highlight: true },
+    { id: 'CALMING_TOOLS' as MainNavTab, label: '13. TRADING TOOL SUITE', icon: Wind, highlight: true },
+    { id: 'RESEARCH' as MainNavTab, label: '14. ACADEMIC RESEARCH', icon: Compass, highlight: true },
+    { id: 'FREEHAND_WORKSPACE' as MainNavTab, label: '15. FREEHAND CANVAS', icon: PenTool },
+    { id: 'COMMUNITY' as MainNavTab, label: '16. TRADER COMMUNITY FEED', icon: Users },
+    { id: 'BOOK_SESSION' as MainNavTab, label: '17. BOOK A SESSION', icon: MessageSquare, highlight: true },
+    { id: 'SETTINGS' as MainNavTab, label: '18. DATA EXPORT & BACKUP', icon: Settings2 },
+    { id: 'ADMIN' as MainNavTab, label: '19. ADMIN PANEL (OWNER)', icon: ShieldCheck, highlight: currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' },
+    { id: 'EVOLUTION' as MainNavTab, label: '20. EVALUATION ENGINE', icon: Cpu, highlight: true },
   ];
 
   const handleNavClick = (id: MainNavTab) => {

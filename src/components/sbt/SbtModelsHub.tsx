@@ -21,7 +21,50 @@ import {
   FileText,
   RotateCcw,
   Sparkles,
+  Maximize2,
+  Download,
+  Image as ImageIcon,
+  Cpu,
+  X,
+  ExternalLink,
 } from 'lucide-react';
+
+export const getSbtAssetPath = (modelNumber: number, variationId?: string): string => {
+  switch (modelNumber) {
+    case 1:
+      return '/SBT/Model-01/model-01-source.png';
+    case 2:
+      return '/SBT/Model-02/model-02-source.png';
+    case 3:
+      return '/SBT/Model-03/model-03-source.png';
+    case 4:
+      return '/SBT/Model-04/model-04-source.png';
+    case 5:
+      return variationId === '5-MULTI' || variationId === '5-B'
+        ? '/SBT/Model-05/model-05-multi.png'
+        : '/SBT/Model-05/model-05-single.png';
+    case 6:
+      return '/SBT/Model-06/model-06-source.png';
+    case 7:
+      return variationId === '7-B'
+        ? '/SBT/Model-07/model-07B-source.png'
+        : '/SBT/Model-07/model-07A-source.png';
+    case 8:
+      return variationId === '8-B'
+        ? '/SBT/Model-08/model-08B-source.png'
+        : '/SBT/Model-08/model-08A-source.png';
+    case 9:
+      return variationId === '9-TWO-CANDLE' || variationId === '9-B'
+        ? '/SBT/Model-09/model-09-twocandle.png'
+        : '/SBT/Model-09/model-09-wick.png';
+    case 10:
+      return variationId === '10-2' || variationId === '10-B'
+        ? '/SBT/Model-10/model-10-variation-02.png'
+        : '/SBT/Model-10/model-10-variation-01.png';
+    default:
+      return `/SBT/Model-0${modelNumber}/model-0${modelNumber}-source.png`;
+  }
+};
 
 export type SbtHubView =
   | 'ALL_MODELS'
@@ -43,6 +86,8 @@ export const SbtModelsHub: React.FC = () => {
   const [activeVariationId, setActiveVariationId] = useState<string | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [displayMode, setDisplayMode] = useState<'SOURCE_ASSET' | 'VECTOR_STUDIO'>('SOURCE_ASSET');
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   // Persisted studied models tracking
   const [studiedModels, setStudiedModels] = useState<string[]>(() => {
@@ -264,61 +309,18 @@ export const SbtModelsHub: React.FC = () => {
                       </p>
                     </div>
 
-                    {/* Mini Vector Thumbnail Preview */}
-                    <div className="w-full h-32 rounded-lg border border-slate-800 bg-[#090D16] overflow-hidden flex items-center justify-center p-1 pointer-events-none select-none">
-                      <svg
-                        viewBox={m.viewBox}
-                        className="w-full h-full"
-                        preserveAspectRatio="xMidYMid meet"
-                      >
-                        {m.zones.map((z) => (
-                          <rect
-                            key={z.id}
-                            x={z.x}
-                            y={z.y}
-                            width={z.width}
-                            height={z.height}
-                            fill="rgba(71, 85, 105, 0.4)"
-                            stroke="#64748B"
-                            strokeWidth="1"
-                          />
-                        ))}
-                        {m.lines.map((l) => (
-                          <line
-                            key={l.id}
-                            x1={l.x1}
-                            y1={l.y1}
-                            x2={l.x2}
-                            y2={l.y2}
-                            stroke="#CBD5E1"
-                            strokeWidth="1.2"
-                          />
-                        ))}
-                        {m.candles.map((c) => {
-                          const w = c.width || 10;
-                          const top = Math.min(c.openY, c.closeY);
-                          const h = Math.max(Math.abs(c.openY - c.closeY), 2);
-                          return (
-                            <g key={c.id}>
-                              <line
-                                x1={c.x}
-                                y1={c.highY}
-                                x2={c.x}
-                                y2={c.lowY}
-                                stroke={c.wickColor}
-                                strokeWidth="1.2"
-                              />
-                              <rect
-                                x={c.x - w / 2}
-                                y={top}
-                                width={w}
-                                height={h}
-                                fill={c.bodyColor}
-                              />
-                            </g>
-                          );
-                        })}
-                      </svg>
+                    {/* Source Graphic Asset Thumbnail */}
+                    <div className="w-full h-36 rounded-lg border border-slate-800 bg-[#070B14] overflow-hidden flex items-center justify-center p-1.5 relative group-hover:border-teal-500/40 transition-colors">
+                      <img
+                        src={getSbtAssetPath(m.modelNumber)}
+                        alt={m.title}
+                        className="w-full h-full object-contain rounded"
+                        loading="lazy"
+                      />
+                      <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-slate-950/85 border border-slate-700/80 text-[9px] font-mono-code text-teal-400 font-bold flex items-center gap-1">
+                        <ImageIcon className="w-2.5 h-2.5" />
+                        <span>SOURCE ASSET</span>
+                      </div>
                     </div>
 
                     {/* Rules Preview count */}
@@ -342,36 +344,121 @@ export const SbtModelsHub: React.FC = () => {
       {/* VIEW 2: INDIVIDUAL MODEL INSPECTION */}
       {activeModel && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Deterministic Vector SVG Chart */}
+          {/* Left Column: Graphic Asset & Studio Viewer */}
           <div className="lg:col-span-7 space-y-4">
-            {/* Sub-variation Selector (for models with variations like 7A/7B, 8A/8B, 5 Single/MCOB, 9 SingleWick/TwoCandle, 10 Var1/Var2) */}
-            {activeModel.variations && activeModel.variations.length > 1 && (
-              <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-mono-code text-slate-400 px-2 font-semibold">
-                  Source Variation:
-                </span>
-                {activeModel.variations.map((v) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    onClick={() => setActiveVariationId(v.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold transition cursor-pointer border ${
-                      activeVariationId === v.id
-                        ? 'bg-teal-500/20 text-teal-300 border-teal-500/40'
-                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    {v.name}
-                  </button>
-                ))}
+            {/* View Mode & Variation Bar */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
+              {/* Variation Buttons (for models with 7A/7B, 8A/8B, 5 Single/MCOB, etc.) */}
+              <div className="flex flex-wrap items-center gap-2">
+                {activeModel.variations && activeModel.variations.length > 1 ? (
+                  <>
+                    <span className="text-[11px] font-mono-code text-slate-400 px-1 font-semibold">
+                      Variation:
+                    </span>
+                    {activeModel.variations.map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => setActiveVariationId(v.id)}
+                        className={`px-3 py-1 rounded-lg text-xs font-mono-code font-bold transition cursor-pointer border ${
+                          (activeVariationId || activeModel.variations![0].id) === v.id
+                            ? 'bg-teal-500/20 text-teal-300 border-teal-500/40'
+                            : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        {v.name}
+                      </button>
+                    ))}
+                  </>
+                ) : (
+                  <span className="text-[11px] font-mono-code text-teal-400/90 font-bold px-1">
+                    PRIMARY MODEL FORMATION
+                  </span>
+                )}
               </div>
-            )}
 
-            {/* Authoritative Vector Chart */}
-            <SbtDeterministicChart
-              model={activeModel}
-              selectedVariationId={activeVariationId}
-            />
+              {/* Mode Switcher: Source Asset vs Interactive Studio */}
+              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode('SOURCE_ASSET')}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono-code font-bold transition cursor-pointer ${
+                    displayMode === 'SOURCE_ASSET'
+                      ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title="View original image asset from the source PDF"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>SOURCE ASSET (PNG)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode('VECTOR_STUDIO')}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono-code font-bold transition cursor-pointer ${
+                    displayMode === 'VECTOR_STUDIO'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title="Interactive vector chart with individual candlestick inspections"
+                >
+                  <Cpu className="w-3.5 h-3.5" />
+                  <span>VECTOR STUDIO</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Display Area: Source Asset or Vector Studio */}
+            {displayMode === 'SOURCE_ASSET' ? (
+              <div className="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden shadow-2xl relative group">
+                {/* Header Action Strip */}
+                <div className="bg-slate-950 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between text-xs font-mono-code">
+                  <div className="flex items-center gap-2 text-slate-300">
+                    <span className="w-2 h-2 rounded-full bg-teal-400" />
+                    <span className="font-bold text-slate-200">
+                      {activeModel.title}
+                    </span>
+                    <span className="text-slate-500">• PDF Page {activeModel.sourcePage} Asset</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsLightboxOpen(true)}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-slate-700 transition cursor-pointer"
+                      title="Inspect full-size image"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      <span>EXPAND</span>
+                    </button>
+                    <a
+                      href={getSbtAssetPath(activeModel.modelNumber, activeVariationId)}
+                      download={`SBT-Model-${activeModel.modelNumber}.png`}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-teal-300 border border-slate-800 hover:border-teal-500/40 transition cursor-pointer"
+                      title="Download source graphic"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>DOWNLOAD</span>
+                    </a>
+                  </div>
+                </div>
+
+                {/* Primary Source Graphic Image */}
+                <div className="p-3 bg-[#060912] flex items-center justify-center min-h-[380px]">
+                  <img
+                    src={getSbtAssetPath(activeModel.modelNumber, activeVariationId)}
+                    alt={`${activeModel.title} - Source Graphic Asset`}
+                    className="w-full h-auto max-h-[500px] object-contain rounded-lg border border-slate-800/80 shadow-inner cursor-zoom-in"
+                    onClick={() => setIsLightboxOpen(true)}
+                  />
+                </div>
+              </div>
+            ) : (
+              /* Authoritative Vector Chart */
+              <SbtDeterministicChart
+                model={activeModel}
+                selectedVariationId={activeVariationId}
+              />
+            )}
 
             {/* Execution Criteria Quick Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono-code">
@@ -557,6 +644,59 @@ export const SbtModelsHub: React.FC = () => {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* LIGHTBOX MODAL FOR FULL-RESOLUTION INSPECTION */}
+      {isLightboxOpen && activeModel && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-6 animate-fadeIn">
+          {/* Top Bar */}
+          <div className="w-full max-w-5xl flex items-center justify-between pb-3 text-slate-200 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-mono-code text-xs font-bold border border-teal-500/30">
+                MODEL {activeModel.modelNumber}
+              </span>
+              <h3 className="font-military font-bold text-base sm:text-lg text-slate-100">
+                {activeModel.title}
+              </h3>
+              <span className="text-xs font-mono-code text-slate-400 hidden sm:inline">
+                (PDF Source Page {activeModel.sourcePage})
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <a
+                href={getSbtAssetPath(activeModel.modelNumber, activeVariationId)}
+                download={`SBT-Model-${activeModel.modelNumber}.png`}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/40 text-xs font-mono-code font-bold hover:bg-teal-500/30 transition cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>SAVE PNG</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setIsLightboxOpen(false)}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition cursor-pointer"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Full size image canvas */}
+          <div className="w-full max-w-5xl flex-1 flex items-center justify-center overflow-auto p-4">
+            <img
+              src={getSbtAssetPath(activeModel.modelNumber, activeVariationId)}
+              alt={activeModel.title}
+              className="max-w-full max-h-[80vh] object-contain rounded-xl border border-slate-800 shadow-2xl bg-[#090D18]"
+            />
+          </div>
+
+          {/* Hint */}
+          <div className="text-center text-xs font-mono-code text-slate-400 pt-2">
+            Click anywhere outside or press Close to return to the model inspection workspace
           </div>
         </div>
       )}

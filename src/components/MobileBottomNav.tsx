@@ -52,35 +52,26 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
   const allCategories = useMemo(() => {
     return [
-      { id: 'DASHBOARD' as MainNavTab, label: 'Dashboard', desc: 'Tactical overview & trade metrics', icon: Activity, section: 'Execution' },
-      { id: 'JOURNAL' as MainNavTab, label: 'Trade Journal', desc: 'Detailed log & execution vault', icon: BookOpen, section: 'Execution' },
-      { id: 'PERFORMANCE' as MainNavTab, label: 'Performance Analytics', desc: 'Win rates, R:R & drawdowns', icon: BarChart3, section: 'Execution' },
-      { id: 'RISK' as MainNavTab, label: 'Risk Management', desc: 'Discipline rules & trade limits', icon: Crosshair, section: 'Execution' },
-      { id: 'LOT_SIZE' as MainNavTab, label: 'Lot Size Calculator', desc: 'Exact risk positioning tool', icon: Calculator, section: 'Execution' },
-      { id: 'COMPOUNDING' as MainNavTab, label: 'Compounding Tool', desc: 'Long-term growth simulator', icon: Calculator, section: 'Execution' },
-      { id: 'REPORTS' as MainNavTab, label: 'Performance Reports', desc: 'Weekly & monthly summaries', icon: FileText, section: 'Execution' },
-      { id: 'PRE_TRADE_PLAN' as MainNavTab, label: 'Pre-Trade Plan', desc: 'Execution checklist protocol', icon: ShieldAlert, highlight: true, section: 'Execution' },
-      { id: 'SBT_MODELS' as MainNavTab, label: 'SBT Models', desc: '10 Structure-Based Trading models & 3D diagrams', icon: Layers, highlight: true, section: 'Intelligence' },
-
-      { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: 'Fundamental Calendar', desc: 'Macro news & high-impact releases', icon: Calendar, highlight: true, section: 'Intelligence' },
-      { id: 'RESEARCH' as MainNavTab, label: 'Trading Research', desc: 'Institutional playbooks & SMC', icon: Compass, comingSoon: true, section: 'Intelligence' },
-      { id: 'SIGNALS' as MainNavTab, label: 'Premium Signals', desc: 'Institutional VIP trade setups', icon: Radio, comingSoon: true, highlight: true, section: 'Intelligence' },
-
-      { id: 'PSYCHOLOGY' as MainNavTab, label: 'Psychology Center', desc: 'Emotional state & cognitive audit', icon: Brain, highlight: true, section: 'Psychology' },
-      { id: 'CALMING_TOOLS' as MainNavTab, label: 'Calming Tools Suite', desc: 'Diaphragmatic breathing & focus', icon: Wind, highlight: true, section: 'Psychology' },
-      { id: 'DAILY_DEV' as MainNavTab, label: 'Daily Development', desc: 'Traders habit tracker & routines', icon: Award, section: 'Psychology' },
-
-      { id: 'FREEHAND_WORKSPACE' as MainNavTab, label: 'Freehand Canvas', desc: 'Diagramming & markup workspace', icon: PenTool, section: 'Community & Tools' },
-      { id: 'COMMUNITY' as MainNavTab, label: 'Trader Community Feed', desc: 'Live dispatches & peer sharing', icon: Users, section: 'Community & Tools' },
-      { id: 'BOOK_SESSION' as MainNavTab, label: 'Book a Session', desc: '1-on-1 mentorship consultation', icon: MessageSquare, highlight: true, section: 'Community & Tools' },
-      { id: 'SETTINGS' as MainNavTab, label: 'Data Export & Backup', desc: 'Export journal & restore state', icon: Settings2, section: 'Community & Tools' },
-
-      ...(currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' || currentUser?.isDeveloper || currentUser?.username === 'primepipfx-admin'
-        ? [
-            { id: 'ADMIN' as MainNavTab, label: 'Admin Panel — Owner', desc: 'User access & customer controls', icon: ShieldCheck, highlight: true, section: 'Administration' },
-            { id: 'EVOLUTION' as MainNavTab, label: 'Evolution Engine', desc: 'Autonomous system upgrades', icon: Cpu, highlight: true, section: 'Administration' },
-          ]
-        : []),
+      { id: 'DASHBOARD' as MainNavTab, label: '01. Dashboard', desc: 'Tactical overview & trade metrics', icon: Activity, section: 'Core' },
+      { id: 'JOURNAL' as MainNavTab, label: '02. Trade Journal', desc: 'Detailed log & execution vault', icon: BookOpen, section: 'Core' },
+      { id: 'SBT_MODELS' as MainNavTab, label: '03. SBT Models', desc: '10 Structure-Based Trading models & PDF assets', icon: Layers, highlight: true, section: 'Core' },
+      { id: 'LOT_SIZE' as MainNavTab, label: '04. Lot Size Calculator', desc: 'Exact risk positioning tool', icon: Calculator, section: 'Risk & Strategy' },
+      { id: 'RISK' as MainNavTab, label: '05. Risk Management', desc: 'Discipline rules & trade limits', icon: Crosshair, section: 'Risk & Strategy' },
+      { id: 'PRE_TRADE_PLAN' as MainNavTab, label: '06. Pre-Trade Plan', desc: '3-phase execution checklist gatekeeper', icon: ShieldAlert, highlight: true, section: 'Risk & Strategy' },
+      { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: '07. Fundamental Calendar', desc: 'Macro news & high-impact releases', icon: Calendar, highlight: true, section: 'Market Intelligence' },
+      { id: 'SIGNALS' as MainNavTab, label: '08. Premium Signals', desc: 'Institutional VIP trade setups', icon: Radio, comingSoon: true, highlight: true, section: 'Market Intelligence' },
+      { id: 'COMPOUNDING' as MainNavTab, label: '09. Compounding Tools', desc: 'Long-term growth simulator', icon: Calculator, section: 'Market Intelligence' },
+      { id: 'PERFORMANCE' as MainNavTab, label: '10. Performance Report', desc: 'Win rates, R:R & drawdowns', icon: BarChart3, section: 'Analytics' },
+      { id: 'DAILY_DEV' as MainNavTab, label: '11. Daily Development', desc: 'Traders habit tracker & routines', icon: Award, section: 'Mindset & Health' },
+      { id: 'PSYCHOLOGY' as MainNavTab, label: '12. Psychological Center', desc: 'Emotional state & cognitive audit', icon: Brain, highlight: true, section: 'Mindset & Health' },
+      { id: 'CALMING_TOOLS' as MainNavTab, label: '13. Trading Tool Suite', desc: 'Diaphragmatic breathing & focus tools', icon: Wind, highlight: true, section: 'Mindset & Health' },
+      { id: 'RESEARCH' as MainNavTab, label: '14. Academic Research', desc: 'OpenAlex academic market research engine', icon: Compass, highlight: true, section: 'Research & Tools' },
+      { id: 'FREEHAND_WORKSPACE' as MainNavTab, label: '15. Freehand Canvas', desc: 'Diagramming & markup workspace', icon: PenTool, section: 'Research & Tools' },
+      { id: 'COMMUNITY' as MainNavTab, label: '16. Trader Community Feed', desc: 'Live dispatches & peer sharing', icon: Users, section: 'Community' },
+      { id: 'BOOK_SESSION' as MainNavTab, label: '17. Book a Session', desc: '1-on-1 mentorship consultation', icon: MessageSquare, highlight: true, section: 'Community' },
+      { id: 'SETTINGS' as MainNavTab, label: '18. Data Export & Backup', desc: 'Export journal & restore state', icon: Settings2, section: 'Operations' },
+      { id: 'ADMIN' as MainNavTab, label: '19. Admin Panel (Owner)', desc: 'User access & customer controls', icon: ShieldCheck, highlight: true, section: 'Administration' },
+      { id: 'EVOLUTION' as MainNavTab, label: '20. Evaluation Engine', desc: 'Proprietary performance review & evolution', icon: Cpu, highlight: true, section: 'Administration' },
     ];
   }, [currentUser]);
 
