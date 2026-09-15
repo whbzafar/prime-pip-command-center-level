@@ -36,8 +36,6 @@ import {
   Cpu,
   Wind,
   Radio,
-  ChevronDown,
-  MoreHorizontal,
 } from 'lucide-react';
 import { AccountSettings, TraderPerformanceScores, UserAccount } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
@@ -183,23 +181,49 @@ export const Header: React.FC<HeaderProps> = ({
     };
   }, []);
 
-  const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState<boolean>(false);
-  const moreMenuRef = React.useRef<HTMLDivElement>(null);
+  const navScrollRef = React.useRef<HTMLDivElement>(null);
+  const isDraggingRef = React.useRef<boolean>(false);
+  const startXRef = React.useRef<number>(0);
+  const scrollLeftRef = React.useRef<number>(0);
+  const dragDistanceRef = React.useRef<number>(0);
 
-  // Close more menu when clicking outside
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
-        setIsMoreMenuOpen(false);
-      }
-    };
-    if (isMoreMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+  // Wheel horizontal scrolling (convert vertical scroll wheel to horizontal scroll)
+  const handleNavWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (navScrollRef.current && e.deltaY !== 0 && e.deltaX === 0) {
+      navScrollRef.current.scrollLeft += e.deltaY;
     }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isMoreMenuOpen]);
+  };
+
+  // Mouse drag support for desktop & laptop
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!navScrollRef.current) return;
+    isDraggingRef.current = true;
+    dragDistanceRef.current = 0;
+    startXRef.current = e.pageX - navScrollRef.current.offsetLeft;
+    scrollLeftRef.current = navScrollRef.current.scrollLeft;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current || !navScrollRef.current) return;
+    const x = e.pageX - navScrollRef.current.offsetLeft;
+    const walk = x - startXRef.current;
+    dragDistanceRef.current = Math.abs(walk);
+    navScrollRef.current.scrollLeft = scrollLeftRef.current - walk;
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isDraggingRef.current = false;
+  };
+
+  // Auto-scroll active item into view
+  React.useEffect(() => {
+    if (navScrollRef.current) {
+      const activeEl = navScrollRef.current.querySelector<HTMLElement>('[data-active-nav="true"]');
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  }, [activeTab]);
 
   const handleTestSound = () => {
     if (!alertSettings.soundEnabled) {
@@ -219,65 +243,37 @@ export const Header: React.FC<HeaderProps> = ({
   const isLimitReached = tradesToday >= maxDailyTrades;
   const isOneTradeRemaining = tradesToday === 1 && maxDailyTrades === 2;
 
-  // 5-7 Clean Primary Tabs
-  const primaryNavItems = [
+  // Complete List of All Navigation Categories Displayed Directly (No "MORE" Dropdown)
+  const allNavCategories = [
     { id: 'DASHBOARD' as MainNavTab, label: 'DASHBOARD', icon: Activity },
     { id: 'JOURNAL' as MainNavTab, label: 'TRADE JOURNAL', icon: BookOpen },
     { id: 'PERFORMANCE' as MainNavTab, label: 'PERFORMANCE', icon: BarChart3 },
     { id: 'RESEARCH' as MainNavTab, label: 'TRADING RESEARCH', icon: Compass },
     { id: 'SIGNALS' as MainNavTab, label: 'PREMIUM SIGNALS', icon: Radio, highlight: true },
     { id: 'RISK' as MainNavTab, label: 'RISK MANAGEMENT', icon: Crosshair },
+    { id: 'LOT_SIZE' as MainNavTab, label: 'LOT SIZE CALCULATOR', icon: Calculator },
+    { id: 'COMPOUNDING' as MainNavTab, label: 'COMPOUNDING TOOL', icon: Calculator },
+    { id: 'REPORTS' as MainNavTab, label: 'PERFORMANCE REPORTS', icon: FileText },
+    { id: 'PRE_TRADE_PLAN' as MainNavTab, label: 'PRE-TRADE PLAN', icon: ShieldAlert, highlight: true },
+    { id: 'DAILY_DEV' as MainNavTab, label: 'DAILY DEVELOPMENT', icon: Award },
+    { id: 'PSYCHOLOGY' as MainNavTab, label: 'PSYCHOLOGY CENTER', icon: Brain, highlight: true },
+    { id: 'CALMING_TOOLS' as MainNavTab, label: 'CALMING TOOLS SUITE', icon: Wind, highlight: true },
+    { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: 'FUNDAMENTAL CALENDAR', icon: Calendar, highlight: true },
+    { id: 'FREEHAND_WORKSPACE' as MainNavTab, label: 'FREEHAND CANVAS', icon: PenTool },
+    { id: 'COMMUNITY' as MainNavTab, label: 'TRADER COMMUNITY FEED', icon: Users },
+    { id: 'BOOK_SESSION' as MainNavTab, label: 'BOOK A SESSION', icon: MessageSquare, highlight: true },
+    { id: 'SETTINGS' as MainNavTab, label: 'DATA EXPORT & BACKUP', icon: Settings2 },
+    ...(currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' || currentUser?.isDeveloper || currentUser?.username === 'primepipfx-admin'
+      ? [
+          { id: 'ADMIN' as MainNavTab, label: 'ADMIN PANEL — OWNER', icon: ShieldCheck, highlight: true },
+          { id: 'EVOLUTION' as MainNavTab, label: 'EVOLUTION ENGINE', icon: Cpu, highlight: true },
+        ]
+      : [
+          { id: 'ADMIN' as MainNavTab, label: 'ADMIN PANEL — OWNER', icon: ShieldCheck, highlight: false },
+        ]),
   ];
-
-  // Secondary Tools Categorized under "More..."
-  const secondaryCategories = [
-    {
-      title: 'ANALYTICAL & CALCULATORS',
-      items: [
-        { id: 'LOT_SIZE' as MainNavTab, label: 'Lot Size Calculator', subtext: 'Exact 1% lot sizing', icon: Calculator },
-        { id: 'COMPOUNDING' as MainNavTab, label: 'Compounding Tool', subtext: 'Growth projection engine', icon: Calculator },
-        { id: 'REPORTS' as MainNavTab, label: 'Performance Reports', subtext: 'Statistical PDF/audits', icon: FileText },
-      ],
-    },
-    {
-      title: 'DISCIPLINE & MINDSET',
-      items: [
-        { id: 'PRE_TRADE_PLAN' as MainNavTab, label: 'Pre-Trade Plan', subtext: 'Validate & calculate setups', icon: ShieldAlert, highlight: true },
-        { id: 'DAILY_DEV' as MainNavTab, label: 'Daily Development', subtext: 'Habits & daily routine', icon: Award },
-        { id: 'PSYCHOLOGY' as MainNavTab, label: 'Psychology Center', subtext: 'Discipline masterclass', icon: Brain, highlight: true },
-        { id: 'CALMING_TOOLS' as MainNavTab, label: 'Calming Tools Suite', subtext: 'Box breathing & reset', icon: Wind, highlight: true },
-      ],
-    },
-    {
-      title: 'WORKSPACE & RESEARCH',
-      items: [
-        { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: 'Fundamental Calendar', subtext: 'High-impact macro events', icon: Calendar, highlight: true },
-        { id: 'FREEHAND_WORKSPACE' as MainNavTab, label: 'Freehand Canvas', subtext: 'Interactive chart sketching', icon: PenTool },
-        { id: 'COMMUNITY' as MainNavTab, label: 'Trader Community Feed', subtext: 'Peer discussions & ideas', icon: Users },
-        { id: 'BOOK_SESSION' as MainNavTab, label: 'Book A Session', subtext: '1-on-1 strategy coaching', icon: MessageSquare, highlight: true },
-      ],
-    },
-    {
-      title: 'SYSTEM & VAULT',
-      items: [
-        { id: 'SETTINGS' as MainNavTab, label: 'Data Export & Backup', subtext: 'Authoritative data backup', icon: Settings2 },
-        ...(currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' || currentUser?.isDeveloper || currentUser?.username === 'primepipfx-admin'
-          ? [
-              { id: 'ADMIN' as MainNavTab, label: 'Admin Panel — Owner', subtext: 'Access master controls', icon: ShieldCheck, highlight: true },
-              { id: 'EVOLUTION' as MainNavTab, label: 'Evolution Engine', subtext: 'Autonomous AI engine', icon: Cpu, highlight: true },
-            ]
-          : []),
-      ],
-    },
-  ];
-
-  // Check if current active tab is inside "More..."
-  const allSecondaryItems = secondaryCategories.flatMap((c) => c.items);
-  const activeSecondaryItem = allSecondaryItems.find((item) => item.id === activeTab);
-  const isSecondaryActive = Boolean(activeSecondaryItem);
 
   const handleNavClick = (id: MainNavTab) => {
-    setIsMoreMenuOpen(false);
     if (id === 'ACCOUNTS') {
       if (onOpenAccountManager) {
         onOpenAccountManager();
@@ -709,117 +705,47 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Navigation Tabs with Smooth Micro-interactions (Desktop & Tablet Navigation) */}
-      <div className="hidden md:flex px-3 sm:px-6 items-center justify-between border-t border-slate-800/60 py-1.5 bg-[#090D15]/90 relative z-30">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          {primaryNavItems.map((item) => {
+      {/* Horizontally Scrollable Full Navigation Bar (Desktop, Laptop, Tablet & Mobile) */}
+      <div className="w-full border-t border-slate-800/60 py-1.5 bg-[#090D15]/95 relative z-30 overflow-hidden">
+        <div
+          ref={navScrollRef}
+          onWheel={handleNavWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUpOrLeave}
+          onMouseLeave={handleMouseUpOrLeave}
+          className="flex items-center gap-1.5 px-3 sm:px-6 overflow-x-auto overflow-y-hidden select-none whitespace-nowrap cursor-grab active:cursor-grabbing [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden touch-pan-x"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+        >
+          {allNavCategories.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
               <button
                 key={item.id}
                 id={`nav-tab-${item.id.toLowerCase()}`}
-                onClick={() => handleNavClick(item.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-military tracking-wider font-semibold transition-all duration-180 select-none whitespace-nowrap active:scale-95 cursor-pointer ${
+                data-active-nav={isActive ? 'true' : 'false'}
+                onClick={(e) => {
+                  if (dragDistanceRef.current > 6) {
+                    e.preventDefault();
+                    return;
+                  }
+                  handleNavClick(item.id);
+                }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-military tracking-wider font-semibold transition-all duration-180 select-none whitespace-nowrap active:scale-95 cursor-pointer shrink-0 ${
                   isActive
                     ? 'bg-amber-500/15 text-amber-300 shadow-sm shadow-amber-500/15 border border-amber-500/40'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850/70 border border-transparent'
                 } ${item.highlight && !isActive ? 'text-amber-300/80 font-bold' : ''}`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
-                <span>{item.label}</span>
+                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
+                <span className="truncate">{item.label}</span>
                 {item.highlight && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
                 )}
               </button>
             );
           })}
-
-          {/* More... Dropdown Trigger */}
-          <div className="relative" ref={moreMenuRef}>
-            <button
-              id="nav-tab-more"
-              onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-military tracking-wider font-semibold transition-all duration-180 select-none whitespace-nowrap active:scale-95 cursor-pointer ${
-                isSecondaryActive || isMoreMenuOpen
-                  ? 'bg-amber-500/15 text-amber-300 shadow-sm shadow-amber-500/15 border border-amber-500/40'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850/70 border border-transparent'
-              }`}
-            >
-              <MoreHorizontal className="w-3.5 h-3.5 text-amber-400/90" />
-              <span>MORE</span>
-              {activeSecondaryItem && (
-                <span className="text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold uppercase tracking-normal">
-                  {activeSecondaryItem.label}
-                </span>
-              )}
-              <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isMoreMenuOpen ? 'rotate-180 text-amber-400' : ''}`} />
-            </button>
-
-            {/* Structured Categorized Secondary Modules Dropdown */}
-            {isMoreMenuOpen && (
-              <div className="absolute left-0 mt-2 w-[760px] max-w-[90vw] p-4 bg-[#080C14]/98 border border-slate-700/80 rounded-2xl shadow-2xl backdrop-blur-xl z-50 animate-in fade-in slide-in-from-top-2 duration-180">
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800/90">
-                  <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-3.5 bg-amber-500 rounded-sm"></span>
-                    <span className="font-military font-bold text-xs tracking-wider text-slate-200 uppercase">
-                      SECONDARY STRATEGIC & OPERATIONAL TOOLS
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-mono-code text-slate-500">
-                    PRESS ANY MODULE TO ACTIVATE
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {secondaryCategories.map((category) => (
-                    <div key={category.title} className="space-y-2">
-                      <div className="text-[10px] font-mono-code font-bold tracking-wider text-amber-400/90 uppercase border-b border-slate-800/80 pb-1 flex items-center justify-between">
-                        <span>{category.title}</span>
-                      </div>
-                      <div className="space-y-1">
-                        {category.items.map((subItem) => {
-                          const SubIcon = subItem.icon;
-                          const isSubActive = activeTab === subItem.id;
-                          return (
-                            <button
-                              key={subItem.id}
-                              id={`secondary-nav-${subItem.id.toLowerCase()}`}
-                              onClick={() => handleNavClick(subItem.id)}
-                              className={`w-full text-left p-2 rounded-lg transition-all flex items-start gap-2.5 cursor-pointer group ${
-                                isSubActive
-                                  ? 'bg-amber-500/15 border border-amber-500/40 text-amber-300'
-                                  : 'hover:bg-slate-900/90 border border-transparent text-slate-300'
-                              }`}
-                            >
-                              <div className={`p-1.5 rounded-md mt-0.5 shrink-0 ${
-                                isSubActive
-                                  ? 'bg-amber-500/20 text-amber-400'
-                                  : 'bg-slate-900 text-slate-400 group-hover:text-amber-400 group-hover:bg-slate-800'
-                              }`}>
-                                <SubIcon className="w-3.5 h-3.5" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="text-xs font-military font-bold tracking-wider flex items-center gap-1.5">
-                                  <span className="truncate">{subItem.label}</span>
-                                  {subItem.highlight && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
-                                  )}
-                                </div>
-                                <div className="text-[10px] font-mono-code text-slate-400 truncate mt-0.5">
-                                  {subItem.subtext}
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
       {/* Global Time & Market Session Modal */}

@@ -32,10 +32,6 @@ import { formatCurrency } from '../utils/currencyFormatter';
 import { getKarachiEpoch } from '../utils/time';
 import { calculateNextTradeReadiness } from '../utils/readinessEngine';
 import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
-import { DashboardMarketIntelligence } from './dashboard/DashboardMarketIntelligence';
-import { DashboardRiskDefense } from './dashboard/DashboardRiskDefense';
-import { DashboardPsychology } from './dashboard/DashboardPsychology';
-import { DashboardPerformance } from './dashboard/DashboardPerformance';
 import { DashboardAiCoach } from './dashboard/DashboardAiCoach';
 import { DashboardDailyDevelopment } from './dashboard/DashboardDailyDevelopment';
 import { DashboardSignals } from './dashboard/DashboardSignals';
@@ -763,53 +759,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
       </div>
 
       {/* ================================================================= */}
-      {/* TIER 1 BENTO GRID: MARKET / RISK / PERFORMANCE / PSYCHOLOGY        */}
-      {/* ================================================================= */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-3.5 bg-amber-500 rounded-sm"></span>
-            <h3 className="text-xs font-military tracking-wider font-bold text-slate-300 uppercase">
-              STRATEGIC PILLARS: MARKET • RISK • PERFORMANCE • PSYCHOLOGY
-            </h3>
-          </div>
-          <span className="text-[10px] font-mono-code text-slate-500 uppercase">TIER 1 BENTO</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <DashboardMarketIntelligence
-            onNavigateToTab={onNavigateToTab}
-            onOpenTimeModal={() => {
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('primepipfx_open_time_modal'));
-              }
-            }}
-          />
-
-          <DashboardRiskDefense
-            account={account}
-            metrics={metrics}
-            trades={trades || []}
-            onNavigateToTab={onNavigateToTab}
-          />
-
-          <DashboardPerformance
-            metrics={metrics}
-            account={account}
-            scores={scores}
-            trades={trades || []}
-            onNavigateToTab={onNavigateToTab}
-          />
-
-          <DashboardPsychology
-            trades={trades || []}
-            onNavigateToTab={onNavigateToTab}
-          />
-        </div>
-      </div>
-
-      {/* ================================================================= */}
-      {/* TIER 2 BENTO GRID: AI COACH • DAILY DEVELOPMENT • SIGNALS         */}
+      {/* OPERATIONAL INTELLIGENCE: AI COACH • DAILY DEVELOPMENT • SIGNALS  */}
       {/* ================================================================= */}
       <div>
         <div className="flex items-center justify-between mb-3">
