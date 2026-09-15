@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Lock,
   User,
@@ -11,7 +11,8 @@ import {
   CheckCircle2,
   MessageCircle,
 } from 'lucide-react';
-import { apiLogin, apiChangePassword, setStoredUser } from '../utils/authClient';
+import { apiLogin, apiChangePassword, setStoredUser, checkAndHandleActivationLink, getStoredToken } from '../utils/authClient';
+import { syncStudentsFromCloud } from '../utils/localAuthStore';
 import { UserAccount } from '../types';
 
 interface FirstOpenLoginScreenProps {
@@ -39,6 +40,17 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changeSuccess, setChangeSuccess] = useState(false);
+
+  useEffect(() => {
+    // Check for 1-click activation link in URL (?activate=username&key=password)
+    checkAndHandleActivationLink().then((activatedUser) => {
+      if (activatedUser) {
+        onLoginSuccess(activatedUser, getStoredToken() || 'token');
+      }
+    });
+    // Pre-sync latest registered student credentials from Cloud KV (Vercel support)
+    syncStudentsFromCloud().catch(() => {});
+  }, []);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

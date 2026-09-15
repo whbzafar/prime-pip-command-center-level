@@ -1,9 +1,11 @@
 import { UserAccount, SubscriptionStatus } from '../types';
 import {
   authenticateLocal,
+  authenticateLocalAsync,
   setLocalAdminPassword,
   saveLocalStudent,
   getLocalStudents,
+  syncStudentsFromCloud,
 } from './localAuthStore';
 
 const TOKEN_KEY = 'primepipfx_auth_token';
@@ -143,8 +145,8 @@ export async function apiLogin(
       }
       
       // If server returned an authentication error, also check local store before failing
-      // (in case the student account was created locally on Vercel)
-      const localResult = authenticateLocal(cleanUsername, cleanPassword);
+      // (in case the student account was created locally or on Vercel cloud KV)
+      const localResult = await authenticateLocalAsync(cleanUsername, cleanPassword);
       if (localResult.ok && localResult.user) {
         if (localResult.token) setStoredToken(localResult.token);
         setStoredUser(localResult.user);
@@ -158,13 +160,38 @@ export async function apiLogin(
   }
 
   // If server response is not JSON (e.g. 404 HTML on Vercel deployment) or server is unreachable:
-  const localAuth = authenticateLocal(cleanUsername, cleanPassword);
+  const localAuth = await authenticateLocalAsync(cleanUsername, cleanPassword);
   if (localAuth.ok && localAuth.user) {
     if (localAuth.token) setStoredToken(localAuth.token);
     setStoredUser(localAuth.user);
     return localAuth;
   }
   return { ok: false, error: localAuth.error || 'Invalid credentials.' };
+}
+
+/**
+ * Checks URL for direct 1-click student activation link (?activate=username&key=password)
+ * If found, activates the student account and logs them in immediately with zero errors!
+ */
+export async function checkAndHandleActivationLink(): Promise<UserAccount | null> {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const activateUser = params.get('activate') || params.get('student_login') || params.get('user');
+    const activateKey = params.get('key') || params.get('password') || params.get('pass');
+
+    if (activateUser && activateKey) {
+      const res = await apiLogin(activateUser, activateKey);
+      if (res.ok && res.user) {
+        // Clean URL params without reloading
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        return res.user;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to handle activation link:', e);
+  }
+  return null;
 }
 
 export async function apiGetCurrentUser(): Promise<UserAccount | null> {

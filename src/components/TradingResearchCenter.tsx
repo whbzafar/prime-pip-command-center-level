@@ -17,6 +17,7 @@ import {
   Share2,
   Copy,
   Check,
+  Lock,
 } from 'lucide-react';
 
 export type ResearchCategory =
@@ -222,6 +223,39 @@ export const TradingResearchCenter: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Coming Soon Locked Category Notice */}
+      <div className="bg-gradient-to-r from-amber-500/15 via-slate-900 to-amber-500/10 border-2 border-amber-500/40 rounded-2xl p-5 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/20 shrink-0">
+            <Lock className="w-6 h-6 animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
+                CATEGORY LOCKED
+              </span>
+              <span className="text-xs font-military font-bold text-amber-400 tracking-wider">
+                COMING SOON
+              </span>
+            </div>
+            <h2 className="text-base font-military font-bold text-slate-100 tracking-wide mt-0.5">
+              Trading Research Desk In Peer Review
+            </h2>
+            <p className="text-xs font-mono-code text-slate-300">
+              Institutional playbooks, SMC case studies, and quantitative whitepapers are currently being peer-reviewed. Below is the curriculum preview.
+            </p>
+          </div>
+        </div>
+
+        <div className="px-4 py-2 bg-slate-950/80 border border-slate-800 rounded-xl text-center shrink-0">
+          <div className="text-[10px] font-mono-code text-slate-400">STATUS</div>
+          <div className="text-xs font-mono-code text-amber-400 font-bold flex items-center gap-1.5 justify-center">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+            <span>COMING SOON</span>
+          </div>
+        </div>
+      </div>
+
       {/* Top Directive Header */}
       <div className="bg-gradient-to-r from-slate-900 via-[#0B0F19] to-slate-950 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />

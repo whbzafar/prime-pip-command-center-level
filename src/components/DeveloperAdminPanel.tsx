@@ -31,6 +31,8 @@ import {
   getLocalStudents,
   deleteLocalStudent,
   setLocalAdminPassword,
+  syncStudentsToCloud,
+  syncStudentsFromCloud,
 } from '../utils/localAuthStore';
 import { EvolutionCommandCenter } from './evolution/EvolutionCommandCenter';
 
@@ -69,6 +71,8 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<string | null>(null);
 
   // Reschedule state modal
   const [rescheduleModalApt, setRescheduleModalApt] = useState<AppointmentRecord | null>(null);
@@ -115,7 +119,12 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
         fetch('/api/admin/moderation/warnings', { headers, credentials: 'include' }).catch(() => null),
       ]);
 
-      const localStudents = getLocalStudents();
+      let localStudents = getLocalStudents();
+      try {
+        localStudents = await syncStudentsFromCloud();
+      } catch (e) {
+        // fallback to local
+      }
       let serverCustomers: UserAccount[] = [];
 
       if (resCust && resCust.ok) {
@@ -229,6 +238,23 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
     setNewPassword(randomPass);
   };
 
+  const handleCloudSyncNow = async () => {
+    setIsCloudSyncing(true);
+    setCloudSyncStatus(null);
+    try {
+      const ok = await syncStudentsToCloud();
+      await syncStudentsFromCloud();
+      await fetchAdminData();
+      setCloudSyncStatus(ok ? 'Synced to Cloud (Vercel Ready)' : 'Sync completed');
+      setTimeout(() => setCloudSyncStatus(null), 4000);
+    } catch {
+      setCloudSyncStatus('Sync attempt completed');
+      setTimeout(() => setCloudSyncStatus(null), 4000);
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
+
   const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -311,6 +337,9 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       console.warn('Backend server unavailable, student registered locally for Vercel:', err);
     }
 
+    const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://primepipfx.vercel.app';
+    const directLoginLink = `${originUrl}/?activate=${encodeURIComponent(newUsername.trim().toLowerCase())}&key=${encodeURIComponent(assignedPassword)}`;
+
     const msg = `*PrimePipFX Trading Command Center Login Credentials*\n\n` +
       `Assalam o Alaikum ${newName.trim()}! Your account has been activated.\n\n` +
       `• *Username:* ${newUsername.trim()}\n` +
@@ -318,6 +347,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       `• *Status:* ${newStatus}\n` +
       `• *Access Type:* ${newIsLifetime ? 'LIFETIME ACCESS' : 'Standard 30-Day Active'}\n` +
       `• *Your Personal Referral Code:* ${assignedRefCode}\n\n` +
+      `🚀 *1-Click Instant Login Link (No typing required):*\n${directLoginLink}\n\n` +
       `_Rule: If you refer another trader who joins, you get Lifetime Free Access!_\n\n` +
       `WhatsApp Support: 03406671495`;
 
@@ -673,8 +703,27 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
               <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
             </div>
 
-            <div className="text-xs font-mono-code text-slate-400">
-              Showing {filteredCustomers.length} accounts
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleCloudSyncNow}
+                disabled={isCloudSyncing}
+                className="px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 font-mono-code text-xs rounded-xl flex items-center gap-1.5 transition-colors"
+                title="Sync student accounts to the global cloud KV registry so they can log in on any device on Vercel"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isCloudSyncing ? 'animate-spin' : ''}`} />
+                <span>{isCloudSyncing ? 'Syncing...' : 'Sync Students to Cloud'}</span>
+              </button>
+
+              {cloudSyncStatus && (
+                <span className="text-xs font-mono-code text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/30 animate-pulse">
+                  {cloudSyncStatus}
+                </span>
+              )}
+
+              <div className="text-xs font-mono-code text-slate-400">
+                Showing {filteredCustomers.length} accounts
+              </div>
             </div>
           </div>
 

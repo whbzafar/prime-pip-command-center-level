@@ -36,6 +36,9 @@ import {
   Cpu,
   Wind,
   Radio,
+  ChevronLeft,
+  ChevronRight,
+  Lock,
 } from 'lucide-react';
 import { AccountSettings, TraderPerformanceScores, UserAccount } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
@@ -215,6 +218,45 @@ export const Header: React.FC<HeaderProps> = ({
     isDraggingRef.current = false;
   };
 
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  const checkScrollState = () => {
+    if (navScrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = navScrollRef.current;
+      setCanScrollLeft(scrollLeft > 10);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+      const max = scrollWidth - clientWidth;
+      setScrollProgress(max > 0 ? (scrollLeft / max) * 100 : 0);
+    }
+  };
+
+  useEffect(() => {
+    checkScrollState();
+    const el = navScrollRef.current;
+    if (el) {
+      el.addEventListener('scroll', checkScrollState, { passive: true });
+      window.addEventListener('resize', checkScrollState);
+      return () => {
+        el.removeEventListener('scroll', checkScrollState);
+        window.removeEventListener('resize', checkScrollState);
+      };
+    }
+  }, []);
+
+  const handleScrollLeft = () => {
+    if (navScrollRef.current) {
+      navScrollRef.current.scrollBy({ left: -320, behavior: 'smooth' });
+    }
+  };
+
+  const handleScrollRight = () => {
+    if (navScrollRef.current) {
+      navScrollRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+    }
+  };
+
   // Auto-scroll active item into view
   React.useEffect(() => {
     if (navScrollRef.current) {
@@ -222,6 +264,7 @@ export const Header: React.FC<HeaderProps> = ({
       if (activeEl) {
         activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       }
+      checkScrollState();
     }
   }, [activeTab]);
 
@@ -243,13 +286,13 @@ export const Header: React.FC<HeaderProps> = ({
   const isLimitReached = tradesToday >= maxDailyTrades;
   const isOneTradeRemaining = tradesToday === 1 && maxDailyTrades === 2;
 
-  // Complete List of All Navigation Categories Displayed Directly (No "MORE" Dropdown)
+  // Complete List of All Navigation Categories Displayed Directly
   const allNavCategories = [
     { id: 'DASHBOARD' as MainNavTab, label: 'DASHBOARD', icon: Activity },
     { id: 'JOURNAL' as MainNavTab, label: 'TRADE JOURNAL', icon: BookOpen },
     { id: 'PERFORMANCE' as MainNavTab, label: 'PERFORMANCE', icon: BarChart3 },
-    { id: 'RESEARCH' as MainNavTab, label: 'TRADING RESEARCH', icon: Compass },
-    { id: 'SIGNALS' as MainNavTab, label: 'PREMIUM SIGNALS', icon: Radio, highlight: true },
+    { id: 'RESEARCH' as MainNavTab, label: 'TRADING RESEARCH', icon: Compass, comingSoon: true, locked: true },
+    { id: 'SIGNALS' as MainNavTab, label: 'PREMIUM SIGNALS', icon: Radio, highlight: true, comingSoon: true, locked: true },
     { id: 'RISK' as MainNavTab, label: 'RISK MANAGEMENT', icon: Crosshair },
     { id: 'LOT_SIZE' as MainNavTab, label: 'LOT SIZE CALCULATOR', icon: Calculator },
     { id: 'COMPOUNDING' as MainNavTab, label: 'COMPOUNDING TOOL', icon: Calculator },
@@ -707,6 +750,14 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Horizontally Scrollable Full Navigation Bar (Desktop, Laptop, Tablet & Mobile) */}
       <div className="w-full border-t border-slate-800/60 py-1.5 bg-[#090D15]/95 relative z-30 overflow-hidden">
+        {/* Overflow Gradient Shadows for Visual Cue */}
+        {canScrollLeft && (
+          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#090D15] to-transparent pointer-events-none z-10" />
+        )}
+        {canScrollRight && (
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#090D15] to-transparent pointer-events-none z-10" />
+        )}
+
         <div
           ref={navScrollRef}
           onWheel={handleNavWheel}
@@ -720,6 +771,7 @@ export const Header: React.FC<HeaderProps> = ({
           {allNavCategories.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
+            const isComingSoon = (item as any).comingSoon;
             return (
               <button
                 key={item.id}
@@ -732,21 +784,88 @@ export const Header: React.FC<HeaderProps> = ({
                   }
                   handleNavClick(item.id);
                 }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-military tracking-wider font-semibold transition-all duration-180 select-none whitespace-nowrap active:scale-95 cursor-pointer shrink-0 ${
+                className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-military tracking-wider font-semibold transition-all duration-200 select-none whitespace-nowrap active:scale-95 cursor-pointer shrink-0 ${
                   isActive
                     ? 'bg-amber-500/15 text-amber-300 shadow-sm shadow-amber-500/15 border border-amber-500/40'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850/70 border border-transparent'
                 } ${item.highlight && !isActive ? 'text-amber-300/80 font-bold' : ''}`}
               >
-                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
+                {/* Animated Logo Container */}
+                <div
+                  className={`w-5 h-5 rounded flex items-center justify-center transition-all duration-200 group-hover:scale-110 ${
+                    isActive
+                      ? 'bg-amber-500/20 text-amber-300'
+                      : 'text-slate-400 group-hover:text-amber-300 group-hover:bg-slate-800'
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 group-hover:rotate-6 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
+                </div>
                 <span className="truncate">{item.label}</span>
-                {item.highlight && (
+
+                {isComingSoon && (
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code bg-amber-500/10 text-amber-400/90 border border-amber-500/30">
+                    <Lock className="w-2.5 h-2.5" />
+                    <span>SOON</span>
+                  </span>
+                )}
+
+                {item.highlight && !isComingSoon && (
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
                 )}
               </button>
             );
           })}
         </div>
+      </div>
+
+      {/* PC & Laptop Scroll Control & Discovery Indicator Strip */}
+      <div className="w-full bg-[#060A12] border-t border-slate-800/60 px-3 sm:px-6 py-1 flex items-center justify-between gap-3 text-[11px] font-mono-code text-slate-400 select-none">
+        <button
+          type="button"
+          onClick={handleScrollLeft}
+          disabled={!canScrollLeft}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+            canScrollLeft
+              ? 'bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-amber-500/50 shadow-sm shadow-amber-500/10 active:scale-95'
+              : 'opacity-30 text-slate-600 border-transparent cursor-not-allowed'
+          }`}
+          title="Scroll Left — See previous categories"
+        >
+          <ChevronLeft className="w-3.5 h-3.5 text-amber-400" />
+          <span className="hidden sm:inline font-bold">PREV</span>
+        </button>
+
+        <div className="flex-1 max-w-md mx-auto flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 shrink-0 uppercase tracking-wider font-semibold">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            <span>EXPLORE ALL CATEGORIES</span>
+          </div>
+          <div className="flex-1 h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800 relative">
+            <div
+              className="h-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 rounded-full transition-all duration-200"
+              style={{ width: `${Math.max(12, scrollProgress)}%` }}
+            />
+          </div>
+          <div className="flex items-center gap-1 text-[10px] text-amber-400/90 shrink-0 font-semibold">
+            <span className="hidden md:inline">SCROLL FOR MORE</span>
+            <ChevronRight className={`w-3.5 h-3.5 text-amber-400 ${canScrollRight ? 'animate-bounce' : ''}`} />
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleScrollRight}
+          disabled={!canScrollRight}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+            canScrollRight
+              ? 'bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-amber-500/50 shadow-sm shadow-amber-500/15 ring-1 ring-amber-500/40 active:scale-95 animate-pulse'
+              : 'opacity-30 text-slate-600 border-transparent cursor-not-allowed'
+          }`}
+          title="Scroll Right — More categories ahead"
+        >
+          <span className="hidden sm:inline font-bold">MORE CATEGORIES</span>
+          <ChevronRight className="w-3.5 h-3.5 text-amber-400" />
+        </button>
       </div>
       {/* Global Time & Market Session Modal */}
       <GlobalTimeSessionModal

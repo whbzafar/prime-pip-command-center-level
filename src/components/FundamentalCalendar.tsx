@@ -30,7 +30,62 @@ import {
   Clock4,
   ShieldAlert,
   Zap,
+  ExternalLink,
+  Globe,
+  ArrowUpRight,
 } from 'lucide-react';
+
+const REAL_TIME_MACRO_HUBS = [
+  {
+    name: 'Forex Factory Calendar',
+    tag: 'PRIMARY CALENDAR',
+    url: 'https://www.forexfactory.com/calendar',
+    highlight: true,
+    desc: 'Real-time release updates, consensus forecast numbers & live volatility deviation impact.',
+  },
+  {
+    name: 'Forex Factory News Wire',
+    tag: 'LIVE BREAKING NEWS',
+    url: 'https://www.forexfactory.com/news',
+    highlight: true,
+    desc: 'High-speed headline dispatches on central banks, currencies & macro shocks.',
+  },
+  {
+    name: 'DailyFX Economic Calendar',
+    tag: 'ANALYST FORECASTS',
+    url: 'https://www.dailyfx.com/economic-calendar',
+    highlight: false,
+    desc: 'Live macroeconomic calendar with volatility ratings and technical market analysis.',
+  },
+  {
+    name: 'Investing.com Global Desk',
+    tag: 'CENTRAL BANKS',
+    url: 'https://www.investing.com/economic-calendar/',
+    highlight: false,
+    desc: 'Multi-nation event schedules, Fed rate monitors & actual vs prior data.',
+  },
+  {
+    name: 'TradingView Macro Calendar',
+    tag: 'CHART SYNC',
+    url: 'https://www.tradingview.com/economic-calendar/',
+    highlight: false,
+    desc: 'Live economic events synced directly with historical chart price action.',
+  },
+  {
+    name: 'Federal Reserve FOMC Calendar',
+    tag: 'FED OFFICIAL',
+    url: 'https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm',
+    highlight: false,
+    desc: 'Official US rate decision dates, press conference webcasts & SEP projections.',
+  },
+  {
+    name: 'FXStreet Real-Time Calendar',
+    tag: 'FAST EXECUTION',
+    url: 'https://www.fxstreet.com/economic-calendar',
+    highlight: false,
+    desc: 'Ultra-low latency calendar feed with deviation barometers and central bank radar.',
+  },
+];
 
 type CalendarViewMode = 'YEAR' | 'MONTH' | 'WEEK' | 'UPCOMING' | 'HISTORICAL';
 
@@ -194,8 +249,12 @@ export const FundamentalCalendar: React.FC = () => {
         </div>
       </div>
 
-      {/* Main View Selector & Year Navigation */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+      {/* Main View Grid: Calendar on Left, Real-Time Macro Hubs on Right */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Calendar Views & Controls */}
+        <div className="xl:col-span-9 space-y-6">
+          {/* Main View Selector & Year Navigation */}
+          <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
         {/* View Mode Buttons */}
         <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-mono-code flex-wrap">
           <button
@@ -585,6 +644,87 @@ export const FundamentalCalendar: React.FC = () => {
           </div>
         </div>
       )}
+        </div>
+
+        {/* Right Column: Real-Time News & External Macro Hubs (Forex Factory, etc.) */}
+        <div className="xl:col-span-3 space-y-4">
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-4 sticky top-4">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-military font-bold text-slate-100 tracking-wider">
+                    REAL-TIME MACRO HUBS
+                  </h3>
+                  <p className="text-[10px] font-mono-code text-slate-400">
+                    Live Feeds & Consensus News
+                  </p>
+                </div>
+              </div>
+
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-[9px] font-mono-code text-emerald-400 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>LIVE</span>
+              </span>
+            </div>
+
+            {/* Advisory Note */}
+            <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 text-[11px] font-mono-code text-slate-400 leading-relaxed">
+              Use these verified institutional portals to monitor live release deviations, unexpected speeches, and geopolitical breaking news in real time.
+            </div>
+
+            {/* List of Functional Real-Time External Links */}
+            <div className="space-y-2.5">
+              {REAL_TIME_MACRO_HUBS.map((hub) => (
+                <a
+                  key={hub.name}
+                  href={hub.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`block p-3 rounded-xl border transition group cursor-pointer ${
+                    hub.highlight
+                      ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/40 hover:border-amber-400 shadow-sm shadow-amber-500/10'
+                      : 'bg-slate-950/60 hover:bg-slate-800/60 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-military font-bold text-slate-200 group-hover:text-amber-400 transition flex items-center gap-1.5">
+                        {hub.name}
+                      </span>
+                    </div>
+                    <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400 transition" />
+                  </div>
+
+                  <div className="mt-1 flex items-center gap-2">
+                    <span
+                      className={`text-[9px] font-mono-code font-bold px-1.5 py-0.5 rounded border ${
+                        hub.highlight
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                          : 'bg-slate-900 text-slate-400 border-slate-700'
+                      }`}
+                    >
+                      {hub.tag}
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 font-sans mt-1.5 leading-snug">
+                    {hub.desc}
+                  </p>
+                </a>
+              ))}
+            </div>
+
+            {/* Trading Rule Reminder */}
+            <div className="p-3 bg-amber-500/5 rounded-xl border border-amber-500/20 text-[11px] font-mono-code text-amber-400/90 leading-relaxed">
+              <span className="font-bold text-amber-300">INSTITUTIONAL PROTOCOL:</span> Never enter a new position within 15 minutes before or after high-impact RED news releases. Verify live deviations on Forex Factory first.
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Institutional Event Breakdown Modal */}
       {selectedEvent && (
@@ -705,7 +845,17 @@ export const FundamentalCalendar: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-5 pt-3 border-t border-slate-800 flex justify-end">
+            <div className="mt-5 pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <a
+                href="https://www.forexfactory.com/calendar"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-mono-code font-bold transition"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>CHECK LIVE DATA ON FOREX FACTORY</span>
+              </a>
+
               <button
                 onClick={() => setSelectedEvent(null)}
                 className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-mono-code transition cursor-pointer"
