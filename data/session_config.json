@@ -1,0 +1,29 @@
+{
+  "price": 50,
+  "currency": "USD",
+  "durationMinutes": 60,
+  "availableDays": [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday"
+  ],
+  "availableTimeSlots": [
+    "02:00 PM",
+    "04:00 PM",
+    "06:00 PM",
+    "08:00 PM",
+    "10:00 PM"
+  ],
+  "sessionTypes": [
+    "1-on-1 Tactical Mentorship",
+    "Live Execution & Journal Audit",
+    "SBT Model Deep Dive",
+    "Psychology & Emotional Reset",
+    "Risk Protocol Optimization"
+  ],
+  "maxDailyBookings": 3,
+  "ownerWhatsApp": "03406671495"
+}

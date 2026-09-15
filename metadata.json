@@ -1,0 +1,6 @@
+{
+  "name": "PRIMEPIPFX Trading Command Center",
+  "description": "Professional institutional trading command center featuring real-time community, 1-on-1 messaging, WebRTC video calling, dedicated Psychological Command Center, Freehand Workspace, and the autonomous multi-agent PRIMEPIPFX Evolution Engine.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

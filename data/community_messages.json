@@ -1,0 +1,13 @@
+[
+  {
+    "id": "msg-welcome-owner",
+    "userId": "dev-owner-master",
+    "username": "primepipfx-admin",
+    "userRole": "ADMIN",
+    "displayName": "PrimePipFX Developer / Owner",
+    "text": "Welcome to the PrimePipFX Command Center Community Hub. Trade with precision, manage your risk, and keep all discussions professional.",
+    "timestamp": 1789118470538,
+    "timePkt": "01:30 PM",
+    "datePkt": "2026-09-11"
+  }
+]

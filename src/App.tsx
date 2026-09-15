@@ -1,0 +1,1179 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { Header } from './components/Header';
+import { MainDashboard } from './components/MainDashboard';
+import { TradeJournal } from './components/TradeJournal';
+import { PerformanceLab } from './components/PerformanceLab';
+import { PsychologyCenter } from './components/PsychologyCenter';
+import { RiskCenter, TradeLimitAlertSystem } from './components/RiskCenter';
+import { AiTradingCoach } from './components/AiTradingCoach';
+import { GoalsProgress } from './components/GoalsProgress';
+import { CompoundingEngine } from './components/CompoundingEngine';
+import { PersonalImprovementHub } from './components/PersonalImprovementHub';
+import { MainNavTab } from './components/Header';
+import { TradeEntryModal } from './components/TradeEntryModal';
+import { AccountOnboardingModal } from './components/AccountOnboardingModal';
+import { AccountManagerModal } from './components/AccountManagerModal';
+import { DataBackupModal } from './components/DataBackupModal';
+import { initialRules, initialGoals } from './data/initialTrades';
+import { Trade, TradingRule, TradingGoal, AccountSettings, UserAccount } from './types';
+import { calculateDashboardMetrics } from './utils/tradeAnalytics';
+import { LotSizeCalculator } from './components/LotSizeCalculator';
+import { LoginModal } from './components/LoginModal';
+import { FirstOpenLoginScreen } from './components/FirstOpenLoginScreen';
+import { MobileBottomNav } from './components/MobileBottomNav';
+import { SubscriptionPage } from './components/SubscriptionPage';
+import { SubscriptionGateModal } from './components/SubscriptionGateModal';
+import { DeveloperAdminPanel } from './components/DeveloperAdminPanel';
+import { PreTradePlan } from './components/PreTradePlan';
+import { FundamentalCalendar } from './components/FundamentalCalendar';
+import { FreehandWorkspace } from './components/FreehandWorkspace';
+import { CommunityChat } from './components/CommunityChat';
+import { BookSessionView } from './components/BookSessionView';
+import { TradingResearchCenter } from './components/TradingResearchCenter';
+import { PremiumSignalsHub } from './components/PremiumSignalsHub';
+import { AiChartScannerModal } from './components/AiChartScannerModal';
+import { UserProfileModal } from './components/UserProfileModal';
+import { HelpImproveModal } from './components/evolution/HelpImproveModal';
+import { TraderExperienceProfileModal } from './components/evolution/TraderExperienceProfileModal';
+import { EvolutionCommandCenter } from './components/evolution/EvolutionCommandCenter';
+import { CalmingSuiteMaster } from './components/calming/CalmingSuiteMaster';
+import { apiRecordTelemetrySignal } from './utils/evolutionClient';
+import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin } from './utils/authClient';
+import {
+  getAllAccounts,
+  saveAccount,
+  deleteAccount,
+  getTradesForAccount,
+  saveTrade,
+  deleteTrade,
+  getRulesForAccount,
+  saveRulesForAccount,
+  getGoalsForAccount,
+  saveGoalsForAccount,
+  syncUserDataFromServer,
+  syncUserDataToServer,
+} from './utils/db';
+import { Loader2, Shield } from 'lucide-react';
+import { playDisciplineAlert } from './utils/audioAlerts';
+import { getKarachiDate, getKarachiTime } from './utils/time';
+
+export default function App() {
+  // Navigation State
+  const [activeTab, setActiveTab] = useState<MainNavTab>('DASHBOARD');
+
+  // Demo Mode State with persistence to prevent repeated login prompts
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('primepipfx_demo_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [demoToast, setDemoToast] = useState<string | null>(null);
+
+  // Modal States
+  const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [isAccountManagerOpen, setIsAccountManagerOpen] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const [isChartScannerOpen, setIsChartScannerOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isHelpImproveOpen, setIsHelpImproveOpen] = useState(false);
+  const [isTraderProfileOpen, setIsTraderProfileOpen] = useState(false);
+  const [prefilledTradeData, setPrefilledTradeData] = useState<Partial<Trade> | null>(null);
+
+  // Authentication State
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
+
+  // Continuous Telemetry Observation Hook
+  useEffect(() => {
+    try {
+      apiRecordTelemetrySignal(
+        currentUser?.id || 'trader_default',
+        'TOOL_SWITCH',
+        activeTab,
+        { timestamp: Date.now() }
+      );
+    } catch {
+      // Non-blocking telemetry
+    }
+  }, [activeTab, currentUser?.id]);
+
+  // Background Server-authoritative Session Verification
+  useEffect(() => {
+    verifyCurrentSession().then((user) => {
+      if (user) {
+        setCurrentUser(user);
+        setIsDemoMode(false);
+      } else {
+        setCurrentUser(null);
+      }
+    });
+  }, []);
+
+  // Core Data States
+  const [accounts, setAccounts] = useState<AccountSettings[]>([]);
+  const [activeAccount, setActiveAccount] = useState<AccountSettings | null>(null);
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [rules, setRules] = useState<TradingRule[]>([]);
+  const [goals, setGoals] = useState<TradingGoal[]>([]);
+  const [selectedInstrument, setSelectedInstrument] = useState<string>('XAUUSD');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [lastSavedTime, setLastSavedTime] = useState<string>('');
+
+  // Load account data helper
+  const loadAccountData = useCallback(async (account: AccountSettings) => {
+    try {
+      const accountTrades = await getTradesForAccount(account.id);
+      setTrades(accountTrades);
+
+      const accountRules = await getRulesForAccount(account.id);
+      if (accountRules && accountRules.length > 0) {
+        setRules(accountRules);
+      } else {
+        const seededRules = initialRules.map((r) => ({
+          ...r,
+          accountId: account.id,
+          isActive: true,
+          active: true,
+        }));
+        await saveRulesForAccount(account.id, seededRules);
+        setRules(seededRules);
+      }
+
+      const accountGoals = await getGoalsForAccount(account.id);
+      if (accountGoals && accountGoals.length > 0) {
+        setGoals(accountGoals);
+      } else {
+        const seededGoals = initialGoals.map((g) => ({
+          ...g,
+          accountId: account.id,
+        }));
+        await saveGoalsForAccount(account.id, seededGoals);
+        setGoals(seededGoals);
+      }
+    } catch (err) {
+      console.error('Error loading account data:', err);
+    }
+  }, []);
+
+  // Enter Demo Mode Helper
+  const handleEnterDemoMode = useCallback(async () => {
+    setIsDemoMode(true);
+    try {
+      localStorage.setItem('primepipfx_demo_mode', 'true');
+    } catch {}
+    setIsLoginModalOpen(false);
+    setIsSubscriptionModalOpen(false);
+    setActiveTab('DASHBOARD');
+
+    // If no account is loaded, provide a demo preview account immediately
+    if (!activeAccount || accounts.length === 0) {
+      const demoAccount: AccountSettings = {
+        id: 'acc-demo-preview',
+        traderName: 'DEMO TRADER',
+        accountName: 'Demo Preview Account',
+        accountType: 'DEMO',
+        initialBalance: 5000,
+        currentBalance: 5000,
+        currentEquity: 5000,
+        broker: 'PrimePipFX Simulation',
+        currency: 'USD',
+        maxDailyLossPercent: 4.0,
+        maxDrawdownPercent: 5.0,
+        maxDailyTrades: 2,
+        maxRiskPerTradePercent: 1.0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setAccounts([demoAccount]);
+      setActiveAccount(demoAccount);
+      await saveAccount(demoAccount);
+      await loadAccountData(demoAccount);
+    }
+  }, [activeAccount, accounts, loadAccountData]);
+
+  // Initial Load from IndexedDB
+  const initApp = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      let loadedAccounts = await getAllAccounts();
+
+      // Legacy fallback: check if there was an account saved in localStorage (demo user only)
+      if (loadedAccounts.length === 0 && !currentUser) {
+        try {
+          const legacyAccountStr = localStorage.getItem('primepipfx_account_v1');
+          if (legacyAccountStr) {
+            const legacy = JSON.parse(legacyAccountStr);
+            if (legacy && legacy.accountName && legacy.initialBalance) {
+              const legacyAccount: AccountSettings = {
+                ...legacy,
+                id: legacy.id || `acc-${Date.now()}`,
+              };
+              await saveAccount(legacyAccount);
+
+              // migrate legacy trades if any
+              const legacyTradesStr = localStorage.getItem('primepipfx_trades_v1');
+              if (legacyTradesStr) {
+                const legacyTrades = JSON.parse(legacyTradesStr);
+                if (Array.isArray(legacyTrades)) {
+                  for (const t of legacyTrades) {
+                    await saveTrade({ ...t, accountId: legacyAccount.id });
+                  }
+                }
+              }
+              loadedAccounts = [legacyAccount];
+            }
+          }
+        } catch (migrationErr) {
+          console.warn('Legacy migration notice:', migrationErr);
+        }
+      }
+
+      if (loadedAccounts.length === 0) {
+        // First-time User Onboarding: No accounts exist
+        setAccounts([]);
+        setActiveAccount(null);
+        setTrades([]);
+        setIsOnboardingOpen(true);
+      } else {
+        setAccounts(loadedAccounts);
+        const currentUserId = currentUser?.id || 'demo-user';
+        const savedActiveId =
+          localStorage.getItem(`primepipfx_active_account_id_${currentUserId}`) ||
+          localStorage.getItem('primepipfx_active_account_id');
+        const matched = loadedAccounts.find((a) => a.id === savedActiveId) || loadedAccounts[0];
+        setActiveAccount(matched);
+        localStorage.setItem(`primepipfx_active_account_id_${currentUserId}`, matched.id);
+        await loadAccountData(matched);
+      }
+    } catch (err) {
+      console.error('Failed to initialize app from IndexedDB:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentUser?.id, loadAccountData]);
+
+  useEffect(() => {
+    initApp();
+  }, [currentUser?.id, initApp]);
+
+  // Cloud sync for authenticated customers
+  useEffect(() => {
+    const token = getStoredToken();
+    if (token && currentUser && currentUser.role !== 'DEVELOPER') {
+      syncUserDataFromServer(token).then((synced) => {
+        if (synced) {
+          initApp();
+        }
+      });
+    }
+  }, [currentUser?.id, initApp]);
+
+  // Account Operations
+  const handleSelectAccount = async (accountId: string) => {
+    const target = accounts.find((a) => a.id === accountId);
+    if (!target) return;
+    setActiveAccount(target);
+    const currentUserId = currentUser?.id || 'demo-user';
+    localStorage.setItem(`primepipfx_active_account_id_${currentUserId}`, target.id);
+    await loadAccountData(target);
+  };
+
+  const handleAccountCreated = async (newAccount: AccountSettings) => {
+    await saveAccount(newAccount);
+    const updatedAccounts = await getAllAccounts();
+    setAccounts(updatedAccounts);
+    setActiveAccount(newAccount);
+    const currentUserId = currentUser?.id || 'demo-user';
+    localStorage.setItem(`primepipfx_active_account_id_${currentUserId}`, newAccount.id);
+
+    const token = getStoredToken();
+    if (token && currentUser && currentUser.role !== 'DEVELOPER') {
+      syncUserDataToServer(token);
+    }
+
+    // Initialize with fresh state for new account
+    setTrades([]);
+
+    const seededRules = initialRules.map((r) => ({
+      ...r,
+      accountId: newAccount.id,
+      isActive: true,
+      active: true,
+    }));
+    await saveRulesForAccount(newAccount.id, seededRules);
+    setRules(seededRules);
+
+    const seededGoals = initialGoals.map((g) => ({
+      ...g,
+      accountId: newAccount.id,
+    }));
+    await saveGoalsForAccount(newAccount.id, seededGoals);
+    setGoals(seededGoals);
+
+    setIsOnboardingOpen(false);
+  };
+
+  const handleUpdateAccount = async (updatedAccount: AccountSettings) => {
+    await saveAccount(updatedAccount);
+    setAccounts((prev) => prev.map((a) => (a.id === updatedAccount.id ? updatedAccount : a)));
+    if (activeAccount?.id === updatedAccount.id) {
+      setActiveAccount(updatedAccount);
+    }
+    const token = getStoredToken();
+    if (token && currentUser && currentUser.role !== 'DEVELOPER') {
+      syncUserDataToServer(token);
+    }
+  };
+
+  const handleDeleteAccount = async (accountId: string) => {
+    await deleteAccount(accountId);
+    const updated = accounts.filter((a) => a.id !== accountId);
+    setAccounts(updated);
+
+    const currentUserId = currentUser?.id || 'demo-user';
+    if (activeAccount?.id === accountId) {
+      if (updated.length > 0) {
+        handleSelectAccount(updated[0].id);
+      } else {
+        localStorage.removeItem(`primepipfx_active_account_id_${currentUserId}`);
+        setActiveAccount(null);
+        setTrades([]);
+        setRules([]);
+        setGoals([]);
+        setIsOnboardingOpen(true);
+      }
+    }
+    const token = getStoredToken();
+    if (token && currentUser && currentUser.role !== 'DEVELOPER') {
+      syncUserDataToServer(token);
+    }
+  };
+
+  // Trades Handlers
+  const handleSaveTrade = async (newTrade: Trade) => {
+    if (!activeAccount) return;
+
+    if (isDemoMode && !currentUser) {
+      playDisciplineAlert('WARNING');
+      setDemoToast('DEMO MODE IS READ-ONLY: Live journal saving is restricted in preview mode. Please Login or Subscribe on WhatsApp (03406671495) to record permanent trades.');
+      setIsEntryModalOpen(false);
+      return;
+    }
+
+    if (
+      currentUser &&
+      currentUser.role !== 'DEVELOPER' &&
+      !currentUser.isDeveloper &&
+      (currentUser.subscriptionStatus === 'EXPIRED' ||
+        currentUser.subscriptionStatus === 'SUSPENDED' ||
+        currentUser.subscriptionStatus === 'PAYMENT_REQUIRED')
+    ) {
+      playDisciplineAlert('WARNING');
+      setDemoToast(
+        'SUBSCRIPTION RESTRICTED: Your access status does not permit recording live executions. Contact Developer WhatsApp (03406671495) to renew or activate access.'
+      );
+      setIsEntryModalOpen(false);
+      return;
+    }
+
+    // Strict Risk Management Rule: 1% maximum risk per trade
+    const tradeRisk =
+      typeof newTrade.riskAmount === 'number' && activeAccount.initialBalance > 0
+        ? (newTrade.riskAmount / activeAccount.initialBalance) * 100
+        : 0;
+    if (tradeRisk > 1.001) {
+      playDisciplineAlert('LIMIT_REACHED');
+      setDemoToast('Risk exceeds maximum allowed 1% per trade.');
+      setIsEntryModalOpen(false);
+      return;
+    }
+
+    // Strict Risk Management Rule: Maximum 2 trades per day
+    const tradeDate = newTrade.date || getKarachiDate();
+    const existingDayTrades = trades.filter((t) => t.date === tradeDate);
+    if (existingDayTrades.length >= 2) {
+      playDisciplineAlert('LIMIT_REACHED');
+      setDemoToast('Daily trade limit reached (maximum 2 trades per day).');
+      setIsEntryModalOpen(false);
+      return;
+    }
+
+    const tradeWithAccount = { ...newTrade, accountId: activeAccount.id };
+    await saveTrade(tradeWithAccount);
+    const nextTrades = [tradeWithAccount, ...trades];
+    setTrades(nextTrades);
+    setLastSavedTime(getKarachiTime());
+
+    const token = getStoredToken();
+    if (token && currentUser && currentUser.role !== 'DEVELOPER') {
+      syncUserDataToServer(token);
+    }
+
+    // Check Discipline Alerts & Trigger Web Audio Synthesizer
+    const todayDate = getKarachiDate();
+    const todayTrades = nextTrades.filter((t) => t.date === todayDate);
+    const tradesTodayCount = todayTrades.length;
+    const todayPnL = todayTrades.reduce(
+      (acc, t) => acc + (typeof t.profitLoss === 'number' ? t.profitLoss : 0),
+      0
+    );
+    const dailyLossLimitDollars =
+      (activeAccount.initialBalance * (activeAccount.maxDailyLossPercent || 3)) / 100;
+    const isDailyLossLimitHit = todayPnL <= -dailyLossLimitDollars;
+
+    if (tradesTodayCount >= activeAccount.maxDailyTrades || isDailyLossLimitHit) {
+      // Daily lockout alarm: max trades or daily loss limit reached!
+      playDisciplineAlert('LIMIT_REACHED');
+    } else if (newTrade.ruleViolation && newTrade.ruleViolation !== 'NONE') {
+      // Rule violation warning buzzer
+      playDisciplineAlert('WARNING');
+    } else if (typeof newTrade.profitLoss === 'number' && newTrade.profitLoss < 0) {
+      // Loss alert
+      playDisciplineAlert('WARNING');
+    } else {
+      // Clean execution chime
+      playDisciplineAlert('CHIME');
+    }
+  };
+
+  const handleDeleteTrade = async (id: string) => {
+    if (!activeAccount) return;
+    if (isDemoMode && !currentUser) {
+      playDisciplineAlert('WARNING');
+      setDemoToast('DEMO MODE IS READ-ONLY: Trade deletion is restricted in preview mode.');
+      return;
+    }
+
+    if (
+      currentUser &&
+      currentUser.role !== 'DEVELOPER' &&
+      !currentUser.isDeveloper &&
+      (currentUser.subscriptionStatus === 'EXPIRED' ||
+        currentUser.subscriptionStatus === 'SUSPENDED' ||
+        currentUser.subscriptionStatus === 'PAYMENT_REQUIRED')
+    ) {
+      playDisciplineAlert('WARNING');
+      setDemoToast(
+        'SUBSCRIPTION RESTRICTED: Trade modification is disabled. Contact WhatsApp (03406671495) to reactivate.'
+      );
+      return;
+    }
+
+    await deleteTrade(id, activeAccount.id);
+    setTrades((prev) => prev.filter((t) => t.id !== id));
+
+    const token = getStoredToken();
+    if (token && currentUser && currentUser.role !== 'DEVELOPER') {
+      syncUserDataToServer(token);
+    }
+  };
+
+  const handleUpdateTrade = async (updatedTrade: Trade) => {
+    if (!activeAccount) return;
+    await saveTrade(updatedTrade);
+    setTrades((prev) => prev.map((t) => (t.id === updatedTrade.id ? updatedTrade : t)));
+    setLastSavedTime(getKarachiTime());
+
+    const token = getStoredToken();
+    if (token && currentUser && currentUser.role !== 'DEVELOPER') {
+      syncUserDataToServer(token);
+    }
+  };
+
+  // Rules Handlers
+  const handleToggleRule = async (id: string) => {
+    if (!activeAccount) return;
+    const nextRules = rules.map((r) => {
+      if (r.id === id) {
+        const nextActive = !r.isActive;
+        return { ...r, isActive: nextActive, active: nextActive };
+      }
+      return r;
+    });
+    setRules(nextRules);
+    await saveRulesForAccount(activeAccount.id, nextRules);
+  };
+
+  const handleSaveRule = async (rule: TradingRule) => {
+    if (!activeAccount) return;
+    const idx = rules.findIndex((r) => r.id === rule.id);
+    let nextRules: TradingRule[];
+    if (idx >= 0) {
+      nextRules = [...rules];
+      nextRules[idx] = { ...rule, accountId: activeAccount.id };
+    } else {
+      nextRules = [...rules, { ...rule, accountId: activeAccount.id }];
+    }
+    setRules(nextRules);
+    await saveRulesForAccount(activeAccount.id, nextRules);
+  };
+
+  const handleAddRule = async (
+    title: string,
+    category: 'RISK' | 'EXECUTION' | 'PSYCHOLOGY',
+    isHardRule: boolean,
+    description?: string,
+    severity?: 'MAJOR' | 'MINOR'
+  ) => {
+    if (!activeAccount) return;
+    const newRule: TradingRule = {
+      id: `rule-${Date.now()}`,
+      accountId: activeAccount.id,
+      title,
+      description: description || '',
+      category,
+      severity: severity || (isHardRule ? 'MAJOR' : 'MINOR'),
+      isHardRule,
+      isActive: true,
+      active: true,
+      violationCount: 0,
+    };
+    const nextRules = [...rules, newRule];
+    setRules(nextRules);
+    await saveRulesForAccount(activeAccount.id, nextRules);
+  };
+
+  const handleDeleteRule = async (id: string) => {
+    if (!activeAccount) return;
+    const nextRules = rules.filter((r) => r.id !== id);
+    setRules(nextRules);
+    await saveRulesForAccount(activeAccount.id, nextRules);
+  };
+
+  // Goals Handlers
+  const handleToggleGoal = async (id: string) => {
+    if (!activeAccount) return;
+    const nextGoals = goals.map((g) =>
+      g.id === id
+        ? {
+            ...g,
+            isCompleted: !g.isCompleted,
+            current: !g.isCompleted ? g.target : 0,
+          }
+        : g
+    );
+    setGoals(nextGoals);
+    await saveGoalsForAccount(activeAccount.id, nextGoals);
+  };
+
+  const handleAddGoal = async (title: string, target: number, unit: string) => {
+    if (!activeAccount) return;
+    const newGoal: TradingGoal = {
+      id: `goal-${Date.now()}`,
+      accountId: activeAccount.id,
+      title,
+      target,
+      current: 0,
+      unit,
+      category: 'PROCESS',
+      isCompleted: false,
+    };
+    const nextGoals = [...goals, newGoal];
+    setGoals(nextGoals);
+    await saveGoalsForAccount(activeAccount.id, nextGoals);
+  };
+
+  const handleDeleteGoal = async (id: string) => {
+    if (!activeAccount) return;
+    const nextGoals = goals.filter((g) => g.id !== id);
+    setGoals(nextGoals);
+    await saveGoalsForAccount(activeAccount.id, nextGoals);
+  };
+
+  // Derived dashboard metrics
+  const metrics = activeAccount
+    ? calculateDashboardMetrics(trades, activeAccount)
+    : calculateDashboardMetrics([], {
+        id: 'temp',
+        traderName: 'TRADER',
+        accountName: 'Loading',
+        accountType: 'PERSONAL_LIVE',
+        initialBalance: 0,
+        currentBalance: 0,
+        currentEquity: 0,
+        currency: 'USD',
+        maxDailyLossPercent: 2,
+        maxDrawdownPercent: 5,
+        maxRiskPerTradePercent: 1,
+        maxDailyTrades: 2,
+        broker: '',
+      });
+
+  // App Loading Spinner
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#070A11] text-slate-100 flex flex-col items-center justify-center p-6 font-mono-code">
+        <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4 animate-pulse">
+          <Shield className="w-6 h-6" />
+        </div>
+        <div className="flex items-center gap-2 text-slate-300 font-bold font-military tracking-widest text-sm">
+          <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+          <span>PRIMEPIPFX SYSTEM INITIALIZING...</span>
+        </div>
+        <p className="text-xs text-slate-500 mt-2">Connecting to offline local IndexedDB vault</p>
+      </div>
+    );
+  }
+
+  // Section 1: FIRST-OPEN LOGIN SCREEN
+  // When the application is opened for the first time, immediately display the Login screen.
+  // Do not open the Dashboard before authentication.
+  if (!currentUser && !isDemoMode) {
+    return (
+      <FirstOpenLoginScreen
+        onLoginSuccess={(user, token) => {
+          setCurrentUser(user);
+          setIsDemoMode(false);
+          if (isUserAdmin(user)) {
+            setActiveTab('ADMIN');
+          }
+        }}
+        onExploreDemo={handleEnterDemoMode}
+        onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
+      />
+    );
+  }
+
+  // If no account exists yet, force Onboarding Screen unless in demo mode
+  if (!activeAccount || accounts.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#070A11] text-slate-100 flex flex-col items-center justify-center p-4">
+        <AccountOnboardingModal
+          onAccountCreated={handleAccountCreated}
+          onExploreDemo={handleEnterDemoMode}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#070A11] text-slate-100 flex flex-col selection:bg-amber-500/30 selection:text-amber-200">
+      {/* Navigation HUD Header */}
+      <Header
+        activeTab={activeTab as any}
+        onSelectTab={(tab) => {
+          if (tab === 'ACCOUNTS') {
+            setIsAccountManagerOpen(true);
+          } else if (tab === 'SETTINGS') {
+            setIsBackupModalOpen(true);
+          } else if (tab === 'ADMIN') {
+            if (isUserAdmin(currentUser)) {
+              setActiveTab('ADMIN');
+            } else {
+              setIsLoginModalOpen(true);
+            }
+          } else {
+            setActiveTab(tab as any);
+          }
+        }}
+        account={activeAccount}
+        tradesToday={metrics.tradesToday}
+        maxDailyTrades={activeAccount.maxDailyTrades}
+        overallScore={metrics.performanceScores.overallTradingScore}
+        lastSavedTime={lastSavedTime}
+        isDemoMode={isDemoMode}
+        onOpenNewTrade={() => setIsEntryModalOpen(true)}
+        onOpenAccountManager={() => setIsAccountManagerOpen(true)}
+        onOpenBackupModal={() => setIsBackupModalOpen(true)}
+        currentUser={currentUser}
+        onOpenLogin={() => setIsLoginModalOpen(true)}
+        onLogout={() => {
+          logoutUser();
+          try {
+            localStorage.removeItem('primepipfx_demo_mode');
+          } catch {}
+          setCurrentUser(null);
+          setIsDemoMode(false);
+          setActiveAccount(null);
+          setAccounts([]);
+          setTrades([]);
+          setRules([]);
+          setGoals([]);
+        }}
+        onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
+        onOpenAdmin={() => {
+          if (currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' || currentUser?.isDeveloper) {
+            setActiveTab('ADMIN');
+          } else {
+            setIsLoginModalOpen(true);
+          }
+        }}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenHelpImprove={() => setIsHelpImproveOpen(true)}
+        onOpenTraderProfile={() => setIsTraderProfileOpen(true)}
+        onOpenEvolution={() => setActiveTab('EVOLUTION')}
+      />
+
+      {/* Demo Mode Notification HUD */}
+      {isDemoMode && (
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2.5 text-center text-xs font-mono-code text-amber-300 flex items-center justify-center gap-3 flex-wrap shadow-inner">
+          <span className="font-bold flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            EXPLORING IN DEMO / PREVIEW MODE (READ-ONLY)
+          </span>
+          <span className="text-slate-600 hidden sm:inline">•</span>
+          <span className="text-slate-400 text-[11px]">
+            To connect live accounts and log permanent executions, activate your account on Developer WhatsApp: <strong className="text-amber-300">03406671495</strong>
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsLoginModalOpen(true)}
+              className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold font-military rounded-lg text-[10px] tracking-wider uppercase transition cursor-pointer"
+            >
+              LOGIN
+            </button>
+            <button
+              onClick={() => setIsSubscriptionModalOpen(true)}
+              className="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold font-military rounded-lg text-[10px] tracking-wider uppercase transition cursor-pointer border border-amber-500/40"
+            >
+              SUBSCRIBE ($40-$50)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Demo Mode Read-Only Toast Alert with Signature Accent */}
+      {demoToast && (
+        <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-50 max-w-md prime-gold-accent-box p-4 shadow-2xl text-xs font-mono-code text-slate-200 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-4">
+          <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400">
+            <Shield className="w-4 h-4" />
+          </div>
+          <div className="flex-1">
+            <div className="font-bold font-military text-amber-400 text-xs mb-1 tracking-wider flex items-center gap-1.5">
+              <span>DEMO PREVIEW NOTICE</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            </div>
+            <p className="text-slate-300 text-[11px] leading-relaxed">{demoToast}</p>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setDemoToast(null);
+                  setIsLoginModalOpen(true);
+                }}
+                className="prime-btn-primary text-[10px] py-1 px-3 uppercase"
+              >
+                LOGIN
+              </button>
+              <button
+                onClick={() => {
+                  setDemoToast(null);
+                  setIsSubscriptionModalOpen(true);
+                }}
+                className="prime-btn-secondary text-[10px] py-1 px-3 uppercase"
+              >
+                SUBSCRIBE
+              </button>
+              <button
+                onClick={() => setDemoToast(null)}
+                className="px-2 py-1 text-slate-500 hover:text-slate-300 text-[10px] cursor-pointer transition"
+              >
+                DISMISS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3.5 sm:p-6 lg:p-8 pb-24 md:pb-8">
+        {activeTab === 'DASHBOARD' && (
+          <MainDashboard
+            metrics={metrics}
+            account={activeAccount}
+            trades={trades}
+            currentUser={currentUser}
+            onOpenNewTrade={() => setIsEntryModalOpen(true)}
+            onNavigateToTab={(tab) => setActiveTab(tab as any)}
+            onOpenAccountModal={() => setIsLoginModalOpen(true)}
+            onOpenHelpImprove={() => setIsHelpImproveOpen(true)}
+            onOpenTraderProfile={() => setIsTraderProfileOpen(true)}
+            onOpenEvolution={() => setActiveTab('EVOLUTION')}
+          />
+        )}
+
+        {activeTab === 'PRE_TRADE_PLAN' && (
+          <PreTradePlan
+            account={activeAccount}
+            rules={rules}
+            trades={trades}
+            onSaveTrade={handleSaveTrade}
+            onNavigateToJournal={() => setActiveTab('JOURNAL')}
+            onNavigateToCalendar={() => setActiveTab('FUNDAMENTAL_CALENDAR')}
+          />
+        )}
+
+        {activeTab === 'FUNDAMENTAL_CALENDAR' && (
+          <FundamentalCalendar />
+        )}
+
+        {activeTab === 'FREEHAND_WORKSPACE' && (
+          <FreehandWorkspace />
+        )}
+
+        {activeTab === 'COMMUNITY' && (
+          <CommunityChat
+            currentUser={currentUser}
+            onOpenLogin={() => setIsLoginModalOpen(true)}
+          />
+        )}
+
+        {activeTab === 'BOOK_SESSION' && (
+          <BookSessionView
+            currentUser={currentUser}
+            onOpenLogin={() => setIsLoginModalOpen(true)}
+          />
+        )}
+
+        {activeTab === 'JOURNAL' && (
+          <TradeJournal
+            trades={trades}
+            onOpenNewTrade={() => setIsEntryModalOpen(true)}
+            onDeleteTrade={handleDeleteTrade}
+            onUpdateTrade={handleUpdateTrade}
+            currency={activeAccount?.currency || 'USD'}
+          />
+        )}
+
+        {activeTab === 'LOT_SIZE' && (
+          <LotSizeCalculator
+            accountBalance={activeAccount?.currentBalance ?? 0}
+            currency={activeAccount?.currency || 'USD'}
+          />
+        )}
+
+        {activeTab === 'ADMIN' && (
+          <DeveloperAdminPanel
+            currentUser={currentUser || undefined}
+            onClose={() => setActiveTab('DASHBOARD')}
+            onUserUpdated={() => {
+              verifyCurrentSession().then((u) => {
+                if (u) setCurrentUser(u);
+              });
+            }}
+          />
+        )}
+
+        {activeTab === 'PERFORMANCE' && (
+          <PerformanceLab
+            trades={trades}
+            account={activeAccount}
+            onOpenNewTrade={() => setIsEntryModalOpen(true)}
+            onNavigateToTab={(tab) => setActiveTab(tab as any)}
+          />
+        )}
+
+        {activeTab === 'RESEARCH' && (
+          <TradingResearchCenter />
+        )}
+
+        {activeTab === 'SIGNALS' && (
+          <PremiumSignalsHub
+            isAdmin={isUserAdmin(currentUser)}
+            onSelectSignalForTrade={(signal) => {
+              setPrefilledTradeData({
+                instrument: signal.pair.replace('/', ''),
+                type: signal.direction,
+                entryPrice: signal.entryPrice,
+                stopLoss: signal.stopLoss,
+                takeProfit: signal.takeProfit1,
+                riskAmount: ((activeAccount?.currentBalance || 10000) * (signal.recommendedRiskPercent || 1.0)) / 100,
+                notes: `Signal: ${signal.strategyNotes}`,
+              });
+              setIsEntryModalOpen(true);
+            }}
+          />
+        )}
+
+        {(activeTab === 'DAILY_DEV' || activeTab === 'IMPROVEMENT' || activeTab === 'BACKTESTING') && (
+          <PersonalImprovementHub
+            account={activeAccount}
+            trades={trades}
+            metrics={metrics}
+            onOpenNewTrade={() => setIsEntryModalOpen(true)}
+            onNavigateToTab={(tab) => setActiveTab(tab)}
+          />
+        )}
+
+        {activeTab === 'COMPOUNDING' && (
+          <CompoundingEngine
+            account={activeAccount}
+            trades={trades}
+          />
+        )}
+
+        {activeTab === 'REPORTS' && (
+          <PerformanceLab
+            trades={trades}
+            account={activeAccount}
+            onOpenNewTrade={() => setIsEntryModalOpen(true)}
+          />
+        )}
+
+        {activeTab === 'PSYCHOLOGY' && (
+          <PsychologyCenter
+            trades={trades}
+            account={activeAccount}
+            currentUser={currentUser}
+            onUpdateTrade={handleSaveTrade}
+            onOpenNewTrade={() => setIsEntryModalOpen(true)}
+            onClose={() => setActiveTab('DASHBOARD')}
+          />
+        )}
+
+        {activeTab === 'CALMING_TOOLS' && (
+          <CalmingSuiteMaster
+            trades={trades}
+            userId={currentUser?.id}
+            onNavigateToTab={(tab) => setActiveTab(tab as any)}
+          />
+        )}
+
+        {activeTab === 'RISK' && (
+          <RiskCenter
+            account={activeAccount}
+            onUpdateAccount={handleUpdateAccount}
+            rules={rules}
+            onToggleRule={handleToggleRule}
+            onAddRule={handleAddRule}
+            onSaveRule={handleSaveRule}
+            onDeleteRule={handleDeleteRule}
+            metrics={metrics}
+            trades={trades}
+            defaultInstrument={selectedInstrument}
+            onInstrumentChange={setSelectedInstrument}
+            onNavigateToTab={(tab) => setActiveTab(tab)}
+          />
+        )}
+
+        {activeTab === 'STRATEGIES' && (
+          <AiTradingCoach trades={trades} account={activeAccount} />
+        )}
+
+        {activeTab === 'AI_COACH' && (
+          <AiTradingCoach trades={trades} account={activeAccount} />
+        )}
+
+        {activeTab === 'GOALS' && (
+          <GoalsProgress
+            goals={goals}
+            onToggleGoal={handleToggleGoal}
+            onAddGoal={handleAddGoal}
+            onDeleteGoal={handleDeleteGoal}
+            trades={trades}
+          />
+        )}
+
+        {(activeTab === 'SUBSCRIPTION' || activeTab === 'REFERRALS') && (
+          <SubscriptionPage
+            currentUser={currentUser}
+            onClose={() => setActiveTab('DASHBOARD')}
+            onOpenLogin={() => setIsLoginModalOpen(true)}
+            onContinueDemo={handleEnterDemoMode}
+          />
+        )}
+
+        {activeTab === 'EVOLUTION' && (
+          <EvolutionCommandCenter
+            currentUser={currentUser || undefined}
+            onClose={() => setActiveTab('DASHBOARD')}
+          />
+        )}
+      </main>
+
+      {/* Secondary Bottom Process Goal Link */}
+      {activeTab !== 'GOALS' && (
+        <div className="border-t border-slate-800/80 bg-slate-950/60 py-3 px-6 text-center text-xs font-mono-code text-slate-400">
+          <span>PROCESS OVER OUTCOME • </span>
+          <button
+            onClick={() => setActiveTab('GOALS')}
+            className="text-amber-400 hover:underline font-bold cursor-pointer"
+          >
+            VIEW PROCESS DISCIPLINE GOALS ({goals.filter((g) => g.isCompleted).length}/{goals.length} ACTIVE)
+          </button>
+        </div>
+      )}
+
+      {/* Native Mobile Bottom App Bar (Sticky Thumb Navigation for Modern Phones) */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onSelectTab={(tab) => setActiveTab(tab)}
+        onOpenNewTrade={() => setIsEntryModalOpen(true)}
+        currentUser={currentUser}
+        onOpenEvolution={() => setActiveTab('EVOLUTION')}
+        onOpenBackupModal={() => setIsBackupModalOpen(true)}
+      />
+
+      {/* Trade Entry Modal */}
+      {isEntryModalOpen && (
+        <TradeEntryModal
+          isOpen={isEntryModalOpen}
+          onClose={() => {
+            setIsEntryModalOpen(false);
+            setPrefilledTradeData(null);
+          }}
+          onSaveTrade={handleSaveTrade}
+          rules={rules}
+          account={activeAccount}
+          tradeCount={trades.length}
+          existingTrades={trades}
+          initialInstrument={selectedInstrument}
+          onInstrumentChange={setSelectedInstrument}
+        />
+      )}
+
+      {/* AI Chart Scanner Modal */}
+      {isChartScannerOpen && (
+        <AiChartScannerModal
+          isOpen={isChartScannerOpen}
+          onClose={() => setIsChartScannerOpen(false)}
+          account={activeAccount}
+          onTradeScanned={(scannedData) => {
+            setPrefilledTradeData(scannedData);
+            setIsChartScannerOpen(false);
+            setIsEntryModalOpen(true);
+          }}
+        />
+      )}
+
+      {/* Account Manager Modal */}
+      {isAccountManagerOpen && (
+        <AccountManagerModal
+          isOpen={isAccountManagerOpen}
+          onClose={() => setIsAccountManagerOpen(false)}
+          accounts={accounts}
+          activeAccount={activeAccount}
+          onSelectAccount={handleSelectAccount}
+          onCreateAccount={handleAccountCreated}
+          onUpdateAccount={handleUpdateAccount}
+          onDeleteAccount={handleDeleteAccount}
+        />
+      )}
+
+      {/* Data Backup & Restore Modal */}
+      {isBackupModalOpen && (
+        <DataBackupModal
+          isOpen={isBackupModalOpen}
+          onClose={() => setIsBackupModalOpen(false)}
+          onDataRestored={initApp}
+          accountsCount={accounts.length}
+          tradesCount={trades.length}
+          activeAccount={activeAccount}
+          trades={trades}
+        />
+      )}
+
+      {/* Account Onboarding Modal (if triggered manually) */}
+      {isOnboardingOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <AccountOnboardingModal
+            onAccountCreated={handleAccountCreated}
+            onExploreDemo={handleEnterDemoMode}
+          />
+        </div>
+      )}
+
+      {/* User Login Modal */}
+      {isLoginModalOpen && (
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onLoginSuccess={(user) => {
+            setCurrentUser(user);
+            setIsDemoMode(false);
+            setIsLoginModalOpen(false);
+            if (isUserAdmin(user)) {
+              setActiveTab('ADMIN');
+            }
+          }}
+          onSuccess={(user) => {
+            setCurrentUser(user);
+            setIsDemoMode(false);
+            setIsLoginModalOpen(false);
+            if (isUserAdmin(user)) {
+              setActiveTab('ADMIN');
+            }
+          }}
+          onOpenSubscription={() => {
+            setIsLoginModalOpen(false);
+            setIsSubscriptionModalOpen(true);
+          }}
+          onContinueDemo={handleEnterDemoMode}
+        />
+      )}
+
+      {/* Subscription Pricing & Referral Modal */}
+      {isSubscriptionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+          <div className="max-w-4xl w-full my-8">
+            <SubscriptionPage
+              currentUser={currentUser}
+              onClose={() => setIsSubscriptionModalOpen(false)}
+              onOpenLogin={() => {
+                setIsSubscriptionModalOpen(false);
+                setIsLoginModalOpen(true);
+              }}
+              onContinueDemo={handleEnterDemoMode}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Subscription Gate Guard: Blocks expired, suspended, or unpaid non-developer accounts */}
+      {currentUser &&
+        currentUser.role !== 'DEVELOPER' &&
+        (currentUser.subscriptionStatus === 'EXPIRED' ||
+          currentUser.subscriptionStatus === 'SUSPENDED' ||
+          currentUser.subscriptionStatus === 'PAYMENT_REQUIRED') && (
+          <SubscriptionGateModal
+            user={currentUser}
+            isOpen={true}
+            onClose={() => handleEnterDemoMode()}
+            onOpenLogin={() => setIsLoginModalOpen(true)}
+            onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
+            onContinueDemo={handleEnterDemoMode}
+            onUpgradeSuccess={(upgradedUser) => {
+              setCurrentUser(upgradedUser);
+            }}
+          />
+        )}
+
+      {/* Automated Trade Limit & Loss Alert System */}
+      <TradeLimitAlertSystem
+        account={activeAccount}
+        metrics={metrics}
+        trades={trades}
+        onNavigateToTab={(tab) => setActiveTab(tab)}
+      />
+
+      {/* User Profile & Identity Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        user={currentUser}
+        onUpdateUser={(updated) => {
+          setCurrentUser(updated);
+        }}
+      />
+
+      {/* Trader Experience Profile Modal */}
+      {isTraderProfileOpen && (
+        <TraderExperienceProfileModal
+          currentUser={currentUser || undefined}
+          onClose={() => setIsTraderProfileOpen(false)}
+        />
+      )}
+
+      {/* Help PRIMEPIPFX Improve Modal */}
+      {isHelpImproveOpen && (
+        <HelpImproveModal
+          currentUser={currentUser || undefined}
+          onClose={() => setIsHelpImproveOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
