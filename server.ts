@@ -18,6 +18,7 @@ import {
   sanitizeUser,
   changeDeveloperPassword,
   deleteCustomer,
+  completeUserOnboarding,
 } from "./server/authService.js";
 import { getCustomerData, saveCustomerData } from "./server/customerDataService.js";
 import {
@@ -484,6 +485,29 @@ app.post('/api/auth/change-password', (req, res) => {
     token: result.token,
     user: result.user ? sanitizeUser(result.user) : undefined,
     message: 'Password updated successfully. Session remains active.',
+  });
+});
+
+// Route: Complete Student Onboarding (persisted in backend)
+app.post('/api/auth/complete-onboarding', (req, res) => {
+  const token = getAuthToken(req);
+  if (!token) {
+    return res.status(401).json({ ok: false, error: 'No authentication token provided' });
+  }
+  const user = getUserByToken(token);
+  if (!user) {
+    return res.status(401).json({ ok: false, error: 'Invalid or expired session' });
+  }
+
+  const result = completeUserOnboarding(user.id);
+  if (!result.success) {
+    return res.status(400).json({ ok: false, error: result.error || 'Failed to complete onboarding' });
+  }
+
+  return res.json({
+    ok: true,
+    user: sanitizeUser(result.user!),
+    message: 'Onboarding marked completed and saved persistently.',
   });
 });
 
@@ -1624,3 +1648,6 @@ async function startServer() {
 }
 
 startServer();
+
+export default app;
+export { app };

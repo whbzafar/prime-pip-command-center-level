@@ -22,6 +22,8 @@ import {
   SlidersHorizontal,
   X,
   Library,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 
 export interface ScholarlyArticle {
@@ -85,6 +87,7 @@ export const TradingResearchCenter: React.FC = () => {
 
   // Modal / Detail state
   const [selectedArticle, setSelectedArticle] = useState<ScholarlyArticle | null>(null);
+  const [isArticleFullscreen, setIsArticleFullscreen] = useState<boolean>(false);
   const [citationModalArticle, setCitationModalArticle] = useState<ScholarlyArticle | null>(null);
   const [selectedCitationStyle, setSelectedCitationStyle] = useState<CitationStyle>('APA');
   const [copiedNotification, setCopiedNotification] = useState<boolean>(false);
@@ -645,8 +648,20 @@ export const TradingResearchCenter: React.FC = () => {
 
       {/* ARTICLE ABSTRACT & DETAILS MODAL */}
       {selectedArticle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+        <div
+          className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-200 ${
+            isArticleFullscreen
+              ? 'p-0 bg-slate-950/95 backdrop-blur-md'
+              : 'p-4 bg-slate-950/80 backdrop-blur-sm'
+          }`}
+        >
+          <div
+            className={`bg-slate-900 border border-slate-700 shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
+              isArticleFullscreen
+                ? 'w-full h-full rounded-none max-w-none max-h-none'
+                : 'rounded-2xl w-full max-w-3xl max-h-[88vh]'
+            }`}
+          >
             {/* Modal Header */}
             <div className="p-4 sm:p-5 border-b border-slate-800 flex items-start justify-between gap-3 bg-slate-950/60">
               <div className="space-y-1">
@@ -657,13 +672,37 @@ export const TradingResearchCenter: React.FC = () => {
                   {selectedArticle.title}
                 </h3>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedArticle(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsArticleFullscreen(!isArticleFullscreen)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-mono-code font-bold transition cursor-pointer"
+                  title={isArticleFullscreen ? 'Minimize to window' : 'Expand to full screen'}
+                >
+                  {isArticleFullscreen ? (
+                    <>
+                      <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
+                      <span>MINIMIZE</span>
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
+                      <span>FULLSCREEN</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedArticle(null);
+                    setIsArticleFullscreen(false);
+                  }}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 cursor-pointer"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Modal Body */}

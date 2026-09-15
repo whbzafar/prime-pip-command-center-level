@@ -12,6 +12,7 @@ import { PersonalImprovementHub } from './components/PersonalImprovementHub';
 import { MainNavTab } from './components/Header';
 import { TradeEntryModal } from './components/TradeEntryModal';
 import { AccountOnboardingModal } from './components/AccountOnboardingModal';
+import { OnboardingModal } from './components/OnboardingModal';
 import { AccountManagerModal } from './components/AccountManagerModal';
 import { DataBackupModal } from './components/DataBackupModal';
 import { initialRules, initialGoals } from './data/initialTrades';
@@ -75,6 +76,7 @@ export default function App() {
   // Modal States
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [isStudentOnboardingOpen, setIsStudentOnboardingOpen] = useState(false);
   const [isAccountManagerOpen, setIsAccountManagerOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -108,6 +110,9 @@ export default function App() {
       if (user) {
         setCurrentUser(user);
         setIsDemoMode(false);
+        if ((user.needsOnboarding || !user.hasCompletedOnboarding) && !isUserAdmin(user)) {
+          setIsStudentOnboardingOpen(true);
+        }
       } else {
         setCurrentUser(null);
       }

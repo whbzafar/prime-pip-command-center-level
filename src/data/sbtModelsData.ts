@@ -31,6 +31,8 @@ export interface StructureLine {
   dashed?: boolean;
 }
 
+export { SBT_SOURCE_COLORS } from './sbtModelsSourceData';
+
 export interface SbtModelVariation {
   id: string;
   name: string;

@@ -317,3 +317,45 @@ export async function apiCheckReferral(code: string): Promise<{ valid: boolean; 
   }
   return { valid: false, price: 50 };
 }
+
+// Complete student onboarding and persist to backend
+export async function apiCompleteOnboarding(): Promise<{ ok: boolean; user?: UserAccount; error?: string }> {
+  const token = getStoredToken();
+  const currentUser = getStoredUser();
+
+  try {
+    const res = await fetch('/api/auth/complete-onboarding', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: 'include',
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await res.json();
+      if (data.ok && data.user) {
+        setStoredUser(data.user);
+        return { ok: true, user: data.user };
+      }
+    }
+  } catch (err: any) {
+    console.warn('[AUTH CLIENT] Server complete onboarding unavailable, saving locally:', err);
+  }
+
+  // Fallback for offline or local cache
+  if (currentUser) {
+    const updated: UserAccount = {
+      ...currentUser,
+      hasCompletedOnboarding: true,
+      needsOnboarding: false,
+      updatedAt: new Date().toISOString(),
+    };
+    setStoredUser(updated);
+    return { ok: true, user: updated };
+  }
+
+  return { ok: true };
+}

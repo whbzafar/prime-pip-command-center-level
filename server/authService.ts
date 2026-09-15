@@ -35,6 +35,8 @@ export interface StoredUser {
   phone?: string;
   mustChangePassword?: boolean;
   warningsCount?: number;
+  hasCompletedOnboarding?: boolean;
+  needsOnboarding?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -410,6 +412,8 @@ export function createCustomer(data: {
     referredBy: referrerUser?.username || data.referralCode,
     adminNotes: data.adminNotes || '',
     isDeveloper: false,
+    hasCompletedOnboarding: false,
+    needsOnboarding: true,
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
   };
@@ -479,6 +483,8 @@ export function updateCustomer(
   }
   if (updates.adminNotes !== undefined) user.adminNotes = updates.adminNotes;
   if (updates.subscriptionPrice !== undefined) user.subscriptionPrice = updates.subscriptionPrice;
+  if (updates.hasCompletedOnboarding !== undefined) user.hasCompletedOnboarding = updates.hasCompletedOnboarding;
+  if (updates.needsOnboarding !== undefined) user.needsOnboarding = updates.needsOnboarding;
 
   user.updatedAt = new Date().toISOString();
   users[index] = user;
@@ -525,12 +531,31 @@ export function resetCustomerPassword(id: string, newPassword?: string): { succe
     ? newPassword.trim() 
     : `ppfx-${Math.random().toString(36).substring(2, 8)}`;
 
-  const res = updateCustomer(id, { password: generated });
+  // Resetting password re-arms onboarding flow for the student's next login
+  const res = updateCustomer(id, {
+    password: generated,
+    needsOnboarding: true,
+    hasCompletedOnboarding: false,
+  });
   if (!res.success) {
     return { success: false, error: res.error };
   }
 
   return { success: true, password: generated };
+}
+
+// Mark student onboarding as completed
+export function completeUserOnboarding(id: string): { success: boolean; user?: StoredUser; error?: string } {
+  const users = readUsers();
+  const index = users.findIndex((u) => u.id === id);
+  if (index === -1) {
+    return { success: false, error: 'User not found' };
+  }
+  users[index].hasCompletedOnboarding = true;
+  users[index].needsOnboarding = false;
+  users[index].updatedAt = new Date().toISOString();
+  writeUsers(users);
+  return { success: true, user: users[index] };
 }
 
 // Delete customer by Developer

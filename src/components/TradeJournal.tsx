@@ -21,6 +21,8 @@ import {
   Sliders,
   LayoutGrid,
   List,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { Trade, StrategyType, TradeGrade, TradingSession } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
@@ -59,6 +61,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
 
   // Active Trade Inspector modal
   const [inspectedTrade, setInspectedTrade] = useState<Trade | null>(null);
+  const [isInspectorFullscreen, setIsInspectorFullscreen] = useState(false);
   const [diagnosingTrade, setDiagnosingTrade] = useState<Trade | null>(null);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
@@ -912,8 +915,20 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
 
       {/* Trade Inspector Modal */}
       {inspectedTrade && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-[#0B0F19] border border-slate-700/80 rounded-2xl w-full max-w-4xl my-auto shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div
+          className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-200 ${
+            isInspectorFullscreen
+              ? 'p-0 bg-black/95 backdrop-blur-md'
+              : 'p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto'
+          }`}
+        >
+          <div
+            className={`bg-[#0B0F19] border border-slate-700/80 shadow-2xl overflow-hidden flex flex-col transition-all duration-200 ${
+              isInspectorFullscreen
+                ? 'w-full h-full rounded-none max-w-none max-h-none'
+                : 'rounded-2xl w-full max-w-4xl my-auto max-h-[90vh]'
+            }`}
+          >
             {/* Inspector Header */}
             <div className="px-6 py-4 border-b border-slate-800 bg-[#070A11] flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -955,12 +970,36 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                 </div>
               </div>
 
-              <button
-                onClick={() => setInspectedTrade(null)}
-                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsInspectorFullscreen(!isInspectorFullscreen)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-mono-code font-bold transition cursor-pointer"
+                  title={isInspectorFullscreen ? 'Minimize to window' : 'Expand to full screen'}
+                >
+                  {isInspectorFullscreen ? (
+                    <>
+                      <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
+                      <span>MINIMIZE</span>
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
+                      <span>FULLSCREEN</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setInspectedTrade(null);
+                    setIsInspectorFullscreen(false);
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition cursor-pointer"
+                  title="Close Inspector"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Inspector Content */}

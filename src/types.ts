@@ -530,6 +530,11 @@ export interface UserAccount {
   onlineStatus?: 'ONLINE' | 'AWAY' | 'OFFLINE';
   tradingStyle?: string;
   warningsCount?: number;
+  hasCompletedOnboarding?: boolean;
+  needsOnboarding?: boolean;
+  googleDriveConnected?: boolean;
+  googleDriveEmail?: string;
+  googleDriveLastBackup?: string;
 }
 
 export interface ReferralRecord {

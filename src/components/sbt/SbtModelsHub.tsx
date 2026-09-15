@@ -6,6 +6,7 @@ import {
 } from '../../data/sbtModelsSourceData';
 import { SbtDeterministicChart } from './SbtDeterministicChart';
 import { SbtQuizEngine } from './SbtQuizEngine';
+import { FullscreenViewer } from '../common/FullscreenViewer';
 import {
   Layers,
   BookOpen,
@@ -22,8 +23,10 @@ import {
   RotateCcw,
   Sparkles,
   Maximize2,
+  Minimize2,
   Download,
   Image as ImageIcon,
+  Box,
   Cpu,
   X,
   ExternalLink,
@@ -86,8 +89,9 @@ export const SbtModelsHub: React.FC = () => {
   const [activeVariationId, setActiveVariationId] = useState<string | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [displayMode, setDisplayMode] = useState<'SOURCE_ASSET' | 'VECTOR_STUDIO'>('SOURCE_ASSET');
+  const [displayMode, setDisplayMode] = useState<'SOURCE_ASSET' | 'VECTOR_STUDIO'>('VECTOR_STUDIO');
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isFullscreenModelOpen, setIsFullscreenModelOpen] = useState(false);
 
   // Persisted studied models tracking
   const [studiedModels, setStudiedModels] = useState<string[]>(() => {
@@ -309,17 +313,84 @@ export const SbtModelsHub: React.FC = () => {
                       </p>
                     </div>
 
-                    {/* Source Graphic Asset Thumbnail */}
-                    <div className="w-full h-36 rounded-lg border border-slate-800 bg-[#070B14] overflow-hidden flex items-center justify-center p-1.5 relative group-hover:border-teal-500/40 transition-colors">
-                      <img
-                        src={getSbtAssetPath(m.modelNumber)}
-                        alt={m.title}
-                        className="w-full h-full object-contain rounded"
-                        loading="lazy"
-                      />
-                      <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-slate-950/85 border border-slate-700/80 text-[9px] font-mono-code text-teal-400 font-bold flex items-center gap-1">
-                        <ImageIcon className="w-2.5 h-2.5" />
-                        <span>SOURCE ASSET</span>
+                    {/* 3D Vector Model Graphical Representation Thumbnail */}
+                    <div className="w-full h-36 rounded-lg border border-slate-800 bg-[#070B14] overflow-hidden flex items-center justify-center p-2 relative group-hover:border-teal-500/40 transition-colors">
+                      <svg
+                        viewBox={m.viewBox || "0 0 460 330"}
+                        className="w-full h-full pointer-events-none"
+                        preserveAspectRatio="xMidYMid meet"
+                      >
+                        <rect width="100%" height="100%" fill="#070B14" />
+                        {/* Zones */}
+                        {m.zones.map((z) => (
+                          <rect
+                            key={z.id}
+                            x={z.x}
+                            y={z.y}
+                            width={z.width}
+                            height={z.height}
+                            fill="rgba(51, 65, 85, 0.4)"
+                            stroke="#64748B"
+                            strokeWidth="1"
+                            strokeDasharray="2 2"
+                          />
+                        ))}
+                        {/* Structural Lines */}
+                        {m.lines.map((l) => (
+                          <line
+                            key={l.id}
+                            x1={l.x1}
+                            y1={l.y1}
+                            x2={l.x2}
+                            y2={l.y2}
+                            stroke="#94A3B8"
+                            strokeWidth="1.2"
+                            strokeDasharray={l.dashed ? '4 3' : 'none'}
+                          />
+                        ))}
+                        {/* 3D Isometric Candlesticks */}
+                        {m.candles.map((c) => {
+                          const cw = c.width || 12;
+                          const hw = cw / 2;
+                          const bTop = Math.min(c.openY, c.closeY);
+                          const bH = Math.max(Math.abs(c.openY - c.closeY), 2);
+                          const isBull = c.type === 'BULLISH';
+                          return (
+                            <g key={c.id}>
+                              <line
+                                x1={c.x}
+                                y1={c.highY}
+                                x2={c.x}
+                                y2={c.lowY}
+                                stroke={c.wickColor}
+                                strokeWidth="1.5"
+                              />
+                              {/* 3D Top Cap */}
+                              <polygon
+                                points={`${c.x - hw},${bTop} ${c.x - hw + 2.5},${bTop - 2.5} ${c.x + hw + 2.5},${bTop - 2.5} ${c.x + hw},${bTop}`}
+                                fill={isBull ? '#34D399' : '#F87171'}
+                              />
+                              {/* 3D Side Extrusion */}
+                              <polygon
+                                points={`${c.x + hw},${bTop} ${c.x + hw + 2.5},${bTop - 2.5} ${c.x + hw + 2.5},${bTop + bH - 2.5} ${c.x + hw},${bTop + bH}`}
+                                fill={isBull ? '#065F46' : '#991B1B'}
+                              />
+                              {/* 3D Front Face */}
+                              <rect
+                                x={c.x - hw}
+                                y={bTop}
+                                width={cw}
+                                height={bH}
+                                fill={isBull ? '#10B981' : '#EF4444'}
+                                rx="0.5"
+                              />
+                            </g>
+                          );
+                        })}
+                      </svg>
+                      <div className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded bg-slate-950/90 border border-teal-500/40 text-[9px] font-mono-code text-teal-400 font-bold flex items-center gap-1 shadow-md">
+                        <Box className="w-2.5 h-2.5 text-amber-400" />
+                        <span>3D VECTOR SHAPE</span>
                       </div>
                     </div>
 
@@ -377,88 +448,26 @@ export const SbtModelsHub: React.FC = () => {
                 )}
               </div>
 
-              {/* Mode Switcher: Source Asset vs Interactive Studio */}
-              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+              {/* Action Controls: Fullscreen Inspection */}
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setDisplayMode('SOURCE_ASSET')}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono-code font-bold transition cursor-pointer ${
-                    displayMode === 'SOURCE_ASSET'
-                      ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                  title="View original image asset from the source PDF"
+                  onClick={() => setIsFullscreenModelOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-mono-code font-bold transition cursor-pointer shadow-sm"
+                  title="Inspect this model in Full Screen with 3D Depth"
                 >
-                  <ImageIcon className="w-3.5 h-3.5" />
-                  <span>SOURCE ASSET (PNG)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDisplayMode('VECTOR_STUDIO')}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono-code font-bold transition cursor-pointer ${
-                    displayMode === 'VECTOR_STUDIO'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                  title="Interactive vector chart with individual candlestick inspections"
-                >
-                  <Cpu className="w-3.5 h-3.5" />
-                  <span>VECTOR STUDIO</span>
+                  <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>FULLSCREEN VIEW</span>
                 </button>
               </div>
             </div>
 
-            {/* Display Area: Source Asset or Vector Studio */}
-            {displayMode === 'SOURCE_ASSET' ? (
-              <div className="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden shadow-2xl relative group">
-                {/* Header Action Strip */}
-                <div className="bg-slate-950 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between text-xs font-mono-code">
-                  <div className="flex items-center gap-2 text-slate-300">
-                    <span className="w-2 h-2 rounded-full bg-teal-400" />
-                    <span className="font-bold text-slate-200">
-                      {activeModel.title}
-                    </span>
-                    <span className="text-slate-500">• PDF Page {activeModel.sourcePage} Asset</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsLightboxOpen(true)}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-slate-700 transition cursor-pointer"
-                      title="Inspect full-size image"
-                    >
-                      <Maximize2 className="w-3.5 h-3.5" />
-                      <span>EXPAND</span>
-                    </button>
-                    <a
-                      href={getSbtAssetPath(activeModel.modelNumber, activeVariationId)}
-                      download={`SBT-Model-${activeModel.modelNumber}.png`}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-teal-300 border border-slate-800 hover:border-teal-500/40 transition cursor-pointer"
-                      title="Download source graphic"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>DOWNLOAD</span>
-                    </a>
-                  </div>
-                </div>
-
-                {/* Primary Source Graphic Image */}
-                <div className="p-3 bg-[#060912] flex items-center justify-center min-h-[380px]">
-                  <img
-                    src={getSbtAssetPath(activeModel.modelNumber, activeVariationId)}
-                    alt={`${activeModel.title} - Source Graphic Asset`}
-                    className="w-full h-auto max-h-[500px] object-contain rounded-lg border border-slate-800/80 shadow-inner cursor-zoom-in"
-                    onClick={() => setIsLightboxOpen(true)}
-                  />
-                </div>
-              </div>
-            ) : (
-              /* Authoritative Vector Chart */
-              <SbtDeterministicChart
-                model={activeModel}
-                selectedVariationId={activeVariationId}
-              />
-            )}
+            {/* Authoritative 3D Graphical Vector Chart (with picture layer integrated inside vector) */}
+            <SbtDeterministicChart
+              model={activeModel}
+              selectedVariationId={activeVariationId}
+              onToggleFullscreen={() => setIsFullscreenModelOpen(true)}
+            />
 
             {/* Execution Criteria Quick Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono-code">
@@ -646,6 +655,72 @@ export const SbtModelsHub: React.FC = () => {
             })}
           </div>
         </div>
+      )}
+
+      {/* FULLSCREEN MODEL VIEWER (WITH MINIMIZE) */}
+      {activeModel && (
+        <FullscreenViewer
+          isOpen={isFullscreenModelOpen}
+          onClose={() => setIsFullscreenModelOpen(false)}
+          title={`SBT MODEL 0${activeModel.modelNumber}: ${activeModel.title}`}
+          categoryBadge="03. SBT MODELS"
+          subtitle={`${activeModel.subtitle} • Source Diagram Page ${activeModel.sourcePage}`}
+        >
+          <div className="space-y-6">
+            {/* 3D Graphical Representation Chart */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-2xl">
+              <SbtDeterministicChart
+                model={activeModel}
+                selectedVariationId={activeVariationId}
+              />
+            </div>
+
+            {/* Verbatim Rules and Execution Matrix */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2 text-teal-400 font-military font-bold text-sm tracking-wide">
+                  <FileText className="w-4 h-4" />
+                  <span>AUTHORITATIVE SOURCE RULES (LOCKED)</span>
+                </div>
+                <div className="space-y-2.5">
+                  {activeModel.rules.map((rule, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-start gap-3 text-xs font-mono-code"
+                    >
+                      <span className="w-5 h-5 rounded-full bg-teal-500/10 text-teal-400 border border-teal-500/30 flex items-center justify-center font-bold shrink-0 mt-0.5">
+                        {idx + 1}
+                      </span>
+                      <p className="text-slate-200 leading-relaxed">{rule}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-400 font-military font-bold text-sm">
+                    <Target className="w-4 h-4" />
+                    <span>ENTRY PROTOCOL</span>
+                  </div>
+                  <p className="text-xs font-mono-code text-slate-300 leading-relaxed bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/70">
+                    {activeModel.entryCondition}
+                  </p>
+                </div>
+
+                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
+                  <div className="flex items-center gap-2 text-rose-400 font-military font-bold text-sm">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>INVALIDATION GATES</span>
+                  </div>
+                  <p className="text-xs font-mono-code text-slate-300 leading-relaxed bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/70">
+                    {activeModel.invalidationCondition}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </FullscreenViewer>
       )}
 
       {/* LIGHTBOX MODAL FOR FULL-RESOLUTION INSPECTION */}

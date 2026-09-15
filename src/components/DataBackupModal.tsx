@@ -24,6 +24,13 @@ import {
   Check,
   ShieldAlert,
   Info,
+  Cloud,
+  CloudOff,
+  FolderCheck,
+  RefreshCw,
+  LogOut,
+  Key,
+  Link2,
 } from 'lucide-react';
 import { exportAllData, importAllData } from '../utils/db';
 import { BackupData, AccountSettings, Trade } from '../types';
@@ -36,6 +43,11 @@ import {
   AlertSoundType,
   requestNotificationPermission,
 } from '../utils/audioAlerts';
+import {
+  googleDriveService,
+  DRIVE_FOLDER_HIERARCHY,
+  DriveStatusInfo,
+} from '../services/googleDriveService';
 
 interface DataBackupModalProps {
   isOpen: boolean;
@@ -45,7 +57,7 @@ interface DataBackupModalProps {
   tradesCount: number;
   activeAccount?: AccountSettings;
   trades?: Trade[];
-  initialTab?: 'SOUND' | 'EXPORT' | 'RESTORE';
+  initialTab?: 'SOUND' | 'EXPORT' | 'RESTORE' | 'DRIVE';
 }
 
 export const DataBackupModal: React.FC<DataBackupModalProps> = ({
@@ -58,10 +70,59 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   trades = [],
   initialTab = 'SOUND',
 }) => {
-  const [activeTab, setActiveTab] = useState<'SOUND' | 'EXPORT' | 'RESTORE'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'SOUND' | 'EXPORT' | 'RESTORE' | 'DRIVE'>(initialTab);
   const [status, setStatus] = useState<'IDLE' | 'PROCESSING' | 'SUCCESS' | 'ERROR'>('IDLE');
   const [statusMessage, setStatusMessage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Google Drive Integration State
+  const [driveStatus, setDriveStatus] = useState<DriveStatusInfo>(() => googleDriveService.getStatus());
+  const [isDriveSyncing, setIsDriveSyncing] = useState(false);
+  const [driveSyncSuccess, setDriveSyncSuccess] = useState<string | null>(null);
+  const [driveSyncError, setDriveSyncError] = useState<string | null>(null);
+  const [customClientId, setCustomClientId] = useState(() => googleDriveService.getClientId());
+  const [showClientIdInput, setShowClientIdInput] = useState(false);
+
+  useEffect(() => {
+    const unsub = googleDriveService.onStatusChange((newStatus) => {
+      setDriveStatus(newStatus);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleBackupToDrive = async () => {
+    if (driveStatus.state !== 'CONNECTED') {
+      googleDriveService.connect();
+      return;
+    }
+
+    try {
+      setIsDriveSyncing(true);
+      setDriveSyncError(null);
+      setDriveSyncSuccess(null);
+
+      const allData = await exportAllData();
+      const result = await googleDriveService.backupCommandCenter(allData);
+
+      if (result.success) {
+        setDriveSyncSuccess('Successfully backed up all command center data into your personal Google Drive /Backups folder!');
+      } else {
+        setDriveSyncError(result.error || 'Failed to complete Google Drive backup');
+      }
+    } catch (err: any) {
+      setDriveSyncError(err.message || 'Error occurred during drive backup');
+    } finally {
+      setIsDriveSyncing(false);
+    }
+  };
+
+  const handleSaveClientId = () => {
+    if (customClientId.trim()) {
+      googleDriveService.setClientId(customClientId.trim());
+      setShowClientIdInput(false);
+      setDriveSyncSuccess('Custom Google OAuth Client ID saved successfully.');
+    }
+  };
 
   // Sound Settings State
   const [alertSettings, setAlertSettings] = useState<AlertSettings>(() => getAlertSettings());
@@ -364,6 +425,33 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
           >
             <Upload className="w-3.5 h-3.5" />
             <span>RESTORE VAULT</span>
+          </button>
+          <button
+            id="modal-tab-drive"
+            onClick={() => {
+              setActiveTab('DRIVE');
+              setStatus('IDLE');
+              setStatusMessage('');
+              setDriveSyncSuccess(null);
+              setDriveSyncError(null);
+            }}
+            className={`py-3 px-3 sm:px-4 text-xs font-military font-bold tracking-wider border-b-2 flex items-center gap-2 transition whitespace-nowrap ${
+              activeTab === 'DRIVE'
+                ? 'border-amber-400 text-amber-400 bg-amber-500/5'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Cloud className="w-3.5 h-3.5" />
+            <span>GOOGLE DRIVE SYNC</span>
+            <span
+              className={`text-[9px] px-1.5 py-0.5 rounded font-mono-code font-bold ${
+                driveStatus.state === 'CONNECTED'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  : 'bg-slate-800 text-slate-400 border border-slate-700'
+              }`}
+            >
+              {driveStatus.state === 'CONNECTED' ? 'CONNECTED' : 'DISCONNECTED'}
+            </span>
           </button>
         </div>
 
@@ -995,6 +1083,211 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                 <div className="text-slate-300 font-bold">SAFETY PROTOCOL:</div>
                 <p>• Restoring merges or updates records without wiping unrelated device caches.</p>
                 <p>• Timestamps are preserved accurately in Asia/Karachi (UTC+5).</p>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 4: GOOGLE DRIVE ISOLATION SYNC */}
+          {activeTab === 'DRIVE' && (
+            <div className="space-y-5">
+              {/* Google Drive Status Header Card */}
+              <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${
+                      driveStatus.state === 'CONNECTED'
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                        : 'bg-slate-800 border-slate-700 text-slate-400'
+                    }`}
+                  >
+                    {driveStatus.state === 'CONNECTED' ? (
+                      <Cloud className="w-6 h-6" />
+                    ) : (
+                      <CloudOff className="w-6 h-6" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-sm font-military font-bold text-slate-100">
+                        STUDENT GOOGLE DRIVE STORAGE
+                      </h4>
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded font-mono-code font-bold ${
+                          driveStatus.state === 'CONNECTED'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                            : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                        }`}
+                      >
+                        {driveStatus.state === 'CONNECTED' ? 'CONNECTED (OAUTH 2.0)' : 'DISCONNECTED'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 font-mono-code mt-0.5">
+                      {driveStatus.state === 'CONNECTED' && driveStatus.userEmail
+                        ? `Account: ${driveStatus.userName || 'Student'} (${driveStatus.userEmail})`
+                        : 'Connect your personal Google Drive to isolate your trading data in your own cloud.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                  {driveStatus.state === 'CONNECTED' ? (
+                    <button
+                      type="button"
+                      onClick={() => googleDriveService.disconnect()}
+                      className="w-full sm:w-auto px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-rose-900/30 text-rose-400 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 font-military font-bold text-xs tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>DISCONNECT DRIVE</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => googleDriveService.connect()}
+                      className="w-full sm:w-auto px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-military font-bold text-xs tracking-wider transition cursor-pointer shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2"
+                    >
+                      <Link2 className="w-3.5 h-3.5" />
+                      <span>CONNECT GOOGLE DRIVE</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Status or Alert messages */}
+              {driveSyncSuccess && (
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-mono-code text-emerald-300 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                  <span>{driveSyncSuccess}</span>
+                </div>
+              )}
+              {driveSyncError && (
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs font-mono-code text-rose-300 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span>{driveSyncError}</span>
+                </div>
+              )}
+
+              {/* Actions & Sync Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* One-Click Backup to Student Drive */}
+                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-military font-bold text-amber-400">
+                    <Database className="w-4 h-4" />
+                    <span>COMMAND CENTER CLOUD SYNC</span>
+                  </div>
+                  <p className="text-xs text-slate-400 font-mono-code leading-relaxed">
+                    Back up all current account profiles, journal entries, diagnostic interrogation audits, and risk configurations directly to your personal Google Drive <code className="text-amber-300 font-bold">/Backups</code> directory.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={isDriveSyncing || driveStatus.state !== 'CONNECTED'}
+                    onClick={handleBackupToDrive}
+                    className={`w-full py-2.5 px-4 rounded-lg font-military font-bold text-xs tracking-wider transition flex items-center justify-center gap-2 ${
+                      driveStatus.state !== 'CONNECTED'
+                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                        : isDriveSyncing
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 cursor-wait'
+                        : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow cursor-pointer'
+                    }`}
+                  >
+                    {isDriveSyncing ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>SYNCING DATA TO DRIVE...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Cloud className="w-4 h-4" />
+                        <span>BACKUP TO MY GOOGLE DRIVE</span>
+                      </>
+                    )}
+                  </button>
+                  {driveStatus.lastBackupTime && (
+                    <div className="text-[11px] text-slate-500 font-mono-code text-center">
+                      Last backup: {new Date(driveStatus.lastBackupTime).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+
+                {/* OAuth Client ID Settings */}
+                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-military font-bold text-sky-400">
+                      <Key className="w-4 h-4" />
+                      <span>OAUTH CLIENT ID</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowClientIdInput(!showClientIdInput)}
+                      className="text-[11px] text-slate-400 hover:text-amber-400 underline font-mono-code cursor-pointer"
+                    >
+                      {showClientIdInput ? 'Hide' : 'Configure Client ID'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-400 font-mono-code leading-relaxed">
+                    Uses Google Identity Services (GSI). Administrators or students can specify a custom Google Cloud OAuth 2.0 Web Client ID.
+                  </p>
+                  {showClientIdInput ? (
+                    <div className="space-y-2 pt-1">
+                      <input
+                        type="text"
+                        value={customClientId}
+                        onChange={(e) => setCustomClientId(e.target.value)}
+                        placeholder="your-client-id.apps.googleusercontent.com"
+                        className="w-full px-3 py-1.5 rounded bg-slate-900 border border-slate-700 text-xs font-mono-code text-slate-200 focus:outline-none focus:border-amber-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveClientId}
+                        className="w-full py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-slate-950 font-military font-bold text-xs tracking-wider transition cursor-pointer"
+                      >
+                        SAVE CLIENT ID
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] font-mono-code text-slate-500 truncate bg-slate-900/80 p-2 rounded border border-slate-800">
+                      ID: {customClientId || 'Default institutional client configured'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 9 Isolated Folder Hierarchy Visualizer */}
+              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between text-xs font-military font-bold text-emerald-400">
+                  <div className="flex items-center gap-2">
+                    <FolderCheck className="w-4 h-4" />
+                    <span>ISOLATED DRIVE FOLDER HIERARCHY (PFX COMMAND CENTER)</span>
+                  </div>
+                  <span className="font-mono-code text-[11px] text-slate-400">
+                    9 DEDICATED CATEGORIES
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 font-mono-code">
+                  Each student's Google Drive automatically organizes artifacts into dedicated subfolders inside the root <code className="text-emerald-400 font-bold">PFX Command Center</code> directory:
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {DRIVE_FOLDER_HIERARCHY.map((folder) => (
+                    <div
+                      key={folder}
+                      className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center gap-2 text-xs font-mono-code text-slate-300"
+                    >
+                      <FolderCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="truncate">{folder}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Privacy & Safety Protocol */}
+              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-[11px] font-mono-code text-slate-400 space-y-1">
+                <div className="text-slate-300 font-bold flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-amber-400" />
+                  <span>STUDENT PRIVACY & ISOLATION GUARANTEE:</span>
+                </div>
+                <p>• Only files created by PFX Command Center are accessed using the narrow <code className="text-slate-300">drive.file</code> scope.</p>
+                <p>• Your personal Google Drive cannot be accessed by other students or external servers.</p>
+                <p>• Data backups are client-to-cloud direct encrypted transmissions.</p>
               </div>
             </div>
           )}
