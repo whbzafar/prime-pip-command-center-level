@@ -227,7 +227,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [scrollProgress, setScrollProgress] = useState(0);
 
-  // Upper Header Collapsible State (Auto-collapse on scroll & manual toggle)
+  // Header collapse is manual only. Page scrolling must never change this state.
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);
 
   const toggleHeader = () => {
