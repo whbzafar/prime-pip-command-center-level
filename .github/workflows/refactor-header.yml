@@ -12,59 +12,26 @@ jobs:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Refactor Header.tsx
+      - uses: actions/checkout@v4
+      - name: Refactor Header.tsx safely
         shell: python
         run: |
           from pathlib import Path
-
           p = Path('src/components/Header.tsx')
           s = p.read_text()
-
-          # Remove the page-scroll-driven auto-collapse effect.
-          start = s.index("  // Auto-collapse on scroll & reveal when scrolling up near top")
+          start = s.index("  // Upper Header Collapsible State (Auto-collapse on scroll & manual toggle)")
           end = s.index("  const checkScrollState = () =>", start)
-          s = s[:start] + s[end:]
-
-          # Remove tab-switch-driven auto-collapse; the chevron is the only controller.
-          block = """  // When switching tabs, auto-collapse upper header on mobile to maximize workspace\n  useEffect(() => {\n    if (window.innerWidth < 768) {\n      setIsUpperHeaderExpanded(false);\n    }\n  }, [activeTab]);\n\n"""
-          s = s.replace(block, '')
-
-          # Rename the state to the requested semantic name and add a click-only handler.
-          s = s.replace("const [isUpperHeaderExpanded, setIsUpperHeaderExpanded] = useState<boolean>(true);", "const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);\n\n  const toggleHeader = () => {\n    setIsHeaderCollapsed((prev) => !prev);\n  };")
+          replacement = '''  // Header collapse is manual only. Page scrolling must never change this state.\n  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);\n\n  const toggleHeader = () => {\n    setIsHeaderCollapsed((prev) => !prev);\n  };\n\n'''
+          s = s[:start] + replacement + s[end:]
+          tab_block = '''  // When switching tabs, auto-collapse upper header on mobile to maximize workspace\n  useEffect(() => {\n    if (window.innerWidth < 768) {\n      setIsUpperHeaderExpanded(false);\n    }\n  }, [activeTab]);\n\n'''
+          s = s.replace(tab_block, '')
           s = s.replace('isUpperHeaderExpanded', '!isHeaderCollapsed')
           s = s.replace('setIsUpperHeaderExpanded', 'setIsHeaderCollapsed')
-
-          # The previous replacement changes the state setter call sites to setIsHeaderCollapsed(!prev).
-          # Normalize the chevron handler explicitly to a click-only toggle.
-          old = "onClick={() => setIsHeaderCollapsed((prev) => !prev)}"
-          s = s.replace(old, "onClick={toggleHeader}")
-
-          # Restore clear boolean semantics in JSX after the mechanical replacement.
-          s = s.replace("!isHeaderCollapsed ? 'max-h-[900px] opacity-100 pointer-events-none' : 'max-h-0 opacity-0 pointer-events-none'", "!isHeaderCollapsed ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'")
-          s = s.replace("aria-expanded={!isHeaderCollapsed}", "aria-expanded={!isHeaderCollapsed}")
-
-          # Replace any accidental setter expression produced by the rename.
-          s = s.replace("setIsHeaderCollapsed((prev) => !prev)", "setIsHeaderCollapsed((prev) => !prev)")
-
-          # Make the top-level header a fixed/stable shell. The persistent top bar is the fixed anchor.
+          s = s.replace('onClick={() => setIsHeaderCollapsed((prev) => !prev)}', 'onClick={toggleHeader}')
           s = s.replace('className="border-b border-slate-800/80 bg-[#0B0F19]/95 backdrop-blur sticky top-0 z-40"', 'className="border-b border-slate-800/80 bg-[#0B0F19]/95 backdrop-blur"')
-
-          # Give the persistent slim bar a stable fixed height and fixed position.
-          old_bar = 'className="px-3 sm:px-4 py-1.5 bg-[#080C14] border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300"'
-          new_bar = 'className="fixed top-0 left-0 right-0 h-14 px-3 sm:px-4 bg-[#080C14] border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300 z-[1000]"'
-          s = s.replace(old_bar, new_bar)
-
-          # Keep the collapsing area below the fixed top bar and make its transition explicit.
-          old_wrap = '''className={`transition-all duration-300 ease-in-out overflow-hidden ${\n          !isHeaderCollapsed\n            ? 'max-h-[900px] opacity-100'\n            : 'max-h-0 opacity-0 pointer-events-none'\n        }`}'''
-          new_wrap = '''className={`header-collapsible transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden ${\n          !isHeaderCollapsed\n            ? 'max-h-[900px] opacity-100'\n            : 'max-h-0 opacity-0 pointer-events-none'\n        }`}\n        style={{ paddingTop: '3.5rem' }}'''
-          s = s.replace(old_wrap, new_wrap)
-
+          s = s.replace('className="px-3 sm:px-4 py-1.5 bg-[#080C14] border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300"', 'className="fixed top-0 left-0 right-0 h-14 px-3 sm:px-4 bg-[#080C14] border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300 z-[1000]"')
           p.write_text(s)
-
-      - name: Add stable header CSS
+      - name: Add stable CSS
         shell: python
         run: |
           from pathlib import Path
@@ -72,19 +39,17 @@ jobs:
           s = p.read_text()
           marker = '/* Stable manual header collapse */'
           if marker not in s:
-            s += '''\n\n/* Stable manual header collapse */\n.header-collapsible {\n  overflow: hidden;\n  transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out;\n  box-sizing: border-box;\n}\n\n@media (max-width: 768px) {\n  .header-collapsible {\n    transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out;\n  }\n}\n'''
+            s += '''\n\n/* Stable manual header collapse */\n.header-collapsible {\n  overflow: hidden;\n  transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out;\n  box-sizing: border-box;\n}\n'''
             p.write_text(s)
-
-      - name: Verify no page scroll listener remains in Header
+      - name: Verify
         shell: bash
         run: |
-          ! grep -nE "window\.addEventListener\(['\"]scroll|onScroll|window\.scrollY|requestAnimationFrame" src/components/Header.tsx
-
-      - name: Commit changes and remove this workflow
+          ! grep -nE "window\.addEventListener\(['\"]scroll|window\.scrollY|requestAnimationFrame|onScroll" src/components/Header.tsx
+      - name: Commit
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/components/Header.tsx src/index.css .github/workflows/refactor-header.yml
-          git commit -m "fix: make header collapse manual and stable" || exit 0
+          git add src/components/Header.tsx src/index.css
+          git commit -m "fix: stable manual header collapse" || exit 0
           git push
