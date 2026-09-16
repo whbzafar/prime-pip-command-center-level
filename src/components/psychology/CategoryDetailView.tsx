@@ -32,7 +32,7 @@ interface CategoryDetailViewProps {
   habitProgress: HabitProgressState;
 }
 
-type TabType = 'OVERVIEW' | 'SESSIONS' | 'SIGNS' | 'REFLECTIONS' | 'LOGS';
+type TabType = 'DIAGNOSTIC' | 'SESSIONS' | 'OVERVIEW' | 'SIGNS' | 'REFLECTIONS' | 'LOGS';
 
 export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
   category,
@@ -41,7 +41,7 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
   onSaveResult,
   habitProgress,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('SESSIONS');
+  const [activeTab, setActiveTab] = useState<TabType>('DIAGNOSTIC');
   const [activeSessionToRun, setActiveSessionToRun] = useState<InteractiveSession | null>(null);
 
   // Filter logs for this specific category
@@ -120,11 +120,12 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
       {/* Tabs Navigation */}
       <div className="flex flex-wrap gap-2 border-b border-indigo-900/30 pb-2">
         {[
-          { id: 'SESSIONS', label: '5 Interactive Sessions', icon: Play },
-          { id: 'OVERVIEW', label: 'Why It Happens & Impact', icon: Brain },
-          { id: 'SIGNS', label: 'Warning Signs & Symptoms', icon: AlertTriangle },
-          { id: 'REFLECTIONS', label: 'Deep Reflections', icon: BookOpen },
-          { id: 'LOGS', label: `Result Logs (${completedCount})`, icon: History },
+          { id: 'DIAGNOSTIC', label: '1. What It Is & How To Prevent It', icon: Sparkles },
+          { id: 'SESSIONS', label: '2. 5 Interactive Sessions', icon: Play },
+          { id: 'OVERVIEW', label: '3. Neuro-Mechanisms & Impact', icon: Brain },
+          { id: 'SIGNS', label: '4. Warning Signs & Symptoms', icon: AlertTriangle },
+          { id: 'REFLECTIONS', label: '5. Deep Reflections', icon: BookOpen },
+          { id: 'LOGS', label: `6. Result Logs (${completedCount})`, icon: History },
         ].map((tab) => {
           const Icon = tab.icon;
           return (
@@ -144,6 +145,123 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
           );
         })}
       </div>
+
+      {/* TAB 0: DIAGNOSTIC GUIDE (WHAT IT IS, HOW IT OCCURS, SYMPTOMS, HOW TO PREVENT IT) */}
+      {activeTab === 'DIAGNOSTIC' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 1. What It Is in Simple Language */}
+            <div className="p-6 rounded-2xl bg-[#0b101e] border border-indigo-900/40 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-military font-bold text-teal-300 uppercase tracking-wider border-b border-indigo-900/30 pb-3">
+                <Brain className="w-4 h-4 text-teal-400" />
+                <span>1. WHAT IT IS (SIMPLE LANGUAGE EXPLANATION)</span>
+              </div>
+              <p className="text-sm font-mono-code text-slate-200 leading-relaxed bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                {category.shortDescription || (category as any).tagline || `${category.name} is a psychological state where emotional impulse overrides rule-based trade execution.`}
+              </p>
+              <div className="text-xs font-mono-code text-slate-400 leading-relaxed">
+                Core Cognitive Trap: <strong className="text-teal-300">{category.whyItHappens.cognitiveDistortion}</strong>
+              </div>
+            </div>
+
+            {/* 2. How It Occurs */}
+            <div className="p-6 rounded-2xl bg-[#0b101e] border border-indigo-900/40 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-military font-bold text-amber-300 uppercase tracking-wider border-b border-indigo-900/30 pb-3">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <span>2. HOW IT OCCURS (TRIGGER TO ACTION CYCLE)</span>
+              </div>
+              <div className="space-y-2 text-xs font-mono-code text-slate-300">
+                <div className="flex items-start gap-2 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
+                  <span className="w-5 h-5 rounded bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0">1</span>
+                  <span><strong>Trigger:</strong> Rapid price expansion or sudden PnL change triggers amygdala survival response.</span>
+                </div>
+                <div className="flex items-start gap-2 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
+                  <span className="w-5 h-5 rounded bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0">2</span>
+                  <span><strong>Distortion:</strong> Mind creates an irrational sense of urgency: {category.whyItHappens.evolutionaryRoot}</span>
+                </div>
+                <div className="flex items-start gap-2 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
+                  <span className="w-5 h-5 rounded bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0">3</span>
+                  <span><strong>Impulse:</strong> Prefrontal cortex executive function temporarily drops, leading to unverified order clicks.</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Symptoms */}
+            <div className="p-6 rounded-2xl bg-[#0b101e] border border-indigo-900/40 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-military font-bold text-rose-300 uppercase tracking-wider border-b border-indigo-900/30 pb-3">
+                <Zap className="w-4 h-4 text-rose-400" />
+                <span>3. RECOGNIZED SYMPTOMS (WARNING SIGNS)</span>
+              </div>
+              <div className="space-y-3 text-xs font-mono-code">
+                <div>
+                  <span className="text-slate-400 font-bold block mb-1">Physical Body Sensations:</span>
+                  <p className="text-slate-300 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+                    {category.warningSigns?.physical?.join(', ') || 'Shallow breathing, elevated pulse, clenched jaw, shoulder tightness.'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block mb-1">Mental / Internal Thoughts:</span>
+                  <p className="text-rose-300 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800 italic">
+                    "{category.warningSigns?.mental?.[0] || 'I have to make back what I lost right now'}" or "{category.warningSigns?.mental?.[1] || 'If I do not enter this candle I will miss the move'}"
+                  </p>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block mb-1">Behavioral Patterns:</span>
+                  <p className="text-slate-300 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+                    {category.warningSigns?.behavioral?.join(', ') || 'Switching timeframes frantically, increasing lot size without calculation, ignoring Stop Loss.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. How To Prevent It */}
+            <div className="p-6 rounded-2xl bg-[#0b101e] border border-teal-900/40 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-military font-bold text-teal-300 uppercase tracking-wider border-b border-teal-900/30 pb-3">
+                <ShieldCheck className="w-4 h-4 text-teal-400" />
+                <span>4. HOW TO PREVENT IT (CLINICAL ACTION PROTOCOL)</span>
+              </div>
+              <div className="space-y-2 text-xs font-mono-code">
+                <div className="flex items-start gap-2 bg-teal-950/30 p-3 rounded-lg border border-teal-900/30 text-slate-200">
+                  <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
+                  <span><strong>Physical Brake:</strong> Step away from the screens for 3 minutes. Take three slow 4-7-8 physiological sighs to reset heart rate variability.</span>
+                </div>
+                <div className="flex items-start gap-2 bg-teal-950/30 p-3 rounded-lg border border-teal-900/30 text-slate-200">
+                  <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
+                  <span><strong>SBT Execution Rule:</strong> Never place a market order on an active running candle. Only limit orders at predefined discount/premium zones.</span>
+                </div>
+                <div className="flex items-start gap-2 bg-teal-950/30 p-3 rounded-lg border border-teal-900/30 text-slate-200">
+                  <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
+                  <span><strong>Hard Stop Enforcer:</strong> Set automated daily max loss limits. Once hit, the trading terminal must remain locked for the session.</span>
+                </div>
+                <div className="flex items-start gap-2 bg-teal-950/30 p-3 rounded-lg border border-teal-900/30 text-slate-200">
+                  <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
+                  <span><strong>Run an Interactive Elimination Session:</strong> Complete one of the 5 dedicated interactive exercises below to re-wire neural pathways.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Action to Jump to 5 Sessions */}
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-teal-950/40 via-indigo-950/40 to-slate-900 border border-teal-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-military font-bold text-teal-200 uppercase">
+                Ready to Eliminate {category.name}?
+              </h4>
+              <p className="text-xs font-mono-code text-slate-400">
+                Choose one of the 5 interactive cognitive and somatic regulation sessions.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('SESSIONS')}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-indigo-600 text-white text-xs font-military font-bold uppercase tracking-wider shadow-lg hover:opacity-95 transition cursor-pointer flex items-center gap-2"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>LAUNCH 5 SESSIONS</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* TAB 1: 5 INTERACTIVE SESSIONS */}
       {activeTab === 'SESSIONS' && (

@@ -67,6 +67,9 @@ import {
   getTraderProfile,
   saveTraderProfile,
 } from "./server/evolutionService.js";
+import { analyzeIntent } from "./server/intelligence/intentRouter.js";
+import { resolveCapability } from "./server/intelligence/capabilityRegistry.js";
+import { getClusters } from "./server/intelligence/gapLedger.js";
 
 dotenv.config();
 
@@ -1126,7 +1129,10 @@ app.get('/api/community/messages', (req, res) => {
   }
 });
 
-app.post('/api/community/messages', (req, res) => {
+// Rate limiter for Chat Intelligence cards: 1 card per user per 20 seconds
+const userLastCardTime = new Map<string, number>();
+
+app.post('/api/community/messages', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized. Please login to participate in the community.' });
@@ -1153,14 +1159,60 @@ app.post('/api/community/messages', (req, res) => {
       });
     }
 
+    // Run Chat Intelligence Layer
+    let intentCard: any = undefined;
+    if (text && typeof text === 'string') {
+      const now = Date.now();
+      const lastTime = userLastCardTime.get(user.id) || 0;
+      const cooldownPassed = now - lastTime >= 20000;
+
+      try {
+        const classified = await analyzeIntent(text, user.id, getGeminiClient());
+        if (classified && classified.confidence >= 0.75 && (cooldownPassed || classified.capability === 'CRISIS_RESOURCE')) {
+          const handler = resolveCapability(classified.capability);
+          if (handler) {
+            // 3000ms timeout budget for card execution
+            const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+            const card = await Promise.race([
+              handler(classified.entities, user.id),
+              timeoutPromise,
+            ]);
+            if (card) {
+              intentCard = card;
+              userLastCardTime.set(user.id, now);
+            }
+          }
+        }
+      } catch (intelErr) {
+        console.warn('[Intelligence] Failed to resolve card:', intelErr);
+      }
+    }
+
     const newMsg = postCommunityMessage({
       ...req.body,
       userId: user.id,
       username: user.username,
       displayName: user.name || user.username,
       avatarBadge: user.role === 'ADMIN' || user.username === 'primepipfx-admin' ? 'DEV / OWNER' : undefined,
+      intentCard,
     });
     return res.json({ ok: true, message: newMsg });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+// Admin endpoint for query gaps
+app.get('/api/admin/gaps', (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token);
+    if (!user || (user.role !== 'ADMIN' && user.username !== 'primepipfx-admin')) {
+      return res.status(403).json({ ok: false, error: 'Forbidden' });
+    }
+    const clusters = getClusters();
+    return res.json({ ok: true, clusters });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }

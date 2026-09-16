@@ -24,6 +24,8 @@ import {
   UserPlus,
   Radio,
 } from 'lucide-react';
+import { IntentCard } from './chat/IntentCard';
+import { IntentCardPayload } from './chat/types';
 
 interface ChatMessage {
   id: string;
@@ -40,6 +42,7 @@ interface ChatMessage {
   audioDurationSeconds?: number;
   audioSize?: number;
   audioUrl?: string;
+  intentCard?: IntentCardPayload;
   timestamp: number;
   timePkt: string;
   datePkt: string;
@@ -478,6 +481,11 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                             isSelf={isMe}
                           />
                         </div>
+                      )}
+
+                      {/* Interactive Chat Intelligence Card */}
+                      {m.intentCard && (
+                        <IntentCard payload={m.intentCard} />
                       )}
                     </div>
                   </div>

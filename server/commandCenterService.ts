@@ -46,6 +46,7 @@ export interface CommunityMessage {
   audioDurationSeconds?: number;
   audioSize?: number;
   audioUrl?: string;
+  intentCard?: any;
   timestamp: number;
   timePkt: string;
   datePkt: string;

@@ -131,7 +131,7 @@ export const SbtModelsHub: React.FC = () => {
   const masteryPercent = Math.round((studiedModels.length / AUTHORITATIVE_SBT_MODELS.length) * 100);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className={isLightboxOpen ? "fixed inset-0 z-50 bg-slate-950 p-4 sm:p-6 overflow-y-auto space-y-6" : "max-w-7xl mx-auto space-y-6"}>
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-teal-950/30 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -139,7 +139,7 @@ export const SbtModelsHub: React.FC = () => {
             <Layers className="w-7 h-7 stroke-[2.2]" />
           </div>
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-military font-bold text-slate-100 tracking-wider">
                 SBT MODELS
               </h1>
@@ -149,21 +149,80 @@ export const SbtModelsHub: React.FC = () => {
               </span>
             </div>
             <p className="text-xs font-mono-code text-slate-400">
-              Deterministic Vector Models & Verbatim Execution Rules Transcribed Directly from Source
+              Deterministic Vector Models & Verbatim Execution Rules Transcribed Directly from Official Source
             </p>
           </div>
         </div>
 
-        {/* Progress Tracker Pill */}
-        <div className="flex items-center gap-3 bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-2">
-          <div className="text-right font-mono-code">
-            <div className="text-[10px] text-slate-500">AUTHORITATIVE MASTERY</div>
-            <div className="text-xs font-bold text-teal-400">
-              {studiedModels.length} / {AUTHORITATIVE_SBT_MODELS.length} Models Verified
+        {/* Action Controls & PDF Link */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* OFFICIAL SBT PDF LINK */}
+          <a
+            href="/SBT/Official_Yearly_SBT_Models_Reference.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 via-emerald-400 to-teal-500 text-slate-950 font-bold text-xs font-mono-code hover:brightness-110 shadow-lg shadow-teal-500/25 transition cursor-pointer border border-teal-300/40"
+            title="Open official 12-page yearly SBT reference material PDF"
+          >
+            <FileText className="w-4 h-4 text-slate-950" />
+            <span>OFFICIAL SBT PDF (12 PAGES)</span>
+            <ExternalLink className="w-3.5 h-3.5 text-slate-950" />
+          </a>
+
+          {/* Fullscreen / Minimize Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsLightboxOpen(!isLightboxOpen)}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-mono-code transition cursor-pointer"
+            title={isLightboxOpen ? 'Restore view' : 'Maximize hub to fullscreen'}
+          >
+            {isLightboxOpen ? (
+              <>
+                <Minimize2 className="w-4 h-4 text-amber-400" />
+                <span className="hidden sm:inline">RESTORE</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-4 h-4 text-teal-400" />
+                <span className="hidden sm:inline">FULLSCREEN</span>
+              </>
+            )}
+          </button>
+
+          {/* Progress Tracker Pill */}
+          <div className="flex items-center gap-3 bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-2">
+            <div className="text-right font-mono-code">
+              <div className="text-[10px] text-slate-500">AUTHORITATIVE MASTERY</div>
+              <div className="text-xs font-bold text-teal-400">
+                {studiedModels.length} / {AUTHORITATIVE_SBT_MODELS.length} Models Verified
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-full border-2 border-teal-500/30 flex items-center justify-center font-mono-code text-xs font-bold text-slate-200">
+              {masteryPercent}%
             </div>
           </div>
-          <div className="w-10 h-10 rounded-full border-2 border-teal-500/30 flex items-center justify-center font-mono-code text-xs font-bold text-slate-200">
-            {masteryPercent}%
+        </div>
+      </div>
+
+      {/* MANDATORY SBT REFERENCE DISCLAIMER */}
+      <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed flex items-start gap-3 shadow-md">
+        <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <p className="font-mono-code text-[11px] leading-relaxed">
+            <strong className="text-amber-300 font-bold">SBT Reference Disclaimer: </strong>
+            The graphical representation provided in the Command Center is for convenient reference. If there is any issue, difference, missing information, or display problem with the graphical representation, please click the official SBT PDF link above to view the complete reference material.
+          </p>
+          <div className="flex items-center gap-2 pt-1">
+            <a
+              href="/SBT/Official_Yearly_SBT_Models_Reference.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-300 hover:text-teal-200 underline decoration-teal-400/50"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Click here to open Official SBT PDF in new tab</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
         </div>
       </div>

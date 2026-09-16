@@ -40,6 +40,7 @@ import {
   ChevronRight,
   Lock,
   Layers,
+  Globe,
 } from 'lucide-react';
 import { AccountSettings, TraderPerformanceScores, UserAccount } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
@@ -296,7 +297,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'LOT_SIZE' as MainNavTab, label: '04. LOT SIZE CALCULATOR', icon: Calculator },
     { id: 'RISK' as MainNavTab, label: '05. RISK MANAGEMENT', icon: Crosshair },
     { id: 'PRE_TRADE_PLAN' as MainNavTab, label: '06. PRE-TRADE PLAN', icon: ShieldAlert, highlight: true },
-    { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: '07. FUNDAMENTAL CALENDAR', icon: Calendar, highlight: true },
+    { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: '07. LIVE NEWS CALENDAR', icon: Calendar, highlight: true },
     { id: 'SIGNALS' as MainNavTab, label: '08. PREMIUM SIGNALS', icon: Radio, highlight: true, comingSoon: true, locked: true },
     { id: 'COMPOUNDING' as MainNavTab, label: '09. COMPOUNDING TOOLS', icon: Calculator },
     { id: 'PERFORMANCE' as MainNavTab, label: '10. PERFORMANCE REPORT', icon: BarChart3 },
