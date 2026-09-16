@@ -32,9 +32,9 @@ const DRIVE_USER_KEY = 'primepipfx_gdrive_user_info';
 const DRIVE_LAST_SYNC_KEY = 'primepipfx_gdrive_last_sync';
 const DRIVE_ROOT_FOLDER_KEY = 'primepipfx_gdrive_root_folder_id';
 
-// Default Client ID (configurable by user/admin in Settings or import.meta.env.VITE_GOOGLE_CLIENT_ID)
+// Default Client ID (configurable by user/admin in Settings or (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID)
 const DEFAULT_CLIENT_ID =
-  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GOOGLE_CLIENT_ID) ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_GOOGLE_CLIENT_ID) ||
   '514789023412-pfxcommandcenter.apps.googleusercontent.com';
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
@@ -182,6 +182,29 @@ class GoogleDriveService {
     localStorage.setItem(DRIVE_USER_KEY, 'student@trading.pfx');
     this.notifyStatus({ state: 'CONNECTED', userEmail: 'student@trading.pfx' });
     return true;
+  }
+
+  public async connect(customClientId?: string): Promise<boolean> {
+    return this.connectGoogleDrive(customClientId);
+  }
+
+  public async backupCommandCenter(backupData: BackupData): Promise<{ success: boolean; fileId?: string; error?: string }> {
+    const res = await this.backupToGoogleDrive(backupData, 'Backups');
+    return { success: res.ok, fileId: res.fileId, error: res.error };
+  }
+
+  public onStatusChange(callback: (status: DriveStatusInfo) => void): () => void {
+    if (typeof window === 'undefined') return () => {};
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<DriveStatusInfo>;
+      if (customEvent.detail) {
+        callback(customEvent.detail);
+      }
+    };
+    window.addEventListener('pfx_drive_status_change', handler);
+    return () => {
+      window.removeEventListener('pfx_drive_status_change', handler);
+    };
   }
 
   public disconnect() {

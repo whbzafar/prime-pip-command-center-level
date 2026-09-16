@@ -31,6 +31,9 @@ export interface StructureLine {
   dashed?: boolean;
 }
 
+export type SbtVectorCandle = CandleData;
+export type SbtVectorZone = ZoneData;
+
 export { SBT_SOURCE_COLORS } from './sbtModelsSourceData';
 
 export interface SbtModelVariation {
@@ -62,6 +65,8 @@ export interface SbtModel {
   }[];
   variations: SbtModelVariation[];
 }
+
+export type SbtModelItem = SbtModel;
 
 export const SBT_MODELS: SbtModel[] = [
   // =========================================================================

@@ -1168,7 +1168,21 @@ export default function App() {
         onUpdateUser={(updated) => {
           setCurrentUser(updated);
         }}
+        onStartWalkthrough={() => setIsStudentOnboardingOpen(true)}
       />
+
+      {/* Student Guided Walkthrough / Onboarding Modal */}
+      {currentUser && (
+        <OnboardingModal
+          isOpen={isStudentOnboardingOpen}
+          user={currentUser}
+          onClose={() => setIsStudentOnboardingOpen(false)}
+          onComplete={(updated) => {
+            setCurrentUser(updated);
+            setIsStudentOnboardingOpen(false);
+          }}
+        />
+      )}
 
       {/* Trader Experience Profile Modal */}
       {isTraderProfileOpen && (

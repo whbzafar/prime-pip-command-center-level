@@ -9,6 +9,7 @@ import {
   Shield,
   Activity,
   Award,
+  Compass,
 } from 'lucide-react';
 import { UserAccount } from '../types';
 import { setStoredUser } from '../utils/authClient';
@@ -18,6 +19,7 @@ interface UserProfileModalProps {
   onClose: () => void;
   user: UserAccount | null;
   onUpdateUser: (updated: UserAccount) => void;
+  onStartWalkthrough?: () => void;
 }
 
 const PRESET_AVATARS = [
@@ -34,6 +36,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onClose,
   user,
   onUpdateUser,
+  onStartWalkthrough,
 }) => {
   const [name, setName] = useState(user?.name || '');
   const [bio, setBio] = useState(user?.bio || '');
@@ -255,6 +258,31 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             />
           </div>
         </div>
+
+        {/* Guided Walkthrough Banner */}
+        {onStartWalkthrough && (
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 shrink-0">
+                <Compass className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-military font-bold text-slate-200">SYSTEM TOUR & 12 CATEGORIES</p>
+                <p className="text-[11px] font-mono-code text-slate-400">Replay the guided orientation walkthrough anytime</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onStartWalkthrough();
+              }}
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-teal-500/30 text-xs font-mono-code font-bold transition cursor-pointer shrink-0"
+            >
+              START TOUR
+            </button>
+          </div>
+        )}
 
         {/* Modal Actions */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-800">
