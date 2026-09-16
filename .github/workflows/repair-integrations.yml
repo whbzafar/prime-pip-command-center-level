@@ -1,0 +1,287 @@
+name: Repair Drive Community Risk and SBT Links
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply targeted repairs
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          def read(p): return Path(p).read_text(encoding='utf-8')
+          def write(p, s): Path(p).write_text(s, encoding='utf-8')
+
+          # 1) Google Drive: never fabricate a token; wait for Google Identity Services,
+          # resolve only after a real OAuth token is returned, and surface OAuth errors.
+          p = Path('src/services/googleDriveService.ts')
+          s = read(p)
+          if 'simulatedToken' not in s:
+              raise SystemExit('Drive repair anchor missing: simulatedToken')
+          if 'private pendingConnectResolve' not in s:
+              s = s.replace(
+                  '  private currentUserId: string = \'default\';\n',
+                  '  private currentUserId: string = \'default\';\n  private pendingConnectResolve: ((value: boolean) => void) | null = null;\n  private pendingConnectReject: ((reason?: any) => void) | null = null;\n'
+              )
+          old_cb = '''          callback: (tokenResponse: any) => {\n          if (tokenResponse.error) {\n            console.error(\'Google OAuth token error:\', tokenResponse.error);\n            this.notifyStatus({ state: \'ERROR\', lastError: tokenResponse.error });\n            return;\n          }\n          if (tokenResponse.access_token) {\n            const expiresIn = tokenResponse.expires_in || 3599;\n            const expiry = Date.now() + expiresIn * 1000;\n            localStorage.setItem(this.getStorageKey(DRIVE_TOKEN_KEY), tokenResponse.access_token);\n            localStorage.setItem(this.getStorageKey(DRIVE_EXPIRY_KEY), String(expiry));\n\n            // Fetch real user info for this specific student\n            this.fetchUserInfo(tokenResponse.access_token);\n          }\n        },'''
+          new_cb = '''          callback: (tokenResponse: any) => {\n            if (tokenResponse.error) {\n              const message = tokenResponse.error_description || tokenResponse.error || 'Google authorization failed';\n              console.error('Google OAuth token error:', message);\n              this.notifyStatus({ state: 'ERROR', lastError: message });\n              const reject = this.pendingConnectReject;\n              this.pendingConnectResolve = null;\n              this.pendingConnectReject = null;\n              if (reject) reject(new Error(message));\n              return;\n            }\n            if (tokenResponse.access_token) {\n              const expiresIn = Number(tokenResponse.expires_in || 3599);\n              const expiry = Date.now() + expiresIn * 1000;\n              localStorage.setItem(this.getStorageKey(DRIVE_TOKEN_KEY), tokenResponse.access_token);\n              localStorage.setItem(this.getStorageKey(DRIVE_EXPIRY_KEY), String(expiry));\n              this.fetchUserInfo(tokenResponse.access_token);\n              const resolve = this.pendingConnectResolve;\n              this.pendingConnectResolve = null;\n              this.pendingConnectReject = null;\n              if (resolve) resolve(true);\n            }\n          },'''
+          if old_cb not in s:
+              raise SystemExit('Drive repair anchor missing: OAuth callback')
+          s = s.replace(old_cb, new_cb)
+          old_connect = '''  public async connectGoogleDrive(customClientId?: string): Promise<boolean> {\n    if (customClientId) {\n      this.setClientId(customClientId);\n    }\n    if (!this.tokenClient) {\n      this.setupTokenClient();\n    }\n\n    if (this.tokenClient) {\n      this.notifyStatus({ state: 'CONNECTING' });\n      this.tokenClient.requestAccessToken({ prompt: 'consent' });\n      return true;\n    }\n\n    // Fallback: If GSI script not yet loaded or blocked in sandboxed iframe, provide friendly guided token/demo auth\n    console.warn('Google GSI Token Client not ready, using direct OAuth dialog');\n    const simulatedToken = `gdrive_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;\n    localStorage.setItem(DRIVE_TOKEN_KEY, simulatedToken);\n    localStorage.setItem(DRIVE_EXPIRY_KEY, String(Date.now() + 86400000));\n    localStorage.setItem(DRIVE_USER_KEY, 'student@trading.pfx');\n    this.notifyStatus({ state: 'CONNECTED', userEmail: 'student@trading.pfx' });\n    return true;\n  }'''
+          new_connect = '''  public async connectGoogleDrive(customClientId?: string): Promise<boolean> {\n    if (customClientId) this.setClientId(customClientId);\n\n    if (this.getAccessToken()) {\n      return true;\n    }\n\n    if (!this.tokenClient) this.setupTokenClient();\n\n    // GSI can load asynchronously. Wait briefly for the real Google token client.\n    if (!this.tokenClient && typeof window !== 'undefined') {\n      await new Promise<void>((resolve) => {\n        const started = Date.now();\n        const timer = window.setInterval(() => {\n          if (this.tokenClient || Date.now() - started >= 10000) {\n            window.clearInterval(timer);\n            resolve();\n          }\n        }, 100);\n      });\n    }\n\n    if (!this.tokenClient) {\n      const message = 'Google Drive authorization is not ready. Please allow accounts.google.com and try again.';\n      this.notifyStatus({ state: 'ERROR', lastError: message });\n      return false;\n    }\n\n    this.notifyStatus({ state: 'CONNECTING' });\n    return new Promise<boolean>((resolve, reject) => {\n      this.pendingConnectResolve = resolve;\n      this.pendingConnectReject = reject;\n      try {\n        this.tokenClient.requestAccessToken({ prompt: 'select_account' });\n      } catch (error: any) {\n        this.pendingConnectResolve = null;\n        this.pendingConnectReject = null;\n        this.notifyStatus({ state: 'ERROR', lastError: error?.message || 'Google authorization failed' });\n        reject(error);\n      }\n    });\n  }'''
+          if old_connect not in s:
+              raise SystemExit('Drive repair anchor missing: connectGoogleDrive')
+          s = s.replace(old_connect, new_connect)
+          write(p, s)
+
+          # 2) Server-first trader network: expose every admin-created CUSTOMER and
+          # provide real online status, requests, and authenticated community posting.
+          p = Path('server.ts')
+          s = read(p)
+          anchor = '// AUTH, DEVELOPER ACCESS, SUBSCRIPTIONS & CUSTOMERS'
+          if anchor not in s:
+              raise SystemExit('Server anchor missing')
+          routes = r'''// ----------------------------------------------------
+// STABLE TRADER NETWORK + COMMUNITY ROUTES
+// These routes intentionally appear before legacy versions so the first
+// matching Express route is deterministic.
+// ----------------------------------------------------
+
+function requireApiUser(req: express.Request, res: express.Response) {
+  const token = getAuthToken(req);
+  const user = getUserByToken(token);
+  if (!user) {
+    res.status(401).json({ ok: false, error: 'Authentication required' });
+    return null;
+  }
+  return user;
+}
+
+app.get('/api/friends/all-traders', (req, res) => {
+  try {
+    const traders = getAllCustomers()
+      .filter((u: any) => u.role === 'CUSTOMER' && !u.isDeveloper)
+      .map((u: any) => ({
+        id: u.id,
+        username: u.username,
+        displayName: u.name || u.username,
+        role: u.role,
+        isOnline: isUserOnline(u.id),
+        lastActive: (u as any).lastActive || undefined,
+      }));
+    res.json({ ok: true, traders });
+  } catch (error: any) {
+    res.status(500).json({ ok: false, error: error?.message || 'Unable to load traders' });
+  }
+});
+
+app.get('/api/friends/search', (req, res) => {
+  const me = requireApiUser(req, res);
+  if (!me) return;
+  const q = String(req.query.q || '').trim().toLowerCase();
+  const users = getAllCustomers()
+    .filter((u: any) => u.role === 'CUSTOMER' && !u.isDeveloper && u.id !== me.id)
+    .filter((u: any) => !q || `${u.username} ${u.name || ''}`.toLowerCase().includes(q))
+    .map((u: any) => ({
+      id: u.id,
+      username: u.username,
+      name: u.name || u.username,
+      role: u.role,
+      isOnline: isUserOnline(u.id),
+      lastActive: (u as any).lastActive || undefined,
+    }));
+  res.json({ ok: true, users });
+});
+
+app.get('/api/friends/list', (req, res) => {
+  const me = requireApiUser(req, res);
+  if (!me) return;
+  try {
+    const network = getUserFriends(me.id);
+    const friends = network.friends.map((r: any) => {
+      const isFirst = r.userId1 === me.id;
+      const friendId = isFirst ? r.userId2 : r.userId1;
+      const friendUsername = isFirst ? r.username2 : r.username1;
+      const friendDisplayName = (isFirst ? r.displayName2 : r.displayName1) || friendUsername;
+      return {
+        id: r.id,
+        friendId,
+        friendUsername,
+        friendDisplayName,
+        onlineStatus: isUserOnline(friendId) ? 'ONLINE' : 'OFFLINE',
+        since: r.createdAt,
+      };
+    });
+    res.json({ ok: true, friends, incomingRequests: network.incomingRequests, outgoingRequests: network.outgoingRequests });
+  } catch (error: any) {
+    res.status(500).json({ ok: false, error: error?.message || 'Unable to load friend network' });
+  }
+});
+
+app.post('/api/friends/request', (req, res) => {
+  const me = requireApiUser(req, res);
+  if (!me) return;
+  const targetId = String(req.body?.targetUserId || '').trim();
+  const targetUsername = String(req.body?.targetUsername || '').trim().toLowerCase();
+  const target = getAllCustomers().find((u: any) =>
+    u.role === 'CUSTOMER' && !u.isDeveloper && (u.id === targetId || u.username.toLowerCase() === targetUsername)
+  );
+  if (!target) return res.status(404).json({ ok: false, error: 'Trader not found' });
+  const result = sendFriendRequest(
+    { id: me.id, username: me.username, displayName: me.name },
+    { id: target.id, username: target.username, displayName: target.name }
+  );
+  res.status(result.success ? 200 : 400).json({ ok: result.success, ...result });
+});
+
+app.post('/api/friends/respond', (req, res) => {
+  const me = requireApiUser(req, res);
+  if (!me) return;
+  const result = updateFriendshipStatus(String(req.body?.requestId || ''), String(req.body?.status || 'REJECTED') as any, me.id);
+  res.status(result.success ? 200 : 400).json({ ok: result.success, ...result });
+});
+
+app.get('/api/community/messages', (req, res) => {
+  try {
+    res.json({ ok: true, messages: readCommunityMessages() });
+  } catch (error: any) {
+    res.status(500).json({ ok: false, error: error?.message || 'Unable to read community messages' });
+  }
+});
+
+app.post('/api/community/messages', (req, res) => {
+  const me = requireApiUser(req, res);
+  if (!me) return;
+  try {
+    const body = req.body || {};
+    if (!String(body.text || '').trim() && !body.photoBase64 && !body.audioBase64 && !body.audioAttachmentId && !body.driveFile) {
+      return res.status(400).json({ ok: false, error: 'Message cannot be empty' });
+    }
+    const message = postCommunityMessage({
+      userId: me.id,
+      username: me.username,
+      userRole: me.role === 'ADMIN' || me.role === 'DEVELOPER' ? 'ADMIN' : 'CUSTOMER',
+      displayName: me.role === 'ADMIN' || me.role === 'DEVELOPER' ? 'PrimePipFX Developer / Owner' : (me.name || me.username),
+      text: String(body.text || ''),
+      emoji: body.emoji,
+      photoBase64: body.photoBase64,
+      audioBase64: body.audioBase64,
+      audioAttachmentId: body.audioAttachmentId,
+      audioMimeType: body.audioMimeType,
+      audioDurationSeconds: body.audioDurationSeconds,
+      audioSize: body.audioSize,
+      audioUrl: body.audioUrl,
+      driveFile: body.driveFile,
+      intentCard: body.intentCard,
+      timePkt: body.timePkt,
+      datePkt: body.datePkt,
+    });
+    res.status(201).json({ ok: true, message });
+  } catch (error: any) {
+    console.error('[COMMUNITY] post failed:', error);
+    res.status(500).json({ ok: false, error: error?.message || 'Unable to send community message' });
+  }
+});
+
+app.post('/api/community/messages/seen', (req, res) => {
+  const me = requireApiUser(req, res);
+  if (!me) return;
+  const user = req.body?.user || { id: me.id, username: me.username, displayName: me.name };
+  const count = markCommunityMessagesSeen(req.body?.messageIds || [], user);
+  res.json({ ok: true, updated: count });
+});
+
+'''
+          s = s.replace(anchor, routes + anchor, 1)
+          write(p, s)
+
+          # 3) Friend UI: opening Add Traders automatically loads all admin-created students.
+          p = Path('src/components/communication/FriendSystem.tsx')
+          s = read(p)
+          marker = "  const handleSearchUsers = async (e: React.FormEvent) => {"
+          if marker not in s:
+              raise SystemExit('FriendSystem anchor missing')
+          if 'const loadAllTraders = async () =>' not in s:
+              insertion = '''  const loadAllTraders = async () => {\n    setIsSearching(true);\n    const token = getStoredToken();\n    try {\n      const res = await fetch('/api/friends/search', { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });\n      if (res.ok) {\n        const data = await res.json();\n        setSearchResults(data.users || []);\n      }\n    } catch (err) {\n      console.error('Trader list error:', err);\n    } finally {\n      setIsSearching(false);\n    }\n  };\n\n'''
+              s = s.replace(marker, insertion + marker, 1)
+          s = s.replace("    if (!searchQuery.trim()) return;\n", "", 1)
+          if "useEffect(() => {\n    if (activeTab === 'FIND')" not in s:
+              anchor2 = "  useEffect(() => {\n    fetchFriends();"
+              effect = "  useEffect(() => {\n    if (activeTab === 'FIND') loadAllTraders();\n  }, [activeTab, currentUser]);\n\n"
+              s = s.replace(anchor2, effect + anchor2, 1)
+          write(p, s)
+
+          # 4) SBT PDF: avoid double-popup behavior and open through Google's viewer.
+          p = Path('src/components/sbt/SbtModelsHub.tsx')
+          s = read(p)
+          if 'Official_Yearly_SBT_Models_Reference.pdf' not in s:
+              raise SystemExit('SBT PDF anchor missing')
+          if 'const officialSbtPdfPath' not in s:
+              s = s.replace(
+                  "  const [isFullscreenModelOpen, setIsFullscreenModelOpen] = useState(false);\n",
+                  "  const [isFullscreenModelOpen, setIsFullscreenModelOpen] = useState(false);\n  const officialSbtPdfPath = '/SBT/Official_Yearly_SBT_Models_Reference.pdf';\n  const officialSbtPdfUrl = typeof window !== 'undefined' ? `${window.location.origin}${officialSbtPdfPath}` : officialSbtPdfPath;\n  const googleSbtPdfUrl = `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(officialSbtPdfUrl)}`;\n"
+              )
+          # Replace the first anchor's direct href and its duplicate window.open handler.
+          s = s.replace('href="/SBT/Official_Yearly_SBT_Models_Reference.pdf"', 'href={googleSbtPdfUrl}', 1)
+          s = re.sub(r"\n\s*onClick=\{\(e\) => \{\n\s*// Ensure clean opening in a new tab\n\s*const pdfUrl = `\$\{window\.location\.origin\}/SBT/Official_Yearly_SBT_Models_Reference\.pdf`;\n\s*window\.open\(pdfUrl, '_blank', 'noopener,noreferrer'\);\n\s*\}\}", '', s, count=1)
+          # Second link.
+          s = s.replace('href="/SBT/Official_Yearly_SBT_Models_Reference.pdf"', 'href={googleSbtPdfUrl}', 1)
+          write(p, s)
+
+          # 5) Trade entry: if the Risk Warning action is wired to a subscription/demo gate,
+          # redirect that specific action to a local non-blocking Risk Advisory Notice.
+          p = Path('src/components/TradeEntryModal.tsx')
+          s = read(p)
+          if 'Trade with Risk Warning' not in s:
+              raise SystemExit('Trade risk warning label not found')
+          # Detect an existing risk-warning state/setter if present.
+          risk_setter = None
+          m = re.search(r"const\s*\[\s*(?:show|is)[A-Za-z0-9_]*[Rr]isk[A-Za-z0-9_]*\s*,\s*(set[A-Za-z0-9_]*[Rr]isk[A-Za-z0-9_]*)\s*\]\s*=\s*useState", s)
+          if m: risk_setter = m.group(1)
+          if not risk_setter:
+              risk_setter = 'setPrimeRiskAdvisoryOpen'
+              first_state = re.search(r"(const\s*\[[^\n]+\]\s*=\s*useState[^\n]*;\n)", s)
+              if not first_state: raise SystemExit('Could not add risk advisory state')
+              s = s[:first_state.end()] + "  const [primeRiskAdvisoryOpen, setPrimeRiskAdvisoryOpen] = useState(false);\n" + s[first_state.end():]
+          # Replace subscription-gate setter calls close to the risk warning label/handler.
+          label_pos = s.find('Trade with Risk Warning')
+          prefix = s[:label_pos]
+          candidates = list(re.finditer(r"set[A-Za-z0-9_]*Subscription[A-Za-z0-9_]*\(true\)", prefix))
+          if candidates:
+              target = candidates[-1]
+              if label_pos - target.start() <= 5000:
+                  s = s[:target.start()] + f'{risk_setter}(true)' + s[target.end():]
+          # If we created the advisory state, render a compact modal before the component's final return close.
+          if 'primeRiskAdvisoryOpen' in s and 'PRIMEPIPFX RISK ADVISORY' not in s:
+              advisory = '''\n      {primeRiskAdvisoryOpen && (\n        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">\n          <div className="w-full max-w-md rounded-2xl border border-amber-500/40 bg-slate-900 p-6 shadow-2xl">\n            <div className="text-amber-400 font-bold text-sm tracking-wider">PRIMEPIPFX RISK ADVISORY NOTICE</div>\n            <p className="mt-3 text-xs leading-relaxed text-slate-300">\n              Recommended baseline: maximum 1.0% account risk per trade and disciplined trade frequency. This is an advisory only and does not block journal entry creation.\n            </p>\n            <button type="button" onClick={() => setPrimeRiskAdvisoryOpen(false)} className="mt-5 w-full rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950">UNDERSTOOD</button>\n          </div>\n        </div>\n      )}\n'''
+              end = s.rfind('\n  );\n};')
+              if end == -1: raise SystemExit('Could not locate TradeEntryModal return close')
+              s = s[:end] + advisory + s[end:]
+          write(p, s)
+
+          print('Targeted repairs applied successfully.')
+
+      - name: Install dependencies and build
+        run: npm install --no-audit --no-fund && npm run build
+
+      - name: Commit repaired application
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f .github/workflows/repair-integrations.yml
+          git add src server.ts
+          git commit -m "fix: repair drive community risk advisory and SBT PDF links"
+          git push origin main
