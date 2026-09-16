@@ -448,3 +448,17 @@
   background-size: 300% 100%;
   animation: prime-shimmer-flow 6s linear infinite;
 }
+
+
+/* Stable manual header collapse */
+.header-collapsible {
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .header-collapsible {
+    transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out;
+  }
+}

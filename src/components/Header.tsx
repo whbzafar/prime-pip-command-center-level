@@ -228,44 +228,11 @@ export const Header: React.FC<HeaderProps> = ({
   const [scrollProgress, setScrollProgress] = useState(0);
 
   // Upper Header Collapsible State (Auto-collapse on scroll & manual toggle)
-  const [isUpperHeaderExpanded, setIsUpperHeaderExpanded] = useState<boolean>(true);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);
 
-  // Auto-collapse on scroll & reveal when scrolling up near top
-  useEffect(() => {
-    let lastScrollY = window.scrollY;
-    let ticking = false;
-
-    const onScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const currentScrollY = window.scrollY;
-          // Near the very top: reveal upper header
-          if (currentScrollY <= 40) {
-            setIsUpperHeaderExpanded(true);
-          } else if (currentScrollY > lastScrollY + 15 && currentScrollY > 70) {
-            // Scrolling down: collapse upper header to maximize screen space
-            setIsUpperHeaderExpanded(false);
-          } else if (currentScrollY < lastScrollY - 25) {
-            // Scrolling up significantly: reveal upper header
-            setIsUpperHeaderExpanded(true);
-          }
-          lastScrollY = currentScrollY;
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  // When switching tabs, auto-collapse upper header on mobile to maximize workspace
-  useEffect(() => {
-    if (window.innerWidth < 768) {
-      setIsUpperHeaderExpanded(false);
-    }
-  }, [activeTab]);
+  const toggleHeader = () => {
+    setIsHeaderCollapsed((prev) => !prev);
+  };
 
   const checkScrollState = () => {
     if (navScrollRef.current) {
@@ -386,14 +353,15 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="border-b border-slate-800/80 bg-[#0B0F19]/95 backdrop-blur sticky top-0 z-40">
+    <header className="border-b border-slate-800/80 bg-[#0B0F19]/95 backdrop-blur">
       {/* Collapsible Upper Header Block (Status, Prayer Bar, Logo & Profile) */}
       <div
-        className={`transition-all duration-300 ease-in-out overflow-hidden ${
-          isUpperHeaderExpanded
+        className={`header-collapsible transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden ${
+          !isHeaderCollapsed
             ? 'max-h-[900px] opacity-100'
             : 'max-h-0 opacity-0 pointer-events-none'
         }`}
+        style={{ paddingTop: '3.5rem' }}
       >
         {/* Daily Astronomical Islamic Prayer Tracker Bar */}
         <DailyPrayerBar />
@@ -797,7 +765,7 @@ export const Header: React.FC<HeaderProps> = ({
     </div>
 
       {/* Persistent Slim Top Bar: Active Category, Notification Bell & Manual Chevron Toggle */}
-      <div className="px-3 sm:px-4 py-1.5 bg-[#080C14] border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300">
+      <div className="fixed top-0 left-0 right-0 h-14 px-3 sm:px-4 bg-[#080C14] border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300 z-[1000]">
         {/* Left: Active Category / Section */}
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-6 h-6 rounded-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
@@ -819,7 +787,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Right: Quick Actions, Notification Bell & Manual Chevron Toggle */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Quick Trade Button when header is collapsed */}
-          {!isUpperHeaderExpanded && (
+          {!!isHeaderCollapsed && (
             <button
               onClick={onOpenNewTrade}
               className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-[10px] tracking-wider transition shadow-sm cursor-pointer"
@@ -854,13 +822,13 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             id="header-collapse-chevron-toggle-btn"
-            onClick={() => setIsUpperHeaderExpanded((prev) => !prev)}
-            title={isUpperHeaderExpanded ? 'Collapse upper header section' : 'Expand upper header section'}
+            onClick={toggleHeader}
+            title={!isHeaderCollapsed ? 'Collapse upper header section' : 'Expand upper header section'}
             className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-amber-400 transition cursor-pointer"
-            aria-expanded={isUpperHeaderExpanded}
-            aria-label={isUpperHeaderExpanded ? 'Collapse header' : 'Expand header'}
+            aria-expanded={!isHeaderCollapsed}
+            aria-label={!isHeaderCollapsed ? 'Collapse header' : 'Expand header'}
           >
-            {isUpperHeaderExpanded ? (
+            {!isHeaderCollapsed ? (
               <>
                 <ChevronUp className="w-4 h-4 text-amber-400 transition-transform duration-200" />
                 <span className="text-[10px] font-mono-code text-slate-400 hidden sm:inline">COLLAPSE</span>
