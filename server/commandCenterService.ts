@@ -31,6 +31,22 @@ export interface SessionConfig {
   ownerWhatsApp: string;
 }
 
+export interface MessageSeenRecord {
+  userId: string;
+  username: string;
+  displayName: string;
+  seenAt: number;
+}
+
+export interface DriveAttachmentReference {
+  id: string;
+  name: string;
+  mimeType?: string;
+  webViewLink?: string;
+  iconUrl?: string;
+  size?: string;
+}
+
 export interface CommunityMessage {
   id: string;
   userId: string;
@@ -46,6 +62,8 @@ export interface CommunityMessage {
   audioDurationSeconds?: number;
   audioSize?: number;
   audioUrl?: string;
+  driveFile?: DriveAttachmentReference;
+  seenBy?: MessageSeenRecord[];
   intentCard?: any;
   timestamp: number;
   timePkt: string;
@@ -257,12 +275,44 @@ export function postCommunityMessage(msg: Omit<CommunityMessage, 'id' | 'timesta
   const messages = readCommunityMessages();
   const newMsg: CommunityMessage = {
     ...msg,
+    seenBy: [],
     id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     timestamp: Date.now(),
   };
   messages.push(newMsg);
   writeCommunityMessages(messages);
   return newMsg;
+}
+
+export function markCommunityMessagesSeen(
+  messageIds: string[],
+  user: { id: string; username: string; displayName: string }
+): number {
+  if (!messageIds || messageIds.length === 0 || !user || !user.id) return 0;
+  const messages = readCommunityMessages();
+  let updatedCount = 0;
+  const now = Date.now();
+
+  for (const m of messages) {
+    if (messageIds.includes(m.id)) {
+      if (!m.seenBy) m.seenBy = [];
+      const alreadySeen = m.seenBy.some((s) => s.userId === user.id);
+      if (!alreadySeen) {
+        m.seenBy.push({
+          userId: user.id,
+          username: user.username,
+          displayName: user.displayName || user.username,
+          seenAt: now,
+        });
+        updatedCount++;
+      }
+    }
+  }
+
+  if (updatedCount > 0) {
+    writeCommunityMessages(messages);
+  }
+  return updatedCount;
 }
 
 // ----------------------------------------------------

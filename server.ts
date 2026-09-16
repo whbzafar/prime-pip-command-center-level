@@ -19,11 +19,15 @@ import {
   changeDeveloperPassword,
   deleteCustomer,
   completeUserOnboarding,
+  recordUserHeartbeat,
+  isUserOnline,
+  getAllRegisteredTraders,
 } from "./server/authService.js";
 import { getCustomerData, saveCustomerData } from "./server/customerDataService.js";
 import {
   readCommunityMessages,
   postCommunityMessage,
+  markCommunityMessagesSeen,
   readAppointments,
   createAppointment,
   updateAppointmentStatus,
@@ -1118,12 +1122,75 @@ app.delete('/api/media/voice/:id', (req, res) => {
 });
 
 // ----------------------------------------------------
+// OFFICIAL SBT PDF DIRECT SERVING ROUTE
+// Direct browser PDF viewer rendering without redirection
+// ----------------------------------------------------
+app.get(['/SBT/Official_Yearly_SBT_Models_Reference.pdf', '/api/sbt/pdf'], (req, res) => {
+  const pdfPath = path.join(process.cwd(), 'public', 'SBT', 'Official_Yearly_SBT_Models_Reference.pdf');
+  if (fs.existsSync(pdfPath)) {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Official_Yearly_SBT_Models_Reference.pdf"');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.sendFile(pdfPath);
+  }
+  return res.status(404).send('Official SBT PDF file not found on server');
+});
+
+// ----------------------------------------------------
+// REAL USER PRESENCE & HEARTBEAT ENDPOINTS
+// ----------------------------------------------------
+app.post('/api/user/heartbeat', (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid user session' });
+
+    recordUserHeartbeat(user.id);
+    return res.json({ ok: true, userId: user.id, isOnline: true });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+// ----------------------------------------------------
 // COMMUNITY CHAT API ENDPOINTS
 // ----------------------------------------------------
 app.get('/api/community/messages', (req, res) => {
   try {
+    const token = getAuthToken(req);
+    if (token) {
+      const user = getUserByToken(token);
+      if (user) recordUserHeartbeat(user.id);
+    }
     const messages = readCommunityMessages();
     return res.json({ ok: true, messages });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+// Mark community messages as seen
+app.post('/api/community/messages/seen', (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+
+    recordUserHeartbeat(user.id);
+    const { messageIds } = req.body || {};
+    if (!Array.isArray(messageIds) || messageIds.length === 0) {
+      return res.json({ ok: true, updated: 0 });
+    }
+
+    const updated = markCommunityMessagesSeen(messageIds, {
+      id: user.id,
+      username: user.username,
+      displayName: user.name || user.username,
+    });
+
+    return res.json({ ok: true, updated });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
@@ -1228,8 +1295,39 @@ app.get('/api/friends/list', (req, res) => {
     const user = getUserByToken(token);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
 
+    recordUserHeartbeat(user.id);
     const data = getUserFriends(user.id);
-    return res.json({ ok: true, ...data });
+
+    // Attach real live online status to friends list
+    const enrichedFriends = (data.friends || []).map((f) => {
+      const otherUserId = f.userId1 === user.id ? f.userId2 : f.userId1;
+      const online = isUserOnline(otherUserId);
+      return {
+        ...f,
+        isOnline: online,
+      };
+    });
+
+    return res.json({
+      ok: true,
+      friends: enrichedFriends,
+      incomingRequests: data.incomingRequests || [],
+      outgoingRequests: data.outgoingRequests || [],
+    });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+// Get all registered traders with live presence status
+app.get('/api/friends/all-traders', (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    const currentUser = token ? getUserByToken(token) : null;
+    if (currentUser) recordUserHeartbeat(currentUser.id);
+
+    const traders = getAllRegisteredTraders(currentUser?.id);
+    return res.json({ ok: true, traders });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
@@ -1242,12 +1340,17 @@ app.get('/api/friends/search', (req, res) => {
     const currentUser = getUserByToken(token);
     if (!currentUser) return res.status(401).json({ ok: false, error: 'Invalid user' });
 
+    recordUserHeartbeat(currentUser.id);
     const query = (req.query.q as string || '').toLowerCase().trim();
-    const customers = getAllCustomers().map(sanitizeUser);
-    const results = customers
-      .filter((u) => u.id !== currentUser.id)
-      .filter((u) => !query || u.username.toLowerCase().includes(query) || (u.name && u.name.toLowerCase().includes(query)))
-      .map((u) => ({ id: u.id, username: u.username, name: u.name, role: u.role }));
+    const traders = getAllRegisteredTraders(currentUser.id);
+
+    const results = traders.filter((u) => {
+      if (!query) return true;
+      return (
+        u.username.toLowerCase().includes(query) ||
+        (u.displayName && u.displayName.toLowerCase().includes(query))
+      );
+    });
 
     return res.json({ ok: true, users: results });
   } catch (err: any) {

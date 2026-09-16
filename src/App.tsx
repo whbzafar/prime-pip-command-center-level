@@ -386,27 +386,37 @@ export default function App() {
       return;
     }
 
-    // Strict Risk Management Rule: 1% maximum risk per trade
+    // Risk Management Rule: 1% maximum risk per trade (Non-blocking warning)
     const tradeRisk =
       typeof newTrade.riskAmount === 'number' && activeAccount.initialBalance > 0
         ? (newTrade.riskAmount / activeAccount.initialBalance) * 100
         : 0;
-    if (tradeRisk > 1.001) {
-      playDisciplineAlert('LIMIT_REACHED');
-      setDemoToast('Risk exceeds maximum allowed 1% per trade.');
-      setIsEntryModalOpen(false);
-      return;
-    }
+    const isRiskExceeded = tradeRisk > 1.001;
 
-    // Strict Risk Management Rule: Maximum 2 trades per day
+    // Risk Management Rule: Maximum 2 trades per day (Non-blocking warning)
     const tradeDate = newTrade.date || getKarachiDate();
     const existingDayTrades = trades.filter((t) => t.date === tradeDate);
-    if (existingDayTrades.length >= 2) {
+    const isDailyLimitExceeded = existingDayTrades.length >= 2;
+
+    // Trigger visual advisory toast and audio alert without blocking the user
+    if (isRiskExceeded && isDailyLimitExceeded) {
       playDisciplineAlert('LIMIT_REACHED');
-      setDemoToast('Daily trade limit reached (maximum 2 trades per day).');
-      setIsEntryModalOpen(false);
-      return;
+      setDemoToast(
+        `ADVISORY WARNING: Trade recorded with ${tradeRisk.toFixed(1)}% risk and exceeds the 2 trades/day guideline (${existingDayTrades.length + 1} trades today).`
+      );
+    } else if (isRiskExceeded) {
+      playDisciplineAlert('WARNING');
+      setDemoToast(
+        `ADVISORY WARNING: Trade recorded with ${tradeRisk.toFixed(1)}% risk (recommended threshold is 1.0%).`
+      );
+    } else if (isDailyLimitExceeded) {
+      playDisciplineAlert('WARNING');
+      setDemoToast(
+        `ADVISORY WARNING: Trade recorded exceeding your 2 trades/day guideline (${existingDayTrades.length + 1} trades logged today).`
+      );
     }
+
+    setIsEntryModalOpen(false);
 
     const tradeWithAccount = { ...newTrade, accountId: activeAccount.id };
     await saveTrade(tradeWithAccount);

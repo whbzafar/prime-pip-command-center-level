@@ -23,9 +23,31 @@ import {
   Video,
   UserPlus,
   Radio,
+  CheckCheck,
+  Paperclip,
+  Cloud,
+  ExternalLink,
+  Check,
 } from 'lucide-react';
+import { googleDriveService } from '../services/googleDriveService';
 import { IntentCard } from './chat/IntentCard';
 import { IntentCardPayload } from './chat/types';
+
+interface SeenReceipt {
+  userId: string;
+  username: string;
+  displayName: string;
+  seenAt: number;
+}
+
+interface DriveAttachmentMeta {
+  fileId: string;
+  fileName: string;
+  fileSize?: number;
+  mimeType?: string;
+  webViewLink?: string;
+  categoryFolder?: string;
+}
 
 interface ChatMessage {
   id: string;
@@ -46,6 +68,8 @@ interface ChatMessage {
   timestamp: number;
   timePkt: string;
   datePkt: string;
+  seenBy?: SeenReceipt[];
+  driveFile?: DriveAttachmentMeta;
 }
 
 interface CommunityChatProps {
@@ -74,6 +98,8 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedDriveFile, setSelectedDriveFile] = useState<DriveAttachmentMeta | null>(null);
+  const [isUploadingDriveFile, setIsUploadingDriveFile] = useState(false);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const [audioBase64, setAudioBase64] = useState<string | null>(null);
   const [audioDuration, setAudioDuration] = useState<number>(0);
@@ -82,17 +108,102 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [micNotice, setMicNotice] = useState<string | null>(null);
 
+  // Real Trader Community Presence
+  const [allTraders, setAllTraders] = useState<Array<{
+    id: string;
+    username: string;
+    displayName: string;
+    role?: string;
+    isOnline: boolean;
+    lastActive?: number;
+  }>>([]);
+  const [showTradersDrawer, setShowTradersDrawer] = useState(false);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<any>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
+  const driveFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Send real presence heartbeat for active session
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const sendHeartbeat = async () => {
+      try {
+        const token = getStoredToken();
+        await fetch('/api/user/heartbeat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ userId: currentUser.id }),
+        });
+      } catch {}
+    };
+    sendHeartbeat();
+    const hb = setInterval(sendHeartbeat, 25000);
+    return () => clearInterval(hb);
+  }, [currentUser?.id]);
+
+  // Fetch real registered traders list and their actual online presence
+  const fetchTraders = async () => {
+    try {
+      const res = await fetch('/api/friends/all-traders');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.traders) {
+          setAllTraders(data.traders);
+        }
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchTraders();
+    const intv = setInterval(fetchTraders, 15000);
+    return () => clearInterval(intv);
+  }, []);
+
+  // Mark messages as seen by currentUser
+  const markMessagesSeen = async (msgs: ChatMessage[]) => {
+    if (!currentUser?.id || !msgs || msgs.length === 0) return;
+    const unseenIds = msgs
+      .filter((m) => !m.seenBy || !m.seenBy.some((s) => s.userId === currentUser.id))
+      .map((m) => m.id);
+
+    if (unseenIds.length === 0) return;
+
+    try {
+      const token = getStoredToken();
+      await fetch('/api/community/messages/seen', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          messageIds: unseenIds,
+          user: {
+            id: currentUser.id,
+            username: currentUser.username,
+            displayName: currentUser.name || currentUser.username,
+          },
+        }),
+      });
+    } catch {}
+  };
 
   const fetchMessages = async () => {
     try {
       const res = await fetch('/api/community/messages');
       if (res.ok) {
         const data = await res.json();
-        setMessages(data.messages || []);
+        const fetchedMessages = data.messages || [];
+        setMessages(fetchedMessages);
+        if (commMode === 'PUBLIC') {
+          markMessagesSeen(fetchedMessages);
+        }
       }
     } catch {
       // Offline fallback: load cached
@@ -107,13 +218,16 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     fetchMessages();
     const interval = setInterval(fetchMessages, 6000);
     return () => clearInterval(interval);
-  }, []);
+  }, [commMode]);
 
   useEffect(() => {
     if (commMode === 'PUBLIC') {
       chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      if (messages.length > 0) {
+        markMessagesSeen(messages);
+      }
     }
-  }, [messages, commMode]);
+  }, [messages.length, commMode]);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -263,6 +377,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       audioDurationSeconds: voiceMeta.audioDurationSeconds || (audioDuration > 0 ? audioDuration : undefined),
       audioSize: voiceMeta.audioSize,
       audioUrl: voiceMeta.audioUrl,
+      driveFile: selectedDriveFile || undefined,
       timePkt: getKarachiTime(),
       datePkt: getKarachiDate(),
     };
@@ -280,6 +395,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       if (res.ok) {
         setInputText('');
         setSelectedPhoto(null);
+        setSelectedDriveFile(null);
         setAudioBase64(null);
         setAudioDuration(0);
         await fetchMessages();
@@ -288,6 +404,49 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       console.error('Failed to post message:', err);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleDriveFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (googleDriveService.getStatus().state !== 'CONNECTED') {
+      setMicNotice('Please connect your Google Drive in Settings to attach files to your cloud');
+      setTimeout(() => setMicNotice(null), 4500);
+      return;
+    }
+
+    try {
+      setIsUploadingDriveFile(true);
+      setMicNotice(`Uploading ${file.name} to student Google Drive...`);
+      const res = await googleDriveService.uploadBlob(
+        file,
+        file.name,
+        'Trade Setups & Screenshots',
+        file.type
+      );
+      if (res.ok && res.fileId) {
+        setSelectedDriveFile({
+          fileId: res.fileId,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+          webViewLink: res.webViewLink || `https://drive.google.com/file/d/${res.fileId}/view`,
+          categoryFolder: 'Trade Setups & Screenshots',
+        });
+        setMicNotice(`File uploaded to personal Google Drive!`);
+        setTimeout(() => setMicNotice(null), 3000);
+      } else {
+        setMicNotice(res.error || 'Failed to upload to Google Drive');
+        setTimeout(() => setMicNotice(null), 4000);
+      }
+    } catch (err: any) {
+      setMicNotice(`Upload error: ${err.message}`);
+      setTimeout(() => setMicNotice(null), 4000);
+    } finally {
+      setIsUploadingDriveFile(false);
+      e.target.value = '';
     }
   };
 
@@ -307,11 +466,18 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
             <Radio className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-sm font-military font-bold tracking-wider text-slate-100 flex items-center gap-2">
+            <h2 className="text-sm font-military font-bold tracking-wider text-slate-100 flex items-center gap-2 flex-wrap">
               <span>PRIMEPIPFX COMMUNICATIONS</span>
-              <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">
-                ONLINE
-              </span>
+              <button
+                type="button"
+                onClick={() => setShowTradersDrawer(!showTradersDrawer)}
+                className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 font-bold transition flex items-center gap-1.5 cursor-pointer"
+                title="View active community traders"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>{allTraders.filter((t) => t.isOnline).length} ONLINE</span>
+                <span className="text-slate-400">({allTraders.length} REGISTERED)</span>
+              </button>
             </h2>
             <p className="text-[11px] text-slate-400 font-sans">
               Encrypted community room • 1-on-1 private messaging • WebRTC chart reviews
@@ -483,9 +649,47 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                         </div>
                       )}
 
+                      {/* Google Drive Cloud Attachment */}
+                      {m.driveFile && (
+                        <a
+                          href={m.driveFile.webViewLink}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-950/80 border border-slate-700/80 hover:border-amber-400/60 text-xs font-mono-code transition group"
+                        >
+                          <Cloud className="w-4 h-4 text-emerald-400 shrink-0 group-hover:scale-110 transition" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-slate-200 font-bold truncate group-hover:text-amber-400 transition">
+                              {m.driveFile.fileName}
+                            </div>
+                            <div className="text-[10px] text-slate-500 flex items-center gap-2">
+                              <span>Google Drive Cloud Attachment</span>
+                              {m.driveFile.fileSize && (
+                                <span>• {(m.driveFile.fileSize / 1024).toFixed(1)} KB</span>
+                              )}
+                            </div>
+                          </div>
+                          <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400" />
+                        </a>
+                      )}
+
                       {/* Interactive Chat Intelligence Card */}
                       {m.intentCard && (
                         <IntentCard payload={m.intentCard} />
+                      )}
+
+                      {/* Real "Seen by" Read Receipts */}
+                      {m.seenBy && m.seenBy.length > 0 && (
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono-code pt-1 border-t border-slate-800/40">
+                          <CheckCheck className="w-3 h-3 text-sky-400 shrink-0" />
+                          <span>Seen by {m.seenBy.length}</span>
+                          <span
+                            className="text-slate-400 truncate max-w-[220px]"
+                            title={m.seenBy.map((s) => s.displayName || s.username).join(', ')}
+                          >
+                            ({m.seenBy.map((s) => s.displayName || s.username).join(', ')})
+                          </span>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -498,7 +702,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
           {/* Input Row */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2 shrink-0">
             {/* Attachment Previews */}
-            {(selectedPhoto || audioBase64) && (
+            {(selectedPhoto || selectedDriveFile || audioBase64) && (
               <div className="flex flex-col gap-2 p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-xs font-mono-code">
                 {selectedPhoto && (
                   <div className="relative inline-block">
@@ -508,6 +712,21 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                       className="absolute -top-1 -right-1 bg-rose-500 text-white rounded-full p-0.5 cursor-pointer"
                     >
                       <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+                {selectedDriveFile && (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+                    <div className="flex items-center gap-2">
+                      <Cloud className="w-4 h-4 text-emerald-400" />
+                      <span className="text-slate-200 font-bold truncate max-w-xs">{selectedDriveFile.fileName}</span>
+                      <span className="text-[10px] text-emerald-400 font-bold">(Drive Attached)</span>
+                    </div>
+                    <button
+                      onClick={() => setSelectedDriveFile(null)}
+                      className="text-rose-400 hover:text-rose-300 p-1"
+                    >
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -566,6 +785,22 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                   type="file"
                   accept="image/*"
                   onChange={handlePhotoSelect}
+                  className="hidden"
+                />
+              </label>
+
+              {/* Google Drive file attach button */}
+              <label
+                title="Upload & Attach from personal Google Drive"
+                className={`p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-emerald-400 cursor-pointer transition ${
+                  isUploadingDriveFile ? 'animate-pulse text-emerald-400' : ''
+                }`}
+              >
+                <Cloud className="w-4 h-4" />
+                <input
+                  ref={driveFileInputRef}
+                  type="file"
+                  onChange={handleDriveFileSelect}
                   className="hidden"
                 />
               </label>
@@ -640,6 +875,112 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
           currentUser={currentUser}
           targetUser={callTargetUser}
         />
+      )}
+
+      {/* Real Traders Community Presence Directory Modal */}
+      {showTradersDrawer && (
+        <div className="fixed inset-0 z-50 bg-[#070A11]/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="p-4 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-military font-bold text-slate-100">
+                    REAL TRADER PRESENCE DIRECTORY
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-mono-code">
+                    {allTraders.filter((t) => t.isOnline).length} Active Now • {allTraders.length} Registered Accounts
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTradersDrawer(false)}
+                className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-slate-950/50 border-b border-slate-800 text-[10px] font-mono-code text-slate-400">
+              Live heartbeat tracking verifies real-time presence without simulated records.
+            </div>
+
+            <div className="p-3 overflow-y-auto space-y-2 flex-1">
+              {allTraders.length === 0 ? (
+                <div className="text-center py-6 text-slate-500 text-xs font-mono-code">
+                  Loading verified academy traders...
+                </div>
+              ) : (
+                allTraders.map((trader) => {
+                  const isMe = currentUser && trader.id === currentUser.id;
+                  const isOwner = trader.role === 'ADMIN' || trader.role === 'DEVELOPER';
+
+                  return (
+                    <div
+                      key={trader.id}
+                      className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-3 hover:border-slate-700 transition"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs">
+                            {trader.displayName.charAt(0).toUpperCase()}
+                          </div>
+                          <span
+                            className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${
+                              trader.isOnline ? 'bg-emerald-400' : 'bg-slate-600'
+                            }`}
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-bold text-slate-200 truncate">
+                              {trader.displayName}
+                            </span>
+                            {isOwner && (
+                              <span className="text-[8px] font-mono-code font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                OWNER
+                              </span>
+                            )}
+                            {isMe && (
+                              <span className="text-[8px] font-mono-code font-bold px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                                YOU
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-mono-code">
+                            @{trader.username} • {trader.isOnline ? 'Active right now' : 'Offline'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {!isMe && currentUser && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowTradersDrawer(false);
+                              setActivePrivateContact({
+                                id: trader.id,
+                                username: trader.username,
+                                displayName: trader.displayName,
+                              });
+                              setCommMode('PRIVATE');
+                            }}
+                            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-[10px] font-mono-code font-bold transition cursor-pointer"
+                          >
+                            DM
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

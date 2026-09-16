@@ -13,10 +13,12 @@ import {
   HelpCircle,
   Copy,
   Check,
+  Binary,
 } from 'lucide-react';
 import { AccountSettings, LotCalculationHistoryItem } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
 import { getKarachiDate, getKarachiTime } from '../utils/time';
+import { StandardCalculator } from './StandardCalculator';
 
 interface LotSizeCalculatorProps {
   activeAccount: AccountSettings | null;
@@ -60,6 +62,9 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
   activeAccount,
   onApplyLotToNewTrade,
 }) => {
+  // Mode: Lot Size Calculator vs Standard Arithmetic Calculator
+  const [calcType, setCalcType] = useState<'LOT_SIZE' | 'STANDARD'>('LOT_SIZE');
+
   // 1. Inputs
   const [instrument, setInstrument] = useState<string>('XAUUSD');
   const [balance, setBalance] = useState<number>(() => activeAccount?.currentBalance || 5000);
@@ -221,23 +226,56 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsCustomMode(!isCustomMode)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold transition-all flex items-center gap-1.5 border ${
-                isCustomMode
-                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
-                  : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:border-amber-500/40'
-              }`}
-            >
-              <Sliders className="w-3.5 h-3.5" />
-              {isCustomMode ? 'CUSTOM SPEC ACTIVE' : 'ADVANCED SPECS'}
-            </button>
+            {/* Mode Switcher */}
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                onClick={() => setCalcType('LOT_SIZE')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold transition-all flex items-center gap-1.5 ${
+                  calcType === 'LOT_SIZE'
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Calculator className="w-3.5 h-3.5" />
+                <span>LOT SIZE</span>
+              </button>
+              <button
+                onClick={() => setCalcType('STANDARD')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold transition-all flex items-center gap-1.5 ${
+                  calcType === 'STANDARD'
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Binary className="w-3.5 h-3.5" />
+                <span>STANDARD (+, -, ×, ÷)</span>
+              </button>
+            </div>
+
+            {calcType === 'LOT_SIZE' && (
+              <button
+                onClick={() => setIsCustomMode(!isCustomMode)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold transition-all flex items-center gap-1.5 border ${
+                  isCustomMode
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
+                    : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:border-amber-500/40'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                {isCustomMode ? 'CUSTOM SPEC ACTIVE' : 'ADVANCED SPECS'}
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Inputs (Left) & Results (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Render Standard Calculator or Lot Size Calculator */}
+      {calcType === 'STANDARD' ? (
+        <StandardCalculator />
+      ) : (
+        <>
+          {/* Main Grid: Inputs (Left) & Results (Right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* INPUT PANEL (7 cols) */}
         <div className="lg:col-span-7 bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -674,6 +712,8 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 };

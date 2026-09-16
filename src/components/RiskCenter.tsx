@@ -24,6 +24,7 @@ import { playDisciplineAlert } from '../utils/audioAlerts';
 import { getKarachiDate, getKarachiTime } from '../utils/time';
 import { formatCurrency } from '../utils/currencyFormatter';
 import { calculateNextTradeReadiness } from '../utils/readinessEngine';
+import { RISK_WARNING_CONFIG } from '../config/riskWarningConfig';
 
 export interface TradeLimitAlertSystemProps {
   account: AccountSettings | null;
@@ -64,7 +65,7 @@ export const TradeLimitAlertSystem: React.FC<TradeLimitAlertSystemProps> = ({
 
   const isLimitReached = isTradeLimitReached || isDailyLossLimitHit;
 
-  // Trigger audio alert and reset dismissal when limit is reached
+  // Trigger non-blocking audio advisory without locking the screen
   useEffect(() => {
     if (isLimitReached) {
       const alertKey = `${todayDate}-${metrics.tradesToday}-${Math.floor(todayPnL)}-${
@@ -73,132 +74,111 @@ export const TradeLimitAlertSystem: React.FC<TradeLimitAlertSystemProps> = ({
       if (lastAlertKeyRef.current !== alertKey) {
         lastAlertKeyRef.current = alertKey;
         setIsDismissed(false);
-        playDisciplineAlert('LIMIT_REACHED');
       }
     }
   }, [isLimitReached, metrics.tradesToday, todayPnL, isTradeLimitReached, isDailyLossLimitHit, todayDate]);
 
-  // When forceOpen changes to true, trigger sound
+  // When forceOpen changes to true
   useEffect(() => {
     if (forceOpen) {
       setIsDismissed(false);
-      playDisciplineAlert('LIMIT_REACHED');
     }
   }, [forceOpen]);
-
-  const handleReplayAlert = () => {
-    playDisciplineAlert('LIMIT_REACHED');
-  };
 
   const handleDismiss = () => {
     setIsDismissed(true);
     if (onClose) onClose();
   };
 
-  const shouldShowModal = (isLimitReached && !isDismissed) || forceOpen;
+  const shouldShowNotification = (isLimitReached && !isDismissed) || forceOpen;
+
+  if (!shouldShowNotification) return null;
+
+  const warningMessage =
+    isTradeLimitReached && isDailyLossLimitHit
+      ? RISK_WARNING_CONFIG.combinedExceededMessage
+      : isTradeLimitReached
+      ? RISK_WARNING_CONFIG.dailyTradeLimitMessage
+      : `Risk Warning: Daily loss threshold reached (${account.maxDailyLossPercent}% max). Please review your risk plan before continuing.`;
 
   return (
-    <>
-      {shouldShowModal && (
-        <div
-          id="trade-limit-lockout-overlay"
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200"
-        >
-          <div className="relative w-full max-w-xl rounded-2xl bg-gradient-to-b from-slate-900 via-slate-900 to-black border-2 border-rose-600/80 p-6 sm:p-8 shadow-2xl shadow-rose-950/60 overflow-hidden">
-            {/* Pulsing indicator strip */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-rose-600 via-amber-500 to-rose-600 animate-pulse" />
+    <div
+      id="trade-limit-advisory-banner"
+      role="alert"
+      className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 max-w-lg w-[calc(100vw-2rem)] rounded-2xl bg-[#0F172A]/95 backdrop-blur-md border-2 border-amber-500/80 p-4 shadow-2xl shadow-amber-950/40 animate-in fade-in slide-in-from-bottom-4"
+    >
+      <div className="flex items-start gap-3">
+        <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0 mt-0.5">
+          <AlertOctagon className="w-5 h-5" />
+        </div>
 
-            <div className="flex flex-col items-center text-center space-y-4">
-              <div className="relative">
-                <div className="p-4 rounded-full bg-rose-500/20 text-rose-500 border border-rose-500/40 animate-pulse">
-                  <AlertOctagon className="w-12 h-12" />
-                </div>
-                <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-600"></span>
-                </span>
-              </div>
+        <div className="flex-1 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-mono-code font-bold tracking-widest text-amber-400 uppercase flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              {RISK_WARNING_CONFIG.title}
+            </span>
+            <button
+              onClick={handleDismiss}
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              title="Dismiss warning"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
 
-              <div>
-                <span className="text-[11px] font-mono-code font-bold tracking-widest text-rose-400 uppercase">
-                  CIRCUIT BREAKER ACTIVATED
-                </span>
-                <h3 className="text-xl sm:text-2xl font-military font-bold text-white tracking-wider uppercase mt-1">
-                  DAILY TRADING LOCKOUT ENFORCED
-                </h3>
-              </div>
+          <h4 className="text-xs font-military font-bold text-white tracking-wider uppercase">
+            {isTradeLimitReached && isDailyLossLimitHit
+              ? 'DAILY TRADES & LOSS GUIDELINE ALERT'
+              : isTradeLimitReached
+              ? 'DAILY TRADE COUNT GUIDELINE REACHED'
+              : 'DAILY LOSS THRESHOLD REACHED'}
+          </h4>
 
-              <div className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-4 font-mono-code text-xs text-left space-y-2">
-                <div className="flex justify-between items-center py-1 border-b border-slate-800">
-                  <span className="text-slate-400">STATUS TRIGGER:</span>
-                  <span className="font-bold text-rose-400 uppercase">
-                    {isTradeLimitReached && isDailyLossLimitHit
-                      ? 'TRADE COUNT & LOSS LIMIT BREACHED'
-                      : isTradeLimitReached
-                      ? 'MAX DAILY TRADES REACHED'
-                      : 'DAILY LOSS LIMIT BREACHED'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-1 border-b border-slate-800">
-                  <span className="text-slate-400">TRADES TODAY:</span>
-                  <span className="font-bold text-slate-200">
-                    {metrics.tradesToday} / {account.maxDailyTrades} (Max Allowed)
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-1 border-b border-slate-800">
-                  <span className="text-slate-400">DAILY LOSS GUARDRAIL:</span>
-                  <span className="font-bold text-slate-200">
-                    {account.maxDailyLossPercent}% ({formatCurrency(dailyLossLimitDollars, account.currency)})
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-slate-400">MANDATORY PROTOCOL:</span>
-                  <span className="font-bold text-amber-400">HALT TRADING IMMEDIATELY</span>
-                </div>
-              </div>
+          <p className="text-xs text-slate-300 leading-relaxed font-sans">
+            {warningMessage}
+          </p>
 
-              <p className="text-xs font-sans text-slate-300 max-w-md leading-relaxed">
-                Disciplined execution requires strict adherence to stop limits. Overtrading or revenge trading after a limit breach is strictly prohibited. Step away from your charts.
-              </p>
+          <div className="bg-slate-950/80 border border-slate-800/80 rounded-lg px-2.5 py-1.5 text-[11px] font-mono-code text-slate-300 flex flex-wrap items-center justify-between gap-2">
+            <span>
+              Today: <strong className="text-amber-400">{metrics.tradesToday}</strong> trades
+            </span>
+            <span>
+              Loss Limit: <strong className="text-rose-400">{account.maxDailyLossPercent}%</strong>
+            </span>
+            <span className="text-[10px] text-slate-400">
+              Entries remain unlimited
+            </span>
+          </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handleReplayAlert}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono-code text-xs flex items-center gap-2 border border-slate-700 transition"
-                >
-                  <Volume2 className="w-4 h-4 text-amber-400" />
-                  <span>REPLAY ALARM</span>
-                </button>
+          <p className="text-[10px] text-slate-400 italic">
+            {RISK_WARNING_CONFIG.advisoryDisclaimer}
+          </p>
 
-                {onNavigateToTab && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleDismiss();
-                      onNavigateToTab('PSYCHOLOGY');
-                    }}
-                    className="px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-mono-code text-xs flex items-center gap-2 border border-amber-500/40 transition"
-                  >
-                    <span>COOL-DOWN PROTOCOL</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleDismiss}
-                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-military font-bold text-xs tracking-wider transition shadow-lg shadow-rose-900/30"
-                >
-                  ACKNOWLEDGE LOCKOUT
-                </button>
-              </div>
-            </div>
+          <div className="flex items-center justify-end gap-2 pt-1">
+            {onNavigateToTab && (
+              <button
+                type="button"
+                onClick={() => {
+                  handleDismiss();
+                  onNavigateToTab('PSYCHOLOGY');
+                }}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-[11px] font-mono-code border border-slate-700 transition"
+              >
+                Cool-Down Center
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleDismiss}
+              className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-[11px] tracking-wider transition"
+            >
+              CONTINUE TRADING
+            </button>
           </div>
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 };
 

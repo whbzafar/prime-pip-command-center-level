@@ -161,11 +161,16 @@ export const SbtModelsHub: React.FC = () => {
             href="/SBT/Official_Yearly_SBT_Models_Reference.pdf"
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => {
+              // Ensure clean opening in a new tab
+              const pdfUrl = `${window.location.origin}/SBT/Official_Yearly_SBT_Models_Reference.pdf`;
+              window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+            }}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 via-emerald-400 to-teal-500 text-slate-950 font-bold text-xs font-mono-code hover:brightness-110 shadow-lg shadow-teal-500/25 transition cursor-pointer border border-teal-300/40"
-            title="Open official 12-page yearly SBT reference material PDF"
+            title="Open official 12-page yearly SBT reference material PDF directly in browser viewer"
           >
             <FileText className="w-4 h-4 text-slate-950" />
-            <span>OFFICIAL SBT PDF (12 PAGES)</span>
+            <span>Open Official SBT PDF</span>
             <ExternalLink className="w-3.5 h-3.5 text-slate-950" />
           </a>
 

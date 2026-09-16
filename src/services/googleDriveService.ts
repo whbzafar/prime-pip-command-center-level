@@ -57,9 +57,47 @@ export type DriveCategoryFolder = typeof DRIVE_FOLDER_HIERARCHY[number];
 class GoogleDriveService {
   private tokenClient: any = null;
   private cachedFolders: Map<string, string> = new Map();
+  private currentUserId: string = 'default';
 
   constructor() {
     this.initGsiScript();
+  }
+
+  /**
+   * Sets the active authenticated user ID to ensure complete Drive token isolation
+   */
+  public setCurrentUserId(userId?: string) {
+    const nextId = (userId && userId.trim()) ? userId.trim() : 'default';
+    if (this.currentUserId !== nextId) {
+      this.currentUserId = nextId;
+      this.cachedFolders.clear();
+      this.notifyStatus(this.getStatus());
+    }
+  }
+
+  public getCurrentUserId(): string {
+    return this.currentUserId;
+  }
+
+  private getStorageKey(baseKey: string): string {
+    if (this.currentUserId && this.currentUserId !== 'default') {
+      return `${baseKey}_${this.currentUserId}`;
+    }
+    return baseKey;
+  }
+
+  /**
+   * Returns current origin diagnostics to resolve 'Access Blocked: Authorization Error'
+   */
+  public getOriginDiagnostics() {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const clientId = this.getClientId();
+    return {
+      origin,
+      clientId,
+      isConfigured: Boolean(clientId && !clientId.includes('example')),
+      instruction: `In Google Cloud Console (console.cloud.google.com) > APIs & Services > Credentials > Edit your OAuth 2.0 Client ID > Add to 'Authorized JavaScript origins': ${origin}`,
+    };
   }
 
   private initGsiScript() {
@@ -93,10 +131,10 @@ class GoogleDriveService {
           if (tokenResponse.access_token) {
             const expiresIn = tokenResponse.expires_in || 3599;
             const expiry = Date.now() + expiresIn * 1000;
-            localStorage.setItem(DRIVE_TOKEN_KEY, tokenResponse.access_token);
-            localStorage.setItem(DRIVE_EXPIRY_KEY, String(expiry));
+            localStorage.setItem(this.getStorageKey(DRIVE_TOKEN_KEY), tokenResponse.access_token);
+            localStorage.setItem(this.getStorageKey(DRIVE_EXPIRY_KEY), String(expiry));
 
-            // Fetch user info
+            // Fetch real user info for this specific student
             this.fetchUserInfo(tokenResponse.access_token);
           }
         },
@@ -108,6 +146,10 @@ class GoogleDriveService {
 
   public getClientId(): string {
     try {
+      const userCustomKey = this.getStorageKey('primepipfx_custom_gdrive_client_id');
+      const savedUser = localStorage.getItem(userCustomKey);
+      if (savedUser && savedUser.trim()) return savedUser.trim();
+
       const saved = localStorage.getItem('primepipfx_custom_gdrive_client_id');
       if (saved && saved.trim()) return saved.trim();
     } catch {}
@@ -116,6 +158,8 @@ class GoogleDriveService {
 
   public setClientId(id: string) {
     try {
+      const userCustomKey = this.getStorageKey('primepipfx_custom_gdrive_client_id');
+      localStorage.setItem(userCustomKey, id.trim());
       localStorage.setItem('primepipfx_custom_gdrive_client_id', id.trim());
       this.setupTokenClient(id.trim());
     } catch {}
@@ -123,11 +167,13 @@ class GoogleDriveService {
 
   public getAccessToken(): string | null {
     if (typeof window === 'undefined') return null;
-    const token = localStorage.getItem(DRIVE_TOKEN_KEY);
-    const expiry = localStorage.getItem(DRIVE_EXPIRY_KEY);
+    const tokenKey = this.getStorageKey(DRIVE_TOKEN_KEY);
+    const expiryKey = this.getStorageKey(DRIVE_EXPIRY_KEY);
+    const token = localStorage.getItem(tokenKey);
+    const expiry = localStorage.getItem(expiryKey);
     if (!token) return null;
     if (expiry && Date.now() > Number(expiry)) {
-      localStorage.removeItem(DRIVE_TOKEN_KEY);
+      localStorage.removeItem(tokenKey);
       return null;
     }
     return token;
@@ -142,8 +188,8 @@ class GoogleDriveService {
     if (!navigator.onLine) {
       return {
         state: 'OFFLINE',
-        lastBackupTime: localStorage.getItem(DRIVE_LAST_SYNC_KEY) || undefined,
-        userEmail: localStorage.getItem(DRIVE_USER_KEY) || undefined,
+        lastBackupTime: localStorage.getItem(this.getStorageKey(DRIVE_LAST_SYNC_KEY)) || undefined,
+        userEmail: localStorage.getItem(this.getStorageKey(DRIVE_USER_KEY)) || undefined,
       };
     }
 
@@ -154,9 +200,9 @@ class GoogleDriveService {
 
     return {
       state: 'CONNECTED',
-      userEmail: localStorage.getItem(DRIVE_USER_KEY) || undefined,
-      lastBackupTime: localStorage.getItem(DRIVE_LAST_SYNC_KEY) || undefined,
-      rootFolderId: localStorage.getItem(DRIVE_ROOT_FOLDER_KEY) || undefined,
+      userEmail: localStorage.getItem(this.getStorageKey(DRIVE_USER_KEY)) || undefined,
+      lastBackupTime: localStorage.getItem(this.getStorageKey(DRIVE_LAST_SYNC_KEY)) || undefined,
+      rootFolderId: localStorage.getItem(this.getStorageKey(DRIVE_ROOT_FOLDER_KEY)) || undefined,
     };
   }
 
@@ -209,10 +255,10 @@ class GoogleDriveService {
 
   public disconnect() {
     try {
-      localStorage.removeItem(DRIVE_TOKEN_KEY);
-      localStorage.removeItem(DRIVE_EXPIRY_KEY);
-      localStorage.removeItem(DRIVE_USER_KEY);
-      localStorage.removeItem(DRIVE_ROOT_FOLDER_KEY);
+      localStorage.removeItem(this.getStorageKey(DRIVE_TOKEN_KEY));
+      localStorage.removeItem(this.getStorageKey(DRIVE_EXPIRY_KEY));
+      localStorage.removeItem(this.getStorageKey(DRIVE_USER_KEY));
+      localStorage.removeItem(this.getStorageKey(DRIVE_ROOT_FOLDER_KEY));
       this.cachedFolders.clear();
       this.notifyStatus({ state: 'DISCONNECTED' });
     } catch {}
@@ -226,7 +272,7 @@ class GoogleDriveService {
       if (res.ok) {
         const data = await res.json();
         if (data.email) {
-          localStorage.setItem(DRIVE_USER_KEY, data.email);
+          localStorage.setItem(this.getStorageKey(DRIVE_USER_KEY), data.email);
           this.notifyStatus({ state: 'CONNECTED', userEmail: data.email, userName: data.name });
           // Ensure folder structure is prepared
           this.ensureFolderStructure(token).catch(() => {});
@@ -247,10 +293,10 @@ class GoogleDriveService {
     if (!activeToken) throw new Error('Not authenticated with Google Drive');
 
     // 1. Locate or create root folder "PFX Command Center"
-    let rootId = localStorage.getItem(DRIVE_ROOT_FOLDER_KEY);
+    let rootId = localStorage.getItem(this.getStorageKey(DRIVE_ROOT_FOLDER_KEY));
     if (!rootId) {
       rootId = await this.findOrCreateFolder(activeToken, 'PFX Command Center');
-      localStorage.setItem(DRIVE_ROOT_FOLDER_KEY, rootId);
+      localStorage.setItem(this.getStorageKey(DRIVE_ROOT_FOLDER_KEY), rootId);
     }
 
     const folderMap: Record<string, string> = {};
@@ -365,7 +411,7 @@ class GoogleDriveService {
       if (uploadRes.ok) {
         const file = await uploadRes.json();
         const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString();
-        localStorage.setItem(DRIVE_LAST_SYNC_KEY, nowStr);
+        localStorage.setItem(this.getStorageKey(DRIVE_LAST_SYNC_KEY), nowStr);
 
         this.notifyStatus({
           state: 'CONNECTED',
@@ -383,7 +429,7 @@ class GoogleDriveService {
       console.error('Backup to Google Drive exception:', err);
       // Fallback: Local backup save with sync record
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      localStorage.setItem(DRIVE_LAST_SYNC_KEY, `Offline Cached: ${nowStr}`);
+      localStorage.setItem(this.getStorageKey(DRIVE_LAST_SYNC_KEY), `Offline Cached: ${nowStr}`);
       this.notifyStatus({ state: 'CONNECTED', lastBackupTime: nowStr });
       return { ok: true, fileId: `backup_cached_${Date.now()}` };
     }
@@ -409,6 +455,76 @@ class GoogleDriveService {
       console.warn('Could not list Google Drive files:', e);
     }
     return [];
+  }
+
+  /**
+   * Uploads an arbitrary file Blob to the student's Google Drive folder
+   */
+  public async uploadBlob(
+    blob: Blob,
+    fileName: string,
+    categoryFolder: DriveCategoryFolder = 'Trade Setups & Screenshots',
+    mimeType?: string
+  ): Promise<{ ok: boolean; fileId?: string; webViewLink?: string; error?: string }> {
+    const token = this.getAccessToken();
+    if (!token) {
+      return { ok: false, error: 'Google Drive is not connected. Connect in Settings first.' };
+    }
+
+    try {
+      const { folders } = await this.ensureFolderStructure(token);
+      const targetFolderId = folders[categoryFolder] || folders['Backups'];
+
+      const boundary = '-------314159265358979323846';
+      const delimiter = `\r\n--${boundary}\r\n`;
+      const closeDelim = `\r\n--${boundary}--`;
+
+      const metadata = {
+        name: fileName,
+        mimeType: mimeType || blob.type || 'application/octet-stream',
+        parents: targetFolderId && !targetFolderId.startsWith('local_') ? [targetFolderId] : undefined,
+      };
+
+      // Convert blob to array buffer or base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const res = reader.result as string;
+          const base64 = res.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(blob);
+      const base64Data = await base64Promise;
+      const binaryData = atob(base64Data);
+      const bytes = new Uint8Array(binaryData.length);
+      for (let i = 0; i < binaryData.length; i++) {
+        bytes[i] = binaryData.charCodeAt(i);
+      }
+
+      // Build multipart request body as Uint8Array
+      const metaPart = `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n${delimiter}Content-Type: ${metadata.mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${base64Data}${closeDelim}`;
+
+      const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`,
+        },
+        body: metaPart,
+      });
+
+      if (uploadRes.ok) {
+        const file = await uploadRes.json();
+        return { ok: true, fileId: file.id, webViewLink: file.webViewLink };
+      } else {
+        const errText = await uploadRes.text();
+        return { ok: false, error: `Upload error: ${errText}` };
+      }
+    } catch (e: any) {
+      return { ok: false, error: e.message || 'Failed to upload to Google Drive' };
+    }
   }
 
   private notifyStatus(info: Partial<DriveStatusInfo>) {

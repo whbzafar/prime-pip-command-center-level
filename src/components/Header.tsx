@@ -38,6 +38,8 @@ import {
   Radio,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Lock,
   Layers,
   Globe,
@@ -225,6 +227,46 @@ export const Header: React.FC<HeaderProps> = ({
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [scrollProgress, setScrollProgress] = useState(0);
 
+  // Upper Header Collapsible State (Auto-collapse on scroll & manual toggle)
+  const [isUpperHeaderExpanded, setIsUpperHeaderExpanded] = useState<boolean>(true);
+
+  // Auto-collapse on scroll & reveal when scrolling up near top
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          // Near the very top: reveal upper header
+          if (currentScrollY <= 40) {
+            setIsUpperHeaderExpanded(true);
+          } else if (currentScrollY > lastScrollY + 15 && currentScrollY > 70) {
+            // Scrolling down: collapse upper header to maximize screen space
+            setIsUpperHeaderExpanded(false);
+          } else if (currentScrollY < lastScrollY - 25) {
+            // Scrolling up significantly: reveal upper header
+            setIsUpperHeaderExpanded(true);
+          }
+          lastScrollY = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // When switching tabs, auto-collapse upper header on mobile to maximize workspace
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setIsUpperHeaderExpanded(false);
+    }
+  }, [activeTab]);
+
   const checkScrollState = () => {
     if (navScrollRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = navScrollRef.current;
@@ -345,8 +387,16 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="border-b border-slate-800/80 bg-[#0B0F19]/95 backdrop-blur sticky top-0 z-40">
-      {/* Daily Astronomical Islamic Prayer Tracker Bar */}
-      <DailyPrayerBar />
+      {/* Collapsible Upper Header Block (Status, Prayer Bar, Logo & Profile) */}
+      <div
+        className={`transition-all duration-300 ease-in-out overflow-hidden ${
+          isUpperHeaderExpanded
+            ? 'max-h-[900px] opacity-100'
+            : 'max-h-0 opacity-0 pointer-events-none'
+        }`}
+      >
+        {/* Daily Astronomical Islamic Prayer Tracker Bar */}
+        <DailyPrayerBar />
 
       {/* Top Tactical Status Bar */}
       <div className="px-3 sm:px-4 py-1.5 border-b border-slate-800/60 bg-[#070A11] flex items-center justify-between gap-2 text-xs font-mono-code text-slate-400 overflow-x-auto no-scrollbar">
@@ -741,6 +791,86 @@ export const Header: React.FC<HeaderProps> = ({
             <PlusCircle className="w-4 h-4 stroke-[2.5] shrink-0" />
             <span className="hidden sm:inline">ENTER NEW TRADE</span>
             <span className="sm:hidden">TRADE</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+      {/* Persistent Slim Top Bar: Active Category, Notification Bell & Manual Chevron Toggle */}
+      <div className="px-3 sm:px-4 py-1.5 bg-[#080C14] border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300">
+        {/* Left: Active Category / Section */}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-6 h-6 rounded-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+            {React.createElement(
+              allNavCategories.find((c) => c.id === activeTab)?.icon || Activity,
+              { className: 'w-3.5 h-3.5' }
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 truncate">
+            <span className="font-military font-bold text-slate-100 tracking-wider truncate text-[11px] sm:text-xs">
+              {allNavCategories.find((c) => c.id === activeTab)?.label || 'COMMAND CENTER'}
+            </span>
+            <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-slate-800/80 text-amber-400/90 font-mono-code hidden sm:inline">
+              LIVE
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Quick Actions, Notification Bell & Manual Chevron Toggle */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Quick Trade Button when header is collapsed */}
+          {!isUpperHeaderExpanded && (
+            <button
+              onClick={onOpenNewTrade}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-[10px] tracking-wider transition shadow-sm cursor-pointer"
+              title="Enter New Trade"
+            >
+              <PlusCircle className="w-3 h-3 stroke-[2.5]" />
+              <span className="hidden xs:inline">TRADE</span>
+            </button>
+          )}
+
+          {/* Tactical Notification Bell */}
+          <button
+            type="button"
+            onClick={handleTestSound}
+            id="persistent-notification-bell-btn"
+            title={
+              alertSettings.soundEnabled
+                ? 'Notifications & Audio Alerts: ACTIVE (Click to test chime)'
+                : 'Notifications & Audio Alerts: MUTED (Click to activate)'
+            }
+            className="relative p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-amber-400 transition cursor-pointer"
+          >
+            <Bell className="w-4 h-4" />
+            <span
+              className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
+                alertSettings.soundEnabled ? 'bg-amber-400 animate-pulse' : 'bg-rose-500'
+              }`}
+            />
+          </button>
+
+          {/* Manual Chevron Toggle Button (Inverts upward/downward arrow) */}
+          <button
+            type="button"
+            id="header-collapse-chevron-toggle-btn"
+            onClick={() => setIsUpperHeaderExpanded((prev) => !prev)}
+            title={isUpperHeaderExpanded ? 'Collapse upper header section' : 'Expand upper header section'}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-amber-400 transition cursor-pointer"
+            aria-expanded={isUpperHeaderExpanded}
+            aria-label={isUpperHeaderExpanded ? 'Collapse header' : 'Expand header'}
+          >
+            {isUpperHeaderExpanded ? (
+              <>
+                <ChevronUp className="w-4 h-4 text-amber-400 transition-transform duration-200" />
+                <span className="text-[10px] font-mono-code text-slate-400 hidden sm:inline">COLLAPSE</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-4 h-4 text-amber-400 transition-transform duration-200" />
+                <span className="text-[10px] font-mono-code text-amber-400 hidden sm:inline">EXPAND</span>
+              </>
+            )}
           </button>
         </div>
       </div>

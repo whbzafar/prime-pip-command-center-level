@@ -611,3 +611,39 @@ export function getAdminSummary() {
     referrals,
   };
 }
+
+// In-memory heartbeat tracker for real user online/offline status
+const userHeartbeatMap = new Map<string, number>();
+
+export function recordUserHeartbeat(userId: string): void {
+  if (!userId) return;
+  userHeartbeatMap.set(userId, Date.now());
+}
+
+export function isUserOnline(userId: string): boolean {
+  const last = userHeartbeatMap.get(userId);
+  if (!last) return false;
+  return Date.now() - last < 45000; // Online if heartbeat received in last 45s
+}
+
+export function getAllRegisteredTraders(currentUserId?: string) {
+  const users = readUsers();
+  const now = Date.now();
+
+  return users
+    .filter((u) => !currentUserId || u.id !== currentUserId)
+    .map((u) => {
+      const lastHeartbeat = userHeartbeatMap.get(u.id) || 0;
+      const online = (now - lastHeartbeat) < 45000;
+      return {
+        id: u.id,
+        username: u.username,
+        displayName: u.name || u.username,
+        role: u.isDeveloper || u.role === 'ADMIN' ? 'ADMIN' : 'STUDENT',
+        isOnline: online,
+        lastSeen: lastHeartbeat,
+        createdAt: u.createdAt,
+      };
+    });
+}
+

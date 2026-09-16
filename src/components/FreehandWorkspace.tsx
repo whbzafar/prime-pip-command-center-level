@@ -31,11 +31,13 @@ import {
   ZoomIn,
   ZoomOut,
   Compass,
+  CandlestickChart,
 } from 'lucide-react';
 
 export type Tool =
   | 'SELECT'
   | 'PAN'
+  | 'CANDLE'
   | 'PEN'
   | 'HIGHLIGHTER'
   | 'LINE'
@@ -60,6 +62,9 @@ export interface CanvasItem {
   y2?: number;
   text?: string;
   isFilled?: boolean;
+  candleType?: 'BULLISH' | 'BEARISH';
+  candleOpacity?: number;
+  candleWidth?: number;
 }
 
 const FIB_LEVELS = [
@@ -84,6 +89,11 @@ export const FreehandWorkspace: React.FC = () => {
   const [isFilled, setIsFilled] = useState<boolean>(true);
   const [gridMode, setGridMode] = useState<'GRID' | 'DOTS' | 'NONE'>('GRID');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  // Candle Drawing Tool configuration states
+  const [candleType, setCandleType] = useState<'BULLISH' | 'BEARISH'>('BULLISH');
+  const [candleOpacity, setCandleOpacity] = useState<number>(1.0);
+  const [candleWidth, setCandleWidth] = useState<number>(24);
 
   // Canvas items with persistent auto-save
   const [items, setItems] = useState<CanvasItem[]>(() => {
@@ -520,6 +530,60 @@ export const FreehandWorkspace: React.FC = () => {
       });
     }
 
+    // 10. CANDLESTICK TOOL (Bullish / Bearish with upper and lower wicks & custom opacity)
+    else if (
+      item.tool === 'CANDLE' &&
+      item.x1 !== undefined &&
+      item.y1 !== undefined &&
+      item.x2 !== undefined &&
+      item.y2 !== undefined
+    ) {
+      const topY = Math.min(item.y1, item.y2);
+      const botY = Math.max(item.y1, item.y2);
+      const bodyHeight = Math.max(10 * dpr, botY - topY);
+      const centerX = (item.x1 + item.x2) / 2;
+      const cWidth = (item.candleWidth || 24) * dpr;
+      const upperWickHeight = Math.max(12 * dpr, bodyHeight * 0.45);
+      const lowerWickHeight = Math.max(12 * dpr, bodyHeight * 0.45);
+      const opacity = item.candleOpacity ?? 1.0;
+
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      const isBull = item.candleType !== 'BEARISH';
+      const candleColor = item.color || (isBull ? '#10B981' : '#EF4444');
+      ctx.strokeStyle = candleColor;
+      ctx.fillStyle = candleColor;
+
+      // Upper Wick
+      ctx.lineWidth = Math.max(2 * dpr, item.strokeWidth * dpr);
+      ctx.beginPath();
+      ctx.moveTo(centerX, topY - upperWickHeight);
+      ctx.lineTo(centerX, topY);
+      ctx.stroke();
+
+      // Lower Wick
+      ctx.beginPath();
+      ctx.moveTo(centerX, botY);
+      ctx.lineTo(centerX, botY + lowerWickHeight);
+      ctx.stroke();
+
+      // Candlestick Body (Filled + crisp border)
+      ctx.fillRect(centerX - cWidth / 2, topY, cWidth, bodyHeight);
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.strokeRect(centerX - cWidth / 2, topY, cWidth, bodyHeight);
+
+      // High contrast direction arrow glyph inside body
+      if (bodyHeight >= 18 * dpr) {
+        ctx.font = `bold ${Math.min(12 * dpr, bodyHeight * 0.5)}px 'JetBrains Mono', monospace`;
+        ctx.fillStyle = '#080C15';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(isBull ? '▲' : '▼', centerX, topY + bodyHeight / 2);
+      }
+
+      ctx.restore();
+    }
+
     // If item is currently selected, draw high-contrast selection bounds & handles
     if (isSelected) {
       const bounds = getItemBoundingBox(item);
@@ -584,6 +648,20 @@ export const FreehandWorkspace: React.FC = () => {
           maxX: canvasRef.current.width,
           minY: item.y1 - 10,
           maxY: item.y1 + 10,
+        };
+      }
+      if (item.tool === 'CANDLE' && item.x2 !== undefined && item.y2 !== undefined) {
+        const topY = Math.min(item.y1, item.y2);
+        const botY = Math.max(item.y1, item.y2);
+        const bodyHeight = Math.max(10, botY - topY);
+        const centerX = (item.x1 + item.x2) / 2;
+        const cWidth = item.candleWidth || 24;
+        const wickHeight = Math.max(12, bodyHeight * 0.45);
+        return {
+          minX: centerX - cWidth / 2,
+          maxX: centerX + cWidth / 2,
+          minY: topY - wickHeight,
+          maxY: botY + wickHeight,
         };
       }
       if (item.x2 !== undefined && item.y2 !== undefined) {
@@ -723,9 +801,12 @@ export const FreehandWorkspace: React.FC = () => {
     const baseDraft: CanvasItem = {
       id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       tool,
-      color,
+      color: tool === 'CANDLE' ? (candleType === 'BULLISH' ? '#10B981' : '#EF4444') : color,
       strokeWidth,
       isFilled,
+      candleType: tool === 'CANDLE' ? candleType : undefined,
+      candleOpacity: tool === 'CANDLE' ? candleOpacity : undefined,
+      candleWidth: tool === 'CANDLE' ? candleWidth : undefined,
     };
 
     if (tool === 'PEN' || tool === 'HIGHLIGHTER') {
@@ -1025,6 +1106,7 @@ export const FreehandWorkspace: React.FC = () => {
   const toolsList: Array<{ id: Tool; label: string; icon: any }> = [
     { id: 'SELECT', label: 'Select / Move', icon: MousePointer },
     { id: 'PAN', label: 'Pan / Hand', icon: Hand },
+    { id: 'CANDLE', label: 'Candle Tool', icon: CandlestickChart },
     { id: 'LINE', label: 'Trendline', icon: TrendingUp },
     { id: 'HORIZONTAL_LINE', label: 'Horizontal Level', icon: Minus },
     { id: 'RAY', label: 'Ray', icon: MoveRight },
@@ -1322,6 +1404,97 @@ export const FreehandWorkspace: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Candlestick Tool Dedicated Properties Panel */}
+      {tool === 'CANDLE' && (
+        <div className="bg-slate-900/95 border border-amber-500/40 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-lg text-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-military font-bold text-amber-400 tracking-wider flex items-center gap-1.5">
+              <CandlestickChart className="w-4 h-4 text-amber-400" />
+              CANDLESTICK MODEL:
+            </span>
+            {/* Bullish vs Bearish */}
+            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setCandleType('BULLISH');
+                  setColor('#10B981');
+                }}
+                className={`px-3 py-1 rounded-md font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${
+                  candleType === 'BULLISH'
+                    ? 'bg-emerald-500 text-slate-950 shadow-md font-extrabold'
+                    : 'text-emerald-400 hover:bg-slate-800'
+                }`}
+              >
+                <span>▲ BULLISH (GREEN)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCandleType('BEARISH');
+                  setColor('#EF4444');
+                }}
+                className={`px-3 py-1 rounded-md font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${
+                  candleType === 'BEARISH'
+                    ? 'bg-rose-500 text-slate-950 shadow-md font-extrabold'
+                    : 'text-rose-400 hover:bg-slate-800'
+                }`}
+              >
+                <span>▼ BEARISH (RED)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Candle Width Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 text-[11px]">WIDTH:</span>
+            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+              {[
+                { label: 'Slim (16px)', w: 16 },
+                { label: 'Standard (24px)', w: 24 },
+                { label: 'Wide (36px)', w: 36 },
+                { label: 'Macro (48px)', w: 48 },
+              ].map((item) => (
+                <button
+                  key={item.w}
+                  type="button"
+                  onClick={() => setCandleWidth(item.w)}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition cursor-pointer ${
+                    candleWidth === item.w
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Opacity / Intensity Slider */}
+          <div className="flex items-center gap-2.5">
+            <span className="text-slate-400 text-[11px]">INTENSITY / OPACITY:</span>
+            <input
+              type="range"
+              min="0.2"
+              max="1.0"
+              step="0.05"
+              value={candleOpacity}
+              onChange={(e) => setCandleOpacity(parseFloat(e.target.value))}
+              className="w-24 accent-amber-400 cursor-pointer"
+            />
+            <span className="font-mono-code text-slate-300 text-[11px] w-9">
+              {Math.round(candleOpacity * 100)}%
+            </span>
+          </div>
+
+          {/* Drawing Instruction Tip */}
+          <div className="text-[11px] text-amber-300/80 italic hidden lg:block">
+            Tip: Click & drag vertically on the canvas to place candle body — upper & lower wicks generate automatically!
+          </div>
+        </div>
+      )}
 
       {/* Main Interactive Canvas Area */}
       <div

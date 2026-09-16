@@ -31,9 +31,10 @@ import {
   LogOut,
   Key,
   Link2,
+  Copy,
 } from 'lucide-react';
 import { exportAllData, importAllData } from '../utils/db';
-import { BackupData, AccountSettings, Trade } from '../types';
+import { BackupData, AccountSettings, Trade, UserAccount } from '../types';
 import { exportToExcel, exportToPDF, exportToCSV, exportToZIP } from '../utils/exportCenter';
 import {
   getAlertSettings,
@@ -58,6 +59,7 @@ interface DataBackupModalProps {
   activeAccount?: AccountSettings;
   trades?: Trade[];
   initialTab?: 'SOUND' | 'EXPORT' | 'RESTORE' | 'DRIVE';
+  currentUser?: UserAccount | null;
 }
 
 export const DataBackupModal: React.FC<DataBackupModalProps> = ({
@@ -69,14 +71,27 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   activeAccount,
   trades = [],
   initialTab = 'SOUND',
+  currentUser,
 }) => {
   const [activeTab, setActiveTab] = useState<'SOUND' | 'EXPORT' | 'RESTORE' | 'DRIVE'>(initialTab);
   const [status, setStatus] = useState<'IDLE' | 'PROCESSING' | 'SUCCESS' | 'ERROR'>('IDLE');
   const [statusMessage, setStatusMessage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Sync isolated user ID with Google Drive service
+  useEffect(() => {
+    googleDriveService.setCurrentUserId(currentUser?.id);
+    setDriveStatus(googleDriveService.getStatus());
+    setCustomClientId(googleDriveService.getClientId());
+  }, [currentUser?.id]);
+
   // Google Drive Integration State
-  const [driveStatus, setDriveStatus] = useState<DriveStatusInfo>(() => googleDriveService.getStatus());
+  const [driveStatus, setDriveStatus] = useState<DriveStatusInfo>(() => {
+    if (currentUser?.id) {
+      googleDriveService.setCurrentUserId(currentUser.id);
+    }
+    return googleDriveService.getStatus();
+  });
   const [isDriveSyncing, setIsDriveSyncing] = useState(false);
   const [driveSyncSuccess, setDriveSyncSuccess] = useState<string | null>(null);
   const [driveSyncError, setDriveSyncError] = useState<string | null>(null);
@@ -1226,28 +1241,32 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                   <p className="text-xs text-slate-400 font-mono-code leading-relaxed">
                     Uses Google Identity Services (GSI). Administrators or students can specify a custom Google Cloud OAuth 2.0 Web Client ID.
                   </p>
-                  {showClientIdInput ? (
-                    <div className="space-y-2 pt-1">
-                      <input
-                        type="text"
-                        value={customClientId}
-                        onChange={(e) => setCustomClientId(e.target.value)}
-                        placeholder="your-client-id.apps.googleusercontent.com"
-                        className="w-full px-3 py-1.5 rounded bg-slate-900 border border-slate-700 text-xs font-mono-code text-slate-200 focus:outline-none focus:border-amber-400"
-                      />
+                  {/* Origin Diagnostics for Google OAuth 2.0 Configuration */}
+                  <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-1.5 text-[11px] font-mono-code">
+                    <div className="flex items-center justify-between text-slate-300 font-bold">
+                      <span>AUTHORIZED JAVASCRIPT ORIGIN:</span>
                       <button
                         type="button"
-                        onClick={handleSaveClientId}
-                        className="w-full py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-slate-950 font-military font-bold text-xs tracking-wider transition cursor-pointer"
+                        onClick={() => {
+                          if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                            navigator.clipboard.writeText(window.location.origin);
+                            setDriveSyncSuccess('Origin copied to clipboard! Paste into Google Cloud Console.');
+                            setTimeout(() => setDriveSyncSuccess(null), 4000);
+                          }
+                        }}
+                        className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 cursor-pointer transition"
                       >
-                        SAVE CLIENT ID
+                        <Copy className="w-3 h-3" />
+                        <span>COPY ORIGIN</span>
                       </button>
                     </div>
-                  ) : (
-                    <div className="text-[11px] font-mono-code text-slate-500 truncate bg-slate-900/80 p-2 rounded border border-slate-800">
-                      ID: {customClientId || 'Default institutional client configured'}
+                    <div className="p-1.5 rounded bg-slate-950 text-amber-300 font-bold break-all select-all">
+                      {typeof window !== 'undefined' ? window.location.origin : 'Current Web Origin'}
                     </div>
-                  )}
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      To resolve <strong>"Access Blocked: Authorization Error"</strong>, add this exact URL to <em>Authorized JavaScript origins</em> in Google Cloud Console.
+                    </p>
+                  </div>
                 </div>
               </div>
 

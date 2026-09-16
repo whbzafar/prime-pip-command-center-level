@@ -25,7 +25,8 @@ export type AlertSoundType =
   | 'DANGER'
   | 'CHIME'
   | 'DRAWDOWN_ALERT'
-  | 'CONSECUTIVE_LOSS';
+  | 'CONSECUTIVE_LOSS'
+  | 'ECONOMIC_NEWS_ALERT';
 
 export interface AlertSettings {
   soundEnabled: boolean;
@@ -35,6 +36,7 @@ export interface AlertSettings {
   riskAlert: boolean;
   drawdownAlert: boolean;
   consecutiveLossAlert: boolean;
+  economicNewsAlert?: boolean;
   notificationsEnabled: boolean;
 }
 
@@ -46,6 +48,7 @@ const DEFAULT_SETTINGS: AlertSettings = {
   riskAlert: true,
   drawdownAlert: true,
   consecutiveLossAlert: true,
+  economicNewsAlert: true,
   notificationsEnabled: false,
 };
 
@@ -134,6 +137,7 @@ export function playDisciplineAlert(type: AlertSoundType = 'LIMIT_REACHED') {
     if (type === 'CONSECUTIVE_LOSS' && settings.consecutiveLossAlert === false) return;
     if (type === 'DANGER' && settings.dailyLossAlert === false) return;
     if (type === 'WARNING' && settings.riskAlert === false) return;
+    if (type === 'ECONOMIC_NEWS_ALERT' && settings.economicNewsAlert === false) return;
 
     const ctx = getAudioContext();
     if (!ctx) return;
@@ -178,6 +182,26 @@ export function playDisciplineAlert(type: AlertSoundType = 'LIMIT_REACHED') {
 
       osc.start(now);
       osc.stop(now + 0.5);
+    } else if (type === 'ECONOMIC_NEWS_ALERT') {
+      // Urgent high-impact military dispatch chime: 880Hz -> 659Hz -> 880Hz
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.12);
+      osc.frequency.setValueAtTime(880, now + 0.24);
+
+      gain.gain.setValueAtTime(0.3 * vol, now);
+      gain.gain.setValueAtTime(0.3 * vol, now + 0.25);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.55);
     } else if (type === 'WARNING') {
       // Double attention chime: 587Hz -> 440Hz
       const now = ctx.currentTime;

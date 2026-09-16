@@ -14,6 +14,8 @@ import {
   RefreshCw,
   Layers,
   Award,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { AccountSettings, Trade } from '../types';
 import {
@@ -23,6 +25,7 @@ import {
   calculateLossRecoveryMetrics,
 } from '../utils/compoundingEngine';
 import { formatCurrency, getCurrencySymbol } from '../utils/currencyFormatter';
+import { DedicatedCompoundingCalculator } from './compounding/DedicatedCompoundingCalculator';
 
 interface CompoundingEngineProps {
   account: AccountSettings;
@@ -33,7 +36,8 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
   account,
   trades,
 }) => {
-  const [engineTab, setEngineTab] = useState<'COMPOUNDING' | 'RECOVERY_SIMULATOR' | 'REAL_VS_PROJECTED'>('COMPOUNDING');
+  const [engineTab, setEngineTab] = useState<'CALCULATOR' | 'COMPOUNDING' | 'RECOVERY_SIMULATOR' | 'REAL_VS_PROJECTED'>('CALCULATOR');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Currency Selection (Requirement 2)
   const [currency, setCurrency] = useState<string>(account.currency || 'USD');
@@ -145,7 +149,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
   }, [projection.rows, effectiveStartBalance]);
 
   return (
-    <div className="space-y-6">
+    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-slate-950 p-4 sm:p-6 overflow-y-auto space-y-6' : 'space-y-6'}>
       {/* Sub-Header / Navigation */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -162,40 +166,76 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
           </div>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-mono-code">
+        {/* Tab Switcher & Fullscreen Button */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-mono-code">
+            <button
+              id="tab-compounding-calc"
+              type="button"
+              onClick={() => setEngineTab('CALCULATOR')}
+              className={`px-3 py-1.5 rounded transition cursor-pointer ${
+                engineTab === 'CALCULATOR'
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              COMPOUNDING CALCULATOR
+            </button>
+            <button
+              id="tab-compounding-sim"
+              type="button"
+              onClick={() => setEngineTab('COMPOUNDING')}
+              className={`px-3 py-1.5 rounded transition cursor-pointer ${
+                engineTab === 'COMPOUNDING'
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              SIMULATOR ENGINE
+            </button>
+            <button
+              id="tab-recovery-simulator"
+              type="button"
+              onClick={() => setEngineTab('RECOVERY_SIMULATOR')}
+              className={`px-3 py-1.5 rounded transition cursor-pointer ${
+                engineTab === 'RECOVERY_SIMULATOR'
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              LOSS RECOVERY
+            </button>
+            <button
+              id="tab-real-vs-projected"
+              type="button"
+              onClick={() => setEngineTab('REAL_VS_PROJECTED')}
+              className={`px-3 py-1.5 rounded transition cursor-pointer ${
+                engineTab === 'REAL_VS_PROJECTED'
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              REAL DATA COMPARISON
+            </button>
+          </div>
+
           <button
-            id="tab-compounding-calc"
-            onClick={() => setEngineTab('COMPOUNDING')}
-            className={`px-3 py-1.5 rounded transition ${
-              engineTab === 'COMPOUNDING'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            type="button"
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-300 text-xs font-mono-code hover:bg-slate-800 transition cursor-pointer"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen View'}
           >
-            COMPOUNDING ENGINE
-          </button>
-          <button
-            id="tab-recovery-simulator"
-            onClick={() => setEngineTab('RECOVERY_SIMULATOR')}
-            className={`px-3 py-1.5 rounded transition ${
-              engineTab === 'RECOVERY_SIMULATOR'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            LOSS RECOVERY SIMULATOR
-          </button>
-          <button
-            id="tab-real-vs-projected"
-            onClick={() => setEngineTab('REAL_VS_PROJECTED')}
-            className={`px-3 py-1.5 rounded transition ${
-              engineTab === 'REAL_VS_PROJECTED'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            REAL DATA VS PROJECTION
+            {isFullscreen ? (
+              <>
+                <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">RESTORE</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">FULLSCREEN</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -210,6 +250,14 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
         </div>
         <span className="text-[10px] text-slate-500 uppercase">OFFLINE MATHEMATICAL MODEL</span>
       </div>
+
+      {/* VIEW 0: DEDICATED COMPOUNDING CALCULATOR */}
+      {engineTab === 'CALCULATOR' && (
+        <DedicatedCompoundingCalculator
+          initialCapital={effectiveStartBalance}
+          currency={currency}
+        />
+      )}
 
       {/* VIEW 1: COMPOUNDING ENGINE */}
       {engineTab === 'COMPOUNDING' && (

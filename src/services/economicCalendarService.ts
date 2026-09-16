@@ -12,6 +12,9 @@ export interface CalendarEvent {
   eventName: string;
   category: 'INFLATION' | 'EMPLOYMENT' | 'CENTRAL_BANK' | 'GROWTH' | 'CONSUMER' | 'SURVEY';
   importance: 'HIGH' | 'MEDIUM' | 'LOW';
+  forecast?: string;
+  previous?: string;
+  actual?: string;
   source: string;
   whatItMeasures: string;
   historicalReaction: string;
