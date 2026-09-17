@@ -462,3 +462,17 @@
     transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out;
   }
 }
+
+@keyframes prime-logo-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(0.97);
+  }
+}
+.animate-prime-logo-pulse {
+  animation: prime-logo-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

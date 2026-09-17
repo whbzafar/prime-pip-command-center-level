@@ -373,7 +373,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="contents">
       {/* Persistent Slim Top Bar: Active Category, Notification Bell & Manual Chevron Toggle */}
-      <div className="w-full h-14 shrink-0 sticky top-0 px-3 sm:px-4 bg-[#080C14]/95 backdrop-blur border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300 z-[1000]">
+      <div className="w-full h-12 shrink-0 sticky top-0 px-3 sm:px-4 bg-[#080C14]/95 backdrop-blur border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300 z-[1000]">
         {/* Left: Active Category / Section */}
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-6 h-6 rounded-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
@@ -444,7 +444,7 @@ export const Header: React.FC<HeaderProps> = ({
         <DailyPrayerBar />
 
       {/* Top Tactical Status Bar */}
-      <div className="px-3 sm:px-4 py-1.5 border-b border-slate-800/60 bg-[#070A11] flex items-center justify-between gap-2 text-xs font-mono-code text-slate-400 overflow-x-auto no-scrollbar">
+      <div className="px-3 sm:px-4 py-1.5 border-b border-slate-800/60 bg-[#070A11] flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 text-[10px] sm:text-xs font-mono-code text-slate-400">
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Offline/Online Status */}
           <OfflineIndicator />
@@ -616,29 +616,45 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Main Branding & Navigation Row */}
-      <div className="px-4 lg:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div className="px-4 lg:px-6 py-1.5 lg:py-2 flex flex-wrap items-center justify-between gap-3">
         {/* Brand */}
         <button 
           onClick={() => {
             if (onSelectTab) onSelectTab('DASHBOARD');
             else if (setActiveTab) setActiveTab('DASHBOARD');
           }}
-          className="flex items-center gap-3 text-left group cursor-pointer transition-all duration-300 hover:opacity-90"
+          className="flex items-center gap-2 text-left group cursor-pointer transition-all duration-300 hover:opacity-90"
           title="Return to Dashboard"
         >
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/20 border border-amber-400/40 group-hover:shadow-amber-500/40 transition-shadow">
-            <Crosshair className="w-6 h-6 text-slate-950 stroke-[2.5] group-hover:animate-pulse" />
+          <div className="flex items-center justify-center w-10 h-10 shrink-0 group-hover:animate-prime-logo-pulse drop-shadow-[0_0_8px_rgba(14,165,233,0.5)]">
+            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+              {/* Ascending Chart Bars */}
+              <rect x="10" y="55" width="15" height="35" rx="1.5" fill="url(#barGrad)"/>
+              <rect x="30" y="40" width="15" height="50" rx="1.5" fill="url(#barGrad)"/>
+              <rect x="50" y="25" width="15" height="65" rx="1.5" fill="url(#barGrad)"/>
+              <rect x="70" y="10" width="15" height="80" rx="1.5" fill="url(#barGrad)"/>
+              
+              {/* Sweeping Arrow */}
+              <path d="M 2 55 Q 40 45 68 15 L 65 2 L 98 2 L 98 35 L 85 32 Q 50 65 5 65 Z" fill="#38bdf8"/>
+              
+              <defs>
+                <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#0ea5e9"/>
+                  <stop offset="1" stopColor="#0369a1"/>
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
-          <div className="group-hover:animate-pulse transition-opacity duration-700">
+          <div className="group-hover:animate-prime-logo-pulse transition-opacity duration-700">
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-military font-bold tracking-wider text-slate-100 group-hover:text-amber-400 transition-colors">
-                PRIMEPIPFX
+              <h1 className="text-xl font-bold tracking-tight text-slate-100 transition-colors leading-none" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+                PrimePips<span className="text-sky-400">FX</span>
               </h1>
-              <span className="text-[10px] uppercase tracking-widest font-mono-code px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold group-hover:bg-amber-500/20">
+              <span className="text-[8px] uppercase tracking-widest font-mono-code px-1.5 py-[1px] rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold group-hover:bg-amber-500/20">
                 COMMAND CENTER
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 tracking-wide font-sans group-hover:text-slate-300 transition-colors">
+            <p className="text-[10px] text-slate-400 tracking-wide font-sans group-hover:text-slate-300 transition-colors mt-0.5">
               Tactical Journal • Psychology Intelligence • Risk Defense • AI Coach
             </p>
           </div>
@@ -857,7 +873,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Horizontally Scrollable Full Navigation Bar (Desktop, Laptop, Tablet & Mobile) */}
-      <div className="w-full border-t border-slate-800/60 py-1.5 bg-[#090D15]/95 backdrop-blur overflow-hidden sticky top-14 z-[990] min-h-[52px] flex flex-col justify-center shadow-md shadow-slate-900/50">
+      <div className="w-full border-t border-slate-800/60 py-1.5 bg-[#090D15]/95 backdrop-blur overflow-hidden sticky top-12 z-[990] min-h-[44px] flex flex-col justify-center shadow-md shadow-slate-900/50">
         {/* Overflow Gradient Shadows for Visual Cue */}
         {canScrollLeft && (
           <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#090D15] to-transparent pointer-events-none z-10" />

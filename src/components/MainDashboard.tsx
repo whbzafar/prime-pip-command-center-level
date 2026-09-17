@@ -32,10 +32,10 @@ import { formatCurrency } from '../utils/currencyFormatter';
 import { getKarachiEpoch } from '../utils/time';
 import { calculateNextTradeReadiness } from '../utils/readinessEngine';
 import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
-import { DashboardAiCoach } from './dashboard/DashboardAiCoach';
-import { DashboardDailyDevelopment } from './dashboard/DashboardDailyDevelopment';
-import { DashboardSignals } from './dashboard/DashboardSignals';
-import { DashboardQuickActions } from './dashboard/DashboardQuickActions';
+
+
+
+
 
 interface MainDashboardProps {
   metrics: DashboardMetrics;
@@ -758,45 +758,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
         </div>
       </div>
 
-      {/* ================================================================= */}
-      {/* OPERATIONAL INTELLIGENCE: AI COACH • DAILY DEVELOPMENT • SIGNALS  */}
-      {/* ================================================================= */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-3.5 bg-sky-500 rounded-sm"></span>
-            <h3 className="text-xs font-military tracking-wider font-bold text-slate-300 uppercase">
-              OPERATIONAL INTELLIGENCE: AI COACH • DEVELOPMENT • SIGNALS
-            </h3>
-          </div>
-          <span className="text-[10px] font-mono-code text-slate-500 uppercase">TIER 2 BENTO</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <DashboardAiCoach
-            trades={trades || []}
-            account={account}
-            onNavigateToTab={onNavigateToTab}
-          />
-
-          <DashboardDailyDevelopment
-            trades={trades || []}
-            onNavigateToTab={onNavigateToTab}
-          />
-
-          <DashboardSignals
-            onNavigateToTab={onNavigateToTab}
-          />
-        </div>
-      </div>
-
-      {/* ================================================================= */}
-      {/* TIER 3: HIGH-SPEED OPERATIONAL TRIGGERS (QUICK ACTIONS)           */}
-      {/* ================================================================= */}
-      <DashboardQuickActions
-        onOpenNewTrade={onOpenNewTrade}
-        onNavigateToTab={onNavigateToTab}
-      />
+      
 
       {/* Row 2: Comprehensive Key Performance Metrics Grid */}
       <div>
