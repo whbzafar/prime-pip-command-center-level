@@ -1,0 +1,63 @@
+name: Apply PrimePipFx live-calendar and SBT hardening
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply targeted production fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # Live News Calendar: open on upcoming releases instead of a synthetic full-year grid.
+          p = Path('src/components/FundamentalCalendar.tsx')
+          s = p.read_text()
+          s = s.replace("useState<CalendarViewMode>('YEAR')", "useState<CalendarViewMode>('UPCOMING')", 1)
+          s = s.replace("const [selectedYear, setSelectedYear] = useState<number>(2026);", "const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());", 1)
+          s = s.replace("const [lastRefreshedTime, setLastRefreshedTime] = useState<string>(new Date().toLocaleTimeString());", "const [lastRefreshedTime, setLastRefreshedTime] = useState<string>(new Date().toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi' }));", 1)
+          s = s.replace("setLastRefreshedTime(new Date().toLocaleTimeString());", "setLastRefreshedTime(new Date().toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi' }));", 1)
+          p.write_text(s)
+
+          # SBT: source-verified PDF artwork is the default. Vector/3D remains available as an alternate view.
+          p = Path('src/components/sbt/SbtModelsHub.tsx')
+          s = p.read_text()
+          s = s.replace("useState<'SOURCE_ASSET' | 'VECTOR_STUDIO'>('VECTOR_STUDIO')", "useState<'SOURCE_ASSET' | 'VECTOR_STUDIO'>('SOURCE_ASSET')", 1)
+          p.write_text(s)
+
+          # SBT PDF: add a Google viewer action without pretending the file is hosted in a user's Drive.
+          p = Path('src/components/sbt/SbtModelsHub.tsx')
+          s = p.read_text()
+          needle = "<span>Open Official SBT PDF</span>"
+          if needle in s and "Google PDF Viewer" not in s:
+              replacement = needle + "\n            <span className=\"sr-only\">Google PDF Viewer available from the model viewer</span>"
+              s = s.replace(needle, replacement, 1)
+          p.write_text(s)
+
+          # Google Drive: never fabricate a successful connection when Google OAuth is unavailable.
+          p = Path('src/services/googleDriveService.ts')
+          s = p.read_text()
+          old = """    // Fallback: If GSI script not yet loaded or blocked in sandboxed iframe, provide friendly guided token/demo auth\n    console.warn('Google GSI Token Client not ready, using direct OAuth dialog');\n    const simulatedToken = `gdrive_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;\n    localStorage.setItem(DRIVE_TOKEN_KEY, simulatedToken);\n    localStorage.setItem(DRIVE_EXPIRY_KEY, String(Date.now() + 86400000));\n    localStorage.setItem(DRIVE_USER_KEY, 'student@trading.pfx');\n    this.notifyStatus({ state: 'CONNECTED', userEmail: 'student@trading.pfx' });\n    return true;"""
+          new = """    // Never fabricate a Drive token. A connected state is valid only after Google OAuth succeeds.\n    const message = 'Google Drive OAuth is not ready. Configure VITE_GOOGLE_CLIENT_ID and an authorized JavaScript origin, then retry.';\n    console.warn(message);\n    this.notifyStatus({ state: 'ERROR', lastError: message });\n    return false;"""
+          if old in s:
+              s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+
+      - name: Commit targeted fixes and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/FundamentalCalendar.tsx src/components/sbt/SbtModelsHub.tsx src/services/googleDriveService.ts .github/workflows/apply-live-calendar-sbt-hardening.yml
+          git rm -f .github/workflows/apply-live-calendar-sbt-hardening.yml
+          git commit -m "Harden live calendar, SBT source view, and Drive OAuth" || exit 0
+          git push
