@@ -84,6 +84,7 @@ export default function App() {
   const [isChartScannerOpen, setIsChartScannerOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isHelpImproveOpen, setIsHelpImproveOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isTraderProfileOpen, setIsTraderProfileOpen] = useState(false);
   const [prefilledTradeData, setPrefilledTradeData] = useState<Partial<Trade> | null>(null);
 
@@ -721,6 +722,7 @@ export default function App() {
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenHelpImprove={() => setIsHelpImproveOpen(true)}
         onOpenTraderProfile={() => setIsTraderProfileOpen(true)}
+        onOpenNotifications={() => setIsNotificationsOpen(true)}
         onOpenEvolution={() => setActiveTab('EVOLUTION')}
       />
 
@@ -807,6 +809,7 @@ export default function App() {
             onOpenAccountModal={() => setIsLoginModalOpen(true)}
             onOpenHelpImprove={() => setIsHelpImproveOpen(true)}
             onOpenTraderProfile={() => setIsTraderProfileOpen(true)}
+        onOpenNotifications={() => setIsNotificationsOpen(true)}
             onOpenEvolution={() => setActiveTab('EVOLUTION')}
           />
         )}
@@ -1019,6 +1022,16 @@ export default function App() {
       )}
 
       {/* Native Mobile Bottom App Bar (Sticky Thumb Navigation for Modern Phones) */}
+      {isNotificationsOpen <MobileBottomNav<MobileBottomNav (
+        <NotificationsPanel
+          onClose={() => setIsNotificationsOpen(false)}
+          onNavigate={(link) => {
+            if (link === "/community") setActiveTab("COMMUNITY_HUB");
+            else if (link === "/trade") setActiveTab("DASHBOARD");
+            else console.log("Navigate to", link);
+          }}
+        />
+      )}
       <MobileBottomNav
         activeTab={activeTab}
         onSelectTab={(tab) => setActiveTab(tab)}

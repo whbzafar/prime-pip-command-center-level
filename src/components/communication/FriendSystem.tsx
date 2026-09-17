@@ -106,9 +106,8 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
     return () => clearInterval(interval);
   }, [currentUser]);
 
-  const handleSearchUsers = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
+  const handleSearchUsers = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!currentUser) {
       showNotice('Please login to search traders.');
       return;
@@ -124,7 +123,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
       if (res.ok) {
         const data = await res.json();
         setSearchResults(data.users || []);
-        if (!(data.users || []).length) {
+        if (!(data.users || []).length && searchQuery.trim()) {
           showNotice(`No traders matched "${searchQuery.trim()}".`);
         }
       } else {
@@ -140,6 +139,12 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
       setIsSearching(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'FIND') {
+      handleSearchUsers();
+    }
+  }, [activeTab]);
 
   const handleSendRequest = async (targetUser: UserSearchResult) => {
     if (!currentUser) {

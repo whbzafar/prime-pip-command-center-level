@@ -1026,6 +1026,59 @@ app.post('/api/media/voice/upload', (req, res) => {
   }
 });
 
+app.get('/api/media/image/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+    const DATA_DIR = path.join(process.cwd(), 'data');
+    const IMAGE_DIR = path.join(DATA_DIR, 'images');
+    const filePath = path.join(IMAGE_DIR, filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send('Image not found');
+    }
+
+    const stat = fs.statSync(filePath);
+    res.writeHead(200, {
+      'Content-Type': `image/${filename.split('.').pop()}`,
+      'Content-Length': stat.size,
+      'Cache-Control': 'public, max-age=86400',
+    });
+    const readStream = fs.createReadStream(filePath);
+    readStream.pipe(res);
+  } catch (err: any) {
+    console.error('Image serve error:', err);
+    return res.status(500).send('Internal server error');
+  }
+});
+
+app.get('/api/media/file/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+    const DATA_DIR = path.join(process.cwd(), 'data');
+    const FILE_DIR = path.join(DATA_DIR, 'files');
+    const filePath = path.join(FILE_DIR, filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send('File not found');
+    }
+
+    const stat = fs.statSync(filePath);
+    let contentType = 'application/octet-stream';
+    if (filename.endsWith('.pdf')) contentType = 'application/pdf';
+
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Content-Length': stat.size,
+      'Cache-Control': 'public, max-age=86400',
+    });
+    const readStream = fs.createReadStream(filePath);
+    readStream.pipe(res);
+  } catch (err: any) {
+    console.error('File serve error:', err);
+    return res.status(500).send('Internal server error');
+  }
+});
+
 app.get('/api/media/voice/:id', (req, res) => {
   try {
     const { id } = req.params;
@@ -1253,7 +1306,34 @@ app.post('/api/community/messages', async (req, res) => {
       }
     }
 
+
+    // Handle mentions
+    const mentions = [];
+    if (text) {
+      const mentionRegex = /@(\w+)/g;
+      let match;
+      const allTraders = getAllRegisteredTraders();
+      while ((match = mentionRegex.exec(text)) !== null) {
+        const uName = match[1];
+        const matchedUser = allTraders.find(t => t.username.toLowerCase() === uName.toLowerCase());
+        if (matchedUser && !mentions.find(m => m.userId === matchedUser.id)) {
+          mentions.push({ userId: matchedUser.id, username: matchedUser.username });
+          // Notify
+          import("./server/notificationsService.js").then(mod => {
+            mod.createNotification({
+              userId: matchedUser.id,
+              type: "MENTION",
+              title: "New Mention",
+              body: `${user.username} mentioned you in the Community Hub.`,
+              link: "/community"
+            });
+          });
+        }
+      }
+    }
+
     const newMsg = postCommunityMessage({
+      mentions,
       ...req.body,
       userId: user.id,
       username: user.username,
@@ -1418,6 +1498,23 @@ app.get('/api/messages/private/:otherUserId', (req, res) => {
     return res.json({ ok: true, messages });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+
+app.post('/api/messages/private/read', (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    const { senderId } = req.body;
+    import("./server/commandCenterService.js").then(mod => {
+      const updated = mod.markPrivateMessagesRead(user.id, senderId);
+      res.json({ ok: true, updated });
+    });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
@@ -1772,6 +1869,30 @@ app.put('/api/evolution/profile', (req, res) => {
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
+});
+
+// ----------------------------------------------------
+// NOTIFICATIONS API
+// ----------------------------------------------------
+import { getNotificationsForUser, markNotificationsRead } from "./server/notificationsService.js";
+
+app.get("/api/notifications", (req, res) => {
+  const token = getAuthToken(req);
+  if (!token) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  const user = getUserByToken(token);
+  if (!user) return res.status(401).json({ ok: false, error: "Invalid user" });
+  const notifs = getNotificationsForUser(user.id);
+  res.json({ ok: true, notifications: notifs });
+});
+
+app.post("/api/notifications/read", (req, res) => {
+  const token = getAuthToken(req);
+  if (!token) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  const user = getUserByToken(token);
+  if (!user) return res.status(401).json({ ok: false, error: "Invalid user" });
+  const { notifIds } = req.body || {};
+  markNotificationsRead(user.id, notifIds);
+  res.json({ ok: true });
 });
 
 // Vite middleware / static files

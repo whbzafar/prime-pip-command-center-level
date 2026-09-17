@@ -38,6 +38,7 @@ interface ChatMessage {
   displayName: string;
   text: string;
   photoBase64?: string;
+  photoUrl?: string;
   audioBase64?: string;
   audioAttachmentId?: string;
   audioMimeType?: string;
@@ -71,6 +72,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   const [inputText, setInputText] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [selectedDriveFile, setSelectedDriveFile] = useState<DriveAttachmentMeta | null>(null);
+  const [selectedLocalFile, setSelectedLocalFile] = useState<{ base64: string; name: string } | null>(null);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const [audioBase64, setAudioBase64] = useState<string | null>(null);
   const [audioDuration, setAudioDuration] = useState(0);
@@ -351,6 +353,8 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       audioSize: voiceMeta.audioSize,
       audioUrl: voiceMeta.audioUrl,
       driveFile: selectedDriveFile || undefined,
+      fileBase64: selectedLocalFile?.base64 || undefined,
+      attachmentName: selectedLocalFile?.name || undefined,
       timePkt: getKarachiTime(),
       datePkt: getKarachiDate(),
     };
@@ -367,6 +371,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
         setInputText('');
         setSelectedPhoto(null);
         setSelectedDriveFile(null);
+        setSelectedLocalFile(null);
         setAudioBase64(null);
         setAudioDuration(0);
         setSendError(null);
@@ -388,38 +393,29 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     }
   };
 
-  const handleDriveFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (googleDriveService.getStatus().state !== 'CONNECTED') {
-      setMicNotice('Please connect Google Drive in Settings to attach files');
-      setTimeout(() => setMicNotice(null), 4500);
+    
+    if (file.size > 10 * 1024 * 1024) {
+      setMicNotice('File must be under 10MB');
+      setTimeout(() => setMicNotice(null), 3500);
       return;
     }
-    try {
-      setMicNotice(`Uploading ${file.name}…`);
-      const res = await googleDriveService.uploadBlob(file, file.name, 'Trade Setups & Screenshots', file.type);
-      if (res.ok && res.fileId) {
-        setSelectedDriveFile({
-          fileId: res.fileId,
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType: file.type,
-          webViewLink: res.webViewLink || `https://drive.google.com/file/d/${res.fileId}/view`,
-          categoryFolder: 'Trade Setups & Screenshots',
-        });
-        setMicNotice('File uploaded to Google Drive');
-        setTimeout(() => setMicNotice(null), 3000);
-      } else {
-        setMicNotice(res.error || 'Failed to upload to Google Drive');
-        setTimeout(() => setMicNotice(null), 4000);
-      }
-    } catch (err: unknown) {
-      setMicNotice(err instanceof Error ? `Upload error: ${err.message}` : 'Upload error');
-      setTimeout(() => setMicNotice(null), 4000);
-    } finally {
-      e.target.value = '';
-    }
+    
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedLocalFile({
+        base64: reader.result as string,
+        name: file.name
+      });
+    };
+    reader.onerror = () => {
+      setMicNotice('Failed to read file');
+      setTimeout(() => setMicNotice(null), 3500);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const handleStartCall = (target: { id: string; username: string; displayName: string }) => {
@@ -566,9 +562,20 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                           : 'bg-slate-900 border-slate-700 text-slate-200 rounded-tl-none'
                       }`}
                     >
-                      {m.text && <p className="whitespace-pre-wrap break-words">{m.text}</p>}
-                      {m.photoBase64 && (
-                        <img src={m.photoBase64} alt="attachment" className="max-w-full rounded-lg border border-slate-700 max-h-48 object-contain" />
+                      {m.text && (
+                        <p className="whitespace-pre-wrap break-words">
+                          {m.text.split(/(@\w+)/g).map((part, i) => {
+                            if (part.startsWith('@')) {
+                              return <span key={i} className="text-sky-400 font-bold">{part}</span>;
+                            }
+                            return <React.Fragment key={i}>{part}</React.Fragment>;
+                          })}
+                        </p>
+                      )}
+                      {(m.photoUrl || m.photoBase64) && (
+                        <a href={m.photoUrl || m.photoBase64} target="_blank" rel="noopener noreferrer">
+                          <img src={m.photoUrl || m.photoBase64} alt="attachment" className="max-w-full rounded-lg border border-slate-700 max-h-64 object-contain" />
+                        </a>
                       )}
                       {(m.audioUrl || m.audioAttachmentId || m.audioBase64) && (
                         <VoiceMessagePlayer
@@ -589,6 +596,17 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                           <Paperclip className="w-3 h-3" /> {m.driveFile.fileName}
                         </a>
                       )}
+                      {m.attachmentUrl && m.attachmentName && (
+                        <a
+                          href={m.attachmentUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-2 text-amber-400 hover:underline text-[11px] p-2 bg-slate-800/50 rounded-lg mt-1 border border-slate-700/50"
+                        >
+                          <Paperclip className="w-4 h-4" /> 
+                          <span>{m.attachmentName} {m.attachmentSize ? `(${(m.attachmentSize / 1024 / 1024).toFixed(2)} MB)` : ''}</span>
+                        </a>
+                      )}
                       {m.intentCard && <IntentCard card={m.intentCard} />}
                       {m.seenBy && m.seenBy.length > 0 && (
                         <div className="flex items-center gap-1 text-[9px] text-slate-500 pt-1">
@@ -603,7 +621,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
             <div ref={chatBottomRef} />
           </div>
 
-          {(selectedPhoto || audioBase64 || selectedDriveFile) && (
+          {(selectedPhoto || audioBase64 || selectedDriveFile || selectedLocalFile) && (
             <div className="flex items-center gap-2 text-xs text-slate-400 font-mono-code flex-wrap">
               {selectedPhoto && (
                 <span className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 border border-slate-700">
@@ -623,16 +641,21 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                   <button type="button" onClick={() => setSelectedDriveFile(null)} className="text-rose-400"><X className="w-3 h-3" /></button>
                 </span>
               )}
+              {selectedLocalFile && (
+                <span className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 border border-slate-700 max-w-[200px] truncate">
+                  File: {selectedLocalFile.name}
+                  <button type="button" onClick={() => setSelectedLocalFile(null)} className="text-rose-400"><X className="w-3 h-3" /></button>
+                </span>
+              )}
             </div>
           )}
-
           <form onSubmit={handleSendMessage} className="flex items-center gap-2 shrink-0">
-            <input ref={driveFileInputRef} type="file" className="hidden" onChange={handleDriveFileSelect} />
+            <input ref={driveFileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
             <input type="file" accept="image/*" className="hidden" id="cc-photo-input" onChange={handlePhotoSelect} />
             <button type="button" onClick={() => document.getElementById('cc-photo-input')?.click()} className="p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-400 hover:text-amber-400 cursor-pointer" title="Photo">
               <ImageIcon className="w-4 h-4" />
             </button>
-            <button type="button" onClick={() => driveFileInputRef.current?.click()} className="p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-400 hover:text-amber-400 cursor-pointer" title="Drive file">
+            <button type="button" onClick={() => driveFileInputRef.current?.click()} className="p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-400 hover:text-amber-400 cursor-pointer" title="Attach file">
               <Paperclip className="w-4 h-4" />
             </button>
             <button
@@ -655,7 +678,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
             />
             <button
               type="submit"
-              disabled={isSending || (!inputText.trim() && !selectedPhoto && !audioBase64)}
+              disabled={isSending || (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedLocalFile && !selectedDriveFile)}
               className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5"
             >
               {isSending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   ArrowLeft,
   CheckCheck,
+  Paperclip,
 } from 'lucide-react';
 import { UserAccount } from '../../types';
 import { getKarachiDate, getKarachiTime } from '../../utils/time';
@@ -30,6 +31,7 @@ interface PrivateMessage {
   text: string;
   type: 'TEXT' | 'VOICE' | 'IMAGE';
   photoBase64?: string;
+  photoUrl?: string;
   audioBase64?: string;
   audioAttachmentId?: string;
   audioMimeType?: string;
@@ -61,6 +63,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
   const [messages, setMessages] = useState<PrivateMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedLocalFile, setSelectedLocalFile] = useState<{ base64: string; name: string } | null>(null);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const [audioBase64, setAudioBase64] = useState<string | null>(null);
   const [audioDuration, setAudioDuration] = useState<number>(0);
@@ -91,8 +94,26 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
     }
   };
 
+  const markMessagesRead = async () => {
+    if (!currentUser || !activeContact) return;
+    const token = getStoredToken();
+    try {
+      await fetch('/api/messages/private/read', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ senderId: activeContact.id })
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     fetchPrivateMessages();
+    markMessagesRead();
     const interval = setInterval(fetchPrivateMessages, 4000);
     return () => clearInterval(interval);
   }, [activeContact.id, currentUser]);
@@ -184,6 +205,31 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 10 * 1024 * 1024) {
+      setMicNotice('File must be under 10MB');
+      setTimeout(() => setMicNotice(null), 3500);
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedLocalFile({
+        base64: reader.result as string,
+        name: file.name
+      });
+    };
+    reader.onerror = () => {
+      setMicNotice('Failed to read file');
+      setTimeout(() => setMicNotice(null), 3500);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!currentUser) return;
@@ -246,6 +292,8 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
       audioDurationSeconds: voiceMeta.audioDurationSeconds || (audioDuration > 0 ? audioDuration : undefined),
       audioSize: voiceMeta.audioSize,
       audioUrl: voiceMeta.audioUrl,
+      fileBase64: selectedLocalFile?.base64 || undefined,
+      attachmentName: selectedLocalFile?.name || undefined,
       timePkt: getKarachiTime(),
       datePkt: getKarachiDate(),
     };
@@ -263,6 +311,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
       if (res.ok) {
         setInputText('');
         setSelectedPhoto(null);
+        setSelectedLocalFile(null);
         setAudioBase64(null);
         setAudioDuration(0);
         await fetchPrivateMessages();
@@ -358,7 +407,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
               >
                 <div className="flex items-center gap-1.5 mb-1 text-[10px] text-slate-500">
                   <span>{m.timePkt} PKT</span>
-                  {isMe && <CheckCheck className="w-3 h-3 text-sky-400" />}
+                  {isMe && <CheckCheck className={`w-3 h-3 ${m.read ? 'text-sky-400' : 'text-slate-500'}`} title={m.read ? 'Read' : 'Delivered'} />}
                 </div>
 
                 <div
@@ -368,11 +417,22 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
                       : 'bg-slate-900 border-slate-800 text-slate-200 rounded-tl-none'
                   }`}
                 >
-                  {m.text && <p className="whitespace-pre-wrap">{m.text}</p>}
+                  {m.text && (
+                    <p className="whitespace-pre-wrap break-words">
+                      {m.text.split(/(@\w+)/g).map((part, i) => {
+                        if (part.startsWith('@')) {
+                          return <span key={i} className="text-sky-400 font-bold">{part}</span>;
+                        }
+                        return <React.Fragment key={i}>{part}</React.Fragment>;
+                      })}
+                    </p>
+                  )}
 
-                  {m.photoBase64 && (
+                  {(m.photoUrl || m.photoBase64) && (
                     <div className="rounded-xl overflow-hidden border border-slate-700 max-w-sm mt-1">
-                      <img src={m.photoBase64} alt="Shared setup" className="w-full object-cover max-h-56" />
+                      <a href={m.photoUrl || m.photoBase64} target="_blank" rel="noopener noreferrer">
+                        <img src={m.photoUrl || m.photoBase64} alt="Shared setup" className="w-full object-cover max-h-56" />
+                      </a>
                     </div>
                   )}
 
@@ -388,6 +448,17 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
                       />
                     </div>
                   )}
+                  {m.attachmentUrl && m.attachmentName && (
+                    <a
+                      href={m.attachmentUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 text-amber-400 hover:underline text-[11px] p-2 bg-slate-800/50 rounded-lg mt-1 border border-slate-700/50"
+                    >
+                      <Paperclip className="w-4 h-4" /> 
+                      <span>{m.attachmentName} {m.attachmentSize ? `(${(m.attachmentSize / 1024 / 1024).toFixed(2)} MB)` : ''}</span>
+                    </a>
+                  )}
                 </div>
               </div>
             );
@@ -399,7 +470,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
       {/* Input Row */}
       <div className="p-3 bg-slate-950 border-t border-slate-800 space-y-2 shrink-0">
         {/* Attachment Previews */}
-        {(selectedPhoto || audioBase64) && (
+        {(selectedPhoto || audioBase64 || selectedLocalFile) && (
           <div className="flex flex-col gap-2 p-2.5 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono-code">
             {selectedPhoto && (
               <div className="relative inline-block">
@@ -410,6 +481,21 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
                   className="absolute -top-1 -right-1 bg-rose-500 text-white rounded-full p-0.5"
                 >
                   <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            {selectedLocalFile && (
+              <div className="flex items-center justify-between gap-3 bg-slate-800 p-2 rounded-lg">
+                <div className="flex items-center gap-2 truncate">
+                  <Paperclip className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="truncate">{selectedLocalFile.name}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedLocalFile(null)}
+                  className="p-1 text-slate-400 hover:text-rose-400 rounded-lg transition"
+                >
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             )}
@@ -451,6 +537,10 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
             />
           </label>
 
+          <label className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-amber-400 cursor-pointer transition">
+            <Paperclip className="w-4 h-4" />
+            <input type="file" onChange={handleFileSelect} className="hidden" />
+          </label>
           {/* Voice recording button */}
           {!isRecordingAudio ? (
             <button

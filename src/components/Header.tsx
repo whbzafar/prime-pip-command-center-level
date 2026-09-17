@@ -14,6 +14,7 @@ import {
   Upload,
   Clock,
   ShieldAlert,
+  Bell,
   Wallet,
   Brain,
   Terminal,
@@ -104,6 +105,7 @@ interface HeaderProps {
   onOpenHelpImprove?: () => void;
   onOpenTraderProfile?: () => void;
   onOpenEvolution?: () => void;
+  onOpenNotifications?: () => void;
 }
 
 interface NavItem {
@@ -139,6 +141,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHelpImprove,
   onOpenTraderProfile,
   onOpenEvolution,
+  onOpenNotifications,
 }) => {
   const switchTab = onSelectTab || setActiveTab || (() => {});
   const displayScore = overallScore ?? scores?.overallTradingScore ?? 76;
@@ -487,7 +490,16 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </div>
 
-          {/* Backup & Restore modal trigger */}
+          {currentUser && onOpenNotifications && (
+            <button
+              onClick={onOpenNotifications}
+              className="flex items-center gap-1 p-1 rounded text-slate-400 hover:text-amber-400 transition cursor-pointer"
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+            </button>
+          )}
+
           {onOpenBackupModal && (
             <button
               id="header-backup-data-btn"

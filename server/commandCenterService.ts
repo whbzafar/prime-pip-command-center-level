@@ -56,12 +56,17 @@ export interface CommunityMessage {
   text: string;
   emoji?: string;
   photoBase64?: string;
+  photoUrl?: string;
   audioBase64?: string;
   audioAttachmentId?: string;
   audioMimeType?: string;
   audioDurationSeconds?: number;
   audioSize?: number;
   audioUrl?: string;
+  mentions?: { userId: string; username: string }[];
+  attachmentUrl?: string;
+  attachmentName?: string;
+  attachmentSize?: number;
   driveFile?: DriveAttachmentReference;
   seenBy?: MessageSeenRecord[];
   intentCard?: any;
@@ -225,21 +230,37 @@ export function readCommunityMessages(): CommunityMessage[] {
 
 export function writeCommunityMessages(messages: CommunityMessage[]) {
   ensureDataDir();
-  const trimmed = messages.slice(-500);
-  fs.writeFileSync(COMMUNITY_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
+  fs.writeFileSync(COMMUNITY_FILE, JSON.stringify(messages, null, 2), 'utf8');
 }
 
-export function postCommunityMessage(msg: Omit<CommunityMessage, 'id' | 'timestamp'>): CommunityMessage {
+export function postCommunityMessage(msg: Omit<CommunityMessage, 'id' | 'timestamp'> & { fileBase64?: string }): CommunityMessage {
   const messages = readCommunityMessages();
 
   const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 4000) : '';
-  const hasMedia = !!(msg.photoBase64 || msg.audioBase64 || msg.audioAttachmentId || msg.driveFile);
+  const hasMedia = !!(msg.photoBase64 || msg.audioBase64 || msg.audioAttachmentId || msg.driveFile || msg.fileBase64 || msg.attachmentUrl);
   if (!text && !hasMedia) {
     throw new Error('Message cannot be empty. Provide text or an attachment.');
   }
 
-  if (msg.photoBase64 && msg.photoBase64.length > 2_000_000) {
+  if (msg.photoBase64 && msg.photoBase64.length > 5_000_000) {
     throw new Error('Image attachment is too large. Please use a smaller image.');
+  }
+  
+  if (msg.fileBase64 && msg.fileBase64.length > 10_000_000) {
+    throw new Error('File attachment is too large (max 10MB).');
+  }
+
+  let photoUrl = msg.photoUrl;
+  if (msg.photoBase64 && !photoUrl) {
+    photoUrl = saveImageAttachmentFile(msg.photoBase64);
+  }
+
+  let attachmentUrl = msg.attachmentUrl;
+  let attachmentSize = msg.attachmentSize;
+  if (msg.fileBase64 && msg.attachmentName && !attachmentUrl) {
+    const res = saveFileAttachmentFile(msg.fileBase64, msg.attachmentName);
+    attachmentUrl = res.url;
+    attachmentSize = res.size;
   }
 
   const now = Date.now();
@@ -259,6 +280,10 @@ export function postCommunityMessage(msg: Omit<CommunityMessage, 'id' | 'timesta
   const newMsg: CommunityMessage = {
     ...msg,
     text,
+    photoUrl,
+    photoBase64: undefined,
+    attachmentUrl,
+    attachmentSize,
     userRole: msg.userRole === 'ADMIN' ? 'ADMIN' : 'CUSTOMER',
     seenBy: [],
     id: `msg-${now}-${Math.random().toString(36).substring(2, 7)}`,
@@ -266,6 +291,9 @@ export function postCommunityMessage(msg: Omit<CommunityMessage, 'id' | 'timesta
     datePkt: pktDate,
     timePkt: pktTime,
   };
+  // Remove fileBase64 from saved message
+  (newMsg as any).fileBase64 = undefined;
+  
   messages.push(newMsg);
   writeCommunityMessages(messages);
   return newMsg;
@@ -507,12 +535,17 @@ export interface PrivateMessageRecord {
   receiverUsername: string;
   text: string;
   photoBase64?: string;
+  photoUrl?: string;
   audioBase64?: string;
   audioAttachmentId?: string;
   audioMimeType?: string;
   audioDurationSeconds?: number;
   audioSize?: number;
   audioUrl?: string;
+  mentions?: { userId: string; username: string }[];
+  attachmentUrl?: string;
+  attachmentName?: string;
+  attachmentSize?: number;
   timestamp: number;
   read: boolean;
 }
@@ -545,18 +578,52 @@ export function getPrivateConversation(userId1: string, userId2: string): Privat
   return all.filter((m) => m.conversationId === convId);
 }
 
+
+export function markPrivateMessagesRead(receiverId: string, senderId: string): number {
+  const msgs = readPrivateMessages();
+  let updated = 0;
+  for (const m of msgs) {
+    if (m.receiverId === receiverId && m.senderId === senderId && !m.read) {
+      m.read = true;
+      updated++;
+    }
+  }
+  if (updated > 0) writePrivateMessages(msgs);
+  return updated;
+}
+
 export function postPrivateMessage(
-  msg: Omit<PrivateMessageRecord, 'id' | 'conversationId' | 'timestamp' | 'read'>
+  msg: Omit<PrivateMessageRecord, 'id' | 'conversationId' | 'timestamp' | 'read'> & { fileBase64?: string }
 ): PrivateMessageRecord {
   const all = readPrivateMessages();
   const convId = getConversationId(msg.senderId, msg.receiverId);
+  
+  let photoUrl = msg.photoUrl;
+  if (msg.photoBase64 && !photoUrl) {
+    photoUrl = saveImageAttachmentFile(msg.photoBase64);
+  }
+
+  let attachmentUrl = msg.attachmentUrl;
+  let attachmentSize = msg.attachmentSize;
+  if (msg.fileBase64 && msg.attachmentName && !attachmentUrl) {
+    const res = saveFileAttachmentFile(msg.fileBase64, msg.attachmentName);
+    attachmentUrl = res.url;
+    attachmentSize = res.size;
+  }
+
   const newMsg: PrivateMessageRecord = {
     ...msg,
+    photoUrl,
+    photoBase64: undefined,
+    attachmentUrl,
+    attachmentSize,
     id: `pmsg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     conversationId: convId,
     timestamp: Date.now(),
     read: false,
   };
+  (newMsg as any).fileBase64 = undefined;
+
   all.push(newMsg);
   writePrivateMessages(all);
   return newMsg;
@@ -647,7 +714,49 @@ export function addIceCandidate(
 }
 
 const VOICE_DIR = path.join(DATA_DIR, 'voice');
+const IMAGE_DIR = path.join(DATA_DIR, 'images');
+const FILE_DIR = path.join(DATA_DIR, 'files');
 const VOICE_META_FILE = path.join(DATA_DIR, 'voice_metadata.json');
+
+export function saveFileAttachmentFile(base64Data: string, originalName: string): { url: string; size: number } {
+  ensureDataDir();
+  if (!fs.existsSync(FILE_DIR)) fs.mkdirSync(FILE_DIR, { recursive: true });
+  const id = `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  let ext = originalName.split('.').pop() || 'bin';
+  let data = base64Data;
+  if (base64Data.includes(',')) {
+    data = base64Data.split(',')[1];
+  }
+  const buffer = Buffer.from(data, 'base64');
+  const fileName = `${id}.${ext}`;
+  const filePath = path.join(FILE_DIR, fileName);
+  fs.writeFileSync(filePath, buffer);
+  return { url: `/api/media/file/${fileName}`, size: buffer.length };
+}
+
+export function saveImageAttachmentFile(base64Data: string): string {
+  ensureDataDir();
+  if (!fs.existsSync(IMAGE_DIR)) fs.mkdirSync(IMAGE_DIR, { recursive: true });
+  const id = `img-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  // Determine extension from data url or default to jpeg
+  let ext = 'jpg';
+  let data = base64Data;
+  if (base64Data.startsWith('data:image/')) {
+    const parts = base64Data.split(';');
+    if (parts.length > 0) {
+      ext = parts[0].replace('data:image/', '');
+      if (ext === 'jpeg') ext = 'jpg';
+    }
+  }
+  if (base64Data.includes(',')) {
+    data = base64Data.split(',')[1];
+  }
+  const buffer = Buffer.from(data, 'base64');
+  const fileName = `${id}.${ext}`;
+  const filePath = path.join(IMAGE_DIR, fileName);
+  fs.writeFileSync(filePath, buffer);
+  return `/api/media/image/${fileName}`;
+}
 
 interface VoiceMeta {
   id: string;
