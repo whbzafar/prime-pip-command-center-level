@@ -10,7 +10,7 @@ interface SbtModelChartProps {
 
 export const SbtModelChart: React.FC<SbtModelChartProps> = ({
   variation,
-  show3DEffects = true,
+  show3DEffects = false,
   interactiveReplay = true,
 }) => {
   const [showZones, setShowZones] = useState(true);

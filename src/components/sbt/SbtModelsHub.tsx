@@ -30,6 +30,7 @@ import {
   Cpu,
   X,
   ExternalLink,
+  QrCode,
 } from 'lucide-react';
 
 export const getSbtAssetPath = (modelNumber: number, variationId?: string): string => {
@@ -147,7 +148,24 @@ export const SbtModelsHub: React.FC = () => {
                 <ShieldCheck className="w-3 h-3 text-teal-400" />
                 SOURCE VERIFIED (PDF PAGES 1-12)
               </span>
-            </div>
+  
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="flex items-center gap-2">
+            <a href="https://drive.google.com/drive/u/0/my-drive" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-[11px] font-mono-code font-bold transition">
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>OFFICIAL PDF 1</span>
+            </a>
+            <a href="https://drive.google.com/drive/u/0/my-drive" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-[11px] font-mono-code font-bold transition">
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>OFFICIAL PDF 2</span>
+            </a>
+          </div>
+          <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-mono-code font-bold transition">
+            <QrCode className="w-4 h-4 text-amber-400" />
+            <span>SCAN QR</span>
+          </button>
             <p className="text-xs font-mono-code text-slate-400">
               Deterministic Vector Models & Verbatim Execution Rules Transcribed Directly from Official Source
             </p>

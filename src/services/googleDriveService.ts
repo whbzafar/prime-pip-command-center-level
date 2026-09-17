@@ -461,7 +461,7 @@ class GoogleDriveService {
   public async uploadBlob(
     blob: Blob,
     fileName: string,
-    categoryFolder: DriveCategoryFolder = 'Trade Setups & Screenshots',
+    categoryFolder: DriveCategoryFolder = 'Trade Analysis',
     mimeType?: string
   ): Promise<{ ok: boolean; fileId?: string; webViewLink?: string; error?: string }> {
     const token = this.getAccessToken();

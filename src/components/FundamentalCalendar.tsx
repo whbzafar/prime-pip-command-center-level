@@ -28,6 +28,8 @@ import {
   WifiOff,
   CalendarDays,
   History,
+  Folder,
+  BarChart2,
   Clock4,
   ShieldAlert,
   Zap,
@@ -791,100 +793,78 @@ export const FundamentalCalendar: React.FC = () => {
 
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs font-mono-code">
-                        <thead className="bg-slate-950/40 text-slate-400 border-b border-slate-800/60 text-[11px]">
-                          <tr>
-                            <th className="py-2.5 px-4">DATE & TIME (PKT)</th>
-                            <th className="py-2.5 px-3">CCY</th>
-                            <th className="py-2.5 px-3">IMPACT</th>
-                            <th className="py-2.5 px-4">EVENT NAME & ISSUER</th>
-                            <th className="py-2.5 px-3 text-center">ACTUAL</th>
-                            <th className="py-2.5 px-3 text-center">FORECAST</th>
-                            <th className="py-2.5 px-3 text-center">PREVIOUS</th>
-                            <th className="py-2.5 px-4 text-right">ALERT & BREAKDOWN</th>
-                          </tr>
-                        </thead>
+                        <thead className="bg-[#E6E6E6] text-slate-800 border-b border-slate-300 text-[11px] font-sans">
+                    <tr>
+                      <th className="py-2 px-3 font-semibold w-16">Date</th>
+                      <th className="py-2 px-3 font-semibold">Time (PST)</th>
+                      <th className="py-2 px-3 font-semibold text-center">Cur.</th>
+                      <th className="py-2 px-3 font-semibold text-center">Imp.</th>
+                      <th className="py-2 px-3 font-semibold">Event</th>
+                      <th className="py-2 px-2 font-semibold text-center">Detail</th>
+                      <th className="py-2 px-3 font-semibold text-center">Actual</th>
+                      <th className="py-2 px-3 font-semibold text-center">Forecast</th>
+                      <th className="py-2 px-3 font-semibold text-center">Previous</th>
+                      <th className="py-2 px-2 font-semibold text-center">Graph</th>
+                    </tr>
+                  </thead>
                         <tbody className="divide-y divide-slate-800/40">
                           {monthEvents.map((ev) => {
                             const isAlertActive = customAlertEventIds[ev.id] !== false && (ev.importance === 'HIGH' || customAlertEventIds[ev.id] === true);
                             return (
                               <tr
-                                key={ev.id}
-                                onClick={() => setSelectedEvent(ev)}
-                                className="hover:bg-slate-800/40 cursor-pointer transition"
-                              >
-                                <td className="py-3 px-4">
-                                  <div className="text-slate-200 font-bold">{ev.datePkt}</div>
-                                  <div className="text-sky-400 text-[11px] flex items-center gap-1 mt-0.5">
-                                    <Clock className="w-3 h-3 text-sky-400" />
-                                    <span>{ev.timePkt}</span>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-3">
-                                  <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-amber-400 font-bold text-[11px]">
-                                    {ev.currency}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3">
-                                  <span
-                                    className={`px-2 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-1 ${
-                                      ev.importance === 'HIGH'
-                                        ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                                        : ev.importance === 'MEDIUM'
-                                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                                        : 'bg-slate-800 text-slate-400 border border-slate-700'
-                                    }`}
-                                  >
-                                    {ev.importance === 'HIGH' && <Flame className="w-2.5 h-2.5" />}
-                                    {ev.importance}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-4">
-                                  <div className="text-slate-100 font-bold hover:text-amber-400 transition">
-                                    {ev.eventName}
-                                  </div>
-                                  <div className="text-slate-500 text-[10px] truncate max-w-xs sm:max-w-md">
-                                    {ev.source}
-                                  </div>
-                                </td>
-                                {/* ACTUAL */}
-                                <td className="py-3 px-3 text-center">
-                                  {ev.actual ? (
-                                    <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                                      {ev.actual}
-                                    </span>
-                                  ) : (
-                                    <span className="text-slate-500 italic text-[11px]">Pending</span>
-                                  )}
-                                </td>
-                                {/* FORECAST */}
-                                <td className="py-3 px-3 text-center text-slate-300">
-                                  {ev.forecast || '—'}
-                                </td>
-                                {/* PREVIOUS */}
-                                <td className="py-3 px-3 text-center text-slate-400">
-                                  {ev.previous || '—'}
-                                </td>
-                                <td className="py-3 px-4 text-right">
-                                  <div className="flex items-center justify-end gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={(e) => toggleEventAlertSubscription(ev.id, e)}
-                                      className={`p-1 rounded border transition cursor-pointer ${
-                                        isAlertActive
-                                          ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
-                                          : 'bg-slate-900 border-slate-800 text-slate-600 hover:text-slate-300'
-                                      }`}
-                                      title={isAlertActive ? 'Audio alert active for this event' : 'Enable audio alert'}
-                                    >
-                                      {isAlertActive ? <BellRing className="w-3.5 h-3.5" /> : <BellOff className="w-3.5 h-3.5" />}
-                                    </button>
-                                    <span className="inline-flex items-center gap-1 text-[11px] text-amber-400 hover:text-amber-300 font-bold">
-                                      <span>BREAKDOWN</span>
-                                      <ChevronRight className="w-3.5 h-3.5" />
-                                    </span>
-                                  </div>
-                                </td>
-                              </tr>
+                            key={ev.id}
+                            onClick={() => setSelectedEvent(ev)}
+                            className="bg-white hover:bg-slate-50 cursor-pointer transition border-b border-slate-200 font-sans text-[12px] text-slate-800"
+                          >
+                            <td className="py-2 px-3 text-slate-500 whitespace-nowrap border-r border-slate-100">
+                              {ev.datePkt.split(',')[1]?.trim() || ev.datePkt}
+                            </td>
+                            <td className="py-2 px-3 whitespace-nowrap text-slate-700 border-r border-slate-100">
+                              {ev.timePkt}
+                            </td>
+                            <td className="py-2 px-3 text-center font-bold text-slate-600 border-r border-slate-100">
+                              {ev.currency}
+                            </td>
+                            <td className="py-2 px-3 text-center border-r border-slate-100">
+                              <div className="flex justify-center">
+                                <Folder 
+                                  className={`w-4 h-4 ${
+                                    ev.importance === 'HIGH' ? 'fill-rose-500 text-rose-500' : 
+                                    ev.importance === 'MEDIUM' ? 'fill-orange-400 text-orange-400' : 
+                                    'fill-yellow-400 text-yellow-400'
+                                  }`} 
+                                />
+                              </div>
+                            </td>
+                            <td className="py-2 px-3 font-medium text-slate-800 border-r border-slate-100">
+                              {ev.eventName}
+                            </td>
+                            <td className="py-2 px-2 text-center border-r border-slate-100">
+                              <div className="flex justify-center text-slate-400 hover:text-amber-500 transition">
+                                <Folder className="w-4 h-4" />
+                              </div>
+                            </td>
+                            <td className="py-2 px-3 text-center border-r border-slate-100">
+                              {ev.actual ? (
+                                <span className={`font-bold ${parseFloat(ev.actual) > parseFloat(ev.forecast || '0') ? 'text-emerald-600' : parseFloat(ev.actual) < parseFloat(ev.forecast || '0') ? 'text-rose-600' : 'text-slate-800'}`}>
+                                  {ev.actual}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-center text-slate-600 border-r border-slate-100">
+                              {ev.forecast || '—'}
+                            </td>
+                            <td className="py-2 px-3 text-center text-slate-600 border-r border-slate-100">
+                              {ev.previous || '—'}
+                            </td>
+                            <td className="py-2 px-2 text-center">
+                              <div className="flex justify-center text-slate-400 hover:text-amber-500 transition">
+                                <BarChart2 className="w-4 h-4" />
+                              </div>
+                            </td>
+                          </tr>
                             );
                           })}
                         </tbody>
@@ -896,19 +876,21 @@ export const FundamentalCalendar: React.FC = () => {
             </div>
           ) : (
             /* STANDARD TABLE VIEW (MONTH, WEEK, UPCOMING, HISTORICAL) */
-            <div className="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+            <div className="bg-white border border-slate-300 rounded-sm overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs font-mono-code">
-                  <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 text-[11px]">
+                  <thead className="bg-[#E6E6E6] text-slate-800 border-b border-slate-300 text-[11px] font-sans">
                     <tr>
-                      <th className="py-3 px-4">DATE & TIME (PKT)</th>
-                      <th className="py-3 px-3">CCY</th>
-                      <th className="py-3 px-3">IMPACT</th>
-                      <th className="py-3 px-4">EVENT NAME & ISSUER</th>
-                      <th className="py-3 px-3 text-center">ACTUAL</th>
-                      <th className="py-3 px-3 text-center">FORECAST</th>
-                      <th className="py-3 px-3 text-center">PREVIOUS</th>
-                      <th className="py-3 px-4 text-right">ALERT & BREAKDOWN</th>
+                      <th className="py-2 px-3 font-semibold w-16">Date</th>
+                      <th className="py-2 px-3 font-semibold">Time (PST)</th>
+                      <th className="py-2 px-3 font-semibold text-center">Cur.</th>
+                      <th className="py-2 px-3 font-semibold text-center">Imp.</th>
+                      <th className="py-2 px-3 font-semibold">Event</th>
+                      <th className="py-2 px-2 font-semibold text-center">Detail</th>
+                      <th className="py-2 px-3 font-semibold text-center">Actual</th>
+                      <th className="py-2 px-3 font-semibold text-center">Forecast</th>
+                      <th className="py-2 px-3 font-semibold text-center">Previous</th>
+                      <th className="py-2 px-2 font-semibold text-center">Graph</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/40">
@@ -925,78 +907,54 @@ export const FundamentalCalendar: React.FC = () => {
                           <tr
                             key={ev.id}
                             onClick={() => setSelectedEvent(ev)}
-                            className="hover:bg-slate-800/40 cursor-pointer transition"
+                            className="bg-white hover:bg-slate-50 cursor-pointer transition border-b border-slate-200 font-sans text-[12px] text-slate-800"
                           >
-                            <td className="py-3 px-4">
-                              <div className="text-slate-200 font-bold">{ev.datePkt}</div>
-                              <div className="text-sky-400 text-[11px] flex items-center gap-1 mt-0.5">
-                                <Clock className="w-3 h-3 text-sky-400" />
-                                <span>{ev.timePkt}</span>
+                            <td className="py-2 px-3 text-slate-500 whitespace-nowrap border-r border-slate-100">
+                              {ev.datePkt.split(',')[1]?.trim() || ev.datePkt}
+                            </td>
+                            <td className="py-2 px-3 whitespace-nowrap text-slate-700 border-r border-slate-100">
+                              {ev.timePkt}
+                            </td>
+                            <td className="py-2 px-3 text-center font-bold text-slate-600 border-r border-slate-100">
+                              {ev.currency}
+                            </td>
+                            <td className="py-2 px-3 text-center border-r border-slate-100">
+                              <div className="flex justify-center">
+                                <Folder 
+                                  className={`w-4 h-4 ${
+                                    ev.importance === 'HIGH' ? 'fill-rose-500 text-rose-500' : 
+                                    ev.importance === 'MEDIUM' ? 'fill-orange-400 text-orange-400' : 
+                                    'fill-yellow-400 text-yellow-400'
+                                  }`} 
+                                />
                               </div>
                             </td>
-                            <td className="py-3 px-3">
-                              <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-amber-400 font-bold text-[11px]">
-                                {ev.currency}
-                              </span>
+                            <td className="py-2 px-3 font-medium text-slate-800 border-r border-slate-100">
+                              {ev.eventName}
                             </td>
-                            <td className="py-3 px-3">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-1 ${
-                                  ev.importance === 'HIGH'
-                                    ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                                    : ev.importance === 'MEDIUM'
-                                    ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                                    : 'bg-slate-800 text-slate-400 border border-slate-700'
-                                }`}
-                              >
-                                {ev.importance === 'HIGH' && <Flame className="w-2.5 h-2.5" />}
-                                {ev.importance}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="text-slate-100 font-bold hover:text-amber-400 transition">
-                                {ev.eventName}
-                              </div>
-                              <div className="text-slate-500 text-[10px] truncate max-w-xs sm:max-w-md">
-                                {ev.source}
+                            <td className="py-2 px-2 text-center border-r border-slate-100">
+                              <div className="flex justify-center text-slate-400 hover:text-amber-500 transition">
+                                <Folder className="w-4 h-4" />
                               </div>
                             </td>
-                            {/* ACTUAL */}
-                            <td className="py-3 px-3 text-center">
+                            <td className="py-2 px-3 text-center border-r border-slate-100">
                               {ev.actual ? (
-                                <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                <span className={`font-bold ${parseFloat(ev.actual) > parseFloat(ev.forecast || '0') ? 'text-emerald-600' : parseFloat(ev.actual) < parseFloat(ev.forecast || '0') ? 'text-rose-600' : 'text-slate-800'}`}>
                                   {ev.actual}
                                 </span>
                               ) : (
-                                <span className="text-slate-500 italic text-[11px]">Pending</span>
+                                <span className="text-slate-400">—</span>
                               )}
                             </td>
-                            {/* FORECAST */}
-                            <td className="py-3 px-3 text-center text-slate-300">
+                            <td className="py-2 px-3 text-center text-slate-600 border-r border-slate-100">
                               {ev.forecast || '—'}
                             </td>
-                            {/* PREVIOUS */}
-                            <td className="py-3 px-3 text-center text-slate-400">
+                            <td className="py-2 px-3 text-center text-slate-600 border-r border-slate-100">
                               {ev.previous || '—'}
                             </td>
-                            <td className="py-3 px-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  type="button"
-                                  onClick={(e) => toggleEventAlertSubscription(ev.id, e)}
-                                  className={`p-1 rounded border transition cursor-pointer ${
-                                    isAlertActive
-                                      ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
-                                      : 'bg-slate-900 border-slate-800 text-slate-600 hover:text-slate-300'
-                                  }`}
-                                  title={isAlertActive ? 'Audio alert active for this event' : 'Enable audio alert'}
-                                >
-                                  {isAlertActive ? <BellRing className="w-3.5 h-3.5" /> : <BellOff className="w-3.5 h-3.5" />}
-                                </button>
-                                <span className="inline-flex items-center gap-1 text-[11px] text-amber-400 hover:text-amber-300 font-bold">
-                                  <span>BREAKDOWN</span>
-                                  <ChevronRight className="w-3.5 h-3.5" />
-                                </span>
+                            <td className="py-2 px-2 text-center">
+                              <div className="flex justify-center text-slate-400 hover:text-amber-500 transition">
+                                <BarChart2 className="w-4 h-4" />
                               </div>
                             </td>
                           </tr>
