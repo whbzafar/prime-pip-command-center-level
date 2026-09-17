@@ -1,0 +1,1 @@
+One-time trigger for the SBT PDF link migration workflow. This file can be removed after the migration is complete.
