@@ -7,8 +7,6 @@ import {
   Search,
   MessageSquare,
   Video,
-  Clock,
-  ShieldCheck,
   Check,
   X,
   RefreshCw,
@@ -62,6 +60,8 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingFriends, setIsLoadingFriends] = useState(true);
+  const [friendsError, setFriendsError] = useState<string | null>(null);
   const [statusNotice, setStatusNotice] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'FRIENDS' | 'REQUESTS' | 'FIND'>('FRIENDS');
 
@@ -71,7 +71,10 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
   };
 
   const fetchFriends = async () => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setIsLoadingFriends(false);
+      return;
+    }
     const token = getStoredToken();
     try {
       const res = await fetch('/api/friends/list', {
@@ -84,9 +87,16 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
         setFriends(data.friends || []);
         setIncomingRequests(data.incomingRequests || []);
         setOutgoingRequests(data.outgoingRequests || []);
+        setFriendsError(null);
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setFriendsError(body.error || `Failed to load friends (${res.status})`);
       }
     } catch (err) {
       console.error('Error fetching friends:', err);
+      setFriendsError('Network error loading friends list.');
+    } finally {
+      setIsLoadingFriends(false);
     }
   };
 
@@ -99,6 +109,10 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
   const handleSearchUsers = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
+    if (!currentUser) {
+      showNotice('Please login to search traders.');
+      return;
+    }
     setIsSearching(true);
     const token = getStoredToken();
     try {
@@ -110,15 +124,32 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
       if (res.ok) {
         const data = await res.json();
         setSearchResults(data.users || []);
+        if (!(data.users || []).length) {
+          showNotice(`No traders matched "${searchQuery.trim()}".`);
+        }
+      } else {
+        const body = await res.json().catch(() => ({}));
+        showNotice(body.error || 'Search failed.');
+        setSearchResults([]);
       }
     } catch (err) {
       console.error('Search error:', err);
+      showNotice('Network error during search.');
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
   };
 
   const handleSendRequest = async (targetUser: UserSearchResult) => {
+    if (!currentUser) {
+      showNotice('Please login to send friend requests.');
+      return;
+    }
+    if (targetUser.id === currentUser.id) {
+      showNotice('Cannot send a friend request to yourself.');
+      return;
+    }
     const token = getStoredToken();
     try {
       const res = await fetch('/api/friends/request', {
@@ -159,6 +190,9 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
       if (res.ok) {
         showNotice(status === 'ACCEPTED' ? 'Friend request accepted!' : 'Request declined.');
         fetchFriends();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        showNotice(body.error || 'Error responding to request');
       }
     } catch (err) {
       showNotice('Error responding to request');
@@ -187,7 +221,6 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
-      {/* Header & Sub-tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
         <div>
           <span className="text-[10px] font-military font-bold text-amber-400 uppercase tracking-widest">
@@ -251,10 +284,19 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
         </div>
       )}
 
-      {/* TAB 1: FRIENDS LIST */}
       {activeTab === 'FRIENDS' && (
         <div className="space-y-3">
-          {friends.length === 0 ? (
+          {friendsError && (
+            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs font-mono-code text-rose-300">
+              {friendsError}
+            </div>
+          )}
+          {isLoadingFriends ? (
+            <div className="py-12 text-center text-slate-400 font-mono-code text-xs space-y-3">
+              <RefreshCw className="w-8 h-8 mx-auto text-amber-400 animate-spin opacity-70" />
+              <p>Loading friends…</p>
+            </div>
+          ) : friends.length === 0 ? (
             <div className="py-12 text-center text-slate-400 font-mono-code text-xs space-y-3">
               <Users className="w-10 h-10 mx-auto text-slate-600" />
               <p>No trading friends added yet.</p>
@@ -303,11 +345,6 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                       <span className="text-[10px] text-slate-400 font-mono-code block truncate">
                         @{f.friendUsername}
                       </span>
-                      {f.tradingStyle && (
-                        <span className="text-[9px] text-amber-400/80 font-mono-code block truncate">
-                          {f.tradingStyle}
-                        </span>
-                      )}
                     </div>
                   </div>
 
@@ -357,7 +394,6 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
         </div>
       )}
 
-      {/* TAB 2: REQUESTS */}
       {activeTab === 'REQUESTS' && (
         <div className="space-y-4">
           <div>
@@ -377,7 +413,6 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                       <span className="font-bold text-slate-200">{req.senderDisplayName}</span>
                       <span className="text-slate-500 text-[10px] block">@{req.senderUsername}</span>
                     </div>
-
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleRespondRequest(req.id, 'ACCEPTED')}
@@ -425,7 +460,6 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
         </div>
       )}
 
-      {/* TAB 3: FIND TRADERS */}
       {activeTab === 'FIND' && (
         <div className="space-y-4">
           <form onSubmit={handleSearchUsers} className="flex items-center gap-2">
@@ -476,10 +510,10 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                       ) : (
                         <button
                           onClick={() => handleSendRequest(u)}
-                          className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1 cursor-pointer transition"
+                          className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer transition flex items-center gap-1"
                         >
-                          <UserPlus className="w-3 h-3" />
-                          <span>Add Friend</span>
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span>Add</span>
                         </button>
                       )}
                     </div>
@@ -488,7 +522,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
               })}
             </div>
           ) : searchQuery && !isSearching ? (
-            <p className="text-xs font-mono-code text-slate-500 py-3 text-center">
+            <p className="text-xs font-mono-code text-slate-500 py-4 text-center">
               No matching registered traders found for "{searchQuery}".
             </p>
           ) : null}
