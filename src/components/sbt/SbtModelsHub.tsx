@@ -166,15 +166,15 @@ export const SbtModelsHub: React.FC = () => {
         <div className="flex flex-wrap items-center gap-3">
           {/* OFFICIAL SBT PDF LINK */}
           <a
-            href={typeof window !== 'undefined' ? new URL('/SBT/Official_Yearly_SBT_Models_Reference.pdf', window.location.href).href : '/SBT/Official_Yearly_SBT_Models_Reference.pdf'}
+            href="https://drive.google.com/file/d/1Ub2OI3PT572qsLaDyYu98uLA2PiYH7I4/view?usp=sharing"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 via-emerald-400 to-teal-500 text-slate-950 font-bold text-xs font-mono-code hover:brightness-110 shadow-lg shadow-teal-500/25 transition cursor-pointer border border-teal-300/40"
-            title="Open official 12-page yearly SBT reference material PDF directly in browser viewer"
+            title="Open the official SBT PDF on Google Drive"
           >
             <FileText className="w-4 h-4 text-slate-950" />
             <span>Open Official SBT PDF</span>
-            <span className="sr-only">Google PDF Viewer available from the model viewer</span>
+            <span className="sr-only">Official SBT PDF hosted on Google Drive</span>
             <ExternalLink className="w-3.5 h-3.5 text-slate-950" />
           </a>
 
@@ -219,7 +219,7 @@ export const SbtModelsHub: React.FC = () => {
         <div className="space-y-1">
           <p className="font-mono-code text-[11px] leading-relaxed">
             <strong className="text-amber-300 font-bold">SBT Reference Disclaimer: </strong>
-            The graphical representation provided in the Command Center is for convenient reference. If there is any issue, difference, missing information, or display problem with the graphical representation, please click the official SBT PDF link above to view the complete reference material.
+            The graphical representation provided in the Command Center is for convenient reference. If there is any issue, difference, missing information, or display problem with the graphical representation, please click the official SBT PDF link above to open the complete reference material on Google Drive.
           </p>
         </div>
       </div>
