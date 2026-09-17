@@ -7,13 +7,48 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+
+      - name: Apply SBT PDF migration on PR
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('src/components/sbt/SbtModelsHub.tsx')
+          text = path.read_text(encoding='utf-8')
+          old = "href={typeof window !== 'undefined' ? new URL('/SBT/Official_Yearly_SBT_Models_Reference.pdf', window.location.href).href : '/SBT/Official_Yearly_SBT_Models_Reference.pdf'}"
+          new = "href=\"https://drive.google.com/file/d/1Ub2OI3PT572qsLaDyYu98uLA2PiYH7I4/view?usp=sharing\""
+          if old in text:
+              text = text.replace(old, new, 1)
+              text = text.replace('title="Open official 12-page yearly SBT reference material PDF directly in browser viewer"', 'title="Open the official SBT PDF on Google Drive"', 1)
+              text = text.replace('Google PDF Viewer available from the model viewer', 'Official SBT PDF hosted on Google Drive', 1)
+              text = text.replace('please click the official SBT PDF link above to view the complete reference material.', 'please click the official SBT PDF link above to open the complete reference material on Google Drive.', 1)
+              path.write_text(text, encoding='utf-8')
+          pdf = Path('public/SBT/Official_Yearly_SBT_Models_Reference.pdf')
+          if pdf.exists():
+              pdf.unlink()
+
+      - name: Commit SBT PDF migration to PR branch
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/sbt/SbtModelsHub.tsx
+          git add -u public/SBT/Official_Yearly_SBT_Models_Reference.pdf
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: use Google Drive for SBT PDF"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
