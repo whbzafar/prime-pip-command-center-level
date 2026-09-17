@@ -44,6 +44,7 @@ export const DRIVE_FOLDER_HIERARCHY = [
   'Journal',
   'Journal Images',
   'Trade Analysis',
+  'Trade Setups & Screenshots',
   'Freehand Canvas',
   'Daily Development',
   'Psychology',

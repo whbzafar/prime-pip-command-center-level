@@ -9,7 +9,7 @@ const FEEDS = [
 ];
 
 function text(value: string | undefined): string {
-  return (value || '').replace(/<![CDATA[([\s\S]*?)]]>/g, '$1').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').trim();
+  return (value || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').trim();
 }
 
 function parseRss(xml: string, source: string) {
