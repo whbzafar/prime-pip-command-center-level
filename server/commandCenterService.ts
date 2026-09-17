@@ -302,9 +302,6 @@ export function markCommunityMessagesSeen(
   return updatedCount;
 }
 
-// FRIEND SYSTEM, PRIVATE CHAT, WEBRTC, VOICE — restored from last good commit
-// Full implementations continue below in subsequent restore if truncated.
-
 export interface FriendshipRecord {
   id: string;
   requesterId: string;
@@ -333,47 +330,142 @@ export function writeFriendships(records: FriendshipRecord[]) {
   fs.writeFileSync(FRIENDS_FILE, JSON.stringify(records, null, 2), 'utf8');
 }
 
-export function getUserFriends(userId: string) {
+export interface FriendListItem {
+  id: string;
+  friendId: string;
+  friendUsername: string;
+  friendDisplayName: string;
+  onlineStatus?: 'ONLINE' | 'AWAY' | 'OFFLINE';
+  isOnline?: boolean;
+  since: string;
+}
+
+export interface FriendRequestItem {
+  id: string;
+  senderId: string;
+  senderUsername: string;
+  senderDisplayName: string;
+  receiverId: string;
+  receiverUsername: string;
+  receiverDisplayName: string;
+  createdAt: string;
+}
+
+export function getUserFriends(userId: string): {
+  friends: FriendListItem[];
+  incomingRequests: FriendRequestItem[];
+  outgoingRequests: FriendRequestItem[];
+} {
   const all = readFriendships();
-  const userRecords = all.filter(
+  const active = all.filter(
     (r) =>
       (r.requesterId === userId || r.recipientId === userId) &&
       r.status !== 'REMOVED' &&
       r.status !== 'REJECTED'
   );
-  return {
-    friends: userRecords.filter((r) => r.status === 'ACCEPTED'),
-    pendingIncoming: userRecords.filter((r) => r.recipientId === userId && r.status === 'PENDING'),
-    pendingOutgoing: userRecords.filter((r) => r.requesterId === userId && r.status === 'PENDING'),
-  };
+
+  const friends: FriendListItem[] = active
+    .filter((r) => r.status === 'ACCEPTED')
+    .map((r) => {
+      const isRequester = r.requesterId === userId;
+      return {
+        id: r.id,
+        friendId: isRequester ? r.recipientId : r.requesterId,
+        friendUsername: isRequester ? r.recipientUsername : r.requesterUsername,
+        friendDisplayName: isRequester ? r.recipientUsername : r.requesterUsername,
+        since: new Date(r.createdAt).toISOString(),
+      };
+    });
+
+  const toRequestItem = (r: FriendshipRecord): FriendRequestItem => ({
+    id: r.id,
+    senderId: r.requesterId,
+    senderUsername: r.requesterUsername,
+    senderDisplayName: r.requesterUsername,
+    receiverId: r.recipientId,
+    receiverUsername: r.recipientUsername,
+    receiverDisplayName: r.recipientUsername,
+    createdAt: new Date(r.createdAt).toISOString(),
+  });
+
+  const incomingRequests = active
+    .filter((r) => r.recipientId === userId && r.status === 'PENDING')
+    .map(toRequestItem);
+
+  const outgoingRequests = active
+    .filter((r) => r.requesterId === userId && r.status === 'PENDING')
+    .map(toRequestItem);
+
+  return { friends, incomingRequests, outgoingRequests };
 }
 
+type FriendUserRef = { id: string; username: string; displayName?: string };
+
 export function sendFriendRequest(
-  requesterId: string,
-  requesterUsername: string,
-  recipientId: string,
-  recipientUsername: string
+  requesterOrId: string | FriendUserRef,
+  requesterUsernameOrRecipient?: string | FriendUserRef,
+  recipientId?: string,
+  recipientUsername?: string
 ): { success: boolean; error?: string; record?: FriendshipRecord } {
-  if (requesterId === recipientId) {
+  let requesterId: string;
+  let requesterUsername: string;
+  let recId: string;
+  let recUsername: string;
+
+  if (typeof requesterOrId === 'object' && requesterOrId !== null) {
+    const from = requesterOrId as FriendUserRef;
+    const to = requesterUsernameOrRecipient as FriendUserRef;
+    requesterId = from.id;
+    requesterUsername = from.username;
+    recId = to.id;
+    recUsername = to.username;
+  } else {
+    requesterId = requesterOrId as string;
+    requesterUsername = requesterUsernameOrRecipient as string;
+    recId = recipientId as string;
+    recUsername = recipientUsername as string;
+  }
+
+  if (!requesterId || !recId) {
+    return { success: false, error: 'Requester and recipient are required' };
+  }
+  if (requesterId === recId) {
     return { success: false, error: 'Cannot send friend request to yourself' };
   }
+
   const all = readFriendships();
-  const existing = all.find(
+  const existingIdx = all.findIndex(
     (r) =>
-      (r.requesterId === requesterId && r.recipientId === recipientId) ||
-      (r.requesterId === recipientId && r.recipientId === requesterId)
+      (r.requesterId === requesterId && r.recipientId === recId) ||
+      (r.requesterId === recId && r.recipientId === requesterId)
   );
-  if (existing) {
+
+  if (existingIdx >= 0) {
+    const existing = all[existingIdx];
     if (existing.status === 'ACCEPTED') return { success: false, error: 'Already friends' };
     if (existing.status === 'PENDING') return { success: false, error: 'Request already pending' };
     if (existing.status === 'BLOCKED') return { success: false, error: 'Unable to send request' };
+    if (existing.status === 'REJECTED' || existing.status === 'REMOVED') {
+      all[existingIdx] = {
+        ...existing,
+        requesterId,
+        requesterUsername,
+        recipientId: recId,
+        recipientUsername: recUsername,
+        status: 'PENDING',
+        updatedAt: Date.now(),
+      };
+      writeFriendships(all);
+      return { success: true, record: all[existingIdx] };
+    }
   }
+
   const record: FriendshipRecord = {
     id: `fr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
     requesterId,
     requesterUsername,
-    recipientId,
-    recipientUsername,
+    recipientId: recId,
+    recipientUsername: recUsername,
     status: 'PENDING',
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -394,6 +486,11 @@ export function updateFriendshipStatus(
   const rec = all[idx];
   if (rec.requesterId !== actingUserId && rec.recipientId !== actingUserId) {
     return { success: false, error: 'Unauthorized to modify this friend request' };
+  }
+  if ((status === 'ACCEPTED' || status === 'REJECTED') && rec.status === 'PENDING') {
+    if (rec.recipientId !== actingUserId) {
+      return { success: false, error: 'Only the recipient can accept or reject this request' };
+    }
   }
   all[idx].status = status;
   all[idx].updatedAt = Date.now();
@@ -549,7 +646,6 @@ export function addIceCandidate(
   return true;
 }
 
-// Voice attachment storage (minimal restore)
 const VOICE_DIR = path.join(DATA_DIR, 'voice');
 const VOICE_META_FILE = path.join(DATA_DIR, 'voice_metadata.json');
 
