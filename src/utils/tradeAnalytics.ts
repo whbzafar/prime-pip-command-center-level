@@ -1,5 +1,5 @@
 import { Trade, TraderPerformanceScores, TradingSession, StrategyType, TradeGrade, EmotionState, AccountSettings } from '../types';
-import { getKarachiDate, getKarachiEpoch } from './time';
+import { getKarachiDate, getKarachiEpoch, countTradesForPakistanDate, getCurrentPakistanDate } from './time';
 import { safeNumber } from './currencyFormatter';
 
 export interface DashboardMetrics {
@@ -100,7 +100,6 @@ export function calculateDashboardMetrics(
   trades: Trade[],
   initialBalanceOrAccount: number | AccountSettings = 100000
 ): DashboardMetrics {
-  // Extract initial / starting balance safely
   let startingBalance = 100000;
   if (typeof initialBalanceOrAccount === 'number') {
     startingBalance = safeNumber(initialBalanceOrAccount, 100000);
@@ -109,8 +108,6 @@ export function calculateDashboardMetrics(
   }
 
   const totalTrades = trades.length;
-
-  // Separate closed trades from open trades
   const closedTrades = trades.filter((t) => t.status !== 'OPEN');
   const openTrades = trades.filter((t) => t.status === 'OPEN');
 
@@ -162,7 +159,6 @@ export function calculateDashboardMetrics(
     };
   }
 
-  // Sort chronological
   const sorted = [...trades].sort(
     (a, b) => getKarachiEpoch(a.date, a.time) - getKarachiEpoch(b.date, b.time)
   );
@@ -191,7 +187,6 @@ export function calculateDashboardMetrics(
       : 1;
   const riskRewardRatio = avgLossR > 0 ? avgWinR / avgLossR : avgWinR;
 
-  // Streaks & Drawdown
   let peakBalance = startingBalance;
   let runningBalance = startingBalance;
   let maxDrawdownAmount = 0;
@@ -226,7 +221,6 @@ export function calculateDashboardMetrics(
     }
   }
 
-  // End streaks
   const lastTrades = [...sorted].reverse();
   if (lastTrades.length > 0) {
     if (lastTrades[0].profitLoss > 0) {
@@ -242,11 +236,9 @@ export function calculateDashboardMetrics(
     }
   }
 
-  // Trades today based strictly on Pakistan Date (Asia/Karachi, UTC+5)
-  const pakistanTodayStr = getKarachiDate();
-  const tradesToday = trades.filter((t) => t.date === pakistanTodayStr).length;
+  // Trades today based strictly on Pakistan Date (Asia/Karachi, UTC+5) — Issue #1
+  const tradesToday = countTradesForPakistanDate(trades, getCurrentPakistanDate());
 
-  // Last 7 days & 30 days
   const now = Date.now();
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
   const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
@@ -259,26 +251,21 @@ export function calculateDashboardMetrics(
     .filter((t) => getKarachiEpoch(t.date, t.time) >= monthAgo)
     .reduce((acc, t) => acc + t.profitLoss, 0);
 
-  // Trader Performance Score (0-100)
-  // 1. Risk Management (Risk % consistency, drawdown within limits, R:R > 1.5)
   const maxRiskViolations = trades.filter((t) => (t.riskAmount / startingBalance) > 0.015).length;
   const ddPenalty = Math.min(40, maxDrawdownPercent * 5);
   const rrBonus = Math.min(30, (riskRewardRatio / 2) * 30);
   const riskScore = Math.max(10, Math.min(100, Math.round(90 - maxRiskViolations * 15 - ddPenalty + rrBonus * 0.3)));
 
-  // 2. Discipline (Rule violations: NONE = 100, MINOR = -10, MAJOR = -25)
   let disciplinePoints = 100;
   const majorViolations = trades.filter((t) => t.ruleViolation === 'MAJOR').length;
   const minorViolations = trades.filter((t) => t.ruleViolation === 'MINOR').length;
   disciplinePoints -= majorViolations * 20 + minorViolations * 8;
   const disciplineScore = Math.max(15, Math.min(100, Math.round(disciplinePoints)));
 
-  // 3. Strategy Execution (Mean alignment score across trades)
   const avgAlignment =
     trades.reduce((acc, t) => acc + (t.alignmentScore?.totalQuality || 75), 0) / totalTrades;
   const strategyScore = Math.max(20, Math.min(100, Math.round(avgAlignment)));
 
-  // 4. Psychology (Pre-emotions, revenge trading, overtrading, early exits)
   let psychScore = 90;
   const badEmotions = trades.filter((t) => ['FEARFUL', 'ANGRY', 'GREEDY', 'STRESSED'].includes(t.preEmotion)).length;
   const revengeCount = trades.filter((t) => t.postPsychology?.revengeTraded || t.postPsychology?.overtraded).length;
@@ -286,7 +273,6 @@ export function calculateDashboardMetrics(
   psychScore -= (badEmotions / totalTrades) * 30 + revengeCount * 15 + earlyExits * 5;
   const psychologyScore = Math.max(20, Math.min(100, Math.round(psychScore)));
 
-  // 5. Consistency (Win rate stability, profit factor, streaks)
   const consistencyScore = Math.max(
     25,
     Math.min(
