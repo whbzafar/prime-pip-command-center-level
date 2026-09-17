@@ -41,6 +41,7 @@ interface PrivateMessage {
   timePkt: string;
   datePkt: string;
   timestamp: number;
+  read: boolean;
 }
 
 interface PrivateChatProps {
@@ -87,7 +88,16 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
       });
       if (res.ok) {
         const data = await res.json();
-        setMessages(data.messages || []);
+        const msgs = data.messages || [];
+        setMessages(msgs);
+        
+        // If there are unread messages directed to us, mark them read
+        const hasUnread = msgs.some((m: PrivateMessage) => 
+          m.receiverId === currentUser.id && m.senderId === activeContact.id && !m.read
+        );
+        if (hasUnread) {
+          markMessagesRead();
+        }
       }
     } catch (err) {
       console.error('Error fetching private messages:', err);
@@ -233,7 +243,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!currentUser) return;
-    if (!inputText.trim() && !selectedPhoto && !audioBase64) return;
+    if (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedLocalFile) return;
 
     setIsSending(true);
     const token = getStoredToken();

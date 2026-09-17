@@ -291,7 +291,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       onOpenLogin?.();
       return;
     }
-    if (!inputText.trim() && !selectedPhoto && !audioBase64) return;
+    if (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedDriveFile && !selectedLocalFile) return;
 
     setIsSending(true);
     const token = getStoredToken();

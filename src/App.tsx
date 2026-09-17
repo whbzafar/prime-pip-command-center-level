@@ -1,3 +1,4 @@
+// Force HMR refresh
 import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
 import { MainDashboard } from './components/MainDashboard';
@@ -28,6 +29,7 @@ import { DeveloperAdminPanel } from './components/DeveloperAdminPanel';
 import { PreTradePlan } from './components/PreTradePlan';
 import { SbtModelsHub } from './components/sbt/SbtModelsHub';
 import { FundamentalCalendar } from './components/FundamentalCalendar';
+import { NotificationsPanel } from './components/NotificationsPanel';
 import { FreehandWorkspace } from './components/FreehandWorkspace';
 import { CommunityChat } from './components/CommunityChat';
 import { BookSessionView } from './components/BookSessionView';
@@ -1022,7 +1024,7 @@ export default function App() {
       )}
 
       {/* Native Mobile Bottom App Bar (Sticky Thumb Navigation for Modern Phones) */}
-      {isNotificationsOpen <MobileBottomNav<MobileBottomNav (
+      {isNotificationsOpen && (
         <NotificationsPanel
           onClose={() => setIsNotificationsOpen(false)}
           onNavigate={(link) => {

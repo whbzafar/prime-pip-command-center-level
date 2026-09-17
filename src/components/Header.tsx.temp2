@@ -377,9 +377,9 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="relative z-[100] border-b border-slate-800/80 bg-[#0B0F19] flex flex-col transition-all duration-300 ease-in-out">
+    <header className="sticky top-0 z-[100] border-b border-slate-800/80 bg-[#0B0F19]/95 backdrop-blur flex flex-col">
       {/* Persistent Slim Top Bar: Active Category, Notification Bell & Manual Chevron Toggle */}
-      <div className="w-full h-14 shrink-0 sticky top-0 px-3 sm:px-4 bg-[#080C14]/95 backdrop-blur border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300 z-[1000]">
+      <div className="w-full h-14 shrink-0 px-3 sm:px-4 bg-[#080C14] border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300 z-[1000]">
         {/* Left: Active Category / Section */}
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-6 h-6 rounded-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
@@ -876,8 +876,87 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
+      {/* Persistent Slim Top Bar: Active Category, Notification Bell & Manual Chevron Toggle */}
+      <div className="fixed top-0 left-0 right-0 h-14 px-3 sm:px-4 bg-[#080C14] border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300 z-[1000]">
+        {/* Left: Active Category / Section */}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-6 h-6 rounded-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+            {React.createElement(
+              allNavCategories.find((c) => c.id === activeTab)?.icon || Activity,
+              { className: 'w-3.5 h-3.5' }
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 truncate">
+            <span className="font-military font-bold text-slate-100 tracking-wider truncate text-[11px] sm:text-xs">
+              {allNavCategories.find((c) => c.id === activeTab)?.label || 'COMMAND CENTER'}
+            </span>
+            <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-slate-800/80 text-amber-400/90 font-mono-code hidden sm:inline">
+              LIVE
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Quick Actions, Notification Bell & Manual Chevron Toggle */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Quick Trade Button when header is collapsed */}
+          {!!isHeaderCollapsed && (
+            <button
+              onClick={onOpenNewTrade}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-[10px] tracking-wider transition shadow-sm cursor-pointer"
+              title="Enter New Trade"
+            >
+              <PlusCircle className="w-3 h-3 stroke-[2.5]" />
+              <span className="hidden xs:inline">TRADE</span>
+            </button>
+          )}
+
+          {/* Tactical Notification Bell */}
+          <button
+            type="button"
+            onClick={handleTestSound}
+            id="persistent-notification-bell-btn"
+            title={
+              alertSettings.soundEnabled
+                ? 'Notifications & Audio Alerts: ACTIVE (Click to test chime)'
+                : 'Notifications & Audio Alerts: MUTED (Click to activate)'
+            }
+            className="relative p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-amber-400 transition cursor-pointer"
+          >
+            <Bell className="w-4 h-4" />
+            <span
+              className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
+                alertSettings.soundEnabled ? 'bg-amber-400 animate-pulse' : 'bg-rose-500'
+              }`}
+            />
+          </button>
+
+          {/* Manual Chevron Toggle Button (Inverts upward/downward arrow) */}
+          <button
+            type="button"
+            id="header-collapse-chevron-toggle-btn"
+            onClick={toggleHeader}
+            title={!isHeaderCollapsed ? 'Collapse upper header section' : 'Expand upper header section'}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-amber-400 transition cursor-pointer"
+            aria-expanded={!isHeaderCollapsed}
+            aria-label={!isHeaderCollapsed ? 'Collapse header' : 'Expand header'}
+          >
+            {!isHeaderCollapsed ? (
+              <>
+                <ChevronUp className="w-4 h-4 text-amber-400 transition-transform duration-200" />
+                <span className="text-[10px] font-mono-code text-slate-400 hidden sm:inline">COLLAPSE</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-4 h-4 text-amber-400 transition-transform duration-200" />
+                <span className="text-[10px] font-mono-code text-amber-400 hidden sm:inline">EXPAND</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Horizontally Scrollable Full Navigation Bar (Desktop, Laptop, Tablet & Mobile) */}
-      <div className="w-full border-t border-slate-800/60 py-1.5 bg-[#090D15]/95 backdrop-blur sticky top-[56px] z-[990] overflow-hidden shadow-md shadow-slate-900/50">
+      <div className="w-full border-t border-slate-800/60 py-1.5 bg-[#090D15]/95 relative z-30 overflow-hidden">
         {/* Overflow Gradient Shadows for Visual Cue */}
         {canScrollLeft && (
           <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#090D15] to-transparent pointer-events-none z-10" />
@@ -947,12 +1026,12 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* PC & Laptop Scroll Control & Discovery Indicator Strip */}
-      <div className="w-full bg-[#060A12] border-t border-slate-800/60 px-3 sm:px-6 py-0.5 flex items-center justify-between gap-2 sm:gap-3 text-[10px] font-mono-code text-slate-400 select-none">
+      <div className="w-full bg-[#060A12] border-t border-slate-800/60 px-3 sm:px-6 py-1 flex items-center justify-between gap-3 text-[11px] font-mono-code text-slate-400 select-none">
         <button
           type="button"
           onClick={handleScrollLeft}
           disabled={!canScrollLeft}
-          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
             canScrollLeft
               ? 'bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-amber-500/50 shadow-sm shadow-amber-500/10 active:scale-95'
               : 'opacity-30 text-slate-600 border-transparent cursor-not-allowed'
@@ -984,7 +1063,7 @@ export const Header: React.FC<HeaderProps> = ({
           type="button"
           onClick={handleScrollRight}
           disabled={!canScrollRight}
-          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
             canScrollRight
               ? 'bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-amber-500/50 shadow-sm shadow-amber-500/15 ring-1 ring-amber-500/40 active:scale-95 animate-pulse'
               : 'opacity-30 text-slate-600 border-transparent cursor-not-allowed'
@@ -995,12 +1074,12 @@ export const Header: React.FC<HeaderProps> = ({
           <ChevronRight className="w-3.5 h-3.5 text-amber-400" />
         </button>
       </div>
-      </div>
       {/* Global Time & Market Session Modal */}
       <GlobalTimeSessionModal
         isOpen={isTimeModalOpen}
         onClose={() => setIsTimeModalOpen(false)}
       />
+      </div>
     </header>
   );
 };
