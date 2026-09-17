@@ -148,12 +148,12 @@ export const TiltRadar: React.FC<TiltRadarProps> = ({
   };
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl space-y-6">
+    <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl space-y-6">
       {/* Header Bar */}
       <div className="flex flex-wrap items-center justify-between border-b border-slate-800 pb-4 gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-military font-bold text-amber-400 uppercase tracking-widest px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
+            <span className="text-[10px] font-military font-bold text-cyan-400 uppercase tracking-widest px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/30">
               TRADING TILT SENTINEL & BEHAVIORAL FRAMEWORK
             </span>
             <span className="text-[10px] font-mono-code text-slate-400">
@@ -164,7 +164,7 @@ export const TiltRadar: React.FC<TiltRadarProps> = ({
             Trading Tilt Assessment & Behavioral Degradation Guardrails
           </h3>
           <p className="text-xs text-slate-400 font-sans mt-0.5">
-            Identify early cognitive degradation before it causes catastrophic account drawdown. <span className="text-amber-400/90 font-medium">Trading performance tool — not a medical diagnosis.</span>
+            Identify early cognitive degradation before it causes catastrophic account drawdown. <span className="text-cyan-400/90 font-medium">Trading performance tool — not a medical diagnosis.</span>
           </p>
         </div>
 
@@ -175,8 +175,8 @@ export const TiltRadar: React.FC<TiltRadarProps> = ({
               <span>LEVEL 3: EMOTIONAL HIJACK</span>
             </span>
           ) : currentTiltLevel === 2 ? (
-            <span className="px-3.5 py-1.5 rounded-full text-xs font-mono-code font-bold bg-amber-500/20 text-amber-300 border border-amber-500/50 flex items-center gap-1.5 animate-pulse">
-              <AlertTriangle className="w-4 h-4 text-amber-400" />
+            <span className="px-3.5 py-1.5 rounded-full text-xs font-mono-code font-bold bg-blue-500/20 text-amber-300 border border-blue-500/50 flex items-center gap-1.5 animate-pulse">
+              <AlertTriangle className="w-4 h-4 text-cyan-400" />
               <span>LEVEL 2: COGNITIVE DEGRADATION</span>
             </span>
           ) : currentTiltLevel === 1 ? (
@@ -200,7 +200,7 @@ export const TiltRadar: React.FC<TiltRadarProps> = ({
             currentTiltLevel === 3
               ? 'bg-rose-950/40 border-rose-500 text-rose-200'
               : currentTiltLevel === 2
-              ? 'bg-amber-950/40 border-amber-500 text-amber-200'
+              ? 'bg-amber-950/40 border-blue-500 text-cyan-200'
               : 'bg-yellow-950/30 border-yellow-500/70 text-yellow-200'
           }`}
         >
@@ -209,7 +209,7 @@ export const TiltRadar: React.FC<TiltRadarProps> = ({
               <AlertTriangle className="w-5 h-5 shrink-0" />
               <span>{tiltReason}</span>
             </div>
-            <span className="text-[11px] font-mono-code px-2 py-0.5 rounded bg-slate-900/80 border border-slate-700">
+            <span className="text-[11px] font-mono-code px-2 py-0.5 rounded bg-slate-950/80 border border-slate-700">
               Immediate Recovery Protocol Recommended
             </span>
           </div>
@@ -239,7 +239,7 @@ export const TiltRadar: React.FC<TiltRadarProps> = ({
               <button
                 type="button"
                 onClick={() => startCooldown(currentTiltLevel === 3 ? 60 : 30)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 font-military font-bold text-xs rounded-lg border border-amber-500/40 transition cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 font-military font-bold text-xs rounded-lg border border-blue-500/40 transition cursor-pointer flex items-center gap-1.5"
               >
                 <Clock className="w-4 h-4" />
                 <span>START {currentTiltLevel === 3 ? '60-MIN' : '30-MIN'} COOL-DOWN LOCK</span>
@@ -261,13 +261,13 @@ export const TiltRadar: React.FC<TiltRadarProps> = ({
 
       {/* Live Cooldown Box */}
       {cooldownActive && (
-        <div className="p-5 rounded-xl bg-slate-950 border border-amber-500/60 flex flex-wrap items-center justify-between shadow-2xl gap-4">
+        <div className="p-5 rounded-xl bg-slate-950 border border-blue-500/60 flex flex-wrap items-center justify-between shadow-2xl gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
               <Clock className="w-5 h-5 animate-spin" style={{ animationDuration: '6s' }} />
             </div>
             <div>
-              <span className="text-[10px] font-military font-bold text-amber-400 uppercase tracking-wider block">
+              <span className="text-[10px] font-military font-bold text-cyan-400 uppercase tracking-wider block">
                 MANDATORY COOLING-OFF INTERVAL IN PROGRESS
               </span>
               <p className="text-xs text-slate-300 font-mono-code">
@@ -277,7 +277,7 @@ export const TiltRadar: React.FC<TiltRadarProps> = ({
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="text-3xl font-mono-code font-extrabold text-amber-400 tracking-wider">
+            <div className="text-3xl font-mono-code font-extrabold text-cyan-400 tracking-wider">
               {formatTimer(cooldownRemaining)}
             </div>
             <button
@@ -330,15 +330,15 @@ export const TiltRadar: React.FC<TiltRadarProps> = ({
           <div
             className={`p-4 rounded-xl border transition ${
               currentTiltLevel === 2
-                ? 'bg-amber-950/25 border-amber-500 ring-1 ring-amber-500/50'
+                ? 'bg-amber-950/25 border-blue-500 ring-1 ring-blue-500/50'
                 : 'bg-slate-950 border-slate-800/80 hover:border-slate-700'
             }`}
           >
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-              <span className="text-xs font-military font-bold text-amber-400 uppercase">
+              <span className="text-xs font-military font-bold text-cyan-400 uppercase">
                 LEVEL 2 — COGNITIVE DEGRADATION
               </span>
-              <span className="text-[10px] font-mono-code text-amber-500">Warning</span>
+              <span className="text-[10px] font-mono-code text-blue-500">Warning</span>
             </div>
             <div className="mt-2.5 space-y-2 text-xs font-mono-code">
               <div>
@@ -348,7 +348,7 @@ export const TiltRadar: React.FC<TiltRadarProps> = ({
                 </p>
               </div>
               <div>
-                <span className="text-[10px] text-amber-400 uppercase font-bold block">RECOMMENDED ACTION:</span>
+                <span className="text-[10px] text-cyan-400 uppercase font-bold block">RECOMMENDED ACTION:</span>
                 <p className="text-slate-400 text-[11px] mt-0.5">
                   Activate 30-minute cooling-off timer, complete CBT Thought Record, stand up and leave screen.
                 </p>
@@ -393,7 +393,7 @@ export const TiltRadar: React.FC<TiltRadarProps> = ({
         <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
           <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono-code uppercase">
             <span>Trading Win Streak</span>
-            <Flame className="w-3.5 h-3.5 text-amber-400" />
+            <Flame className="w-3.5 h-3.5 text-cyan-400" />
           </div>
           <div className="text-2xl font-mono-code font-bold text-slate-100">
             {winStreak} <span className="text-xs font-normal text-slate-400">Trades</span>

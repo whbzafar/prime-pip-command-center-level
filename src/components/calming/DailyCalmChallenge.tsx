@@ -77,7 +77,7 @@ export const DailyCalmChallenge: React.FC<DailyCalmChallengeProps> = ({ onSelect
               onClick={() => onSelectTab(ch.targetTab)}
               className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
                 isDone
-                  ? 'bg-slate-900/90 border-teal-500/40 shadow-sm'
+                  ? 'bg-slate-950/90 border-teal-500/40 shadow-sm'
                   : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
               }`}
             >

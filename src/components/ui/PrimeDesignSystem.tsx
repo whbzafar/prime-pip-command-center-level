@@ -76,7 +76,7 @@ export const PrimeButton: React.FC<PrimeButtonProps> = ({
     danger: 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 active:scale-95 shadow-sm shadow-rose-950/50 transition-all duration-150',
     calm: 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:border-indigo-400 active:scale-95 transition-all duration-150 shadow-sm shadow-indigo-950/40',
     cyber: 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:border-emerald-400 active:scale-95 transition-all duration-150 font-bold',
-    gradient: 'bg-gradient-to-r from-amber-500 via-rose-500 to-cyan-500 hover:opacity-95 text-slate-950 font-bold active:scale-97 shadow-lg shadow-amber-500/20 transition-all duration-150',
+    gradient: 'bg-gradient-to-r from-blue-500 via-rose-500 to-cyan-500 hover:opacity-95 text-slate-950 font-bold active:scale-97 shadow-lg shadow-blue-500/20 transition-all duration-150',
   };
 
   return (
@@ -119,7 +119,7 @@ export const PrimeBadge: React.FC<PrimeBadgeProps> = ({
   icon,
 }) => {
   const styles = {
-    gold: 'bg-amber-500/10 text-amber-300 border-amber-500/30 dot-bg-amber-400',
+    gold: 'bg-blue-500/10 text-amber-300 border-blue-500/30 dot-bg-cyan-400',
     emerald: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 dot-bg-emerald-400',
     sky: 'bg-sky-500/10 text-sky-300 border-sky-500/30 dot-bg-sky-400',
     rose: 'bg-rose-500/10 text-rose-300 border-rose-500/30 dot-bg-rose-400',
@@ -128,7 +128,7 @@ export const PrimeBadge: React.FC<PrimeBadgeProps> = ({
   };
 
   const dotColors = {
-    gold: 'bg-amber-400',
+    gold: 'bg-cyan-400',
     emerald: 'bg-emerald-400',
     sky: 'bg-sky-400',
     rose: 'bg-rose-400',
@@ -215,7 +215,7 @@ export const PrimeModal: React.FC<PrimeModalProps> = ({
 
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-slate-900/80 hover:bg-slate-800 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-200 transition cursor-pointer shrink-0"
+              className="w-8 h-8 rounded-full bg-slate-950/80 hover:bg-slate-800 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-200 transition cursor-pointer shrink-0"
               aria-label="Close modal"
             >
               <X className="w-4 h-4" />
@@ -258,9 +258,9 @@ export const PrimeLockedFeature: React.FC<PrimeLockedFeatureProps> = ({
 }) => {
   return (
     <div
-      className={`prime-gradient-box p-6 sm:p-8 rounded-2xl relative overflow-hidden backdrop-blur-xl bg-gradient-to-b from-[#0F172A]/90 to-[#070A11]/95 text-center flex flex-col items-center justify-center shadow-2xl ${className}`}
+      className={`prime-gradient-box p-6 sm:p-8 rounded-2xl relative overflow-hidden backdrop-blur-xl bg-gradient-to-b from-[#0F172A]/90 to-[#020617]/95 text-center flex flex-col items-center justify-center shadow-2xl ${className}`}
     >
-      <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/10 mb-4 animate-pulse-soft">
+      <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 shadow-lg shadow-blue-500/10 mb-4 animate-pulse-soft">
         <Lock className="w-6 h-6 stroke-[2.2]" />
       </div>
 
@@ -280,7 +280,7 @@ export const PrimeLockedFeature: React.FC<PrimeLockedFeatureProps> = ({
         <div className="my-5 p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 text-left w-full max-w-sm space-y-2">
           {featureList.map((item, idx) => (
             <div key={idx} className="flex items-center gap-2 text-xs text-slate-300">
-              <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
               <span>{item}</span>
             </div>
           ))}
@@ -294,7 +294,7 @@ export const PrimeLockedFeature: React.FC<PrimeLockedFeatureProps> = ({
           onClick={onUnlock}
           icon={<ChevronRight className="w-4 h-4" />}
           iconPosition="right"
-          className="mt-2 shadow-xl shadow-amber-500/25"
+          className="mt-2 shadow-xl shadow-blue-500/25"
         >
           {unlockText}
         </PrimeButton>
@@ -329,7 +329,7 @@ export const PrimeEmptyState: React.FC<PrimeEmptyStateProps> = ({
     <div
       className={`prime-card p-8 sm:p-12 text-center flex flex-col items-center justify-center border-dashed border-slate-800 ${className}`}
     >
-      <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-400/80 mb-4 shadow-inner">
+      <div className="w-14 h-14 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-cyan-400/80 mb-4 shadow-inner">
         {icon}
       </div>
 
@@ -378,7 +378,7 @@ export const PrimeErrorState: React.FC<PrimeErrorStateProps> = ({
       className={`p-5 rounded-xl bg-rose-500/5 border border-rose-500/20 text-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${className}`}
     >
       <div className="flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+        <AlertTriangle className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
         <div>
           <h4 className="text-xs font-military font-bold text-amber-300 tracking-wider">
             {title}

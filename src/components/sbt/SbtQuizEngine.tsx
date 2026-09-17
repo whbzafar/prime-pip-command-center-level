@@ -95,8 +95,8 @@ export const SbtQuizEngine: React.FC<SbtQuizEngineProps> = ({
 
     if (accuracy >= 90) {
       rankTitle = 'SBT MASTER OPERATOR';
-      rankColor = 'text-amber-400';
-      badgeColor = 'border-amber-500/50 bg-amber-500/20';
+      rankColor = 'text-cyan-400';
+      badgeColor = 'border-blue-500/50 bg-blue-500/20';
     } else if (accuracy >= 75) {
       rankTitle = 'SENIOR STRUCTURE ANALYST';
       rankColor = 'text-emerald-400';
@@ -108,8 +108,8 @@ export const SbtQuizEngine: React.FC<SbtQuizEngineProps> = ({
     }
 
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-10 shadow-2xl text-center space-y-6 max-w-2xl mx-auto">
-        <div className="w-20 h-20 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto shadow-lg shadow-amber-500/10">
+      <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 sm:p-10 shadow-2xl text-center space-y-6 max-w-2xl mx-auto">
+        <div className="w-20 h-20 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 mx-auto shadow-lg shadow-blue-500/10">
           <Trophy className="w-10 h-10" />
         </div>
 
@@ -136,7 +136,7 @@ export const SbtQuizEngine: React.FC<SbtQuizEngineProps> = ({
           <button
             type="button"
             onClick={handleRestartQuiz}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-md shadow-amber-500/20"
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-md shadow-blue-500/20"
           >
             <RotateCcw className="w-4 h-4" />
             <span>RESTART QUIZ</span>
@@ -149,9 +149,9 @@ export const SbtQuizEngine: React.FC<SbtQuizEngineProps> = ({
   return (
     <div className="space-y-6">
       {/* Quiz Controls & Filter Bar */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
             <HelpCircle className="w-5 h-5 stroke-[2.2]" />
           </div>
           <div>
@@ -176,7 +176,7 @@ export const SbtQuizEngine: React.FC<SbtQuizEngineProps> = ({
               setIsAnswerSubmitted(false);
             }}
             aria-label="Filter questions by SBT model"
-            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs font-mono-code text-slate-300 focus:outline-none focus:border-amber-500"
+            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs font-mono-code text-slate-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All 10 SBT Models</option>
             {AUTHORITATIVE_SBT_MODELS.map((m) => (
@@ -196,7 +196,7 @@ export const SbtQuizEngine: React.FC<SbtQuizEngineProps> = ({
               setIsAnswerSubmitted(false);
             }}
             aria-label="Filter questions by difficulty"
-            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs font-mono-code text-slate-300 focus:outline-none focus:border-amber-500"
+            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs font-mono-code text-slate-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Difficulties</option>
             <option value="FOUNDATION">Foundation</option>
@@ -210,17 +210,17 @@ export const SbtQuizEngine: React.FC<SbtQuizEngineProps> = ({
       {/* Progress Bar */}
       <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
         <div
-          className="h-full bg-amber-500 transition-all duration-300 rounded-full"
+          className="h-full bg-blue-500 transition-all duration-300 rounded-full"
           style={{ width: `${((currentIndex + 1) / activeQuestions.length) * 100}%` }}
         />
       </div>
 
       {/* Question Card */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-7 shadow-xl space-y-6">
+      <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 sm:p-7 shadow-xl space-y-6">
         {/* Question Header Badges */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-mono-code font-bold">
+            <span className="px-2.5 py-0.5 rounded bg-blue-500/20 text-amber-300 border border-blue-500/30 text-[10px] font-mono-code font-bold">
               {currentQuestion.type.replace('_', ' ')}
             </span>
             <span className="px-2.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-mono-code font-bold">
@@ -234,7 +234,7 @@ export const SbtQuizEngine: React.FC<SbtQuizEngineProps> = ({
           </div>
 
           <div className="text-xs font-mono-code text-slate-400">
-            Score: <span className="text-amber-400 font-bold">{score}</span> / {currentIndex}
+            Score: <span className="text-cyan-400 font-bold">{score}</span> / {currentIndex}
           </div>
         </div>
 
@@ -274,7 +274,7 @@ export const SbtQuizEngine: React.FC<SbtQuizEngineProps> = ({
                 buttonStyle = 'bg-slate-950/40 border-slate-900 text-slate-500 opacity-60';
               }
             } else if (isSelected) {
-              buttonStyle = 'bg-amber-500/15 border-amber-500/50 text-amber-200 shadow-md shadow-amber-500/10';
+              buttonStyle = 'bg-blue-500/15 border-blue-500/50 text-cyan-200 shadow-md shadow-blue-500/10';
             }
 
             return (
@@ -286,7 +286,7 @@ export const SbtQuizEngine: React.FC<SbtQuizEngineProps> = ({
                 className={`w-full p-4 rounded-xl border text-left font-mono-code text-xs sm:text-sm flex items-start justify-between gap-3 transition cursor-pointer ${buttonStyle}`}
               >
                 <div className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                  <span className="w-6 h-6 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
                     {String.fromCharCode(65 + idx)}
                   </span>
                   <span className="leading-relaxed">{option}</span>
@@ -327,7 +327,7 @@ export const SbtQuizEngine: React.FC<SbtQuizEngineProps> = ({
                 )}
               </div>
 
-              <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
+              <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
                 {currentQuestion.sourceRuleCitation}
               </span>
             </div>
@@ -353,7 +353,7 @@ export const SbtQuizEngine: React.FC<SbtQuizEngineProps> = ({
               onClick={handleSubmitAnswer}
               className={`px-6 py-2.5 rounded-xl text-xs font-military font-bold tracking-wider transition ${
                 selectedOption !== null
-                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 cursor-pointer shadow-md shadow-amber-500/20'
+                  ? 'bg-blue-500 hover:bg-cyan-400 text-slate-950 cursor-pointer shadow-md shadow-blue-500/20'
                   : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
               }`}
             >
@@ -363,7 +363,7 @@ export const SbtQuizEngine: React.FC<SbtQuizEngineProps> = ({
             <button
               type="button"
               onClick={handleNextQuestion}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-md shadow-amber-500/20"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-md shadow-blue-500/20"
             >
               <span>{currentIndex + 1 < activeQuestions.length ? 'NEXT QUESTION' : 'VIEW FINAL RESULTS'}</span>
               <ArrowRight className="w-4 h-4" />

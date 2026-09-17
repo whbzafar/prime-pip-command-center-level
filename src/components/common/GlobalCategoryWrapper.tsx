@@ -53,10 +53,10 @@ export const GlobalCategoryWrapper: React.FC<GlobalCategoryWrapperProps> = ({
     return (
       <div className="w-full">
         {/* Sleek Minimized Dock Banner */}
-        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between shadow-xl animate-in fade-in duration-200">
+        <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 flex items-center justify-between shadow-xl animate-in fade-in duration-200">
           <div className="flex items-center gap-3 min-w-0">
             {icon && (
-              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-400 shrink-0">
+              <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/25 text-cyan-400 shrink-0">
                 {icon}
               </div>
             )}
@@ -65,7 +65,7 @@ export const GlobalCategoryWrapper: React.FC<GlobalCategoryWrapperProps> = ({
                 <span className="text-xs font-military font-bold text-slate-200 tracking-wider truncate">
                   {title}
                 </span>
-                <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold shrink-0">
+                <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-blue-500/15 text-cyan-400 border border-blue-500/30 font-bold shrink-0">
                   MINIMIZED
                 </span>
               </div>
@@ -79,7 +79,7 @@ export const GlobalCategoryWrapper: React.FC<GlobalCategoryWrapperProps> = ({
             <button
               type="button"
               onClick={() => setWindowState('NORMAL')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-mono-code font-bold transition cursor-pointer shadow-md"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-mono-code font-bold transition cursor-pointer shadow-md"
               title="Restore to normal category view"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -104,13 +104,13 @@ export const GlobalCategoryWrapper: React.FC<GlobalCategoryWrapperProps> = ({
     return (
       <div
         id="global-category-fullscreen-container"
-        className="fixed inset-0 z-50 bg-[#070A11]/98 backdrop-blur-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        className="fixed inset-0 z-50 bg-[#020617]/98 backdrop-blur-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Fullscreen HUD Header Bar */}
         <header className="h-14 sm:h-16 px-4 sm:px-6 bg-[#0B0F19]/95 border-b border-slate-800 flex items-center justify-between shrink-0 select-none z-20">
           <div className="flex items-center gap-3 min-w-0">
             {icon && (
-              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-400 shrink-0">
+              <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/25 text-cyan-400 shrink-0">
                 {icon}
               </div>
             )}
@@ -120,7 +120,7 @@ export const GlobalCategoryWrapper: React.FC<GlobalCategoryWrapperProps> = ({
                   {title}
                 </h1>
                 {categoryBadge && (
-                  <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/25 font-military font-bold text-[10px] tracking-wider shrink-0">
+                  <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-cyan-400 border border-blue-500/25 font-military font-bold text-[10px] tracking-wider shrink-0">
                     {categoryBadge}
                   </span>
                 )}
@@ -152,7 +152,7 @@ export const GlobalCategoryWrapper: React.FC<GlobalCategoryWrapperProps> = ({
             <button
               type="button"
               onClick={() => setWindowState('NORMAL')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-mono-code font-bold transition cursor-pointer shadow-md"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-mono-code font-bold transition cursor-pointer shadow-md"
               title="Restore back to standard dashboard layout (Esc)"
             >
               <Minimize2 className="w-3.5 h-3.5" />
@@ -176,7 +176,7 @@ export const GlobalCategoryWrapper: React.FC<GlobalCategoryWrapperProps> = ({
       <div className="flex items-center justify-between px-1 py-1 text-xs font-mono-code">
         <div className="flex items-center gap-2">
           {categoryBadge && (
-            <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-amber-400 font-military font-bold">
+            <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-400 font-military font-bold">
               {categoryBadge}
             </span>
           )}
@@ -190,7 +190,7 @@ export const GlobalCategoryWrapper: React.FC<GlobalCategoryWrapperProps> = ({
           <button
             type="button"
             onClick={() => setWindowState('MINIMIZED')}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-950/80 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
             title="Minimize category view"
           >
             <Minus className="w-3 h-3 text-slate-400" />
@@ -201,7 +201,7 @@ export const GlobalCategoryWrapper: React.FC<GlobalCategoryWrapperProps> = ({
           <button
             type="button"
             onClick={() => setWindowState('FULLSCREEN')}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-amber-400 hover:border-amber-500/40 transition cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-950/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-cyan-400 hover:border-blue-500/40 transition cursor-pointer"
             title="Expand to Fullscreen (Real Fullscreen Expansion)"
           >
             <Maximize2 className="w-3 h-3 text-teal-400" />

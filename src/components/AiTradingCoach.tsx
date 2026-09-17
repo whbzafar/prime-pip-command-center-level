@@ -141,20 +141,20 @@ Select an analysis directive below or ask me directly: *"What is stopping me fro
   return (
     <div className="space-y-6">
       {!isOnline && (
-        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-300 text-xs font-mono-code flex items-center gap-3">
-          <WifiOff className="w-5 h-5 text-amber-400 shrink-0" />
+        <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/40 text-amber-300 text-xs font-mono-code flex items-center gap-3">
+          <WifiOff className="w-5 h-5 text-cyan-400 shrink-0" />
           <div className="leading-relaxed">
-            <strong className="block text-amber-200 font-bold">AI Coach unavailable. Core Trading Journal remains fully operational.</strong>
+            <strong className="block text-cyan-200 font-bold">AI Coach unavailable. Core Trading Journal remains fully operational.</strong>
             All calculations, trade entries, risk limits, statistics, and journal history continue working offline via local storage.
           </div>
         </div>
       )}
 
       {/* AI Intelligence Header Banner */}
-      <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/40 rounded-xl p-5 shadow-2xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border border-blue-500/40 rounded-xl p-5 shadow-2xl relative overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-cyan-400">
               <Bot className="w-6 h-6" />
             </div>
             <div>
@@ -179,7 +179,7 @@ Select an analysis directive below or ask me directly: *"What is stopping me fro
             <button
               onClick={() => handleAskCoach('What is stopping me from becoming a consistently profitable trader?')}
               disabled={loading}
-              className="px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs tracking-wider shadow-lg shadow-amber-500/20 transition flex items-center gap-2"
+              className="px-4 py-2.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs tracking-wider shadow-lg shadow-blue-500/20 transition flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
               <span>ASK: "WHAT IS STOPPING MY CONSISTENCY?"</span>
@@ -195,20 +195,20 @@ Select an analysis directive below or ask me directly: *"What is stopping me fro
             key={prompt}
             onClick={() => handleAskCoach(prompt)}
             disabled={loading}
-            className="p-2.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-left text-xs font-mono-code text-slate-300 hover:text-amber-400 transition flex items-start gap-2"
+            className="p-2.5 rounded-lg bg-slate-950/80 hover:bg-slate-800 border border-slate-800 text-left text-xs font-mono-code text-slate-300 hover:text-cyan-400 transition flex items-start gap-2"
           >
-            <HelpCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+            <HelpCircle className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
             <span>{prompt}</span>
           </button>
         ))}
       </div>
 
       {/* Chat / Directive Terminal Box */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl shadow-xl flex flex-col h-[520px] overflow-hidden">
+      <div className="bg-slate-950/80 border border-slate-800 rounded-xl shadow-xl flex flex-col h-[520px] overflow-hidden">
         {/* Terminal Header */}
         <div className="px-4 py-2.5 border-b border-slate-800 bg-slate-950 flex items-center justify-between text-xs font-mono-code">
           <div className="flex items-center gap-2 text-slate-300">
-            <Bot className="w-4 h-4 text-amber-400" />
+            <Bot className="w-4 h-4 text-cyan-400" />
             <span className="font-bold">PRIMEPIPFX NEURAL COACH HUD</span>
           </div>
           <span className="text-emerald-400 flex items-center gap-1">
@@ -227,7 +227,7 @@ Select an analysis directive below or ask me directly: *"What is stopping me fro
               }`}
             >
               {msg.role === 'assistant' && (
-                <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 mt-1">
+                <div className="w-7 h-7 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-cyan-400 shrink-0 mt-1">
                   <Bot className="w-4 h-4" />
                 </div>
               )}
@@ -235,7 +235,7 @@ Select an analysis directive below or ask me directly: *"What is stopping me fro
               <div
                 className={`max-w-2xl rounded-xl p-4 leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-amber-500 text-slate-950 font-sans font-medium'
+                    ? 'bg-blue-500 text-slate-950 font-sans font-medium'
                     : 'bg-slate-950 border border-slate-800 text-slate-200'
                 }`}
               >
@@ -252,11 +252,11 @@ Select an analysis directive below or ask me directly: *"What is stopping me fro
 
           {loading && (
             <div className="flex gap-3 justify-start">
-              <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 animate-pulse">
+              <div className="w-7 h-7 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-cyan-400 shrink-0 animate-pulse">
                 <Sparkles className="w-4 h-4" />
               </div>
               <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 text-slate-400 flex items-center gap-2">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
                 <span>AI Coach auditing journal parameters...</span>
               </div>
             </div>
@@ -277,12 +277,12 @@ Select an analysis directive below or ask me directly: *"What is stopping me fro
               placeholder="Ask the AI Coach anything (e.g. 'How can I fix my win rate on Gold?')..."
               value={inputQuestion}
               onChange={(e) => setInputQuestion(e.target.value)}
-              className="flex-1 px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono-code text-slate-200 placeholder:text-slate-500 outline-none focus:border-amber-400"
+              className="flex-1 px-4 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono-code text-slate-200 placeholder:text-slate-500 outline-none focus:border-cyan-400"
             />
             <button
               type="submit"
               disabled={loading || !inputQuestion.trim()}
-              className="px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-military font-bold text-xs tracking-wider transition flex items-center gap-1.5"
+              className="px-4 py-2.5 rounded-lg bg-blue-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-military font-bold text-xs tracking-wider transition flex items-center gap-1.5"
             >
               <Send className="w-3.5 h-3.5" />
               <span>TRANSMIT</span>

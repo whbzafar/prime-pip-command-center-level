@@ -94,7 +94,7 @@ export const CalmingSuiteMaster: React.FC<CalmingSuiteMasterProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('HOME')}
-              className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-military font-bold flex items-center gap-1.5 transition cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white text-xs font-military font-bold flex items-center gap-1.5 transition cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>HOME</span>
@@ -137,7 +137,7 @@ export const CalmingSuiteMaster: React.FC<CalmingSuiteMasterProps> = ({
             className={`p-2 rounded-xl border text-xs transition cursor-pointer ${
               isMuted
                 ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
             title={isMuted ? 'Unmute' : 'Mute all'}
           >
@@ -150,7 +150,7 @@ export const CalmingSuiteMaster: React.FC<CalmingSuiteMasterProps> = ({
             className={`p-2 rounded-xl border text-xs transition cursor-pointer ${
               activeTab === 'HISTORY'
                 ? 'bg-teal-500/20 text-teal-300 border-teal-500/40'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
             title="Session history & reflections"
           >
@@ -186,7 +186,7 @@ export const CalmingSuiteMaster: React.FC<CalmingSuiteMasterProps> = ({
               className={`px-3 py-1.5 rounded-xl border whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
                 isSelected
                   ? 'bg-teal-500 text-slate-950 font-bold border-teal-400 shadow-md shadow-teal-500/20'
-                  : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200'
+                  : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -280,7 +280,7 @@ export const CalmingSuiteMaster: React.FC<CalmingSuiteMasterProps> = ({
 
         {activeTab === 'VISUALIZER' && (
           <div className="space-y-4">
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
               <h3 className="text-sm font-military font-bold text-slate-100 uppercase tracking-wider">
                 REAL-TIME PROCEDURAL WAVEFORM OSCILLOSCOPE
               </h3>

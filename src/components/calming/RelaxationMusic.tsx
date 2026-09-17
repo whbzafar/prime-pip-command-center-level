@@ -195,10 +195,10 @@ export const RelaxationMusic: React.FC = () => {
         {/* Timer Bar */}
         <div className="pt-2 flex items-center justify-between flex-wrap gap-2 text-xs">
           <div className="flex items-center gap-2 text-slate-400 font-military">
-            <Clock className="w-4 h-4 text-amber-400" />
+            <Clock className="w-4 h-4 text-cyan-400" />
             <span>SESSION TIMER:</span>
             {timerSecondsRemaining !== null && (
-              <span className="text-amber-400 font-mono-code font-bold">
+              <span className="text-cyan-400 font-mono-code font-bold">
                 {Math.floor(timerSecondsRemaining / 60)}m {timerSecondsRemaining % 60}s left
               </span>
             )}
@@ -211,8 +211,8 @@ export const RelaxationMusic: React.FC = () => {
                 onClick={() => handleSetTimer(m)}
                 className={`px-2.5 py-1 rounded-lg text-[10px] font-mono-code font-bold transition ${
                   timerMinutes === m
-                    ? 'bg-amber-500 text-slate-950 font-bold'
-                    : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+                    ? 'bg-blue-500 text-slate-950 font-bold'
+                    : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
                 }`}
               >
                 {m}m
@@ -234,7 +234,7 @@ export const RelaxationMusic: React.FC = () => {
               className={`p-4 rounded-2xl border transition text-left flex items-start justify-between gap-3 ${
                 isThisPlaying
                   ? 'bg-gradient-to-r from-teal-950/40 via-slate-900 to-indigo-950/40 border-teal-400/50 shadow-lg shadow-teal-500/10'
-                  : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
+                  : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
               }`}
             >
               <div className="flex items-start gap-3 min-w-0">

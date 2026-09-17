@@ -151,9 +151,9 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
   return (
     <div className={isFullscreen ? 'fixed inset-0 z-50 bg-slate-950 p-4 sm:p-6 overflow-y-auto space-y-6' : 'space-y-6'}>
       {/* Sub-Header / Navigation */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400">
+          <div className="p-2.5 rounded-lg bg-blue-500/15 border border-blue-500/30 text-cyan-400">
             <TrendingUp className="w-5 h-5" />
           </div>
           <div>
@@ -175,7 +175,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
               onClick={() => setEngineTab('CALCULATOR')}
               className={`px-3 py-1.5 rounded transition cursor-pointer ${
                 engineTab === 'CALCULATOR'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                  ? 'bg-blue-500 text-slate-950 font-bold shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -187,7 +187,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
               onClick={() => setEngineTab('COMPOUNDING')}
               className={`px-3 py-1.5 rounded transition cursor-pointer ${
                 engineTab === 'COMPOUNDING'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                  ? 'bg-blue-500 text-slate-950 font-bold shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -199,7 +199,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
               onClick={() => setEngineTab('RECOVERY_SIMULATOR')}
               className={`px-3 py-1.5 rounded transition cursor-pointer ${
                 engineTab === 'RECOVERY_SIMULATOR'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                  ? 'bg-blue-500 text-slate-950 font-bold shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -211,7 +211,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
               onClick={() => setEngineTab('REAL_VS_PROJECTED')}
               className={`px-3 py-1.5 rounded transition cursor-pointer ${
                 engineTab === 'REAL_VS_PROJECTED'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                  ? 'bg-blue-500 text-slate-950 font-bold shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -227,12 +227,12 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
           >
             {isFullscreen ? (
               <>
-                <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
+                <Minimize2 className="w-3.5 h-3.5 text-cyan-400" />
                 <span className="hidden sm:inline">RESTORE</span>
               </>
             ) : (
               <>
-                <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
+                <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
                 <span className="hidden sm:inline">FULLSCREEN</span>
               </>
             )}
@@ -241,11 +241,11 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
       </div>
 
       {/* Mandatory Projection Notice */}
-      <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 text-xs font-mono-code text-slate-400 flex items-center justify-between">
+      <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-xs font-mono-code text-slate-400 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Info className="w-4 h-4 text-amber-400 shrink-0" />
+          <Info className="w-4 h-4 text-cyan-400 shrink-0" />
           <span>
-            <strong className="text-amber-400 font-bold">PROJECTION ONLY • NOT GUARANTEED</strong>: All models are theoretical mathematical simulations. Markets carry risk. Never risk capital you cannot afford to lose.
+            <strong className="text-cyan-400 font-bold">PROJECTION ONLY • NOT GUARANTEED</strong>: All models are theoretical mathematical simulations. Markets carry risk. Never risk capital you cannot afford to lose.
           </span>
         </div>
         <span className="text-[10px] text-slate-500 uppercase">OFFLINE MATHEMATICAL MODEL</span>
@@ -263,10 +263,10 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
       {engineTab === 'COMPOUNDING' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Controls Column */}
-          <div className="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+          <div className="lg:col-span-5 bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h4 className="text-xs font-military font-bold text-slate-200 tracking-wider flex items-center gap-2">
-                <Calculator className="w-4 h-4 text-amber-400" />
+                <Calculator className="w-4 h-4 text-cyan-400" />
                 SIMULATION PARAMETERS
               </h4>
               <span className="text-[10px] font-mono-code text-slate-400">MATH ENGINE</span>
@@ -281,11 +281,11 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                   onClick={() => setBalanceMode('ACTIVE')}
                   className={`px-2.5 py-2 rounded border text-left flex items-center gap-2 transition ${
                     balanceMode === 'ACTIVE'
-                      ? 'bg-amber-500/15 border-amber-500 text-amber-400 font-bold'
+                      ? 'bg-blue-500/15 border-blue-500 text-cyan-400 font-bold'
                       : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                   }`}
                 >
-                  <span className={`w-2.5 h-2.5 rounded-full border ${balanceMode === 'ACTIVE' ? 'bg-amber-400 border-amber-300' : 'border-slate-600'}`} />
+                  <span className={`w-2.5 h-2.5 rounded-full border ${balanceMode === 'ACTIVE' ? 'bg-cyan-400 border-amber-300' : 'border-slate-600'}`} />
                   <span className="truncate">ACTIVE ACCOUNT</span>
                 </button>
 
@@ -294,11 +294,11 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                   onClick={() => setBalanceMode('CUSTOM')}
                   className={`px-2.5 py-2 rounded border text-left flex items-center gap-2 transition ${
                     balanceMode === 'CUSTOM'
-                      ? 'bg-amber-500/15 border-amber-500 text-amber-400 font-bold'
+                      ? 'bg-blue-500/15 border-blue-500 text-cyan-400 font-bold'
                       : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                   }`}
                 >
-                  <span className={`w-2.5 h-2.5 rounded-full border ${balanceMode === 'CUSTOM' ? 'bg-amber-400 border-amber-300' : 'border-slate-600'}`} />
+                  <span className={`w-2.5 h-2.5 rounded-full border ${balanceMode === 'CUSTOM' ? 'bg-cyan-400 border-amber-300' : 'border-slate-600'}`} />
                   <span className="truncate">CUSTOM BALANCE</span>
                 </button>
               </div>
@@ -316,14 +316,14 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                       step="500"
                       value={customStartBalance}
                       onChange={(e) => setCustomStartBalance(parseFloat(e.target.value) || 1000)}
-                      className="w-full pl-8 pr-3 py-1.5 rounded bg-slate-950 border border-slate-700 text-slate-100 font-mono-code text-xs outline-none focus:border-amber-400"
+                      className="w-full pl-8 pr-3 py-1.5 rounded bg-slate-950 border border-slate-700 text-slate-100 font-mono-code text-xs outline-none focus:border-cyan-400"
                     />
                   </div>
                 </div>
               ) : (
                 <div className="mt-1 p-2 rounded bg-slate-950/60 border border-slate-800/80 text-[11px] font-mono-code text-slate-300 flex items-center justify-between">
                   <span>Active Balance:</span>
-                  <strong className="text-amber-400">{formatCurrency(activeBalance, currency)}</strong>
+                  <strong className="text-cyan-400">{formatCurrency(activeBalance, currency)}</strong>
                 </div>
               )}
             </div>
@@ -339,7 +339,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                     onClick={() => setCurrency(cur)}
                     className={`px-2 py-1 rounded border text-[11px] transition ${
                       currency === cur
-                        ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
+                        ? 'bg-blue-500 text-slate-950 border-cyan-400 font-bold'
                         : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                     }`}
                   >
@@ -358,11 +358,11 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                   onClick={() => setCompoundingMode('PERCENTAGE_COMPOUNDING')}
                   className={`px-2.5 py-2 rounded border text-left flex items-center gap-2 transition ${
                     compoundingMode === 'PERCENTAGE_COMPOUNDING'
-                      ? 'bg-amber-500/15 border-amber-500 text-amber-400 font-bold'
+                      ? 'bg-blue-500/15 border-blue-500 text-cyan-400 font-bold'
                       : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                   }`}
                 >
-                  <span className={`w-2.5 h-2.5 rounded-full border ${compoundingMode === 'PERCENTAGE_COMPOUNDING' ? 'bg-amber-400 border-amber-300' : 'border-slate-600'}`} />
+                  <span className={`w-2.5 h-2.5 rounded-full border ${compoundingMode === 'PERCENTAGE_COMPOUNDING' ? 'bg-cyan-400 border-amber-300' : 'border-slate-600'}`} />
                   <span className="truncate">PERCENTAGE DYNAMIC</span>
                 </button>
 
@@ -371,11 +371,11 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                   onClick={() => setCompoundingMode('FIXED_RISK')}
                   className={`px-2.5 py-2 rounded border text-left flex items-center gap-2 transition ${
                     compoundingMode === 'FIXED_RISK'
-                      ? 'bg-amber-500/15 border-amber-500 text-amber-400 font-bold'
+                      ? 'bg-blue-500/15 border-blue-500 text-cyan-400 font-bold'
                       : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                   }`}
                 >
-                  <span className={`w-2.5 h-2.5 rounded-full border ${compoundingMode === 'FIXED_RISK' ? 'bg-amber-400 border-amber-300' : 'border-slate-600'}`} />
+                  <span className={`w-2.5 h-2.5 rounded-full border ${compoundingMode === 'FIXED_RISK' ? 'bg-cyan-400 border-amber-300' : 'border-slate-600'}`} />
                   <span className="truncate">FIXED RISK / LOT</span>
                 </button>
               </div>
@@ -394,7 +394,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                     max="5.0"
                     value={riskPercent}
                     onChange={(e) => setRiskPercent(parseFloat(e.target.value) || 1.0)}
-                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-amber-400"
+                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-cyan-400"
                   />
                 </div>
               ) : (
@@ -407,7 +407,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                     min="1"
                     value={fixedRiskAmount}
                     onChange={(e) => setFixedRiskAmount(parseFloat(e.target.value) || 50)}
-                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-amber-400"
+                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-cyan-400"
                   />
                 </div>
               )}
@@ -422,7 +422,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                   max="90"
                   value={expectedWinRate}
                   onChange={(e) => setExpectedWinRate(parseFloat(e.target.value) || 50)}
-                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-amber-400"
+                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-cyan-400"
                 />
               </div>
             </div>
@@ -439,7 +439,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                   max="10.0"
                   value={riskRewardRatio}
                   onChange={(e) => setRiskRewardRatio(parseFloat(e.target.value) || 1.5)}
-                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-amber-400"
+                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-cyan-400"
                 />
               </div>
 
@@ -453,7 +453,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                   max="5"
                   value={tradesPerDay}
                   onChange={(e) => setTradesPerDay(parseInt(e.target.value, 10) || 1)}
-                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-amber-400"
+                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-cyan-400"
                 />
               </div>
             </div>
@@ -475,7 +475,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                     onClick={() => setSelectedPeriodMonths(item.months)}
                     className={`py-1.5 rounded border text-center transition ${
                       selectedPeriodMonths === item.months
-                        ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
+                        ? 'bg-blue-500 text-slate-950 border-cyan-400 font-bold'
                         : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                     }`}
                   >
@@ -494,7 +494,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                     max="365"
                     value={customDays}
                     onChange={(e) => setCustomDays(parseInt(e.target.value, 10) || 30)}
-                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 font-mono-code text-xs outline-none focus:border-amber-400"
+                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 font-mono-code text-xs outline-none focus:border-cyan-400"
                   />
                 </div>
               )}
@@ -505,28 +505,28 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
           <div className="lg:col-span-7 space-y-4">
             {/* Top Scorecards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
                 <span className="text-[10px] text-slate-400 font-mono-code uppercase block">START CAPITAL</span>
                 <span className="text-base font-military font-bold text-slate-100">
                   {formatCurrency(effectiveStartBalance, currency)}
                 </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-amber-500/30">
-                <span className="text-[10px] text-amber-400 font-mono-code uppercase block">PROJECTED END</span>
-                <span className="text-base font-military font-bold text-amber-400">
+              <div className="p-3 rounded-xl bg-slate-950/80 border border-blue-500/30">
+                <span className="text-[10px] text-cyan-400 font-mono-code uppercase block">PROJECTED END</span>
+                <span className="text-base font-military font-bold text-cyan-400">
                   {formatCurrency(projection.finalProjectedBalance, currency)}
                 </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
                 <span className="text-[10px] text-slate-400 font-mono-code uppercase block">PROJECTED RETURN</span>
                 <span className={`text-base font-military font-bold ${projection.totalProjectedReturnPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                   +{projection.totalProjectedReturnPercent.toFixed(1)}%
                 </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
                 <span className="text-[10px] text-slate-400 font-mono-code uppercase block">EV / TRADE</span>
                 <span className="text-base font-military font-bold text-slate-200">
                   +{formatCurrency(projection.expectedValuePerTrade, currency)}
@@ -535,11 +535,11 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
             </div>
 
             {/* Compounding Visual Growth Chart (Item 8) */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-lg">
+            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg">
               <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-xs font-mono-code">
                 <div className="flex items-center gap-3">
-                  <span className="flex items-center gap-1.5 text-amber-400 font-bold">
-                    <span className="w-2.5 h-0.5 bg-amber-400 inline-block" /> Projected Trajectory
+                  <span className="flex items-center gap-1.5 text-cyan-400 font-bold">
+                    <span className="w-2.5 h-0.5 bg-cyan-400 inline-block" /> Projected Trajectory
                   </span>
                   <span className="flex items-center gap-1.5 text-slate-500">
                     <span className="w-2.5 h-0.5 bg-rose-500/80 inline-block" /> 3-Trade Drawdown Scenario
@@ -588,12 +588,12 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
             </div>
 
             {/* Compounding Projection Table (Item 7) */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-lg">
+            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <h4 className="text-xs font-military font-bold text-slate-200 tracking-wider">
                   COMPOUNDING PROJECTION SCHEDULE ({currency})
                 </h4>
-                <span className="text-[10px] font-mono-code text-amber-400">
+                <span className="text-[10px] font-mono-code text-cyan-400">
                   PAGE {tablePage} OF {totalPages || 1}
                 </span>
               </div>
@@ -617,7 +617,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                           Day {row.day}
                         </td>
                         <td className="py-1.5 px-2 text-slate-400 flex items-center gap-1.5">
-                          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-amber-400 font-bold">
+                          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-cyan-400 font-bold">
                             {row.dayOfWeek}
                           </span>
                           <span>{row.dateStr}</span>
@@ -666,7 +666,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Simulator Inputs */}
-            <div className="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+            <div className="lg:col-span-5 bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
               <div className="pb-3 border-b border-slate-800">
                 <h4 className="text-xs font-military font-bold text-slate-200 tracking-wider flex items-center gap-2">
                   <ShieldAlert className="w-4 h-4 text-rose-400" />
@@ -702,7 +702,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                     step="1"
                     value={recoveryDrawdownPct}
                     onChange={(e) => setRecoveryDrawdownPct(parseFloat(e.target.value) || 10)}
-                    className="w-full accent-amber-500 cursor-pointer"
+                    className="w-full accent-blue-500 cursor-pointer"
                   />
                 </div>
 
@@ -717,7 +717,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                       max="3.0"
                       value={recoveryRiskPct}
                       onChange={(e) => setRecoveryRiskPct(parseFloat(e.target.value) || 1.0)}
-                      className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-amber-400"
+                      className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-cyan-400"
                     />
                   </div>
 
@@ -731,7 +731,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                       max="80"
                       value={expectedWinRate}
                       onChange={(e) => setExpectedWinRate(parseFloat(e.target.value) || 50)}
-                      className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-amber-400"
+                      className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-cyan-400"
                     />
                   </div>
                 </div>
@@ -744,7 +744,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                   +{recoveryMetrics.requiredGainPercent}%
                 </div>
                 <p className="text-[11px] text-slate-300 font-mono-code">
-                  An account suffering a <strong className="text-rose-400">{recoveryMetrics.drawdownPercent}%</strong> drawdown requires a <strong className="text-amber-400">+{recoveryMetrics.requiredGainPercent}%</strong> gain to return to breakeven.
+                  An account suffering a <strong className="text-rose-400">{recoveryMetrics.drawdownPercent}%</strong> drawdown requires a <strong className="text-cyan-400">+{recoveryMetrics.requiredGainPercent}%</strong> gain to return to breakeven.
                 </p>
                 <div className="pt-2 text-[10px] text-slate-400 font-mono-code">
                   Estimated trades required at current setup specs: <strong className="text-slate-200">{recoveryMetrics.estimatedTradesToRecover} disciplined trades</strong>
@@ -753,12 +753,12 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
             </div>
 
             {/* Asymmetry Reference Table */}
-            <div className="lg:col-span-7 bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-3">
+            <div className="lg:col-span-7 bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-3">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <h4 className="text-xs font-military font-bold text-slate-200 tracking-wider">
                   MATHEMATICAL DRAWDOWN ASYMMETRY TABLE
                 </h4>
-                <span className="text-[10px] font-mono-code text-amber-400">CORE DEFENSE LAW</span>
+                <span className="text-[10px] font-mono-code text-cyan-400">CORE DEFENSE LAW</span>
               </div>
 
               <p className="text-xs text-slate-400 font-sans leading-relaxed">
@@ -779,17 +779,17 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                     {recoveryMetrics.asymmetryTable.map((row) => (
                       <tr
                         key={row.dd}
-                        className={`hover:bg-slate-800/30 ${recoveryDrawdownPct === row.dd ? 'bg-amber-500/10' : ''}`}
+                        className={`hover:bg-slate-800/30 ${recoveryDrawdownPct === row.dd ? 'bg-blue-500/10' : ''}`}
                       >
                         <td className="py-2 px-3 font-bold text-slate-200">-{row.dd}%</td>
-                        <td className="py-2 px-3 font-bold text-amber-400">+{row.requiredGain}%</td>
+                        <td className="py-2 px-3 font-bold text-cyan-400">+{row.requiredGain}%</td>
                         <td className="py-2 px-3">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                               row.severity === 'LOW'
                                 ? 'bg-emerald-500/20 text-emerald-400'
                                 : row.severity === 'MEDIUM'
-                                ? 'bg-amber-500/20 text-amber-400'
+                                ? 'bg-blue-500/20 text-cyan-400'
                                 : row.severity === 'HIGH'
                                 ? 'bg-orange-500/20 text-orange-400'
                                 : 'bg-rose-500/20 text-rose-400'
@@ -822,7 +822,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* REAL DATA CARD */}
-            <div className="bg-slate-900/90 border border-emerald-500/40 rounded-xl p-5 shadow-xl space-y-4">
+            <div className="bg-slate-950/90 border border-emerald-500/40 rounded-xl p-5 shadow-xl space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2">
                   <Award className="w-4 h-4 text-emerald-400" />
@@ -869,15 +869,15 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
             </div>
 
             {/* PROJECTED SCENARIO CARD */}
-            <div className="bg-slate-900/90 border border-amber-500/40 rounded-xl p-5 shadow-xl space-y-4">
+            <div className="bg-slate-950/90 border border-blue-500/40 rounded-xl p-5 shadow-xl space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2">
-                  <Calculator className="w-4 h-4 text-amber-400" />
+                  <Calculator className="w-4 h-4 text-cyan-400" />
                   <h4 className="text-xs font-military font-bold text-slate-100 tracking-wider">
                     THEORETICAL MODEL PROJECTION
                   </h4>
                 </div>
-                <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-mono-code font-bold text-[10px] border border-amber-500/30">
+                <span className="px-2 py-0.5 rounded bg-blue-500/20 text-cyan-400 font-mono-code font-bold text-[10px] border border-blue-500/30">
                   PROJECTED SCENARIO
                 </span>
               </div>
@@ -890,17 +890,17 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
 
                 <div className="flex items-center justify-between p-2.5 rounded bg-slate-950 border border-slate-800">
                   <span className="text-slate-400">Assumed Win Rate:</span>
-                  <strong className="text-amber-400">{expectedWinRate}%</strong>
+                  <strong className="text-cyan-400">{expectedWinRate}%</strong>
                 </div>
 
                 <div className="flex items-center justify-between p-2.5 rounded bg-slate-950 border border-slate-800">
                   <span className="text-slate-400">Assumed R:R:</span>
-                  <strong className="text-amber-400">{riskRewardRatio}:1</strong>
+                  <strong className="text-cyan-400">{riskRewardRatio}:1</strong>
                 </div>
 
                 <div className="flex items-center justify-between p-2.5 rounded bg-slate-950 border border-slate-800">
                   <span className="text-slate-400">Projected Ending Capital:</span>
-                  <strong className="text-amber-400">${Math.round(projection.finalProjectedBalance).toLocaleString()}</strong>
+                  <strong className="text-cyan-400">${Math.round(projection.finalProjectedBalance).toLocaleString()}</strong>
                 </div>
               </div>
 

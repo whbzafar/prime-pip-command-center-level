@@ -158,7 +158,7 @@ export const CognitiveReframer: React.FC<CognitiveReframerProps> = ({
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono-code font-bold border transition active:scale-95 cursor-pointer ${
             internalizedCards[currentIndex]
               ? 'bg-teal-500/20 border-teal-500/50 text-teal-300'
-              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+              : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
           }`}
         >
           <CheckCircle2
@@ -178,7 +178,7 @@ export const CognitiveReframer: React.FC<CognitiveReframerProps> = ({
             type="button"
             onClick={handlePrev}
             disabled={currentIndex === 0}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-40 transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-40 transition cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>

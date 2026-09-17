@@ -172,10 +172,10 @@ export const BookSessionView: React.FC<BookSessionViewProps> = ({ currentUser, o
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+            <span className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-cyan-400">
               <Calendar className="w-5 h-5" />
             </span>
             <div>
@@ -194,13 +194,13 @@ export const BookSessionView: React.FC<BookSessionViewProps> = ({ currentUser, o
 
         <div className="bg-slate-950 border border-slate-800 px-4 py-2 rounded-xl font-mono-code text-xs text-right">
           <div className="text-[10px] text-slate-500 uppercase">Direct WhatsApp</div>
-          <div className="text-sm font-bold text-amber-400">03406671495</div>
+          <div className="text-sm font-bold text-cyan-400">03406671495</div>
         </div>
       </div>
 
       {/* Confirmation View */}
       {bookingSuccess ? (
-        <div className="bg-slate-900 border border-emerald-500/40 rounded-2xl p-6 text-center space-y-4 shadow-2xl">
+        <div className="bg-slate-950 border border-emerald-500/40 rounded-2xl p-6 text-center space-y-4 shadow-2xl">
           <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/30">
             <CheckCircle2 className="w-7 h-7" />
           </div>
@@ -232,7 +232,7 @@ export const BookSessionView: React.FC<BookSessionViewProps> = ({ currentUser, o
         </div>
       ) : (
         /* Booking Form */
-        <form onSubmit={handleSubmitBooking} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5 shadow-xl">
+        <form onSubmit={handleSubmitBooking} className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-5 shadow-xl">
           <h3 className="text-sm font-military font-bold text-slate-200 uppercase flex items-center gap-2">
             <span>SELECT SESSION PARAMETERS</span>
           </h3>
@@ -252,14 +252,14 @@ export const BookSessionView: React.FC<BookSessionViewProps> = ({ currentUser, o
                     onClick={() => setSelectedPkg(pkg)}
                     className={`p-3.5 rounded-xl border text-left transition flex flex-col justify-between gap-2.5 ${
                       isSelected
-                        ? 'bg-amber-500/15 border-amber-500 text-amber-300 ring-1 ring-amber-500/30'
+                        ? 'bg-blue-500/15 border-blue-500 text-amber-300 ring-1 ring-blue-500/30'
                         : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
                     }`}
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-1">
                         <span className="font-bold text-slate-100 text-sm leading-snug">{pkg.title}</span>
-                        {isSelected && <CheckCircle2 className="w-4 h-4 shrink-0 text-amber-400" />}
+                        {isSelected && <CheckCircle2 className="w-4 h-4 shrink-0 text-cyan-400" />}
                       </div>
                       <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
                         {pkg.description}
@@ -267,10 +267,10 @@ export const BookSessionView: React.FC<BookSessionViewProps> = ({ currentUser, o
                     </div>
 
                     <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
-                      <span className="px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                      <span className="px-2 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
                         {pkg.durationLabel}
                       </span>
-                      <span className="text-sm font-bold text-amber-400">
+                      <span className="text-sm font-bold text-cyan-400">
                         ${pkg.price}
                       </span>
                     </div>
@@ -290,7 +290,7 @@ export const BookSessionView: React.FC<BookSessionViewProps> = ({ currentUser, o
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 font-bold focus:outline-none focus:border-amber-500"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 font-bold focus:outline-none focus:border-blue-500"
               />
             </div>
 
@@ -301,7 +301,7 @@ export const BookSessionView: React.FC<BookSessionViewProps> = ({ currentUser, o
               <select
                 value={selectedTime}
                 onChange={(e) => setSelectedTime(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 font-bold focus:outline-none focus:border-amber-500"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 font-bold focus:outline-none focus:border-blue-500"
               >
                 {availableSlots.map((slot) => (
                   <option key={slot} value={slot}>
@@ -322,26 +322,26 @@ export const BookSessionView: React.FC<BookSessionViewProps> = ({ currentUser, o
               onChange={(e) => setSessionNotes(e.target.value)}
               placeholder="e.g. I want to review my Gold trade entries from this week and identify why I hesitated on Wednesday's London open."
               rows={3}
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-100 font-mono-code focus:outline-none focus:border-amber-500"
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-100 font-mono-code focus:outline-none focus:border-blue-500"
             />
           </div>
 
           {/* Price & Duration Summary Bar */}
-          <div className="bg-slate-950 p-4 rounded-xl border border-amber-500/30 flex flex-wrap items-center justify-between gap-3 font-mono-code">
+          <div className="bg-slate-950 p-4 rounded-xl border border-blue-500/30 flex flex-wrap items-center justify-between gap-3 font-mono-code">
             <div>
               <div className="text-[10px] text-slate-400 uppercase">Session Duration</div>
               <div className="text-sm font-bold text-slate-200">{selectedPkg.durationLabel}</div>
             </div>
             <div>
               <div className="text-[10px] text-slate-400 uppercase">Investment</div>
-              <div className="text-base font-bold text-amber-400">
+              <div className="text-base font-bold text-cyan-400">
                 {currency} {selectedPkg.price}
               </div>
             </div>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs rounded-xl flex items-center gap-2 transition shadow-lg shadow-amber-500/20 cursor-pointer"
+              className="px-6 py-2.5 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs rounded-xl flex items-center gap-2 transition shadow-lg shadow-blue-500/20 cursor-pointer"
             >
               <span>{isSubmitting ? 'SUBMITTING REQUEST...' : 'CONFIRM & REQUEST SESSION'}</span>
               <ArrowRight className="w-4 h-4" />
@@ -352,7 +352,7 @@ export const BookSessionView: React.FC<BookSessionViewProps> = ({ currentUser, o
 
       {/* Existing Appointments List */}
       {myBookings.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-3">
           <h3 className="text-xs font-military font-bold text-slate-200 uppercase">
             MY APPOINTMENT HISTORY & STATUS
           </h3>
@@ -375,7 +375,7 @@ export const BookSessionView: React.FC<BookSessionViewProps> = ({ currentUser, o
                       b.status === 'CONFIRMED'
                         ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
                         : b.status === 'RESCHEDULED'
-                        ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                        ? 'bg-blue-500/15 border-blue-500/40 text-cyan-400'
                         : b.status === 'CANCELLED'
                         ? 'bg-rose-500/15 border-rose-500/40 text-rose-400'
                         : 'bg-sky-500/15 border-sky-500/40 text-sky-400'

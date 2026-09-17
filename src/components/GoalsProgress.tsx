@@ -84,7 +84,7 @@ export const GoalsProgress: React.FC<GoalsProgressProps> = ({
               className={`p-4 rounded-xl border flex flex-col justify-between transition shadow-lg ${
                 goal.isCompleted
                   ? 'bg-emerald-950/20 border-emerald-500/40'
-                  : 'bg-slate-900/80 border-slate-800'
+                  : 'bg-slate-950/80 border-slate-800'
               }`}
             >
               <div>
@@ -103,7 +103,7 @@ export const GoalsProgress: React.FC<GoalsProgressProps> = ({
                     <span>Progress:</span>
                     <span
                       className={`font-bold ${
-                        goal.isCompleted ? 'text-emerald-400' : 'text-amber-400'
+                        goal.isCompleted ? 'text-emerald-400' : 'text-cyan-400'
                       }`}
                     >
                       {goal.current} / {goal.target} {goal.unit} ({progressPercent}%)
@@ -113,7 +113,7 @@ export const GoalsProgress: React.FC<GoalsProgressProps> = ({
                   <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
-                        goal.isCompleted ? 'bg-emerald-400' : 'bg-amber-400'
+                        goal.isCompleted ? 'bg-emerald-400' : 'bg-cyan-400'
                       }`}
                       style={{ width: `${progressPercent}%` }}
                     ></div>
@@ -146,10 +146,10 @@ export const GoalsProgress: React.FC<GoalsProgressProps> = ({
       {/* Add New Goal & Weekly Review Log */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Add Goal Form */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 border-b border-slate-800 pb-3 mb-4">
-              <Plus className="w-4 h-4 text-amber-400" />
+              <Plus className="w-4 h-4 text-cyan-400" />
               <h4 className="text-xs font-military font-bold tracking-wider text-slate-200">
                 ENLIST NEW PROCESS DISCIPLINE GOAL
               </h4>
@@ -163,7 +163,7 @@ export const GoalsProgress: React.FC<GoalsProgressProps> = ({
                   placeholder="e.g. 'Never trade after 2 consecutive stop-outs'"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 outline-none focus:border-amber-400"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 outline-none focus:border-cyan-400"
                 />
               </div>
 
@@ -197,14 +197,14 @@ export const GoalsProgress: React.FC<GoalsProgressProps> = ({
                 setNewTitle('');
               }
             }}
-            className="mt-4 w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs tracking-wider transition"
+            className="mt-4 w-full py-2 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs tracking-wider transition"
           >
             COMMIT TO PROCESS GOAL
           </button>
         </div>
 
         {/* Weekly Debrief & Performance Reflection */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
               <div className="flex items-center gap-2">
@@ -220,7 +220,7 @@ export const GoalsProgress: React.FC<GoalsProgressProps> = ({
               rows={5}
               value={weeklyNotes}
               onChange={(e) => setWeeklyNotes(e.target.value)}
-              className="w-full p-3 rounded-lg bg-slate-950 border border-slate-800 font-mono-code text-xs text-slate-200 outline-none focus:border-amber-400 leading-relaxed"
+              className="w-full p-3 rounded-lg bg-slate-950 border border-slate-800 font-mono-code text-xs text-slate-200 outline-none focus:border-cyan-400 leading-relaxed"
             />
           </div>
 

@@ -105,17 +105,17 @@ export const TradeLimitAlertSystem: React.FC<TradeLimitAlertSystemProps> = ({
     <div
       id="trade-limit-advisory-banner"
       role="alert"
-      className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 max-w-lg w-[calc(100vw-2rem)] rounded-2xl bg-[#0F172A]/95 backdrop-blur-md border-2 border-amber-500/80 p-4 shadow-2xl shadow-amber-950/40 animate-in fade-in slide-in-from-bottom-4"
+      className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 max-w-lg w-[calc(100vw-2rem)] rounded-2xl bg-[#0F172A]/95 backdrop-blur-md border-2 border-blue-500/80 p-4 shadow-2xl shadow-amber-950/40 animate-in fade-in slide-in-from-bottom-4"
     >
       <div className="flex items-start gap-3">
-        <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0 mt-0.5">
+        <div className="p-2.5 rounded-xl bg-blue-500/20 text-cyan-400 border border-blue-500/40 shrink-0 mt-0.5">
           <AlertOctagon className="w-5 h-5" />
         </div>
 
         <div className="flex-1 space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[10px] font-mono-code font-bold tracking-widest text-amber-400 uppercase flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="text-[10px] font-mono-code font-bold tracking-widest text-cyan-400 uppercase flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
               {RISK_WARNING_CONFIG.title}
             </span>
             <button
@@ -141,7 +141,7 @@ export const TradeLimitAlertSystem: React.FC<TradeLimitAlertSystemProps> = ({
 
           <div className="bg-slate-950/80 border border-slate-800/80 rounded-lg px-2.5 py-1.5 text-[11px] font-mono-code text-slate-300 flex flex-wrap items-center justify-between gap-2">
             <span>
-              Today: <strong className="text-amber-400">{metrics.tradesToday}</strong> trades
+              Today: <strong className="text-cyan-400">{metrics.tradesToday}</strong> trades
             </span>
             <span>
               Loss Limit: <strong className="text-rose-400">{account.maxDailyLossPercent}%</strong>
@@ -171,7 +171,7 @@ export const TradeLimitAlertSystem: React.FC<TradeLimitAlertSystemProps> = ({
             <button
               type="button"
               onClick={handleDismiss}
-              className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-[11px] tracking-wider transition"
+              className="px-3 py-1 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-[11px] tracking-wider transition"
             >
               CONTINUE TRADING
             </button>
@@ -333,9 +333,9 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner: Institutional Risk Control Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-lg">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-950/90 border border-slate-800 rounded-xl p-4 shadow-lg">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+          <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-cyan-400">
             <Shield className="w-5 h-5" />
           </div>
           <div>
@@ -352,7 +352,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
           <button
             type="button"
             onClick={() => setIsTestAlertOpen(true)}
-            className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 font-mono-code text-xs font-bold flex items-center gap-2 border border-slate-700 transition"
+            className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-amber-300 font-mono-code text-xs font-bold flex items-center gap-2 border border-slate-700 transition"
           >
             <Volume2 className="w-4 h-4" />
             <span>TEST LOCKOUT OVERLAY & SIREN</span>
@@ -375,9 +375,9 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
       {/* Real-time Defense Warnings */}
       <div className="space-y-3">
         {isDailyLimitReached && (
-          <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 flex items-center justify-between shadow-lg">
+          <div className="p-4 rounded-xl bg-blue-500/15 border border-blue-500/40 text-amber-300 flex items-center justify-between shadow-lg">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
+              <AlertTriangle className="w-6 h-6 text-cyan-400 shrink-0" />
               <div>
                 <strong className="font-military font-bold text-sm block tracking-wide">
                   TACTICAL PROTOCOL: DAILY TRADE LIMIT REACHED ({metrics.tradesToday}/{account.maxDailyTrades})
@@ -387,7 +387,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                 </span>
               </div>
             </div>
-            <span className="px-2.5 py-1 rounded bg-amber-500 text-slate-950 text-xs font-military font-bold">
+            <span className="px-2.5 py-1 rounded bg-blue-500 text-slate-950 text-xs font-military font-bold">
               LOCKED
             </span>
           </div>
@@ -432,8 +432,8 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
         )}
 
         {isDrawdownNearing && !isDrawdownBreached && (
-          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+          <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-amber-300 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-cyan-400 shrink-0" />
             <span className="text-xs font-sans">
               Warning: Current drawdown ({metrics.maxDrawdownPercent.toFixed(1)}%) is approaching your maximum threshold ({account.maxDrawdownPercent}%). Reduce position risk to protect equity.
             </span>
@@ -444,11 +444,11 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
       {/* Grid: Tactical Defense Guardrails & Master Balance Risk Guidance */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Card 1: Tactical Defense Guardrails */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
               <div className="flex items-center gap-2 text-slate-200">
-                <Shield className="w-4 h-4 text-amber-400" />
+                <Shield className="w-4 h-4 text-cyan-400" />
                 <h4 className="text-xs font-military font-bold tracking-wider uppercase">
                   TACTICAL DEFENSE GUARDRAILS
                 </h4>
@@ -460,7 +460,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-slate-400">Max Risk Per Trade</label>
-                  <span className="text-[10px] text-amber-400 font-bold">STANDARD: 1.0%</span>
+                  <span className="text-[10px] text-cyan-400 font-bold">STANDARD: 1.0%</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <input
@@ -475,7 +475,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                         maxRiskPerTradePercent: Math.min(2.0, parseFloat(e.target.value) || 1.0),
                       })
                     }
-                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-amber-400 font-bold outline-none focus:border-amber-400"
+                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-cyan-400 font-bold outline-none focus:border-cyan-400"
                   />
                   <span className="text-slate-400">%</span>
                 </div>
@@ -502,7 +502,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                         maxDailyLossPercent: parseFloat(e.target.value) || 2.0,
                       })
                     }
-                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 font-bold outline-none focus:border-amber-400"
+                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 font-bold outline-none focus:border-cyan-400"
                   />
                   <span className="text-slate-400">%</span>
                 </div>
@@ -526,7 +526,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                         maxDrawdownPercent: parseFloat(e.target.value) || 5.0,
                       })
                     }
-                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 font-bold outline-none focus:border-amber-400"
+                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 font-bold outline-none focus:border-cyan-400"
                   />
                   <span className="text-slate-400">%</span>
                 </div>
@@ -545,7 +545,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                       maxDailyTrades: parseInt(e.target.value) || 2,
                     })
                   }
-                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-amber-400 font-bold outline-none focus:border-amber-400"
+                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-cyan-400 font-bold outline-none focus:border-cyan-400"
                 />
               </div>
             </div>
@@ -557,11 +557,11 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
         </div>
 
         {/* Card 2: Master Account Balance Risk Guidance (Section 8) */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
               <div className="flex items-center gap-2">
-                <Crosshair className="w-4 h-4 text-amber-400" />
+                <Crosshair className="w-4 h-4 text-cyan-400" />
                 <h4 className="text-xs font-military font-bold tracking-wider text-slate-200 uppercase">
                   ACTIVE BALANCE RISK GUIDANCE
                 </h4>
@@ -585,7 +585,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
 
               <div className="flex items-center justify-between py-1.5 border-b border-slate-800/60">
                 <span className="text-slate-400 uppercase">MAX RISK PER TRADE:</span>
-                <span className="font-bold text-amber-400">
+                <span className="font-bold text-cyan-400">
                   1% ({formatCurrency(master1PercentRiskDollars, account.currency)})
                 </span>
               </div>
@@ -620,11 +620,11 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
             </div>
 
             <div className="mt-4 p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono-code text-slate-300 leading-relaxed">
-              <div className="text-[10px] uppercase font-bold tracking-wider mb-1 text-amber-400 font-military flex items-center gap-1.5">
+              <div className="text-[10px] uppercase font-bold tracking-wider mb-1 text-cyan-400 font-military flex items-center gap-1.5">
                 <Info className="w-3 h-3" />
                 INSTITUTIONAL POSITION SIZING DIRECTIVE:
               </div>
-              Use the official <strong className="text-amber-400">LOT SIZE CALCULATOR</strong> in the main navigation for exact lot size calculation on any manual instrument with stop loss in pips.
+              Use the official <strong className="text-cyan-400">LOT SIZE CALCULATOR</strong> in the main navigation for exact lot size calculation on any manual instrument with stop loss in pips.
             </div>
           </div>
 
@@ -635,7 +635,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
       </div>
 
       {/* SECTION 12: WIN / LOSS DISCIPLINE GUIDANCE & REAL AUDIT */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+      <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2.5">
             <div className={`p-2 rounded-lg border ${
@@ -643,7 +643,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                 : latestClosedTrade && (latestClosedTrade.profitLoss || 0) < 0
                 ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                : 'bg-blue-500/10 border-blue-500/30 text-cyan-400'
             }`}>
               <Shield className="w-5 h-5" />
             </div>
@@ -717,9 +717,9 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                   </span>
                 </div>
 
-                <div className="p-3 rounded-lg bg-slate-950 border border-amber-500/30">
-                  <span className="text-amber-400 text-[10px] uppercase block font-bold">Next 1% Risk Cap</span>
-                  <span className="text-sm font-black text-amber-400 mt-0.5 block">
+                <div className="p-3 rounded-lg bg-slate-950 border border-blue-500/30">
+                  <span className="text-cyan-400 text-[10px] uppercase block font-bold">Next 1% Risk Cap</span>
+                  <span className="text-sm font-black text-cyan-400 mt-0.5 block">
                     {formatCurrency(next1Pct, account.currency)}
                   </span>
                 </div>
@@ -750,7 +750,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                   : 'bg-slate-950 border-slate-800'
               }`}>
                 <Info className={`w-5 h-5 shrink-0 mt-0.5 ${
-                  isLoss ? 'text-rose-400' : isWin ? 'text-emerald-400' : 'text-amber-400'
+                  isLoss ? 'text-rose-400' : isWin ? 'text-emerald-400' : 'text-cyan-400'
                 }`} />
                 <div className="space-y-1">
                   <div className="text-[11px] font-military font-bold uppercase tracking-wider text-slate-200">
@@ -767,11 +767,11 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
       </div>
 
       {/* Trading Rules Checklist & Violation Enforcement */}
-      <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 shadow-lg">
+      <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-5 shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-4">
           <div>
             <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4 text-amber-400" />
+              <Lock className="w-4 h-4 text-cyan-400" />
               <h3 className="text-sm font-military font-bold text-slate-100">
                 ACTIVE TRADING COMMAND RULES (PLAYBOOK)
               </h3>
@@ -805,7 +805,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
               onClick={() => setCategoryFilter(cat)}
               className={`px-2.5 py-1 rounded-md transition ${
                 categoryFilter === cat
-                  ? 'bg-amber-500 text-slate-950 font-bold'
+                  ? 'bg-blue-500 text-slate-950 font-bold'
                   : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800'
               }`}
             >
@@ -833,7 +833,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                       <button
                         id={`toggle-rule-${rule.id}`}
                         onClick={() => onToggleRule(rule.id)}
-                        className="mt-0.5 text-amber-400 hover:text-amber-300 transition"
+                        className="mt-0.5 text-cyan-400 hover:text-amber-300 transition"
                         title={isActive ? 'Click to deactivate rule' : 'Click to activate rule'}
                       >
                         {isActive ? (
@@ -857,7 +857,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => handleOpenEditModal(rule)}
-                        className="p-1 rounded text-slate-500 hover:text-amber-400 transition"
+                        className="p-1 rounded text-slate-500 hover:text-cyan-400 transition"
                         title="Edit Rule"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -875,7 +875,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
 
                 <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px] font-mono-code">
                   <div className="flex items-center gap-1.5">
-                    <span className="px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                    <span className="px-1.5 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
                       {rule.category || 'RISK'}
                     </span>
                     {rule.isHardRule && (
@@ -884,7 +884,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                       </span>
                     )}
                     {rule.severity && (
-                      <span className={`px-1.5 py-0.5 rounded ${rule.severity === 'MAJOR' ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-800 text-slate-400'}`}>
+                      <span className={`px-1.5 py-0.5 rounded ${rule.severity === 'MAJOR' ? 'bg-blue-500/20 text-amber-300' : 'bg-slate-800 text-slate-400'}`}>
                         {rule.severity}
                       </span>
                     )}
@@ -906,7 +906,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
           <div className="bg-[#0B0F19] border border-slate-700/80 rounded-xl p-6 max-w-lg w-full shadow-2xl space-y-4 font-mono-code">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2 text-slate-100 font-military font-bold text-sm">
-                <Lock className="w-4 h-4 text-amber-400" />
+                <Lock className="w-4 h-4 text-cyan-400" />
                 <span>{editingRuleId ? 'EDIT TRADING RULE' : 'ADD NEW TRADING COMMAND RULE'}</span>
               </div>
               <button
@@ -926,7 +926,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                   placeholder="e.g. Never enter without 15M FVG confluence"
                   value={ruleTitle}
                   onChange={(e) => setRuleTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-600 outline-none focus:border-amber-400"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-600 outline-none focus:border-cyan-400"
                 />
               </div>
 
@@ -937,7 +937,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                   placeholder="Context and rationale behind this discipline requirement..."
                   value={ruleDescription}
                   onChange={(e) => setRuleDescription(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-600 outline-none focus:border-amber-400 resize-none"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-600 outline-none focus:border-cyan-400 resize-none"
                 />
               </div>
 
@@ -947,7 +947,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                   <select
                     value={ruleCategory}
                     onChange={(e) => setRuleCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 outline-none focus:border-amber-400"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 outline-none focus:border-cyan-400"
                   >
                     <option value="RISK">RISK</option>
                     <option value="EXECUTION">EXECUTION</option>
@@ -960,7 +960,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
                   <select
                     value={ruleSeverity}
                     onChange={(e) => setRuleSeverity(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 outline-none focus:border-amber-400"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 outline-none focus:border-cyan-400"
                   >
                     <option value="MAJOR">MAJOR (Critical)</option>
                     <option value="MINOR">MINOR (Discretionary)</option>

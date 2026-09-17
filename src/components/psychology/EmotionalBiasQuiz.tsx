@@ -131,10 +131,10 @@ export const EmotionalBiasQuiz: React.FC = () => {
   const res = calculateResult();
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+    <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
       <div className="flex items-center justify-between border-b border-slate-800 pb-4">
         <div>
-          <span className="text-[10px] font-military font-bold text-amber-400 uppercase tracking-widest">
+          <span className="text-[10px] font-military font-bold text-cyan-400 uppercase tracking-widest">
             COGNITIVE DISTORTION DIAGNOSIS
           </span>
           <h3 className="text-base font-military font-bold text-slate-100 mt-1">
@@ -147,7 +147,7 @@ export const EmotionalBiasQuiz: React.FC = () => {
 
         <div className="text-right">
           <span className="text-[10px] font-mono-code text-slate-400 uppercase block">Progress</span>
-          <span className="text-sm font-mono-code font-bold text-amber-400">
+          <span className="text-sm font-mono-code font-bold text-cyan-400">
             {Object.keys(answers).length} / {questions.length}
           </span>
         </div>
@@ -160,7 +160,7 @@ export const EmotionalBiasQuiz: React.FC = () => {
             return (
               <div key={q.id} className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
                 <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded bg-slate-800 text-amber-400 font-bold font-mono-code text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="w-5 h-5 rounded bg-slate-800 text-cyan-400 font-bold font-mono-code text-[11px] flex items-center justify-center shrink-0 mt-0.5">
                     {q.id}
                   </span>
                   <p className="text-xs font-mono-code text-slate-200 font-medium leading-relaxed">
@@ -177,12 +177,12 @@ export const EmotionalBiasQuiz: React.FC = () => {
                         onClick={() => handleSelect(q.id, idx)}
                         className={`w-full p-3 rounded-lg border text-left text-xs font-mono-code transition flex items-center justify-between cursor-pointer ${
                           isChecked
-                            ? 'bg-amber-500/10 border-amber-500 text-amber-300 font-bold'
-                            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                            ? 'bg-blue-500/10 border-blue-500 text-amber-300 font-bold'
+                            : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
                         }`}
                       >
                         <span>{opt.text}</span>
-                        {isChecked && <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 ml-2" />}
+                        {isChecked && <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0 ml-2" />}
                       </button>
                     );
                   })}
@@ -195,7 +195,7 @@ export const EmotionalBiasQuiz: React.FC = () => {
             <button
               onClick={() => setIsSubmitted(true)}
               disabled={Object.keys(answers).length < questions.length}
-              className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-military font-bold text-xs shadow-lg shadow-amber-500/20 cursor-pointer transition"
+              className="px-6 py-2.5 rounded-xl bg-blue-500 hover:bg-cyan-400 disabled:opacity-40 text-slate-950 font-military font-bold text-xs shadow-lg shadow-blue-500/20 cursor-pointer transition"
             >
               GENERATE PSYCHOLOGICAL PROFILE
             </button>
@@ -204,7 +204,7 @@ export const EmotionalBiasQuiz: React.FC = () => {
       ) : (
         <div className="bg-slate-950 border border-slate-800 rounded-xl p-6 space-y-5">
           <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
               <Brain className="w-6 h-6" />
             </div>
             <div>
@@ -218,7 +218,7 @@ export const EmotionalBiasQuiz: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
               <span className="text-[10px] text-slate-400 font-mono-code uppercase block">Revenge Vulnerability</span>
               <div className={`text-base font-bold font-mono-code ${res.revengeCount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                 {res.revengeCount > 0 ? 'ACTIVE HAZARD' : 'CONTROLLED'}
@@ -230,9 +230,9 @@ export const EmotionalBiasQuiz: React.FC = () => {
               </p>
             </div>
 
-            <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
               <span className="text-[10px] text-slate-400 font-mono-code uppercase block">Loss Aversion</span>
-              <div className={`text-base font-bold font-mono-code ${res.lossAversionCount > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+              <div className={`text-base font-bold font-mono-code ${res.lossAversionCount > 0 ? 'text-cyan-400' : 'text-emerald-400'}`}>
                 {res.lossAversionCount > 0 ? 'MODERATE BIAS' : 'HEALTHY'}
               </div>
               <p className="text-[11px] text-slate-400 font-sans mt-1">
@@ -242,7 +242,7 @@ export const EmotionalBiasQuiz: React.FC = () => {
               </p>
             </div>
 
-            <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
               <span className="text-[10px] text-slate-400 font-mono-code uppercase block">Discipline Index</span>
               <div className="text-base font-bold font-mono-code text-emerald-400">
                 {Math.round((res.disciplinedCount / questions.length) * 100)}%
@@ -253,8 +253,8 @@ export const EmotionalBiasQuiz: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-mono-code text-amber-300 space-y-1.5">
-            <span className="font-military font-bold uppercase tracking-wider block text-amber-400">
+          <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl text-xs font-mono-code text-amber-300 space-y-1.5">
+            <span className="font-military font-bold uppercase tracking-wider block text-cyan-400">
               Prescription For Next 10 Trades:
             </span>
             <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
@@ -270,7 +270,7 @@ export const EmotionalBiasQuiz: React.FC = () => {
                 setIsSubmitted(false);
                 setAnswers({});
               }}
-              className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-slate-100 text-xs font-mono-code flex items-center gap-1.5 transition cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-slate-100 text-xs font-mono-code flex items-center gap-1.5 transition cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>RETAKE QUIZ</span>

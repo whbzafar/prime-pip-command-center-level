@@ -92,15 +92,15 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#070A11]/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="w-full max-w-xl bg-slate-900 border border-amber-500/40 rounded-2xl shadow-2xl p-6 sm:p-8 relative overflow-hidden my-auto">
+    <div className="fixed inset-0 z-50 bg-[#020617]/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+      <div className="w-full max-w-xl bg-slate-950 border border-blue-500/40 rounded-2xl shadow-2xl p-6 sm:p-8 relative overflow-hidden my-auto">
         {/* Radar ambient glow */}
-        <div className="absolute -right-16 -top-16 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -right-16 -top-16 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -left-16 -bottom-16 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Tactical Header Badge */}
         <div className="flex items-center gap-2 mb-3">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-mono-code font-bold uppercase tracking-widest">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-blue-500/10 border border-blue-500/30 text-cyan-400 text-[11px] font-mono-code font-bold uppercase tracking-widest">
             <Crosshair className="w-3.5 h-3.5" />
             INITIAL SYSTEM INITIALIZATION
           </span>
@@ -137,7 +137,7 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
               value={accountName}
               onChange={(e) => setAccountName(e.target.value)}
               placeholder="e.g. My Trading Account"
-              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 text-sm font-mono-code transition"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 text-sm font-mono-code transition"
             />
           </div>
 
@@ -159,7 +159,7 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
                   value={startingBalance}
                   onChange={(e) => setStartingBalance(e.target.value)}
                   placeholder="5000"
-                  className="w-full pl-8 pr-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 text-sm font-mono-code transition font-bold"
+                  className="w-full pl-8 pr-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 text-sm font-mono-code transition font-bold"
                 />
               </div>
               <span className="text-[10px] text-slate-400 font-mono-code mt-1 block">
@@ -179,7 +179,7 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
                     onClick={() => setCurrency(c)}
                     className={`py-2 text-xs font-mono-code rounded-lg border transition font-bold text-center ${
                       currency === c
-                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
+                        ? 'bg-blue-500 text-slate-950 border-cyan-400 shadow-md shadow-blue-500/20'
                         : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
                     }`}
                   >
@@ -214,7 +214,7 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
                     onClick={() => setAccountType(opt.id)}
                     className={`p-3 rounded-xl border text-left flex items-start justify-between transition ${
                       isSelected
-                        ? 'bg-amber-500/10 border-amber-500 text-slate-100 shadow-lg shadow-amber-500/10'
+                        ? 'bg-blue-500/10 border-blue-500 text-slate-100 shadow-lg shadow-blue-500/10'
                         : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
                     }`}
                   >
@@ -225,7 +225,7 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
                       <div className="text-[10px] text-slate-400 mt-0.5">{opt.sub}</div>
                     </div>
                     {isSelected && (
-                      <div className="w-4 h-4 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="w-4 h-4 rounded-full bg-blue-500 text-slate-950 flex items-center justify-center shrink-0 mt-0.5">
                         <Check className="w-3 h-3 stroke-[3]" />
                       </div>
                     )}
@@ -254,7 +254,7 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
             <button
               type="submit"
               id="create-trading-account-btn"
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-military font-bold text-sm tracking-wider uppercase shadow-xl shadow-amber-500/25 flex items-center justify-center gap-2 transition transform active:scale-[0.99] cursor-pointer"
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-cyan-400 hover:to-amber-300 text-slate-950 font-military font-bold text-sm tracking-wider uppercase shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2 transition transform active:scale-[0.99] cursor-pointer"
             >
               <span>CREATE TRADING ACCOUNT</span>
               <ArrowRight className="w-4 h-4 stroke-[3]" />

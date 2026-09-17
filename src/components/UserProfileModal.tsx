@@ -95,11 +95,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+      <div className="bg-slate-950 border border-slate-700/80 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
               <User className="w-4 h-4" />
             </div>
             <div>
@@ -126,7 +126,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </label>
           <div className="flex items-center gap-4">
             <div className="relative group">
-              <div className="w-16 h-16 rounded-full border-2 border-amber-500/80 overflow-hidden bg-slate-950 flex items-center justify-center shadow-lg">
+              <div className="w-16 h-16 rounded-full border-2 border-blue-500/80 overflow-hidden bg-slate-950 flex items-center justify-center shadow-lg">
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
@@ -134,13 +134,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <User className="w-8 h-8 text-amber-400" />
+                  <User className="w-8 h-8 text-cyan-400" />
                 )}
               </div>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 title="Upload Photo"
-                className="absolute bottom-0 right-0 p-1.5 rounded-full bg-amber-500 text-slate-950 hover:bg-amber-400 transition shadow cursor-pointer"
+                className="absolute bottom-0 right-0 p-1.5 rounded-full bg-blue-500 text-slate-950 hover:bg-cyan-400 transition shadow cursor-pointer"
               >
                 <Camera className="w-3 h-3 stroke-[2.5]" />
               </button>
@@ -158,7 +158,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 onClick={() => fileInputRef.current?.click()}
                 className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:text-slate-100 hover:border-slate-700 text-xs font-mono-code flex items-center gap-1.5 transition cursor-pointer"
               >
-                <Upload className="w-3 h-3 text-amber-400" />
+                <Upload className="w-3 h-3 text-cyan-400" />
                 <span>Upload Custom Image</span>
               </button>
               <span className="text-[10px] text-slate-500 font-mono-code block">
@@ -179,7 +179,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   onClick={() => setAvatarUrl(url)}
                   className={`w-8 h-8 rounded-full overflow-hidden border-2 transition cursor-pointer ${
                     avatarUrl === url
-                      ? 'border-amber-500 scale-110 shadow-md ring-2 ring-amber-400/40'
+                      ? 'border-blue-500 scale-110 shadow-md ring-2 ring-cyan-400/40'
                       : 'border-slate-800 opacity-60 hover:opacity-100 hover:border-slate-600'
                   }`}
                 >
@@ -198,7 +198,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <div className="grid grid-cols-3 gap-2 font-mono-code text-xs">
             {[
               { id: 'ONLINE', label: 'Online', dot: 'bg-emerald-400' },
-              { id: 'AWAY', label: 'Away / Charts', dot: 'bg-amber-400' },
+              { id: 'AWAY', label: 'Away / Charts', dot: 'bg-cyan-400' },
               { id: 'OFFLINE', label: 'Invisible', dot: 'bg-slate-500' },
             ].map((st) => (
               <button
@@ -206,7 +206,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 onClick={() => setOnlineStatus(st.id as any)}
                 className={`py-2 px-3 rounded-lg border flex items-center gap-2 justify-center transition cursor-pointer ${
                   onlineStatus === st.id
-                    ? 'bg-slate-950 border-amber-500 text-amber-300 font-bold shadow-md'
+                    ? 'bg-slate-950 border-blue-500 text-amber-300 font-bold shadow-md'
                     : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -228,7 +228,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Master Trader Farhan"
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 focus:outline-none focus:border-amber-500"
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -241,7 +241,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               value={tradingStyle}
               onChange={(e) => setTradingStyle(e.target.value)}
               placeholder="e.g. ICT SBT Model | London & NY Session Scalper"
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 focus:outline-none focus:border-amber-500"
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -254,7 +254,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               onChange={(e) => setBio(e.target.value)}
               rows={2}
               placeholder="Tell other community members about your journey, model, or risk philosophy..."
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 focus:outline-none focus:border-amber-500 resize-none"
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 focus:outline-none focus:border-blue-500 resize-none"
             />
           </div>
         </div>
@@ -287,7 +287,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         {/* Modal Actions */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-800">
           <div className="flex items-center gap-1.5 text-xs font-mono-code text-slate-400">
-            <Shield className="w-3.5 h-3.5 text-amber-400" />
+            <Shield className="w-3.5 h-3.5 text-cyan-400" />
             <span>Role: <strong className="text-slate-200">{user.role}</strong></span>
           </div>
 
@@ -300,7 +300,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </button>
             <button
               onClick={handleSave}
-              className="px-5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition cursor-pointer"
+              className="px-5 py-2 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-blue-500/20 transition cursor-pointer"
             >
               {isSavedNotice ? <Check className="w-3.5 h-3.5" /> : null}
               <span>{isSavedNotice ? 'SAVED!' : 'SAVE PROFILE'}</span>

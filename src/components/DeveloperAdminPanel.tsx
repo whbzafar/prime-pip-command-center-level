@@ -46,7 +46,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
   // Strict authorization check: Customer accounts can NEVER access Admin Panel
   if (!isUserAdmin(currentUser)) {
     return (
-      <div className="bg-slate-900 border border-rose-500/30 rounded-xl p-8 text-center space-y-4 max-w-lg mx-auto my-12">
+      <div className="bg-slate-950 border border-rose-500/30 rounded-xl p-8 text-center space-y-4 max-w-lg mx-auto my-12">
         <div className="w-16 h-16 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/20">
           <Lock className="w-8 h-8" />
         </div>
@@ -485,10 +485,10 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
   return (
     <div className="space-y-6">
       {/* Top Developer Bar */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+      <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-400">
+            <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-2xl text-cyan-400">
               <ShieldCheck className="w-7 h-7" />
             </div>
             <div>
@@ -496,12 +496,12 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                 <h1 className="text-xl font-military font-bold tracking-wider text-slate-100 uppercase">
                   DEVELOPER & OWNER CONTROL PANEL
                 </h1>
-                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-mono-code font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-amber-300 border border-blue-500/40 text-[10px] font-mono-code font-bold">
                   MASTER PRIVILEGES
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-mono-code mt-0.5">
-                Owner WhatsApp: <span className="text-amber-400 font-bold">03406671495</span> • Full System & Customer Management
+                Owner WhatsApp: <span className="text-cyan-400 font-bold">03406671495</span> • Full System & Customer Management
               </p>
             </div>
           </div>
@@ -564,16 +564,16 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
 
       {/* KPI Stats Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono-code">
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4">
           <div className="text-[11px] text-slate-400 uppercase font-bold flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5 text-amber-400" />
+            <Users className="w-3.5 h-3.5 text-cyan-400" />
             Total Customers
           </div>
           <div className="text-2xl font-black text-slate-100 mt-1">{regularCustomers.length}</div>
           <div className="text-[10px] text-slate-500 mt-0.5">Enrolled Traders</div>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4">
           <div className="text-[11px] text-slate-400 uppercase font-bold flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
             Active Subscriptions
@@ -582,7 +582,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
           <div className="text-[10px] text-slate-500 mt-0.5">{lifetimeCount} Lifetime</div>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4">
           <div className="text-[11px] text-slate-400 uppercase font-bold flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-rose-400" />
             Expired Accounts
@@ -591,7 +591,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
           <div className="text-[10px] text-slate-500 mt-0.5">{pendingPaymentCount} Pending Payment</div>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4">
           <div className="text-[11px] text-slate-400 uppercase font-bold flex items-center gap-1.5">
             <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
             Est. Monthly Revenue
@@ -607,7 +607,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
           onClick={() => setActiveTab('CUSTOMERS')}
           className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
             activeTab === 'CUSTOMERS'
-              ? 'border-amber-400 text-amber-400'
+              ? 'border-cyan-400 text-cyan-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -619,7 +619,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
           onClick={() => setActiveTab('CREATE')}
           className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
             activeTab === 'CREATE'
-              ? 'border-amber-400 text-amber-400'
+              ? 'border-cyan-400 text-cyan-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -631,7 +631,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
           onClick={() => setActiveTab('APPOINTMENTS')}
           className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
             activeTab === 'APPOINTMENTS'
-              ? 'border-amber-400 text-amber-400'
+              ? 'border-cyan-400 text-cyan-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -643,7 +643,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
           onClick={() => setActiveTab('MODERATION')}
           className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
             activeTab === 'MODERATION'
-              ? 'border-amber-400 text-amber-400'
+              ? 'border-cyan-400 text-cyan-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -655,7 +655,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
           onClick={() => setActiveTab('REFERRALS')}
           className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
             activeTab === 'REFERRALS'
-              ? 'border-amber-400 text-amber-400'
+              ? 'border-cyan-400 text-cyan-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -667,7 +667,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
           onClick={() => setActiveTab('DEVELOPER_SECURITY')}
           className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
             activeTab === 'DEVELOPER_SECURITY'
-              ? 'border-amber-400 text-amber-400'
+              ? 'border-cyan-400 text-cyan-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -690,7 +690,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
 
       {/* TAB 1: CUSTOMERS TABLE */}
       {activeTab === 'CUSTOMERS' && (
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="relative w-full sm:w-72">
               <input
@@ -698,7 +698,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search username, name, or status..."
-                className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-400"
+                className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-400"
               />
               <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
             </div>
@@ -752,7 +752,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
 
                       <td className="py-3">
                         {isDev ? (
-                          <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold">
+                          <span className="px-2 py-0.5 rounded bg-blue-500/20 text-amber-300 border border-blue-500/40 text-[10px] font-bold">
                             DEVELOPER / OWNER
                           </span>
                         ) : (
@@ -782,7 +782,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                             cust.paymentStatus === 'VERIFIED'
                               ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
                               : cust.paymentStatus === 'PENDING'
-                              ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                              ? 'bg-blue-500/10 text-amber-300 border-blue-500/30'
                               : 'bg-rose-500/10 text-rose-300 border-rose-500/30'
                           }`}
                         >
@@ -792,7 +792,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
 
                       <td className="py-3 text-slate-300">
                         {cust.referralCode ? (
-                          <span className="text-amber-400 font-bold">{cust.referralCode}</span>
+                          <span className="text-cyan-400 font-bold">{cust.referralCode}</span>
                         ) : (
                           <span className="text-slate-600">—</span>
                         )}
@@ -872,7 +872,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                               className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[10px] transition-colors border border-slate-700 flex items-center gap-1"
                               title="Edit Customer Profile & Expiry"
                             >
-                              <Edit className="w-3 h-3 text-amber-400" />
+                              <Edit className="w-3 h-3 text-cyan-400" />
                               Edit
                             </button>
 
@@ -896,7 +896,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                   <tr>
                     <td colSpan={7} className="py-14 text-center">
                       <div className="flex flex-col items-center justify-center space-y-3">
-                        <div className="w-14 h-14 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center text-amber-400/80">
+                        <div className="w-14 h-14 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center text-cyan-400/80">
                           <Users className="w-7 h-7" />
                         </div>
                         <p className="text-base text-slate-200 font-mono-code font-bold">
@@ -907,7 +907,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                         </p>
                         <button
                           onClick={() => setActiveTab('CREATE')}
-                          className="mt-3 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs rounded-xl transition shadow-lg shadow-amber-500/20 flex items-center gap-2 cursor-pointer"
+                          className="mt-3 px-5 py-2.5 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs rounded-xl transition shadow-lg shadow-blue-500/20 flex items-center gap-2 cursor-pointer"
                         >
                           <UserPlus className="w-4 h-4" />
                           <span>CREATE FIRST CUSTOMER ACCOUNT</span>
@@ -925,7 +925,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       {/* CONFIRM DELETE CUSTOMER MODAL */}
       {customerToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-rose-500/40 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 font-mono-code text-xs">
+          <div className="bg-slate-950 border border-rose-500/40 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 font-mono-code text-xs">
             <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto">
               <AlertTriangle className="w-6 h-6" />
             </div>
@@ -935,7 +935,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
               </h3>
               <p className="text-xs text-slate-300">
                 Are you sure you want to permanently delete customer{' '}
-                <strong className="text-amber-400">@{customerToDelete.username}</strong>?
+                <strong className="text-cyan-400">@{customerToDelete.username}</strong>?
               </p>
               <p className="text-[11px] text-rose-400/90 leading-relaxed pt-1">
                 All associated login sessions and account records will be permanently removed.
@@ -963,11 +963,11 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       {/* EDIT CUSTOMER MODAL */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4 font-mono-code text-xs">
+          <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4 font-mono-code text-xs">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
                 <h3 className="font-military font-bold text-sm text-slate-100 uppercase tracking-wider flex items-center gap-2">
-                  <Edit className="w-4 h-4 text-amber-400" />
+                  <Edit className="w-4 h-4 text-cyan-400" />
                   EDIT CUSTOMER: @{editingUser.username}
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">
@@ -989,7 +989,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                   type="text"
                   value={editingUser.name}
                   onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
                 />
               </div>
 
@@ -1007,7 +1007,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                         expiryDate: newStatus === 'LIFETIME' ? '2099-12-31' : editingUser.expiryDate,
                       });
                     }}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
                   >
                     <option value="ACTIVE">ACTIVE</option>
                     <option value="EXPIRED">EXPIRED</option>
@@ -1021,7 +1021,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                   <select
                     value={editingUser.paymentStatus || 'UNPAID'}
                     onChange={(e) => setEditingUser({ ...editingUser, paymentStatus: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
                   >
                     <option value="VERIFIED">VERIFIED</option>
                     <option value="PENDING">PENDING</option>
@@ -1038,7 +1038,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                     value={editingUser.expiryDate || ''}
                     disabled={editingUser.subscriptionStatus === 'LIFETIME'}
                     onChange={(e) => setEditingUser({ ...editingUser, expiryDate: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none disabled:opacity-50"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none disabled:opacity-50"
                   />
                 </div>
 
@@ -1048,7 +1048,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                     type="number"
                     value={editingUser.subscriptionPrice || 50}
                     onChange={(e) => setEditingUser({ ...editingUser, subscriptionPrice: parseFloat(e.target.value) || 50 })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1060,7 +1060,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                   value={editingUser.adminNotes || ''}
                   onChange={(e) => setEditingUser({ ...editingUser, adminNotes: e.target.value })}
                   placeholder="Notes on payment, customer relationship, or contact details"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
                 />
               </div>
             </div>
@@ -1087,7 +1087,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                   });
                   setEditingUser(null);
                 }}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl transition-colors shadow-lg shadow-amber-500/20"
+                className="px-4 py-2 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl transition-colors shadow-lg shadow-blue-500/20"
               >
                 Save Changes
               </button>
@@ -1098,10 +1098,10 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
 
       {/* TAB 2: CREATE CUSTOMER */}
       {activeTab === 'CREATE' && (
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl max-w-2xl mx-auto space-y-5">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl max-w-2xl mx-auto space-y-5">
           <div className="border-b border-slate-800 pb-3">
             <h2 className="text-sm font-military font-bold tracking-wider text-slate-100 uppercase flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-amber-400" />
+              <UserPlus className="w-4 h-4 text-cyan-400" />
               CREATE NEW CUSTOMER ACCOUNT
             </h2>
             <p className="text-xs text-slate-400 font-mono-code mt-0.5">
@@ -1125,7 +1125,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="e.g. Tariq Khan"
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none"
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
                 />
               </div>
 
@@ -1137,7 +1137,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value.toLowerCase().trim())}
                   placeholder="e.g. tariq01"
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none"
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
                 />
               </div>
             </div>
@@ -1148,7 +1148,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                 <button
                   type="button"
                   onClick={handleGeneratePassword}
-                  className="text-amber-400 hover:text-amber-300 text-[11px] underline"
+                  className="text-cyan-400 hover:text-amber-300 text-[11px] underline"
                 >
                   Generate Random Password
                 </button>
@@ -1158,7 +1158,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Leave blank to auto-generate"
-                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none"
+                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
               />
             </div>
 
@@ -1178,7 +1178,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                     }
                   }}
                   placeholder="e.g. PPFX-TARIQ-123"
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none uppercase font-bold"
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none uppercase font-bold"
                 />
               </div>
 
@@ -1188,7 +1188,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                   type="number"
                   value={newPrice}
                   onChange={(e) => setNewPrice(parseFloat(e.target.value) || 50)}
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none font-bold"
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none font-bold"
                 />
               </div>
             </div>
@@ -1199,7 +1199,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                 <select
                   value={newPaymentStatus}
                   onChange={(e) => setNewPaymentStatus(e.target.value as any)}
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none"
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
                 >
                   <option value="VERIFIED">VERIFIED (Paid on WhatsApp)</option>
                   <option value="PENDING">PENDING</option>
@@ -1216,7 +1216,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                     setNewStatus(val);
                     setNewIsLifetime(val === 'LIFETIME');
                   }}
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none"
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
                 >
                   <option value="ACTIVE">ACTIVE (Standard 30-Day Period)</option>
                   <option value="LIFETIME">LIFETIME ACCESS (Never Expires)</option>
@@ -1232,13 +1232,13 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                 onChange={(e) => setNewNotes(e.target.value)}
                 placeholder="e.g. Paid via Easypaisa / JazzCash / Bank transfer on 03406671495"
                 rows={2}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
               />
             </div>
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-amber-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 cursor-pointer"
             >
               <UserPlus className="w-4 h-4" />
               CREATE CUSTOMER & PREPARE WHATSAPP MESSAGE
@@ -1249,14 +1249,14 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
 
       {/* TAB 3: REFERRALS */}
       {activeTab === 'REFERRALS' && (
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
           <div className="border-b border-slate-800 pb-3">
             <h2 className="text-sm font-military font-bold tracking-wider text-slate-100 uppercase flex items-center gap-2">
               <Gift className="w-4 h-4 text-purple-400" />
               REFERRALS & LIFETIME ACCESS REWARD AUDITOR
             </h2>
             <p className="text-xs text-slate-400 font-mono-code mt-0.5">
-              Rule: When a referred customer pays and is activated by the Developer, the referrer automatically receives <span className="text-amber-400 font-bold">LIFETIME FREE ACCESS</span>.
+              Rule: When a referred customer pays and is activated by the Developer, the referrer automatically receives <span className="text-cyan-400 font-bold">LIFETIME FREE ACCESS</span>.
             </p>
           </div>
 
@@ -1294,7 +1294,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                           ref.rewardStatus === 'GRANTED_LIFETIME'
                             ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
-                            : 'bg-amber-500/10 text-amber-300'
+                            : 'bg-blue-500/10 text-amber-300'
                         }`}>
                           {ref.rewardStatus}
                         </span>
@@ -1311,11 +1311,11 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
 
       {/* TAB 4: APPOINTMENTS */}
       {activeTab === 'APPOINTMENTS' && (
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div>
               <h2 className="text-sm font-military font-bold tracking-wider text-slate-100 uppercase flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-amber-400" />
+                <Calendar className="w-4 h-4 text-cyan-400" />
                 MENTORSHIP & CALL APPOINTMENT MANAGEMENT
               </h2>
               <p className="text-xs text-slate-400 font-mono-code mt-0.5">
@@ -1355,7 +1355,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                       <td className="py-3">
                         <div className="font-bold text-slate-200">{apt.userName}</div>
                         {apt.userPhone && (
-                          <div className="text-[11px] text-amber-400/80 flex items-center gap-1">
+                          <div className="text-[11px] text-cyan-400/80 flex items-center gap-1">
                             <span>📞 {apt.userPhone}</span>
                           </div>
                         )}
@@ -1394,7 +1394,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                               ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
                               : apt.status === 'CANCELLED'
                               ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                              : 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse'
+                              : 'bg-blue-500/20 text-amber-300 border-blue-500/40 animate-pulse'
                           }`}
                         >
                           {apt.status}
@@ -1475,7 +1475,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
 
       {/* TAB 5: MODERATION */}
       {activeTab === 'MODERATION' && (
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
           <div className="border-b border-slate-800 pb-3">
             <h2 className="text-sm font-military font-bold tracking-wider text-slate-100 uppercase flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-rose-400" />
@@ -1522,7 +1522,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                           className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                             warn.warningNumber >= 5
                               ? 'bg-rose-600 text-white font-black animate-pulse'
-                              : 'bg-amber-500/20 text-amber-300'
+                              : 'bg-blue-500/20 text-amber-300'
                           }`}
                         >
                           Warning {warn.warningNumber} of 5 {warn.warningNumber >= 5 && '(SUSPENDED)'}
@@ -1559,10 +1559,10 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
 
       {/* TAB 6: DEVELOPER SECURITY */}
       {activeTab === 'DEVELOPER_SECURITY' && (
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl max-w-xl mx-auto space-y-6">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl max-w-xl mx-auto space-y-6">
           <div className="border-b border-slate-800 pb-3">
             <h2 className="text-sm font-military font-bold tracking-wider text-slate-100 uppercase flex items-center gap-2">
-              <KeyRound className="w-4 h-4 text-amber-400" />
+              <KeyRound className="w-4 h-4 text-cyan-400" />
               DEVELOPER & OWNER VAULT CREDENTIALS
             </h2>
             <p className="text-xs text-slate-400 font-mono-code mt-0.5">
@@ -1608,7 +1608,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                 value={devNewPassword}
                 onChange={(e) => setDevNewPassword(e.target.value)}
                 placeholder="Enter new strong password (min 6 characters)"
-                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none"
+                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
               />
             </div>
 
@@ -1620,14 +1620,14 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                 value={devConfirmPassword}
                 onChange={(e) => setDevConfirmPassword(e.target.value)}
                 placeholder="Confirm new password"
-                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-400 focus:outline-none"
+                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
               />
             </div>
 
             <button
               type="submit"
               disabled={devPasswordLoading}
-              className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full py-3 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <KeyRound className="w-4 h-4" />
               {devPasswordLoading ? 'UPDATING CREDENTIALS...' : 'SAVE NEW MASTER PASSWORD'}
@@ -1639,7 +1639,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       {/* Reschedule Modal */}
       {rescheduleModalApt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-900 border border-cyan-500/40 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 font-mono-code text-xs">
+          <div className="bg-slate-950 border border-cyan-500/40 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 font-mono-code text-xs">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-sm font-bold text-cyan-300 uppercase flex items-center gap-2">
                 <Calendar className="w-4 h-4" />

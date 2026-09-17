@@ -225,10 +225,10 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
+    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
         <div>
-          <span className="text-[10px] font-military font-bold text-amber-400 uppercase tracking-widest">
+          <span className="text-[10px] font-military font-bold text-cyan-400 uppercase tracking-widest">
             TRADER NETWORK & PEERS
           </span>
           <h3 className="text-base font-military font-bold text-slate-100 mt-0.5">
@@ -244,7 +244,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
             onClick={() => setActiveTab('FRIENDS')}
             className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'FRIENDS'
-                ? 'bg-amber-500 text-slate-950 font-bold'
+                ? 'bg-blue-500 text-slate-950 font-bold'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -256,7 +256,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
             onClick={() => setActiveTab('REQUESTS')}
             className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 relative ${
               activeTab === 'REQUESTS'
-                ? 'bg-amber-500 text-slate-950 font-bold'
+                ? 'bg-blue-500 text-slate-950 font-bold'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -273,7 +273,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
             onClick={() => setActiveTab('FIND')}
             className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'FIND'
-                ? 'bg-amber-500 text-slate-950 font-bold'
+                ? 'bg-blue-500 text-slate-950 font-bold'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -284,7 +284,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
       </div>
 
       {statusNotice && (
-        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-mono-code text-amber-300">
+        <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl text-xs font-mono-code text-amber-300">
           {statusNotice}
         </div>
       )}
@@ -298,7 +298,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
           )}
           {isLoadingFriends ? (
             <div className="py-12 text-center text-slate-400 font-mono-code text-xs space-y-3">
-              <RefreshCw className="w-8 h-8 mx-auto text-amber-400 animate-spin opacity-70" />
+              <RefreshCw className="w-8 h-8 mx-auto text-cyan-400 animate-spin opacity-70" />
               <p>Loading friends…</p>
             </div>
           ) : friends.length === 0 ? (
@@ -307,7 +307,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
               <p>No trading friends added yet.</p>
               <button
                 onClick={() => setActiveTab('FIND')}
-                className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-military font-bold text-xs"
+                className="px-4 py-2 rounded-xl bg-blue-500 text-slate-950 font-military font-bold text-xs"
               >
                 FIND & ADD TRADERS
               </button>
@@ -325,17 +325,17 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                         <img
                           src={f.avatarUrl}
                           alt={f.friendDisplayName}
-                          className="w-10 h-10 rounded-full object-cover border border-amber-500/40"
+                          className="w-10 h-10 rounded-full object-cover border border-blue-500/40"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-amber-400 font-bold font-military">
+                        <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-cyan-400 font-bold font-military">
                           {f.friendDisplayName.slice(0, 2).toUpperCase()}
                         </div>
                       )}
                       <span
                         className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-950 ${
                           f.onlineStatus === 'AWAY'
-                            ? 'bg-amber-400'
+                            ? 'bg-cyan-400'
                             : f.onlineStatus === 'OFFLINE'
                             ? 'bg-slate-500'
                             : 'bg-emerald-400'
@@ -363,7 +363,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                         })
                       }
                       title="Direct Private Message"
-                      className="p-2 rounded-lg bg-slate-900 hover:bg-amber-500/10 text-slate-300 hover:text-amber-400 border border-slate-800 transition cursor-pointer"
+                      className="p-2 rounded-lg bg-slate-950 hover:bg-blue-500/10 text-slate-300 hover:text-cyan-400 border border-slate-800 transition cursor-pointer"
                     >
                       <MessageSquare className="w-4 h-4" />
                     </button>
@@ -378,7 +378,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                           })
                         }
                         title="Start Video / Screen Share Call"
-                        className="p-2 rounded-lg bg-slate-900 hover:bg-sky-500/10 text-slate-300 hover:text-sky-400 border border-slate-800 transition cursor-pointer"
+                        className="p-2 rounded-lg bg-slate-950 hover:bg-sky-500/10 text-slate-300 hover:text-sky-400 border border-slate-800 transition cursor-pointer"
                       >
                         <Video className="w-4 h-4" />
                       </button>
@@ -387,7 +387,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                     <button
                       onClick={() => handleRemoveFriend(f.id, f.friendUsername)}
                       title="Remove Friend"
-                      className="p-2 rounded-lg bg-slate-900 hover:bg-rose-950/40 text-slate-500 hover:text-rose-400 border border-slate-800 transition cursor-pointer"
+                      className="p-2 rounded-lg bg-slate-950 hover:bg-rose-950/40 text-slate-500 hover:text-rose-400 border border-slate-800 transition cursor-pointer"
                     >
                       <UserX className="w-4 h-4" />
                     </button>
@@ -428,7 +428,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                       </button>
                       <button
                         onClick={() => handleRespondRequest(req.id, 'REJECTED')}
-                        className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-800 flex items-center gap-1 text-xs cursor-pointer transition"
+                        className="px-3 py-1.5 rounded-lg bg-slate-950 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-800 flex items-center gap-1 text-xs cursor-pointer transition"
                       >
                         <X className="w-3.5 h-3.5" />
                         <span>Decline</span>
@@ -454,7 +454,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                     className="p-2.5 bg-slate-950/60 border border-slate-800 rounded-xl flex items-center justify-between font-mono-code text-xs text-slate-400"
                   >
                     <span>Sent to: <strong className="text-slate-300">@{req.receiverUsername}</strong></span>
-                    <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                    <span className="text-[10px] text-cyan-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
                       Pending Approval
                     </span>
                   </div>
@@ -475,13 +475,13 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by username or trader name..."
-                className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono-code text-slate-100 focus:outline-none focus:border-amber-500"
+                className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono-code text-slate-100 focus:outline-none focus:border-blue-500"
               />
             </div>
             <button
               type="submit"
               disabled={isSearching}
-              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs cursor-pointer transition"
+              className="px-4 py-2 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs cursor-pointer transition"
             >
               {isSearching ? 'SEARCHING...' : 'SEARCH'}
             </button>
@@ -509,13 +509,13 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                           Already Friends
                         </span>
                       ) : hasSentRequest ? (
-                        <span className="px-2.5 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold">
+                        <span className="px-2.5 py-1 rounded bg-blue-500/10 text-cyan-400 border border-blue-500/20 text-[10px] font-bold">
                           Request Pending
                         </span>
                       ) : (
                         <button
                           onClick={() => handleSendRequest(u)}
-                          className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer transition flex items-center gap-1"
+                          className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs cursor-pointer transition flex items-center gap-1"
                         >
                           <UserPlus className="w-3.5 h-3.5" />
                           <span>Add</span>

@@ -25,7 +25,7 @@ export const IntentCard: React.FC<IntentCardProps> = ({ payload }) => {
     case 'UNKNOWN':
     default:
       return (
-        <div className="mt-2 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs font-mono-code text-slate-400 flex items-center gap-2">
+        <div className="mt-2 p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs font-mono-code text-slate-400 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-slate-500" />
           <span>Capability temporarily unavailable or unclassified.</span>
         </div>

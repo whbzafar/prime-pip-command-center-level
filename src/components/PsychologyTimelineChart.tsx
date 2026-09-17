@@ -110,7 +110,7 @@ export const PsychologyTimelineChart: React.FC<PsychologyTimelineChartProps> = (
 
   if (chartData.length === 0) {
     return (
-      <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-center font-mono-code text-xs text-slate-500">
+      <div className="p-6 rounded-2xl bg-slate-950/60 border border-slate-800 text-center font-mono-code text-xs text-slate-500">
         No completed trades available to visualize psychology patterns. Record your trades with pre-trade emotional check-ins.
       </div>
     );
@@ -153,11 +153,11 @@ export const PsychologyTimelineChart: React.FC<PsychologyTimelineChartProps> = (
   };
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+    <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400">
+          <div className="p-2 bg-blue-500/10 border border-blue-500/30 rounded-xl text-cyan-400">
             <Brain className="w-5 h-5" />
           </div>
           <div>
@@ -179,7 +179,7 @@ export const PsychologyTimelineChart: React.FC<PsychologyTimelineChartProps> = (
             onClick={() => setFilterEmotion('ALL')}
             className={`px-2.5 py-1 rounded-lg text-[11px] transition-all border ${
               filterEmotion === 'ALL'
-                ? 'bg-amber-500 text-slate-950 font-bold border-amber-400'
+                ? 'bg-blue-500 text-slate-950 font-bold border-cyan-400'
                 : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
             }`}
           >
@@ -306,13 +306,13 @@ export const PsychologyTimelineChart: React.FC<PsychologyTimelineChartProps> = (
             Loss Under Fear
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-amber-500" />
+            <span className="w-3 h-3 rounded bg-blue-500" />
             Win Under Greed
           </span>
         </div>
 
         <div className="text-slate-400 flex items-center gap-1">
-          <Info className="w-3.5 h-3.5 text-amber-400" />
+          <Info className="w-3.5 h-3.5 text-cyan-400" />
           Greed & Fear trades correlate with 78% of avoidable stop-outs
         </div>
       </div>

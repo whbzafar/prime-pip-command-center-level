@@ -134,10 +134,10 @@ export const PSYCHOLOGY_CATEGORIES: Record<PsychCategoryType, PsychologicalCateg
     tagline: 'Hyperactive Amygdala & Risk Dread',
     iconName: 'ShieldAlert',
     colorTheme: {
-      accent: 'text-amber-400',
-      bgGlow: 'from-amber-500/10 to-transparent',
-      border: 'border-amber-500/30',
-      badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+      accent: 'text-cyan-400',
+      bgGlow: 'from-blue-500/10 to-transparent',
+      border: 'border-blue-500/30',
+      badge: 'bg-blue-500/15 text-amber-300 border-blue-500/30',
     },
     whyItHappens: {
       neurochemistry: 'The amygdala perceives potential capital loss as an immediate mortal threat, flooding the bloodstream with cortisol and norepinephrine.',
@@ -740,9 +740,9 @@ export const PSYCHOLOGY_CATEGORIES: Record<PsychCategoryType, PsychologicalCateg
     iconName: 'Award',
     colorTheme: {
       accent: 'text-amber-300',
-      bgGlow: 'from-amber-400/10 to-transparent',
-      border: 'border-amber-400/30',
-      badge: 'bg-amber-400/15 text-amber-200 border-amber-400/30',
+      bgGlow: 'from-cyan-400/10 to-transparent',
+      border: 'border-cyan-400/30',
+      badge: 'bg-cyan-400/15 text-cyan-200 border-cyan-400/30',
     },
     whyItHappens: {
       neurochemistry: 'A string of winning trades floods the brain with testosterone and dopamine, dampening risk sensitivity in the insula.',
@@ -1347,7 +1347,7 @@ export const PSYCHOLOGY_CATEGORIES: Record<PsychCategoryType, PsychologicalCateg
     tagline: 'Rushing Trigger Confirmation & Premature Entry',
     iconName: 'Clock',
     colorTheme: {
-      accent: 'text-amber-500',
+      accent: 'text-blue-500',
       bgGlow: 'from-amber-600/10 to-transparent',
       border: 'border-amber-600/30',
       badge: 'bg-amber-600/15 text-amber-300 border-amber-600/30',
@@ -1834,10 +1834,10 @@ export const PSYCHOLOGY_CATEGORIES: Record<PsychCategoryType, PsychologicalCateg
     tagline: 'Anticipatory Dread & Pre-Session Nervousness',
     iconName: 'AlertTriangle',
     colorTheme: {
-      accent: 'text-amber-400',
-      bgGlow: 'from-amber-500/10 to-transparent',
-      border: 'border-amber-500/30',
-      badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+      accent: 'text-cyan-400',
+      bgGlow: 'from-blue-500/10 to-transparent',
+      border: 'border-blue-500/30',
+      badge: 'bg-blue-500/15 text-amber-300 border-blue-500/30',
     },
     whyItHappens: {
       neurochemistry: 'Cortisol awakening response combined with anticipatory threat priming in the bed nucleus of the stria terminalis (BNST).',

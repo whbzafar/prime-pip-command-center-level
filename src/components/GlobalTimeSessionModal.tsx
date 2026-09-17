@@ -122,7 +122,7 @@ export const GlobalTimeSessionModal: React.FC<GlobalTimeSessionModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -145,7 +145,7 @@ export const GlobalTimeSessionModal: React.FC<GlobalTimeSessionModalProps> = ({
                 key={item.label}
                 className={`p-3 rounded-xl border ${
                   item.isLocal
-                    ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 shadow-md shadow-amber-500/5'
+                    ? 'bg-blue-500/10 border-blue-500/40 text-amber-300 shadow-md shadow-blue-500/5'
                     : 'bg-slate-950 border-slate-800 text-slate-300'
                 }`}
               >
@@ -170,7 +170,7 @@ export const GlobalTimeSessionModal: React.FC<GlobalTimeSessionModalProps> = ({
             </div>
             <div className="text-xs font-mono-code font-bold">
               {marketData.isPeakLiquidityActive ? (
-                <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 animate-pulse">
+                <span className="px-2.5 py-1 rounded-lg bg-blue-500/20 text-amber-300 border border-blue-500/40 flex items-center gap-1.5 animate-pulse">
                   <Zap className="w-3.5 h-3.5" />
                   <span>LONDON • NY OVERLAP ACTIVE (PEAK VOLUME)</span>
                 </span>
@@ -191,9 +191,9 @@ export const GlobalTimeSessionModal: React.FC<GlobalTimeSessionModalProps> = ({
                   className={`p-3.5 rounded-xl border transition flex flex-col justify-between ${
                     s.isOpen
                       ? isOverlap
-                        ? 'bg-amber-500/10 border-amber-500/50 shadow-lg shadow-amber-500/10'
+                        ? 'bg-blue-500/10 border-blue-500/50 shadow-lg shadow-blue-500/10'
                         : 'bg-emerald-950/20 border-emerald-500/40'
-                      : 'bg-slate-900/60 border-slate-800/80 opacity-80'
+                      : 'bg-slate-950/60 border-slate-800/80 opacity-80'
                   }`}
                 >
                   <div>
@@ -206,7 +206,7 @@ export const GlobalTimeSessionModal: React.FC<GlobalTimeSessionModalProps> = ({
                         className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                           s.isOpen
                             ? isOverlap
-                              ? 'bg-amber-500 text-slate-950 font-extrabold'
+                              ? 'bg-blue-500 text-slate-950 font-extrabold'
                               : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                             : 'bg-slate-800 text-slate-400'
                         }`}
@@ -240,7 +240,7 @@ export const GlobalTimeSessionModal: React.FC<GlobalTimeSessionModalProps> = ({
                       <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
                         <div
                           className={`h-full transition-all duration-500 ${
-                            isOverlap ? 'bg-amber-400' : 'bg-emerald-400'
+                            isOverlap ? 'bg-cyan-400' : 'bg-emerald-400'
                           }`}
                           style={{ width: `${s.progressPercent}%` }}
                         />
@@ -261,18 +261,18 @@ export const GlobalTimeSessionModal: React.FC<GlobalTimeSessionModalProps> = ({
                 TRADER TIMEZONE CONFIGURATION
               </h4>
               <p className="text-[11px] text-slate-400 font-mono-code">
-                Active Timezone: <strong className="text-amber-400">{currentTimezone}</strong>
+                Active Timezone: <strong className="text-cyan-400">{currentTimezone}</strong>
               </p>
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
               {/* 12h vs 24h Toggle */}
-              <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl p-1 text-xs font-mono-code">
+              <div className="flex items-center bg-slate-950 border border-slate-700 rounded-xl p-1 text-xs font-mono-code">
                 <button
                   type="button"
                   onClick={() => handleToggleFormat('12h')}
                   className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
-                    timeFormat === '12h' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'
+                    timeFormat === '12h' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   12-HOUR (AM/PM)
@@ -281,7 +281,7 @@ export const GlobalTimeSessionModal: React.FC<GlobalTimeSessionModalProps> = ({
                   type="button"
                   onClick={() => handleToggleFormat('24h')}
                   className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
-                    timeFormat === '24h' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'
+                    timeFormat === '24h' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   24-HOUR
@@ -309,7 +309,7 @@ export const GlobalTimeSessionModal: React.FC<GlobalTimeSessionModalProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by city, country, or timezone identifier (e.g., London, New York, Tokyo, Dubai, Karachi)..."
-              className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-100 font-mono-code focus:outline-none focus:border-amber-500"
+              className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 font-mono-code focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -324,8 +324,8 @@ export const GlobalTimeSessionModal: React.FC<GlobalTimeSessionModalProps> = ({
                   onClick={() => handleSelectTimezone(hub.value)}
                   className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between cursor-pointer ${
                     isSelected
-                      ? 'bg-amber-500/15 border-amber-500 text-amber-300'
-                      : 'bg-slate-900/80 border-slate-800 hover:border-slate-700 text-slate-300'
+                      ? 'bg-blue-500/15 border-blue-500 text-amber-300'
+                      : 'bg-slate-950/80 border-slate-800 hover:border-slate-700 text-slate-300'
                   }`}
                 >
                   <div className="truncate pr-2">
@@ -335,7 +335,7 @@ export const GlobalTimeSessionModal: React.FC<GlobalTimeSessionModalProps> = ({
                     </div>
                     <div className="text-[10px] text-slate-400 truncate">{hub.country}</div>
                   </div>
-                  {isSelected && <Check className="w-4 h-4 text-amber-400 shrink-0" />}
+                  {isSelected && <Check className="w-4 h-4 text-cyan-400 shrink-0" />}
                 </button>
               );
             })}
@@ -350,7 +350,7 @@ export const GlobalTimeSessionModal: React.FC<GlobalTimeSessionModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs transition cursor-pointer"
+            className="px-5 py-2 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs transition cursor-pointer"
           >
             CONFIRM & CLOSE
           </button>

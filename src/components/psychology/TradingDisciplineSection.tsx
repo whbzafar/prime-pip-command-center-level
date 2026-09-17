@@ -64,7 +64,7 @@ export const TradingDisciplineSection: React.FC<TradingDisciplineSectionProps> =
     <div className="space-y-6">
       {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
+        <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
           <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono-code uppercase">
             <span>Discipline Compliance Rate</span>
             <Award className="w-4 h-4 text-emerald-400" />
@@ -77,10 +77,10 @@ export const TradingDisciplineSection: React.FC<TradingDisciplineSectionProps> =
           </p>
         </div>
 
-        <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
+        <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
           <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono-code uppercase">
             <span>Daily Execution Limit</span>
-            <Target className="w-4 h-4 text-amber-400" />
+            <Target className="w-4 h-4 text-cyan-400" />
           </div>
           <div className="text-2xl font-mono-code font-bold text-slate-100">
             {account?.maxDailyTrades || 2} <span className="text-xs font-normal text-slate-400">Max / Day</span>
@@ -90,7 +90,7 @@ export const TradingDisciplineSection: React.FC<TradingDisciplineSectionProps> =
           </p>
         </div>
 
-        <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
+        <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
           <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono-code uppercase">
             <span>Risk Ceiling</span>
             <ShieldCheck className="w-4 h-4 text-sky-400" />
@@ -105,7 +105,7 @@ export const TradingDisciplineSection: React.FC<TradingDisciplineSectionProps> =
       </div>
 
       {/* 10-Point Pre-Flight Execution Checklist */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xl">
+      <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xl">
         <div className="flex flex-wrap items-center justify-between border-b border-slate-800 pb-4 gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -179,14 +179,14 @@ export const TradingDisciplineSection: React.FC<TradingDisciplineSectionProps> =
           className={`p-4 rounded-xl border flex items-center justify-between flex-wrap gap-3 ${
             isAllPassed
               ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
-              : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+              : 'bg-blue-500/10 border-blue-500/30 text-amber-300'
           }`}
         >
           <div className="flex items-center gap-3">
             {isAllPassed ? (
               <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
             ) : (
-              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+              <AlertTriangle className="w-5 h-5 text-cyan-400 shrink-0" />
             )}
             <div>
               <span className="text-xs font-military font-bold uppercase tracking-wider block">

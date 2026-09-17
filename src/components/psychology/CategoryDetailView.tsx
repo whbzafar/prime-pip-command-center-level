@@ -65,7 +65,7 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-mono-code text-slate-300 hover:text-white hover:border-slate-700 transition cursor-pointer"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs font-mono-code text-slate-300 hover:text-white hover:border-slate-700 transition cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to All 17 Categories</span>
@@ -136,7 +136,7 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-military font-bold tracking-wider uppercase transition cursor-pointer ${
                 activeTab === tab.id
                   ? 'bg-gradient-to-r from-indigo-600/40 to-teal-600/30 border border-indigo-400 text-indigo-100 shadow-md'
-                  : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                  : 'bg-slate-950/60 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
               }`}
             >
               <Icon className="w-3.5 h-3.5 text-teal-400" />
@@ -167,20 +167,20 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
             {/* 2. How It Occurs */}
             <div className="p-6 rounded-2xl bg-[#0b101e] border border-indigo-900/40 space-y-3">
               <div className="flex items-center gap-2 text-sm font-military font-bold text-amber-300 uppercase tracking-wider border-b border-indigo-900/30 pb-3">
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <AlertTriangle className="w-4 h-4 text-cyan-400" />
                 <span>2. HOW IT OCCURS (TRIGGER TO ACTION CYCLE)</span>
               </div>
               <div className="space-y-2 text-xs font-mono-code text-slate-300">
                 <div className="flex items-start gap-2 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
-                  <span className="w-5 h-5 rounded bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0">1</span>
+                  <span className="w-5 h-5 rounded bg-blue-500/20 text-cyan-400 font-bold flex items-center justify-center shrink-0">1</span>
                   <span><strong>Trigger:</strong> Rapid price expansion or sudden PnL change triggers amygdala survival response.</span>
                 </div>
                 <div className="flex items-start gap-2 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
-                  <span className="w-5 h-5 rounded bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0">2</span>
+                  <span className="w-5 h-5 rounded bg-blue-500/20 text-cyan-400 font-bold flex items-center justify-center shrink-0">2</span>
                   <span><strong>Distortion:</strong> Mind creates an irrational sense of urgency: {category.whyItHappens.evolutionaryRoot}</span>
                 </div>
                 <div className="flex items-start gap-2 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
-                  <span className="w-5 h-5 rounded bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center shrink-0">3</span>
+                  <span className="w-5 h-5 rounded bg-blue-500/20 text-cyan-400 font-bold flex items-center justify-center shrink-0">3</span>
                   <span><strong>Impulse:</strong> Prefrontal cortex executive function temporarily drops, leading to unverified order clicks.</span>
                 </div>
               </div>
@@ -307,7 +307,7 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
                 </div>
 
                 <div className="pt-2 border-t border-indigo-900/30 flex items-center justify-between">
-                  <div className="text-[10px] font-mono-code text-amber-400/90 font-bold">
+                  <div className="text-[10px] font-mono-code text-cyan-400/90 font-bold">
                     +35 Habit Pts
                   </div>
                   <button
@@ -398,7 +398,7 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
           {/* How It Appears In Trading */}
           <div className="p-6 rounded-2xl bg-[#0b101e] border border-indigo-900/40 space-y-4">
             <div className="flex items-center gap-2 text-sm font-military font-bold text-amber-300 uppercase tracking-wider border-b border-indigo-900/30 pb-3">
-              <AlertTriangle className="w-4 h-4 text-amber-400" />
+              <AlertTriangle className="w-4 h-4 text-cyan-400" />
               <span>HOW IT APPEARS IN TRADING</span>
             </div>
 
@@ -412,7 +412,7 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
                     []
                   ).map((item: string, idx: number) => (
                     <div key={idx} className="flex items-start gap-2 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
-                      <span className="text-amber-400 font-bold">•</span>
+                      <span className="text-cyan-400 font-bold">•</span>
                       <span className="text-slate-300 leading-relaxed">{item}</span>
                     </div>
                   ))}
@@ -558,7 +558,7 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
                       Trigger: <strong className="text-slate-300">{log.triggerIdentified}</strong>
                     </div>
                     <div>
-                      Intensity: <strong className="text-amber-400">{log.initialIntensity}</strong> → <strong className="text-emerald-400">{log.shiftedIntensity}</strong>
+                      Intensity: <strong className="text-cyan-400">{log.initialIntensity}</strong> → <strong className="text-emerald-400">{log.shiftedIntensity}</strong>
                     </div>
                     <div>
                       Regulation: <strong className="text-teal-300">{log.helpfulnessRating}</strong>

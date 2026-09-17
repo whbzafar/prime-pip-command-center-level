@@ -91,7 +91,7 @@ export const SessionHistoryAndFeedback: React.FC<SessionHistoryAndFeedbackProps>
           </div>
         </div>
 
-        <span className="text-xs font-mono-code px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-400 font-bold">
+        <span className="text-xs font-mono-code px-2.5 py-1 rounded-full bg-slate-950 border border-slate-800 text-slate-400 font-bold">
           {history.length} SESSIONS RECORDED
         </span>
       </div>
@@ -126,12 +126,12 @@ export const SessionHistoryAndFeedback: React.FC<SessionHistoryAndFeedbackProps>
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex items-center text-amber-400">
+              <div className="flex items-center text-cyan-400">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star
                     key={i}
                     className={`w-3.5 h-3.5 ${
-                      i < (item.userRating || 5) ? 'fill-amber-400 text-amber-400' : 'text-slate-700'
+                      i < (item.userRating || 5) ? 'fill-cyan-400 text-cyan-400' : 'text-slate-700'
                     }`}
                   />
                 ))}
@@ -153,7 +153,7 @@ export const SessionHistoryAndFeedback: React.FC<SessionHistoryAndFeedbackProps>
 
       {/* Post-Session Feedback Modal */}
       {activeFeedbackModal && (
-        <div className="p-5 rounded-2xl bg-slate-900 border border-teal-500/40 space-y-4 animate-in fade-in">
+        <div className="p-5 rounded-2xl bg-slate-950 border border-teal-500/40 space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-military font-bold text-teal-300 uppercase tracking-wider">
               HOW DO YOU FEEL AFTER THIS SESSION?

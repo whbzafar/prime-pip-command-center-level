@@ -255,7 +255,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
   return (
     <div className="space-y-6">
       {/* Separation of Concerns Banner (Requirement 25) */}
-      <div className="bg-slate-900/90 border border-sky-500/30 rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+      <div className="bg-slate-950/90 border border-sky-500/30 rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
             <FlaskConical className="w-5 h-5" />
@@ -301,7 +301,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+        <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
           <div className="text-[11px] font-mono-code text-slate-400 uppercase">Total Tested Trades</div>
           <div className="text-2xl font-bold font-military text-slate-100 mt-1">
             {totalTradesTested.toLocaleString()}
@@ -311,10 +311,10 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
           </div>
         </div>
 
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+        <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
           <div className="text-[11px] font-mono-code text-slate-400 uppercase">Backtest Win Rate</div>
           <div className={`text-2xl font-bold font-military mt-1 ${
-            overallWinRate >= 60 ? 'text-emerald-400' : overallWinRate >= 45 ? 'text-amber-400' : 'text-slate-300'
+            overallWinRate >= 60 ? 'text-emerald-400' : overallWinRate >= 45 ? 'text-cyan-400' : 'text-slate-300'
           }`}>
             {overallWinRate}%
           </div>
@@ -323,15 +323,15 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
           </div>
         </div>
 
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+        <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
           <div className="text-[11px] font-mono-code text-slate-400 uppercase">Avg Risk : Reward</div>
-          <div className="text-2xl font-bold font-military text-amber-400 mt-1">
+          <div className="text-2xl font-bold font-military text-cyan-400 mt-1">
             1 : {overallAvgRR}
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5">Statistical Edge Ratio</div>
         </div>
 
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+        <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
           <div className="text-[11px] font-mono-code text-slate-400 uppercase">Daily Habit Link</div>
           <div className="text-sm font-bold font-military text-emerald-400 mt-2 flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -342,7 +342,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/40 border border-slate-800 p-3 rounded-lg">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-950/40 border border-slate-800 p-3 rounded-lg">
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono-code text-slate-400">STRATEGY FILTER:</span>
           <select
@@ -367,7 +367,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
       {/* Backtest Sessions List */}
       <div className="space-y-3">
         {filteredSessions.length === 0 ? (
-          <div className="bg-slate-900/40 border border-dashed border-slate-800 rounded-xl p-8 text-center text-slate-400">
+          <div className="bg-slate-950/40 border border-dashed border-slate-800 rounded-xl p-8 text-center text-slate-400">
             <FlaskConical className="w-8 h-8 mx-auto mb-2 text-slate-500" />
             <p className="text-sm font-military">NO BACKTEST SESSIONS RECORDED YET</p>
             <p className="text-xs text-slate-500 mt-1">
@@ -378,7 +378,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
           filteredSessions.map((session) => (
             <div
               key={session.id}
-              className="bg-slate-900/70 border border-slate-800 hover:border-slate-700 rounded-xl p-4 transition shadow-md"
+              className="bg-slate-950/70 border border-slate-800 hover:border-slate-700 rounded-xl p-4 transition shadow-md"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -386,7 +386,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
                     <span className="px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/30 text-xs font-bold font-mono-code">
                       {session.strategy}
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-slate-800 text-amber-400 text-xs font-mono-code font-bold">
+                    <span className="px-2 py-0.5 rounded bg-slate-800 text-cyan-400 text-xs font-mono-code font-bold">
                       {session.pair}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-xs font-mono-code">
@@ -426,7 +426,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleOpenEditModal(session)}
-                      className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-amber-400 transition"
+                      className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-cyan-400 transition"
                       title="Edit"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -449,7 +449,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
       {/* Record/Edit Backtest Session Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-sm font-military font-bold text-slate-100 flex items-center gap-2">
                 <FlaskConical className="w-4 h-4 text-sky-400" />

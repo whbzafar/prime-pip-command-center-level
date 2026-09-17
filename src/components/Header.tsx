@@ -376,7 +376,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="w-full h-12 shrink-0 sticky top-0 px-3 sm:px-4 bg-[#080C14]/95 backdrop-blur border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300 z-[1000]">
         {/* Left: Active Category / Section */}
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-6 h-6 rounded-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+          <div className="w-6 h-6 rounded-md bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 shrink-0">
             {React.createElement(
               allNavCategories.find((c) => c.id === activeTab)?.icon || Activity,
               { className: 'w-3.5 h-3.5' }
@@ -386,7 +386,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="font-military font-bold text-slate-100 tracking-wider truncate text-[11px] sm:text-xs">
               {allNavCategories.find((c) => c.id === activeTab)?.label || 'COMMAND CENTER'}
             </span>
-            <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-slate-800/80 text-amber-400/90 font-mono-code hidden sm:inline">
+            <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-slate-800/80 text-cyan-400/90 font-mono-code hidden sm:inline">
               LIVE
             </span>
           </div>
@@ -398,7 +398,7 @@ export const Header: React.FC<HeaderProps> = ({
           {!!isHeaderCollapsed && (
             <button
               onClick={onOpenNewTrade}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-[10px] tracking-wider transition shadow-sm cursor-pointer"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-[10px] tracking-wider transition shadow-sm cursor-pointer"
               title="Enter New Trade"
             >
               <PlusCircle className="w-3 h-3 stroke-[2.5]" />
@@ -416,12 +416,12 @@ export const Header: React.FC<HeaderProps> = ({
                 ? 'Notifications & Audio Alerts: ACTIVE (Click to test chime)'
                 : 'Notifications & Audio Alerts: MUTED (Click to activate)'
             }
-            className="relative p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-amber-400 transition cursor-pointer"
+            className="relative p-1.5 rounded-lg bg-slate-950/90 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 text-slate-300 hover:text-cyan-400 transition cursor-pointer"
           >
             <Bell className="w-4 h-4" />
             <span
               className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
-                alertSettings.soundEnabled ? 'bg-amber-400 animate-pulse' : 'bg-rose-500'
+                alertSettings.soundEnabled ? 'bg-cyan-400 animate-pulse' : 'bg-rose-500'
               }`}
             />
           </button>
@@ -444,7 +444,7 @@ export const Header: React.FC<HeaderProps> = ({
         <DailyPrayerBar />
 
       {/* Top Tactical Status Bar */}
-      <div className="px-3 sm:px-4 py-1.5 border-b border-slate-800/60 bg-[#070A11] flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 text-[10px] sm:text-xs font-mono-code text-slate-400">
+      <div className="px-3 sm:px-4 py-1.5 border-b border-slate-800/60 bg-[#020617] flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 text-[10px] sm:text-xs font-mono-code text-slate-400">
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Offline/Online Status */}
           <OfflineIndicator />
@@ -454,7 +454,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Demo Mode Badge */}
           {isDemoMode && (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold text-[10px] tracking-wide animate-pulse">
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/20 text-amber-300 border border-blue-500/40 font-bold text-[10px] tracking-wide animate-pulse">
               <span>● DEMO</span>
             </div>
           )}
@@ -468,7 +468,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span>STOP TRADING ({tradesToday}/{maxDailyTrades})</span>
             </div>
           ) : isOneTradeRemaining ? (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold text-[11px]">
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-500/15 text-cyan-400 border border-blue-500/30 font-bold text-[11px]">
               <ShieldAlert className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">TRADE 1 OF {maxDailyTrades} COMPLETED • 1 REMAINING</span>
               <span className="sm:hidden">1 REMAINING</span>
@@ -486,7 +486,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => setIsTimeModalOpen(true)}
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-sky-500/50 text-slate-200 transition cursor-pointer group text-[11px]"
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-950/90 hover:bg-slate-800 border border-slate-800 hover:border-sky-500/50 text-slate-200 transition cursor-pointer group text-[11px]"
             title="Click to change timezone, switch 12h/24h format, and view global market sessions"
           >
             <Clock className="w-3.5 h-3.5 text-sky-400 group-hover:rotate-12 transition-transform shrink-0" />
@@ -495,7 +495,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span
                 className={`hidden xl:inline-block px-1.5 py-0.2 rounded text-[10px] font-bold tracking-tight ${
                   isPeakLiquidity
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
+                    ? 'bg-blue-500/20 text-amber-300 border border-blue-500/40 animate-pulse'
                     : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                 }`}
               >
@@ -529,13 +529,13 @@ export const Header: React.FC<HeaderProps> = ({
             }
             className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono-code transition border cursor-pointer ${
               alertSettings.soundEnabled
-                ? 'bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-amber-400 border-slate-800'
+                ? 'bg-slate-950/90 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 border-slate-800'
                 : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/30'
             }`}
           >
             {alertSettings.soundEnabled ? (
               <>
-                <Volume2 className={`w-3 h-3 ${soundTested ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}`} />
+                <Volume2 className={`w-3 h-3 ${soundTested ? 'text-cyan-400 animate-pulse' : 'text-emerald-400'}`} />
                 <span className="hidden sm:inline">{soundTested ? 'OK' : 'SOUND'}</span>
               </>
             ) : (
@@ -549,14 +549,14 @@ export const Header: React.FC<HeaderProps> = ({
           {/* PWA Install Button */}
           <PWAInstallButton />
 
-          <div className="flex items-center gap-1 bg-slate-900/90 px-2 py-0.5 rounded border border-slate-800 text-slate-300 text-[11px]">
+          <div className="flex items-center gap-1 bg-slate-950/90 px-2 py-0.5 rounded border border-slate-800 text-slate-300 text-[11px]">
             <span className="text-slate-400 font-normal hidden sm:inline">SCORE:</span>
             <span
               className={`font-bold ${
                 displayScore >= 80
                   ? 'text-emerald-400'
                   : displayScore >= 60
-                  ? 'text-amber-400'
+                  ? 'text-cyan-400'
                   : 'text-rose-400'
               }`}
             >
@@ -567,7 +567,7 @@ export const Header: React.FC<HeaderProps> = ({
           {currentUser && onOpenNotifications && (
             <button
               onClick={onOpenNotifications}
-              className="flex items-center gap-1 p-1 rounded text-slate-400 hover:text-amber-400 transition cursor-pointer"
+              className="flex items-center gap-1 p-1 rounded text-slate-400 hover:text-cyan-400 transition cursor-pointer"
               title="Notifications"
             >
               <Bell className="w-4 h-4" />
@@ -579,9 +579,9 @@ export const Header: React.FC<HeaderProps> = ({
               id="header-backup-data-btn"
               onClick={onOpenBackupModal}
               title="Backup & Restore Journal Data"
-              className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-amber-400 border border-slate-800 text-[11px] font-mono-code transition cursor-pointer"
+              className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-950/90 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 border border-slate-800 text-[11px] font-mono-code transition cursor-pointer"
             >
-              <Database className="w-3.5 h-3.5 text-amber-400" />
+              <Database className="w-3.5 h-3.5 text-cyan-400" />
               <span className="hidden sm:inline">BACKUP</span>
             </button>
           )}
@@ -650,7 +650,7 @@ export const Header: React.FC<HeaderProps> = ({
               <h1 className="text-xl font-bold tracking-tight text-slate-100 transition-colors leading-none" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
                 PrimePips<span className="text-sky-400">FX</span>
               </h1>
-              <span className="text-[8px] uppercase tracking-widest font-mono-code px-1.5 py-[1px] rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold group-hover:bg-amber-500/20">
+              <span className="text-[8px] uppercase tracking-widest font-mono-code px-1.5 py-[1px] rounded bg-blue-500/10 text-cyan-400 border border-blue-500/30 font-bold group-hover:bg-blue-500/20">
                 COMMAND CENTER
               </span>
             </div>
@@ -665,21 +665,21 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onOpenAccountManager}
             title="Manage or Switch Accounts"
-            className="hidden lg:flex items-center gap-3 bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800 hover:border-amber-500/50 px-3.5 py-1.5 rounded-lg transition text-left cursor-pointer group"
+            className="hidden lg:flex items-center gap-3 bg-slate-950/80 hover:bg-slate-800/90 border border-slate-800 hover:border-blue-500/50 px-3.5 py-1.5 rounded-lg transition text-left cursor-pointer group"
           >
-            <div className="w-7 h-7 rounded bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-105 transition">
+            <div className="w-7 h-7 rounded bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition">
               <Wallet className="w-3.5 h-3.5" />
             </div>
             <div>
               <div className="text-[10px] uppercase font-mono-code text-slate-400 flex items-center gap-1">
                 <span>{account.accountName}</span>
-                <span className="text-amber-400/80 text-[9px] font-bold">[{account.accountType.replace(/_/g, ' ')}]</span>
+                <span className="text-cyan-400/80 text-[9px] font-bold">[{account.accountType.replace(/_/g, ' ')}]</span>
               </div>
               <div className="text-sm font-bold font-mono-code text-slate-100 flex items-center gap-2">
                 <span>
                   {formatCurrency(account.currentBalance, account.currency)}
                 </span>
-                <span className="text-[10px] text-amber-400 font-semibold bg-amber-500/10 border border-amber-500/20 px-1 rounded">
+                <span className="text-[10px] text-cyan-400 font-semibold bg-blue-500/10 border border-blue-500/20 px-1 rounded">
                   SWITCH ▾
                 </span>
               </div>
@@ -694,17 +694,17 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={onOpenProfile}
                 title="Edit Your Profile & Status"
-                className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-slate-300 text-xs font-mono-code transition cursor-pointer group"
+                className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 text-slate-300 text-xs font-mono-code transition cursor-pointer group"
               >
                 <div className="relative">
                   {currentUser.avatarUrl ? (
                     <img
                       src={currentUser.avatarUrl}
                       alt={currentUser.name}
-                      className="w-6 h-6 rounded-full object-cover border border-amber-500/50"
+                      className="w-6 h-6 rounded-full object-cover border border-blue-500/50"
                     />
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-amber-400">
+                    <div className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-cyan-400">
                       <User className="w-3.5 h-3.5" />
                     </div>
                   )}
@@ -712,7 +712,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span
                     className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-slate-900 ${
                       currentUser.onlineStatus === 'AWAY'
-                        ? 'bg-amber-400'
+                        ? 'bg-cyan-400'
                         : currentUser.onlineStatus === 'OFFLINE'
                         ? 'bg-slate-500'
                         : 'bg-emerald-400'
@@ -725,7 +725,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="text-[11px] font-bold text-slate-200 group-hover:text-amber-300 transition flex items-center gap-1">
                     <span>{currentUser.name || currentUser.username}</span>
                     {currentUser.role === 'ADMIN' || currentUser.role === 'DEVELOPER' || currentUser.isDeveloper ? (
-                      <ShieldCheck className="w-3 h-3 text-amber-400 inline" />
+                      <ShieldCheck className="w-3 h-3 text-cyan-400 inline" />
                     ) : null}
                   </div>
                   <span className="text-[9px] text-slate-500 block -mt-0.5">
@@ -742,19 +742,19 @@ export const Header: React.FC<HeaderProps> = ({
                 title="Psychological Center — Train your mindset. Protect your discipline. Improve your execution."
                 className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border font-military font-bold text-xs tracking-wider transition-all duration-200 cursor-pointer shadow-sm group ${
                   activeTab === 'PSYCHOLOGY'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 border-amber-400 shadow-amber-500/25 ring-1 ring-amber-400'
-                    : 'bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-amber-300 border-slate-800 hover:border-amber-500/50'
+                    ? 'bg-gradient-to-r from-blue-500 to-amber-600 text-slate-950 border-cyan-400 shadow-blue-500/25 ring-1 ring-cyan-400'
+                    : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-amber-300 border-slate-800 hover:border-blue-500/50'
                 }`}
               >
                 <div className={`w-5 h-5 rounded flex items-center justify-center transition-transform group-hover:scale-110 ${
-                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-amber-400'
+                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-cyan-400'
                 }`}>
                   <Brain className="w-4 h-4 stroke-[2.2]" />
                 </div>
                 <div className="text-left flex flex-col justify-center leading-tight">
                   <span className="whitespace-nowrap">Psychological Center</span>
                   <span className={`text-[9px] font-mono-code hidden md:inline uppercase tracking-normal ${
-                    activeTab === 'PSYCHOLOGY' ? 'text-slate-950 font-semibold' : 'text-slate-400 group-hover:text-amber-400/80'
+                    activeTab === 'PSYCHOLOGY' ? 'text-slate-950 font-semibold' : 'text-slate-400 group-hover:text-cyan-400/80'
                   }`}>
                     Command Center
                   </span>
@@ -768,9 +768,9 @@ export const Header: React.FC<HeaderProps> = ({
                   type="button"
                   onClick={onOpenHelpImprove}
                   title="Help PRIMEPIPFX Improve — Suggest features, report workflow friction, or request educational drills."
-                  className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-amber-500/50 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-amber-300 font-military font-bold text-xs tracking-wider transition cursor-pointer"
+                  className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-blue-500/50 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-amber-300 font-military font-bold text-xs tracking-wider transition cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
                   <span>HELP IMPROVE</span>
                 </button>
               )}
@@ -797,7 +797,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   onClick={onLogout}
                   title={`Logout (${currentUser.username})`}
-                  className="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-500/30 transition cursor-pointer"
+                  className="p-1.5 rounded-lg bg-slate-950 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-500/30 transition cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -808,7 +808,7 @@ export const Header: React.FC<HeaderProps> = ({
               {onOpenLogin && (
                 <button
                   onClick={onOpenLogin}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-military font-bold tracking-wider transition shadow-md shadow-amber-500/20 cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider transition shadow-md shadow-blue-500/20 cursor-pointer"
                 >
                   <LogIn className="w-3.5 h-3.5" />
                   <span>LOGIN</span>
@@ -823,12 +823,12 @@ export const Header: React.FC<HeaderProps> = ({
                 title="Psychological Center — Train your mindset. Protect your discipline. Improve your execution."
                 className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border font-military font-bold text-xs tracking-wider transition-all duration-200 cursor-pointer shadow-sm group prime-ios-touch ${
                   activeTab === 'PSYCHOLOGY'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 border-amber-400 shadow-amber-500/25 ring-1 ring-amber-400'
-                    : 'bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-amber-300 border-slate-800 hover:border-amber-500/50'
+                    ? 'bg-gradient-to-r from-blue-500 to-amber-600 text-slate-950 border-cyan-400 shadow-blue-500/25 ring-1 ring-cyan-400'
+                    : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-amber-300 border-slate-800 hover:border-blue-500/50'
                 }`}
               >
                 <div className={`w-5 h-5 rounded flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
-                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-amber-400'
+                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-cyan-400'
                 }`}>
                   <Brain className="w-4 h-4 stroke-[2.2]" />
                 </div>
@@ -836,7 +836,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="whitespace-nowrap hidden sm:inline">Psychological Center</span>
                   <span className="sm:hidden font-mono-code text-[11px]">MINDSET</span>
                   <span className={`text-[9px] font-mono-code hidden md:inline uppercase tracking-normal ${
-                    activeTab === 'PSYCHOLOGY' ? 'text-slate-950 font-semibold' : 'text-slate-400 group-hover:text-amber-400/80'
+                    activeTab === 'PSYCHOLOGY' ? 'text-slate-950 font-semibold' : 'text-slate-400 group-hover:text-cyan-400/80'
                   }`}>
                     Command Center
                   </span>
@@ -849,7 +849,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="mobile-account-manage-btn"
               onClick={onOpenAccountManager}
-              className="lg:hidden flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-amber-400 font-military text-xs font-bold prime-ios-touch cursor-pointer"
+              className="lg:hidden flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-blue-500/40 text-cyan-400 font-military text-xs font-bold prime-ios-touch cursor-pointer"
               title="Accounts & Balance"
             >
               <Wallet className="w-3.5 h-3.5 shrink-0" />
@@ -863,7 +863,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             id="open-new-trade-btn"
             onClick={onOpenNewTrade}
-            className="prime-btn-primary prime-light-sweep flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm shadow-xl shadow-amber-500/20 cursor-pointer prime-ios-touch"
+            className="prime-btn-primary prime-light-sweep flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm shadow-xl shadow-blue-500/20 cursor-pointer prime-ios-touch"
           >
             <PlusCircle className="w-4 h-4 stroke-[2.5] shrink-0" />
             <span className="hidden sm:inline">ENTER NEW TRADE</span>
@@ -910,7 +910,7 @@ export const Header: React.FC<HeaderProps> = ({
                 }}
                 className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-military tracking-wider font-semibold transition-all duration-200 select-none whitespace-nowrap active:scale-95 cursor-pointer shrink-0 ${
                   isActive
-                    ? 'bg-amber-500/15 text-amber-300 shadow-sm shadow-amber-500/15 border border-amber-500/40'
+                    ? 'bg-blue-500/15 text-amber-300 shadow-sm shadow-blue-500/15 border border-blue-500/40'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850/70 border border-transparent'
                 } ${item.highlight && !isActive ? 'text-amber-300/80 font-bold' : ''}`}
               >
@@ -918,23 +918,23 @@ export const Header: React.FC<HeaderProps> = ({
                 <div
                   className={`w-5 h-5 rounded flex items-center justify-center transition-all duration-200 group-hover:scale-110 ${
                     isActive
-                      ? 'bg-amber-500/20 text-amber-300'
+                      ? 'bg-blue-500/20 text-amber-300'
                       : 'text-slate-400 group-hover:text-amber-300 group-hover:bg-slate-800'
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 group-hover:rotate-6 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
+                  <Icon className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 group-hover:rotate-6 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
                 </div>
                 <span className="truncate">{item.label}</span>
 
                 {isComingSoon && (
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code bg-amber-500/10 text-amber-400/90 border border-amber-500/30">
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code bg-blue-500/10 text-cyan-400/90 border border-blue-500/30">
                     <Lock className="w-2.5 h-2.5" />
                     <span>SOON</span>
                   </span>
                 )}
 
                 {item.highlight && !isComingSoon && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shrink-0"></span>
                 )}
               </button>
             );
@@ -950,29 +950,29 @@ export const Header: React.FC<HeaderProps> = ({
           disabled={!canScrollLeft}
           className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
             canScrollLeft
-              ? 'bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-amber-500/50 shadow-sm shadow-amber-500/10 active:scale-95'
+              ? 'bg-slate-950/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-blue-500/50 shadow-sm shadow-blue-500/10 active:scale-95'
               : 'opacity-30 text-slate-600 border-transparent cursor-not-allowed'
           }`}
           title="Scroll Left — See previous categories"
         >
-          <ChevronLeft className="w-3.5 h-3.5 text-amber-400" />
+          <ChevronLeft className="w-3.5 h-3.5 text-cyan-400" />
           <span className="hidden sm:inline font-bold">PREV</span>
         </button>
 
         <div className="flex-1 min-w-[200px] max-w-md mx-auto flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-1.5 text-[10px] text-slate-400 shrink-0 uppercase tracking-wider font-semibold">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
             <span>EXPLORE ALL CATEGORIES</span>
           </div>
-          <div className="flex-1 h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800 relative">
+          <div className="flex-1 h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800 relative">
             <div
-              className="h-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 rounded-full transition-all duration-200"
+              className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-amber-300 rounded-full transition-all duration-200"
               style={{ width: `${Math.max(12, scrollProgress)}%` }}
             />
           </div>
-          <div className="flex items-center gap-1 text-[10px] text-amber-400/90 shrink-0 font-semibold">
+          <div className="flex items-center gap-1 text-[10px] text-cyan-400/90 shrink-0 font-semibold">
             <span className="hidden md:inline">SCROLL FOR MORE</span>
-            <ChevronRight className={`w-3.5 h-3.5 text-amber-400 ${canScrollRight ? 'animate-bounce' : ''}`} />
+            <ChevronRight className={`w-3.5 h-3.5 text-cyan-400 ${canScrollRight ? 'animate-bounce' : ''}`} />
           </div>
         </div>
 
@@ -982,13 +982,13 @@ export const Header: React.FC<HeaderProps> = ({
           disabled={!canScrollRight}
           className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
             canScrollRight
-              ? 'bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-amber-500/50 shadow-sm shadow-amber-500/15 ring-1 ring-amber-500/40 active:scale-95 animate-pulse'
+              ? 'bg-slate-950/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-blue-500/50 shadow-sm shadow-blue-500/15 ring-1 ring-blue-500/40 active:scale-95 animate-pulse'
               : 'opacity-30 text-slate-600 border-transparent cursor-not-allowed'
           }`}
           title="Scroll Right — More categories ahead"
         >
           <span className="hidden sm:inline font-bold">MORE CATEGORIES</span>
-          <ChevronRight className="w-3.5 h-3.5 text-amber-400" />
+          <ChevronRight className="w-3.5 h-3.5 text-cyan-400" />
         </button>
       </div>
       </div>

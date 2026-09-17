@@ -205,13 +205,13 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400">
+              <div className="p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-xl text-cyan-400">
                 <Calculator className="w-6 h-6" />
               </div>
               <div>
@@ -232,7 +232,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                 onClick={() => setCalcType('LOT_SIZE')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold transition-all flex items-center gap-1.5 ${
                   calcType === 'LOT_SIZE'
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                    ? 'bg-blue-500 text-slate-950 shadow-md shadow-blue-500/20'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -243,7 +243,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                 onClick={() => setCalcType('STANDARD')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold transition-all flex items-center gap-1.5 ${
                   calcType === 'STANDARD'
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                    ? 'bg-blue-500 text-slate-950 shadow-md shadow-blue-500/20'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -257,8 +257,8 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                 onClick={() => setIsCustomMode(!isCustomMode)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold transition-all flex items-center gap-1.5 border ${
                   isCustomMode
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
-                    : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:border-amber-500/40'
+                    ? 'bg-blue-500 text-slate-950 border-cyan-400 shadow-md shadow-blue-500/20'
+                    : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:border-blue-500/40'
                 }`}
               >
                 <Sliders className="w-3.5 h-3.5" />
@@ -277,10 +277,10 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
           {/* Main Grid: Inputs (Left) & Results (Right) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* INPUT PANEL (7 cols) */}
-        <div className="lg:col-span-7 bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+        <div className="lg:col-span-7 bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <h2 className="text-xs font-military font-bold tracking-wider text-slate-200 uppercase flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              <span className="w-2 h-2 rounded-full bg-cyan-400" />
               CALCULATION PARAMETERS
             </h2>
             <span className="text-[11px] font-mono-code text-slate-400">
@@ -304,7 +304,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                 value={instrument}
                 onChange={(e) => setInstrument(e.target.value.toUpperCase())}
                 placeholder="e.g. XAUUSD, EURUSD, GBPUSD, NAS100, BTCUSD"
-                className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-400 uppercase tracking-wider font-bold"
+                className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-400 uppercase tracking-wider font-bold"
               />
             </div>
             {matchedSpec ? (
@@ -313,7 +313,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                 {matchedSpec.description}
               </p>
             ) : cleanPair ? (
-              <p className="mt-1.5 text-[11px] font-mono-code text-amber-400/90 flex items-center gap-1.5">
+              <p className="mt-1.5 text-[11px] font-mono-code text-cyan-400/90 flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                 Unrecognized pair specs. Using standard $10/pip or enter custom pip value below.
               </p>
@@ -330,7 +330,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                 <button
                   type="button"
                   onClick={handleUseActiveBalance}
-                  className="text-[11px] font-mono-code text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors underline decoration-amber-500/50"
+                  className="text-[11px] font-mono-code text-cyan-400 hover:text-amber-300 flex items-center gap-1 transition-colors underline decoration-blue-500/50"
                 >
                   <Wallet className="w-3 h-3" />
                   USE ACTIVE ACCOUNT ({formatCurrency(activeAccount.currentBalance, activeAccount.currency)})
@@ -346,14 +346,14 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                   value={balance || ''}
                   onChange={(e) => setBalance(parseFloat(e.target.value) || 0)}
                   placeholder="5000"
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-amber-400 font-bold"
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-cyan-400 font-bold"
                 />
               </div>
               <div>
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full px-3 py-3 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-200 focus:outline-none focus:border-amber-400"
+                  className="w-full px-3 py-3 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-200 focus:outline-none focus:border-cyan-400"
                 >
                   <option value="USD">USD ($)</option>
                   <option value="PKR">PKR (Rs)</option>
@@ -374,7 +374,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
               <label className="text-xs font-mono-code text-slate-300 font-bold uppercase">
                 3. RISK PERCENTAGE (%)
               </label>
-              <span className="text-[11px] font-mono-code text-amber-400 font-bold">
+              <span className="text-[11px] font-mono-code text-cyan-400 font-bold">
                 Max Risk Amount: {formatCurrency(riskAmount, currency)}
               </span>
             </div>
@@ -387,7 +387,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                   onClick={() => setRiskPercent(preset)}
                   className={`py-2 rounded-lg font-mono-code text-xs font-bold transition-all border ${
                     riskPercent === preset
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 shadow-sm'
+                      ? 'bg-blue-500/20 text-amber-300 border-blue-500/60 shadow-sm'
                       : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200'
                   }`}
                 >
@@ -403,7 +403,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                   value={riskPercent || ''}
                   onChange={(e) => setRiskPercent(parseFloat(e.target.value) || 0)}
                   placeholder="Custom"
-                  className="w-full h-full text-center px-1 py-2 bg-slate-950 border border-slate-800 rounded-lg font-mono-code text-xs text-amber-300 focus:outline-none focus:border-amber-400 font-bold"
+                  className="w-full h-full text-center px-1 py-2 bg-slate-950 border border-slate-800 rounded-lg font-mono-code text-xs text-amber-300 focus:outline-none focus:border-cyan-400 font-bold"
                 />
               </div>
             </div>
@@ -426,14 +426,14 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
               value={stopLossPips || ''}
               onChange={(e) => setStopLossPips(parseFloat(e.target.value) || 0)}
               placeholder="e.g. 50"
-              className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-amber-400 font-bold"
+              className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-cyan-400 font-bold"
             />
           </div>
 
           {/* Custom Mode / Advanced Specs Drawer */}
           {isCustomMode && (
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-amber-500/30 space-y-3">
-              <div className="flex items-center justify-between text-xs font-mono-code text-amber-400 font-bold">
+            <div className="p-4 rounded-xl bg-slate-950/80 border border-blue-500/30 space-y-3">
+              <div className="flex items-center justify-between text-xs font-mono-code text-cyan-400 font-bold">
                 <span>ADVANCED BROKER INSTRUMENT SPECIFICATIONS</span>
                 <span className="text-[10px] text-slate-400">Custom Mode</span>
               </div>
@@ -445,7 +445,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                     step="0.01"
                     value={customPipValue}
                     onChange={(e) => setCustomPipValue(parseFloat(e.target.value) || 10)}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200"
                   />
                 </div>
                 <div>
@@ -454,7 +454,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                     type="number"
                     value={contractSize}
                     onChange={(e) => setContractSize(parseFloat(e.target.value) || 100000)}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200"
                   />
                 </div>
               </div>
@@ -465,7 +465,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
           <button
             type="button"
             onClick={handleCalculateAndSave}
-            className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-military font-bold text-sm tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+            className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-amber-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-military font-bold text-sm tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
           >
             <Calculator className="w-4 h-4" />
             CALCULATE LOT SIZE & RECORD CALCULATION
@@ -475,9 +475,9 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
         {/* RESULTS & SAFETY PANEL (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
           {/* Main Recommended Lot Size HUD */}
-          <div className="bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-2 border-amber-500/40 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+          <div className="bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-2 border-blue-500/40 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-              <span className="text-xs font-military font-bold tracking-wider text-amber-400 uppercase flex items-center gap-2">
+              <span className="text-xs font-military font-bold tracking-wider text-cyan-400 uppercase flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
                 OFFICIAL LOT SIZING RESULT
               </span>
@@ -499,15 +499,15 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
               </div>
               {/* Standard / Mini / Micro breakdown */}
               <div className="mt-2.5 pt-2 border-t border-slate-800/80 grid grid-cols-3 gap-1 px-3 text-[11px] font-mono-code">
-                <div className="bg-slate-900/90 py-1 px-1.5 rounded border border-slate-800 text-center">
+                <div className="bg-slate-950/90 py-1 px-1.5 rounded border border-slate-800 text-center">
                   <span className="text-slate-500 block text-[9px] uppercase">Standard (1.0)</span>
                   <span className="text-slate-200 font-bold">{recommendedLotSize.toFixed(2)}</span>
                 </div>
-                <div className="bg-slate-900/90 py-1 px-1.5 rounded border border-slate-800 text-center">
+                <div className="bg-slate-950/90 py-1 px-1.5 rounded border border-slate-800 text-center">
                   <span className="text-slate-500 block text-[9px] uppercase">Mini (0.1)</span>
                   <span className="text-amber-300 font-bold">{(recommendedLotSize * 10).toFixed(1)}</span>
                 </div>
-                <div className="bg-slate-900/90 py-1 px-1.5 rounded border border-slate-800 text-center">
+                <div className="bg-slate-950/90 py-1 px-1.5 rounded border border-slate-800 text-center">
                   <span className="text-slate-500 block text-[9px] uppercase">Micro (0.01)</span>
                   <span className="text-emerald-300 font-bold">{Math.round(recommendedLotSize * 100)}</span>
                 </div>
@@ -525,11 +525,11 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
               </div>
               <div className="flex items-center justify-between py-1 border-b border-slate-800/50">
                 <span className="text-slate-400">Risk Percentage:</span>
-                <span className="font-bold text-amber-400">{riskPercent}%</span>
+                <span className="font-bold text-cyan-400">{riskPercent}%</span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-slate-800/50">
                 <span className="text-slate-400">Maximum Risk Amount:</span>
-                <span className="font-bold text-amber-400">{formatCurrency(riskAmount, currency)}</span>
+                <span className="font-bold text-cyan-400">{formatCurrency(riskAmount, currency)}</span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-slate-800/50">
                 <span className="text-slate-400">Stop Loss Distance:</span>
@@ -561,10 +561,10 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
           </div>
 
           {/* Manual Lot Size Checker & Risk Guard */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
             <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
               <h3 className="text-xs font-military font-bold tracking-wider text-slate-300 uppercase flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <AlertTriangle className="w-4 h-4 text-cyan-400" />
                 MANUAL LOT SIZE CHECKER
               </h3>
               <span className="text-[10px] font-mono-code text-slate-400">Over-Risk Safety</span>
@@ -583,7 +583,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                     value={manualLotSize}
                     onChange={(e) => setManualLotSize(e.target.value)}
                     placeholder="e.g. 0.20"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg font-mono-code text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg font-mono-code text-xs text-slate-100 focus:outline-none focus:border-cyan-400"
                   />
                 </div>
               </div>
@@ -614,10 +614,10 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
       </div>
 
       {/* CALCULATION HISTORY SECTION */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
           <div className="flex items-center gap-2.5">
-            <History className="w-5 h-5 text-amber-400" />
+            <History className="w-5 h-5 text-cyan-400" />
             <div>
               <h3 className="text-sm font-military font-bold tracking-wider text-slate-100 uppercase">
                 LOT SIZE CALCULATION HISTORY
@@ -664,7 +664,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                     <td className="py-2.5 text-slate-400 text-[11px]">{item.date}</td>
                     <td className="py-2.5 font-bold text-amber-300">{item.pair}</td>
                     <td className="py-2.5 text-right text-slate-200">{formatCurrency(item.balance, item.currency)}</td>
-                    <td className="py-2.5 text-center text-amber-400 font-bold">{item.riskPercent}%</td>
+                    <td className="py-2.5 text-center text-cyan-400 font-bold">{item.riskPercent}%</td>
                     <td className="py-2.5 text-right text-slate-300">{item.stopLossPips} pips</td>
                     <td className="py-2.5 text-right font-black text-amber-300 text-sm">
                       {item.recommendedLotSize.toFixed(2)}

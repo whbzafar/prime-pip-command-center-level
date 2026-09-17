@@ -203,7 +203,7 @@ export const CalmingSuiteHome: React.FC<CalmingSuiteHomeProps> = ({ onSelectTab,
             <button
               type="button"
               onClick={() => onSelectTab('BREATHING')}
-              className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-teal-300 text-xs font-military font-bold tracking-wider uppercase transition flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-teal-300 text-xs font-military font-bold tracking-wider uppercase transition flex items-center gap-2 cursor-pointer"
             >
               <Wind className="w-3.5 h-3.5 text-teal-400" />
               <span>BREATHING CENTER</span>
@@ -211,9 +211,9 @@ export const CalmingSuiteHome: React.FC<CalmingSuiteHomeProps> = ({ onSelectTab,
             <button
               type="button"
               onClick={() => onSelectTab('MIND_RESET')}
-              className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-amber-300 text-xs font-military font-bold tracking-wider uppercase transition flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-amber-300 text-xs font-military font-bold tracking-wider uppercase transition flex items-center gap-2 cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
               <span>6-STEP MIND RESET</span>
             </button>
           </div>
@@ -241,7 +241,7 @@ export const CalmingSuiteHome: React.FC<CalmingSuiteHomeProps> = ({ onSelectTab,
               <div
                 key={card.id}
                 onClick={() => onSelectTab(card.id)}
-                className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800/90 hover:border-teal-500/50 hover:bg-slate-900 transition-all duration-200 cursor-pointer flex flex-col justify-between group shadow-sm hover:shadow-lg hover:shadow-teal-500/5"
+                className="p-5 rounded-2xl bg-slate-950/70 border border-slate-800/90 hover:border-teal-500/50 hover:bg-slate-950 transition-all duration-200 cursor-pointer flex flex-col justify-between group shadow-sm hover:shadow-lg hover:shadow-teal-500/5"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">

@@ -195,7 +195,7 @@ export const ThoughtSorter: React.FC<ThoughtSorterProps> = ({
                 key={idx}
                 className={`p-3.5 rounded-xl border text-xs font-mono-code space-y-1.5 ${
                   decision.isCorrect
-                    ? 'bg-slate-900/70 border-emerald-500/30'
+                    ? 'bg-slate-950/70 border-emerald-500/30'
                     : 'bg-rose-950/20 border-rose-500/30'
                 }`}
               >

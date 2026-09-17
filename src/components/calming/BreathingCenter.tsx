@@ -195,7 +195,7 @@ export const BreathingCenter: React.FC = () => {
             className={`px-3 py-1.5 rounded-xl border text-xs font-military font-bold transition flex items-center gap-1.5 cursor-pointer ${
               soundCuesEnabled
                 ? 'bg-teal-500/20 text-teal-300 border-teal-500/40'
-                : 'bg-slate-900 border-slate-800 text-slate-400'
+                : 'bg-slate-950 border-slate-800 text-slate-400'
             }`}
           >
             {soundCuesEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
@@ -216,7 +216,7 @@ export const BreathingCenter: React.FC = () => {
               className={`p-3 rounded-xl border text-left transition cursor-pointer ${
                 isSelected
                   ? 'bg-teal-500/20 border-teal-400 text-teal-100 shadow-md shadow-teal-500/10'
-                  : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200'
+                  : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200'
               }`}
             >
               <span className="text-xs font-military font-bold block truncate">{p.name}</span>
@@ -305,7 +305,7 @@ export const BreathingCenter: React.FC = () => {
 
         {/* Phase Indicator & Cue */}
         <div className="mb-6 space-y-1">
-          <span className="text-[11px] font-mono-code px-3 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-teal-300 uppercase tracking-wider font-bold">
+          <span className="text-[11px] font-mono-code px-3 py-1 rounded-full bg-slate-950/90 border border-slate-800 text-teal-300 uppercase tracking-wider font-bold">
             {isActive ? patternConfig.name : 'READY TO BEGIN'}
           </span>
           <h2 className="text-2xl sm:text-4xl font-military font-bold text-slate-100 tracking-wider transition-all duration-300">
@@ -338,8 +338,8 @@ export const BreathingCenter: React.FC = () => {
                   ? 'scale-125 bg-gradient-to-tr from-teal-500/40 via-teal-400/30 to-emerald-400/40 shadow-teal-500/40 border-2 border-teal-300 duration-1000'
                   : isContract
                   ? 'scale-90 bg-gradient-to-tr from-indigo-900/50 via-slate-800/60 to-teal-950/40 shadow-indigo-500/20 border border-indigo-400/40 duration-1000'
-                  : 'scale-110 bg-gradient-to-tr from-amber-500/30 via-slate-800 to-teal-900/40 shadow-amber-500/20 border-2 border-amber-300/60 duration-500'
-                : 'scale-100 bg-slate-900/80 border border-slate-800 shadow-slate-950'
+                  : 'scale-110 bg-gradient-to-tr from-blue-500/30 via-slate-800 to-teal-900/40 shadow-blue-500/20 border-2 border-amber-300/60 duration-500'
+                : 'scale-100 bg-slate-950/80 border border-slate-800 shadow-slate-950'
             }`}
           >
             {isActive ? (
@@ -384,7 +384,7 @@ export const BreathingCenter: React.FC = () => {
                   setPhaseIndex(0);
                   setSecondsRemaining(patternConfig.phases[0].duration);
                 }}
-                className="p-3 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                className="p-3 rounded-2xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
                 title="Reset current cycle"
               >
                 <RotateCcw className="w-4 h-4" />

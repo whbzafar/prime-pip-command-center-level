@@ -260,14 +260,14 @@ export const StagedChallenges: React.FC<StagedChallengesProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+          <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
             <Award className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider">
+              <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-blue-500/20 text-amber-300 border border-blue-500/30 uppercase tracking-wider">
                 STAGED MASTERY CHALLENGES
               </span>
               <span className="text-xs font-mono-code text-slate-400">
@@ -289,7 +289,7 @@ export const StagedChallenges: React.FC<StagedChallengesProps> = ({
             <span className="text-[10px] font-mono-code text-slate-400 uppercase block">
               PROGRESS
             </span>
-            <span className="text-lg font-mono-code font-bold text-amber-400">
+            <span className="text-lg font-mono-code font-bold text-cyan-400">
               {completedCount} / {activeChallenge.targetTradesCount}
             </span>
             <span className="text-[10px] font-mono-code text-slate-500 block">
@@ -318,12 +318,12 @@ export const StagedChallenges: React.FC<StagedChallengesProps> = ({
               onClick={() => setSelectedChallengeId(challenge.id)}
               className={`p-4 rounded-xl border text-left transition ${
                 isSelected
-                  ? 'bg-amber-500/15 border-amber-500/80 shadow-lg shadow-amber-500/10'
-                  : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 text-slate-400'
+                  ? 'bg-blue-500/15 border-blue-500/80 shadow-lg shadow-blue-500/10'
+                  : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-400'
               }`}
             >
               <div className="flex items-center justify-between text-xs font-military font-bold mb-1">
-                <span className={isSelected ? 'text-amber-400' : 'text-slate-300'}>
+                <span className={isSelected ? 'text-cyan-400' : 'text-slate-300'}>
                   LEVEL 0{challenge.level}: {challenge.title}
                 </span>
                 <span className="text-[10px] font-mono-code text-slate-500">
@@ -339,7 +339,7 @@ export const StagedChallenges: React.FC<StagedChallengesProps> = ({
       </div>
 
       {/* Challenge Invariants & Rules */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+      <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <h3 className="text-xs font-military font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -360,7 +360,7 @@ export const StagedChallenges: React.FC<StagedChallengesProps> = ({
                 <span className="text-xs font-military font-bold text-slate-200">
                   {rule.title}
                 </span>
-                <span className="text-[9px] font-mono-code px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <span className="text-[9px] font-mono-code px-1.5 py-0.5 rounded bg-blue-500/10 text-cyan-400 border border-blue-500/20">
                   {rule.metric}
                 </span>
               </div>
@@ -373,11 +373,11 @@ export const StagedChallenges: React.FC<StagedChallengesProps> = ({
       </div>
 
       {/* Interactive 10-Trade Execution Matrix */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+      <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
           <div>
             <h3 className="text-xs font-military font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2">
-              <Milestone className="w-4 h-4 text-amber-400" />
+              <Milestone className="w-4 h-4 text-cyan-400" />
               <span>
                 TRADE EXECUTION MATRIX ({completedCount}/{activeChallenge.targetTradesCount} VERIFIED CLEAN)
               </span>
@@ -470,8 +470,8 @@ export const StagedChallenges: React.FC<StagedChallengesProps> = ({
 
         {/* Completion Banner */}
         {isChallengeCompleted && (
-          <div className="p-5 rounded-xl bg-amber-500/10 border border-amber-500/40 flex items-start gap-4 animate-in fade-in">
-            <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
+          <div className="p-5 rounded-xl bg-blue-500/10 border border-blue-500/40 flex items-start gap-4 animate-in fade-in">
+            <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/40 text-cyan-400 flex items-center justify-center shrink-0">
               <Award className="w-5 h-5" />
             </div>
             <div className="space-y-1">
@@ -489,7 +489,7 @@ export const StagedChallenges: React.FC<StagedChallengesProps> = ({
       {/* Action Footer */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono-code">
         <div className="flex items-center gap-2 text-slate-400">
-          <Info className="w-4 h-4 text-amber-400" />
+          <Info className="w-4 h-4 text-cyan-400" />
           <span>Every challenge adheres to the 1% risk ceiling and 2 trades/day rule.</span>
         </div>
 
@@ -497,7 +497,7 @@ export const StagedChallenges: React.FC<StagedChallengesProps> = ({
           {onOpenNewTrade && (
             <button
               onClick={onOpenNewTrade}
-              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs uppercase cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs uppercase cursor-pointer"
             >
               + LOG CHALLENGE TRADE
             </button>
@@ -505,7 +505,7 @@ export const StagedChallenges: React.FC<StagedChallengesProps> = ({
           {onNavigateToTab && (
             <button
               onClick={() => onNavigateToTab('PRE_TRADE_PLAN')}
-              className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs uppercase cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs uppercase cursor-pointer"
             >
               OPEN PRE-TRADE PLAN
             </button>

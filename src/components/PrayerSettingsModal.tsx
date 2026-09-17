@@ -129,7 +129,7 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center gap-3">
-            <span className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+            <span className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-cyan-400">
               <Moon className="w-6 h-6" />
             </span>
             <div>
@@ -143,7 +143,7 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -152,7 +152,7 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
         {/* Current Config summary */}
         <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-between font-mono-code text-xs">
           <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-amber-400" />
+            <MapPin className="w-4 h-4 text-cyan-400" />
             <span>
               Active Location:{' '}
               <strong className="text-amber-300">
@@ -180,14 +180,14 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
             <button
               type="button"
               onClick={() => setIsCustomCoordMode(!isCustomCoordMode)}
-              className="text-xs text-amber-400 hover:underline"
+              className="text-xs text-cyan-400 hover:underline"
             >
               {isCustomCoordMode ? 'Cancel Custom Lat/Lng' : 'Manual Coordinates Fallback'}
             </button>
           </div>
 
           {isCustomCoordMode ? (
-            <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-3">
+            <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <label className="text-slate-400 block mb-1">Latitude (-90 to +90)</label>
@@ -213,7 +213,7 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
               <button
                 type="button"
                 onClick={handleSaveCustomCoords}
-                className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs transition cursor-pointer"
+                className="px-4 py-1.5 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs transition cursor-pointer"
               >
                 APPLY CUSTOM COORDINATES
               </button>
@@ -227,7 +227,7 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
                   value={citySearch}
                   onChange={(e) => setCitySearch(e.target.value)}
                   placeholder="Search city or country (e.g., London, New York, Dubai, Lahore, Riyadh)..."
-                  className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-100 font-mono-code focus:outline-none focus:border-amber-500"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 font-mono-code focus:outline-none focus:border-blue-500"
                 />
               </div>
 
@@ -241,15 +241,15 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
                       onClick={() => handleSelectCity(c)}
                       className={`p-2 rounded-xl border text-left text-xs transition flex items-center justify-between cursor-pointer ${
                         isSelected
-                          ? 'bg-amber-500/15 border-amber-500 text-amber-300'
-                          : 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300'
+                          ? 'bg-blue-500/15 border-blue-500 text-amber-300'
+                          : 'bg-slate-950 border-slate-800 hover:border-slate-700 text-slate-300'
                       }`}
                     >
                       <div className="truncate pr-1">
                         <div className="font-bold truncate">{c.name}</div>
                         <div className="text-[10px] text-slate-400 truncate">{c.country}</div>
                       </div>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                      {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
                     </button>
                   );
                 })}
@@ -273,15 +273,15 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
                   onClick={() => handleMethodChange(m.id)}
                   className={`p-2.5 rounded-xl border text-left text-xs transition flex items-center justify-between cursor-pointer ${
                     isSelected
-                      ? 'bg-amber-500/15 border-amber-500 text-amber-300'
-                      : 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300'
+                      ? 'bg-blue-500/15 border-blue-500 text-amber-300'
+                      : 'bg-slate-950 border-slate-800 hover:border-slate-700 text-slate-300'
                   }`}
                 >
                   <div className="pr-2">
                     <div className="font-bold">{m.name}</div>
                     <div className="text-[10px] text-slate-400">{m.description}</div>
                   </div>
-                  {isSelected && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                  {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
                 </button>
               );
             })}
@@ -299,8 +299,8 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
               onClick={() => handleSchoolChange('HANAFI')}
               className={`p-3 rounded-xl border text-left transition cursor-pointer ${
                 settings.juristicSchool === 'HANAFI'
-                  ? 'bg-amber-500/15 border-amber-500 text-amber-300'
-                  : 'bg-slate-900 border-slate-800 text-slate-300'
+                  ? 'bg-blue-500/15 border-blue-500 text-amber-300'
+                  : 'bg-slate-950 border-slate-800 text-slate-300'
               }`}
             >
               <div className="font-bold">HANAFI SCHOOL</div>
@@ -314,8 +314,8 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
               onClick={() => handleSchoolChange('STANDARD')}
               className={`p-3 rounded-xl border text-left transition cursor-pointer ${
                 settings.juristicSchool === 'STANDARD'
-                  ? 'bg-amber-500/15 border-amber-500 text-amber-300'
-                  : 'bg-slate-900 border-slate-800 text-slate-300'
+                  ? 'bg-blue-500/15 border-blue-500 text-amber-300'
+                  : 'bg-slate-950 border-slate-800 text-slate-300'
               }`}
             >
               <div className="font-bold">STANDARD (SHAFI'I / MALIKI / HANBALI)</div>
@@ -340,7 +340,7 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
                 setSettings(updated);
                 savePrayerSettings(updated);
               }}
-              className="bg-slate-900 border border-slate-700 text-slate-200 px-2 py-1 rounded-lg text-xs font-mono-code"
+              className="bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 rounded-lg text-xs font-mono-code"
             >
               <option value="10">10 Minutes Before</option>
               <option value="15">15 Minutes Before (Recommended)</option>
@@ -351,14 +351,14 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
 
           <div className="flex items-center justify-between pt-2 border-t border-slate-900">
             <div className="flex items-center gap-2">
-              <Volume2 className="w-4 h-4 text-amber-400" />
+              <Volume2 className="w-4 h-4 text-cyan-400" />
               <span className="font-bold text-slate-200">Peaceful Audio Chime:</span>
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleTestChime}
-                className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-[11px] transition cursor-pointer"
+                className="px-2.5 py-1 bg-slate-950 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-[11px] transition cursor-pointer"
               >
                 {chimeTested ? 'Chiming...' : 'Test Chime'}
               </button>
@@ -370,7 +370,7 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
                   savePrayerSettings(updated);
                 }}
                 className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
-                  settings.soundEnabled ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                  settings.soundEnabled ? 'bg-blue-500 text-slate-950' : 'bg-slate-800 text-slate-400'
                 }`}
               >
                 {settings.soundEnabled ? 'ENABLED' : 'MUTED'}
@@ -384,7 +384,7 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs transition cursor-pointer"
+            className="px-5 py-2 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs transition cursor-pointer"
           >
             SAVE & APPLY GLOBALLY
           </button>

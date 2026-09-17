@@ -124,7 +124,7 @@ export const CommandCenterPillars: React.FC<CommandCenterPillarsProps> = ({
               className={`flex-1 py-2 px-1 text-center font-military font-bold text-xs tracking-wider rounded-lg transition-all duration-150 relative prime-ios-touch ${
                 isActive
                   ? tab === 'TRADE'
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/20'
+                    ? 'bg-blue-500/20 text-amber-300 border border-blue-500/40 shadow-sm shadow-blue-500/20'
                     : tab === 'RISK'
                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20'
                     : tab === 'MINDSET'
@@ -145,8 +145,8 @@ export const CommandCenterPillars: React.FC<CommandCenterPillarsProps> = ({
           title="Toggle view of all command pillars"
           className={`px-2 py-2 text-[10px] font-mono-code rounded-lg border transition ${
             showAllMobile
-              ? 'bg-slate-800 text-amber-400 border-amber-500/30'
-              : 'bg-slate-900 text-slate-500 border-slate-800'
+              ? 'bg-slate-800 text-cyan-400 border-blue-500/30'
+              : 'bg-slate-950 text-slate-500 border-slate-800'
           }`}
         >
           {showAllMobile ? 'COLLAPSE' : 'ALL 4'}
@@ -168,20 +168,20 @@ export const CommandCenterPillars: React.FC<CommandCenterPillarsProps> = ({
         <div
           className={`${
             !showAllMobile && activeMobilePillar !== 'TRADE' ? 'hidden md:flex' : 'flex'
-          } flex-col justify-between prime-glass-card rounded-xl p-4 sm:p-5 border-l-4 border-l-amber-400/80 relative overflow-hidden transition-all duration-200 hover:border-amber-400/50 group`}
+          } flex-col justify-between prime-glass-card rounded-xl p-4 sm:p-5 border-l-4 border-l-cyan-400/80 relative overflow-hidden transition-all duration-200 hover:border-cyan-400/50 group`}
         >
-          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-xl pointer-events-none" />
 
           <div>
             <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.06]">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
+                <div className="w-7 h-7 rounded-lg bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition-transform">
                   <TrendingUp className="w-4 h-4 stroke-[2.2]" />
                 </div>
                 <div>
                   <h4 className="font-military font-bold text-xs tracking-wider text-slate-100 flex items-center gap-1.5">
                     <span>TRADE</span>
-                    <span className="text-[9px] font-mono-code px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
+                    <span className="text-[9px] font-mono-code px-1.5 py-0.2 rounded bg-blue-500/10 text-cyan-400 border border-blue-500/20 font-bold">
                       EXECUTION
                     </span>
                   </h4>
@@ -218,7 +218,7 @@ export const CommandCenterPillars: React.FC<CommandCenterPillarsProps> = ({
                 <span className="text-slate-400 text-[11px]">TODAY'S TRADES:</span>
                 <span
                   className={`font-bold ${
-                    isTradeQuotaHit ? 'text-rose-400' : 'text-amber-400'
+                    isTradeQuotaHit ? 'text-rose-400' : 'text-cyan-400'
                   }`}
                 >
                   {metrics.tradesToday} / {account.maxDailyTrades} SLOTS
@@ -230,14 +230,14 @@ export const CommandCenterPillars: React.FC<CommandCenterPillarsProps> = ({
           <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center gap-2">
             <button
               onClick={onOpenNewTrade}
-              className="flex-1 py-1.5 px-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-military font-bold text-[11px] tracking-wider rounded-lg transition-all shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 prime-ios-touch prime-light-sweep cursor-pointer"
+              className="flex-1 py-1.5 px-2.5 bg-gradient-to-r from-blue-500 to-amber-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-military font-bold text-[11px] tracking-wider rounded-lg transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-1.5 prime-ios-touch prime-light-sweep cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>NEW TRADE</span>
             </button>
             <button
               onClick={() => onNavigateToTab('JOURNAL')}
-              className="py-1.5 px-2 bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-amber-400 border border-slate-800 rounded-lg text-[10px] font-mono-code transition cursor-pointer"
+              className="py-1.5 px-2 bg-slate-950/90 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 border border-slate-800 rounded-lg text-[10px] font-mono-code transition cursor-pointer"
               title="Open Trade Journal"
             >
               VAULT
@@ -276,7 +276,7 @@ export const CommandCenterPillars: React.FC<CommandCenterPillarsProps> = ({
                   isDailyRiskHit
                     ? 'bg-rose-500/20 text-rose-400 border-rose-500/30 animate-pulse'
                     : todayLosses > 0
-                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                    ? 'bg-blue-500/20 text-cyan-400 border-blue-500/30'
                     : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                 }`}
               >
@@ -287,7 +287,7 @@ export const CommandCenterPillars: React.FC<CommandCenterPillarsProps> = ({
             <div className="mt-3 space-y-2 font-mono-code">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-400 text-[11px]">1% PER TRADE:</span>
-                <span className="font-bold text-amber-400 text-sm">
+                <span className="font-bold text-cyan-400 text-sm">
                   {formatCurrency(master1Percent, account.currency)}
                 </span>
               </div>
@@ -322,7 +322,7 @@ export const CommandCenterPillars: React.FC<CommandCenterPillarsProps> = ({
             </button>
             <button
               onClick={() => onNavigateToTab('RISK')}
-              className="py-1.5 px-2 bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-emerald-400 border border-slate-800 rounded-lg text-[10px] font-mono-code transition cursor-pointer"
+              className="py-1.5 px-2 bg-slate-950/90 hover:bg-slate-800 text-slate-300 hover:text-emerald-400 border border-slate-800 rounded-lg text-[10px] font-mono-code transition cursor-pointer"
               title="Open Risk Management Center"
             >
               RULES
@@ -396,7 +396,7 @@ export const CommandCenterPillars: React.FC<CommandCenterPillarsProps> = ({
             </button>
             <button
               onClick={() => onNavigateToTab('DAILY_DEV')}
-              className="py-1.5 px-2 bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-indigo-400 border border-slate-800 rounded-lg text-[10px] font-mono-code transition cursor-pointer"
+              className="py-1.5 px-2 bg-slate-950/90 hover:bg-slate-800 text-slate-300 hover:text-indigo-400 border border-slate-800 rounded-lg text-[10px] font-mono-code transition cursor-pointer"
               title="Daily Growth & Meditation"
             >
               DRILLS
@@ -433,7 +433,7 @@ export const CommandCenterPillars: React.FC<CommandCenterPillarsProps> = ({
               <span
                 className={`text-[9px] font-mono-code font-bold uppercase px-2 py-0.5 rounded border ${
                   isPeak
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
                     : 'bg-slate-800 text-slate-300 border-slate-700'
                 }`}
               >
@@ -458,7 +458,7 @@ export const CommandCenterPillars: React.FC<CommandCenterPillarsProps> = ({
 
               <div className="flex items-center justify-between text-xs pt-1 border-t border-white/[0.04]">
                 <span className="text-slate-400 text-[11px] flex items-center gap-1">
-                  <Moon className="w-3 h-3 text-amber-400" />
+                  <Moon className="w-3 h-3 text-cyan-400" />
                   PRAYER:
                 </span>
                 <span className="font-semibold text-amber-300 truncate max-w-[140px] text-right text-[11px]">
@@ -478,7 +478,7 @@ export const CommandCenterPillars: React.FC<CommandCenterPillarsProps> = ({
             </button>
             <button
               onClick={() => onNavigateToTab('FUNDAMENTAL_CALENDAR')}
-              className="py-1.5 px-2 bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-sky-400 border border-slate-800 rounded-lg text-[10px] font-mono-code transition cursor-pointer"
+              className="py-1.5 px-2 bg-slate-950/90 hover:bg-slate-800 text-slate-300 hover:text-sky-400 border border-slate-800 rounded-lg text-[10px] font-mono-code transition cursor-pointer"
               title="Fundamental News Calendar"
             >
               NEWS

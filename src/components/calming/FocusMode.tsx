@@ -121,7 +121,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({ onNavigateToTab }) => {
           <button
             type="button"
             onClick={() => onNavigateToTab && onNavigateToTab('DASHBOARD')}
-            className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-left hover:border-teal-400 transition cursor-pointer"
+            className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-left hover:border-teal-400 transition cursor-pointer"
           >
             <div className="flex items-center gap-2 text-xs font-military font-bold text-slate-200">
               <Activity className="w-4 h-4 text-teal-400" />
@@ -135,10 +135,10 @@ export const FocusMode: React.FC<FocusModeProps> = ({ onNavigateToTab }) => {
           <button
             type="button"
             onClick={() => onNavigateToTab && onNavigateToTab('PRE_TRADE_PLAN')}
-            className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-left hover:border-amber-400 transition cursor-pointer"
+            className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-left hover:border-cyan-400 transition cursor-pointer"
           >
             <div className="flex items-center gap-2 text-xs font-military font-bold text-slate-200">
-              <Crosshair className="w-4 h-4 text-amber-400" />
+              <Crosshair className="w-4 h-4 text-cyan-400" />
               <span>OPEN PRE-TRADE PLAN</span>
             </div>
             <p className="text-[10px] font-mono-code text-slate-500 mt-1">
@@ -149,7 +149,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({ onNavigateToTab }) => {
           <button
             type="button"
             onClick={() => onNavigateToTab && onNavigateToTab('JOURNAL')}
-            className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-left hover:border-indigo-400 transition cursor-pointer"
+            className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-left hover:border-indigo-400 transition cursor-pointer"
           >
             <div className="flex items-center gap-2 text-xs font-military font-bold text-slate-200">
               <BookOpen className="w-4 h-4 text-indigo-400" />
@@ -182,7 +182,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({ onNavigateToTab }) => {
     <div
       className={`space-y-6 animate-in fade-in duration-200 ${
         isFullScreen
-          ? 'fixed inset-0 z-50 bg-[#070A11] p-6 sm:p-12 overflow-y-auto flex flex-col justify-between'
+          ? 'fixed inset-0 z-50 bg-[#020617] p-6 sm:p-12 overflow-y-auto flex flex-col justify-between'
           : ''
       }`}
     >
@@ -205,7 +205,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({ onNavigateToTab }) => {
         <button
           type="button"
           onClick={() => setIsFullScreen(!isFullScreen)}
-          className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition"
+          className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 transition"
           title={isFullScreen ? 'Exit full screen' : 'Enter immersive full screen'}
         >
           {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -251,7 +251,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({ onNavigateToTab }) => {
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full max-w-md h-2 rounded-full bg-slate-900 overflow-hidden my-4">
+        <div className="w-full max-w-md h-2 rounded-full bg-slate-950 overflow-hidden my-4">
           <div
             className="h-full bg-teal-400 transition-all duration-1000"
             style={{ width: `${progressPercent}%` }}
@@ -295,7 +295,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({ onNavigateToTab }) => {
                 className={`px-3 py-1.5 rounded-xl text-xs font-mono-code font-bold border transition cursor-pointer ${
                   sessionMinutes === m
                     ? 'bg-teal-500/20 border-teal-400 text-teal-200'
-                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
                 }`}
               >
                 {m} MIN

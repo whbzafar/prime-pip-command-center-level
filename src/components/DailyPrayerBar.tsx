@@ -135,7 +135,7 @@ export const DailyPrayerBar: React.FC = () => {
     return (
       <div className="bg-[#050811] border-b border-slate-800/80 px-3 py-1 flex items-center justify-between text-[11px] font-mono-code text-slate-400">
         <div className="flex items-center gap-2">
-          <Moon className="w-3.5 h-3.5 text-amber-400" />
+          <Moon className="w-3.5 h-3.5 text-cyan-400" />
           <span className="font-bold text-slate-300">PRAYER TRACKER:</span>
           <span className="text-amber-300">
             {schedule?.nextPrayer ? `Next: ${schedule.nextPrayer.name} in ${schedule.nextPrayer.timeRemainingStr}` : `${settings.cityName}`}
@@ -158,8 +158,8 @@ export const DailyPrayerBar: React.FC = () => {
     <div className="bg-[#050811] border-b border-slate-800/80 text-xs font-mono-code px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 text-slate-300">
       {/* City selector & Category badge */}
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 text-amber-400 font-bold tracking-wider">
-          <Moon className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+        <div className="flex items-center gap-1 text-cyan-400 font-bold tracking-wider">
+          <Moon className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
           <span className="hidden sm:inline">DAILY PRAYER TRACKER</span>
           <span className="sm:hidden">PRAYER</span>
         </div>
@@ -168,10 +168,10 @@ export const DailyPrayerBar: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsSettingsOpen(true)}
-          className="flex items-center gap-1 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 px-2 py-0.5 rounded text-[11px] text-slate-200 transition cursor-pointer group"
+          className="flex items-center gap-1 bg-slate-950/90 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 px-2 py-0.5 rounded text-[11px] text-slate-200 transition cursor-pointer group"
           title="Click to change city, GPS location, and calculation method"
         >
-          <span className="font-bold group-hover:text-amber-400">{settings.cityName}</span>
+          <span className="font-bold group-hover:text-cyan-400">{settings.cityName}</span>
           <span className="text-slate-400 text-[10px]">({settings.juristicSchool === 'HANAFI' ? 'Han' : 'Std'})</span>
           <Settings className="w-3 h-3 text-slate-400 group-hover:rotate-45 transition-transform" />
         </button>
@@ -181,11 +181,11 @@ export const DailyPrayerBar: React.FC = () => {
           <div
             className={`hidden md:flex items-center gap-1 px-2 py-0.5 rounded border text-[11px] font-bold ${
               schedule.nextPrayer.isImminentWarning
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse'
-                : 'bg-slate-900 border-slate-800 text-slate-300'
+                ? 'bg-blue-500/20 text-amber-300 border-blue-500/40 animate-pulse'
+                : 'bg-slate-950 border-slate-800 text-slate-300'
             }`}
           >
-            <Clock className="w-3 h-3 text-amber-400" />
+            <Clock className="w-3 h-3 text-cyan-400" />
             <span>
               Next: <strong>{schedule.nextPrayer.name}</strong> in {schedule.nextPrayer.timeRemainingStr}
             </span>
@@ -208,11 +208,11 @@ export const DailyPrayerBar: React.FC = () => {
                 isDone
                   ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
                   : isNext
-                  ? 'bg-amber-500/15 border-amber-500/50 text-amber-200'
-                  : 'bg-slate-900/60 border-slate-800/80 text-slate-300 hover:border-slate-700'
+                  ? 'bg-blue-500/15 border-blue-500/50 text-cyan-200'
+                  : 'bg-slate-950/60 border-slate-800/80 text-slate-300 hover:border-slate-700'
               }`}
             >
-              <span className={`font-semibold ${isDone ? 'text-emerald-400' : isNext ? 'text-amber-400' : 'text-slate-300'}`}>
+              <span className={`font-semibold ${isDone ? 'text-emerald-400' : isNext ? 'text-cyan-400' : 'text-slate-300'}`}>
                 {p.name}
               </span>
               <span className="text-slate-400 text-[10px]">{p.time}</span>
@@ -239,11 +239,11 @@ export const DailyPrayerBar: React.FC = () => {
           title={settings.remindersEnabled ? 'Prayer reminders ACTIVE' : 'Prayer reminders MUTED'}
           className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] border transition cursor-pointer ${
             settings.remindersEnabled
-              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20'
-              : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-400'
+              ? 'bg-blue-500/10 border-blue-500/30 text-amber-300 hover:bg-blue-500/20'
+              : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
           }`}
         >
-          {settings.remindersEnabled ? <Bell className="w-3 h-3 text-amber-400" /> : <BellOff className="w-3 h-3" />}
+          {settings.remindersEnabled ? <Bell className="w-3 h-3 text-cyan-400" /> : <BellOff className="w-3 h-3" />}
           <span className="hidden sm:inline">{settings.remindersEnabled ? 'ALERTS ON' : 'MUTED'}</span>
         </button>
 
@@ -259,9 +259,9 @@ export const DailyPrayerBar: React.FC = () => {
 
       {/* Pre-Prayer Trading Discipline Warning Banner */}
       {activeAlert && (
-        <div className="fixed bottom-6 right-6 z-50 max-w-sm bg-slate-900/95 border border-amber-500/60 shadow-2xl p-4 rounded-2xl backdrop-blur flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-4">
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm bg-slate-950/95 border border-blue-500/60 shadow-2xl p-4 rounded-2xl backdrop-blur flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-amber-400 font-military font-bold text-sm">
+            <div className="flex items-center gap-2 text-cyan-400 font-military font-bold text-sm">
               <ShieldAlert className="w-4 h-4" />
               <span>{activeAlert.isImminentWarning ? 'PRE-PRAYER POSITION DISCIPLINE' : 'PRAYER TIME ALERT'}</span>
             </div>

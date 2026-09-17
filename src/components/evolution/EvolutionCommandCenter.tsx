@@ -221,7 +221,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
         {onClose && (
           <button
             onClick={onClose}
-            className="px-6 py-2.5 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 text-xs font-bold text-slate-200 transition-all cursor-pointer"
+            className="px-6 py-2.5 rounded-xl bg-slate-950 border border-slate-700 hover:border-slate-500 text-xs font-bold text-slate-200 transition-all cursor-pointer"
           >
             Return to Dashboard
           </button>
@@ -276,7 +276,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                 <h1 className="text-xl font-military font-bold tracking-wider text-white">
                   PRIMEPIPFX EVOLUTION COMMAND CENTER
                 </h1>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 border border-amber-500/40 text-amber-300">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/20 border border-blue-500/40 text-amber-300">
                   ADMIN ONLY
                 </span>
                 <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 border border-emerald-500/40 text-emerald-300">
@@ -293,17 +293,17 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
           {/* Controls & Metrics */}
           <div className="flex flex-wrap items-center gap-3">
             {/* Trust Level Selector */}
-            <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs font-mono-code">
+            <div className="flex items-center gap-2 bg-slate-950/90 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs font-mono-code">
               <span className="text-slate-400">Trust Level:</span>
               <select
                 value={selectedTrustLevel}
                 onChange={(e) => setSelectedTrustLevel(Number(e.target.value))}
                 className="bg-transparent text-emerald-300 font-bold focus:outline-none cursor-pointer"
               >
-                <option value={0} className="bg-slate-900 text-white">L0: Observe</option>
-                <option value={1} className="bg-slate-900 text-white">L1: Content</option>
-                <option value={2} className="bg-slate-900 text-white">L2: UI/Workflow</option>
-                <option value={3} className="bg-slate-900 text-white">L3: Software</option>
+                <option value={0} className="bg-slate-950 text-white">L0: Observe</option>
+                <option value={1} className="bg-slate-950 text-white">L1: Content</option>
+                <option value={2} className="bg-slate-950 text-white">L2: UI/Workflow</option>
+                <option value={3} className="bg-slate-950 text-white">L3: Software</option>
               </select>
             </div>
 
@@ -312,8 +312,8 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
               onClick={() => setIsEnginePaused(!isEnginePaused)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                 isEnginePaused
-                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
-                  : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-600'
+                  ? 'bg-blue-500/20 border-blue-500/40 text-amber-300 hover:bg-blue-500/30'
+                  : 'bg-slate-950 border-slate-700 text-slate-300 hover:border-slate-600'
               }`}
             >
               {isEnginePaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
@@ -350,13 +350,13 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
 
         {/* CORE MANDATED ATTRIBUTES STRIP */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3 mt-5">
-          <div className="bg-slate-900/80 border border-emerald-500/30 rounded-xl p-3">
+          <div className="bg-slate-950/80 border border-emerald-500/30 rounded-xl p-3">
             <div className="text-[10px] font-mono-code text-slate-400 uppercase">Current Version</div>
             <div className="text-base font-mono font-bold text-emerald-400 mt-0.5">{currentVersion}</div>
             <div className="text-[10px] text-slate-400 mt-0.5">Auditable Git Baseline</div>
           </div>
 
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3">
+          <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3">
             <div className="text-[10px] font-mono-code text-slate-400 uppercase">Evolution Status</div>
             <div className="text-base font-mono font-bold text-cyan-400 mt-0.5 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -365,7 +365,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             <div className="text-[10px] text-slate-400 mt-0.5">Autonomous L2 Safe Sandbox</div>
           </div>
 
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3">
+          <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3">
             <div className="text-[10px] font-mono-code text-slate-400 uppercase">Last Evaluation</div>
             <div className="text-sm font-mono font-bold text-white mt-0.5">
               {new Date(lastEvaluationTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -373,9 +373,9 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             <div className="text-[10px] text-slate-400 mt-0.5">Cycle {stats.cyclesCompleted} Completed</div>
           </div>
 
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3">
+          <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3">
             <div className="text-[10px] font-mono-code text-slate-400 uppercase">Next Evaluation</div>
-            <div className="text-sm font-mono font-bold text-amber-400 mt-0.5 flex items-center gap-1">
+            <div className="text-sm font-mono font-bold text-cyan-400 mt-0.5 flex items-center gap-1">
               <Activity className="w-3.5 h-3.5 animate-spin" />
               In {minutesLeft}m {secondsLeft < 10 ? `0${secondsLeft}` : secondsLeft}s
             </div>
@@ -387,16 +387,16 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 mt-3">
           <button
             onClick={() => setActiveTab('GAPS_EXPERIMENTS')}
-            className="bg-slate-900/60 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
+            className="bg-slate-950/60 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
           >
             <div className="text-[10px] font-mono-code text-slate-400 uppercase">Detected Gaps</div>
-            <div className="text-lg font-mono font-bold text-amber-400 mt-0.5">{detectedGaps.length || 3}</div>
+            <div className="text-lg font-mono font-bold text-cyan-400 mt-0.5">{detectedGaps.length || 3}</div>
             <div className="text-[10px] text-amber-300/80 mt-0.5">Telemetry Scanned</div>
           </button>
 
           <button
             onClick={() => setActiveTab('GAPS_EXPERIMENTS')}
-            className="bg-slate-900/60 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
+            className="bg-slate-950/60 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
           >
             <div className="text-[10px] font-mono-code text-slate-400 uppercase">Active Experiments</div>
             <div className="text-lg font-mono font-bold text-cyan-400 mt-0.5">{activeExperiments.length || 2}</div>
@@ -405,7 +405,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
 
           <button
             onClick={() => { setActiveTab('FEATURES'); setFeatureFilter('BUILT'); }}
-            className="bg-slate-900/60 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
+            className="bg-slate-950/60 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
           >
             <div className="text-[10px] font-mono-code text-slate-400 uppercase">Built Features</div>
             <div className="text-lg font-mono font-bold text-blue-400 mt-0.5">{builtFeatures.length || 3}</div>
@@ -414,7 +414,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
 
           <button
             onClick={() => { setActiveTab('FEATURES'); setFeatureFilter('TESTED'); }}
-            className="bg-slate-900/60 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
+            className="bg-slate-950/60 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
           >
             <div className="text-[10px] font-mono-code text-slate-400 uppercase">Tested Features</div>
             <div className="text-lg font-mono font-bold text-emerald-400 mt-0.5">{testedFeatures.length || 3}</div>
@@ -423,7 +423,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
 
           <button
             onClick={() => { setActiveTab('FEATURES'); setFeatureFilter('RELEASED'); }}
-            className="bg-slate-900/60 hover:bg-slate-800 border border-slate-800 hover:border-teal-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
+            className="bg-slate-950/60 hover:bg-slate-800 border border-slate-800 hover:border-teal-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
           >
             <div className="text-[10px] font-mono-code text-slate-400 uppercase">Released Features</div>
             <div className="text-lg font-mono font-bold text-teal-400 mt-0.5">{releasedFeatures.length || 3}</div>
@@ -432,7 +432,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
 
           <button
             onClick={() => { setActiveTab('FEATURES'); setFeatureFilter('FAILED'); }}
-            className="bg-slate-900/60 hover:bg-slate-800 border border-slate-800 hover:border-rose-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
+            className="bg-slate-950/60 hover:bg-slate-800 border border-slate-800 hover:border-rose-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
           >
             <div className="text-[10px] font-mono-code text-slate-400 uppercase">Failed Features</div>
             <div className="text-lg font-mono font-bold text-rose-400 mt-0.5">{failedFeatures.length || 0}</div>
@@ -441,7 +441,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
 
           <button
             onClick={() => { setActiveTab('FEATURES'); setFeatureFilter('ROLLED_BACK'); }}
-            className="bg-slate-900/60 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
+            className="bg-slate-950/60 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/40 rounded-xl p-2.5 text-left transition-all cursor-pointer"
           >
             <div className="text-[10px] font-mono-code text-slate-400 uppercase">Rolled Back Features</div>
             <div className="text-lg font-mono font-bold text-purple-400 mt-0.5">{rolledBackFeatures.length || 0}</div>
@@ -472,7 +472,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             className={`px-3.5 py-2 text-xs font-mono-code font-bold whitespace-nowrap rounded-xl transition-all duration-180 select-none active:scale-95 cursor-pointer ${
               activeTab === tab.id
                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-sm shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-emerald-200 hover:bg-slate-900 border border-transparent'
+                : 'text-slate-400 hover:text-emerald-200 hover:bg-slate-950 border border-transparent'
             }`}
           >
             {tab.label}
@@ -492,7 +492,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             {/* TAB 1: OVERVIEW & 17-STAGE EVOLUTION PIPELINE */}
             {activeTab === 'OVERVIEW' && (
               <div className="space-y-6">
-                <div className="bg-slate-900/60 border border-emerald-500/20 rounded-xl p-5">
+                <div className="bg-slate-950/60 border border-emerald-500/20 rounded-xl p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-military font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
                       <Activity className="w-4 h-4" />
@@ -526,7 +526,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                     ].map((st) => (
                       <div
                         key={st.step}
-                        className="bg-slate-900 border border-slate-800 hover:border-emerald-500/40 rounded-xl p-2.5 transition-all flex flex-col justify-between"
+                        className="bg-slate-950 border border-slate-800 hover:border-emerald-500/40 rounded-xl p-2.5 transition-all flex flex-col justify-between"
                       >
                         <div>
                           <div className="flex items-center justify-between text-[10px] font-mono-code text-emerald-400">
@@ -543,7 +543,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
 
                 {/* Top Opportunity Highlight */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                  <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 space-y-3">
+                  <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-5 space-y-3">
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-military font-bold text-white uppercase tracking-wider flex items-center gap-2">
                         <Zap className="w-4 h-4 text-emerald-400" />
@@ -572,7 +572,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                     </div>
                   </div>
 
-                  <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 space-y-3">
+                  <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-5 space-y-3">
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-military font-bold text-white uppercase tracking-wider flex items-center gap-2">
                         <ShieldCheck className="w-4 h-4 text-cyan-400" />
@@ -607,7 +607,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             {/* TAB: LIVE EVOLUTION FEED (Section 25) */}
             {activeTab === 'LIVE_FEED' && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between flex-wrap gap-3 bg-slate-900/80 border border-slate-800 p-4 rounded-xl">
+                <div className="flex items-center justify-between flex-wrap gap-3 bg-slate-950/80 border border-slate-800 p-4 rounded-xl">
                   <div>
                     <h3 className="text-sm font-military font-bold text-white uppercase tracking-wider flex items-center gap-2">
                       <Activity className="w-4 h-4 text-emerald-400" />
@@ -719,7 +719,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                   ]).map((item: any) => (
                     <div
                       key={item.id}
-                      className="bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-xl p-3.5 flex items-start gap-3 transition-colors"
+                      className="bg-slate-950 border border-slate-800/80 hover:border-slate-700 rounded-xl p-3.5 flex items-start gap-3 transition-colors"
                     >
                       <div className="font-mono-code text-xs font-bold text-slate-400 bg-slate-950 px-2 py-1 rounded border border-slate-800 flex-shrink-0">
                         {item.timeFormatted}
@@ -764,7 +764,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             {/* TAB: CAPABILITY REGISTRY (Section 22) */}
             {activeTab === 'CAPABILITIES' && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between flex-wrap gap-3 bg-slate-900/80 border border-slate-800 p-4 rounded-xl">
+                <div className="flex items-center justify-between flex-wrap gap-3 bg-slate-950/80 border border-slate-800 p-4 rounded-xl">
                   <div>
                     <h3 className="text-sm font-military font-bold text-white uppercase tracking-wider flex items-center gap-2">
                       <Layers className="w-4 h-4 text-emerald-400" />
@@ -842,7 +842,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                   ]).map((cap: any) => (
                     <div
                       key={cap.id}
-                      className="bg-slate-900 border border-slate-800 hover:border-emerald-500/30 rounded-xl p-4 flex flex-col justify-between space-y-3 transition"
+                      className="bg-slate-950 border border-slate-800 hover:border-emerald-500/30 rounded-xl p-4 flex flex-col justify-between space-y-3 transition"
                     >
                       <div>
                         <div className="flex items-center justify-between gap-2 mb-2">
@@ -850,7 +850,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                             className={`text-[9px] font-mono-code font-bold px-2 py-0.5 rounded border ${
                               cap.status === 'ACTIVE' || cap.status === 'SUPPORTED'
                                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                                : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                                : 'bg-blue-500/10 border-blue-500/30 text-cyan-400'
                             }`}
                           >
                             {cap.status}
@@ -889,7 +889,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             {/* TAB: SYSTEM HEALTH SENTINEL (Section 23) */}
             {activeTab === 'HEALTH' && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between flex-wrap gap-3 bg-slate-900/80 border border-slate-800 p-4 rounded-xl">
+                <div className="flex items-center justify-between flex-wrap gap-3 bg-slate-950/80 border border-slate-800 p-4 rounded-xl">
                   <div>
                     <h3 className="text-sm font-military font-bold text-white uppercase tracking-wider flex items-center gap-2">
                       <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -979,7 +979,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                   ]).map((m: any, idx: number) => (
                     <div
                       key={idx}
-                      className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-2"
+                      className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2"
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-mono-code font-bold text-slate-400">
@@ -1002,7 +1002,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                 </div>
 
                 {/* Self-Healing Incident & Resolution Log */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-5">
                   <h4 className="text-xs font-military font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                     Automated Detect → Diagnose → Recover → Verify Log
@@ -1044,7 +1044,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                           <span className="text-rose-400 font-semibold">Detected:</span> {inc.detectedIssue}
                         </p>
                         <p className="text-slate-300">
-                          <span className="text-amber-400 font-semibold">Diagnosed:</span> {inc.diagnostic}
+                          <span className="text-cyan-400 font-semibold">Diagnosed:</span> {inc.diagnostic}
                         </p>
                         <p className="text-slate-300">
                           <span className="text-emerald-400 font-semibold">Self-Healed:</span> {inc.recoveryAction}
@@ -1068,7 +1068,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                     {statusData?.needs?.map((need: any) => (
                       <div
                         key={need.id}
-                        className="bg-slate-900 border border-slate-800 hover:border-emerald-500/40 rounded-xl p-4 space-y-2 transition-all"
+                        className="bg-slate-950 border border-slate-800 hover:border-emerald-500/40 rounded-xl p-4 space-y-2 transition-all"
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-800 text-emerald-400 border border-slate-700">
@@ -1091,20 +1091,20 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
 
                 <div>
                   <h3 className="text-sm font-military font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    <AlertTriangle className="w-4 h-4 text-cyan-400" />
                     Detected Workflow Gaps & Friction Points
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {statusData?.gaps?.map((gap: any) => (
                       <div
                         key={gap.id}
-                        className="bg-slate-900 border border-slate-800 hover:border-amber-500/40 rounded-xl p-4 space-y-2 transition-all"
+                        className="bg-slate-950 border border-slate-800 hover:border-blue-500/40 rounded-xl p-4 space-y-2 transition-all"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                          <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-blue-500/10 text-amber-300 border border-blue-500/30">
                             {gap.category}
                           </span>
-                          <span className="text-[10px] font-mono-code text-amber-400">
+                          <span className="text-[10px] font-mono-code text-cyan-400">
                             Impact: {gap.impactScore}/100
                           </span>
                         </div>
@@ -1125,7 +1125,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             {/* TAB 3: OPPORTUNITY SCORES */}
             {activeTab === 'OPPORTUNITIES' && (
               <div className="space-y-4">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
                   <div className="text-xs font-mono-code text-slate-400 mb-1">
                     OPPORTUNITY SCORING FORMULA
                   </div>
@@ -1138,7 +1138,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                   {statusData?.opportunities?.map((opp: any) => (
                     <div
                       key={opp.id}
-                      className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                      className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
                     >
                       <div className="space-y-1 max-w-2xl">
                         <div className="flex items-center gap-2">
@@ -1192,7 +1192,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                       className={`w-full text-left p-3.5 rounded-xl border transition-all ${
                         selectedProposal?.featureId === p.featureId
                           ? 'bg-emerald-500/20 border-emerald-500 text-white'
-                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                          : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
                       }`}
                     >
                       <div className="flex items-center justify-between text-[10px] font-mono-code text-slate-400 mb-1">
@@ -1206,7 +1206,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                 </div>
 
                 {/* Detailed 18-Point Inspection */}
-                <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div className="lg:col-span-2 bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4 max-h-[70vh] overflow-y-auto">
                   {selectedProposal ? (
                     <>
                       <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -1293,7 +1293,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                   {statusData?.sandboxes?.map((sb: any) => (
                     <div
                       key={sb.evolutionId}
-                      className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4"
+                      className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
                         <div>
@@ -1357,7 +1357,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                               SHA256: {sb.generatedFiles[0].sha256Signature?.slice(0, 12)}...
                             </span>
                           </div>
-                          <pre className="text-[11px] font-mono text-emerald-300 bg-slate-900/80 p-2.5 rounded border border-slate-800 overflow-x-auto">
+                          <pre className="text-[11px] font-mono text-emerald-300 bg-slate-950/80 p-2.5 rounded border border-slate-800 overflow-x-auto">
                             <code>{sb.generatedFiles[0].contentSnippet}</code>
                           </pre>
                         </div>
@@ -1371,7 +1371,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             {/* TAB 6: 15-AGENT CONSENSUS */}
             {activeTab === 'CONSENSUS' && (
               <div className="space-y-4">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-military font-bold text-white uppercase tracking-wider">
                       15 SPECIALIZED AI AGENTS • UNANIMOUS CONSENSUS
@@ -1405,7 +1405,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                   ].map((ag) => (
                     <div
                       key={ag.agent}
-                      className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-1.5"
+                      className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-1.5"
                     >
                       <div className="flex items-center justify-between text-xs font-mono-code">
                         <span className="font-bold text-white truncate">{ag.agent}</span>
@@ -1440,7 +1440,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {['NOW', 'NEXT', 'EXPERIMENT', 'RESEARCH'].map((col) => (
-                    <div key={col} className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+                    <div key={col} className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
                       <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                         <span className="text-xs font-military font-bold text-emerald-400">{col}</span>
                         <span className="text-[10px] font-mono-code text-slate-500">
@@ -1473,7 +1473,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             {/* TAB 8: INNOVATION ENGINE */}
             {activeTab === 'INNOVATIONS' && (
               <div className="space-y-4">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
                   <h3 className="text-sm font-military font-bold text-white uppercase tracking-wider flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-purple-400" />
                     Cross-Capability Innovation Engine Combinations
@@ -1487,7 +1487,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                   {statusData?.innovations?.map((inno: any) => (
                     <div
                       key={inno.id}
-                      className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3"
+                      className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3"
                     >
                       <div className="flex items-center justify-between">
                         <h4 className="font-bold text-sm text-white">{inno.name}</h4>
@@ -1520,7 +1520,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             {/* TAB 9: EXPLAINABILITY & AUDIT LOGS */}
             {activeTab === 'EXPLAINABILITY' && (
               <div className="space-y-6">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
                   <h3 className="text-sm font-military font-bold text-white uppercase tracking-wider flex items-center gap-2">
                     <HelpCircle className="w-4 h-4 text-cyan-400" />
                     The 8 Explainability Questions
@@ -1534,7 +1534,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                   {statusData?.auditLogs?.map((log: any) => (
                     <div
                       key={log.id}
-                      className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4"
+                      className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4"
                     >
                       <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                         <span className="font-mono text-xs font-bold text-emerald-400">
@@ -1588,7 +1588,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             {/* TAB: EVOLUTION MEMORY DATABASE/STORE (ALL 15 FIELDS) */}
             {activeTab === 'MEMORY' && (
               <div className="space-y-6">
-                <div className="bg-slate-900 border border-emerald-500/30 rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="bg-slate-950 border border-emerald-500/30 rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2">
                       <BookOpen className="w-5 h-5 text-emerald-400" />
@@ -1618,13 +1618,13 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                     return (
                       <div
                         key={evt.id}
-                        className={`bg-slate-900/90 border rounded-xl overflow-hidden transition-all duration-200 ${
+                        className={`bg-slate-950/90 border rounded-xl overflow-hidden transition-all duration-200 ${
                           isRolledBack
                             ? 'border-purple-500/40 bg-purple-950/10'
                             : evt.severity === 'CRITICAL'
                             ? 'border-rose-500/40'
                             : evt.severity === 'HIGH'
-                            ? 'border-amber-500/40'
+                            ? 'border-blue-500/40'
                             : 'border-slate-800 hover:border-emerald-500/40'
                         }`}
                       >
@@ -1656,7 +1656,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                                     evt.severity === 'CRITICAL'
                                       ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                                       : evt.severity === 'HIGH'
-                                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                      ? 'bg-blue-500/20 text-amber-300 border border-blue-500/30'
                                       : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                                   }`}
                                 >
@@ -1699,8 +1699,8 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                           <div className="border-t border-slate-800 bg-slate-950/90 p-5 space-y-5 text-xs font-sans">
                             {/* Problem & Solution */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                              <div className="bg-slate-900/90 p-4 rounded-xl border border-slate-800 space-y-2">
-                                <div className="text-[10px] font-mono-code text-amber-400 uppercase font-bold flex items-center gap-1.5">
+                              <div className="bg-slate-950/90 p-4 rounded-xl border border-slate-800 space-y-2">
+                                <div className="text-[10px] font-mono-code text-cyan-400 uppercase font-bold flex items-center gap-1.5">
                                   <AlertTriangle className="w-3.5 h-3.5" />
                                   1. Detected Problem & Telemetry Evidence
                                 </div>
@@ -1718,7 +1718,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                                 </div>
                               </div>
 
-                              <div className="bg-slate-900/90 p-4 rounded-xl border border-slate-800 space-y-2">
+                              <div className="bg-slate-950/90 p-4 rounded-xl border border-slate-800 space-y-2">
                                 <div className="text-[10px] font-mono-code text-emerald-400 uppercase font-bold flex items-center gap-1.5">
                                   <Zap className="w-3.5 h-3.5" />
                                   2. Proposed Autonomous Solution
@@ -1739,7 +1739,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                             {/* Tests & Security Verification Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                               {/* Tests */}
-                              <div className="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
+                              <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
                                 <div className="text-[10px] font-mono-code text-emerald-400 uppercase font-bold flex items-center justify-between">
                                   <span>3. Automated Test Suites</span>
                                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -1761,7 +1761,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                               </div>
 
                               {/* Security Result */}
-                              <div className="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
+                              <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
                                 <div className="text-[10px] font-mono-code text-cyan-400 uppercase font-bold flex items-center justify-between">
                                   <span>4. AST Security Validation</span>
                                   <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
@@ -1783,7 +1783,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                               </div>
 
                               {/* Performance Result */}
-                              <div className="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
+                              <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
                                 <div className="text-[10px] font-mono-code text-purple-400 uppercase font-bold flex items-center justify-between">
                                   <span>5. Performance Deltas</span>
                                   <Activity className="w-3.5 h-3.5 text-purple-400" />
@@ -1807,7 +1807,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
 
                             {/* User Impact & Lessons Learned */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                              <div className="bg-slate-900/70 p-4 rounded-xl border border-slate-800 space-y-2">
+                              <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 space-y-2">
                                 <div className="text-[10px] font-mono-code text-teal-400 uppercase font-bold">
                                   6. Measured Trader Impact
                                 </div>
@@ -1827,7 +1827,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                                 </div>
                               </div>
 
-                              <div className="bg-slate-900/70 p-4 rounded-xl border border-slate-800 space-y-2">
+                              <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 space-y-2">
                                 <div className="text-[10px] font-mono-code text-indigo-400 uppercase font-bold">
                                   7. Evolution Lessons Learned & Memory Feedback
                                 </div>
@@ -1841,7 +1841,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                             </div>
 
                             {/* Rollback Status & Interactive Control Bar */}
-                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                               <div>
                                 <div className="text-[10px] font-mono-code text-slate-400 uppercase">Rollback Audit Status</div>
                                 <div className="text-xs font-mono-code text-white mt-0.5">
@@ -1886,7 +1886,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-military font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                      <h3 className="text-sm font-military font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4" />
                         DETECTED GAPS ACROSS 13 OBSERVATION DIMENSIONS
                       </h3>
@@ -1894,7 +1894,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                         Continuous telemetry scanning identifies friction points, workflow latencies, and unmet trader requirements.
                       </p>
                     </div>
-                    <span className="text-xs font-mono-code px-3 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    <span className="text-xs font-mono-code px-3 py-1 rounded bg-blue-500/20 text-amber-300 border border-blue-500/40">
                       {detectedGaps.length} GAPS DETECTED
                     </span>
                   </div>
@@ -1903,16 +1903,16 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                     {detectedGaps.map((gap: any) => (
                       <div
                         key={gap.id}
-                        className="bg-slate-900 border border-slate-800 hover:border-amber-500/40 rounded-xl p-4 space-y-3 transition-all"
+                        className="bg-slate-950 border border-slate-800 hover:border-blue-500/40 rounded-xl p-4 space-y-3 transition-all"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-mono text-xs font-bold text-amber-400">{gap.id}</span>
+                          <span className="font-mono text-xs font-bold text-cyan-400">{gap.id}</span>
                           <span
                             className={`text-[10px] font-mono-code px-2 py-0.5 rounded font-bold ${
                               gap.severity === 'CRITICAL'
                                 ? 'bg-rose-500/20 text-rose-300'
                                 : gap.severity === 'HIGH'
-                                ? 'bg-amber-500/20 text-amber-300'
+                                ? 'bg-blue-500/20 text-amber-300'
                                 : 'bg-blue-500/20 text-blue-300'
                             }`}
                           >
@@ -1930,7 +1930,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                           <ul className="space-y-1">
                             {gap.evidence?.map((ev: string, idx: number) => (
                               <li key={idx} className="text-[11px] font-mono-code text-slate-400 flex items-start gap-1">
-                                <span className="text-amber-400">•</span>
+                                <span className="text-cyan-400">•</span>
                                 <span>{ev}</span>
                               </li>
                             ))}
@@ -1967,7 +1967,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                     {activeExperiments.map((exp: any) => (
                       <div
                         key={exp.id}
-                        className="bg-slate-900 border border-slate-800 hover:border-cyan-500/40 rounded-xl p-5 space-y-4 transition-all"
+                        className="bg-slate-950 border border-slate-800 hover:border-cyan-500/40 rounded-xl p-5 space-y-4 transition-all"
                       >
                         <div className="flex items-center justify-between">
                           <div>
@@ -2038,7 +2038,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                   </div>
 
                   {/* Filter Pills */}
-                  <div className="flex flex-wrap items-center gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+                  <div className="flex flex-wrap items-center gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
                     {[
                       { id: 'ALL', label: 'All' },
                       { id: 'BUILT', label: `Built (${builtFeatures.length})` },
@@ -2072,7 +2072,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                     .map((feat: any, idx: number) => (
                       <div
                         key={feat.id || idx}
-                        className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3"
+                        className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3"
                       >
                         <div className="flex items-center justify-between">
                           <span className="font-mono text-xs font-bold text-white">{feat.name}</span>
@@ -2124,7 +2124,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             {/* TAB: 13 OBSERVATION DIMENSIONS */}
             {activeTab === 'DIMENSIONS' && (
               <div className="space-y-6">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <h3 className="text-sm font-military font-bold text-white uppercase tracking-wider flex items-center gap-2">
                       <Activity className="w-4 h-4 text-emerald-400" />
@@ -2157,7 +2157,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                   ].map((dim) => (
                     <div
                       key={dim.id}
-                      className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2 hover:border-emerald-500/40 transition-all"
+                      className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2 hover:border-emerald-500/40 transition-all"
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-xs text-white">{dim.name}</span>
@@ -2177,7 +2177,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
             {activeTab === 'FEEDBACK' && (
               <div className="space-y-6">
                 {/* Rollback Center */}
-                <div className="bg-slate-900 border border-rose-500/30 rounded-xl p-5 space-y-4">
+                <div className="bg-slate-950 border border-rose-500/30 rounded-xl p-5 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-military font-bold text-rose-400 uppercase tracking-wider flex items-center gap-2">
                       <RotateCcw className="w-4 h-4" />
@@ -2231,7 +2231,7 @@ export const EvolutionCommandCenter: React.FC<EvolutionCommandCenterProps> = ({
                     {statusData?.recentFeedback?.map((fb: any) => (
                       <div
                         key={fb.id}
-                        className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1.5"
+                        className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-1.5"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">

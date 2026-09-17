@@ -183,7 +183,7 @@ export const calculateEvaluationMetrics = (
   } else if (compositeScore >= 60) {
     tier = 'CONSISTENT_TRADER';
     tierLabel = 'Consistent Disciplined Trader';
-    tierBadgeColor = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+    tierBadgeColor = 'bg-blue-500/20 text-amber-300 border-blue-500/40';
   }
 
   // Data-driven intelligent recommendations based on real journal flaws
@@ -271,16 +271,16 @@ export const EvaluationEngine: React.FC<EvaluationEngineProps> = ({
     <div className="space-y-6">
       {/* Top Banner & Elite Operator Composite Score */}
       <div className="bg-gradient-to-br from-slate-900 via-[#0B0F19] to-slate-950 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div className="space-y-3 max-w-2xl">
             <div className="flex items-center gap-2.5">
-              <span className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+              <span className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-cyan-400">
                 <Award className="w-6 h-6" />
               </span>
               <div>
-                <span className="text-[10px] font-mono-code font-bold uppercase tracking-wider text-amber-400">
+                <span className="text-[10px] font-mono-code font-bold uppercase tracking-wider text-cyan-400">
                   INSTITUTIONAL AUDIT ENGINE
                 </span>
                 <h1 className="text-xl sm:text-2xl font-military font-bold text-slate-100 tracking-wider">
@@ -309,7 +309,7 @@ export const EvaluationEngine: React.FC<EvaluationEngineProps> = ({
                     metrics.compositeScore >= 80
                       ? 'text-emerald-400'
                       : metrics.compositeScore >= 60
-                      ? 'text-amber-400'
+                      ? 'text-cyan-400'
                       : 'text-rose-400'
                   }
                   strokeDasharray={`${metrics.compositeScore}, 100`}
@@ -346,14 +346,14 @@ export const EvaluationEngine: React.FC<EvaluationEngineProps> = ({
       {/* 5 Core Pillars Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* Pillar 1: Risk Discipline */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between text-xs">
             <span className="font-mono-code text-slate-400">1. RISK DISCIPLINE</span>
-            <span className="font-bold text-amber-400 font-mono-code">{metrics.riskDisciplineScore} / 25</span>
+            <span className="font-bold text-cyan-400 font-mono-code">{metrics.riskDisciplineScore} / 25</span>
           </div>
           <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-amber-400 rounded-full"
+              className="h-full bg-cyan-400 rounded-full"
               style={{ width: `${(metrics.riskDisciplineScore / 25) * 100}%` }}
             />
           </div>
@@ -364,10 +364,10 @@ export const EvaluationEngine: React.FC<EvaluationEngineProps> = ({
         </div>
 
         {/* Pillar 2: Trading Frequency */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between text-xs">
             <span className="font-mono-code text-slate-400">2. FREQUENCY CAP</span>
-            <span className="font-bold text-amber-400 font-mono-code">{metrics.frequencyDisciplineScore} / 20</span>
+            <span className="font-bold text-cyan-400 font-mono-code">{metrics.frequencyDisciplineScore} / 20</span>
           </div>
           <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div
@@ -382,10 +382,10 @@ export const EvaluationEngine: React.FC<EvaluationEngineProps> = ({
         </div>
 
         {/* Pillar 3: Strategy Consistency */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between text-xs">
             <span className="font-mono-code text-slate-400">3. SETUP CONSISTENCY</span>
-            <span className="font-bold text-amber-400 font-mono-code">{metrics.strategyConsistencyScore} / 20</span>
+            <span className="font-bold text-cyan-400 font-mono-code">{metrics.strategyConsistencyScore} / 20</span>
           </div>
           <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div
@@ -400,10 +400,10 @@ export const EvaluationEngine: React.FC<EvaluationEngineProps> = ({
         </div>
 
         {/* Pillar 4: Emotional Stability */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between text-xs">
             <span className="font-mono-code text-slate-400">4. EMOTIONAL STABILITY</span>
-            <span className="font-bold text-amber-400 font-mono-code">{metrics.emotionalStabilityScore} / 15</span>
+            <span className="font-bold text-cyan-400 font-mono-code">{metrics.emotionalStabilityScore} / 15</span>
           </div>
           <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div
@@ -418,14 +418,14 @@ export const EvaluationEngine: React.FC<EvaluationEngineProps> = ({
         </div>
 
         {/* Pillar 5: Expectancy */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between text-xs">
             <span className="font-mono-code text-slate-400">5. EXPECTANCY & EDGE</span>
-            <span className="font-bold text-amber-400 font-mono-code">{metrics.expectancyScore} / 20</span>
+            <span className="font-bold text-cyan-400 font-mono-code">{metrics.expectancyScore} / 20</span>
           </div>
           <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-amber-400 rounded-full"
+              className="h-full bg-cyan-400 rounded-full"
               style={{ width: `${(metrics.expectancyScore / 20) * 100}%` }}
             />
           </div>
@@ -437,10 +437,10 @@ export const EvaluationEngine: React.FC<EvaluationEngineProps> = ({
       </div>
 
       {/* Intelligent Improvement Recommendations (Master Prompt Section 14) */}
-      <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+      <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-400" />
+            <Sparkles className="w-5 h-5 text-cyan-400" />
             <h2 className="text-base font-military font-bold text-slate-100 tracking-wider">
               INTELLIGENT IMPROVEMENT RECOMMENDATIONS
             </h2>
@@ -454,11 +454,11 @@ export const EvaluationEngine: React.FC<EvaluationEngineProps> = ({
           {metrics.recommendations.map((rec, idx) => (
             <div
               key={idx}
-              className="bg-slate-950/80 border border-slate-800/90 hover:border-amber-500/40 rounded-xl p-4 space-y-2 transition flex flex-col justify-between"
+              className="bg-slate-950/80 border border-slate-800/90 hover:border-blue-500/40 rounded-xl p-4 space-y-2 transition flex flex-col justify-between"
             >
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono-code font-bold uppercase px-2 py-0.5 rounded bg-slate-900 text-amber-400 border border-slate-800">
+                  <span className="text-[10px] font-mono-code font-bold uppercase px-2 py-0.5 rounded bg-slate-950 text-cyan-400 border border-slate-800">
                     {rec.category} • {rec.priority} PRIORITY
                   </span>
                 </div>
@@ -472,7 +472,7 @@ export const EvaluationEngine: React.FC<EvaluationEngineProps> = ({
                 <div className="pt-2">
                   <button
                     onClick={() => onNavigateToTab(rec.targetTab)}
-                    className="inline-flex items-center gap-1.5 text-xs font-mono-code text-amber-400 hover:text-amber-300 font-bold hover:underline cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-xs font-mono-code text-cyan-400 hover:text-amber-300 font-bold hover:underline cursor-pointer"
                   >
                     <span>OPEN RECOMMENDED MODULE</span>
                     <ArrowRight className="w-3.5 h-3.5" />

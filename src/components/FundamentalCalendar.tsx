@@ -385,7 +385,7 @@ export const FundamentalCalendar: React.FC = () => {
   }, [filteredEvents, viewMode]);
 
   return (
-    <div className={`space-y-6 max-w-7xl mx-auto ${isFullscreen ? 'fixed inset-0 z-50 bg-[#070A11] p-6 overflow-y-auto max-w-none' : ''}`}>
+    <div className={`space-y-6 max-w-7xl mx-auto ${isFullscreen ? 'fixed inset-0 z-50 bg-[#020617] p-6 overflow-y-auto max-w-none' : ''}`}>
       {/* Offline Alert Notification Banner */}
       {!isOnline && (
         <div className="bg-rose-950/70 border-2 border-rose-500/80 rounded-xl p-4 text-rose-200 flex items-center justify-between gap-3 shadow-2xl animate-pulse">
@@ -415,16 +415,16 @@ export const FundamentalCalendar: React.FC = () => {
           {activeAlerts.map((alert) => (
             <div
               key={alert.id}
-              className="bg-amber-950/90 border-2 border-amber-500 rounded-xl p-4 text-amber-200 flex items-center justify-between gap-4 shadow-2xl animate-bounce"
+              className="bg-amber-950/90 border-2 border-blue-500 rounded-xl p-4 text-cyan-200 flex items-center justify-between gap-4 shadow-2xl animate-bounce"
             >
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-500 text-slate-950 font-bold">
+                <div className="p-2 rounded-lg bg-blue-500 text-slate-950 font-bold">
                   <BellRing className="w-5 h-5 animate-spin" />
                 </div>
                 <div>
-                  <div className="text-xs font-mono-code font-bold text-amber-400 flex items-center gap-2">
+                  <div className="text-xs font-mono-code font-bold text-cyan-400 flex items-center gap-2">
                     <span>🚨 AUDIO ALERT: HIGH-IMPACT RELEASE IMMINENT</span>
-                    <span className="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-[10px]">
+                    <span className="px-2 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-[10px]">
                       {alert.minutesRemaining === 0 ? 'RELEASING NOW' : `IN ~${alert.minutesRemaining} MIN`}
                     </span>
                   </div>
@@ -439,13 +439,13 @@ export const FundamentalCalendar: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setSelectedEvent(alert.event)}
-                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs font-mono-code transition cursor-pointer"
+                  className="px-3 py-1.5 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs font-mono-code transition cursor-pointer"
                 >
                   VIEW BREAKDOWN
                 </button>
                 <button
                   onClick={() => dismissActiveAlert(alert.id)}
-                  className="p-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:text-white cursor-pointer"
+                  className="p-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-300 hover:text-white cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -456,15 +456,15 @@ export const FundamentalCalendar: React.FC = () => {
       )}
 
       {/* Header Banner */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400">
+          <span className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-cyan-400">
             <Calendar className="w-6 h-6" />
           </span>
           <div>
             <h2 className="text-lg font-military font-bold tracking-wider text-slate-100 flex items-center gap-2">
               <span>PRIMEPIPFX LIVE ECONOMIC CALENDAR</span>
-              <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold">
+              <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-blue-500/15 text-cyan-400 border border-blue-500/30 font-bold">
                 YEAR {selectedYear}
               </span>
             </h2>
@@ -482,8 +482,8 @@ export const FundamentalCalendar: React.FC = () => {
               onClick={toggleSoundAlerts}
               className={`flex items-center gap-1.5 px-2 py-1 rounded transition cursor-pointer font-bold ${
                 soundAlertsEnabled
-                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                  : 'bg-slate-900 text-slate-500 border border-slate-800'
+                  ? 'bg-blue-500/20 text-cyan-400 border border-blue-500/40'
+                  : 'bg-slate-950 text-slate-500 border border-slate-800'
               }`}
               title="Toggle Audio News Alerts"
             >
@@ -496,7 +496,7 @@ export const FundamentalCalendar: React.FC = () => {
               <select
                 value={alertLeadTimeMinutes}
                 onChange={(e) => handleLeadTimeChange(Number(e.target.value))}
-                className="bg-slate-900 border border-slate-700 text-slate-300 text-[11px] rounded px-1.5 py-1 focus:outline-none focus:border-amber-500"
+                className="bg-slate-950 border border-slate-700 text-slate-300 text-[11px] rounded px-1.5 py-1 focus:outline-none focus:border-blue-500"
                 title="Alert timing before release"
               >
                 <option value={0}>At Event Time (0m)</option>
@@ -508,10 +508,10 @@ export const FundamentalCalendar: React.FC = () => {
 
             <button
               onClick={handleTestSoundAlert}
-              className="p-1 rounded text-slate-400 hover:text-amber-400 transition cursor-pointer"
+              className="p-1 rounded text-slate-400 hover:text-cyan-400 transition cursor-pointer"
               title="Test Audio Alert Sound"
             >
-              <Bell className={`w-3.5 h-3.5 ${soundTested ? 'text-amber-400 animate-spin' : ''}`} />
+              <Bell className={`w-3.5 h-3.5 ${soundTested ? 'text-cyan-400 animate-spin' : ''}`} />
             </button>
           </div>
 
@@ -536,7 +536,7 @@ export const FundamentalCalendar: React.FC = () => {
             className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-mono-code transition cursor-pointer"
             title={`Refreshed at ${lastRefreshedTime}. Click to fetch latest data.`}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-cyan-400' : ''}`} />
             <span>{isSyncing ? 'REFRESHING...' : 'REFRESH LIVE DATA'}</span>
           </button>
 
@@ -556,14 +556,14 @@ export const FundamentalCalendar: React.FC = () => {
         {/* Left Column: Calendar Views & Controls */}
         <div className="xl:col-span-9 space-y-6">
           {/* Main View Selector & Year Navigation */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
             {/* View Mode Buttons */}
             <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-mono-code flex-wrap">
               <button
                 onClick={() => setViewMode('YEAR')}
                 className={`px-3 py-1.5 rounded-md transition font-bold flex items-center gap-1.5 cursor-pointer ${
                   viewMode === 'YEAR'
-                    ? 'bg-amber-500 text-slate-950 shadow-md'
+                    ? 'bg-blue-500 text-slate-950 shadow-md'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -575,7 +575,7 @@ export const FundamentalCalendar: React.FC = () => {
                 onClick={() => setViewMode('MONTH')}
                 className={`px-3 py-1.5 rounded-md transition font-bold flex items-center gap-1.5 cursor-pointer ${
                   viewMode === 'MONTH'
-                    ? 'bg-amber-500 text-slate-950 shadow-md'
+                    ? 'bg-blue-500 text-slate-950 shadow-md'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -587,7 +587,7 @@ export const FundamentalCalendar: React.FC = () => {
                 onClick={() => setViewMode('WEEK')}
                 className={`px-3 py-1.5 rounded-md transition font-bold flex items-center gap-1.5 cursor-pointer ${
                   viewMode === 'WEEK'
-                    ? 'bg-amber-500 text-slate-950 shadow-md'
+                    ? 'bg-blue-500 text-slate-950 shadow-md'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -599,7 +599,7 @@ export const FundamentalCalendar: React.FC = () => {
                 onClick={() => setViewMode('UPCOMING')}
                 className={`px-3 py-1.5 rounded-md transition font-bold flex items-center gap-1.5 cursor-pointer ${
                   viewMode === 'UPCOMING'
-                    ? 'bg-amber-500 text-slate-950 shadow-md'
+                    ? 'bg-blue-500 text-slate-950 shadow-md'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -611,7 +611,7 @@ export const FundamentalCalendar: React.FC = () => {
                 onClick={() => setViewMode('HISTORICAL')}
                 className={`px-3 py-1.5 rounded-md transition font-bold flex items-center gap-1.5 cursor-pointer ${
                   viewMode === 'HISTORICAL'
-                    ? 'bg-amber-500 text-slate-950 shadow-md'
+                    ? 'bg-blue-500 text-slate-950 shadow-md'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -626,7 +626,7 @@ export const FundamentalCalendar: React.FC = () => {
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                  className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-amber-500 font-bold cursor-pointer"
+                  className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500 font-bold cursor-pointer"
                 >
                   {monthNames.map((name, idx) => (
                     <option key={idx + 1} value={idx + 1}>
@@ -642,7 +642,7 @@ export const FundamentalCalendar: React.FC = () => {
                   onClick={() => setSelectedYear(2026)}
                   className={`px-3 py-1 rounded text-xs font-bold transition cursor-pointer ${
                     selectedYear === 2026
-                      ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                      ? 'bg-blue-500 text-slate-950 font-bold shadow'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -652,7 +652,7 @@ export const FundamentalCalendar: React.FC = () => {
                   onClick={() => setSelectedYear(2027)}
                   className={`px-3 py-1 rounded text-xs font-bold transition cursor-pointer ${
                     selectedYear === 2027
-                      ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                      ? 'bg-blue-500 text-slate-950 font-bold shadow'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -663,7 +663,7 @@ export const FundamentalCalendar: React.FC = () => {
           </div>
 
           {/* Filter and Search Bar: Month, Impact, Currency */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono-code">
+          <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono-code">
             <div className="flex items-center gap-2 flex-wrap">
               {/* Impact Filter */}
               <span className="text-slate-400 flex items-center gap-1 text-[11px]">
@@ -674,7 +674,7 @@ export const FundamentalCalendar: React.FC = () => {
                 onClick={() => setFilterImportance('ALL')}
                 className={`px-2.5 py-1 rounded-lg border transition cursor-pointer ${
                   filterImportance === 'ALL'
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
+                    ? 'bg-blue-500 text-slate-950 border-cyan-400 font-bold'
                     : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
                 }`}
               >
@@ -685,7 +685,7 @@ export const FundamentalCalendar: React.FC = () => {
                 className={`px-2.5 py-1 rounded-lg border transition flex items-center gap-1 cursor-pointer ${
                   filterImportance === 'HIGH'
                     ? 'bg-rose-500 text-slate-950 border-rose-400 font-bold'
-                    : 'bg-slate-950 text-rose-400 border-slate-800 hover:bg-slate-900'
+                    : 'bg-slate-950 text-rose-400 border-slate-800 hover:bg-slate-950'
                 }`}
               >
                 <Flame className="w-3 h-3" />
@@ -695,8 +695,8 @@ export const FundamentalCalendar: React.FC = () => {
                 onClick={() => setFilterImportance('MEDIUM')}
                 className={`px-2.5 py-1 rounded-lg border transition cursor-pointer ${
                   filterImportance === 'MEDIUM'
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
-                    : 'bg-slate-950 text-amber-400 border-slate-800 hover:bg-slate-900'
+                    ? 'bg-blue-500 text-slate-950 border-cyan-400 font-bold'
+                    : 'bg-slate-950 text-cyan-400 border-slate-800 hover:bg-slate-950'
                 }`}
               >
                 MEDIUM
@@ -706,7 +706,7 @@ export const FundamentalCalendar: React.FC = () => {
                 className={`px-2.5 py-1 rounded-lg border transition cursor-pointer ${
                   filterImportance === 'LOW'
                     ? 'bg-slate-700 text-slate-200 border-slate-600 font-bold'
-                    : 'bg-slate-950 text-slate-500 border-slate-800 hover:bg-slate-900'
+                    : 'bg-slate-950 text-slate-500 border-slate-800 hover:bg-slate-950'
                 }`}
               >
                 LOW
@@ -719,7 +719,7 @@ export const FundamentalCalendar: React.FC = () => {
               <select
                 value={filterCurrency}
                 onChange={(e) => setFilterCurrency(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-slate-300 focus:outline-none focus:border-amber-500 cursor-pointer"
+                className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer"
               >
                 <option value="ALL">ALL CURRENCIES</option>
                 <option value="USD">USD (United States)</option>
@@ -736,7 +736,7 @@ export const FundamentalCalendar: React.FC = () => {
               <select
                 value={filterMonth}
                 onChange={(e) => setFilterMonth(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
-                className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-slate-300 focus:outline-none focus:border-amber-500 cursor-pointer"
+                className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer"
               >
                 <option value="ALL">ALL MONTHS (JAN - DEC)</option>
                 {monthNames.map((name, idx) => (
@@ -755,15 +755,15 @@ export const FundamentalCalendar: React.FC = () => {
                 placeholder="Search FOMC, CPI, NFP, ECB..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                className="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
 
           {/* Main Table Content */}
           {isLoading ? (
-            <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-12 text-center text-slate-400 font-mono-code text-sm">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-amber-400 mb-3" />
+            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-12 text-center text-slate-400 font-mono-code text-sm">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-cyan-400 mb-3" />
               <span>LOADING INSTITUTIONAL EVENT SCHEDULE & NUMBERS...</span>
             </div>
           ) : viewMode === 'YEAR' && groupedByMonth ? (
@@ -774,19 +774,19 @@ export const FundamentalCalendar: React.FC = () => {
                 if (monthEvents.length === 0) return null;
                 const mIndex = monthNum - 1;
                 return (
-                  <div key={monthNum} className="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+                  <div key={monthNum} className="bg-slate-950/60 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
                     {/* Month Banner */}
                     <div className="bg-slate-950/80 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <CalendarDays className="w-4 h-4 text-amber-400" />
+                        <CalendarDays className="w-4 h-4 text-cyan-400" />
                         <span className="font-military font-bold text-sm tracking-wider text-slate-200">
                           {monthNames[mIndex]?.toUpperCase()} {selectedYear}
                         </span>
-                        <span className="text-[10px] font-mono-code text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                        <span className="text-[10px] font-mono-code text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
                           {monthEvents.length} INSTITUTIONAL RELEASES
                         </span>
                       </div>
-                      <span className="text-[11px] font-mono-code text-amber-400/80">
+                      <span className="text-[11px] font-mono-code text-cyan-400/80">
                         RELEASE TIMES IN ASIA/KARACHI (PKT)
                       </span>
                     </div>
@@ -840,7 +840,7 @@ export const FundamentalCalendar: React.FC = () => {
                               {ev.eventName}
                             </td>
                             <td className="py-2 px-2 text-center border-r border-slate-100">
-                              <div className="flex justify-center text-slate-400 hover:text-amber-500 transition">
+                              <div className="flex justify-center text-slate-400 hover:text-blue-500 transition">
                                 <Folder className="w-4 h-4" />
                               </div>
                             </td>
@@ -860,7 +860,7 @@ export const FundamentalCalendar: React.FC = () => {
                               {ev.previous || '—'}
                             </td>
                             <td className="py-2 px-2 text-center">
-                              <div className="flex justify-center text-slate-400 hover:text-amber-500 transition">
+                              <div className="flex justify-center text-slate-400 hover:text-blue-500 transition">
                                 <BarChart2 className="w-4 h-4" />
                               </div>
                             </td>
@@ -933,7 +933,7 @@ export const FundamentalCalendar: React.FC = () => {
                               {ev.eventName}
                             </td>
                             <td className="py-2 px-2 text-center border-r border-slate-100">
-                              <div className="flex justify-center text-slate-400 hover:text-amber-500 transition">
+                              <div className="flex justify-center text-slate-400 hover:text-blue-500 transition">
                                 <Folder className="w-4 h-4" />
                               </div>
                             </td>
@@ -953,7 +953,7 @@ export const FundamentalCalendar: React.FC = () => {
                               {ev.previous || '—'}
                             </td>
                             <td className="py-2 px-2 text-center">
-                              <div className="flex justify-center text-slate-400 hover:text-amber-500 transition">
+                              <div className="flex justify-center text-slate-400 hover:text-blue-500 transition">
                                 <BarChart2 className="w-4 h-4" />
                               </div>
                             </td>
@@ -970,9 +970,9 @@ export const FundamentalCalendar: React.FC = () => {
 
         {/* Right Column: Real-Time News & External Macro Hubs (Forex Factory, etc.) */}
         <div className="xl:col-span-3 space-y-4">
-          <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-amber-400" />
+              <Globe className="w-4 h-4 text-cyan-400" />
               <h3 className="font-military font-bold text-xs tracking-wider text-slate-200">
                 LIVE MARKET HUBS & WIRES
               </h3>
@@ -990,15 +990,15 @@ export const FundamentalCalendar: React.FC = () => {
                   rel="noopener noreferrer"
                   className={`block p-3 rounded-xl border transition group ${
                     hub.highlight
-                      ? 'bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/30'
+                      ? 'bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/30'
                       : 'bg-slate-950/70 hover:bg-slate-950 border-slate-800 hover:border-slate-700'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono-code font-bold text-amber-400/90 tracking-wider">
+                    <span className="text-[10px] font-mono-code font-bold text-cyan-400/90 tracking-wider">
                       {hub.tag}
                     </span>
-                    <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400 transition transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                    <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 transition transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                   </div>
                   <div className="font-military font-bold text-xs text-slate-200 mt-1">
                     {hub.name}
@@ -1012,8 +1012,8 @@ export const FundamentalCalendar: React.FC = () => {
           </div>
 
           {/* Institutional Volatility Protocols Box */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-2.5 text-xs font-mono-code">
-            <div className="flex items-center gap-2 text-amber-400 font-bold">
+          <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-2.5 text-xs font-mono-code">
+            <div className="flex items-center gap-2 text-cyan-400 font-bold">
               <ShieldAlert className="w-4 h-4" />
               <span>DISCIPLINE PROTOCOL</span>
             </div>
@@ -1021,7 +1021,7 @@ export const FundamentalCalendar: React.FC = () => {
               PrimePipFx rules dictate standing down 15 minutes before and after Tier-1 high impact releases (CPI, NFP, FOMC). Spreads widen and algorithmic stop-runs are severe.
             </p>
             <div className="p-2.5 rounded bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
-              <div className="text-amber-400 font-bold mb-1">RECOMMENDED POSTURE:</div>
+              <div className="text-cyan-400 font-bold mb-1">RECOMMENDED POSTURE:</div>
               Wait for the 15-minute post-news candle to close. Trade continuation only after liquidity is swept.
             </div>
           </div>
@@ -1031,12 +1031,12 @@ export const FundamentalCalendar: React.FC = () => {
       {/* Deep-Dive Modal Breakdown */}
       {selectedEvent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-slate-950 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-slate-800 pb-4">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-amber-400 font-bold text-xs font-mono-code">
+                  <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-cyan-400 font-bold text-xs font-mono-code">
                     {selectedEvent.currency}
                   </span>
                   <span
@@ -1044,7 +1044,7 @@ export const FundamentalCalendar: React.FC = () => {
                       selectedEvent.importance === 'HIGH'
                         ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
                         : selectedEvent.importance === 'MEDIUM'
-                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                        ? 'bg-blue-500/20 text-cyan-400 border border-blue-500/40'
                         : 'bg-slate-800 text-slate-400 border border-slate-700'
                     }`}
                   >
@@ -1096,7 +1096,7 @@ export const FundamentalCalendar: React.FC = () => {
             <div className="space-y-4 text-xs font-mono-code">
               {/* Section 1: What It Measures */}
               <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1">
-                <div className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+                <div className="text-[11px] font-bold text-cyan-400 flex items-center gap-1.5">
                   <Info className="w-3.5 h-3.5" />
                   <span>WHAT IT MEASURES</span>
                 </div>
@@ -1141,30 +1141,30 @@ export const FundamentalCalendar: React.FC = () => {
               {/* Asset Correlation Matrix */}
               <div className="space-y-2">
                 <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-amber-400" />
+                  <Layers className="w-3.5 h-3.5 text-cyan-400" />
                   <span>TYPICAL ASSET IMPACT MATRIX</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
-                    <div className="text-amber-400 font-bold text-[11px]">US DOLLAR (DXY)</div>
+                    <div className="text-cyan-400 font-bold text-[11px]">US DOLLAR (DXY)</div>
                     <p className="text-slate-400 text-[11px] font-sans">
                       {selectedEvent.marketRelevance.usd}
                     </p>
                   </div>
                   <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
-                    <div className="text-amber-400 font-bold text-[11px]">GOLD (XAUUSD)</div>
+                    <div className="text-cyan-400 font-bold text-[11px]">GOLD (XAUUSD)</div>
                     <p className="text-slate-400 text-[11px] font-sans">
                       {selectedEvent.marketRelevance.gold}
                     </p>
                   </div>
                   <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
-                    <div className="text-amber-400 font-bold text-[11px]">MAJOR FOREX (EUR/GBP)</div>
+                    <div className="text-cyan-400 font-bold text-[11px]">MAJOR FOREX (EUR/GBP)</div>
                     <p className="text-slate-400 text-[11px] font-sans">
                       {selectedEvent.marketRelevance.forex}
                     </p>
                   </div>
                   <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
-                    <div className="text-amber-400 font-bold text-[11px]">EQUITY INDICES (US30 / NAS100)</div>
+                    <div className="text-cyan-400 font-bold text-[11px]">EQUITY INDICES (US30 / NAS100)</div>
                     <p className="text-slate-400 text-[11px] font-sans">
                       {selectedEvent.marketRelevance.indices}
                     </p>
@@ -1179,7 +1179,7 @@ export const FundamentalCalendar: React.FC = () => {
                   onClick={() => toggleEventAlertSubscription(selectedEvent.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold flex items-center gap-1.5 transition cursor-pointer ${
                     customAlertEventIds[selectedEvent.id] !== false && (selectedEvent.importance === 'HIGH' || customAlertEventIds[selectedEvent.id] === true)
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                      ? 'bg-blue-500/20 text-amber-300 border border-blue-500/40'
                       : 'bg-slate-800 text-slate-300 border border-slate-700'
                   }`}
                 >

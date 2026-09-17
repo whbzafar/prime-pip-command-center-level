@@ -277,7 +277,7 @@ export const TradeDiagnosticEngine: React.FC<TradeDiagnosticEngineProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-military font-bold text-amber-400 uppercase tracking-wider">
+              <span className="text-xs font-military font-bold text-cyan-400 uppercase tracking-wider">
                 TRADE OUTCOME INTELLIGENCE DIAGNOSTIC
               </span>
               <span className="text-[10px] text-slate-400">
@@ -301,7 +301,7 @@ export const TradeDiagnosticEngine: React.FC<TradeDiagnosticEngineProps> = ({
                 diagnosticResult.adherenceScore >= 75
                   ? 'text-emerald-400'
                   : diagnosticResult.adherenceScore >= 50
-                  ? 'text-amber-400'
+                  ? 'text-cyan-400'
                   : 'text-rose-400'
               }`}
             >
@@ -312,7 +312,7 @@ export const TradeDiagnosticEngine: React.FC<TradeDiagnosticEngineProps> = ({
           {onClose && (
             <button
               onClick={onClose}
-              className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+              className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
             >
               ✕
             </button>
@@ -328,10 +328,10 @@ export const TradeDiagnosticEngine: React.FC<TradeDiagnosticEngineProps> = ({
             : isGoodLoss
             ? 'bg-sky-950/25 border-sky-500/40 text-sky-300'
             : isLuckyWin
-            ? 'bg-amber-950/30 border-amber-500/50 text-amber-300'
+            ? 'bg-amber-950/30 border-blue-500/50 text-amber-300'
             : isDisciplineLoss
             ? 'bg-rose-950/30 border-rose-500/50 text-rose-300'
-            : 'bg-slate-900 border-slate-800 text-slate-300'
+            : 'bg-slate-950 border-slate-800 text-slate-300'
         }`}
       >
         <div className="mt-0.5 shrink-0">
@@ -340,7 +340,7 @@ export const TradeDiagnosticEngine: React.FC<TradeDiagnosticEngineProps> = ({
           ) : isGoodLoss ? (
             <ShieldCheck className="w-5 h-5 text-sky-400" />
           ) : isLuckyWin ? (
-            <AlertTriangle className="w-5 h-5 text-amber-400" />
+            <AlertTriangle className="w-5 h-5 text-cyan-400" />
           ) : (
             <XCircle className="w-5 h-5 text-rose-400" />
           )}
@@ -414,7 +414,7 @@ export const TradeDiagnosticEngine: React.FC<TradeDiagnosticEngineProps> = ({
 
       {/* Actionable Trader Takeaway Input */}
       <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-        <label className="block text-xs font-military font-bold text-amber-400 uppercase">
+        <label className="block text-xs font-military font-bold text-cyan-400 uppercase">
           ACTIONABLE TAKEAWAY FOR FUTURE EXECUTIONS:
         </label>
         <textarea
@@ -425,7 +425,7 @@ export const TradeDiagnosticEngine: React.FC<TradeDiagnosticEngineProps> = ({
             setIsSaved(false);
           }}
           placeholder={diagnosticResult.actionableTakeaway}
-          className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 outline-none focus:border-amber-400 placeholder:text-slate-600 resize-none font-sans"
+          className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 outline-none focus:border-cyan-400 placeholder:text-slate-600 resize-none font-sans"
         />
         <p className="text-[10px] text-slate-400">
           This key lesson will be permanently indexed into your psychological development records.
@@ -444,7 +444,7 @@ export const TradeDiagnosticEngine: React.FC<TradeDiagnosticEngineProps> = ({
           {onClose && (
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs transition cursor-pointer"
+              className="px-4 py-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 text-xs transition cursor-pointer"
             >
               CLOSE
             </button>
@@ -455,7 +455,7 @@ export const TradeDiagnosticEngine: React.FC<TradeDiagnosticEngineProps> = ({
             className={`flex items-center gap-2 px-5 py-2 rounded-lg font-military font-bold text-xs uppercase tracking-wider transition cursor-pointer ${
               isSaved
                 ? 'bg-emerald-600 text-white'
-                : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20'
+                : 'bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow-lg shadow-blue-500/20'
             }`}
           >
             <CheckCircle2 className="w-4 h-4" />

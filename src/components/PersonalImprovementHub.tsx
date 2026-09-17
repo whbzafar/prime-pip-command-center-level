@@ -119,9 +119,9 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner & Daily Mindset */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+          <div className="p-3 rounded-xl bg-blue-500/15 border border-blue-500/30 text-cyan-400">
             <Brain className="w-6 h-6" />
           </div>
           <div>
@@ -135,8 +135,8 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
         </div>
 
         {/* Motivational Card */}
-        <div className="max-w-md p-3 rounded-lg bg-slate-950/80 border border-amber-500/20 text-xs font-mono-code text-slate-300">
-          <span className="text-[10px] text-amber-400 font-bold block uppercase mb-0.5">
+        <div className="max-w-md p-3 rounded-lg bg-slate-950/80 border border-blue-500/20 text-xs font-mono-code text-slate-300">
+          <span className="text-[10px] text-cyan-400 font-bold block uppercase mb-0.5">
             DAILY DISCIPLINE FOCUS
           </span>
           <p className="italic text-slate-200">"{dailyQuote.text}"</p>
@@ -164,8 +164,8 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
               onClick={() => setHubTab(tab.id as any)}
               className={`px-3.5 py-2 rounded-lg border flex items-center gap-2 transition ${
                 hubTab === tab.id
-                  ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold shadow'
-                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                  ? 'bg-blue-500 text-slate-950 border-cyan-400 font-bold shadow'
+                  : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -216,10 +216,10 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
       {/* TAB 0.2: TRADER IMPROVEMENT ENGINE: WHAT SHOULD I IMPROVE NEXT? (Requirement 17) */}
       {hubTab === 'PRIORITY' && (
         <div className="space-y-6">
-          <div className="bg-slate-900/90 border border-amber-500/30 rounded-xl p-5 shadow-xl space-y-4">
+          <div className="bg-slate-950/90 border border-blue-500/30 rounded-xl p-5 shadow-xl space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
               <div>
-                <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider">
+                <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-blue-500/20 text-amber-300 border border-blue-500/30 uppercase tracking-wider">
                   ACTIONABLE DIAGNOSTIC
                 </span>
                 <h3 className="text-base font-military font-bold text-slate-100 tracking-wide mt-1">
@@ -235,7 +235,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                   personalizedPriority.priorityLevel === 'CRITICAL'
                     ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
                     : personalizedPriority.priorityLevel === 'HIGH'
-                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                    ? 'bg-blue-500/20 text-cyan-400 border-blue-500/30'
                     : 'bg-sky-500/20 text-sky-400 border-sky-500/30'
                 }`}
               >
@@ -248,14 +248,14 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
               <div className="text-xs font-mono-code text-slate-400 uppercase">
                 YOUR CURRENT DEVELOPMENT PRIORITY:
               </div>
-              <div className="text-xl font-military font-bold text-amber-400 tracking-wide">
+              <div className="text-xl font-military font-bold text-cyan-400 tracking-wide">
                 {personalizedPriority.currentPriority}
               </div>
               <div className="pt-2">
                 <span className="text-xs font-military font-bold text-slate-300 block mb-1">
                   WHY:
                 </span>
-                <p className="text-xs font-mono-code text-slate-200 leading-relaxed bg-slate-900/90 p-3 rounded border border-slate-800">
+                <p className="text-xs font-mono-code text-slate-200 leading-relaxed bg-slate-950/90 p-3 rounded border border-slate-800">
                   {personalizedPriority.whyReason}
                 </p>
               </div>
@@ -280,11 +280,11 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
             </div>
 
             {/* Next Development Plan & Challenge */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-950 border border-amber-500/40 space-y-3">
+            <div className="p-4 rounded-xl bg-gradient-to-r from-blue-500/10 via-slate-900 to-slate-950 border border-blue-500/40 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Crosshair className="w-4 h-4 text-amber-400" />
-                  <h4 className="text-xs font-military font-bold text-amber-400 tracking-wider">
+                  <Crosshair className="w-4 h-4 text-cyan-400" />
+                  <h4 className="text-xs font-military font-bold text-cyan-400 tracking-wider">
                     NEXT DEVELOPMENT PLAN ({personalizedPriority.nextDevelopmentPlan.challengeTitle})
                   </h4>
                 </div>
@@ -299,7 +299,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                     key={idx}
                     className="p-2.5 rounded bg-slate-950/80 border border-slate-800 text-xs font-mono-code text-slate-200 flex items-center gap-2"
                   >
-                    <span className="w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-[10px] text-amber-400 font-bold shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-[10px] text-cyan-400 font-bold shrink-0">
                       {idx + 1}
                     </span>
                     <span>{step}</span>
@@ -316,10 +316,10 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
         <div className="space-y-6">
           {/* Overconfidence / Streak Alerts (Items 23, 24) */}
           {streakStatus.isOverconfidenceDetected && (
-            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/40 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
               <div className="text-xs font-mono-code space-y-1">
-                <span className="font-bold text-amber-400 block tracking-wide">
+                <span className="font-bold text-cyan-400 block tracking-wide">
                   OVERCONFIDENCE DETECTION SYSTEM ALERT
                 </span>
                 <p className="text-slate-200">{streakStatus.overconfidenceReason}</p>
@@ -342,7 +342,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Account Health Score (Item 26) */}
-            <div className="lg:col-span-6 bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-5">
+            <div className="lg:col-span-6 bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div>
                   <h4 className="text-xs font-military font-bold text-slate-200 tracking-wider flex items-center gap-2">
@@ -358,7 +358,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                       : accountHealth.category === 'HEALTHY'
                       ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
                       : accountHealth.category === 'CAUTION'
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      ? 'bg-blue-500/20 text-cyan-400 border border-blue-500/30'
                       : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                   }`}
                 >
@@ -379,7 +379,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                         accountHealth.score >= 85
                           ? 'bg-emerald-400'
                           : accountHealth.score >= 70
-                          ? 'bg-amber-400'
+                          ? 'bg-cyan-400'
                           : 'bg-rose-500'
                       }`}
                       style={{ width: `${accountHealth.score}%` }}
@@ -415,7 +415,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
 
               {/* Recommendations */}
               <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
-                <span className="text-[10px] text-amber-400 font-mono-code uppercase block font-bold">
+                <span className="text-[10px] text-cyan-400 font-mono-code uppercase block font-bold">
                   HEALTH ADVISORY
                 </span>
                 <ul className="text-xs font-mono-code text-slate-300 space-y-1 list-disc list-inside">
@@ -427,11 +427,11 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
             </div>
 
             {/* Trader Growth Score (Item 27) */}
-            <div className="lg:col-span-6 bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-5">
+            <div className="lg:col-span-6 bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div>
                   <h4 className="text-xs font-military font-bold text-slate-200 tracking-wider flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-amber-400" />
+                    <TrendingUp className="w-4 h-4 text-cyan-400" />
                     TRADER GROWTH SCORE
                   </h4>
                   <span className="text-[10px] text-slate-400 font-mono-code">PERIOD-OVER-PERIOD EVOLUTION</span>
@@ -460,7 +460,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
 
               {/* Growth Metrics */}
               <div className="flex items-center gap-4">
-                <div className="text-4xl font-military font-bold text-amber-400">
+                <div className="text-4xl font-military font-bold text-cyan-400">
                   {traderGrowth.growthScore}
                   <span className="text-xs text-slate-500 font-mono-code"> / 100</span>
                 </div>
@@ -528,7 +528,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
 
       {/* TAB 2: DAILY REVIEW COACH (Item 19) */}
       {hubTab === 'DAILY_REVIEW' && (
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-800">
             <div>
               <h4 className="text-sm font-military font-bold text-slate-100 tracking-wider">
@@ -543,7 +543,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                 dailyCoach.riskManagementRating === 'EXCELLENT'
                   ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                   : dailyCoach.riskManagementRating === 'ACCEPTABLE'
-                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                  ? 'bg-blue-500/20 text-cyan-400 border-blue-500/30'
                   : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
               }`}
             >
@@ -600,8 +600,8 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
               <p className="text-slate-200">{dailyCoach.mainMistake}</p>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-950 border border-amber-500/30 space-y-1.5">
-              <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">
+            <div className="p-4 rounded-xl bg-slate-950 border border-blue-500/30 space-y-1.5">
+              <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider block">
                 TOMORROW'S REFINEMENT FOCUS
               </span>
               <p className="text-slate-200">{dailyCoach.tomorrowImprovementFocus}</p>
@@ -612,7 +612,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
 
       {/* TAB 3: WEEKLY REPORT (Item 20) */}
       {hubTab === 'WEEKLY_REPORT' && (
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-800">
             <div>
               <h4 className="text-sm font-military font-bold text-slate-100 tracking-wider">
@@ -622,7 +622,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                 PERFORMANCE & DISCIPLINE AUDIT
               </span>
             </div>
-            <span className="text-xs font-mono-code text-amber-400 font-bold">
+            <span className="text-xs font-mono-code text-cyan-400 font-bold">
               TOTAL EXECUTIONS: {weeklyReview.tradesCount}
             </span>
           </div>
@@ -646,7 +646,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
 
             <div className="p-3.5 rounded bg-slate-950 border border-slate-800">
               <span className="text-slate-400 block text-[10px]">DISCIPLINE COMPLIANCE</span>
-              <strong className="text-xl font-military text-amber-400">{weeklyReview.disciplineScore}%</strong>
+              <strong className="text-xl font-military text-cyan-400">{weeklyReview.disciplineScore}%</strong>
             </div>
 
             <div className="p-3.5 rounded bg-slate-950 border border-slate-800">
@@ -665,7 +665,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
             </div>
 
             <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-              <div className="flex items-center gap-2 text-amber-400 font-bold">
+              <div className="flex items-center gap-2 text-cyan-400 font-bold">
                 <AlertTriangle className="w-4 h-4" />
                 <span>KEY AREA FOR IMPROVEMENT</span>
               </div>
@@ -673,8 +673,8 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs font-mono-code space-y-1">
-            <span className="text-amber-400 font-bold block uppercase tracking-wider">
+          <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs font-mono-code space-y-1">
+            <span className="text-cyan-400 font-bold block uppercase tracking-wider">
               WEEKLY PROCESS RECOMMENDATION
             </span>
             <p className="text-slate-200">{weeklyReview.weeklyRecommendation}</p>
@@ -684,7 +684,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
 
       {/* TAB 4: BEHAVIOR PATTERNS (Item 18) */}
       {hubTab === 'PATTERNS' && (
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-800">
             <div>
               <h4 className="text-sm font-military font-bold text-slate-100 tracking-wider">
@@ -701,7 +701,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
 
           {!patterns.hasEnoughData ? (
             <div className="p-8 rounded-xl bg-slate-950/80 border border-slate-800 text-center space-y-3">
-              <div className="p-3 rounded-full bg-slate-900 border border-slate-800 w-12 h-12 mx-auto flex items-center justify-center text-amber-400">
+              <div className="p-3 rounded-full bg-slate-950 border border-slate-800 w-12 h-12 mx-auto flex items-center justify-center text-cyan-400">
                 <Brain className="w-6 h-6" />
               </div>
               <h5 className="text-sm font-military font-bold text-slate-200">
@@ -724,7 +724,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                       ? 'bg-emerald-500/10 border-emerald-500/30'
                       : insight.type === 'WARNING'
                       ? 'bg-rose-500/10 border-rose-500/30'
-                      : 'bg-amber-500/10 border-amber-500/30'
+                      : 'bg-blue-500/10 border-blue-500/30'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -734,7 +734,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                           ? 'text-emerald-400'
                           : insight.type === 'WARNING'
                           ? 'text-rose-400'
-                          : 'text-amber-400'
+                          : 'text-cyan-400'
                       }`}
                     >
                       {insight.title}
@@ -753,11 +753,11 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
 
       {/* TAB 5: AUDIO ALERT SYSTEM (Item 16) */}
       {hubTab === 'AUDIO_SYSTEM' && (
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-800">
             <div>
               <h4 className="text-sm font-military font-bold text-slate-100 tracking-wider flex items-center gap-2">
-                <Volume2 className="w-4 h-4 text-amber-400" />
+                <Volume2 className="w-4 h-4 text-cyan-400" />
                 DISCIPLINE AUDIO ALERT & NOTIFICATION SYSTEM
               </h4>
               <span className="text-xs text-slate-400 font-mono-code">
@@ -788,7 +788,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-slate-400">ALERT VOLUME</span>
-                  <span className="text-amber-400 font-bold">{Math.round(audioSettings.volume * 100)}%</span>
+                  <span className="text-cyan-400 font-bold">{Math.round(audioSettings.volume * 100)}%</span>
                 </div>
                 <input
                   id="audio-volume-slider"
@@ -798,7 +798,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                   step="0.05"
                   value={audioSettings.volume}
                   onChange={(e) => handleUpdateAudioSetting('volume', parseFloat(e.target.value))}
-                  className="w-full accent-amber-500 cursor-pointer"
+                  className="w-full accent-blue-500 cursor-pointer"
                 />
               </div>
 
@@ -810,7 +810,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                     type="checkbox"
                     checked={audioSettings.tradeLimitAlert}
                     onChange={(e) => handleUpdateAudioSetting('tradeLimitAlert', e.target.checked)}
-                    className="accent-amber-500 w-4 h-4"
+                    className="accent-blue-500 w-4 h-4"
                   />
                 </label>
 
@@ -820,7 +820,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                     type="checkbox"
                     checked={audioSettings.dailyLossAlert}
                     onChange={(e) => handleUpdateAudioSetting('dailyLossAlert', e.target.checked)}
-                    className="accent-amber-500 w-4 h-4"
+                    className="accent-blue-500 w-4 h-4"
                   />
                 </label>
 
@@ -830,7 +830,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                     type="checkbox"
                     checked={audioSettings.drawdownAlert}
                     onChange={(e) => handleUpdateAudioSetting('drawdownAlert', e.target.checked)}
-                    className="accent-amber-500 w-4 h-4"
+                    className="accent-blue-500 w-4 h-4"
                   />
                 </label>
 
@@ -840,7 +840,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                     type="checkbox"
                     checked={audioSettings.consecutiveLossAlert}
                     onChange={(e) => handleUpdateAudioSetting('consecutiveLossAlert', e.target.checked)}
-                    className="accent-amber-500 w-4 h-4"
+                    className="accent-blue-500 w-4 h-4"
                   />
                 </label>
               </div>
@@ -854,7 +854,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                 <select
                   value={testSoundType}
                   onChange={(e) => setTestSoundType(e.target.value)}
-                  className="w-full px-3 py-2 rounded bg-slate-900 border border-slate-800 text-slate-100 outline-none"
+                  className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none"
                 >
                   <option value="LIMIT_REACHED">TRIPLE BUZZER (Limit Reached / Siren)</option>
                   <option value="CONSECUTIVE_LOSS">DOUBLE PULSE (Consecutive Loss Caution)</option>
@@ -866,7 +866,7 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
                   type="button"
                   id="btn-play-test-sound"
                   onClick={handleTestSound}
-                  className="w-full py-2.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center gap-2 transition"
+                  className="w-full py-2.5 rounded bg-blue-500 hover:bg-cyan-400 text-slate-950 font-bold flex items-center justify-center gap-2 transition"
                 >
                   <Play className="w-4 h-4" />
                   <span>PLAY TEST ALERT</span>
@@ -877,13 +877,13 @@ export const PersonalImprovementHub: React.FC<PersonalImprovementHubProps> = ({
               <div className="pt-3 border-t border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-300 font-bold flex items-center gap-1.5">
-                    <Bell className="w-3.5 h-3.5 text-amber-400" />
+                    <Bell className="w-3.5 h-3.5 text-cyan-400" />
                     DESKTOP NOTIFICATIONS
                   </span>
                   <button
                     type="button"
                     onClick={handleEnableNotifications}
-                    className="px-2.5 py-1 rounded bg-slate-900 border border-slate-700 text-amber-400 text-[11px] font-bold hover:bg-slate-800"
+                    className="px-2.5 py-1 rounded bg-slate-950 border border-slate-700 text-cyan-400 text-[11px] font-bold hover:bg-slate-800"
                   >
                     {audioSettings.notificationsEnabled ? 'ENABLED' : 'REQUEST PERMISSION'}
                   </button>

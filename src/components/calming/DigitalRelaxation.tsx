@@ -43,7 +43,7 @@ export const DigitalRelaxation: React.FC = () => {
           className={`w-48 h-48 rounded-full border-2 flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
             pulseActive
               ? 'scale-110 bg-indigo-500/30 border-indigo-400 shadow-2xl shadow-indigo-500/40'
-              : 'scale-100 bg-slate-900/80 border-slate-800 hover:border-indigo-400/60'
+              : 'scale-100 bg-slate-950/80 border-slate-800 hover:border-indigo-400/60'
           }`}
         >
           <Waves className="w-10 h-10 text-indigo-400 mb-2 animate-pulse" />

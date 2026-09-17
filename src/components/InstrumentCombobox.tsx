@@ -133,13 +133,13 @@ export const InstrumentCombobox: React.FC<InstrumentComboboxProps> = ({
           placeholder={placeholder}
           autoComplete="off"
           spellCheck={false}
-          className="w-full pl-3 pr-8 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-amber-400 font-bold text-xs focus:border-amber-400 outline-none transition uppercase tracking-wider placeholder:normal-case placeholder:text-slate-600 placeholder:font-normal"
+          className="w-full pl-3 pr-8 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-cyan-400 font-bold text-xs focus:border-cyan-400 outline-none transition uppercase tracking-wider placeholder:normal-case placeholder:text-slate-600 placeholder:font-normal"
         />
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           tabIndex={-1}
-          className="absolute right-2 text-slate-500 hover:text-amber-400 transition"
+          className="absolute right-2 text-slate-500 hover:text-cyan-400 transition"
         >
           <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
         </button>
@@ -152,15 +152,15 @@ export const InstrumentCombobox: React.FC<InstrumentComboboxProps> = ({
           {query.length > 0 && !isExactMatch && (
             <div
               onClick={() => handleSelect(query)}
-              className="p-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 flex items-center justify-between cursor-pointer border-b border-amber-500/30"
+              className="p-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-amber-300 flex items-center justify-between cursor-pointer border-b border-blue-500/30"
             >
               <div className="flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
                 <span>
-                  Use Custom Instrument: <strong className="text-amber-400 font-bold">{query}</strong>
+                  Use Custom Instrument: <strong className="text-cyan-400 font-bold">{query}</strong>
                 </span>
               </div>
-              <span className="text-[10px] uppercase bg-amber-500/20 px-1.5 py-0.5 rounded text-amber-400 border border-amber-500/30">
+              <span className="text-[10px] uppercase bg-blue-500/20 px-1.5 py-0.5 rounded text-cyan-400 border border-blue-500/30">
                 CUSTOM
               </span>
             </div>
@@ -175,17 +175,17 @@ export const InstrumentCombobox: React.FC<InstrumentComboboxProps> = ({
                   key={item.symbol}
                   onClick={() => handleSelect(item.symbol)}
                   className={`p-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-800/70 transition ${
-                    isSelected ? 'bg-slate-800/90 text-amber-400' : 'text-slate-200'
+                    isSelected ? 'bg-slate-800/90 text-cyan-400' : 'text-slate-200'
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-amber-400">{item.symbol}</span>
+                    <span className="font-bold text-cyan-400">{item.symbol}</span>
                     <span className="text-[11px] text-slate-400 font-sans truncate max-w-[170px]">
                       {item.name}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
                       {item.category}
                     </span>
                     {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400" />}

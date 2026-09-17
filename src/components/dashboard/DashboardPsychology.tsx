@@ -58,7 +58,7 @@ export const DashboardPsychology: React.FC<DashboardPsychologyProps> = ({
               disciplineScore >= 90
                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                 : disciplineScore >= 75
-                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                ? 'bg-blue-500/10 text-cyan-400 border-blue-500/20'
                 : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
             }`}
           >
@@ -68,7 +68,7 @@ export const DashboardPsychology: React.FC<DashboardPsychologyProps> = ({
 
         {trades.length === 0 ? (
           <div className="mt-4 p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 text-center font-mono-code space-y-2">
-            <div className="text-amber-400 font-bold text-xs">NO TRADES RECORDED YET</div>
+            <div className="text-cyan-400 font-bold text-xs">NO TRADES RECORDED YET</div>
             <p className="text-[11px] text-slate-400 leading-relaxed">
               Not enough data yet. Log your trades and select pre-trade emotional states in your Trade Journal to unlock psychological profiling.
             </p>
@@ -89,7 +89,7 @@ export const DashboardPsychology: React.FC<DashboardPsychologyProps> = ({
                     disciplineScore >= 85
                       ? 'bg-emerald-400'
                       : disciplineScore >= 70
-                      ? 'bg-amber-400'
+                      ? 'bg-cyan-400'
                       : 'bg-rose-400'
                   }`}
                   style={{ width: `${disciplineScore}%` }}
@@ -120,8 +120,8 @@ export const DashboardPsychology: React.FC<DashboardPsychologyProps> = ({
 
             {/* Friction Warning or Clean State */}
             {hasNegativeEmotions && (
-              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+              <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-amber-300 text-[11px] flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-cyan-400" />
                 <span>Emotional friction detected in recent executions. Take a reset before entering a new setup.</span>
               </div>
             )}
@@ -134,7 +134,7 @@ export const DashboardPsychology: React.FC<DashboardPsychologyProps> = ({
         <button
           type="button"
           onClick={() => onNavigateToTab('PSYCHOLOGY')}
-          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-purple-500/40 text-purple-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer"
+          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-purple-500/40 text-purple-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer"
         >
           <Brain className="w-3.5 h-3.5" />
           <span>PSYCHOLOGY CENTER</span>
@@ -143,7 +143,7 @@ export const DashboardPsychology: React.FC<DashboardPsychologyProps> = ({
         <button
           type="button"
           onClick={() => onNavigateToTab('CALMING_TOOLS')}
-          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-teal-500/40 text-teal-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer"
+          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-teal-500/40 text-teal-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer"
         >
           <Wind className="w-3.5 h-3.5" />
           <span>CALMING SUITE</span>

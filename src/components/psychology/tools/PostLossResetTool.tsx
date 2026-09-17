@@ -111,7 +111,7 @@ export const PostLossResetTool: React.FC<PostLossResetToolProps> = ({ onComplete
                 className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition select-none ${
                   checklist[item.id]
                     ? 'bg-teal-950/30 border-teal-500/50 text-slate-200'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
                 }`}
               >
                 <div
@@ -167,8 +167,8 @@ export const PostLossResetTool: React.FC<PostLossResetToolProps> = ({ onComplete
             "I have accepted this loss with professional calm. I protect my account like a fortress. I will not trade again until my nervous system is 100% neutral and a pristine playbook setup appears."
           </p>
 
-          <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 max-w-sm mx-auto text-xs font-mono-code text-slate-400 flex items-center justify-center gap-2">
-            <Clock className="w-4 h-4 text-amber-400" />
+          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 max-w-sm mx-auto text-xs font-mono-code text-slate-400 flex items-center justify-center gap-2">
+            <Clock className="w-4 h-4 text-cyan-400" />
             <span>Recommended Cooldown Interval: <strong>30 Minutes</strong></span>
           </div>
 

@@ -384,7 +384,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+      <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
             <ListTodo className="w-5 h-5" />
@@ -424,7 +424,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
               setCustomTitle('');
               setIsAddModalOpen(true);
             }}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-military font-bold tracking-wider transition shadow-lg shadow-amber-500/20"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider transition shadow-lg shadow-blue-500/20"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>ADD CUSTOM TASK</span>
@@ -443,13 +443,13 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
       {/* Score and Process Alignment Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Daily Discipline Score Card (Requirement 10) */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
               <span className="text-xs font-military font-bold text-slate-400 tracking-wider">
                 DAILY DISCIPLINE SCORE
               </span>
-              <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700 font-bold">
+              <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-800 text-cyan-400 border border-slate-700 font-bold">
                 PROCESS OVER PROFIT
               </span>
             </div>
@@ -460,7 +460,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
                   totalDisciplineScore >= 80
                     ? 'text-emerald-400'
                     : totalDisciplineScore >= 60
-                    ? 'text-amber-400'
+                    ? 'text-cyan-400'
                     : 'text-rose-400'
                 }`}
               >
@@ -490,7 +490,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
                     riskComplianceRating === 'EXCELLENT'
                       ? 'text-emerald-400'
                       : riskComplianceRating === 'WARNING'
-                      ? 'text-amber-400'
+                      ? 'text-cyan-400'
                       : 'text-rose-400'
                   }`}
                 >
@@ -507,18 +507,18 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
           </div>
 
           <div className="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400">
-            <span className="text-amber-400 font-bold">Important: </span>
+            <span className="text-cyan-400 font-bold">Important: </span>
             A trader can lose money on a disciplined trade (A+ setup hitting SL) and maintain a 95+ score.
             Discipline measures decision quality, not luck.
           </div>
         </div>
 
         {/* Daily Improvement Feedback (Requirement 11) */}
-        <div className="md:col-span-2 bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+        <div className="md:col-span-2 bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-xs font-military font-bold text-slate-100 tracking-wider flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400" />
+                <Sparkles className="w-4 h-4 text-cyan-400" />
                 <span>DAILY IMPROVEMENT FEEDBACK (DATA-DRIVEN)</span>
               </h3>
               <span className="text-[10px] font-mono-code text-slate-400">AUTOMATIC EVALUATION</span>
@@ -542,8 +542,8 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
               </div>
 
               {/* Area to improve */}
-              <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
-                <div className="text-[11px] font-military font-bold text-amber-400 flex items-center gap-1.5 mb-2">
+              <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+                <div className="text-[11px] font-military font-bold text-cyan-400 flex items-center gap-1.5 mb-2">
                   <AlertTriangle className="w-3.5 h-3.5" />
                   <span>AREA TO IMPROVE:</span>
                 </div>
@@ -573,11 +573,11 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
       </div>
 
       {/* Daily Development Checklist (Requirements 8 & 9) */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+      <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
           <div>
             <h3 className="text-sm font-military font-bold text-slate-100 flex items-center gap-2">
-              <Award className="w-4 h-4 text-amber-400" />
+              <Award className="w-4 h-4 text-cyan-400" />
               <span>TODAY&apos;S HABIT CHECKLIST ({completedTasksCount}/{totalTasksCount} COMPLETED)</span>
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -661,7 +661,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
                       {task.title}
                     </span>
                     {task.category && (
-                      <span className="text-[9px] font-mono-code px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800 uppercase">
+                      <span className="text-[9px] font-mono-code px-1.5 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800 uppercase">
                         {task.category}
                       </span>
                     )}
@@ -682,7 +682,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
 
               <div className="flex items-center gap-2">
                 {/* Status Toggle Buttons */}
-                <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5 text-[11px] font-mono-code">
+                <div className="flex items-center rounded-lg bg-slate-950 border border-slate-800 p-0.5 text-[11px] font-mono-code">
                   <button
                     onClick={() => handleSetStatus(task.id, 'COMPLETED')}
                     className={`px-2.5 py-1 rounded transition font-bold ${
@@ -719,7 +719,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => handleEditTask(task)}
-                    className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-amber-400 transition"
+                    className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-cyan-400 transition"
                     title="Edit Task"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
@@ -740,7 +740,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
 
       {/* Past Discipline Records History */}
       {history.length > 0 && (
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 shadow-lg space-y-3">
+        <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-5 shadow-lg space-y-3">
           <h3 className="text-xs font-military font-bold text-slate-200 tracking-wider">
             RECENT DISCIPLINE AUDIT LOGS
           </h3>
@@ -754,7 +754,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
                       rec.disciplineScore >= 80
                         ? 'text-emerald-400'
                         : rec.disciplineScore >= 60
-                        ? 'text-amber-400'
+                        ? 'text-cyan-400'
                         : 'text-rose-400'
                     }`}
                   >
@@ -765,7 +765,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
                   Tasks: {rec.tasksCompleted}/{rec.totalTasks} • Rules: {rec.rulesFollowedCount}/{rec.totalRulesActive}
                 </div>
                 {rec.tomorrowFocus && (
-                  <p className="text-[10px] font-mono-code text-slate-400 bg-slate-900 p-1.5 rounded border border-slate-800/80">
+                  <p className="text-[10px] font-mono-code text-slate-400 bg-slate-950 p-1.5 rounded border border-slate-800/80">
                     Focus: {rec.tomorrowFocus}
                   </p>
                 )}
@@ -778,10 +778,10 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
       {/* Add / Edit Custom Task Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 w-full max-w-md shadow-2xl space-y-4">
+          <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 w-full max-w-md shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-sm font-military font-bold text-slate-100 flex items-center gap-2">
-                <Plus className="w-4 h-4 text-amber-400" />
+                <Plus className="w-4 h-4 text-cyan-400" />
                 <span>{editingTaskId ? 'EDIT CUSTOM TASK' : 'CREATE CUSTOM TASK'}</span>
               </h3>
               <button
@@ -802,7 +802,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
                   placeholder="e.g. Backtest 20 SBT Model 1 trades"
                   value={customTitle}
                   onChange={(e) => setCustomTitle(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-amber-400 font-mono-code"
+                  className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400 font-mono-code"
                   required
                 />
               </div>
@@ -813,7 +813,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
                   <select
                     value={customCategory}
                     onChange={(e) => setCustomCategory(e.target.value as any)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-amber-400 font-mono-code"
+                    className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400 font-mono-code"
                   >
                     <option value="CUSTOM">Custom Habit</option>
                     <option value="PRE_MARKET">Pre-Market Prep</option>
@@ -830,7 +830,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
                   <select
                     value={recurrenceType}
                     onChange={(e) => setRecurrenceType(e.target.value as any)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-amber-400 font-mono-code"
+                    className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400 font-mono-code"
                   >
                     <option value="DAILY">Daily Habit</option>
                     <option value="WEEKLY">Weekly Habit</option>
@@ -844,7 +844,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
                   id="recurring-checkbox"
                   checked={isRecurring}
                   onChange={(e) => setIsRecurring(e.target.checked)}
-                  className="rounded bg-slate-950 border-slate-800 text-amber-500 focus:ring-0"
+                  className="rounded bg-slate-950 border-slate-800 text-blue-500 focus:ring-0"
                 />
                 <label htmlFor="recurring-checkbox" className="text-xs font-mono-code text-slate-300">
                   Repeat automatically every day
@@ -861,7 +861,7 @@ export const DailyDevelopmentPlan: React.FC<DailyDevelopmentPlanProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-military font-bold tracking-wider"
+                  className="px-4 py-1.5 rounded bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider"
                 >
                   {editingTaskId ? 'UPDATE TASK' : 'SAVE TASK'}
                 </button>

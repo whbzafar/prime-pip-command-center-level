@@ -53,20 +53,20 @@ export const DashboardAiCoach: React.FC<DashboardAiCoachProps> = ({
       <div>
         <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-400" />
+            <Sparkles className="w-4 h-4 text-cyan-400" />
             <h3 className="text-xs font-military font-bold tracking-wider text-slate-200 uppercase">
               AI TACTICAL COACH
             </h3>
           </div>
-          <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">
+          <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-blue-500/10 text-cyan-400 border border-blue-500/20 uppercase">
             ACTIVE AUDIT
           </span>
         </div>
 
         {closedTrades.length < 3 ? (
           <div className="mt-4 p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 text-center font-mono-code space-y-2">
-            <Bot className="w-8 h-8 text-amber-400/80 mx-auto" />
-            <div className="text-amber-400 font-bold text-xs">NOT ENOUGH DATA YET</div>
+            <Bot className="w-8 h-8 text-cyan-400/80 mx-auto" />
+            <div className="text-cyan-400 font-bold text-xs">NOT ENOUGH DATA YET</div>
             <p className="text-[11px] text-slate-400 leading-relaxed">
               Record at least 3 completed trades in your Trade Journal to activate automated AI tactical diagnostics and edge analysis.
             </p>
@@ -118,7 +118,7 @@ export const DashboardAiCoach: React.FC<DashboardAiCoachProps> = ({
         <button
           type="button"
           onClick={() => onNavigateToTab('AI_COACH')}
-          className="w-full py-2 px-3 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/40 text-amber-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-2 transition cursor-pointer"
+          className="w-full py-2 px-3 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-blue-500/40 text-amber-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-2 transition cursor-pointer"
         >
           <Bot className="w-4 h-4" />
           <span>CONSULT AI COACH</span>

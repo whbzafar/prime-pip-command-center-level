@@ -100,16 +100,16 @@ export const PsychologicalSettingsModal: React.FC<PsychologicalSettingsModalProp
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-md">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-6">
+      <div className="bg-slate-950 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-6">
         {/* Modal Header */}
         <div className="flex items-start justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
               <Sliders className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-bold">
+                <span className="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded bg-blue-500/10 text-cyan-400 font-bold">
                   PSYCHOLOGICAL SETTINGS
                 </span>
                 <span className="text-[10px] font-mono-code text-slate-400">
@@ -144,7 +144,7 @@ export const PsychologicalSettingsModal: React.FC<PsychologicalSettingsModalProp
               type="button"
               onClick={() => setSettings({ ...settings, mandatoryCheckIn: !settings.mandatoryCheckIn })}
               className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
-                settings.mandatoryCheckIn ? 'bg-amber-500' : 'bg-slate-800'
+                settings.mandatoryCheckIn ? 'bg-blue-500' : 'bg-slate-800'
               }`}
             >
               <div
@@ -169,7 +169,7 @@ export const PsychologicalSettingsModal: React.FC<PsychologicalSettingsModalProp
                 setSettings({ ...settings, autoPromptRecoveryOnTilt: !settings.autoPromptRecoveryOnTilt })
               }
               className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
-                settings.autoPromptRecoveryOnTilt ? 'bg-amber-500' : 'bg-slate-800'
+                settings.autoPromptRecoveryOnTilt ? 'bg-blue-500' : 'bg-slate-800'
               }`}
             >
               <div
@@ -193,7 +193,7 @@ export const PsychologicalSettingsModal: React.FC<PsychologicalSettingsModalProp
               onChange={(e) =>
                 setSettings({ ...settings, maxConsecutiveLossesBeforeTilt: Number(e.target.value) })
               }
-              className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-amber-400 focus:outline-none"
+              className="bg-slate-950 border border-slate-700 rounded px-3 py-1.5 text-cyan-400 focus:outline-none"
             >
               <option value={1}>1 Loss (Ultra-Conservative)</option>
               <option value={2}>2 Losses (Standard Rule — Recommended)</option>
@@ -212,7 +212,7 @@ export const PsychologicalSettingsModal: React.FC<PsychologicalSettingsModalProp
             <select
               value={settings.cooldownMinutes}
               onChange={(e) => setSettings({ ...settings, cooldownMinutes: Number(e.target.value) })}
-              className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-amber-400 focus:outline-none"
+              className="bg-slate-950 border border-slate-700 rounded px-3 py-1.5 text-cyan-400 focus:outline-none"
             >
               <option value={15}>15 Minutes</option>
               <option value={30}>30 Minutes (Recommended)</option>
@@ -232,7 +232,7 @@ export const PsychologicalSettingsModal: React.FC<PsychologicalSettingsModalProp
             <select
               value={settings.breathingPreset}
               onChange={(e) => setSettings({ ...settings, breathingPreset: e.target.value as any })}
-              className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-amber-400 focus:outline-none"
+              className="bg-slate-950 border border-slate-700 rounded px-3 py-1.5 text-cyan-400 focus:outline-none"
             >
               <option value="BOX_4_4_4_4">Box Breathing (4-4-4-4 Balanced)</option>
               <option value="CALM_4_7_8">Calming Technique (4-7-8 Deep Parasympathetic)</option>
@@ -252,7 +252,7 @@ export const PsychologicalSettingsModal: React.FC<PsychologicalSettingsModalProp
               type="button"
               onClick={() => setSettings({ ...settings, audioAlertsEnabled: !settings.audioAlertsEnabled })}
               className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
-                settings.audioAlertsEnabled ? 'bg-amber-500' : 'bg-slate-800'
+                settings.audioAlertsEnabled ? 'bg-blue-500' : 'bg-slate-800'
               }`}
             >
               <div
@@ -293,7 +293,7 @@ export const PsychologicalSettingsModal: React.FC<PsychologicalSettingsModalProp
             <button
               type="button"
               onClick={handleSave}
-              className="flex items-center gap-2 px-5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military text-xs font-bold tracking-wider transition shadow-md shadow-amber-500/20"
+              className="flex items-center gap-2 px-5 py-2 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military text-xs font-bold tracking-wider transition shadow-md shadow-blue-500/20"
             >
               <Save className="w-4 h-4" />
               <span>SAVE SETTINGS</span>

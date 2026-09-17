@@ -39,7 +39,7 @@ export const LotSizeCard: React.FC<LotSizeCardProps> = ({ payload }) => {
 
         <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
           <span className="text-[10px] text-slate-400 block">Risk Amount</span>
-          <span className="text-sm font-bold text-amber-400">
+          <span className="text-sm font-bold text-cyan-400">
             ${payload.riskAmount.toFixed(2)}
           </span>
         </div>

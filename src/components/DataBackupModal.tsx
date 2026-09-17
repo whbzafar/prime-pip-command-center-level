@@ -353,12 +353,12 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#070A11]/90 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 bg-[#020617]/90 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="w-full max-w-2xl bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950/80 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
               <Database className="w-5 h-5" />
             </div>
             <div>
@@ -389,12 +389,12 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
             }}
             className={`py-3 px-3 sm:px-4 text-xs font-military font-bold tracking-wider border-b-2 flex items-center gap-2 transition whitespace-nowrap ${
               activeTab === 'SOUND'
-                ? 'border-amber-400 text-amber-400 bg-amber-500/5'
+                ? 'border-cyan-400 text-cyan-400 bg-blue-500/5'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             {alertSettings.soundEnabled ? (
-              <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+              <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
             ) : (
               <VolumeX className="w-3.5 h-3.5 text-slate-500" />
             )}
@@ -418,7 +418,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
             }}
             className={`py-3 px-3 sm:px-4 text-xs font-military font-bold tracking-wider border-b-2 flex items-center gap-2 transition whitespace-nowrap ${
               activeTab === 'EXPORT'
-                ? 'border-amber-400 text-amber-400 bg-amber-500/5'
+                ? 'border-cyan-400 text-cyan-400 bg-blue-500/5'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -434,7 +434,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
             }}
             className={`py-3 px-3 sm:px-4 text-xs font-military font-bold tracking-wider border-b-2 flex items-center gap-2 transition whitespace-nowrap ${
               activeTab === 'RESTORE'
-                ? 'border-amber-400 text-amber-400 bg-amber-500/5'
+                ? 'border-cyan-400 text-cyan-400 bg-blue-500/5'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -452,7 +452,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
             }}
             className={`py-3 px-3 sm:px-4 text-xs font-military font-bold tracking-wider border-b-2 flex items-center gap-2 transition whitespace-nowrap ${
               activeTab === 'DRIVE'
-                ? 'border-amber-400 text-amber-400 bg-amber-500/5'
+                ? 'border-cyan-400 text-cyan-400 bg-blue-500/5'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -475,7 +475,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
           {/* Storage & Global Audio Status Snapshot */}
           <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <HardDrive className="w-5 h-5 text-amber-400 shrink-0" />
+              <HardDrive className="w-5 h-5 text-cyan-400 shrink-0" />
               <div>
                 <span className="text-xs font-mono-code text-slate-200 block font-semibold">
                   ACTIVE ACCOUNT: {currentAccount.accountName}
@@ -524,7 +524,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
                   : status === 'ERROR'
                   ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                  : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                  : 'bg-blue-500/10 border-blue-500/30 text-amber-300'
               }`}
             >
               {status === 'SUCCESS' ? (
@@ -532,7 +532,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
               ) : status === 'ERROR' ? (
                 <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
               ) : (
-                <Sparkles className="w-4 h-4 shrink-0 text-amber-400 mt-0.5 animate-spin" />
+                <Sparkles className="w-4 h-4 shrink-0 text-cyan-400 mt-0.5 animate-spin" />
               )}
               <div className="flex-1">{statusMessage}</div>
             </div>
@@ -545,7 +545,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
               <div
                 className={`p-4 rounded-xl border transition-all ${
                   alertSettings.soundEnabled
-                    ? 'bg-slate-950/80 border-amber-500/50 shadow-lg shadow-amber-500/5'
+                    ? 'bg-slate-950/80 border-blue-500/50 shadow-lg shadow-blue-500/5'
                     : 'bg-slate-950/50 border-slate-800'
                 }`}
               >
@@ -554,7 +554,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                     <div
                       className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border transition ${
                         alertSettings.soundEnabled
-                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-400 shadow-sm'
+                          ? 'bg-blue-500/15 border-blue-500/40 text-cyan-400 shadow-sm'
                           : 'bg-slate-800/80 border-slate-700 text-slate-500'
                       }`}
                     >
@@ -594,7 +594,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                     onClick={handleToggleMasterSound}
                     className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none ${
                       alertSettings.soundEnabled
-                        ? 'bg-amber-500 border-amber-400'
+                        ? 'bg-blue-500 border-cyan-400'
                         : 'bg-slate-800 border-slate-700'
                     }`}
                   >
@@ -610,7 +610,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                 {/* Master Volume Slider */}
                 <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <SlidersHorizontal className="w-4 h-4 text-amber-400 shrink-0" />
+                    <SlidersHorizontal className="w-4 h-4 text-cyan-400 shrink-0" />
                     <span className="text-xs font-mono-code text-slate-300 font-bold">
                       MASTER VOLUME: {Math.round(alertSettings.volume * 100)}%
                     </span>
@@ -626,7 +626,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                       value={alertSettings.volume}
                       disabled={!alertSettings.soundEnabled}
                       onChange={(e) => handleUpdateVolume(parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed"
                     />
                     <Volume2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <button
@@ -649,7 +649,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                     TACTICAL ALERT ACOUSTIC PROFILES & PREVIEWS:
                   </span>
                   {!alertSettings.soundEnabled && (
-                    <span className="text-[11px] font-mono-code text-amber-400/90 italic">
+                    <span className="text-[11px] font-mono-code text-cyan-400/90 italic">
                       (Enable master switch above to activate alarms)
                     </span>
                   )}
@@ -769,7 +769,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                   {/* 3. Consecutive Loss Caution Tone */}
                   <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-700 transition">
                     <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 shrink-0 mt-0.5">
                         <Radio className="w-4 h-4" />
                       </div>
                       <div>
@@ -777,7 +777,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                           <h4 className="text-xs font-military font-bold text-slate-200">
                             CONSECUTIVE LOSS CAUTION TONE
                           </h4>
-                          <span className="text-[9px] font-mono-code bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.2 rounded">
+                          <span className="text-[9px] font-mono-code bg-blue-500/10 text-cyan-400 border border-blue-500/20 px-1.5 py-0.2 rounded">
                             SQUARE PULSE (330Hz → 311Hz)
                           </span>
                         </div>
@@ -794,8 +794,8 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                         onClick={() => handleTestSound('CONSECUTIVE_LOSS')}
                         className={`px-2.5 py-1.5 rounded-lg border text-xs font-mono-code flex items-center gap-1.5 transition ${
                           playingTestSound === 'CONSECUTIVE_LOSS'
-                            ? 'bg-amber-400 text-slate-950 border-amber-300 font-bold animate-pulse'
-                            : 'bg-slate-800/80 hover:bg-slate-700 text-amber-300 border-amber-500/30'
+                            ? 'bg-cyan-400 text-slate-950 border-amber-300 font-bold animate-pulse'
+                            : 'bg-slate-800/80 hover:bg-slate-700 text-amber-300 border-blue-500/30'
                         }`}
                       >
                         <Play className="w-3 h-3" />
@@ -808,7 +808,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                         onClick={() => handleToggleAlertSetting('consecutiveLossAlert')}
                         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out focus:outline-none ${
                           alertSettings.consecutiveLossAlert && alertSettings.soundEnabled
-                            ? 'bg-amber-500 border-amber-400'
+                            ? 'bg-blue-500 border-cyan-400'
                             : 'bg-slate-800 border-slate-700'
                         }`}
                       >
@@ -824,7 +824,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                   {/* 4. Risk Protocol & Overleverage Warning */}
                   <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-700 transition">
                     <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 shrink-0 mt-0.5">
                         <SlidersHorizontal className="w-4 h-4" />
                       </div>
                       <div>
@@ -832,7 +832,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                           <h4 className="text-xs font-military font-bold text-slate-200">
                             RISK & OVERLEVERAGE WARNING CHIME
                           </h4>
-                          <span className="text-[9px] font-mono-code bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.2 rounded">
+                          <span className="text-[9px] font-mono-code bg-blue-500/10 text-cyan-400 border border-blue-500/20 px-1.5 py-0.2 rounded">
                             TRIANGLE ATTENTION (587Hz → 440Hz)
                           </span>
                         </div>
@@ -849,8 +849,8 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                         onClick={() => handleTestSound('WARNING')}
                         className={`px-2.5 py-1.5 rounded-lg border text-xs font-mono-code flex items-center gap-1.5 transition ${
                           playingTestSound === 'WARNING'
-                            ? 'bg-amber-400 text-slate-950 border-amber-300 font-bold animate-pulse'
-                            : 'bg-slate-800/80 hover:bg-slate-700 text-amber-300 border-amber-500/30'
+                            ? 'bg-cyan-400 text-slate-950 border-amber-300 font-bold animate-pulse'
+                            : 'bg-slate-800/80 hover:bg-slate-700 text-amber-300 border-blue-500/30'
                         }`}
                       >
                         <Play className="w-3 h-3" />
@@ -863,7 +863,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                         onClick={() => handleToggleAlertSetting('riskAlert')}
                         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out focus:outline-none ${
                           alertSettings.riskAlert && alertSettings.soundEnabled
-                            ? 'bg-amber-500 border-amber-400'
+                            ? 'bg-blue-500 border-cyan-400'
                             : 'bg-slate-800 border-slate-700'
                         }`}
                       >
@@ -911,7 +911,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                         <Play className="w-3 h-3" />
                         <span>PREVIEW</span>
                       </button>
-                      <div className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-[10px] font-mono-code text-emerald-400 font-semibold">
+                      <div className="px-2 py-1 rounded bg-slate-950 border border-slate-800 text-[10px] font-mono-code text-emerald-400 font-semibold">
                         ACTIVE
                       </div>
                     </div>
@@ -963,7 +963,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Excel Export */}
-                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-amber-500/40 transition flex flex-col justify-between">
+                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-blue-500/40 transition flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
@@ -985,10 +985,10 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                 </div>
 
                 {/* PDF Audit Report */}
-                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-amber-500/40 transition flex flex-col justify-between">
+                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-blue-500/40 transition flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <FileText className="w-5 h-5 text-amber-400" />
+                      <FileText className="w-5 h-5 text-cyan-400" />
                       <span className="text-[10px] font-mono-code text-slate-500">.PDF</span>
                     </div>
                     <h4 className="text-sm font-military font-bold text-slate-200">PERFORMANCE AUDIT</h4>
@@ -1001,13 +1001,13 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                     onClick={handleExportPDF}
                     className="mt-4 w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-mono-code font-bold flex items-center justify-center gap-2 border border-slate-700 transition"
                   >
-                    <Download className="w-3.5 h-3.5 text-amber-400" />
+                    <Download className="w-3.5 h-3.5 text-cyan-400" />
                     <span>DOWNLOAD PDF</span>
                   </button>
                 </div>
 
                 {/* CSV Export */}
-                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-amber-500/40 transition flex flex-col justify-between">
+                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-blue-500/40 transition flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <FileText className="w-5 h-5 text-sky-400" />
@@ -1029,7 +1029,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                 </div>
 
                 {/* Full ZIP Package */}
-                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-amber-500/40 transition flex flex-col justify-between">
+                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-blue-500/40 transition flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <Archive className="w-5 h-5 text-violet-400" />
@@ -1056,7 +1056,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                 <button
                   id="export-json-vault-btn"
                   onClick={handleExportJSON}
-                  className="w-full py-2.5 px-4 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-mono-code font-bold flex items-center justify-center gap-2 transition"
+                  className="w-full py-2.5 px-4 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-amber-300 text-xs font-mono-code font-bold flex items-center justify-center gap-2 transition"
                 >
                   <Database className="w-4 h-4" />
                   <span>EXPORT COMPLETE DATABASE VAULT (ALL ACCOUNTS & RULES IN .JSON)</span>
@@ -1068,13 +1068,13 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
           {/* TAB 2: RESTORE VAULT */}
           {activeTab === 'RESTORE' && (
             <div className="space-y-4">
-              <div className="p-6 border-2 border-dashed border-slate-700 hover:border-amber-500/60 rounded-xl bg-slate-950/40 text-center transition flex flex-col items-center justify-center">
-                <Upload className="w-8 h-8 text-amber-400 mb-2" />
+              <div className="p-6 border-2 border-dashed border-slate-700 hover:border-blue-500/60 rounded-xl bg-slate-950/40 text-center transition flex flex-col items-center justify-center">
+                <Upload className="w-8 h-8 text-cyan-400 mb-2" />
                 <h4 className="text-sm font-military font-bold text-slate-200">
                   IMPORT PRIMPIPFX BACKUP FILE
                 </h4>
                 <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                  Select your previously exported <code className="text-amber-400 font-mono-code">.json</code> file to restore all accounts, trade journals, and risk protocols.
+                  Select your previously exported <code className="text-cyan-400 font-mono-code">.json</code> file to restore all accounts, trade journals, and risk protocols.
                 </p>
 
                 <input
@@ -1088,7 +1088,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
 
                 <label
                   htmlFor="restore-file-input"
-                  className="mt-4 px-5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs tracking-wider cursor-pointer transition shadow"
+                  className="mt-4 px-5 py-2 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs tracking-wider cursor-pointer transition shadow"
                 >
                   SELECT BACKUP JSON
                 </label>
@@ -1185,7 +1185,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* One-Click Backup to Student Drive */}
                 <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-military font-bold text-amber-400">
+                  <div className="flex items-center gap-2 text-xs font-military font-bold text-cyan-400">
                     <Database className="w-4 h-4" />
                     <span>COMMAND CENTER CLOUD SYNC</span>
                   </div>
@@ -1200,8 +1200,8 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                       driveStatus.state !== 'CONNECTED'
                         ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                         : isDriveSyncing
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 cursor-wait'
-                        : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow cursor-pointer'
+                        ? 'bg-blue-500/20 text-amber-300 border border-blue-500/40 cursor-wait'
+                        : 'bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow cursor-pointer'
                     }`}
                   >
                     {isDriveSyncing ? (
@@ -1233,7 +1233,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowClientIdInput(!showClientIdInput)}
-                      className="text-[11px] text-slate-400 hover:text-amber-400 underline font-mono-code cursor-pointer"
+                      className="text-[11px] text-slate-400 hover:text-cyan-400 underline font-mono-code cursor-pointer"
                     >
                       {showClientIdInput ? 'Hide' : 'Configure Client ID'}
                     </button>
@@ -1242,7 +1242,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                     Uses Google Identity Services (GSI). Administrators or students can specify a custom Google Cloud OAuth 2.0 Web Client ID.
                   </p>
                   {/* Origin Diagnostics for Google OAuth 2.0 Configuration */}
-                  <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-1.5 text-[11px] font-mono-code">
+                  <div className="p-2.5 rounded-lg bg-slate-950/90 border border-slate-800 space-y-1.5 text-[11px] font-mono-code">
                     <div className="flex items-center justify-between text-slate-300 font-bold">
                       <span>AUTHORIZED JAVASCRIPT ORIGIN:</span>
                       <button
@@ -1254,7 +1254,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                             setTimeout(() => setDriveSyncSuccess(null), 4000);
                           }
                         }}
-                        className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 cursor-pointer transition"
+                        className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 cursor-pointer transition"
                       >
                         <Copy className="w-3 h-3" />
                         <span>COPY ORIGIN</span>
@@ -1289,7 +1289,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                   {DRIVE_FOLDER_HIERARCHY.map((folder) => (
                     <div
                       key={folder}
-                      className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center gap-2 text-xs font-mono-code text-slate-300"
+                      className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 flex items-center gap-2 text-xs font-mono-code text-slate-300"
                     >
                       <FolderCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span className="truncate">{folder}</span>
@@ -1301,7 +1301,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
               {/* Privacy & Safety Protocol */}
               <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-[11px] font-mono-code text-slate-400 space-y-1">
                 <div className="text-slate-300 font-bold flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-amber-400" />
+                  <Shield className="w-3.5 h-3.5 text-cyan-400" />
                   <span>STUDENT PRIVACY & ISOLATION GUARANTEE:</span>
                 </div>
                 <p>• Only files created by PFX Command Center are accessed using the narrow <code className="text-slate-300">drive.file</code> scope.</p>

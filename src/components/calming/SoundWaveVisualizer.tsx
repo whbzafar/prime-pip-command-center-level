@@ -240,7 +240,7 @@ export const SoundWaveVisualizer: React.FC<SoundWaveVisualizerProps> = ({
 
       {/* Top Overlay Badge */}
       <div className="absolute top-2.5 left-3 flex items-center gap-2 pointer-events-none">
-        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-900/90 border border-slate-800 text-[10px] font-mono-code">
+        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-950/90 border border-slate-800 text-[10px] font-mono-code">
           <span className={`w-1.5 h-1.5 rounded-full ${isPlayingAudio ? 'bg-teal-400 animate-ping' : 'bg-slate-500'}`} />
           <span className={isPlayingAudio ? 'text-teal-300 font-bold' : 'text-slate-400'}>
             {isPlayingAudio ? 'LIVE WEB AUDIO HARMONICS' : 'AMBIENT REST STATE'}
@@ -250,7 +250,7 @@ export const SoundWaveVisualizer: React.FC<SoundWaveVisualizerProps> = ({
 
       {/* View Mode Switcher */}
       {showControls && (
-        <div className="absolute top-2.5 right-3 flex items-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-800 backdrop-blur-sm">
+        <div className="absolute top-2.5 right-3 flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800 backdrop-blur-sm">
           {[
             { id: 'ALL', label: 'All', icon: Sparkles },
             { id: 'WAVEFORM', label: 'Wave', icon: Waves },

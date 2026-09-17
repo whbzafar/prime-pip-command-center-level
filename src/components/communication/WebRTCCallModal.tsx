@@ -260,9 +260,9 @@ export const WebRTCCallModal: React.FC<WebRTCCallModalProps> = ({
         }`}
       >
         {/* Call Header */}
-        <div className="p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
+        <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
               <Video className="w-5 h-5" />
             </div>
             <div>
@@ -281,7 +281,7 @@ export const WebRTCCallModal: React.FC<WebRTCCallModalProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-amber-400 font-mono-code text-xs px-2.5 py-1 bg-slate-950 rounded-lg border border-slate-800">
+            <div className="flex items-center gap-1.5 text-cyan-400 font-mono-code text-xs px-2.5 py-1 bg-slate-950 rounded-lg border border-slate-800">
               <Clock className="w-3.5 h-3.5" />
               <span>{formatTimer(callDuration)}</span>
             </div>
@@ -321,7 +321,7 @@ export const WebRTCCallModal: React.FC<WebRTCCallModalProps> = ({
 
                 {/* Placeholder when remote peer video is loading */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 space-y-2 pointer-events-none opacity-80">
-                  <div className="w-20 h-20 rounded-full bg-slate-900 border-2 border-amber-500/40 flex items-center justify-center text-amber-400 font-military font-bold text-2xl shadow-2xl">
+                  <div className="w-20 h-20 rounded-full bg-slate-950 border-2 border-blue-500/40 flex items-center justify-center text-cyan-400 font-military font-bold text-2xl shadow-2xl">
                     {targetUser.displayName.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="font-military text-slate-200 font-bold text-base">
@@ -334,7 +334,7 @@ export const WebRTCCallModal: React.FC<WebRTCCallModalProps> = ({
               </div>
 
               {/* Self View / PiP Canvas */}
-              <div className="absolute bottom-4 right-4 w-44 h-32 rounded-xl overflow-hidden border-2 border-amber-500/60 shadow-2xl bg-slate-900 z-10">
+              <div className="absolute bottom-4 right-4 w-44 h-32 rounded-xl overflow-hidden border-2 border-blue-500/60 shadow-2xl bg-slate-950 z-10">
                 <video
                   ref={localVideoRef}
                   autoPlay
@@ -351,7 +351,7 @@ export const WebRTCCallModal: React.FC<WebRTCCallModalProps> = ({
         </div>
 
         {/* Control Bar */}
-        <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-center gap-4 shrink-0">
+        <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-center gap-4 shrink-0">
           {/* Mute Mic */}
           <button
             onClick={handleToggleAudio}

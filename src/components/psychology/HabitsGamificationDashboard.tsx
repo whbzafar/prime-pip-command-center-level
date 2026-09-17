@@ -91,10 +91,10 @@ export const HabitsGamificationDashboard: React.FC<HabitsGamificationDashboardPr
         {/* Healthy Habit Streak */}
         <div className="p-5 rounded-2xl bg-[#0b101e] border border-indigo-900/40 space-y-2 shadow-xl">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-military font-bold text-amber-400 uppercase tracking-wider">
+            <span className="text-[10px] font-military font-bold text-cyan-400 uppercase tracking-wider">
               HEALTHY PROCESS STREAK
             </span>
-            <Flame className="w-4 h-4 text-amber-400 fill-amber-400/20" />
+            <Flame className="w-4 h-4 text-cyan-400 fill-cyan-400/20" />
           </div>
           <div className="text-3xl font-military font-black text-slate-100">
             {habitProgress.currentStreakDays} <span className="text-sm font-mono-code font-normal text-slate-400">Days</span>
@@ -132,7 +132,7 @@ export const HabitsGamificationDashboard: React.FC<HabitsGamificationDashboardPr
             {currentTier.title}
           </div>
           <div className="space-y-1">
-            <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
               <div className="h-full bg-indigo-500" style={{ width: `${tierProgress}%` }} />
             </div>
             <div className="text-[9px] font-mono-code text-slate-500 text-right">
@@ -230,7 +230,7 @@ export const HabitsGamificationDashboard: React.FC<HabitsGamificationDashboardPr
                 </div>
                 <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400">
                   <span>Trigger: <strong className="text-slate-300">{log.triggerIdentified}</strong></span>
-                  <span>Shift: <strong className="text-amber-400">{log.initialIntensity}</strong> → <strong className="text-emerald-400">{log.shiftedIntensity}</strong></span>
+                  <span>Shift: <strong className="text-cyan-400">{log.initialIntensity}</strong> → <strong className="text-emerald-400">{log.shiftedIntensity}</strong></span>
                   <span className="text-teal-400 font-bold">+{log.habitPointsEarned} Habit Pts</span>
                 </div>
                 {log.decisionRuleText && (

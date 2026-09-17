@@ -94,10 +94,10 @@ export const EvolutionStatusBadge: React.FC<EvolutionStatusBadgeProps> = ({
         };
       case 'RECOVERY MODE':
         return {
-          dot: 'bg-amber-400 animate-pulse',
-          text: 'text-amber-400',
-          border: 'border-amber-500/30',
-          bg: 'bg-amber-500/10',
+          dot: 'bg-cyan-400 animate-pulse',
+          text: 'text-cyan-400',
+          border: 'border-blue-500/30',
+          bg: 'bg-blue-500/10',
         };
       case 'OFFLINE':
       default:
@@ -117,7 +117,7 @@ export const EvolutionStatusBadge: React.FC<EvolutionStatusBadgeProps> = ({
     return (
       <div
         id="dash-intelligence-indicator"
-        className={`flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] font-mono-code transition hover:border-emerald-500/30 ${className}`}
+        className={`flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono-code transition hover:border-emerald-500/30 ${className}`}
         title={`PRIMEPIPFX Autonomous Intelligence Engine | Status: ${status} | Cycle ${activeCycle}`}
       >
         <span className="relative flex h-2 w-2">

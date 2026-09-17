@@ -202,7 +202,7 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
         {/* Top bar with quick title & actions */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
               <CalcIcon className="w-4 h-4" />
             </div>
             <div>
@@ -218,7 +218,7 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
-              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+              className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
               title={isFullscreen ? 'Minimize' : 'Fullscreen'}
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -239,13 +239,13 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
           <div className="text-xs sm:text-sm font-mono-code text-slate-400 h-5 overflow-hidden text-ellipsis">
             {equationPreview || '\u00A0'}
           </div>
-          <div className="text-3xl sm:text-4xl font-mono-code font-bold text-amber-400 tracking-wider overflow-x-auto no-scrollbar select-all">
+          <div className="text-3xl sm:text-4xl font-mono-code font-bold text-cyan-400 tracking-wider overflow-x-auto no-scrollbar select-all">
             {display}
           </div>
           <button
             onClick={handleCopy}
             title="Copy current value"
-            className="absolute left-3 bottom-3 p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-amber-400 text-[11px] font-mono-code flex items-center gap-1 transition"
+            className="absolute left-3 bottom-3 p-1.5 rounded-lg bg-slate-950/80 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-cyan-400 text-[11px] font-mono-code flex items-center gap-1 transition"
           >
             {copied ? (
               <>
@@ -279,7 +279,7 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
           </button>
           <button
             onClick={performPercent}
-            className="p-3.5 sm:p-4 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-700 text-amber-400 font-mono-code font-bold text-base sm:text-lg transition active:scale-95 cursor-pointer"
+            className="p-3.5 sm:p-4 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-700 text-cyan-400 font-mono-code font-bold text-base sm:text-lg transition active:scale-95 cursor-pointer"
           >
             %
           </button>
@@ -287,8 +287,8 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
             onClick={() => performOperation('÷')}
             className={`p-3.5 sm:p-4 rounded-xl border font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer ${
               operation === '÷'
-                ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/30'
-                : 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-300'
+                ? 'bg-blue-500 text-slate-950 border-cyan-400 shadow-md shadow-blue-500/30'
+                : 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/40 text-amber-300'
             }`}
           >
             ÷
@@ -297,19 +297,19 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
           {/* Row 2 */}
           <button
             onClick={() => inputDigit('7')}
-            className="p-3.5 sm:p-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
+            className="p-3.5 sm:p-4 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
           >
             7
           </button>
           <button
             onClick={() => inputDigit('8')}
-            className="p-3.5 sm:p-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
+            className="p-3.5 sm:p-4 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
           >
             8
           </button>
           <button
             onClick={() => inputDigit('9')}
-            className="p-3.5 sm:p-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
+            className="p-3.5 sm:p-4 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
           >
             9
           </button>
@@ -317,8 +317,8 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
             onClick={() => performOperation('×')}
             className={`p-3.5 sm:p-4 rounded-xl border font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer ${
               operation === '×'
-                ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/30'
-                : 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-300'
+                ? 'bg-blue-500 text-slate-950 border-cyan-400 shadow-md shadow-blue-500/30'
+                : 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/40 text-amber-300'
             }`}
           >
             ×
@@ -327,19 +327,19 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
           {/* Row 3 */}
           <button
             onClick={() => inputDigit('4')}
-            className="p-3.5 sm:p-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
+            className="p-3.5 sm:p-4 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
           >
             4
           </button>
           <button
             onClick={() => inputDigit('5')}
-            className="p-3.5 sm:p-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
+            className="p-3.5 sm:p-4 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
           >
             5
           </button>
           <button
             onClick={() => inputDigit('6')}
-            className="p-3.5 sm:p-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
+            className="p-3.5 sm:p-4 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
           >
             6
           </button>
@@ -347,8 +347,8 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
             onClick={() => performOperation('-')}
             className={`p-3.5 sm:p-4 rounded-xl border font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer ${
               operation === '-'
-                ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/30'
-                : 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-300'
+                ? 'bg-blue-500 text-slate-950 border-cyan-400 shadow-md shadow-blue-500/30'
+                : 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/40 text-amber-300'
             }`}
           >
             -
@@ -357,19 +357,19 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
           {/* Row 4 */}
           <button
             onClick={() => inputDigit('1')}
-            className="p-3.5 sm:p-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
+            className="p-3.5 sm:p-4 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
           >
             1
           </button>
           <button
             onClick={() => inputDigit('2')}
-            className="p-3.5 sm:p-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
+            className="p-3.5 sm:p-4 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
           >
             2
           </button>
           <button
             onClick={() => inputDigit('3')}
-            className="p-3.5 sm:p-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
+            className="p-3.5 sm:p-4 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
           >
             3
           </button>
@@ -377,8 +377,8 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
             onClick={() => performOperation('+')}
             className={`p-3.5 sm:p-4 rounded-xl border font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer ${
               operation === '+'
-                ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/30'
-                : 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-300'
+                ? 'bg-blue-500 text-slate-950 border-cyan-400 shadow-md shadow-blue-500/30'
+                : 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/40 text-amber-300'
             }`}
           >
             +
@@ -387,19 +387,19 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
           {/* Row 5 */}
           <button
             onClick={() => inputDigit('0')}
-            className="col-span-2 p-3.5 sm:p-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
+            className="col-span-2 p-3.5 sm:p-4 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
           >
             0
           </button>
           <button
             onClick={inputDecimal}
-            className="p-3.5 sm:p-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
+            className="p-3.5 sm:p-4 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-100 font-mono-code font-bold text-lg sm:text-xl transition active:scale-95 cursor-pointer"
           >
             .
           </button>
           <button
             onClick={performEquals}
-            className="p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:brightness-110 text-slate-950 font-mono-code font-black text-xl sm:text-2xl shadow-lg shadow-amber-500/30 transition active:scale-95 cursor-pointer"
+            className="p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 hover:brightness-110 text-slate-950 font-mono-code font-black text-xl sm:text-2xl shadow-lg shadow-blue-500/30 transition active:scale-95 cursor-pointer"
           >
             =
           </button>
@@ -410,7 +410,7 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
       <div className="bg-[#0C121E] border border-slate-800/90 rounded-2xl p-5 shadow-2xl space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
-            <History className="w-4 h-4 text-amber-400" />
+            <History className="w-4 h-4 text-cyan-400" />
             <h4 className="text-xs font-military font-bold text-white tracking-wider uppercase">
               CALCULATION HISTORY
             </h4>
@@ -440,14 +440,14 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
                   setDisplay(item.result);
                   setEquationPreview(item.equation);
                 }}
-                className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-amber-500/40 transition cursor-pointer group"
+                className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-blue-500/40 transition cursor-pointer group"
                 title="Click to load into calculator"
               >
                 <div className="flex items-center justify-between text-[10px] font-mono-code text-slate-500 mb-0.5">
                   <span>{item.equation}</span>
                   <span>{item.timestamp}</span>
                 </div>
-                <div className="text-base font-mono-code font-bold text-slate-200 group-hover:text-amber-400 transition text-right">
+                <div className="text-base font-mono-code font-bold text-slate-200 group-hover:text-cyan-400 transition text-right">
                   = {item.result}
                 </div>
               </div>
@@ -464,7 +464,7 @@ export const StandardCalculator: React.FC<StandardCalculatorProps> = ({
 
   if (isFullscreen) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#070A11]/95 backdrop-blur-md p-4 sm:p-8 overflow-y-auto">
+      <div className="fixed inset-0 z-50 bg-[#020617]/95 backdrop-blur-md p-4 sm:p-8 overflow-y-auto">
         <div className="max-w-4xl mx-auto">{content}</div>
       </div>
     );

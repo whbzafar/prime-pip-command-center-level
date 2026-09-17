@@ -140,10 +140,10 @@ export const PatienceSimulator: React.FC = () => {
   }, []);
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+    <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
       <div className="flex items-center justify-between border-b border-slate-800 pb-4">
         <div>
-          <span className="text-[10px] font-military font-bold text-amber-400 uppercase tracking-widest">
+          <span className="text-[10px] font-military font-bold text-cyan-400 uppercase tracking-widest">
             DISCIPLINE & IMPULSE CONTROL LAB
           </span>
           <h3 className="text-base font-military font-bold text-slate-100 mt-1">
@@ -162,7 +162,7 @@ export const PatienceSimulator: React.FC = () => {
                 patienceScore >= 80
                   ? 'text-emerald-400'
                   : patienceScore >= 50
-                  ? 'text-amber-400'
+                  ? 'text-cyan-400'
                   : 'text-rose-400'
               }`}
             >
@@ -176,7 +176,7 @@ export const PatienceSimulator: React.FC = () => {
       <div className="bg-slate-950 border border-slate-800 rounded-xl p-6 min-h-[220px] flex flex-col items-center justify-center text-center space-y-4">
         {!isPlaying ? (
           <div className="space-y-3">
-            <Award className="w-12 h-12 text-amber-400 mx-auto" />
+            <Award className="w-12 h-12 text-cyan-400 mx-auto" />
             <div>
               <h4 className="font-military font-bold text-slate-200 text-sm">
                 READY FOR PATIENCE ASSESSMENT?
@@ -191,7 +191,7 @@ export const PatienceSimulator: React.FC = () => {
             </div>
             <button
               onClick={handleStart}
-              className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs shadow-lg shadow-amber-500/20 cursor-pointer transition"
+              className="px-6 py-2.5 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs shadow-lg shadow-blue-500/20 cursor-pointer transition"
             >
               START PATIENCE TEST
             </button>
@@ -200,7 +200,7 @@ export const PatienceSimulator: React.FC = () => {
           <div className="w-full max-w-lg space-y-4">
             <div className="flex items-center justify-between text-[11px] font-mono-code text-slate-400 border-b border-slate-800 pb-2">
               <span>Market Phase {round + 1} of {eventsSequence.length}</span>
-              <span className="animate-pulse text-amber-400">● LIVE FEED ACTIVE</span>
+              <span className="animate-pulse text-cyan-400">● LIVE FEED ACTIVE</span>
             </div>
 
             {currentEvent && (
@@ -208,7 +208,7 @@ export const PatienceSimulator: React.FC = () => {
                 className={`p-5 rounded-xl border transition-all ${
                   currentEvent.isTrigger
                     ? 'bg-emerald-950/40 border-emerald-500/80 shadow-2xl shadow-emerald-500/20 animate-pulse'
-                    : 'bg-slate-900 border-slate-700'
+                    : 'bg-slate-950 border-slate-700'
                 }`}
               >
                 <span

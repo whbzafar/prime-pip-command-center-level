@@ -136,7 +136,7 @@ export const PreTradeGroundingTool: React.FC<PreTradeGroundingToolProps> = ({ on
           className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer select-none transition ${
             isCurrentStepDone
               ? 'bg-teal-950/30 border-teal-500/50 text-teal-200'
-              : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+              : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
           }`}
         >
           <div

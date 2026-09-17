@@ -290,7 +290,7 @@ export const CategoriesDashboard: React.FC<CategoriesDashboardProps> = ({
               className={`px-3 py-1.5 rounded-xl text-xs font-military font-bold tracking-wider uppercase transition cursor-pointer whitespace-nowrap ${
                 filterTheme === theme.id
                   ? 'bg-indigo-600/30 border border-indigo-400 text-indigo-100 shadow'
-                  : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:border-slate-700'
+                  : 'bg-slate-950/60 border border-slate-800 text-slate-400 hover:border-slate-700'
               }`}
             >
               {theme.label}

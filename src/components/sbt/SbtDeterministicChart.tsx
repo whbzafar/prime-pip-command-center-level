@@ -71,7 +71,7 @@ export const SbtDeterministicChart: React.FC<SbtDeterministicChartProps> = ({
               <RotateCcw className="h-3.5 w-3.5" />
             </button>
           )}
-          <button type="button" onClick={toggleFullscreen} className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-[10px] font-bold text-amber-800 hover:bg-amber-100" title={isFullscreen ? 'Minimize' : 'Fullscreen'}>
+          <button type="button" onClick={toggleFullscreen} className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-[10px] font-bold text-amber-800 hover:bg-cyan-100" title={isFullscreen ? 'Minimize' : 'Fullscreen'}>
             {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
             {isFullscreen ? 'MINIMIZE' : 'FULLSCREEN'}
           </button>

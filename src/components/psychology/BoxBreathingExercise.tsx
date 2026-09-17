@@ -108,11 +108,11 @@ export const BoxBreathingExercise: React.FC = () => {
   };
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+    <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
       <div className="flex items-center justify-between border-b border-slate-800 pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-military font-bold text-amber-400 uppercase tracking-widest">
+            <span className="text-[10px] font-military font-bold text-cyan-400 uppercase tracking-widest">
               AUTONOMIC NERVOUS SYSTEM CENTERING
             </span>
             <span className="px-2 py-0.5 rounded text-[10px] font-mono-code bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
@@ -133,7 +133,7 @@ export const BoxBreathingExercise: React.FC = () => {
             className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 transition"
             title={soundEnabled ? 'Mute Chimes' : 'Enable Chimes'}
           >
-            {soundEnabled ? <Volume2 className="w-4 h-4 text-amber-400" /> : <VolumeX className="w-4 h-4" />}
+            {soundEnabled ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4" />}
           </button>
         </div>
       </div>
@@ -182,7 +182,7 @@ export const BoxBreathingExercise: React.FC = () => {
         {/* Cycle Counters */}
         <div className="flex items-center gap-4 mt-2 font-mono-code text-xs text-slate-400">
           <span>
-            Completed Cycles: <strong className="text-amber-400">{completedCycles}</strong>
+            Completed Cycles: <strong className="text-cyan-400">{completedCycles}</strong>
           </span>
           <span>•</span>
           <span className="flex items-center gap-1 text-emerald-400">
@@ -198,7 +198,7 @@ export const BoxBreathingExercise: React.FC = () => {
           onClick={() => setIsActive(!isActive)}
           className={`px-5 py-2.5 rounded-xl font-military font-bold text-xs flex items-center gap-2 transition cursor-pointer shadow-lg ${
             isActive
-              ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
+              ? 'bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow-blue-500/20'
               : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
           }`}
         >

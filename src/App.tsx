@@ -625,12 +625,12 @@ export default function App() {
   // App Loading Spinner
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#070A11] text-slate-100 flex flex-col items-center justify-center p-6 font-mono-code">
-        <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4 animate-pulse">
+      <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col items-center justify-center p-6 font-mono-code">
+        <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 mb-4 animate-pulse">
           <Shield className="w-6 h-6" />
         </div>
         <div className="flex items-center gap-2 text-slate-300 font-bold font-military tracking-widest text-sm">
-          <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+          <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
           <span>PRIMEPIPFX SYSTEM INITIALIZING...</span>
         </div>
         <p className="text-xs text-slate-500 mt-2">Connecting to offline local IndexedDB vault</p>
@@ -660,7 +660,7 @@ export default function App() {
   // If no account exists yet, force Onboarding Screen unless in demo mode
   if (!activeAccount || accounts.length === 0) {
     return (
-      <div className="min-h-screen bg-[#070A11] text-slate-100 flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col items-center justify-center p-4">
         <AccountOnboardingModal
           onAccountCreated={handleAccountCreated}
           onExploreDemo={handleEnterDemoMode}
@@ -670,7 +670,11 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#070A11] text-slate-100 flex flex-col selection:bg-amber-500/30 selection:text-amber-200">
+    <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col selection:bg-blue-500/30 selection:text-cyan-200 relative overflow-hidden">
+      {/* Global Animated Background Elements */}
+      <div className="fixed inset-0 pointer-events-none z-0" style={{ background: 'radial-gradient(circle at 15% 50%, rgba(14, 165, 233, 0.05), transparent 40%), radial-gradient(circle at 85% 30%, rgba(245, 158, 11, 0.05), transparent 40%)' }}></div>
+      <div className="fixed inset-0 pointer-events-none z-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+
       {/* Navigation HUD Header */}
       <Header
         activeTab={activeTab as any}
@@ -730,9 +734,9 @@ export default function App() {
 
       {/* Demo Mode Notification HUD */}
       {isDemoMode && (
-        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2.5 text-center text-xs font-mono-code text-amber-300 flex items-center justify-center gap-3 flex-wrap shadow-inner">
+        <div className="bg-blue-500/10 border-b border-blue-500/30 px-4 py-2.5 text-center text-xs font-mono-code text-amber-300 flex items-center justify-center gap-3 flex-wrap shadow-inner">
           <span className="font-bold flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
             EXPLORING IN DEMO / PREVIEW MODE (READ-ONLY)
           </span>
           <span className="text-slate-600 hidden sm:inline">•</span>
@@ -742,13 +746,13 @@ export default function App() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsLoginModalOpen(true)}
-              className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold font-military rounded-lg text-[10px] tracking-wider uppercase transition cursor-pointer"
+              className="px-3 py-1 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-bold font-military rounded-lg text-[10px] tracking-wider uppercase transition cursor-pointer"
             >
               LOGIN
             </button>
             <button
               onClick={() => setIsSubscriptionModalOpen(true)}
-              className="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold font-military rounded-lg text-[10px] tracking-wider uppercase transition cursor-pointer border border-amber-500/40"
+              className="px-3 py-1 bg-slate-950 hover:bg-slate-800 text-amber-300 font-bold font-military rounded-lg text-[10px] tracking-wider uppercase transition cursor-pointer border border-blue-500/40"
             >
               SUBSCRIBE ($40-$50)
             </button>
@@ -759,13 +763,13 @@ export default function App() {
       {/* Demo Mode Read-Only Toast Alert with Signature Accent */}
       {demoToast && (
         <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-50 max-w-md prime-gold-accent-box p-4 shadow-2xl text-xs font-mono-code text-slate-200 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-4">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400">
+          <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0 text-cyan-400">
             <Shield className="w-4 h-4" />
           </div>
           <div className="flex-1">
-            <div className="font-bold font-military text-amber-400 text-xs mb-1 tracking-wider flex items-center gap-1.5">
+            <div className="font-bold font-military text-cyan-400 text-xs mb-1 tracking-wider flex items-center gap-1.5">
               <span>DEMO PREVIEW NOTICE</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
             </div>
             <p className="text-slate-300 text-[11px] leading-relaxed">{demoToast}</p>
             <div className="mt-3 flex items-center gap-2">
@@ -1016,7 +1020,7 @@ export default function App() {
           <span>PROCESS OVER OUTCOME • </span>
           <button
             onClick={() => setActiveTab('GOALS')}
-            className="text-amber-400 hover:underline font-bold cursor-pointer"
+            className="text-cyan-400 hover:underline font-bold cursor-pointer"
           >
             VIEW PROCESS DISCIPLINE GOALS ({goals.filter((g) => g.isCompleted).length}/{goals.length} ACTIVE)
           </button>

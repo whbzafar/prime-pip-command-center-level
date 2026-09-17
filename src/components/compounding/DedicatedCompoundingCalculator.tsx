@@ -158,10 +158,10 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
   return (
     <div className="space-y-6">
       {/* Header Overview Card */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+            <div className="p-3 rounded-xl bg-blue-500/15 border border-blue-500/30 text-cyan-400">
               <Calculator className="w-6 h-6" />
             </div>
             <div>
@@ -182,7 +182,7 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
             onClick={handleExportCSV}
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-mono-code font-bold transition cursor-pointer"
           >
-            <Download className="w-3.5 h-3.5 text-amber-400" />
+            <Download className="w-3.5 h-3.5 text-cyan-400" />
             <span>EXPORT BREAKDOWN (CSV)</span>
           </button>
         </div>
@@ -192,10 +192,10 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* INPUTS COLUMN */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-5 shadow-lg">
+          <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-5 space-y-5 shadow-lg">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h3 className="text-xs font-military font-bold text-slate-200 tracking-wider flex items-center gap-2">
-                <Layers className="w-4 h-4 text-amber-400" />
+                <Layers className="w-4 h-4 text-cyan-400" />
                 <span>CALCULATOR INPUTS</span>
               </h3>
               <span className="text-[10px] font-mono-code text-slate-400">PURE FINANCIAL MATH</span>
@@ -205,10 +205,10 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-mono-code text-slate-300 font-bold flex items-center gap-1.5">
-                  <DollarSign className="w-3.5 h-3.5 text-amber-400" />
+                  <DollarSign className="w-3.5 h-3.5 text-cyan-400" />
                   <span>STARTING CAPITAL ({currency})</span>
                 </label>
-                <span className="text-xs font-mono-code text-amber-400 font-bold">
+                <span className="text-xs font-mono-code text-cyan-400 font-bold">
                   {formatCurrency(startingCapital, currency)}
                 </span>
               </div>
@@ -224,7 +224,7 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
                   step="500"
                   value={startingCapital}
                   onChange={(e) => setStartingCapital(Math.max(1, parseFloat(e.target.value) || 0))}
-                  className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-mono-code text-xs outline-none focus:border-amber-400"
+                  className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-mono-code text-xs outline-none focus:border-cyan-400"
                 />
               </div>
 
@@ -237,7 +237,7 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
                     onClick={() => setStartingCapital(p)}
                     className={`px-2 py-1 rounded text-[10px] font-mono-code border transition cursor-pointer ${
                       startingCapital === p
-                        ? 'bg-amber-500 text-slate-950 font-bold border-amber-400'
+                        ? 'bg-blue-500 text-slate-950 font-bold border-cyan-400'
                         : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                     }`}
                   >
@@ -339,7 +339,7 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
             {/* 4. Time Period (1, 3, 6, 12 Months or Custom) */}
             <div className="space-y-2 pt-2 border-t border-slate-800/80">
               <label className="text-xs font-mono-code text-slate-300 font-bold flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                <Calendar className="w-3.5 h-3.5 text-cyan-400" />
                 <span>TIME PERIOD (1, 3, 6, 12 MONTHS)</span>
               </label>
 
@@ -360,7 +360,7 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
                     }}
                     className={`py-2 rounded-xl border text-center transition cursor-pointer text-xs font-bold ${
                       selectedMonths === p.months
-                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow'
+                        ? 'bg-blue-500 text-slate-950 border-cyan-400 shadow'
                         : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                     }`}
                   >
@@ -373,7 +373,7 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
                 <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                   <div className="flex items-center justify-between text-xs font-mono-code text-slate-400">
                     <span>Custom Months Duration:</span>
-                    <span className="text-amber-400 font-bold">{customMonths} Months</span>
+                    <span className="text-cyan-400 font-bold">{customMonths} Months</span>
                   </div>
                   <input
                     type="number"
@@ -381,7 +381,7 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
                     max="60"
                     value={customMonths}
                     onChange={(e) => setCustomMonths(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                    className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 font-mono-code text-xs outline-none focus:border-amber-400"
+                    className="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 font-mono-code text-xs outline-none focus:border-cyan-400"
                   />
                 </div>
               )}
@@ -420,10 +420,10 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
           {/* Primary 3 KPI Output Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono-code">
             {/* 1. Final Capital */}
-            <div className="bg-gradient-to-br from-slate-900 to-slate-900/90 border border-amber-500/40 rounded-2xl p-4 shadow-xl space-y-1.5 relative overflow-hidden">
+            <div className="bg-gradient-to-br from-slate-900 to-slate-900/90 border border-blue-500/40 rounded-2xl p-4 shadow-xl space-y-1.5 relative overflow-hidden">
               <div className="flex items-center justify-between text-slate-400 text-xs">
                 <span>FINAL CAPITAL</span>
-                <DollarSign className="w-4 h-4 text-amber-400" />
+                <DollarSign className="w-4 h-4 text-cyan-400" />
               </div>
               <div className="text-xl sm:text-2xl font-bold text-amber-300 tracking-tight">
                 {formatCurrency(calculation.finalBalance, currency)}
@@ -464,11 +464,11 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
           </div>
 
           {/* Mathematical Formula Verification Badge */}
-          <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-mono-code text-slate-300 flex flex-wrap items-center justify-between gap-3 shadow">
+          <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs font-mono-code text-slate-300 flex flex-wrap items-center justify-between gap-3 shadow">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>
-                <strong>Formula:</strong> Balance = {startingCapital.toLocaleString()} × (1 + {(targetRatePercent / 100).toFixed(4)})^{calculation.totalPeriods} = <strong className="text-amber-400">{formatCurrency(calculation.finalBalance, currency)}</strong>
+                <strong>Formula:</strong> Balance = {startingCapital.toLocaleString()} × (1 + {(targetRatePercent / 100).toFixed(4)})^{calculation.totalPeriods} = <strong className="text-cyan-400">{formatCurrency(calculation.finalBalance, currency)}</strong>
               </span>
             </div>
             <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400">
@@ -477,10 +477,10 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
           </div>
 
           {/* PERIOD-BY-PERIOD BREAKDOWN TABLE */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
+          <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Table className="w-4 h-4 text-amber-400" />
+                <Table className="w-4 h-4 text-cyan-400" />
                 <h3 className="text-xs font-military font-bold text-slate-200 tracking-wider">
                   PERIOD-BY-PERIOD BREAKDOWN TABLE
                 </h3>
@@ -550,7 +550,7 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
                         onClick={() => setCurrentPage(pageNum)}
                         className={`w-7 h-7 rounded-lg text-xs font-bold transition cursor-pointer ${
                           currentPage === pageNum
-                            ? 'bg-amber-500 text-slate-950'
+                            ? 'bg-blue-500 text-slate-950'
                             : 'bg-slate-950 border border-slate-800 text-slate-400 hover:bg-slate-800'
                         }`}
                       >

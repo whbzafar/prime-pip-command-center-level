@@ -427,9 +427,9 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto h-[84vh] flex flex-col">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-xl shrink-0">
+      <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-xl shrink-0">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+          <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-cyan-400">
             <Radio className="w-5 h-5" />
           </div>
           <div>
@@ -447,7 +447,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
             type="button"
             onClick={() => { setCommMode('PUBLIC'); setActivePrivateContact(null); }}
             className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
-              commMode === 'PUBLIC' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+              commMode === 'PUBLIC' ? 'bg-blue-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <Users className="w-3.5 h-3.5" /> Community Hub
@@ -456,7 +456,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
             type="button"
             onClick={() => { setCommMode('FRIENDS'); setActivePrivateContact(null); }}
             className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
-              commMode === 'FRIENDS' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+              commMode === 'FRIENDS' ? 'bg-blue-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <UserPlus className="w-3.5 h-3.5" /> Friends
@@ -466,7 +466,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
               type="button"
               onClick={() => setCommMode('PRIVATE')}
               className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
-                commMode === 'PRIVATE' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+                commMode === 'PRIVATE' ? 'bg-blue-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <MessageSquare className="w-3.5 h-3.5" /> DM: {activePrivateContact.displayName}
@@ -498,7 +498,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       {commMode === 'PUBLIC' && (
         <div className="flex-1 flex flex-col min-h-0 space-y-3">
           {(isOffline || feedError) && (
-            <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 text-xs font-mono-code text-center">
+            <div className="p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-xl text-cyan-200 text-xs font-mono-code text-center">
               {isOffline ? 'OFFLINE' : 'FEED NOTICE'} — {feedError || 'Connection lost. Showing last known messages.'}
             </div>
           )}
@@ -516,12 +516,12 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
           <div className="flex-1 bg-slate-950/80 border border-slate-800 rounded-2xl p-4 overflow-y-auto space-y-3.5 shadow-inner">
             {isFeedLoading && messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500 font-mono-code text-xs gap-2">
-                <RefreshCw className="w-6 h-6 animate-spin text-amber-400 opacity-70" />
+                <RefreshCw className="w-6 h-6 animate-spin text-cyan-400 opacity-70" />
                 <span>Loading community feed…</span>
               </div>
             ) : messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500 font-mono-code text-xs">
-                <Users className="w-8 h-8 mb-2 opacity-50 text-amber-400" />
+                <Users className="w-8 h-8 mb-2 opacity-50 text-cyan-400" />
                 <span>
                   {isOffline
                     ? 'Offline — no cached messages available.'
@@ -535,9 +535,9 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                 return (
                   <div key={m.id} className={`flex flex-col max-w-xl ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
                     <div className="flex items-center gap-2 mb-1 text-[11px] font-mono-code">
-                      <span className={`font-bold ${isOwner ? 'text-amber-400' : 'text-slate-300'}`}>{m.displayName}</span>
+                      <span className={`font-bold ${isOwner ? 'text-cyan-400' : 'text-slate-300'}`}>{m.displayName}</span>
                       {isOwner && (
-                        <span className="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[9px] font-bold">ADMIN</span>
+                        <span className="px-1.5 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-amber-300 text-[9px] font-bold">ADMIN</span>
                       )}
                       <span className="text-slate-500 text-[10px] flex items-center gap-1">
                         <Clock className="w-2.5 h-2.5" /> {m.timePkt} PKT
@@ -549,7 +549,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                             setActivePrivateContact({ id: m.userId, username: m.username, displayName: m.displayName });
                             setCommMode('PRIVATE');
                           }}
-                          className="text-[10px] text-amber-400/80 hover:text-amber-300 underline cursor-pointer"
+                          className="text-[10px] text-cyan-400/80 hover:text-amber-300 underline cursor-pointer"
                         >
                           DM
                         </button>
@@ -558,8 +558,8 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                     <div
                       className={`p-3 rounded-2xl border text-xs leading-relaxed space-y-2 ${
                         isMe
-                          ? 'bg-amber-500/10 border-amber-500/40 text-slate-100 rounded-tr-none'
-                          : 'bg-slate-900 border-slate-700 text-slate-200 rounded-tl-none'
+                          ? 'bg-blue-500/10 border-blue-500/40 text-slate-100 rounded-tr-none'
+                          : 'bg-slate-950 border-slate-700 text-slate-200 rounded-tl-none'
                       }`}
                     >
                       {m.text && (
@@ -591,7 +591,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                           href={m.driveFile.webViewLink || `https://drive.google.com/file/d/${m.driveFile.fileId}/view`}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex items-center gap-2 text-amber-400 hover:underline text-[11px]"
+                          className="flex items-center gap-2 text-cyan-400 hover:underline text-[11px]"
                         >
                           <Paperclip className="w-3 h-3" /> {m.driveFile.fileName}
                         </a>
@@ -601,7 +601,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                           href={m.attachmentUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex items-center gap-2 text-amber-400 hover:underline text-[11px] p-2 bg-slate-800/50 rounded-lg mt-1 border border-slate-700/50"
+                          className="flex items-center gap-2 text-cyan-400 hover:underline text-[11px] p-2 bg-slate-800/50 rounded-lg mt-1 border border-slate-700/50"
                         >
                           <Paperclip className="w-4 h-4" /> 
                           <span>{m.attachmentName} {m.attachmentSize ? `(${(m.attachmentSize / 1024 / 1024).toFixed(2)} MB)` : ''}</span>
@@ -652,17 +652,17 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
           <form onSubmit={handleSendMessage} className="flex items-center gap-2 shrink-0">
             <input ref={driveFileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
             <input type="file" accept="image/*" className="hidden" id="cc-photo-input" onChange={handlePhotoSelect} />
-            <button type="button" onClick={() => document.getElementById('cc-photo-input')?.click()} className="p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-400 hover:text-amber-400 cursor-pointer" title="Photo">
+            <button type="button" onClick={() => document.getElementById('cc-photo-input')?.click()} className="p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-400 hover:text-cyan-400 cursor-pointer" title="Photo">
               <ImageIcon className="w-4 h-4" />
             </button>
-            <button type="button" onClick={() => driveFileInputRef.current?.click()} className="p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-400 hover:text-amber-400 cursor-pointer" title="Attach file">
+            <button type="button" onClick={() => driveFileInputRef.current?.click()} className="p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-400 hover:text-cyan-400 cursor-pointer" title="Attach file">
               <Paperclip className="w-4 h-4" />
             </button>
             <button
               type="button"
               onClick={isRecordingAudio ? stopVoiceRecording : startVoiceRecording}
               className={`p-2.5 rounded-xl border cursor-pointer ${
-                isRecordingAudio ? 'bg-rose-500/20 border-rose-500/50 text-rose-400' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-amber-400'
+                isRecordingAudio ? 'bg-rose-500/20 border-rose-500/50 text-rose-400' : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-cyan-400'
               }`}
               title={isRecordingAudio ? 'Stop' : 'Voice note'}
             >
@@ -673,13 +673,13 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder={currentUser ? 'Message the community…' : 'Login to participate'}
-              className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50 font-mono-code"
+              className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 font-mono-code"
               disabled={!currentUser || isSending}
             />
             <button
               type="submit"
               disabled={isSending || (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedLocalFile && !selectedDriveFile)}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5"
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-amber-600 text-slate-950 font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5"
             >
               {isSending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               SEND

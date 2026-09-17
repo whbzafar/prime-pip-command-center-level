@@ -127,7 +127,7 @@ export const PureSynthesisCenterpiece: React.FC = () => {
             className={`px-3 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition flex items-center gap-1.5 cursor-pointer ${
               isDroneActive
                 ? 'bg-teal-500/25 border-teal-400 text-teal-200 shadow-md shadow-teal-500/20'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
           >
             <Radio className="w-3.5 h-3.5" />
@@ -140,7 +140,7 @@ export const PureSynthesisCenterpiece: React.FC = () => {
             className={`px-3 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition flex items-center gap-1.5 cursor-pointer ${
               isBrownNoiseActive
                 ? 'bg-indigo-500/25 border-indigo-400 text-indigo-200 shadow-md shadow-indigo-500/20'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
           >
             <Wind className="w-3.5 h-3.5" />
@@ -150,7 +150,7 @@ export const PureSynthesisCenterpiece: React.FC = () => {
           <button
             type="button"
             onClick={() => handlePlayChime(528)}
-            className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-teal-300 text-xs font-mono-code transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+            className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-teal-300 text-xs font-mono-code transition flex items-center gap-1.5 cursor-pointer active:scale-95"
             title="Play 528Hz Solfeggio singing bowl chime"
           >
             <Volume2 className="w-3.5 h-3.5 text-teal-400" />
@@ -196,7 +196,7 @@ export const PureSynthesisCenterpiece: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-military font-bold text-slate-300 hover:text-teal-300 transition flex items-center gap-1.5"
+              className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-military font-bold text-slate-300 hover:text-teal-300 transition flex items-center gap-1.5"
             >
               <Sliders className="w-3.5 h-3.5" />
               <span>{isAdvancedOpen ? 'COMPACT CONTROLS' : 'ADVANCED MATRIX'}</span>
@@ -220,7 +220,7 @@ export const PureSynthesisCenterpiece: React.FC = () => {
                   className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
                     isSelected
                       ? 'bg-teal-500/20 border-teal-400 text-teal-200 shadow-sm'
-                      : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -271,7 +271,7 @@ export const PureSynthesisCenterpiece: React.FC = () => {
                     className={`py-1.5 px-2 rounded-lg text-[10px] font-mono-code uppercase font-bold text-center border transition ${
                       synthSettings.tone === t
                         ? 'bg-teal-500/25 border-teal-400 text-teal-200'
-                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
                     }`}
                   >
                     {t === 'sawtooth' ? 'SAW' : t}
@@ -470,7 +470,7 @@ export const PureSynthesisCenterpiece: React.FC = () => {
           <button
             type="button"
             onClick={() => soundEngine.stopAllLayers()}
-            className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px] font-military font-bold text-slate-400 hover:text-rose-300 transition"
+            className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-military font-bold text-slate-400 hover:text-rose-300 transition"
           >
             MUTE ALL LAYERS
           </button>
@@ -483,7 +483,7 @@ export const PureSynthesisCenterpiece: React.FC = () => {
               key={layer.id}
               className={`p-3.5 rounded-xl border transition space-y-3 ${
                 layer.enabled
-                  ? 'bg-slate-900/90 border-teal-500/40 shadow-md shadow-teal-500/5'
+                  ? 'bg-slate-950/90 border-teal-500/40 shadow-md shadow-teal-500/5'
                   : 'bg-slate-950/60 border-slate-800/80 text-slate-400'
               }`}
             >

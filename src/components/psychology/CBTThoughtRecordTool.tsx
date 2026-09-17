@@ -162,10 +162,10 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
   return (
     <div className="space-y-6">
       {/* Informational Disclaimer Header */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold">
+            <span className="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded bg-blue-500/10 text-cyan-400 border border-blue-500/30 font-bold">
               COGNITIVE BEHAVIORAL THERAPY FRAMEWORK
             </span>
             <span className="text-[10px] font-mono-code text-slate-400">
@@ -177,7 +177,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
           </h3>
           <p className="text-xs text-slate-400 font-sans mt-0.5 max-w-3xl">
             A structured behavioral tool to identify automatic emotional impulses, cross-examine evidence objectively,
-            and construct a balanced trading reframe. <span className="text-amber-400/90 font-medium">Performance enhancement exercise — not a medical diagnosis.</span>
+            and construct a balanced trading reframe. <span className="text-cyan-400/90 font-medium">Performance enhancement exercise — not a medical diagnosis.</span>
           </p>
         </div>
 
@@ -189,7 +189,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
               key={p.title}
               type="button"
               onClick={() => handleApplyPreset(p)}
-              className="text-[11px] font-mono-code px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-amber-400 border border-slate-700 transition"
+              className="text-[11px] font-mono-code px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-400 border border-slate-700 transition"
               title={p.thought}
             >
               #{idx + 1} {p.title.split(' ')[0]}
@@ -200,7 +200,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
 
       {/* Main Guided 5-Step Wizard */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-xl p-5 sm:p-6 space-y-5 shadow-xl">
+        <div className="lg:col-span-7 bg-slate-950/90 border border-slate-800 rounded-xl p-5 sm:p-6 space-y-5 shadow-xl">
           {/* Step Progress Indicators */}
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             {[
@@ -216,7 +216,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
                 onClick={() => setStep(s.num)}
                 className={`flex items-center gap-1.5 text-xs font-mono-code transition ${
                   step === s.num
-                    ? 'text-amber-400 font-bold'
+                    ? 'text-cyan-400 font-bold'
                     : step > s.num
                     ? 'text-emerald-400'
                     : 'text-slate-500'
@@ -225,7 +225,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
                 <span
                   className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
                     step === s.num
-                      ? 'bg-amber-500 text-slate-950 font-bold'
+                      ? 'bg-blue-500 text-slate-950 font-bold'
                       : step > s.num
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                       : 'bg-slate-800 text-slate-400'
@@ -254,7 +254,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
                 onChange={(e) => setAutomaticThought(e.target.value)}
                 placeholder="e.g., The market is running away without me, I need to get in right now with market execution!"
                 rows={3}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-code text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-code text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500"
               />
               <div className="flex items-center justify-between pt-2">
                 <span className="text-[11px] text-slate-500">Capture the exact thought without judging it yet.</span>
@@ -262,7 +262,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
                   type="button"
                   onClick={() => setStep(2)}
                   disabled={!automaticThought.trim()}
-                  className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-military text-xs font-bold transition"
+                  className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 disabled:opacity-40 text-slate-950 font-military text-xs font-bold transition"
                 >
                   <span>NEXT: EVIDENCE FOR</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -286,7 +286,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
                 onChange={(e) => setEvidenceFor(e.target.value)}
                 placeholder="e.g., A large green candle formed on the 5-minute chart with higher-than-average volume."
                 rows={3}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-code text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-code text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500"
               />
               <div className="flex items-center justify-between pt-2">
                 <button
@@ -299,7 +299,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military text-xs font-bold transition"
+                  className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military text-xs font-bold transition"
                 >
                   <span>NEXT: EVIDENCE AGAINST</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -323,7 +323,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
                 onChange={(e) => setEvidenceAgainst(e.target.value)}
                 placeholder="e.g., Price is approaching major 4H resistance. There is no pullback. Risk-to-reward is under 1:1. Chasing violates Rule #2 of my playbook."
                 rows={3}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-code text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-code text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500"
               />
               <div className="flex items-center justify-between pt-2">
                 <button
@@ -336,7 +336,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
                 <button
                   type="button"
                   onClick={() => setStep(4)}
-                  className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military text-xs font-bold transition"
+                  className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military text-xs font-bold transition"
                 >
                   <span>NEXT: BALANCED REFRAME</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -360,7 +360,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
                 onChange={(e) => setBalancedReframe(e.target.value)}
                 placeholder="e.g., While the market moved quickly, entering without confirmation guarantees bad risk. Missing a trade preserves 100% of my capital. The next high-probability setup will arrive in due time."
                 rows={3}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-code text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-code text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500"
               />
               <div className="flex items-center justify-between pt-2">
                 <button
@@ -374,7 +374,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
                   type="button"
                   onClick={() => setStep(5)}
                   disabled={!balancedReframe.trim()}
-                  className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-military text-xs font-bold transition"
+                  className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 disabled:opacity-40 text-slate-950 font-military text-xs font-bold transition"
                 >
                   <span>NEXT: PLANNED ACTION</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -398,7 +398,7 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
                 onChange={(e) => setPlannedAction(e.target.value)}
                 placeholder="e.g., Step back from screens for 15 minutes, drink a glass of water, and wait for my predefined London session breakout alert."
                 rows={3}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-code text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-code text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500"
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
@@ -453,12 +453,12 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
 
         {/* Live Reframe Summary Card & Preview (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 space-y-3">
+          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-5 space-y-3">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <span className="text-xs font-military font-bold text-slate-200 uppercase tracking-wider">
                 COGNITIVE REFRAME SUMMARY
               </span>
-              <Sparkles className="w-4 h-4 text-amber-400" />
+              <Sparkles className="w-4 h-4 text-cyan-400" />
             </div>
 
             <div className="space-y-2 text-xs font-mono-code">
@@ -467,8 +467,8 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
                 <p className="mt-0.5">{automaticThought || 'Waiting for input...'}</p>
               </div>
 
-              <div className="p-2.5 rounded bg-amber-950/20 border border-amber-500/30 text-amber-300">
-                <span className="text-[10px] text-amber-400 uppercase font-bold block">2. CONFLICTING EVIDENCE</span>
+              <div className="p-2.5 rounded bg-amber-950/20 border border-blue-500/30 text-amber-300">
+                <span className="text-[10px] text-cyan-400 uppercase font-bold block">2. CONFLICTING EVIDENCE</span>
                 <p className="mt-0.5 text-[11px] text-slate-300">
                   <span className="text-slate-400">For:</span> {evidenceFor || 'None specified'}<br/>
                   <span className="text-slate-400">Against:</span> {evidenceAgainst || 'None specified'}
@@ -490,10 +490,10 @@ export const CBTThoughtRecordTool: React.FC<CBTThoughtRecordToolProps> = ({ curr
       </div>
 
       {/* History of Past CBT Records */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4">
+      <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-5 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
-            <BookmarkCheck className="w-4 h-4 text-amber-400" />
+            <BookmarkCheck className="w-4 h-4 text-cyan-400" />
             <h4 className="text-sm font-military font-bold text-slate-100 tracking-wider uppercase">
               PAST CBT THOUGHT RECORDS ({records.length})
             </h4>

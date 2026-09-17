@@ -336,19 +336,19 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
   const isContactAdmin = activeContact.username === 'primepipfx-admin';
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl flex flex-col h-[76vh] shadow-2xl overflow-hidden">
+    <div className="bg-slate-950 border border-slate-800 rounded-2xl flex flex-col h-[76vh] shadow-2xl overflow-hidden">
       {/* Contact Header */}
       <div className="p-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition cursor-pointer"
+            className="p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition cursor-pointer"
             title="Back to Contacts"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
 
-          <div className="w-9 h-9 rounded-full bg-slate-800 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-xs">
+          <div className="w-9 h-9 rounded-full bg-slate-800 border border-blue-500/40 flex items-center justify-center text-cyan-400 font-bold text-xs">
             {activeContact.displayName.slice(0, 2).toUpperCase()}
           </div>
 
@@ -358,7 +358,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
                 {activeContact.displayName}
               </span>
               {isContactAdmin && (
-                <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-mono-code font-bold">
+                <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-amber-300 border border-blue-500/30 text-[9px] font-mono-code font-bold">
                   OFFICIAL OWNER
                 </span>
               )}
@@ -383,7 +383,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
           <button
             onClick={fetchPrivateMessages}
             title="Refresh Conversation"
-            className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-amber-400 transition cursor-pointer"
+            className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-cyan-400 transition cursor-pointer"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -400,7 +400,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
       <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-950/60 font-mono-code">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500 text-xs">
-            <ShieldCheck className="w-8 h-8 mb-2 text-amber-400/60" />
+            <ShieldCheck className="w-8 h-8 mb-2 text-cyan-400/60" />
             <p>Direct encrypted conversation with @{activeContact.username}.</p>
             <span className="text-[11px] text-slate-600 mt-1">
               Send trade plans, screenshots, or voice notes.
@@ -423,8 +423,8 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
                 <div
                   className={`p-3 rounded-2xl border text-xs leading-relaxed space-y-2 ${
                     isMe
-                      ? 'bg-amber-500/10 border-amber-500/40 text-slate-100 rounded-tr-none'
-                      : 'bg-slate-900 border-slate-800 text-slate-200 rounded-tl-none'
+                      ? 'bg-blue-500/10 border-blue-500/40 text-slate-100 rounded-tr-none'
+                      : 'bg-slate-950 border-slate-800 text-slate-200 rounded-tl-none'
                   }`}
                 >
                   {m.text && (
@@ -463,7 +463,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
                       href={m.attachmentUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-2 text-amber-400 hover:underline text-[11px] p-2 bg-slate-800/50 rounded-lg mt-1 border border-slate-700/50"
+                      className="flex items-center gap-2 text-cyan-400 hover:underline text-[11px] p-2 bg-slate-800/50 rounded-lg mt-1 border border-slate-700/50"
                     >
                       <Paperclip className="w-4 h-4" /> 
                       <span>{m.attachmentName} {m.attachmentSize ? `(${(m.attachmentSize / 1024 / 1024).toFixed(2)} MB)` : ''}</span>
@@ -481,7 +481,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
       <div className="p-3 bg-slate-950 border-t border-slate-800 space-y-2 shrink-0">
         {/* Attachment Previews */}
         {(selectedPhoto || audioBase64 || selectedLocalFile) && (
-          <div className="flex flex-col gap-2 p-2.5 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono-code">
+          <div className="flex flex-col gap-2 p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-xs font-mono-code">
             {selectedPhoto && (
               <div className="relative inline-block">
                 <img src={selectedPhoto} alt="Preview" className="w-12 h-12 object-cover rounded-lg" />
@@ -497,7 +497,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
             {selectedLocalFile && (
               <div className="flex items-center justify-between gap-3 bg-slate-800 p-2 rounded-lg">
                 <div className="flex items-center gap-2 truncate">
-                  <Paperclip className="w-4 h-4 text-amber-400 shrink-0" />
+                  <Paperclip className="w-4 h-4 text-cyan-400 shrink-0" />
                   <span className="truncate">{selectedLocalFile.name}</span>
                 </div>
                 <button
@@ -525,7 +525,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
                     setAudioBase64(null);
                     setAudioDuration(0);
                   }}
-                  className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-900 rounded-lg transition"
+                  className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-950 rounded-lg transition"
                   title="Discard recorded voice message"
                 >
                   <X className="w-4 h-4" />
@@ -537,7 +537,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
 
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
           {/* Photo attach button */}
-          <label className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-amber-400 cursor-pointer transition">
+          <label className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-cyan-400 cursor-pointer transition">
             <ImageIcon className="w-4 h-4" />
             <input
               type="file"
@@ -547,7 +547,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
             />
           </label>
 
-          <label className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-amber-400 cursor-pointer transition">
+          <label className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-cyan-400 cursor-pointer transition">
             <Paperclip className="w-4 h-4" />
             <input type="file" onChange={handleFileSelect} className="hidden" />
           </label>
@@ -556,7 +556,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
             <button
               type="button"
               onClick={startVoiceRecording}
-              className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 transition cursor-pointer"
+              className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-rose-400 transition cursor-pointer"
               title="Record Voice Note"
             >
               <Mic className="w-4 h-4" />
@@ -577,13 +577,13 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder={`Message @${activeContact.username}...`}
-            className="flex-1 px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-mono-code text-slate-100 focus:outline-none focus:border-amber-500"
+            className="flex-1 px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono-code text-slate-100 focus:outline-none focus:border-blue-500"
           />
 
           <button
             type="submit"
             disabled={isSending || (!inputText.trim() && !selectedPhoto && !audioBase64)}
-            className="p-2 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 transition cursor-pointer"
+            className="p-2 rounded-lg bg-blue-500 hover:bg-cyan-400 disabled:opacity-40 text-slate-950 transition cursor-pointer"
           >
             <Send className="w-4 h-4" />
           </button>

@@ -42,17 +42,17 @@ export const DashboardDailyDevelopment: React.FC<DashboardDailyDevelopmentProps>
           <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-slate-300 font-bold text-[11px] flex items-center gap-1.5">
-                <Award className="w-3.5 h-3.5 text-amber-400" />
+                <Award className="w-3.5 h-3.5 text-cyan-400" />
                 10-TRADE FOUNDATION CHALLENGE
               </span>
-              <span className="text-amber-400 font-bold text-[11px]">
+              <span className="text-cyan-400 font-bold text-[11px]">
                 {Math.min(10, sampleTradesCount)} / 10 EXECUTED
               </span>
             </div>
 
             <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden mt-2">
               <div
-                className="h-full bg-gradient-to-r from-amber-500 to-emerald-400 rounded-full transition-all duration-700"
+                className="h-full bg-gradient-to-r from-blue-500 to-emerald-400 rounded-full transition-all duration-700"
                 style={{ width: `${challengeProgress}%` }}
               />
             </div>
@@ -89,7 +89,7 @@ export const DashboardDailyDevelopment: React.FC<DashboardDailyDevelopmentProps>
         <button
           type="button"
           onClick={() => onNavigateToTab('DAILY_DEV')}
-          className="w-full py-2 px-3 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-emerald-500/40 text-emerald-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-2 transition cursor-pointer"
+          className="w-full py-2 px-3 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-emerald-500/40 text-emerald-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-2 transition cursor-pointer"
         >
           <ListTodo className="w-4 h-4" />
           <span>OPEN DEVELOPMENT PLAN</span>

@@ -75,9 +75,9 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
       <div className="bg-[#0D121F] border border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="p-6 border-b border-slate-800/80 bg-slate-900/50 flex items-center justify-between">
+        <div className="p-6 border-b border-slate-800/80 bg-slate-950/50 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
               <Brain className="w-5 h-5" />
             </div>
             <div>
@@ -106,16 +106,16 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
         <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto font-mono-code text-xs">
           {loading ? (
             <div className="py-16 text-center text-slate-400 flex flex-col items-center gap-3">
-              <RefreshCw className="w-6 h-6 animate-spin text-amber-400" />
+              <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
               <span>Analyzing local cognitive workflow signals...</span>
             </div>
           ) : (
             <>
               {/* Profile Overview Stat Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
                   <div className="text-slate-400 text-[10px] uppercase font-bold flex items-center gap-1.5 mb-1">
-                    <Award className="w-3.5 h-3.5 text-amber-400" />
+                    <Award className="w-3.5 h-3.5 text-cyan-400" />
                     Mastery Archetype
                   </div>
                   <div className="text-slate-100 font-bold text-sm">
@@ -124,7 +124,7 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
                   <div className="text-[10px] text-slate-500 mt-1">High process fidelity</div>
                 </div>
 
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
                   <div className="text-slate-400 text-[10px] uppercase font-bold flex items-center gap-1.5 mb-1">
                     <Activity className="w-3.5 h-3.5 text-cyan-400" />
                     Cognitive Friction Index
@@ -140,7 +140,7 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
                   <div className="text-[10px] text-slate-500 mt-1">Minimal workflow delays</div>
                 </div>
 
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
                   <div className="text-slate-400 text-[10px] uppercase font-bold flex items-center gap-1.5 mb-1">
                     <Zap className="w-3.5 h-3.5 text-emerald-400" />
                     Adaptive Shields
@@ -153,10 +153,10 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
               </div>
 
               {/* Detected Workflow Friction & Autonomous Fixes */}
-              <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-4 space-y-3">
+              <div className="bg-slate-950/40 border border-slate-800 rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-slate-200 font-bold font-military tracking-wide uppercase text-sm">
-                    <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    <AlertTriangle className="w-4 h-4 text-cyan-400" />
                     Detected Friction & Optimization Opportunities
                   </div>
                   <span className="text-[10px] text-slate-500">Autonomous observation</span>
@@ -167,7 +167,7 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
                     <div>
                       <div className="font-bold text-slate-200 flex items-center gap-2">
                         <span>Lot Size to Pre-Trade Re-Entry</span>
-                        <span className="px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 text-[9px]">
+                        <span className="px-1.5 py-0.2 rounded bg-blue-500/10 text-cyan-400 text-[9px]">
                           SAVING ~14 SEC / TRADE
                         </span>
                       </div>
@@ -202,7 +202,7 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
               </div>
 
               {/* Active Adaptive Interventions */}
-              <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-4 space-y-3">
+              <div className="bg-slate-950/40 border border-slate-800 rounded-xl p-4 space-y-3">
                 <div className="flex items-center gap-2 text-slate-200 font-bold font-military tracking-wide uppercase text-sm">
                   <Shield className="w-4 h-4 text-emerald-400" />
                   Active Psychological & Risk Circuit-Breakers
@@ -228,9 +228,9 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
               </div>
 
               {/* Privacy & Transparent Consent Controls */}
-              <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-4 space-y-4">
+              <div className="bg-slate-950/40 border border-slate-800 rounded-xl p-4 space-y-4">
                 <div className="flex items-center gap-2 text-slate-200 font-bold font-military tracking-wide uppercase text-sm">
-                  <Lock className="w-4 h-4 text-amber-400" />
+                  <Lock className="w-4 h-4 text-cyan-400" />
                   Privacy & Transparent Consent Controls
                 </div>
                 <p className="text-slate-400 text-[11px] leading-relaxed">
@@ -249,7 +249,7 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
                       type="checkbox"
                       checked={consentTelemetry}
                       onChange={(e) => setConsentTelemetry(e.target.checked)}
-                      className="w-4 h-4 rounded text-amber-500 bg-slate-900 border-slate-700 focus:ring-amber-500 focus:ring-offset-0"
+                      className="w-4 h-4 rounded text-blue-500 bg-slate-950 border-slate-700 focus:ring-blue-500 focus:ring-offset-0"
                     />
                   </label>
 
@@ -264,7 +264,7 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
                       type="checkbox"
                       checked={consentWorkflowOpt}
                       onChange={(e) => setConsentWorkflowOpt(e.target.checked)}
-                      className="w-4 h-4 rounded text-amber-500 bg-slate-900 border-slate-700 focus:ring-amber-500 focus:ring-offset-0"
+                      className="w-4 h-4 rounded text-blue-500 bg-slate-950 border-slate-700 focus:ring-blue-500 focus:ring-offset-0"
                     />
                   </label>
 
@@ -279,7 +279,7 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
                       type="checkbox"
                       checked={consentAiAdapt}
                       onChange={(e) => setConsentAiAdapt(e.target.checked)}
-                      className="w-4 h-4 rounded text-amber-500 bg-slate-900 border-slate-700 focus:ring-amber-500 focus:ring-offset-0"
+                      className="w-4 h-4 rounded text-blue-500 bg-slate-950 border-slate-700 focus:ring-blue-500 focus:ring-offset-0"
                     />
                   </label>
                 </div>
@@ -289,7 +289,7 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800/80 bg-slate-900/50 flex items-center justify-between">
+        <div className="p-4 border-t border-slate-800/80 bg-slate-950/50 flex items-center justify-between">
           <div className="text-[11px] text-slate-500 font-mono-code">
             {saveSuccess && (
               <span className="text-emerald-400 font-bold flex items-center gap-1 animate-in fade-in">
@@ -308,7 +308,7 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
             <button
               onClick={handleSavePreferences}
               disabled={saving}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-bold font-military text-xs uppercase tracking-wider transition shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 bg-blue-500 hover:bg-cyan-400 text-slate-950 rounded-xl font-bold font-military text-xs uppercase tracking-wider transition shadow-lg shadow-blue-500/20 cursor-pointer disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save Preferences'}
             </button>

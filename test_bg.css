@@ -1,0 +1,38 @@
+@keyframes prime-pulse-slow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.1); }
+}
+
+@keyframes prime-grid-scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.prime-premium-card {
+  position: relative;
+  background: linear-gradient(135deg, #0f172a 0%, #060a12 100%);
+  overflow: hidden;
+  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.8), 0 0 20px -5px rgba(245, 158, 11, 0.15);
+}
+
+.prime-premium-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.prime-premium-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 100%;
+  background: linear-gradient(to bottom, transparent, rgba(14, 165, 233, 0.05), transparent);
+  animation: prime-grid-scan 4s linear infinite;
+  pointer-events: none;
+}

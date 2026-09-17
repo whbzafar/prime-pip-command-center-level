@@ -145,7 +145,7 @@ export const ACTDefusionTool: React.FC<ACTDefusionToolProps> = ({ currentUser })
   return (
     <div className="space-y-6">
       {/* Header Bar */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/30 font-bold">
@@ -181,7 +181,7 @@ export const ACTDefusionTool: React.FC<ACTDefusionToolProps> = ({ currentUser })
 
       {/* Guided 5-Step Process */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-xl p-5 sm:p-6 space-y-5 shadow-xl">
+        <div className="lg:col-span-7 bg-slate-950/90 border border-slate-800 rounded-xl p-5 sm:p-6 space-y-5 shadow-xl">
           {/* Step tabs */}
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             {[
@@ -411,7 +411,7 @@ export const ACTDefusionTool: React.FC<ACTDefusionToolProps> = ({ currentUser })
 
         {/* Live Defusion Summary */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 space-y-3">
+          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-5 space-y-3">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <span className="text-xs font-military font-bold text-slate-200 uppercase tracking-wider">
                 ACT DEFUSION SUMMARY
@@ -426,7 +426,7 @@ export const ACTDefusionTool: React.FC<ACTDefusionToolProps> = ({ currentUser })
               </div>
 
               <div className="p-2.5 rounded bg-slate-950 border border-slate-800 text-slate-300">
-                <span className="text-[10px] text-amber-400 uppercase font-bold block">2. IDENTIFIED URGE</span>
+                <span className="text-[10px] text-cyan-400 uppercase font-bold block">2. IDENTIFIED URGE</span>
                 <p className="mt-0.5">{identifyUrge || 'Waiting...'}</p>
               </div>
 
@@ -450,7 +450,7 @@ export const ACTDefusionTool: React.FC<ACTDefusionToolProps> = ({ currentUser })
       </div>
 
       {/* Past Exercises Log */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4">
+      <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-5 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <Compass className="w-4 h-4 text-sky-400" />

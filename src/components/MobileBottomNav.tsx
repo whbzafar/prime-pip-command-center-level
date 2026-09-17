@@ -109,13 +109,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <button
             onClick={() => onSelectTab('DASHBOARD')}
             className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all duration-150 relative min-w-[56px] min-h-[44px] prime-ios-touch cursor-pointer ${
-              activeTab === 'DASHBOARD' ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              activeTab === 'DASHBOARD' ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <div
               className={`w-9 h-8 rounded-xl flex items-center justify-center transition-all ${
                 activeTab === 'DASHBOARD'
-                  ? 'bg-amber-500/20 text-amber-400 shadow-sm shadow-amber-500/20 scale-105'
+                  ? 'bg-blue-500/20 text-cyan-400 shadow-sm shadow-blue-500/20 scale-105'
                   : 'bg-transparent text-slate-400'
               }`}
             >
@@ -123,7 +123,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             </div>
             <span className="text-[10px] font-military tracking-tight mt-0.5 select-none">Dashboard</span>
             {activeTab === 'DASHBOARD' && (
-              <span className="absolute bottom-0 w-3.5 h-0.5 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50" />
+              <span className="absolute bottom-0 w-3.5 h-0.5 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400/50" />
             )}
           </button>
 
@@ -131,13 +131,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <button
             onClick={() => onSelectTab('PRE_TRADE_PLAN')}
             className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all duration-150 relative min-w-[56px] min-h-[44px] prime-ios-touch cursor-pointer ${
-              activeTab === 'PRE_TRADE_PLAN' ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              activeTab === 'PRE_TRADE_PLAN' ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <div
               className={`w-9 h-8 rounded-xl flex items-center justify-center transition-all ${
                 activeTab === 'PRE_TRADE_PLAN'
-                  ? 'bg-amber-500/20 text-amber-400 shadow-sm shadow-amber-500/20 scale-105'
+                  ? 'bg-blue-500/20 text-cyan-400 shadow-sm shadow-blue-500/20 scale-105'
                   : 'bg-transparent text-slate-400'
               }`}
             >
@@ -145,7 +145,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             </div>
             <span className="text-[10px] font-military tracking-tight mt-0.5 select-none">Pre-Plan</span>
             {activeTab === 'PRE_TRADE_PLAN' && (
-              <span className="absolute bottom-0 w-3.5 h-0.5 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50" />
+              <span className="absolute bottom-0 w-3.5 h-0.5 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400/50" />
             )}
           </button>
 
@@ -155,10 +155,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             className="flex flex-col items-center justify-center py-1 px-1.5 -mt-5 group prime-ios-touch cursor-pointer min-h-[44px]"
             title="Enter New Trade / Journal"
           >
-            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-300 text-slate-950 flex items-center justify-center shadow-lg shadow-amber-500/40 border-2 border-[#070A11] prime-light-sweep transition-transform duration-150 group-active:scale-90">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-500 via-cyan-400 to-amber-300 text-slate-950 flex items-center justify-center shadow-lg shadow-blue-500/40 border-2 border-[#020617] prime-light-sweep transition-transform duration-150 group-active:scale-90">
               <Plus className="w-6 h-6 stroke-[3]" />
             </div>
-            <span className="text-[9px] font-military font-bold text-amber-400 tracking-wider mt-0.5 select-none">
+            <span className="text-[9px] font-military font-bold text-cyan-400 tracking-wider mt-0.5 select-none">
               TRADE
             </span>
           </button>
@@ -167,13 +167,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <button
             onClick={() => onSelectTab('LOT_SIZE')}
             className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all duration-150 relative min-w-[56px] min-h-[44px] prime-ios-touch cursor-pointer ${
-              activeTab === 'LOT_SIZE' ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              activeTab === 'LOT_SIZE' ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <div
               className={`w-9 h-8 rounded-xl flex items-center justify-center transition-all ${
                 activeTab === 'LOT_SIZE'
-                  ? 'bg-amber-500/20 text-amber-400 shadow-sm shadow-amber-500/20 scale-105'
+                  ? 'bg-blue-500/20 text-cyan-400 shadow-sm shadow-blue-500/20 scale-105'
                   : 'bg-transparent text-slate-400'
               }`}
             >
@@ -181,7 +181,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             </div>
             <span className="text-[10px] font-military tracking-tight mt-0.5 select-none">Lot Size</span>
             {activeTab === 'LOT_SIZE' && (
-              <span className="absolute bottom-0 w-3.5 h-0.5 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50" />
+              <span className="absolute bottom-0 w-3.5 h-0.5 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400/50" />
             )}
           </button>
 
@@ -189,14 +189,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <button
             onClick={() => setIsMoreOpen(true)}
             className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all duration-150 relative min-w-[56px] min-h-[44px] prime-ios-touch cursor-pointer ${
-              isMoreOpen || isMoreTabActive ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              isMoreOpen || isMoreTabActive ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
             title="More Categories"
           >
             <div
               className={`w-9 h-8 rounded-xl flex items-center justify-center transition-all ${
                 isMoreOpen || isMoreTabActive
-                  ? 'bg-amber-500/20 text-amber-400 shadow-sm shadow-amber-500/20 scale-105'
+                  ? 'bg-blue-500/20 text-cyan-400 shadow-sm shadow-blue-500/20 scale-105'
                   : 'bg-transparent text-slate-400'
               }`}
             >
@@ -204,7 +204,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             </div>
             <span className="text-[10px] font-military tracking-tight mt-0.5 select-none">More</span>
             {(isMoreOpen || isMoreTabActive) && (
-              <span className="absolute bottom-0 w-3.5 h-0.5 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50" />
+              <span className="absolute bottom-0 w-3.5 h-0.5 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400/50" />
             )}
           </button>
         </div>
@@ -225,7 +225,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             {/* Header */}
             <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
                   <LayoutGrid className="w-4 h-4" />
                 </div>
                 <div>
@@ -239,7 +239,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               </div>
               <button
                 onClick={() => setIsMoreOpen(false)}
-                className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-200"
+                className="w-8 h-8 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-200"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -254,7 +254,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   placeholder="Search categories (e.g. Risk, Calendar, Psychology)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-slate-900/90 border border-slate-800 rounded-xl text-xs font-mono-code text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                  className="w-full pl-9 pr-4 py-2 bg-slate-950/90 border border-slate-800 rounded-xl text-xs font-mono-code text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
@@ -271,15 +271,15 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                     onClick={() => handleSelect(item.id)}
                     className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left cursor-pointer active:scale-98 ${
                       isActive
-                        ? 'bg-amber-500/15 border-amber-500/50 shadow-md shadow-amber-500/10 text-amber-300'
-                        : 'bg-slate-900/60 hover:bg-slate-900 border-slate-800/80 text-slate-200'
+                        ? 'bg-blue-500/15 border-blue-500/50 shadow-md shadow-blue-500/10 text-amber-300'
+                        : 'bg-slate-950/60 hover:bg-slate-950 border-slate-800/80 text-slate-200'
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
                         className={`w-9 h-9 rounded-xl flex items-center justify-center transition-transform ${
                           isActive
-                            ? 'bg-amber-500/20 text-amber-400'
+                            ? 'bg-blue-500/20 text-cyan-400'
                             : 'bg-slate-800 text-slate-400'
                         }`}
                       >
@@ -291,13 +291,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                             {item.label}
                           </span>
                           {isComingSoon && (
-                            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code bg-blue-500/15 text-cyan-400 border border-blue-500/30">
                               <Lock className="w-2.5 h-2.5" />
                               <span>COMING SOON</span>
                             </span>
                           )}
                           {(item as any).highlight && !isComingSoon && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                           )}
                         </div>
                         <p className="text-[11px] font-mono-code text-slate-400 mt-0.5">
@@ -305,7 +305,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                         </p>
                       </div>
                     </div>
-                    <ChevronRight className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-600'}`} />
+                    <ChevronRight className={`w-4 h-4 ${isActive ? 'text-cyan-400' : 'text-slate-600'}`} />
                   </button>
                 );
               })}

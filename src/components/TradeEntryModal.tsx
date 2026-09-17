@@ -436,9 +436,9 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto">
       <div className="bg-[#0B0F19] border border-slate-700/80 rounded-2xl w-full max-w-5xl my-auto shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-800 bg-[#070A11] flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-800 bg-[#020617] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+            <div className="w-9 h-9 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-cyan-400">
               <Crosshair className="w-5 h-5" />
             </div>
             <div>
@@ -446,7 +446,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                 <h3 className="text-base font-military font-bold tracking-wider text-slate-100">
                   PROFESSIONAL TRADE ENTRY SYSTEM
                 </h3>
-                <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-blue-500/10 text-cyan-400 border border-blue-500/30">
                   MISSION LOG #{nextTradeNumber}
                 </span>
                 <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
@@ -474,7 +474,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
             preReadiness.status === 'RED'
               ? 'bg-rose-950/30 border-rose-500/50 text-rose-300'
               : preReadiness.status === 'YELLOW'
-              ? 'bg-amber-950/20 border-amber-500/40 text-amber-300'
+              ? 'bg-amber-950/20 border-blue-500/40 text-amber-300'
               : 'bg-emerald-950/20 border-emerald-500/30 text-emerald-300'
           }`}>
             <div className="flex items-start gap-3">
@@ -482,7 +482,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                 preReadiness.status === 'RED'
                   ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
                   : preReadiness.status === 'YELLOW'
-                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                  ? 'bg-blue-500/20 border-blue-500/40 text-cyan-400'
                   : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
               }`}>
                 <Shield className="w-5 h-5" />
@@ -493,7 +493,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                     preReadiness.status === 'RED'
                       ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
                       : preReadiness.status === 'YELLOW'
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
                       : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                   }`}>
                     {preReadiness.status === 'RED' ? 'DEFCON 5: LOCKOUT' : preReadiness.status === 'YELLOW' ? 'DEFCON 3: CAUTION' : 'DEFCON 1: GREEN'}
@@ -528,7 +528,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
           </div>
 
           {/* Optional Pre-Trade Discipline Checklist */}
-          <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 space-y-3">
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2.5">
                 <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
@@ -557,7 +557,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                       : completedChecklistCount >= 5
                       ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
                       : completedChecklistCount > 0
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
                       : 'bg-slate-800 text-slate-400 border-slate-700'
                   }`}
                 >
@@ -689,7 +689,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                             [item.key]: e.target.checked,
                           }))
                         }
-                        className="mt-0.5 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500"
+                        className="mt-0.5 rounded border-slate-700 bg-slate-950 text-cyan-500 focus:ring-cyan-500"
                       />
                       <div className="flex-1">
                         <div className="font-mono-code font-bold text-xs flex items-center justify-between">
@@ -710,8 +710,8 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
           </div>
 
           {/* Section 1: Basic Information */}
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
-            <div className="flex items-center justify-between text-xs font-military font-bold text-amber-400">
+          <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between text-xs font-military font-bold text-cyan-400">
               <span>1. BASIC MISSION PARAMETERS</span>
               <span className="text-slate-500 font-mono-code">{APP_TIMEZONE_FULL_LABEL} ENFORCED</span>
             </div>
@@ -723,14 +723,14 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                   type="text"
                   value={tradeId}
                   onChange={(e) => setTradeId(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-slate-100 focus:border-amber-400 outline-none"
+                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-slate-100 focus:border-cyan-400 outline-none"
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-slate-400 font-mono-code">Date</label>
-                  <span className="text-[10px] text-amber-400 font-mono-code font-bold">
+                  <span className="text-[10px] text-cyan-400 font-mono-code font-bold">
                     {APP_TIMEZONE_LABEL}
                   </span>
                 </div>
@@ -738,7 +738,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-slate-100 focus:border-amber-400 outline-none"
+                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-slate-100 focus:border-cyan-400 outline-none"
                 />
               </div>
 
@@ -746,7 +746,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-slate-400 font-mono-code flex items-center gap-1.5">
                     <span>Time</span>
-                    <span className="text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded text-[10px]">
+                    <span className="text-cyan-400 font-bold bg-blue-500/10 px-1.5 py-0.5 rounded text-[10px]">
                       {formatTo12Hour(time) || '12-HR PKT'}
                     </span>
                   </label>
@@ -757,7 +757,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                       setTime(getKarachiTime24());
                     }}
                     title="Reset to current Asia/Karachi (UTC+5) time"
-                    className="text-[10px] text-amber-400 hover:text-amber-300 font-mono-code underline cursor-pointer"
+                    className="text-[10px] text-cyan-400 hover:text-amber-300 font-mono-code underline cursor-pointer"
                   >
                     NOW (PKT)
                   </button>
@@ -766,7 +766,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                   type="time"
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-slate-100 focus:border-amber-400 outline-none"
+                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-slate-100 focus:border-cyan-400 outline-none"
                 />
               </div>
 
@@ -776,7 +776,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                   type="text"
                   value={broker}
                   onChange={(e) => setBroker(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-slate-100 focus:border-amber-400 outline-none"
+                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-slate-100 focus:border-cyan-400 outline-none"
                 />
               </div>
 
@@ -855,8 +855,8 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
           </div>
 
           {/* Section 2: Execution & Risk-to-Reward Calculator */}
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
-            <div className="flex items-center justify-between text-xs font-military font-bold text-amber-400">
+          <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between text-xs font-military font-bold text-cyan-400">
               <span>2. EXECUTION & R-MULTIPLE AUDIT</span>
               <span className="text-slate-400 font-mono-code">
                 RISK: ${Math.round(riskAmount).toLocaleString()} | P&L: ${Math.round(profitLoss).toLocaleString()} ({rMultiple > 0 ? '+' : ''}{rMultiple}R)
@@ -915,7 +915,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                   step="0.01"
                   value={lotSize}
                   onChange={(e) => setLotSize(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-amber-400 font-bold outline-none"
+                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-cyan-400 font-bold outline-none"
                 />
               </div>
             </div>
@@ -924,10 +924,10 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
             <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-mono-code font-bold text-amber-400 uppercase tracking-wider">
+                  <span className="text-[11px] font-mono-code font-bold text-cyan-400 uppercase tracking-wider">
                     RESULT AUDIT STATUS:
                   </span>
-                  <div className="inline-flex rounded-lg bg-slate-900 p-1 border border-slate-800 gap-1">
+                  <div className="inline-flex rounded-lg bg-slate-950 p-1 border border-slate-800 gap-1">
                     {(['WIN', 'LOSS', 'BREAKEVEN'] as const).map((res) => (
                       <button
                         key={res}
@@ -950,7 +950,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                               ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
                               : res === 'LOSS'
                               ? 'bg-rose-500 text-slate-100 shadow-md shadow-rose-500/20'
-                              : 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                              : 'bg-blue-500 text-slate-950 shadow-md shadow-blue-500/20'
                             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                         }`}
                       >
@@ -978,8 +978,8 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
           {/* Section 3 & 4: Strategy Tracking & Market Structure Analysis */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Strategy & HTF/LTF */}
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
-              <div className="text-xs font-military font-bold text-amber-400">
+            <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+              <div className="text-xs font-military font-bold text-cyan-400">
                 3. STRATEGY & MARKET STRUCTURE
               </div>
 
@@ -989,7 +989,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                   id="trade-entry-strategy-select"
                   value={strategy}
                   onChange={(e) => setStrategy(e.target.value as StrategyType)}
-                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-amber-400 font-semibold outline-none focus:border-amber-400"
+                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-cyan-400 font-semibold outline-none focus:border-cyan-400"
                 >
                   {SBT_STRATEGY_MODELS.map((s) => (
                     <option key={s} value={s}>
@@ -1044,15 +1044,15 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
             </div>
 
             {/* Trade Alignment Score Matrix */}
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between text-xs font-military font-bold text-amber-400">
+            <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between text-xs font-military font-bold text-cyan-400">
                 <span>4. TRADE ALIGNMENT SCORE</span>
                 <span
                   className={`font-mono-code font-bold text-sm ${
                     totalQualityScore >= 85
                       ? 'text-emerald-400'
                       : totalQualityScore >= 70
-                      ? 'text-amber-400'
+                      ? 'text-cyan-400'
                       : 'text-rose-400'
                   }`}
                 >
@@ -1069,9 +1069,9 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                     max="25"
                     value={scoreHtf}
                     onChange={(e) => setScoreHtf(parseInt(e.target.value))}
-                    className="w-24 accent-amber-400"
+                    className="w-24 accent-cyan-400"
                   />
-                  <span className="text-amber-400 font-bold w-6 text-right">{scoreHtf}</span>
+                  <span className="text-cyan-400 font-bold w-6 text-right">{scoreHtf}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -1082,9 +1082,9 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                     max="20"
                     value={scoreMs}
                     onChange={(e) => setScoreMs(parseInt(e.target.value))}
-                    className="w-24 accent-amber-400"
+                    className="w-24 accent-cyan-400"
                   />
-                  <span className="text-amber-400 font-bold w-6 text-right">{scoreMs}</span>
+                  <span className="text-cyan-400 font-bold w-6 text-right">{scoreMs}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -1095,9 +1095,9 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                     max="20"
                     value={scoreEm}
                     onChange={(e) => setScoreEm(parseInt(e.target.value))}
-                    className="w-24 accent-amber-400"
+                    className="w-24 accent-cyan-400"
                   />
-                  <span className="text-amber-400 font-bold w-6 text-right">{scoreEm}</span>
+                  <span className="text-cyan-400 font-bold w-6 text-right">{scoreEm}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -1108,9 +1108,9 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                     max="20"
                     value={scoreRm}
                     onChange={(e) => setScoreRm(parseInt(e.target.value))}
-                    className="w-24 accent-amber-400"
+                    className="w-24 accent-cyan-400"
                   />
-                  <span className="text-amber-400 font-bold w-6 text-right">{scoreRm}</span>
+                  <span className="text-cyan-400 font-bold w-6 text-right">{scoreRm}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -1121,17 +1121,17 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                     max="15"
                     value={scoreNews}
                     onChange={(e) => setScoreNews(parseInt(e.target.value))}
-                    className="w-24 accent-amber-400"
+                    className="w-24 accent-cyan-400"
                   />
-                  <span className="text-amber-400 font-bold w-6 text-right">{scoreNews}</span>
+                  <span className="text-cyan-400 font-bold w-6 text-right">{scoreNews}</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Section 5: Screenshot System */}
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
-            <div className="flex items-center justify-between text-xs font-military font-bold text-amber-400">
+          <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between text-xs font-military font-bold text-cyan-400">
               <div className="flex items-center gap-2">
                 <Camera className="w-4 h-4" />
                 <span>5. SCREENSHOT AUDIT SYSTEM</span>
@@ -1216,7 +1216,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                       type="button"
                       disabled={aiAuditing}
                       onClick={() => runAiScreenshotAudit(entryUrl)}
-                      className="px-2 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded text-[10px] font-military flex items-center gap-1"
+                      className="px-2 py-1 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-bold rounded text-[10px] font-military flex items-center gap-1"
                     >
                       <Sparkles className="w-3 h-3" />
                       {aiAuditing ? 'Auditing...' : 'AI Audit'}
@@ -1298,7 +1298,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
 
             {/* AI Vision Audit Feedback if available */}
             {aiAuditResult && (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-1">
+              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-amber-300 space-y-1">
                 <div className="font-bold font-military flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5" />
@@ -1314,8 +1314,8 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
           </div>
 
           {/* Section 6: Trading Psychology Journal */}
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
-            <div className="flex items-center justify-between text-xs font-military font-bold text-amber-400">
+          <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between text-xs font-military font-bold text-cyan-400">
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4" />
                 <span>6. TRADING PSYCHOLOGY JOURNAL</span>
@@ -1338,7 +1338,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                       onClick={() => setPreEmotion(emo.state)}
                       className={`p-2 rounded-lg border flex flex-col items-center justify-center gap-1 transition ${
                         isSelected
-                          ? 'border-amber-400 bg-amber-500/15 text-white'
+                          ? 'border-cyan-400 bg-blue-500/15 text-white'
                           : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
                       }`}
                     >
@@ -1361,7 +1361,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                     type="checkbox"
                     checked={followedPlan}
                     onChange={(e) => setFollowedPlan(e.target.checked)}
-                    className="accent-amber-400 rounded"
+                    className="accent-cyan-400 rounded"
                   />
                   <span>Did you follow the plan?</span>
                 </label>
@@ -1383,7 +1383,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                     type="checkbox"
                     checked={closedEarly}
                     onChange={(e) => setClosedEarly(e.target.checked)}
-                    className="accent-amber-400 rounded"
+                    className="accent-cyan-400 rounded"
                   />
                   <span>Did you close early out of fear?</span>
                 </label>
@@ -1430,15 +1430,15 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
           {/* Section 7 & 12 & 13: Rule Violations, Mistakes, and Trade Grade */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Rule Violations */}
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between text-xs font-military font-bold text-amber-400">
+            <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+              <div className="flex items-center justify-between text-xs font-military font-bold text-cyan-400">
                 <span>7. RULE VIOLATIONS</span>
                 <span
                   className={`font-mono-code px-2 py-0.5 rounded text-[10px] font-bold ${
                     ruleViolationLevel === 'NONE'
                       ? 'bg-emerald-500/20 text-emerald-400'
                       : ruleViolationLevel === 'MINOR'
-                      ? 'bg-amber-500/20 text-amber-400'
+                      ? 'bg-blue-500/20 text-cyan-400'
                       : 'bg-rose-500/20 text-rose-400'
                   }`}
                 >
@@ -1480,8 +1480,8 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
             </div>
 
             {/* Mistake Database */}
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
-              <div className="text-xs font-military font-bold text-amber-400">
+            <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+              <div className="text-xs font-military font-bold text-cyan-400">
                 12. MISTAKE CLASSIFICATION
               </div>
               <label className="text-slate-400 block text-[11px] font-mono-code">
@@ -1505,14 +1505,14 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
             </div>
 
             {/* Trade Grade & Live Trade Quality Score */}
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5">
-              <div className="flex items-center justify-between text-xs font-military font-bold text-amber-400">
+            <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-military font-bold text-cyan-400">
                 <span>13. TRADE QUALITY SCORE</span>
                 <span className={`px-2 py-0.5 rounded text-[11px] font-mono-code font-bold ${
                   totalQualityScore >= 85
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                     : totalQualityScore >= 70
-                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                    ? 'bg-blue-500/20 text-cyan-400 border border-blue-500/30'
                     : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                 }`}>
                   {totalQualityScore} / 100
@@ -1522,13 +1522,13 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
               <div className="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[11px] font-mono-code flex items-center justify-between">
                 <div>
                   <span className="text-slate-400">Suggested Grade:</span>{' '}
-                  <span className="font-bold text-amber-400">{suggestedGrade}</span>
+                  <span className="font-bold text-cyan-400">{suggestedGrade}</span>
                 </div>
                 {grade !== suggestedGrade && (
                   <button
                     type="button"
                     onClick={() => setGrade(suggestedGrade)}
-                    className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold"
+                    className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 hover:bg-blue-500/30 text-amber-300 font-bold"
                   >
                     Apply {suggestedGrade}
                   </button>
@@ -1551,7 +1551,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                           : g === 'B'
                           ? 'bg-sky-500 text-slate-950'
                           : g === 'C'
-                          ? 'bg-amber-500 text-slate-950'
+                          ? 'bg-blue-500 text-slate-950'
                           : 'bg-rose-500 text-slate-950'
                         : 'bg-slate-950 text-slate-400 hover:text-slate-200'
                     }`}
@@ -1572,9 +1572,9 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
           </div>
 
           {/* Section 14: LOSS / WIN ANALYSIS SYSTEM (Master Prompt Requirement 12) */}
-          <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+          <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-military font-bold text-amber-400">
+              <span className="text-xs font-military font-bold text-cyan-400">
                 14. POST-TRADE REFLECTION & ANALYSIS
               </span>
               <span className={`text-[10px] font-mono-code font-bold px-2 py-0.5 rounded ${
@@ -1683,7 +1683,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                 value={analysisNotes}
                 onChange={(e) => setAnalysisNotes(e.target.value)}
                 placeholder="What single rule or tweak will you remember for next time?"
-                className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-slate-200 placeholder:text-slate-600 outline-none focus:border-amber-400 text-xs"
+                className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-slate-200 placeholder:text-slate-600 outline-none focus:border-cyan-400 text-xs"
               />
             </div>
           </div>
@@ -1696,15 +1696,15 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="e.g. Clean London Open sweep of Asian low into H1 bullish order block. Waited for M5 MSS then entered on SBT retest..."
-              className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 font-mono-code text-slate-200 placeholder:text-slate-600 outline-none focus:border-amber-400 text-xs"
+              className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 font-mono-code text-slate-200 placeholder:text-slate-600 outline-none focus:border-cyan-400 text-xs"
             />
           </div>
 
           {/* Risk Guidance & Advisory Notifications (Non-blocking as required by Master Prompt) */}
           {(isRiskExceeded || isDailyLimitReached || submissionError) && (
-            <div className="p-3 bg-amber-500/10 border border-amber-500/40 rounded-xl text-amber-200 font-mono-code text-xs space-y-1">
-              <div className="flex items-center gap-2 font-bold text-amber-400">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+            <div className="p-3 bg-blue-500/10 border border-blue-500/40 rounded-xl text-cyan-200 font-mono-code text-xs space-y-1">
+              <div className="flex items-center gap-2 font-bold text-cyan-400">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-cyan-400" />
                 <span>RISK COMPLIANCE & DISCIPLINE ADVISORY</span>
               </div>
               {isRiskExceeded && (
@@ -1727,7 +1727,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-slate-800 bg-[#070A11] flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-slate-800 bg-[#020617] flex items-center justify-between">
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 font-mono-code text-xs transition"
@@ -1738,7 +1738,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
           <button
             id="save-trade-submit-btn"
             onClick={handleSave}
-            className="px-6 py-2.5 rounded-lg font-military font-bold text-xs tracking-wider shadow-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-amber-500/20 cursor-pointer transition transform active:scale-95 flex items-center gap-2"
+            className="px-6 py-2.5 rounded-lg font-military font-bold text-xs tracking-wider shadow-lg bg-gradient-to-r from-blue-500 to-amber-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-blue-500/20 cursor-pointer transition transform active:scale-95 flex items-center gap-2"
           >
             <CheckCircle2 className="w-4 h-4 text-slate-950" />
             <span>

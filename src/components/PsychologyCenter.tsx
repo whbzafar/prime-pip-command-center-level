@@ -311,9 +311,9 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
     },
     CAUTION: {
       label: 'CAUTION',
-      color: 'text-amber-400',
-      bg: 'bg-amber-500/10',
-      border: 'border-amber-500/30',
+      color: 'text-cyan-400',
+      bg: 'bg-blue-500/10',
+      border: 'border-blue-500/30',
       desc: 'Mild emotional friction or trade fatigue detected. Potential for early entry or micro-management.',
       advice: 'Perform 3-5 cycles of Box Breathing. Verify that this setup strictly meets 1:1.5 RR criteria.',
     },
@@ -440,9 +440,9 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
     { key: 'CONFIDENT', label: 'Confident', emoji: '😎', color: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' },
     { key: 'DISCIPLINED', label: 'Disciplined', emoji: '🎯', color: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' },
     { key: 'NEUTRAL', label: 'Neutral', emoji: '😐', color: 'border-slate-700 text-slate-300 bg-slate-800/40' },
-    { key: 'EXCITED', label: 'Excited', emoji: '🔥', color: 'border-amber-500/40 text-amber-400 bg-amber-500/10' },
-    { key: 'HESITANT', label: 'Hesitant', emoji: '🤔', color: 'border-amber-500/40 text-amber-400 bg-amber-500/10' },
-    { key: 'TIRED', label: 'Tired', emoji: '😴', color: 'border-amber-500/40 text-amber-400 bg-amber-500/10' },
+    { key: 'EXCITED', label: 'Excited', emoji: '🔥', color: 'border-blue-500/40 text-cyan-400 bg-blue-500/10' },
+    { key: 'HESITANT', label: 'Hesitant', emoji: '🤔', color: 'border-blue-500/40 text-cyan-400 bg-blue-500/10' },
+    { key: 'TIRED', label: 'Tired', emoji: '😴', color: 'border-blue-500/40 text-cyan-400 bg-blue-500/10' },
     { key: 'ANXIOUS', label: 'Anxious', emoji: '😰', color: 'border-orange-500/40 text-orange-400 bg-orange-500/10' },
     { key: 'FRUSTRATED', label: 'Frustrated', emoji: '😖', color: 'border-rose-500/40 text-rose-400 bg-rose-500/10' },
     { key: 'GREEDY', label: 'Greedy', emoji: '🤑', color: 'border-rose-500/40 text-rose-400 bg-rose-500/10' },
@@ -489,7 +489,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
                 type="button"
                 onClick={onClose}
                 title="Return to Main Dashboard"
-                className="p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-indigo-300 border border-slate-700/80 transition active:scale-95 cursor-pointer"
+                className="p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 text-slate-300 hover:text-indigo-300 border border-slate-700/80 transition active:scale-95 cursor-pointer"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
@@ -548,7 +548,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900/90 text-slate-400 hover:text-slate-200 text-xs font-mono-code border border-slate-800 transition active:scale-95"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950/90 text-slate-400 hover:text-slate-200 text-xs font-mono-code border border-slate-800 transition active:scale-95"
               >
                 <span>Dashboard</span>
               </button>
@@ -606,7 +606,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
                 currentReadinessScore >= 75
                   ? 'text-emerald-400'
                   : currentReadinessScore >= 50
-                  ? 'text-amber-400'
+                  ? 'text-cyan-400'
                   : 'text-rose-400'
               }`}>
                 {currentReadinessScore}/100
@@ -616,7 +616,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
             <button
               type="button"
               onClick={() => setActiveSection('CHECKIN')}
-              className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-mono-code text-slate-200 transition"
+              className="px-3 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs font-mono-code text-slate-200 transition"
             >
               Update State
             </button>
@@ -642,7 +642,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
             </span>
             <div className="flex items-center justify-between text-slate-300">
               <span>Trades Today:</span>
-              <span className="font-bold text-amber-400">{tradesToday.length} / {account?.maxDailyTrades || 2}</span>
+              <span className="font-bold text-cyan-400">{tradesToday.length} / {account?.maxDailyTrades || 2}</span>
             </div>
             <div className="flex items-center justify-between text-slate-300">
               <span>Consecutive Losses:</span>
@@ -789,9 +789,9 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
       {activeSection === 'CHECKIN' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Interactive Check-in Form */}
-          <div className="lg:col-span-2 bg-slate-900/70 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+          <div className="lg:col-span-2 bg-slate-950/70 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
             <div className="border-b border-slate-800 pb-4">
-              <span className="text-[10px] font-mono-code text-amber-400 uppercase font-bold tracking-wider">
+              <span className="text-[10px] font-mono-code text-cyan-400 uppercase font-bold tracking-wider">
                 PRE-FLIGHT PSYCHOLOGICAL AUDIT
               </span>
               <h3 className="text-base font-military font-bold text-slate-100 mt-1">
@@ -836,7 +836,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
                     onClick={() => setFeeling(opt.key)}
                     className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs font-mono-code transition cursor-pointer ${
                       feeling === opt.key
-                        ? `${opt.color} ring-2 ring-amber-500 shadow-md font-bold scale-[1.02]`
+                        ? `${opt.color} ring-2 ring-blue-500 shadow-md font-bold scale-[1.02]`
                         : 'border-slate-800 hover:border-slate-700 text-slate-400 bg-slate-950/60'
                     }`}
                   >
@@ -860,7 +860,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
                     onClick={() => setIntention(opt.key)}
                     className={`text-left p-3 rounded-lg border transition cursor-pointer ${
                       intention === opt.key
-                        ? 'border-amber-500 bg-amber-500/10 text-slate-100 ring-1 ring-amber-500'
+                        ? 'border-blue-500 bg-blue-500/10 text-slate-100 ring-1 ring-blue-500'
                         : 'border-slate-800 hover:border-slate-700 bg-slate-950/60 text-slate-400'
                     }`}
                   >
@@ -884,7 +884,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
                 <label className="text-xs font-military font-bold text-slate-200 tracking-wider uppercase block">
                   3. Confidence Level in Planned Setup:
                 </label>
-                <span className="text-xs font-mono-code text-amber-400 font-bold">
+                <span className="text-xs font-mono-code text-cyan-400 font-bold">
                   {confidenceLevel} of 5
                 </span>
               </div>
@@ -896,7 +896,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
                     onClick={() => setConfidenceLevel(lvl)}
                     className={`py-2 text-xs font-mono-code rounded-lg border transition cursor-pointer ${
                       confidenceLevel === lvl
-                        ? 'bg-amber-500 text-slate-950 font-bold border-amber-400 shadow'
+                        ? 'bg-blue-500 text-slate-950 font-bold border-cyan-400 shadow'
                         : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -913,10 +913,10 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
                   type="checkbox"
                   checked={riskAcceptedConfirmation}
                   onChange={(e) => setRiskAcceptedConfirmation(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                  className="mt-0.5 w-4 h-4 accent-blue-500 rounded cursor-pointer"
                 />
                 <span className="text-xs font-mono-code text-slate-300">
-                  <span className="font-bold text-amber-400">Risk Acceptance Protocol:</span> I fully accept the 1% mathematical risk of this trade. I acknowledge that the outcome is uncertain, and I will not interfere with my predefined Stop Loss.
+                  <span className="font-bold text-cyan-400">Risk Acceptance Protocol:</span> I fully accept the 1% mathematical risk of this trade. I acknowledge that the outcome is uncertain, and I will not interfere with my predefined Stop Loss.
                 </span>
               </label>
             </div>
@@ -931,7 +931,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
                 onChange={(e) => setCheckInNotes(e.target.value)}
                 placeholder="What is your thesis? Are you calm? Any physical tension in jaw or neck?..."
                 rows={2}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-code text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-code text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500"
               />
             </div>
 
@@ -944,7 +944,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
               <button
                 type="button"
                 onClick={handleSaveCheckIn}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military text-xs font-bold tracking-wider transition shadow-lg shadow-amber-500/20 cursor-pointer"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military text-xs font-bold tracking-wider transition shadow-lg shadow-blue-500/20 cursor-pointer"
               >
                 <Save className="w-4 h-4" />
                 <span>SAVE CHECK-IN RECORD</span>
@@ -962,9 +962,9 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
           {/* Side Panel: Post-Trade Review & Recent Check-in History */}
           <div className="space-y-6">
             {/* Quick Post-Trade Review Card */}
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
+            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
               <div className="border-b border-slate-800 pb-3">
-                <span className="text-[10px] font-mono-code text-amber-400 uppercase font-bold tracking-wider">
+                <span className="text-[10px] font-mono-code text-cyan-400 uppercase font-bold tracking-wider">
                   POST-EXECUTION AUDIT
                 </span>
                 <h4 className="text-sm font-military font-bold text-slate-100 tracking-wider mt-0.5">
@@ -983,7 +983,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
                     <select
                       value={selectedTradeId}
                       onChange={(e) => setSelectedTradeId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-slate-200 focus:outline-none focus:border-amber-500"
+                      className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-slate-200 focus:outline-none focus:border-blue-500"
                     >
                       <option value="">-- Choose a Trade --</option>
                       {closedTrades.slice(0, 10).map((t) => (
@@ -1060,7 +1060,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
             </div>
 
             {/* Check-in History */}
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 shadow-xl space-y-3">
+            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-5 shadow-xl space-y-3">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="text-xs font-military font-bold text-slate-200 tracking-wider uppercase">
                   RECENT CHECK-INS ({checkInHistory.length})
@@ -1079,7 +1079,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
                     >
                       <div className="flex items-center justify-between text-[11px] text-slate-400">
                         <span>{chk.date} {chk.time}</span>
-                        <span className="text-amber-400 font-bold">{chk.readinessScore}/100</span>
+                        <span className="text-cyan-400 font-bold">{chk.readinessScore}/100</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-slate-200 font-bold">{chk.feeling}</span>
@@ -1100,7 +1100,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
       {activeSection === 'TRADING_PSYCH' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
               <span className="text-[10px] font-mono-code text-slate-400 uppercase block">Calm Executions Win Rate</span>
               <div className="text-2xl font-mono-code font-bold text-emerald-400">
                 {calmWinRate}%
@@ -1110,9 +1110,9 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
               </p>
             </div>
 
-            <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
               <span className="text-[10px] font-mono-code text-slate-400 uppercase block">Plan Adherence</span>
-              <div className="text-2xl font-mono-code font-bold text-amber-400">
+              <div className="text-2xl font-mono-code font-bold text-cyan-400">
                 {followedPlanRate}%
               </div>
               <p className="text-[10px] text-slate-500 font-sans">
@@ -1120,7 +1120,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
               </p>
             </div>
 
-            <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
               <span className="text-[10px] font-mono-code text-slate-400 uppercase block">Revenge/Impulsive Cost</span>
               <div className="text-2xl font-mono-code font-bold text-rose-400">
                 {formatCurrency(revengeTradingCost, currency)}
@@ -1168,7 +1168,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
       {/* ========================================================================= */}
       {activeSection === 'BREATHING' && (
         <div className="space-y-6">
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
             <div className="border-b border-slate-800 pb-3">
               <span className="text-[10px] font-military font-bold text-emerald-400 uppercase tracking-widest">
                 PARASYMPATHETIC DOWN-REGULATION
@@ -1214,8 +1214,8 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
                 onClick={() => setCognitiveToolTab(tool.id as any)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold transition ${
                   cognitiveToolTab === tool.id
-                    ? 'bg-amber-500 text-slate-950 shadow'
-                    : 'bg-slate-900 text-slate-400 hover:text-slate-200'
+                    ? 'bg-blue-500 text-slate-950 shadow'
+                    : 'bg-slate-950 text-slate-400 hover:text-slate-200'
                 }`}
               >
                 {tool.label}
@@ -1238,14 +1238,14 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
           <PsychologyTimelineChart trades={trades} currency={currency} />
 
           {/* Behavioral Mistakes Distribution */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
+          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
             <h4 className="text-sm font-military font-bold text-slate-100 tracking-wider uppercase">
               EMPIRICAL BEHAVIORAL MISTAKE ANALYSIS
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono-code">
               <div className="p-3 bg-slate-950 rounded-lg border border-slate-800">
                 <span className="text-slate-400 block text-[10px]">FOMO Entries:</span>
-                <span className="text-amber-400 font-bold text-lg">{fomoCount}</span>
+                <span className="text-cyan-400 font-bold text-lg">{fomoCount}</span>
               </div>
               <div className="p-3 bg-slate-950 rounded-lg border border-slate-800">
                 <span className="text-slate-400 block text-[10px]">Moved Stop Loss:</span>
@@ -1268,7 +1268,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
           {/* SECTION VIEW 11: PSYCHOLOGICAL SETTINGS (Section 11) */}
           {/* ========================================================================= */}
           {activeSection === 'SETTINGS' && (
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div>
                   <h3 className="text-base font-military font-bold text-slate-100 uppercase">
@@ -1281,16 +1281,16 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsSettingsModalOpen(true)}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-military font-bold rounded-lg transition"
+                  className="px-4 py-2 bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold rounded-lg transition"
                 >
                   Open Settings Editor
                 </button>
               </div>
               <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono-code space-y-2 text-slate-300">
-                <p>• <strong className="text-amber-400">Cooldown Timer:</strong> 30 minutes default lockout upon Level 2 or Level 3 tilt.</p>
-                <p>• <strong className="text-amber-400">Pre-Trade Check-In:</strong> Required before recording live executions.</p>
-                <p>• <strong className="text-amber-400">Tilt Sensitivity:</strong> STRICT (alert triggered at 2 consecutive losses or 3 daily trades).</p>
-                <p>• <strong className="text-amber-400">Recovery Mode:</strong> Automated prompts enabled when risk limit is reached.</p>
+                <p>• <strong className="text-cyan-400">Cooldown Timer:</strong> 30 minutes default lockout upon Level 2 or Level 3 tilt.</p>
+                <p>• <strong className="text-cyan-400">Pre-Trade Check-In:</strong> Required before recording live executions.</p>
+                <p>• <strong className="text-cyan-400">Tilt Sensitivity:</strong> STRICT (alert triggered at 2 consecutive losses or 3 daily trades).</p>
+                <p>• <strong className="text-cyan-400">Recovery Mode:</strong> Automated prompts enabled when risk limit is reached.</p>
               </div>
             </div>
           )}

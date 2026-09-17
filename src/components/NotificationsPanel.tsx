@@ -65,10 +65,10 @@ export const NotificationsPanel: React.FC<Props> = ({ onClose, onNavigate }) => 
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-80 bg-[#070A11] border-l border-slate-800 shadow-2xl z-50 flex flex-col font-mono-code animate-in slide-in-from-right duration-300">
+    <div className="fixed inset-y-0 right-0 w-80 bg-[#020617] border-l border-slate-800 shadow-2xl z-50 flex flex-col font-mono-code animate-in slide-in-from-right duration-300">
       <div className="p-4 border-b border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-2 text-slate-200 font-bold">
-          <Bell className="w-4 h-4 text-amber-400" />
+          <Bell className="w-4 h-4 text-cyan-400" />
           NOTIFICATIONS
         </div>
         <div className="flex items-center gap-2">
@@ -100,14 +100,14 @@ export const NotificationsPanel: React.FC<Props> = ({ onClose, onNavigate }) => 
               key={n.id} 
               className={`p-3 rounded-xl border transition relative ${
                 n.isRead 
-                  ? 'bg-slate-900/50 border-slate-800 text-slate-400' 
-                  : 'bg-slate-900 border-amber-500/30 text-slate-200'
+                  ? 'bg-slate-950/50 border-slate-800 text-slate-400' 
+                  : 'bg-slate-950 border-blue-500/30 text-slate-200'
               }`}
             >
               {!n.isRead && (
-                <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
               )}
-              <h4 className={`text-xs font-bold mb-1 pr-6 ${!n.isRead ? 'text-amber-400' : ''}`}>
+              <h4 className={`text-xs font-bold mb-1 pr-6 ${!n.isRead ? 'text-cyan-400' : ''}`}>
                 {n.title}
               </h4>
               <p className="text-xs mb-2">{n.body}</p>

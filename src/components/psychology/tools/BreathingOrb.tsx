@@ -177,7 +177,7 @@ export const BreathingOrb: React.FC<BreathingOrbProps> = ({
             className={`p-2 rounded-xl border text-xs transition cursor-pointer ${
               soundEnabled
                 ? 'bg-teal-500/15 border-teal-500/40 text-teal-300'
-                : 'bg-slate-900 border-slate-800 text-slate-500'
+                : 'bg-slate-950 border-slate-800 text-slate-500'
             }`}
             title={soundEnabled ? 'Mute Chimes' : 'Enable Chimes'}
           >
@@ -186,7 +186,7 @@ export const BreathingOrb: React.FC<BreathingOrbProps> = ({
           <button
             type="button"
             onClick={handleReset}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
             title="Reset Breathing Counter"
           >
             <RotateCcw className="w-4 h-4" />
@@ -204,7 +204,7 @@ export const BreathingOrb: React.FC<BreathingOrbProps> = ({
             className={`py-2 px-3 rounded-xl border text-xs font-mono-code font-bold transition text-left cursor-pointer ${
               mode === cadenceKey
                 ? 'bg-indigo-600/30 border-indigo-400 text-indigo-100 shadow-md shadow-indigo-500/15'
-                : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
             }`}
           >
             <div className="truncate">{CADENCES[cadenceKey].name.split(' (')[0]}</div>
@@ -259,7 +259,7 @@ export const BreathingOrb: React.FC<BreathingOrbProps> = ({
       {/* Progress & Cycle Indicator */}
       <div className="flex items-center justify-between text-xs font-mono-code border-t border-indigo-900/30 pt-4 mt-4 relative z-10">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
           <span className="text-slate-400">Cycles Completed:</span>
           <span className="text-emerald-400 font-bold">
             {cyclesCompleted} / {targetCycles}
@@ -272,7 +272,7 @@ export const BreathingOrb: React.FC<BreathingOrbProps> = ({
           onClick={() => setIsActive(!isActive)}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-military font-bold tracking-wider uppercase transition active:scale-95 cursor-pointer ${
             isActive
-              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
+              ? 'bg-blue-500/20 text-amber-300 border border-blue-500/40 hover:bg-blue-500/30'
               : 'bg-gradient-to-r from-teal-500 to-indigo-600 text-white shadow-lg shadow-teal-500/20 hover:opacity-95'
           }`}
         >

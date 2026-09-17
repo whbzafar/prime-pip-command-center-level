@@ -355,7 +355,7 @@ export const TradingResearchCenter: React.FC = () => {
       </div>
 
       {/* Filter and Control Bar */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono-code">
+      <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono-code">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1.5 text-slate-400">
             <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-400" />
@@ -448,7 +448,7 @@ export const TradingResearchCenter: React.FC = () => {
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 animate-pulse space-y-3"
+              className="bg-slate-950/60 border border-slate-800 rounded-xl p-5 animate-pulse space-y-3"
             >
               <div className="h-5 bg-slate-800 rounded w-3/4" />
               <div className="h-4 bg-slate-800/60 rounded w-1/2" />
@@ -464,7 +464,7 @@ export const TradingResearchCenter: React.FC = () => {
 
       {/* Empty State */}
       {!isLoading && !errorMessage && articles.length === 0 && (
-        <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-12 text-center space-y-3">
+        <div className="bg-slate-950/40 border border-slate-800 rounded-2xl p-12 text-center space-y-3">
           <Library className="w-12 h-12 text-slate-600 mx-auto stroke-1" />
           <h3 className="text-base font-military font-bold text-slate-300">
             No scholarly results found for this query.
@@ -484,7 +484,7 @@ export const TradingResearchCenter: React.FC = () => {
             return (
               <div
                 key={art.id}
-                className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-4 sm:p-5 transition shadow-sm space-y-3"
+                className="bg-slate-950/80 hover:bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl p-4 sm:p-5 transition shadow-sm space-y-3"
               >
                 {/* Header Row: Title & Bookmark */}
                 <div className="flex items-start justify-between gap-3">
@@ -536,7 +536,7 @@ export const TradingResearchCenter: React.FC = () => {
                     onClick={() => toggleBookmark(art.id)}
                     className={`p-2 rounded-lg border transition cursor-pointer shrink-0 ${
                       isBookmarked
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
                         : 'bg-slate-950/60 text-slate-500 border-slate-800 hover:text-slate-300'
                     }`}
                     title={isBookmarked ? 'Saved to collection' : 'Bookmark paper'}
@@ -575,7 +575,7 @@ export const TradingResearchCenter: React.FC = () => {
                       onClick={() => setCitationModalArticle(art)}
                       className="px-3 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-300 text-xs font-mono-code flex items-center gap-1.5 transition cursor-pointer"
                     >
-                      <Quote className="w-3.5 h-3.5 text-amber-400" />
+                      <Quote className="w-3.5 h-3.5 text-cyan-400" />
                       <span>Cite Paper</span>
                     </button>
 
@@ -617,7 +617,7 @@ export const TradingResearchCenter: React.FC = () => {
           })}
 
           {/* Pagination Controls */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs font-mono-code">
+          <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs font-mono-code">
             <button
               type="button"
               disabled={page <= 1 || isLoading}
@@ -656,7 +656,7 @@ export const TradingResearchCenter: React.FC = () => {
           }`}
         >
           <div
-            className={`bg-slate-900 border border-slate-700 shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
+            className={`bg-slate-950 border border-slate-700 shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
               isArticleFullscreen
                 ? 'w-full h-full rounded-none max-w-none max-h-none'
                 : 'rounded-2xl w-full max-w-3xl max-h-[88vh]'
@@ -681,12 +681,12 @@ export const TradingResearchCenter: React.FC = () => {
                 >
                   {isArticleFullscreen ? (
                     <>
-                      <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
+                      <Minimize2 className="w-3.5 h-3.5 text-cyan-400" />
                       <span>MINIMIZE</span>
                     </>
                   ) : (
                     <>
-                      <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
+                      <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
                       <span>FULLSCREEN</span>
                     </>
                   )}
@@ -779,7 +779,7 @@ export const TradingResearchCenter: React.FC = () => {
                 onClick={() => {
                   setCitationModalArticle(selectedArticle);
                 }}
-                className="px-4 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-military font-bold tracking-wider cursor-pointer"
+                className="px-4 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-amber-300 border border-blue-500/40 text-xs font-military font-bold tracking-wider cursor-pointer"
               >
                 CITE THIS WORK
               </button>
@@ -814,10 +814,10 @@ export const TradingResearchCenter: React.FC = () => {
       {/* CITATION GENERATOR MODAL */}
       {citationModalArticle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden">
+          <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
               <div className="flex items-center gap-2">
-                <Quote className="w-5 h-5 text-amber-400" />
+                <Quote className="w-5 h-5 text-cyan-400" />
                 <h3 className="text-base font-military font-bold text-slate-100">
                   EXPORT ACADEMIC CITATION
                 </h3>
@@ -841,7 +841,7 @@ export const TradingResearchCenter: React.FC = () => {
                     onClick={() => setSelectedCitationStyle(style)}
                     className={`px-3 py-1 rounded text-xs transition cursor-pointer font-bold border ${
                       selectedCitationStyle === style
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
                         : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
                     }`}
                   >
@@ -865,7 +865,7 @@ export const TradingResearchCenter: React.FC = () => {
                   onClick={() =>
                     copyToClipboard(generateCitation(citationModalArticle, selectedCitationStyle))
                   }
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-md shadow-amber-500/20"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-md shadow-blue-500/20"
                 >
                   {copiedNotification ? (
                     <>

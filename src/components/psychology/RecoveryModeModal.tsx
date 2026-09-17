@@ -136,7 +136,7 @@ export const RecoveryModeModal: React.FC<RecoveryModeModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/90 backdrop-blur-md overflow-y-auto">
-      <div className="bg-slate-900 border-2 border-rose-500/50 rounded-2xl max-w-4xl w-full p-5 sm:p-7 shadow-2xl shadow-rose-950/50 my-8 space-y-6">
+      <div className="bg-slate-950 border-2 border-rose-500/50 rounded-2xl max-w-4xl w-full p-5 sm:p-7 shadow-2xl shadow-rose-950/50 my-8 space-y-6">
         {/* Modal Header */}
         <div className="flex items-start justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center gap-3">
@@ -173,14 +173,14 @@ export const RecoveryModeModal: React.FC<RecoveryModeModalProps> = ({
         {/* 1. Cooling-Off Countdown Timer */}
         <div className="bg-slate-950 rounded-xl p-4 sm:p-5 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
               <Clock className="w-6 h-6" />
             </div>
             <div>
               <span className="text-[10px] font-mono-code uppercase text-slate-400 font-bold block">
                 MANDATORY COOLING-OFF TIMER
               </span>
-              <div className="text-2xl sm:text-3xl font-mono-code font-bold text-amber-400">
+              <div className="text-2xl sm:text-3xl font-mono-code font-bold text-cyan-400">
                 {formatTimer(cooldownRemaining)}
               </div>
               <span className="text-[11px] text-slate-400">
@@ -247,7 +247,7 @@ export const RecoveryModeModal: React.FC<RecoveryModeModalProps> = ({
               <select
                 value={reflectionEmotion}
                 onChange={(e) => setReflectionEmotion(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded p-2 text-slate-200 focus:outline-none focus:border-sky-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-slate-200 focus:outline-none focus:border-sky-500"
               >
                 <option value="FRUSTRATED / IMPATIENT">Frustrated / Impatient</option>
                 <option value="REVENGE_MINDSET">Revenge Mindset (Must win back loss)</option>
@@ -264,7 +264,7 @@ export const RecoveryModeModal: React.FC<RecoveryModeModalProps> = ({
                 type="text"
                 value={rootCause}
                 onChange={(e) => setRootCause(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded p-2 text-slate-200 focus:outline-none focus:border-sky-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-slate-200 focus:outline-none focus:border-sky-500"
                 placeholder="e.g., Took trade outside playbook session"
               />
             </div>
@@ -279,30 +279,30 @@ export const RecoveryModeModal: React.FC<RecoveryModeModalProps> = ({
               onChange={(e) => setReflectionNotes(e.target.value)}
               rows={2}
               placeholder="e.g., I recognize I was tilted by the sudden spread spike. I will shut down MT5 and only re-enter after market session opens tomorrow."
-              className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-xs font-mono-code text-slate-200 focus:outline-none focus:border-sky-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded p-2.5 text-xs font-mono-code text-slate-200 focus:outline-none focus:border-sky-500"
             />
           </div>
         </div>
 
         {/* 4. Trading Plan Re-Anchor */}
         <div className="bg-slate-950/70 rounded-xl p-4 border border-slate-800 space-y-2">
-          <span className="text-[10px] font-mono-code uppercase font-bold text-amber-400 block">
+          <span className="text-[10px] font-mono-code uppercase font-bold text-cyan-400 block">
             STEP 3: TRADING PLAN REAFFIRMATION
           </span>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono-code">
-            <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+            <div className="p-3 bg-slate-950 rounded-lg border border-slate-800">
               <span className="text-slate-400 block text-[10px]">RULE #1: MAX LOSS</span>
-              <span className="text-amber-400 font-bold text-sm">STRICT 1% RISK</span>
+              <span className="text-cyan-400 font-bold text-sm">STRICT 1% RISK</span>
               <span className="text-slate-400 block text-[10px] mt-0.5">Never move stop loss</span>
             </div>
-            <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+            <div className="p-3 bg-slate-950 rounded-lg border border-slate-800">
               <span className="text-slate-400 block text-[10px]">RULE #2: DAILY LIMIT</span>
-              <span className="text-amber-400 font-bold text-sm">MAX 2 TRADES / DAY</span>
+              <span className="text-cyan-400 font-bold text-sm">MAX 2 TRADES / DAY</span>
               <span className="text-slate-400 block text-[10px] mt-0.5">Cease after 2 trades</span>
             </div>
-            <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+            <div className="p-3 bg-slate-950 rounded-lg border border-slate-800">
               <span className="text-slate-400 block text-[10px]">RULE #3: PLAYBOOK</span>
-              <span className="text-amber-400 font-bold text-sm">PRE-DEFINED CONFLUENCE</span>
+              <span className="text-cyan-400 font-bold text-sm">PRE-DEFINED CONFLUENCE</span>
               <span className="text-slate-400 block text-[10px] mt-0.5">No market impulse entries</span>
             </div>
           </div>
@@ -314,7 +314,7 @@ export const RecoveryModeModal: React.FC<RecoveryModeModalProps> = ({
             <span className="text-xs font-military font-bold text-slate-200 uppercase tracking-wider">
               STEP 4: RETURN-TO-MARKET READINESS CHECKLIST
             </span>
-            <span className="text-[11px] font-mono-code text-amber-400">
+            <span className="text-[11px] font-mono-code text-cyan-400">
               ({[check1, check2, check3, check4].filter(Boolean).length}/4 Confirmed)
             </span>
           </div>
@@ -323,7 +323,7 @@ export const RecoveryModeModal: React.FC<RecoveryModeModalProps> = ({
             <button
               type="button"
               onClick={() => setCheck1(!check1)}
-              className="w-full flex items-start gap-3 p-2.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 text-left transition cursor-pointer"
+              className="w-full flex items-start gap-3 p-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 text-left transition cursor-pointer"
             >
               {check1 ? (
                 <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
@@ -338,7 +338,7 @@ export const RecoveryModeModal: React.FC<RecoveryModeModalProps> = ({
             <button
               type="button"
               onClick={() => setCheck2(!check2)}
-              className="w-full flex items-start gap-3 p-2.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 text-left transition cursor-pointer"
+              className="w-full flex items-start gap-3 p-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 text-left transition cursor-pointer"
             >
               {check2 ? (
                 <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
@@ -353,7 +353,7 @@ export const RecoveryModeModal: React.FC<RecoveryModeModalProps> = ({
             <button
               type="button"
               onClick={() => setCheck3(!check3)}
-              className="w-full flex items-start gap-3 p-2.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 text-left transition cursor-pointer"
+              className="w-full flex items-start gap-3 p-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 text-left transition cursor-pointer"
             >
               {check3 ? (
                 <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
@@ -368,7 +368,7 @@ export const RecoveryModeModal: React.FC<RecoveryModeModalProps> = ({
             <button
               type="button"
               onClick={() => setCheck4(!check4)}
-              className="w-full flex items-start gap-3 p-2.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 text-left transition cursor-pointer"
+              className="w-full flex items-start gap-3 p-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 text-left transition cursor-pointer"
             >
               {check4 ? (
                 <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />

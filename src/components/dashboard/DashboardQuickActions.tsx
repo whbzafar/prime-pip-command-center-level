@@ -22,7 +22,7 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
     <div className="rounded-2xl bg-[#090D16] border border-slate-800/80 p-5 shadow-xl">
       <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-4">
         <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-amber-400" />
+          <Zap className="w-4 h-4 text-cyan-400" />
           <h3 className="text-xs font-military font-bold tracking-wider text-slate-200 uppercase">
             HIGH-SPEED OPERATIONAL TRIGGERS
           </h3>
@@ -35,9 +35,9 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
         <button
           type="button"
           onClick={onOpenNewTrade}
-          className="p-3.5 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/40 hover:border-amber-400 text-left transition duration-150 group cursor-pointer"
+          className="p-3.5 rounded-xl bg-gradient-to-br from-blue-500/20 to-amber-600/10 border border-blue-500/40 hover:border-cyan-400 text-left transition duration-150 group cursor-pointer"
         >
-          <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 mb-2 group-hover:scale-105 transition-transform">
+          <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-cyan-400 mb-2 group-hover:scale-105 transition-transform">
             <Plus className="w-4 h-4" />
           </div>
           <div className="text-xs font-military font-bold text-amber-300">ENTER TRADE</div>
@@ -93,9 +93,9 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
         <button
           type="button"
           onClick={() => onNavigateToTab('DAILY_DEV')}
-          className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 hover:border-amber-500/40 text-left transition duration-150 group cursor-pointer"
+          className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 hover:border-blue-500/40 text-left transition duration-150 group cursor-pointer"
         >
-          <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 mb-2 group-hover:scale-105 transition-transform">
+          <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-cyan-400 mb-2 group-hover:scale-105 transition-transform">
             <ListTodo className="w-4 h-4" />
           </div>
           <div className="text-xs font-military font-bold text-slate-200 group-hover:text-amber-300 transition-colors">

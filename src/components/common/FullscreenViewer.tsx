@@ -51,13 +51,13 @@ export const FullscreenViewer: React.FC<FullscreenViewerProps> = ({
   return (
     <div
       id="fullscreen-viewer-overlay"
-      className="fixed inset-0 z-50 bg-[#070A11]/98 backdrop-blur-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      className="fixed inset-0 z-50 bg-[#020617]/98 backdrop-blur-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
     >
       {/* Top HUD Control Bar */}
       <header className="h-14 sm:h-16 px-4 sm:px-6 bg-[#0B0F19]/90 border-b border-slate-800/90 flex items-center justify-between shrink-0 select-none z-20">
         <div className="flex items-center gap-3 min-w-0">
           {categoryBadge && (
-            <span className="px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/25 font-military font-bold text-xs tracking-wider shrink-0">
+            <span className="px-2.5 py-1 rounded-md bg-blue-500/10 text-cyan-400 border border-blue-500/25 font-military font-bold text-xs tracking-wider shrink-0">
               {categoryBadge}
             </span>
           )}
@@ -82,10 +82,10 @@ export const FullscreenViewer: React.FC<FullscreenViewerProps> = ({
             id="fullscreen-minimize-btn"
             type="button"
             onClick={onClose}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-amber-300 border border-amber-500/30 hover:border-amber-400/50 transition cursor-pointer text-xs font-mono-code font-bold shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-amber-300 border border-blue-500/30 hover:border-cyan-400/50 transition cursor-pointer text-xs font-mono-code font-bold shadow-sm"
             title="Minimize back to normal view (Esc)"
           >
-            <Minimize2 className="w-4 h-4 text-amber-400" />
+            <Minimize2 className="w-4 h-4 text-cyan-400" />
             <span className="hidden sm:inline">MINIMIZE</span>
           </button>
 
@@ -94,7 +94,7 @@ export const FullscreenViewer: React.FC<FullscreenViewerProps> = ({
             id="fullscreen-close-btn"
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer border border-slate-800"
+            className="p-1.5 rounded-lg bg-slate-950 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer border border-slate-800"
             title="Close Fullscreen"
           >
             <X className="w-5 h-5" />

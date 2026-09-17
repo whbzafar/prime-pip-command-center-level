@@ -185,7 +185,7 @@ export const MindResetSession: React.FC<MindResetSessionProps> = ({ onComplete }
           <button
             type="button"
             onClick={handleRestart}
-            className="px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-military font-bold text-slate-300 hover:text-slate-100 flex items-center gap-2"
+            className="px-5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-military font-bold text-slate-300 hover:text-slate-100 flex items-center gap-2"
           >
             <RotateCcw className="w-4 h-4" />
             <span>REPEAT RESET SESSION</span>
@@ -214,7 +214,7 @@ export const MindResetSession: React.FC<MindResetSessionProps> = ({ onComplete }
                 isCurrent
                   ? 'bg-teal-500/20 border-teal-400 text-teal-200 shadow-md shadow-teal-500/10'
                   : isDone
-                  ? 'bg-slate-900/80 border-slate-800 text-slate-400'
+                  ? 'bg-slate-950/80 border-slate-800 text-slate-400'
                   : 'bg-slate-950/40 border-slate-900 text-slate-600'
               }`}
             >
@@ -237,8 +237,8 @@ export const MindResetSession: React.FC<MindResetSessionProps> = ({ onComplete }
             GUIDED MIND RESET • STEP {step.number} OF 6
           </span>
           <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-amber-400" />
-            <span className="text-amber-400 font-bold">{secondsRemaining}s</span>
+            <Clock className="w-4 h-4 text-cyan-400" />
+            <span className="text-cyan-400 font-bold">{secondsRemaining}s</span>
           </div>
         </div>
 
@@ -255,7 +255,7 @@ export const MindResetSession: React.FC<MindResetSessionProps> = ({ onComplete }
         </div>
 
         {/* Ambient Wave Graphic Bar */}
-        <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden relative">
+        <div className="w-full h-2 rounded-full bg-slate-950 overflow-hidden relative">
           <div
             className="h-full bg-gradient-to-r from-teal-500 to-indigo-500 transition-all duration-1000"
             style={{ width: `${((step.durationSeconds - secondsRemaining) / step.durationSeconds) * 100}%` }}
@@ -268,7 +268,7 @@ export const MindResetSession: React.FC<MindResetSessionProps> = ({ onComplete }
             type="button"
             onClick={handlePrevStep}
             disabled={currentStepIndex === 0}
-            className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-military font-bold text-slate-400 hover:text-slate-200 disabled:opacity-30 flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-military font-bold text-slate-400 hover:text-slate-200 disabled:opacity-30 flex items-center gap-1.5 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>PREVIOUS</span>

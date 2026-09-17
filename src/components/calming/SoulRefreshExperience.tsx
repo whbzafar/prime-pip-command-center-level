@@ -43,8 +43,8 @@ export const SoulRefreshExperience: React.FC = () => {
 
       {/* Floating Atmosphere Orb */}
       <div className="py-8 flex items-center justify-center relative">
-        <div className="w-56 h-56 rounded-full bg-gradient-to-tr from-teal-500/30 via-indigo-500/20 to-amber-500/20 border border-teal-400/30 blur-sm animate-pulse" />
-        <div className="absolute w-40 h-40 rounded-full bg-slate-900/90 border border-slate-800 flex items-center justify-center p-4">
+        <div className="w-56 h-56 rounded-full bg-gradient-to-tr from-teal-500/30 via-indigo-500/20 to-blue-500/20 border border-teal-400/30 blur-sm animate-pulse" />
+        <div className="absolute w-40 h-40 rounded-full bg-slate-950/90 border border-slate-800 flex items-center justify-center p-4">
           <Sparkles className="w-10 h-10 text-teal-300 animate-spin" style={{ animationDuration: '24s' }} />
         </div>
       </div>
@@ -60,7 +60,7 @@ export const SoulRefreshExperience: React.FC = () => {
         <button
           type="button"
           onClick={() => setPromptIdx((prev) => (prev + 1) % REFLECTIVE_PROMPTS.length)}
-          className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-military font-bold text-slate-300 hover:text-teal-300 flex items-center gap-2"
+          className="px-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-military font-bold text-slate-300 hover:text-teal-300 flex items-center gap-2"
         >
           <span>NEXT REFLECTION</span>
           <ArrowRight className="w-3.5 h-3.5" />

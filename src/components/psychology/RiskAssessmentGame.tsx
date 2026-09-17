@@ -121,10 +121,10 @@ export const RiskAssessmentGame: React.FC = () => {
   };
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+    <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
       <div className="flex items-center justify-between border-b border-slate-800 pb-4">
         <div>
-          <span className="text-[10px] font-military font-bold text-amber-400 uppercase tracking-widest">
+          <span className="text-[10px] font-military font-bold text-cyan-400 uppercase tracking-widest">
             QUANTITATIVE RISK DISCIPLINE
           </span>
           <h3 className="text-base font-military font-bold text-slate-100 mt-1">
@@ -137,20 +137,20 @@ export const RiskAssessmentGame: React.FC = () => {
 
         <div className="text-right">
           <span className="text-[10px] font-mono-code text-slate-400 uppercase block">Risk Score</span>
-          <span className="text-lg font-mono-code font-bold text-amber-400">{score} PTS</span>
+          <span className="text-lg font-mono-code font-bold text-cyan-400">{score} PTS</span>
         </div>
       </div>
 
       {/* Scenario Details Box */}
       <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
         <div className="flex items-center justify-between text-xs font-mono-code text-slate-400">
-          <span className="text-amber-400 font-bold">SCENARIO {current.id} OF {scenarios.length}</span>
+          <span className="text-cyan-400 font-bold">SCENARIO {current.id} OF {scenarios.length}</span>
           <span>Instrument: <strong className="text-slate-200">{current.pair}</strong></span>
           <span>Stop Loss: <strong className="text-slate-200">{current.stopLossPips} pips</strong></span>
         </div>
 
-        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs font-mono-code text-amber-300 flex items-start gap-2.5">
-          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+        <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-xs font-mono-code text-amber-300 flex items-start gap-2.5">
+          <AlertTriangle className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
           <span>{current.drawdownNotice}</span>
         </div>
 
@@ -174,7 +174,7 @@ export const RiskAssessmentGame: React.FC = () => {
                       : isSelected
                       ? 'bg-rose-950/50 border-rose-500 text-rose-300'
                       : 'bg-slate-950/40 border-slate-800 text-slate-500'
-                    : 'bg-slate-900 border-slate-800 text-slate-200 hover:border-amber-500/50 hover:bg-slate-800/80'
+                    : 'bg-slate-950 border-slate-800 text-slate-200 hover:border-blue-500/50 hover:bg-slate-800/80'
                 }`}
               >
                 <div className="space-y-1">
@@ -209,7 +209,7 @@ export const RiskAssessmentGame: React.FC = () => {
           <div className="flex justify-end pt-3">
             <button
               onClick={handleNext}
-              className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs shadow-md shadow-amber-500/20 cursor-pointer transition"
+              className="px-5 py-2 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs shadow-md shadow-blue-500/20 cursor-pointer transition"
             >
               {currentScenarioIndex < scenarios.length - 1 ? 'NEXT SCENARIO ➔' : 'RESTART CHALLENGE'}
             </button>

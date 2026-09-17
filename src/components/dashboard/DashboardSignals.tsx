@@ -31,13 +31,13 @@ export const DashboardSignals: React.FC<DashboardSignalsProps> = ({
         </div>
 
         {/* Prominent Educational & Risk Disclaimer */}
-        <div className="mt-3.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-mono-code flex items-start gap-2.5 leading-relaxed">
-          <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+        <div className="mt-3.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-amber-300 text-xs font-mono-code flex items-start gap-2.5 leading-relaxed">
+          <AlertTriangle className="w-4 h-4 shrink-0 text-cyan-400 mt-0.5" />
           <div>
             <div className="font-bold text-[10px] uppercase tracking-wider text-amber-300">
               REGULATORY RISK WARNING
             </div>
-            <p className="text-[10px] text-amber-200/90 mt-0.5">
+            <p className="text-[10px] text-cyan-200/90 mt-0.5">
               Educational & informational setups only. Trading carries substantial risk of loss. Recommended maximum risk is 1.0% per setup. You are solely responsible for all trade executions.
             </p>
           </div>
@@ -62,7 +62,7 @@ export const DashboardSignals: React.FC<DashboardSignalsProps> = ({
         <button
           type="button"
           onClick={() => onNavigateToTab('SIGNALS')}
-          className="w-full py-2 px-3 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-rose-500/40 text-rose-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-2 transition cursor-pointer"
+          className="w-full py-2 px-3 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-rose-500/40 text-rose-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-2 transition cursor-pointer"
         >
           <Radio className="w-4 h-4" />
           <span>ACCESS SIGNALS HUB</span>

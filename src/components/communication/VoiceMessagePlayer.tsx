@@ -160,13 +160,13 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
     <div
       className={`flex flex-col gap-1.5 p-2.5 rounded-xl border transition-all ${
         isSelf
-          ? 'bg-amber-500/10 border-amber-500/30 text-amber-100'
-          : 'bg-slate-900/80 border-slate-700/60 text-slate-200'
+          ? 'bg-blue-500/10 border-blue-500/30 text-cyan-100'
+          : 'bg-slate-950/80 border-slate-700/60 text-slate-200'
       }`}
       style={{ minWidth: '240px', maxWidth: '320px' }}
     >
       <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
-        <span className="flex items-center gap-1.5 font-medium text-amber-400/90">
+        <span className="flex items-center gap-1.5 font-medium text-cyan-400/90">
           <span>🎙</span> Voice Note
         </span>
         <span className="text-[11px] text-slate-400">
@@ -182,7 +182,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
           disabled={!audioSrc}
           className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-transform active:scale-95 shadow-md ${
             isSelf
-              ? 'bg-amber-500 text-slate-950 hover:bg-amber-400'
+              ? 'bg-blue-500 text-slate-950 hover:bg-cyan-400'
               : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
           }`}
           title={isPlaying ? 'Pause' : 'Play voice message'}
@@ -205,7 +205,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
         >
           <div
             className={`h-full transition-all duration-100 ${
-              isSelf ? 'bg-gradient-to-r from-amber-500 to-amber-300' : 'bg-gradient-to-r from-emerald-500 to-emerald-300'
+              isSelf ? 'bg-gradient-to-r from-blue-500 to-amber-300' : 'bg-gradient-to-r from-emerald-500 to-emerald-300'
             }`}
             style={{ width: `${progressPercent}%` }}
           />
@@ -237,7 +237,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
           <button
             type="button"
             onClick={handlePlayPause}
-            className="text-amber-400 underline hover:text-amber-300 ml-1 shrink-0"
+            className="text-cyan-400 underline hover:text-amber-300 ml-1 shrink-0"
           >
             <RotateCcw className="w-3 h-3" />
           </button>

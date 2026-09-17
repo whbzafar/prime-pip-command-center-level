@@ -161,9 +161,9 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
             className="prime-btn-secondary text-xs py-1.5 px-3"
             title="User Profile & Account"
           >
-            <User className="w-3.5 h-3.5 text-amber-400" />
+            <User className="w-3.5 h-3.5 text-cyan-400" />
             <span>{currentUser?.username ? `@${currentUser.username.toUpperCase()}` : 'PROFILE / ACCOUNT'}</span>
-            <span className="text-[10px] font-mono-code text-amber-400 px-1.5 py-0.2 rounded bg-amber-500/10 border border-amber-500/20">
+            <span className="text-[10px] font-mono-code text-cyan-400 px-1.5 py-0.2 rounded bg-blue-500/10 border border-blue-500/20">
               {currentUser?.subscriptionTier || 'TRADER'}
             </span>
           </button>
@@ -172,10 +172,10 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           <button
             id="dash-top-psych-center-btn"
             onClick={() => onNavigateToTab('PSYCHOLOGY')}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/15 via-indigo-500/15 to-amber-500/15 hover:from-amber-500/25 hover:to-indigo-500/25 border border-amber-500/40 hover:border-amber-400 text-amber-300 hover:text-amber-200 text-xs font-military font-bold tracking-wider transition-all duration-180 cursor-pointer shadow-md shadow-amber-500/10 active:scale-95 group"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-500/15 via-indigo-500/15 to-blue-500/15 hover:from-blue-500/25 hover:to-indigo-500/25 border border-blue-500/40 hover:border-cyan-400 text-amber-300 hover:text-cyan-200 text-xs font-military font-bold tracking-wider transition-all duration-180 cursor-pointer shadow-md shadow-blue-500/10 active:scale-95 group"
             title="Open Psychological Command Center (One-Click)"
           >
-            <Brain className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform animate-pulse" />
+            <Brain className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform animate-pulse" />
             <span>PSYCHOLOGICAL CENTER</span>
           </button>
 
@@ -200,7 +200,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
               className="prime-btn-secondary text-xs py-1.5 px-2.5 hidden md:inline-flex"
               title="Help PRIMEPIPFX Improve (Suggest Features or Report Friction)"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
               <span>HELP IMPROVE</span>
             </button>
           )}
@@ -234,7 +234,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
         readiness.status === 'RED'
           ? 'bg-gradient-to-r from-rose-950/60 via-slate-900 to-[#0F172A] border-rose-500/40'
           : readiness.status === 'YELLOW'
-          ? 'bg-gradient-to-r from-amber-950/40 via-slate-900 to-[#0F172A] border-amber-500/40'
+          ? 'bg-gradient-to-r from-amber-950/40 via-slate-900 to-[#0F172A] border-blue-500/40'
           : 'bg-gradient-to-r from-slate-900 via-slate-900/90 to-[#0F172A] border-slate-800'
       }`}>
         <div className="flex items-center gap-4">
@@ -242,7 +242,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
             readiness.status === 'RED'
               ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
               : readiness.status === 'YELLOW'
-              ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+              ? 'bg-blue-500/10 border-blue-500/30 text-cyan-400'
               : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
           }`}>
             <Crosshair className="w-6 h-6" />
@@ -253,7 +253,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                 readiness.status === 'RED'
                   ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
                   : readiness.status === 'YELLOW'
-                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                  ? 'bg-blue-500/20 text-cyan-400 border-blue-500/30'
                   : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
               }`}>
                 {readiness.status === 'RED'
@@ -279,19 +279,19 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           <button
             id="dash-psych-center-btn"
             onClick={() => onNavigateToTab('PSYCHOLOGY')}
-            className="flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-amber-300 hover:text-amber-200 border border-slate-700 hover:border-amber-500/50 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-sm group"
+            className="flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-amber-300 hover:text-cyan-200 border border-slate-700 hover:border-blue-500/50 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-sm group"
             title="Psychological Command Center"
           >
-            <Brain className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+            <Brain className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
             <span className="hidden sm:inline">PSYCHOLOGICAL CENTER</span>
             <span className="sm:hidden">PSYCHOLOGY</span>
           </button>
           <button
             id="dash-consult-ai-btn"
             onClick={() => onNavigateToTab('AI_COACH')}
-            className="flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 text-xs font-military font-bold tracking-wider transition"
+            className="flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-blue-500/30 text-xs font-military font-bold tracking-wider transition"
           >
-            <Sparkles className="w-4 h-4 text-amber-400" />
+            <Sparkles className="w-4 h-4 text-cyan-400" />
             <span>AI TACTICAL BRIEFING</span>
           </button>
           <button
@@ -301,7 +301,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-military font-bold tracking-wider shadow-lg transition ${
               isLimitReached
                 ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
+                : 'bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow-blue-500/20'
             }`}
           >
             <Zap className="w-4 h-4 fill-current" />
@@ -317,8 +317,8 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           readiness.status === 'RED'
             ? 'bg-rose-950/20 border-rose-500/40'
             : readiness.status === 'YELLOW'
-            ? 'bg-amber-950/15 border-amber-500/40'
-            : 'bg-slate-900/80 border-slate-800'
+            ? 'bg-amber-950/15 border-blue-500/40'
+            : 'bg-slate-950/80 border-slate-800'
         }`}>
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
@@ -327,7 +327,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                   readiness.status === 'RED'
                     ? 'text-rose-400'
                     : readiness.status === 'YELLOW'
-                    ? 'text-amber-400'
+                    ? 'text-cyan-400'
                     : 'text-emerald-400'
                 }`} />
                 <h3 className="text-xs font-military font-bold tracking-wider text-slate-200 uppercase">
@@ -338,7 +338,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                 readiness.status === 'RED'
                   ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
                   : readiness.status === 'YELLOW'
-                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                  ? 'bg-blue-500/20 text-cyan-400 border-blue-500/30'
                   : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
               }`}>
                 {readiness.status === 'RED'
@@ -356,7 +356,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                   readiness.status === 'RED'
                     ? 'text-rose-400'
                     : readiness.status === 'YELLOW'
-                    ? 'text-amber-400'
+                    ? 'text-cyan-400'
                     : 'text-emerald-400'
                 }`}>
                   {readiness.headline}
@@ -371,7 +371,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
               </div>
 
               <div className="p-3 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] leading-relaxed">
-                <span className="text-amber-400 font-bold block mb-0.5 uppercase">
+                <span className="text-cyan-400 font-bold block mb-0.5 uppercase">
                   RULE-BASED RECOMMENDATION:
                 </span>
                 <span className="text-slate-300">
@@ -390,11 +390,11 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
         </div>
 
         {/* Next Trade Risk Guidance (5 cols) */}
-        <div className="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
               <div className="flex items-center gap-2">
-                <Crosshair className="w-4 h-4 text-amber-400" />
+                <Crosshair className="w-4 h-4 text-cyan-400" />
                 <h3 className="text-xs font-military font-bold tracking-wider text-slate-200 uppercase">
                   NEXT TRADE RISK GUIDANCE
                 </h3>
@@ -403,7 +403,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                 riskStatusLabel === 'DAILY LIMIT REACHED'
                   ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
                   : riskStatusLabel === 'REVIEW BEFORE NEXT TRADE'
-                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                  ? 'bg-blue-500/20 text-cyan-400 border-blue-500/30'
                   : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
               }`}>
                 {riskStatusLabel}
@@ -420,7 +420,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
 
               <div className="flex items-center justify-between py-1 border-b border-slate-800/60">
                 <span className="text-slate-400 uppercase">MAX RISK PER TRADE:</span>
-                <span className="font-bold text-amber-400">
+                <span className="font-bold text-cyan-400">
                   1% ({formatCurrency(master1PercentRiskDollars, account.currency)})
                 </span>
               </div>
@@ -462,7 +462,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                 ? 'bg-emerald-950/25 border-emerald-500/30 text-emerald-300'
                 : 'bg-slate-950 border-slate-800 text-slate-300'
             }`}>
-              <div className="text-[10px] uppercase font-bold tracking-wider mb-1 text-amber-400 font-military flex items-center gap-1.5">
+              <div className="text-[10px] uppercase font-bold tracking-wider mb-1 text-cyan-400 font-military flex items-center gap-1.5">
                 <Info className="w-3 h-3" />
                 TACTICAL GUIDANCE DIRECTIVE:
               </div>
@@ -483,11 +483,11 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
             ? 'bg-rose-950/20 border-rose-500/30'
             : (lastClosedTrade.netProfitLoss ?? lastClosedTrade.profitLoss ?? 0) > 0
             ? 'bg-emerald-950/20 border-emerald-500/30'
-            : 'bg-slate-900/80 border-slate-800'
+            : 'bg-slate-950/80 border-slate-800'
         }`}>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3 mb-4">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-400" />
+              <Sparkles className="w-4 h-4 text-cyan-400" />
               <h3 className="text-xs font-military font-bold tracking-wider text-slate-200 uppercase">
                 TRADE RESULT EVALUATION & DEVELOPMENT SUGGESTIONS
               </h3>
@@ -528,7 +528,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
 
             <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800/60">
               <span className="text-[10px] text-slate-500 block uppercase mb-1">Next 1% Risk Amount</span>
-              <span className="font-bold text-sm text-amber-400">
+              <span className="font-bold text-sm text-cyan-400">
                 {formatCurrency(master1PercentRiskDollars, account.currency)}
               </span>
             </div>
@@ -549,13 +549,13 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
 
           <div className="p-3.5 rounded-lg bg-slate-950/80 border border-slate-800 text-xs font-mono-code leading-relaxed text-slate-300">
-            <span className="text-amber-400 font-bold block mb-1.5 text-[10px] uppercase font-military tracking-wider flex items-center gap-1.5">
+            <span className="text-cyan-400 font-bold block mb-1.5 text-[10px] uppercase font-military tracking-wider flex items-center gap-1.5">
               <Info className="w-3.5 h-3.5" />
               PROFESSIONAL DEVELOPMENT SUGGESTION:
             </span>
             {(lastClosedTrade.netProfitLoss ?? lastClosedTrade.profitLoss ?? 0) < 0 ? (
               <span>
-                Your next standard risk based on the current balance is <strong className="text-amber-400">{formatCurrency(master1PercentRiskDollars, account.currency)}</strong> at 1%.
+                Your next standard risk based on the current balance is <strong className="text-cyan-400">{formatCurrency(master1PercentRiskDollars, account.currency)}</strong> at 1%.
                 Review whether the setup followed your strategy, whether the stop loss was respected, and whether the loss stayed within your risk plan.
                 Do not increase risk to recover the loss.
               </span>
@@ -577,12 +577,12 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Account Capital Hud - Signature Animated Gradient Border */}
         <div className="prime-gradient-box p-5 shadow-2xl flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+          <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
           <div>
             <div className="flex items-center justify-between text-xs font-mono-code text-slate-400">
               <span className="font-bold tracking-wider uppercase text-slate-300">ACTIVE ACCOUNT</span>
-              <span className="text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 font-bold uppercase">
+              <span className="text-cyan-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 font-bold uppercase">
                 {account.accountType.replace(/_/g, ' ')}
               </span>
             </div>
@@ -606,7 +606,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                 <div className="text-[10px] font-mono-code text-slate-400 uppercase tracking-wider font-semibold">
                   CURRENT BALANCE
                 </div>
-                <div className="text-lg font-mono-code font-bold text-amber-400 mt-0.5">
+                <div className="text-lg font-mono-code font-bold text-cyan-400 mt-0.5">
                   {formatCurrency(metrics.accountBalance, account.currency)}
                 </div>
               </div>
@@ -647,15 +647,17 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
 
           <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
             <span className="font-mono-code truncate max-w-[150px]">Broker: {account.broker || 'Direct'}</span>
-            <span className="font-mono-code text-amber-400/80 font-bold">Currency: {account.currency}</span>
+            <span className="font-mono-code text-cyan-400/80 font-bold">Currency: {account.currency}</span>
           </div>
         </div>
 
         {/* TRADER PERFORMANCE SCORE Spotlight */}
-        <div className="lg:col-span-2 bg-gradient-to-br from-slate-900 to-[#121927] border border-amber-500/30 rounded-xl p-5 shadow-xl relative overflow-hidden">
+        <div className="lg:col-span-2 prime-premium-card border border-blue-500/30 rounded-xl p-5 relative overflow-hidden group hover:border-blue-500/50 transition-colors">
+          <div className="absolute -top-20 -right-20 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl animate-[prime-pulse-slow_4s_ease-in-out_infinite] pointer-events-none"></div>
+          <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-sky-500/10 rounded-full blur-3xl animate-[prime-pulse-slow_4s_ease-in-out_infinite]" style={{ animationDelay: '2s' }}></div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
             <div className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-amber-400" />
+              <Award className="w-5 h-5 text-cyan-400" />
               <h3 className="text-sm font-military font-bold tracking-wider text-slate-200">
                 TRADER PERFORMANCE SCORE (0–100)
               </h3>
@@ -676,19 +678,21 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                     cx="56"
                     cy="56"
                     r="46"
-                    className="stroke-slate-800"
+                    className="stroke-slate-800/60"
                     strokeWidth="8"
                     fill="transparent"
+                    strokeDasharray="4 6"
                   />
                   <circle
                     cx="56"
                     cy="56"
                     r="46"
+                    style={{ filter: 'drop-shadow(0 0 8px currentColor)' }}
                     className={`${
                       scores.overallTradingScore >= 80
                         ? 'stroke-emerald-400'
                         : scores.overallTradingScore >= 60
-                        ? 'stroke-amber-400'
+                        ? 'stroke-cyan-400'
                         : 'stroke-rose-400'
                     } transition-all duration-1000 ease-out`}
                     strokeWidth="8"
@@ -705,7 +709,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                   <span className="text-xs text-slate-400 block font-mono-code">/ 100</span>
                 </div>
               </div>
-              <span className="mt-2 text-xs font-military font-bold tracking-wider text-amber-400">
+              <span className="mt-2 text-xs font-military font-bold tracking-wider text-cyan-400">
                 {scores.overallTradingScore >= 85
                   ? 'ELITE OPERATOR'
                   : scores.overallTradingScore >= 70
@@ -729,7 +733,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                             isHigh
                               ? 'text-emerald-400'
                               : isMed
-                              ? 'text-amber-400'
+                              ? 'text-cyan-400'
                               : 'text-rose-400'
                           }
                         >
@@ -740,11 +744,11 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                     </div>
                     <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all duration-700 ${
+                        className={`h-full rounded-full transition-all duration-700 shadow-[0_0_10px_currentColor] ${
                           isHigh
                             ? 'bg-emerald-400'
                             : isMed
-                            ? 'bg-amber-400'
+                            ? 'bg-cyan-400'
                             : 'bg-rose-400'
                         }`}
                         style={{ width: `${cat.score}%` }}
@@ -773,7 +777,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
           {/* Win Rate */}
-          <div className="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5">
+          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5">
             <span className="text-[11px] font-mono-code text-slate-400 block uppercase">
               Win Rate
             </span>
@@ -787,7 +791,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
 
           {/* Risk to Reward */}
-          <div className="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5">
+          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5">
             <span className="text-[11px] font-mono-code text-slate-400 block uppercase">
               Risk-to-Reward
             </span>
@@ -800,7 +804,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
 
           {/* Profit Factor */}
-          <div className="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5">
+          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5">
             <span className="text-[11px] font-mono-code text-slate-400 block uppercase">
               Profit Factor
             </span>
@@ -821,7 +825,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
 
           {/* Average Win Trade */}
-          <div className="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5">
+          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5">
             <span className="text-[11px] font-mono-code text-slate-400 block uppercase">
               Avg Win Trade
             </span>
@@ -834,7 +838,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
 
           {/* Average Loss Trade */}
-          <div className="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5">
+          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5">
             <span className="text-[11px] font-mono-code text-slate-400 block uppercase">
               Avg Loss Trade
             </span>
@@ -847,13 +851,13 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
 
           {/* Maximum Drawdown */}
-          <div className="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5">
+          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5">
             <span className="text-[11px] font-mono-code text-slate-400 block uppercase">
               Max Drawdown
             </span>
             <div
               className={`text-xl font-mono-code font-bold mt-1 ${
-                metrics.maxDrawdownPercent <= 3.0 ? 'text-emerald-400' : 'text-amber-400'
+                metrics.maxDrawdownPercent <= 3.0 ? 'text-emerald-400' : 'text-cyan-400'
               }`}
             >
               {metrics.maxDrawdownPercent.toFixed(2)}%
@@ -864,12 +868,12 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
 
           {/* Current Win Streak */}
-          <div className="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5">
+          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5">
             <span className="text-[11px] font-mono-code text-slate-400 block uppercase">
               Win Streak (Curr/Max)
             </span>
             <div className="text-xl font-mono-code font-bold text-slate-100 mt-1 flex items-center gap-1.5">
-              <Flame className="w-4 h-4 text-amber-400" />
+              <Flame className="w-4 h-4 text-cyan-400" />
               <span>
                 {metrics.currentWinStreak} / {metrics.maxWinStreak}
               </span>
@@ -878,7 +882,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
 
           {/* Current Loss Streak */}
-          <div className="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5">
+          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5">
             <span className="text-[11px] font-mono-code text-slate-400 block uppercase">
               Loss Streak (Curr/Max)
             </span>
@@ -893,7 +897,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
 
           {/* Total Trades */}
-          <div className="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5">
+          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5">
             <span className="text-[11px] font-mono-code text-slate-400 block uppercase">
               Total Trades
             </span>
@@ -904,11 +908,11 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
 
           {/* Trades Today */}
-          <div className="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5">
+          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5">
             <span className="text-[11px] font-mono-code text-slate-400 block uppercase">
               Trades Today
             </span>
-            <div className="text-xl font-mono-code font-bold text-amber-400 mt-1">
+            <div className="text-xl font-mono-code font-bold text-cyan-400 mt-1">
               {metrics.tradesToday} / {account.maxDailyTrades}
             </div>
             <div className="mt-1 text-[10px] text-emerald-400 font-mono-code">
@@ -917,7 +921,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
 
           {/* Weekly Performance */}
-          <div className="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5">
+          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5">
             <span className="text-[11px] font-mono-code text-slate-400 block uppercase">
               Weekly P&L
             </span>
@@ -932,7 +936,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
 
           {/* Monthly Performance */}
-          <div className="bg-slate-900/80 border border-slate-800/90 rounded-xl p-3.5">
+          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5">
             <span className="text-[11px] font-mono-code text-slate-400 block uppercase">
               Monthly P&L
             </span>
@@ -951,10 +955,10 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
       {/* Row 3: Live Quick Recon & Recent Executions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Tactical Edge Insights */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-              <div className="flex items-center gap-2 text-amber-400">
+              <div className="flex items-center gap-2 text-cyan-400">
                 <Sparkles className="w-4 h-4" />
                 <h4 className="text-xs font-military font-bold tracking-wider text-slate-200">
                   SYSTEM INTELLIGENCE
@@ -965,7 +969,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
 
             {trades.length === 0 ? (
               <div className="mt-4 p-4 rounded-lg bg-slate-950/60 border border-slate-800 text-center font-mono-code space-y-1.5">
-                <div className="text-amber-400 font-bold text-xs">NO TRADING DATA AVAILABLE</div>
+                <div className="text-cyan-400 font-bold text-xs">NO TRADING DATA AVAILABLE</div>
                 <p className="text-[11px] text-slate-400">
                   CREATE YOUR FIRST JOURNAL AND ADD TRADES TO GENERATE PERFORMANCE ANALYTICS.
                 </p>
@@ -996,7 +1000,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                 )}
 
                 {topPair && (
-                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                  <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-amber-300">
                     <div className="font-bold flex items-center gap-1.5 mb-1 font-mono-code">
                       <Sparkles className="w-3.5 h-3.5" />
                       TOP PAIR PERFORMANCE
@@ -1020,11 +1024,11 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
         </div>
 
         {/* Recent Executions Log */}
-        <div className="lg:col-span-2 bg-slate-900/70 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+        <div className="lg:col-span-2 bg-slate-950/70 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
               <div className="flex items-center gap-2 text-slate-200">
-                <Activity className="w-4 h-4 text-amber-400" />
+                <Activity className="w-4 h-4 text-cyan-400" />
                 <h4 className="text-xs font-military font-bold tracking-wider">
                   RECENT COMBAT EXECUTIONS
                 </h4>
@@ -1032,7 +1036,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
               <button
                 id="dash-view-all-journal-btn"
                 onClick={() => onNavigateToTab('JOURNAL')}
-                className="text-xs font-mono-code text-amber-400 hover:text-amber-300 transition flex items-center gap-1"
+                className="text-xs font-mono-code text-cyan-400 hover:text-amber-300 transition flex items-center gap-1"
               >
                 <span>FULL JOURNAL ({trades.length})</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1059,7 +1063,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                     return (
                       <tr key={t.id} className="hover:bg-slate-800/40 transition">
                         <td className="py-2.5 font-bold text-slate-200">{t.id}</td>
-                        <td className="py-2.5 font-bold text-amber-400">{t.instrument}</td>
+                        <td className="py-2.5 font-bold text-cyan-400">{t.instrument}</td>
                         <td className="py-2.5">
                           <span
                             className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
@@ -1080,7 +1084,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                                 : t.grade === 'B'
                                 ? 'bg-sky-500/20 text-sky-400'
                                 : t.grade === 'C'
-                                ? 'bg-amber-500/20 text-amber-400'
+                                ? 'bg-blue-500/20 text-cyan-400'
                                 : 'bg-rose-500/20 text-rose-400'
                             }`}
                           >

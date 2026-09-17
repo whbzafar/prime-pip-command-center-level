@@ -129,26 +129,26 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   )}`;
 
   return (
-    <div className="min-h-screen w-full bg-[#070A11] flex items-center justify-center p-4 relative overflow-hidden selection:bg-amber-500/30 selection:text-amber-200">
+    <div className="min-h-screen w-full bg-[#020617] flex items-center justify-center p-4 relative overflow-hidden selection:bg-blue-500/30 selection:text-cyan-200">
       {/* Background Ambience & Grid Pattern */}
       <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
-      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Authentication Card with signature Prime Animated Gradient Border */}
       <div className="relative w-full max-w-md prime-gradient-box p-6 sm:p-8 shadow-2xl overflow-hidden z-10 animate-in zoom-in-95 duration-200">
         {/* Subtle Top Accent Line */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-emerald-500 to-amber-500" />
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-emerald-500 to-blue-500" />
 
         {/* Brand Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 mb-3 shadow-lg shadow-amber-500/15">
+          <div className="inline-flex p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-cyan-400 mb-3 shadow-lg shadow-blue-500/15">
             <Shield className="w-8 h-8" />
           </div>
           <h1 className="text-xl font-military font-black tracking-wider text-slate-100 uppercase">
             PRIMEPIPFX
           </h1>
-          <h2 className="text-sm font-military font-bold tracking-widest text-amber-400 uppercase mt-0.5">
+          <h2 className="text-sm font-military font-bold tracking-widest text-cyan-400 uppercase mt-0.5">
             TRADING COMMAND CENTER
           </h2>
           <p className="text-xs text-slate-400 font-mono-code mt-1.5">
@@ -189,7 +189,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="e.g. primepipfx-admin or trader_alex"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all placeholder:text-slate-600"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all placeholder:text-slate-600"
                 />
                 <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
               </div>
@@ -206,7 +206,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all placeholder:text-slate-600"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all placeholder:text-slate-600"
                 />
                 <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                 <button
@@ -226,7 +226,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-amber-500 focus:ring-0 focus:ring-offset-0 accent-amber-500 cursor-pointer"
+                  className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-blue-500 focus:ring-0 focus:ring-offset-0 accent-blue-500 cursor-pointer"
                 />
                 <span>Remember me on this device</span>
               </label>
@@ -239,7 +239,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-95 text-slate-950 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full mt-2 py-3 bg-gradient-to-r from-blue-500 to-amber-600 hover:from-cyan-400 hover:to-blue-500 active:scale-95 text-slate-950 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <Lock className="w-4 h-4" />
               <span>{loading ? 'AUTHENTICATING...' : 'LOGIN'}</span>
@@ -251,14 +251,14 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
               onClick={onExploreDemo}
               className="w-full py-2.5 bg-slate-950/80 hover:bg-slate-800 active:scale-95 text-slate-300 font-mono-code text-xs font-bold rounded-xl border border-slate-800 hover:border-slate-700 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
               <span>EXPLORE DEMO MODE</span>
             </button>
           </form>
         ) : (
           /* Step 2: First-Login Password Change Form (Section 3) */
           <form onSubmit={handlePasswordChange} className="space-y-4">
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-mono-code leading-relaxed">
+            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-amber-300 text-xs font-mono-code leading-relaxed">
               Welcome <strong>{pendingUser?.username}</strong>! For system security, please create your personal permanent password.
             </div>
 
@@ -273,7 +273,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="At least 8 characters"
-                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-amber-400 transition-all"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-cyan-400 transition-all"
                 />
                 <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                 <button
@@ -297,7 +297,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new password"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-amber-400 transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-cyan-400 transition-all"
                 />
                 <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
               </div>
@@ -325,7 +325,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                 <button
                   type="button"
                   onClick={onOpenSubscription}
-                  className="text-xs font-mono-code text-amber-400 hover:text-amber-300 font-bold underline decoration-amber-500/40"
+                  className="text-xs font-mono-code text-cyan-400 hover:text-amber-300 font-bold underline decoration-blue-500/40"
                 >
                   SUBSCRIBE / GET ACCESS
                 </button>

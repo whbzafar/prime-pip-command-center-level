@@ -120,7 +120,7 @@ export const InteractiveSessionRunner: React.FC<InteractiveSessionRunnerProps> =
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-950/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -160,7 +160,7 @@ export const InteractiveSessionRunner: React.FC<InteractiveSessionRunnerProps> =
               </div>
 
               {/* Emotional Intensity Slider */}
-              <div className="space-y-3 bg-slate-900/60 p-4 rounded-2xl border border-indigo-900/40">
+              <div className="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-indigo-900/40">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-military font-bold text-slate-200 uppercase tracking-wider">
                     Emotional Intensity Level:
@@ -170,7 +170,7 @@ export const InteractiveSessionRunner: React.FC<InteractiveSessionRunnerProps> =
                       initialIntensity >= 7
                         ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
                         : initialIntensity >= 4
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
                         : 'bg-teal-500/20 text-teal-300 border-teal-500/40'
                     }`}
                   >
@@ -207,7 +207,7 @@ export const InteractiveSessionRunner: React.FC<InteractiveSessionRunnerProps> =
                         className={`p-2.5 rounded-xl border text-center transition cursor-pointer ${
                           tensionArea === area
                             ? 'bg-teal-500/20 border-teal-500/60 text-teal-200 font-bold shadow'
-                            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                            : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
                         }`}
                       >
                         {area}
@@ -250,7 +250,7 @@ export const InteractiveSessionRunner: React.FC<InteractiveSessionRunnerProps> =
                     className={`w-full text-left p-3 rounded-xl border text-xs font-mono-code transition cursor-pointer ${
                       selectedTrigger === trig
                         ? 'bg-indigo-600/25 border-indigo-400 text-indigo-100 font-bold shadow'
-                        : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700'
+                        : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700'
                     }`}
                   >
                     • {trig}
@@ -402,8 +402,8 @@ export const InteractiveSessionRunner: React.FC<InteractiveSessionRunnerProps> =
                 </p>
               </div>
 
-              <div className="p-6 rounded-2xl bg-slate-900/80 border-2 border-indigo-500/40 space-y-4 shadow-xl">
-                <span className="text-[10px] font-military font-bold text-amber-400 uppercase tracking-widest">
+              <div className="p-6 rounded-2xl bg-slate-950/80 border-2 border-indigo-500/40 space-y-4 shadow-xl">
+                <span className="text-[10px] font-military font-bold text-cyan-400 uppercase tracking-widest">
                   OPERATIONAL COMMANDMENT:
                 </span>
                 <p className="text-base sm:text-lg font-mono-code font-bold text-slate-100 leading-snug">
@@ -461,7 +461,7 @@ export const InteractiveSessionRunner: React.FC<InteractiveSessionRunnerProps> =
               <button
                 type="button"
                 onClick={() => calmAudio.playSingingBowlChime(528)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 border border-indigo-500/40 text-indigo-300 text-xs font-mono-code hover:bg-slate-800 transition cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-950 border border-indigo-500/40 text-indigo-300 text-xs font-mono-code hover:bg-slate-800 transition cursor-pointer"
               >
                 <Volume2 className="w-4 h-4 text-teal-400" />
                 <span>Sound Tibetan Reset Chime</span>
@@ -493,8 +493,8 @@ export const InteractiveSessionRunner: React.FC<InteractiveSessionRunnerProps> =
                   {[
                     { id: 'SIGNIFICANT', label: 'Significantly', color: 'border-teal-500 text-teal-300 bg-teal-500/10' },
                     { id: 'MODERATE', label: 'Moderately', color: 'border-indigo-500 text-indigo-300 bg-indigo-500/10' },
-                    { id: 'SLIGHT', label: 'Slightly', color: 'border-amber-500 text-amber-300 bg-amber-500/10' },
-                    { id: 'NONE', label: 'Need More Time', color: 'border-slate-700 text-slate-400 bg-slate-900' },
+                    { id: 'SLIGHT', label: 'Slightly', color: 'border-blue-500 text-amber-300 bg-blue-500/10' },
+                    { id: 'NONE', label: 'Need More Time', color: 'border-slate-700 text-slate-400 bg-slate-950' },
                   ].map((opt) => (
                     <button
                       key={opt.id}
@@ -511,7 +511,7 @@ export const InteractiveSessionRunner: React.FC<InteractiveSessionRunnerProps> =
               </div>
 
               {/* Shifted Intensity Slider */}
-              <div className="space-y-3 bg-slate-900/60 p-4 rounded-2xl border border-indigo-900/40">
+              <div className="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-indigo-900/40">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-military font-bold text-slate-200 uppercase tracking-wider">
                     New Emotional Intensity Level:
@@ -563,7 +563,7 @@ export const InteractiveSessionRunner: React.FC<InteractiveSessionRunnerProps> =
                 Session Complete • Process Habit Mastered
               </h4>
 
-              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 max-w-sm mx-auto text-xs font-mono-code space-y-2 text-left">
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 max-w-sm mx-auto text-xs font-mono-code space-y-2 text-left">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Category:</span>
                   <span className="text-slate-200 font-bold">{category.name}</span>
@@ -576,7 +576,7 @@ export const InteractiveSessionRunner: React.FC<InteractiveSessionRunnerProps> =
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Process Habit Reward:</span>
-                  <span className="text-amber-400 font-bold">+35 Habit Points</span>
+                  <span className="text-cyan-400 font-bold">+35 Habit Points</span>
                 </div>
               </div>
 
@@ -599,7 +599,7 @@ export const InteractiveSessionRunner: React.FC<InteractiveSessionRunnerProps> =
             <button
               type="button"
               onClick={handlePrevStep}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono-code text-slate-400 hover:text-slate-200 transition cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono-code text-slate-400 hover:text-slate-200 transition cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back</span>

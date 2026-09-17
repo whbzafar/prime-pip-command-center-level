@@ -8,10 +8,10 @@ interface CalendarCardProps {
 
 export const CalendarCard: React.FC<CalendarCardProps> = ({ payload }) => {
   return (
-    <div className="mt-3 p-4 rounded-2xl bg-gradient-to-br from-[#0c1322] via-[#090f1d] to-[#060a14] border border-amber-500/30 shadow-xl space-y-3.5 max-w-xl text-left">
-      <div className="flex items-center justify-between border-b border-amber-900/40 pb-2.5">
+    <div className="mt-3 p-4 rounded-2xl bg-gradient-to-br from-[#0c1322] via-[#090f1d] to-[#060a14] border border-blue-500/30 shadow-xl space-y-3.5 max-w-xl text-left">
+      <div className="flex items-center justify-between border-b border-blue-900/40 pb-2.5">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+          <div className="w-7 h-7 rounded-lg bg-blue-500/20 text-cyan-400 flex items-center justify-center border border-blue-500/30">
             <Calendar className="w-4 h-4" />
           </div>
           <div>
@@ -57,7 +57,7 @@ export const CalendarCard: React.FC<CalendarCardProps> = ({ payload }) => {
                 evt.importance === 'HIGH'
                   ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
                   : evt.importance === 'MEDIUM'
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
                   : 'bg-slate-700 text-slate-300 border-slate-600'
               }`}
             >
@@ -68,7 +68,7 @@ export const CalendarCard: React.FC<CalendarCardProps> = ({ payload }) => {
       </div>
 
       <div className="text-[10px] font-mono-code text-slate-400 flex items-center gap-1.5 pt-1">
-        <AlertCircle className="w-3 h-3 text-amber-400" />
+        <AlertCircle className="w-3 h-3 text-cyan-400" />
         <span>SBT Rule: Avoid placing market entries within 15 minutes of High-Impact red-folder releases.</span>
       </div>
     </div>

@@ -39,7 +39,7 @@ export const CalmingToolsHub: React.FC<CalmingToolsHubProps> = ({
             className={`px-3 py-1 rounded-xl border transition ${
               extraCognitiveTool === 'NONE'
                 ? 'bg-teal-500/20 border-teal-400 text-teal-300 font-bold'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
           >
             Calming Suite
@@ -50,7 +50,7 @@ export const CalmingToolsHub: React.FC<CalmingToolsHubProps> = ({
             className={`px-3 py-1 rounded-xl border transition ${
               extraCognitiveTool === 'THOUGHT_SORTER'
                 ? 'bg-teal-500/20 border-teal-400 text-teal-300 font-bold'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
           >
             Thought Sorter
@@ -61,7 +61,7 @@ export const CalmingToolsHub: React.FC<CalmingToolsHubProps> = ({
             className={`px-3 py-1 rounded-xl border transition ${
               extraCognitiveTool === 'COGNITIVE_REFRAMER'
                 ? 'bg-teal-500/20 border-teal-400 text-teal-300 font-bold'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
           >
             Cognitive Reframer
@@ -72,7 +72,7 @@ export const CalmingToolsHub: React.FC<CalmingToolsHubProps> = ({
             className={`px-3 py-1 rounded-xl border transition ${
               extraCognitiveTool === 'PATTERN_TRACER'
                 ? 'bg-teal-500/20 border-teal-400 text-teal-300 font-bold'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
           >
             Pattern Tracer

@@ -91,7 +91,7 @@ export const DashboardMarketIntelligence: React.FC<DashboardMarketIntelligencePr
           <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
             <div className="flex items-center justify-between text-[10px] font-mono-code text-slate-400">
               <span className="flex items-center gap-1">
-                <Moon className="w-3 h-3 text-amber-400" />
+                <Moon className="w-3 h-3 text-cyan-400" />
                 PRAYER TRACKER
               </span>
               <span className="text-emerald-400 text-[9px] font-bold">SOLAR</span>
@@ -107,7 +107,7 @@ export const DashboardMarketIntelligence: React.FC<DashboardMarketIntelligencePr
           <div className="text-[10px] font-military tracking-wider text-slate-400 uppercase font-bold flex items-center justify-between">
             <span>INTERBANK SESSIONS</span>
             {marketData.isPeakLiquidityActive && (
-              <span className="flex items-center gap-1 text-[10px] font-mono-code text-amber-400 font-bold animate-pulse">
+              <span className="flex items-center gap-1 text-[10px] font-mono-code text-cyan-400 font-bold animate-pulse">
                 <Flame className="w-3 h-3 fill-current" />
                 PEAK LIQUIDITY OVERLAP
               </span>
@@ -143,7 +143,7 @@ export const DashboardMarketIntelligence: React.FC<DashboardMarketIntelligencePr
 
         {/* Transparent Live Data Notice (No Fake Prices) */}
         <div className="mt-3.5 p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/60 text-[11px] font-mono-code text-slate-400 flex items-start gap-2">
-          <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+          <AlertCircle className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
           <span>
             Live pricing feed: <strong className="text-slate-300">Disconnected</strong>. Connect your broker or market API to view tick-by-tick prices. No synthetic prices are fabricated.
           </span>
@@ -155,7 +155,7 @@ export const DashboardMarketIntelligence: React.FC<DashboardMarketIntelligencePr
         <button
           type="button"
           onClick={() => onNavigateToTab('RESEARCH')}
-          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-sky-500/40 text-sky-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer"
+          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-sky-500/40 text-sky-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer"
         >
           <Compass className="w-3.5 h-3.5" />
           <span>TRADING RESEARCH</span>
@@ -164,7 +164,7 @@ export const DashboardMarketIntelligence: React.FC<DashboardMarketIntelligencePr
         <button
           type="button"
           onClick={() => onNavigateToTab('FUNDAMENTAL_CALENDAR')}
-          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/40 text-amber-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer"
+          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-blue-500/40 text-amber-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer"
         >
           <Calendar className="w-3.5 h-3.5" />
           <span>ECONOMIC NEWS</span>

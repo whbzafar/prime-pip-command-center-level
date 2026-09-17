@@ -124,8 +124,8 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
             onClick={() => setViewMode('VAULT')}
             className={`px-3.5 py-2 rounded-xl text-xs font-military font-bold tracking-wider transition cursor-pointer flex items-center gap-2 ${
               viewMode === 'VAULT'
-                ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/10'
-                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+                ? 'bg-blue-500 text-slate-950 shadow-lg shadow-blue-500/10'
+                : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
           >
             <span>TRADE VAULT ({filteredTrades.length})</span>
@@ -135,8 +135,8 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
             onClick={() => setViewMode('DIAGNOSTICS')}
             className={`px-3.5 py-2 rounded-xl text-xs font-military font-bold tracking-wider transition cursor-pointer flex items-center gap-2 ${
               viewMode === 'DIAGNOSTICS'
-                ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/10'
-                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+                ? 'bg-blue-500 text-slate-950 shadow-lg shadow-blue-500/10'
+                : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
@@ -161,7 +161,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
       </div>
 
       {/* Top Filter Bar */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 sm:p-4 shadow-lg space-y-3">
+      <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 sm:p-4 shadow-lg space-y-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -170,7 +170,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
               placeholder="Search ID, pair, setup..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-8 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono-code text-slate-200 placeholder:text-slate-500 outline-none focus:border-amber-400"
+              className="w-full pl-9 pr-8 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono-code text-slate-200 placeholder:text-slate-500 outline-none focus:border-cyan-400"
             />
             {searchTerm && (
               <button
@@ -189,7 +189,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
               type="button"
               onClick={() => setDisplayLayout('AUTO')}
               className={`px-2.5 py-1 rounded text-[11px] font-military font-bold transition ${
-                displayLayout === 'AUTO' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-slate-400 hover:text-slate-200'
+                displayLayout === 'AUTO' ? 'bg-blue-500/20 text-amber-300 border border-blue-500/40' : 'text-slate-400 hover:text-slate-200'
               }`}
               title="Responsive: Cards on Mobile, Table on Desktop"
             >
@@ -199,7 +199,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
               type="button"
               onClick={() => setDisplayLayout('CARDS')}
               className={`p-1.5 rounded transition ${
-                displayLayout === 'CARDS' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-slate-400 hover:text-slate-200'
+                displayLayout === 'CARDS' ? 'bg-blue-500/20 text-amber-300 border border-blue-500/40' : 'text-slate-400 hover:text-slate-200'
               }`}
               title="Force Touch-First Card Grid"
             >
@@ -209,7 +209,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
               type="button"
               onClick={() => setDisplayLayout('TABLE')}
               className={`p-1.5 rounded transition ${
-                displayLayout === 'TABLE' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-slate-400 hover:text-slate-200'
+                displayLayout === 'TABLE' ? 'bg-blue-500/20 text-amber-300 border border-blue-500/40' : 'text-slate-400 hover:text-slate-200'
               }`}
               title="Force Full Table View"
             >
@@ -221,12 +221,12 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
           <button
             type="button"
             onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
-            className="md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-military font-bold text-amber-400"
+            className="md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-military font-bold text-cyan-400"
           >
             <Filter className="w-3.5 h-3.5" />
             <span>FILTERS</span>
             {(selectedPair !== 'ALL' || selectedStrategy !== 'ALL' || selectedGrade !== 'ALL' || selectedResult !== 'ALL') && (
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              <span className="w-2 h-2 rounded-full bg-cyan-400" />
             )}
           </button>
 
@@ -306,7 +306,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                 setSelectedGrade('ALL');
                 setSelectedResult('ALL');
               }}
-              className="text-[11px] font-mono-code text-amber-400 hover:underline px-2 py-1"
+              className="text-[11px] font-mono-code text-cyan-400 hover:underline px-2 py-1"
             >
               Reset Filters
             </button>
@@ -334,13 +334,13 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                 <div
                   key={trade.id}
                   onClick={() => setInspectedTrade(trade)}
-                  className="prime-glass-card rounded-2xl p-4 border border-white/[0.08] hover:border-amber-400/50 transition cursor-pointer relative overflow-hidden prime-ios-touch space-y-3"
+                  className="prime-glass-card rounded-2xl p-4 border border-white/[0.08] hover:border-cyan-400/50 transition cursor-pointer relative overflow-hidden prime-ios-touch space-y-3"
                 >
                   {/* Card Header: Instrument, Direction, Session, R & PnL */}
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-base text-amber-400 font-mono-code tracking-wide">
+                        <span className="font-bold text-base text-cyan-400 font-mono-code tracking-wide">
                           {trade.instrument}
                         </span>
                         <span
@@ -418,7 +418,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                               ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                               : trade.tradeDiagnostic.classification === 'GOOD_BUSINESS_LOSS'
                               ? 'bg-sky-500/20 text-sky-400 border-sky-500/30'
-                              : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                              : 'bg-blue-500/20 text-amber-300 border-blue-500/30'
                           }`}
                         >
                           {trade.tradeDiagnostic.classification === 'A_PLUS_EDGE_WIN'
@@ -445,8 +445,8 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
               displayLayout === 'CARDS'
                 ? 'hidden'
                 : displayLayout === 'TABLE'
-                ? 'bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg overflow-hidden'
-                : 'hidden lg:block bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg overflow-hidden'
+                ? 'bg-slate-950/70 border border-slate-800 rounded-xl shadow-lg overflow-hidden'
+                : 'hidden lg:block bg-slate-950/70 border border-slate-800 rounded-xl shadow-lg overflow-hidden'
             }
           >
             <div className="p-4 border-b border-slate-800 flex items-center justify-between text-xs font-mono-code text-slate-400">
@@ -492,7 +492,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                       <div className="font-bold text-slate-100 flex items-center gap-1.5">
                         <span>{trade.id}</span>
                         {trade.screenshots?.entry && (
-                          <Camera className="w-3 h-3 text-amber-400" />
+                          <Camera className="w-3 h-3 text-cyan-400" />
                         )}
                       </div>
                       <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5">
@@ -507,7 +507,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                     {/* Pair & Direction */}
                     <td className="py-3 px-3">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-amber-400 text-sm">{trade.instrument}</span>
+                        <span className="font-bold text-cyan-400 text-sm">{trade.instrument}</span>
                         <span
                           className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
                             trade.direction === 'BUY'
@@ -553,7 +553,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                             : trade.grade === 'B'
                             ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
                             : trade.grade === 'C'
-                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                            ? 'bg-blue-500/20 text-cyan-400 border border-blue-500/30'
                             : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                         }`}
                       >
@@ -571,7 +571,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                         {trade.ruleViolation === 'NONE' ? (
                           <span className="text-emerald-400">🟢 Clean</span>
                         ) : trade.ruleViolation === 'MINOR' ? (
-                          <span className="text-amber-400">🟡 Minor</span>
+                          <span className="text-cyan-400">🟡 Minor</span>
                         ) : (
                           <span className="text-rose-400">🔴 Major</span>
                         )}
@@ -618,7 +618,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                               : trade.tradeDiagnostic.classification === 'GOOD_BUSINESS_LOSS'
                               ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
                               : trade.tradeDiagnostic.classification === 'SUBOPTIMAL_EARLY_EXIT_WIN'
-                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              ? 'bg-blue-500/20 text-amber-300 border border-blue-500/30'
                               : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                           }`}
                           title={trade.tradeDiagnostic.headline}
@@ -636,7 +636,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                       ) : (
                         <button
                           type="button"
-                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-400 text-[10px] font-mono-code transition cursor-pointer"
+                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-blue-500 hover:text-slate-950 text-slate-400 text-[10px] font-mono-code transition cursor-pointer"
                         >
                           AUDIT [?]
                         </button>
@@ -671,7 +671,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                         <button
                           onClick={() => setInspectedTrade(trade)}
                           title="Inspect Trade"
-                          className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-amber-400 transition"
+                          className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-cyan-400 transition"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
@@ -693,7 +693,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                   <td colSpan={11} className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto px-4">
                       <div className="w-12 h-12 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-center text-slate-400 mb-3">
-                        <Sliders className="w-6 h-6 text-amber-400/80" />
+                        <Sliders className="w-6 h-6 text-cyan-400/80" />
                       </div>
                       <h4 className="text-sm font-military font-bold text-slate-200 uppercase tracking-wider mb-1">
                         NO TRADES MATCH CRITERIA
@@ -721,9 +721,9 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
         /* WIN/LOSS DIAGNOSTIC INTELLIGENCE HUB */
         <div className="space-y-6">
           {/* Header Directive */}
-          <div className="p-5 rounded-2xl bg-[#090D16] border border-amber-500/20 shadow-xl space-y-3">
+          <div className="p-5 rounded-2xl bg-[#090D16] border border-blue-500/20 shadow-xl space-y-3">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-amber-400" />
+              <ShieldCheck className="w-5 h-5 text-cyan-400" />
               <h2 className="text-base font-military font-bold text-slate-100 tracking-wider">
                 WIN / LOSS DIAGNOSTIC AUDIT CENTER
               </h2>
@@ -736,7 +736,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
           {/* Core Diagnostic Intelligence KPI Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Loss Diagnostics Card */}
-            <div className="p-5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+            <div className="p-5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-military font-bold text-rose-400">
                   LOSS OUTCOME AUDIT ({lossTrades.length} TOTAL LOSSES)
@@ -752,7 +752,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                 </div>
                 <div className="flex items-center justify-between p-2 rounded bg-slate-950/60 border border-slate-800/80">
                   <span className="text-amber-300">Execution Error Losses:</span>
-                  <span className="font-bold text-amber-400">{execLosses}</span>
+                  <span className="font-bold text-cyan-400">{execLosses}</span>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded bg-slate-950/60 border border-slate-800/80">
                   <span className="text-rose-300">Discipline Breach Losses:</span>
@@ -767,7 +767,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
             </div>
 
             {/* Win Diagnostics Card */}
-            <div className="p-5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+            <div className="p-5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-military font-bold text-emerald-400">
                   WIN OUTCOME AUDIT ({winTrades.length} TOTAL WINS)
@@ -783,7 +783,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                 </div>
                 <div className="flex items-center justify-between p-2 rounded bg-slate-950/60 border border-slate-800/80">
                   <span className="text-amber-300">Early Exit / Fear Wins:</span>
-                  <span className="font-bold text-amber-400">{earlyExitWins}</span>
+                  <span className="font-bold text-cyan-400">{earlyExitWins}</span>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded bg-slate-950/60 border border-slate-800/80">
                   <span className="text-rose-300">Lucky / Rule-Breaker Wins:</span>
@@ -798,12 +798,12 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
             </div>
 
             {/* Process Decision Score Card */}
-            <div className="p-5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+            <div className="p-5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-military font-bold text-amber-400">
+                <span className="text-xs font-military font-bold text-cyan-400">
                   PROCESS DECISION QUALITY
                 </span>
-                <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-amber-500/10 text-amber-300">
+                <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-blue-500/10 text-amber-300">
                   System Integrity
                 </span>
               </div>
@@ -820,7 +820,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
               </div>
               <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-amber-500 to-emerald-400 transition-all duration-500"
+                  className="h-full bg-gradient-to-r from-blue-500 to-emerald-400 transition-all duration-500"
                   style={{ width: `${avgProcessQuality}%` }}
                 />
               </div>
@@ -828,7 +828,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
           </div>
 
           {/* Diagnostic Trades Queue */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+          <div className="bg-slate-950/80 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
             <div className="p-4 border-b border-slate-800 flex items-center justify-between">
               <span className="text-xs font-military font-bold text-slate-100 tracking-wider">
                 TRADE DIAGNOSTIC AUDIT LOG
@@ -850,7 +850,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-100">{trade.id}</span>
-                        <span className="text-amber-400 font-bold">{trade.instrument}</span>
+                        <span className="text-cyan-400 font-bold">{trade.instrument}</span>
                         <span className={trade.direction === 'BUY' ? 'text-emerald-400' : 'text-rose-400'}>
                           {trade.direction}
                         </span>
@@ -867,7 +867,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                       </div>
                       {diag && (
                         <div className="text-xs text-slate-300 pt-1 font-sans">
-                          <strong className="text-amber-400 font-mono-code">Verdict:</strong> {diag.verdict}
+                          <strong className="text-cyan-400 font-mono-code">Verdict:</strong> {diag.verdict}
                         </div>
                       )}
                     </div>
@@ -881,7 +881,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                 : diag.classification === 'GOOD_BUSINESS_LOSS'
                                 ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
-                                : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : 'bg-blue-500/20 text-amber-300 border border-blue-500/30'
                             }`}
                           >
                             {diag.headline} ({diag.adherenceScore}%)
@@ -889,7 +889,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                           <button
                             type="button"
                             onClick={() => setDiagnosingTrade(trade)}
-                            className="block mt-1 text-[11px] text-slate-400 hover:text-amber-400 underline transition cursor-pointer"
+                            className="block mt-1 text-[11px] text-slate-400 hover:text-cyan-400 underline transition cursor-pointer"
                           >
                             Re-run Interrogation
                           </button>
@@ -898,7 +898,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                         <button
                           type="button"
                           onClick={() => setDiagnosingTrade(trade)}
-                          className="px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs tracking-wider transition cursor-pointer flex items-center gap-1.5"
+                          className="px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs tracking-wider transition cursor-pointer flex items-center gap-1.5"
                         >
                           <ShieldCheck className="w-4 h-4" />
                           <span>AUDIT {isWin ? 'WIN' : 'LOSS'}</span>
@@ -930,9 +930,9 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
             }`}
           >
             {/* Inspector Header */}
-            <div className="px-6 py-4 border-b border-slate-800 bg-[#070A11] flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-slate-800 bg-[#020617] flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold font-military">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-cyan-400 font-bold font-military">
                   {inspectedTrade.grade}
                 </div>
                 <div>
@@ -979,12 +979,12 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                 >
                   {isInspectorFullscreen ? (
                     <>
-                      <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
+                      <Minimize2 className="w-3.5 h-3.5 text-cyan-400" />
                       <span>MINIMIZE</span>
                     </>
                   ) : (
                     <>
-                      <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
+                      <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
                       <span>FULLSCREEN</span>
                     </>
                   )}
@@ -1005,7 +1005,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
             {/* Inspector Content */}
             <div className="p-6 overflow-y-auto space-y-5 text-xs text-slate-200 font-mono-code">
               {/* Row: Technical & Execution Specs */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-slate-950/60 border border-slate-800">
                 <div>
                   <span className="text-slate-400 block text-[10px]">ENTRY PRICE</span>
                   <span className="text-sm font-bold text-slate-100">{inspectedTrade.entryPrice}</span>
@@ -1024,7 +1024,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px]">LOT SIZE</span>
-                  <span className="text-sm font-bold text-amber-400">{inspectedTrade.lotSize} Lots</span>
+                  <span className="text-sm font-bold text-cyan-400">{inspectedTrade.lotSize} Lots</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px]">RISK AMOUNT</span>
@@ -1038,13 +1038,13 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px]">STRATEGY MODEL</span>
-                  <span className="text-sm font-bold text-amber-400">{inspectedTrade.strategy}</span>
+                  <span className="text-sm font-bold text-cyan-400">{inspectedTrade.strategy}</span>
                 </div>
               </div>
 
               {/* Section 4: Market Structure & Alignment Matrix */}
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
-                <div className="flex items-center justify-between text-xs font-military font-bold text-amber-400">
+              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between text-xs font-military font-bold text-cyan-400">
                   <span>MARKET STRUCTURE & QUALITY ALIGNMENT</span>
                   <span className="font-mono-code font-bold">
                     QUALITY: {inspectedTrade.alignmentScore?.totalQuality || 85}/100
@@ -1077,8 +1077,8 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
 
               {/* Section 5: Screenshots Viewer */}
               {Object.values(inspectedTrade.screenshots || {}).some(Boolean) && (
-                <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
-                  <div className="text-xs font-military font-bold text-amber-400 flex items-center gap-1.5">
+                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+                  <div className="text-xs font-military font-bold text-cyan-400 flex items-center gap-1.5">
                     <Camera className="w-4 h-4" />
                     <span>MISSION CHARTS & SCREENSHOTS</span>
                   </div>
@@ -1091,7 +1091,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                           src={inspectedTrade.screenshots.beforeEntry}
                           alt="Before Entry"
                           onClick={() => setExpandedImage(inspectedTrade.screenshots.beforeEntry!)}
-                          className="w-full h-28 object-cover rounded border border-slate-800 cursor-pointer hover:border-amber-400 transition"
+                          className="w-full h-28 object-cover rounded border border-slate-800 cursor-pointer hover:border-cyan-400 transition"
                           referrerPolicy="no-referrer"
                         />
                       </div>
@@ -1104,7 +1104,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                           src={inspectedTrade.screenshots.entry}
                           alt="Entry"
                           onClick={() => setExpandedImage(inspectedTrade.screenshots.entry!)}
-                          className="w-full h-28 object-cover rounded border border-slate-800 cursor-pointer hover:border-amber-400 transition"
+                          className="w-full h-28 object-cover rounded border border-slate-800 cursor-pointer hover:border-cyan-400 transition"
                           referrerPolicy="no-referrer"
                         />
                       </div>
@@ -1117,7 +1117,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                           src={inspectedTrade.screenshots.afterTrade}
                           alt="After Trade"
                           onClick={() => setExpandedImage(inspectedTrade.screenshots.afterTrade!)}
-                          className="w-full h-28 object-cover rounded border border-slate-800 cursor-pointer hover:border-amber-400 transition"
+                          className="w-full h-28 object-cover rounded border border-slate-800 cursor-pointer hover:border-cyan-400 transition"
                           referrerPolicy="no-referrer"
                         />
                       </div>
@@ -1130,7 +1130,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                           src={inspectedTrade.screenshots.htfAnalysis}
                           alt="HTF"
                           onClick={() => setExpandedImage(inspectedTrade.screenshots.htfAnalysis!)}
-                          className="w-full h-28 object-cover rounded border border-slate-800 cursor-pointer hover:border-amber-400 transition"
+                          className="w-full h-28 object-cover rounded border border-slate-800 cursor-pointer hover:border-cyan-400 transition"
                           referrerPolicy="no-referrer"
                         />
                       </div>
@@ -1141,7 +1141,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
 
               {/* AI Vision Audit Feedback */}
               {inspectedTrade.aiAudit && (
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-1.5">
+                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-amber-300 space-y-1.5">
                   <div className="flex items-center justify-between font-military font-bold text-sm">
                     <span className="flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4" />
@@ -1157,20 +1157,20 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
 
               {/* Win/Loss Diagnostic Engine Audit Card */}
               {inspectedTrade.tradeDiagnostic ? (
-                <div className="p-4 rounded-xl bg-slate-900 border border-amber-500/30 space-y-3">
+                <div className="p-4 rounded-xl bg-slate-950 border border-blue-500/30 space-y-3">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-amber-400" />
+                      <ShieldCheck className="w-4 h-4 text-cyan-400" />
                       <span className="font-military font-bold text-sm text-slate-100">
                         DIAGNOSTIC AUDIT: {inspectedTrade.tradeDiagnostic.headline}
                       </span>
                     </div>
-                    <span className="px-2.5 py-0.5 rounded text-xs font-bold font-mono-code bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    <span className="px-2.5 py-0.5 rounded text-xs font-bold font-mono-code bg-blue-500/20 text-cyan-400 border border-blue-500/30">
                       Adherence: {inspectedTrade.tradeDiagnostic.adherenceScore}%
                     </span>
                   </div>
                   <div className="p-3 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300 text-xs leading-relaxed font-sans">
-                    <span className="text-amber-400 font-bold font-mono-code block text-[10px] mb-1">
+                    <span className="text-cyan-400 font-bold font-mono-code block text-[10px] mb-1">
                       DECISION QUALITY & VERDICT
                     </span>
                     {inspectedTrade.tradeDiagnostic.verdict}
@@ -1183,7 +1183,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="p-4 rounded-xl bg-slate-900/50 border border-dashed border-slate-700 flex items-center justify-between">
+                <div className="p-4 rounded-xl bg-slate-950/50 border border-dashed border-slate-700 flex items-center justify-between">
                   <div>
                     <div className="text-xs font-military font-bold text-slate-200">
                       NO DIAGNOSTIC AUDIT RECORDED YET
@@ -1195,7 +1195,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                   <button
                     type="button"
                     onClick={() => setDiagnosingTrade(inspectedTrade)}
-                    className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs tracking-wider transition cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs tracking-wider transition cursor-pointer"
                   >
                     RUN AUDIT
                   </button>
@@ -1204,8 +1204,8 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
 
               {/* Section 6 & 7: Psychology, Rules & Mistakes */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
-                  <div className="text-xs font-military font-bold text-amber-400">
+                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+                  <div className="text-xs font-military font-bold text-cyan-400">
                     PSYCHOLOGICAL STATE
                   </div>
                   <div className="flex items-center gap-2">
@@ -1221,8 +1221,8 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
-                  <div className="text-xs font-military font-bold text-amber-400">
+                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+                  <div className="text-xs font-military font-bold text-cyan-400">
                     DISCIPLINE & MISTAKE LOG
                   </div>
                   <div className="flex items-center gap-2">
@@ -1232,7 +1232,7 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                         inspectedTrade.ruleViolation === 'NONE'
                           ? 'text-emerald-400'
                           : inspectedTrade.ruleViolation === 'MINOR'
-                          ? 'text-amber-400'
+                          ? 'text-cyan-400'
                           : 'text-rose-400'
                       }`}
                     >
@@ -1257,11 +1257,11 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
               </div>
             </div>
 
-            <div className="px-6 py-3 border-t border-slate-800 bg-[#070A11] flex items-center justify-between">
+            <div className="px-6 py-3 border-t border-slate-800 bg-[#020617] flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => setDiagnosingTrade(inspectedTrade)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs tracking-wider transition cursor-pointer shadow-md shadow-amber-500/10"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs tracking-wider transition cursor-pointer shadow-md shadow-blue-500/10"
               >
                 <ShieldCheck className="w-4 h-4" />
                 <span>{inspectedTrade.tradeDiagnostic ? 'RE-AUDIT WIN/LOSS' : 'RUN DIAGNOSTIC AUDIT'}</span>

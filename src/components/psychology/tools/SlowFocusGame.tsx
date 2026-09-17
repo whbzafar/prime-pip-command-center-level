@@ -163,7 +163,7 @@ export const SlowFocusGame: React.FC<SlowFocusGameProps> = ({
         <button
           type="button"
           onClick={handleReset}
-          className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+          className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
@@ -227,7 +227,7 @@ export const SlowFocusGame: React.FC<SlowFocusGameProps> = ({
           </span>
           <span className="text-teal-400 font-bold">{Math.round(coherence)}%</span>
         </div>
-        <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-indigo-900/30">
+        <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-indigo-900/30">
           <div
             className="h-full bg-gradient-to-r from-indigo-500 via-teal-400 to-emerald-400 transition-all duration-150"
             style={{ width: `${coherence}%` }}

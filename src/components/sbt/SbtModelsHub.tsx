@@ -153,7 +153,7 @@ export const SbtModelsHub: React.FC = () => {
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-mono-code font-bold transition">
-            <QrCode className="w-4 h-4 text-amber-400" />
+            <QrCode className="w-4 h-4 text-cyan-400" />
             <span>SCAN QR</span>
           </button>
             <p className="text-xs font-mono-code text-slate-400">
@@ -187,7 +187,7 @@ export const SbtModelsHub: React.FC = () => {
           >
             {isLightboxOpen ? (
               <>
-                <Minimize2 className="w-4 h-4 text-amber-400" />
+                <Minimize2 className="w-4 h-4 text-cyan-400" />
                 <span className="hidden sm:inline">RESTORE</span>
               </>
             ) : (
@@ -214,8 +214,8 @@ export const SbtModelsHub: React.FC = () => {
       </div>
 
       {/* MANDATORY SBT REFERENCE DISCLAIMER */}
-      <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed flex items-start gap-3 shadow-md">
-        <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+      <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-cyan-200 text-xs leading-relaxed flex items-start gap-3 shadow-md">
+        <AlertTriangle className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="font-mono-code text-[11px] leading-relaxed">
             <strong className="text-amber-300 font-bold">SBT Reference Disclaimer: </strong>
@@ -225,7 +225,7 @@ export const SbtModelsHub: React.FC = () => {
       </div>
 
       {/* Primary Navigation Hierarchy */}
-      <div className="bg-slate-900/95 border border-slate-800 rounded-xl p-1.5 flex items-center gap-1 overflow-x-auto no-scrollbar text-xs font-mono-code">
+      <div className="bg-slate-950/95 border border-slate-800 rounded-xl p-1.5 flex items-center gap-1 overflow-x-auto no-scrollbar text-xs font-mono-code">
         <button
           type="button"
           onClick={() => {
@@ -272,8 +272,8 @@ export const SbtModelsHub: React.FC = () => {
           onClick={() => setActiveView('SBT_QA')}
           className={`px-3.5 py-2 rounded-lg font-bold transition shrink-0 cursor-pointer flex items-center gap-1.5 ${
             activeView === 'SBT_QA'
-              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-              : 'text-amber-400/80 hover:text-amber-300 hover:bg-slate-800/60'
+              ? 'bg-blue-500/20 text-amber-300 border border-blue-500/40'
+              : 'text-cyan-400/80 hover:text-amber-300 hover:bg-slate-800/60'
           }`}
         >
           <HelpCircle className="w-3.5 h-3.5" />
@@ -298,7 +298,7 @@ export const SbtModelsHub: React.FC = () => {
       {activeView === 'ALL_MODELS' && (
         <div className="space-y-6">
           {/* Filter and Search Bar */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono-code">
+          <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono-code">
             <div className="relative flex-1 min-w-[240px]">
               <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
               <input
@@ -338,7 +338,7 @@ export const SbtModelsHub: React.FC = () => {
                     setActiveView(m.id as SbtHubView);
                     setActiveVariationId(m.variations ? m.variations[0].id : undefined);
                   }}
-                  className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-teal-500/50 rounded-xl p-4 sm:p-5 transition cursor-pointer flex flex-col justify-between shadow-sm group space-y-4"
+                  className="bg-slate-950/80 hover:bg-slate-950 border border-slate-800 hover:border-teal-500/50 rounded-xl p-4 sm:p-5 transition cursor-pointer flex flex-col justify-between shadow-sm group space-y-4"
                 >
                   <div className="space-y-3">
                     {/* Card Badges */}
@@ -445,7 +445,7 @@ export const SbtModelsHub: React.FC = () => {
                         })}
                       </svg>
                       <div className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded bg-slate-950/90 border border-teal-500/40 text-[9px] font-mono-code text-teal-400 font-bold flex items-center gap-1 shadow-md">
-                        <Box className="w-2.5 h-2.5 text-amber-400" />
+                        <Box className="w-2.5 h-2.5 text-cyan-400" />
                         <span>3D VECTOR SHAPE</span>
                       </div>
                     </div>
@@ -474,7 +474,7 @@ export const SbtModelsHub: React.FC = () => {
           {/* Left Column: Graphic Asset & Studio Viewer */}
           <div className="lg:col-span-7 space-y-4">
             {/* View Mode & Variation Bar */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
               {/* Variation Buttons (for models with 7A/7B, 8A/8B, 5 Single/MCOB, etc.) */}
               <div className="flex flex-wrap items-center gap-2">
                 {activeModel.variations && activeModel.variations.length > 1 ? (
@@ -509,10 +509,10 @@ export const SbtModelsHub: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsFullscreenModelOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-mono-code font-bold transition cursor-pointer shadow-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-amber-300 border border-blue-500/40 text-xs font-mono-code font-bold transition cursor-pointer shadow-sm"
                   title="Inspect this model in Full Screen with 3D Depth"
                 >
-                  <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
+                  <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
                   <span>FULLSCREEN VIEW</span>
                 </button>
               </div>
@@ -527,7 +527,7 @@ export const SbtModelsHub: React.FC = () => {
 
             {/* Execution Criteria Quick Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono-code">
-              <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
+              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
                 <div className="flex items-center gap-1.5 text-teal-400 font-bold">
                   <Target className="w-3.5 h-3.5" />
                   <span>ENTRY CONDITION</span>
@@ -537,7 +537,7 @@ export const SbtModelsHub: React.FC = () => {
                 </p>
               </div>
 
-              <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
+              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
                 <div className="flex items-center gap-1.5 text-red-400 font-bold">
                   <AlertTriangle className="w-3.5 h-3.5" />
                   <span>INVALIDATION</span>
@@ -547,8 +547,8 @@ export const SbtModelsHub: React.FC = () => {
                 </p>
               </div>
 
-              <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
-                <div className="flex items-center gap-1.5 text-amber-400 font-bold">
+              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
+                <div className="flex items-center gap-1.5 text-cyan-400 font-bold">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>TARGET CRITERIA</span>
                 </div>
@@ -562,7 +562,7 @@ export const SbtModelsHub: React.FC = () => {
           {/* Right Column: Verbatim PDF Rules & Execution Actions */}
           <div className="lg:col-span-5 space-y-4">
             {/* Model Card Detail */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-4">
+            <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-5 space-y-4">
               <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -630,7 +630,7 @@ export const SbtModelsHub: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveView('SBT_QA')}
-                  className="px-4 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-4 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 text-amber-300 font-bold flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
                   <span>Test Knowledge on this Model</span>
@@ -665,7 +665,7 @@ export const SbtModelsHub: React.FC = () => {
 
       {/* VIEW 4: SBT PROGRESS TRACKER */}
       {activeView === 'SBT_PROGRESS' && (
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 space-y-6">
+        <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-slate-800 pb-4">
             <div>
               <h2 className="text-xl font-military font-bold text-slate-100">
@@ -724,7 +724,7 @@ export const SbtModelsHub: React.FC = () => {
         >
           <div className="space-y-6">
             {/* 3D Graphical Representation Chart */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-2xl">
+            <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-2xl">
               <SbtDeterministicChart
                 model={activeModel}
                 selectedVariationId={activeVariationId}
@@ -733,7 +733,7 @@ export const SbtModelsHub: React.FC = () => {
 
             {/* Verbatim Rules and Execution Matrix */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-4">
+              <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center gap-2 text-teal-400 font-military font-bold text-sm tracking-wide">
                   <FileText className="w-4 h-4" />
                   <span>AUTHORITATIVE SOURCE RULES (LOCKED)</span>
@@ -754,7 +754,7 @@ export const SbtModelsHub: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
+                <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 space-y-3">
                   <div className="flex items-center gap-2 text-emerald-400 font-military font-bold text-sm">
                     <Target className="w-4 h-4" />
                     <span>ENTRY PROTOCOL</span>
@@ -764,7 +764,7 @@ export const SbtModelsHub: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
+                <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 space-y-3">
                   <div className="flex items-center gap-2 text-rose-400 font-military font-bold text-sm">
                     <AlertTriangle className="w-4 h-4" />
                     <span>INVALIDATION GATES</span>

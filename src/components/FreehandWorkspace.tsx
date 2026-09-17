@@ -1130,7 +1130,7 @@ export const FreehandWorkspace: React.FC = () => {
       }`}
     >
       {/* Primary Toolbar */}
-      <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-xl">
+      <div className="bg-slate-950/90 backdrop-blur-md border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-xl">
         {/* Shape & Drawing Tools */}
         <div className="flex items-center gap-1 flex-wrap">
           {toolsList.map((t) => {
@@ -1146,7 +1146,7 @@ export const FreehandWorkspace: React.FC = () => {
                 title={t.label}
                 className={`px-2.5 py-1.5 rounded-lg border text-xs flex items-center gap-1.5 transition cursor-pointer ${
                   isActive
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold shadow-md shadow-amber-500/20'
+                    ? 'bg-blue-500 text-slate-950 border-cyan-400 font-bold shadow-md shadow-blue-500/20'
                     : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
                 }`}
               >
@@ -1207,7 +1207,7 @@ export const FreehandWorkspace: React.FC = () => {
                 }}
                 className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${
                   strokeWidth === s.size
-                    ? 'bg-amber-500/20 border-amber-500 text-amber-300'
+                    ? 'bg-blue-500/20 border-blue-500 text-amber-300'
                     : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
                 }`}
               >
@@ -1222,7 +1222,7 @@ export const FreehandWorkspace: React.FC = () => {
               onClick={() => setIsFilled(!isFilled)}
               className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
                 isFilled
-                  ? 'bg-amber-500/20 border-amber-500 text-amber-300'
+                  ? 'bg-blue-500/20 border-blue-500 text-amber-300'
                   : 'bg-slate-950 border-slate-800 text-slate-500'
               }`}
             >
@@ -1291,7 +1291,7 @@ export const FreehandWorkspace: React.FC = () => {
           <button
             onClick={() => setIsSaveModalOpen(true)}
             title="Save Drawing to Vault"
-            className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-amber-400 transition cursor-pointer"
+            className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-cyan-400 transition cursor-pointer"
           >
             <Save className="w-3.5 h-3.5" />
           </button>
@@ -1332,7 +1332,7 @@ export const FreehandWorkspace: React.FC = () => {
             <span
               onClick={() => { setZoom(1.0); setPanOffset({ x: 0, y: 0 }); }}
               title="Click to reset zoom to 100% and center view"
-              className="px-1.5 font-mono-code text-[11px] text-amber-400 font-bold cursor-pointer hover:underline"
+              className="px-1.5 font-mono-code text-[11px] text-cyan-400 font-bold cursor-pointer hover:underline"
             >
               {Math.round(zoom * 100)}%
             </span>
@@ -1346,7 +1346,7 @@ export const FreehandWorkspace: React.FC = () => {
             <button
               onClick={() => { setZoom(1.0); setPanOffset({ x: 0, y: 0 }); }}
               title="Center View & Reset Pan"
-              className="p-1 rounded text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition cursor-pointer"
+              className="p-1 rounded text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition cursor-pointer"
             >
               <Compass className="w-3.5 h-3.5" />
             </button>
@@ -1356,7 +1356,7 @@ export const FreehandWorkspace: React.FC = () => {
           <button
             onClick={toggleFullscreen}
             title={isFullscreen ? 'Exit Full Screen' : 'Full Screen Mode'}
-            className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-amber-400 transition cursor-pointer"
+            className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-cyan-400 transition cursor-pointer"
           >
             {isFullscreen ? (
               <Minimize2 className="w-3.5 h-3.5" />
@@ -1370,19 +1370,19 @@ export const FreehandWorkspace: React.FC = () => {
             <button
               onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
               title="Export Drawing"
-              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs flex items-center gap-1.5 transition shadow-md shadow-amber-500/20 cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs flex items-center gap-1.5 transition shadow-md shadow-blue-500/20 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>EXPORT</span>
             </button>
 
             {isExportMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1.5 z-50 space-y-1 text-xs">
+              <div className="absolute right-0 mt-2 w-48 bg-slate-950 border border-slate-700 rounded-xl shadow-2xl p-1.5 z-50 space-y-1 text-xs">
                 <button
                   onClick={handleExportPNG}
                   className="w-full px-3 py-2 text-left rounded-lg text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                 >
-                  <Download className="w-4 h-4 text-amber-400" />
+                  <Download className="w-4 h-4 text-cyan-400" />
                   <span>High-Res PNG</span>
                 </button>
                 <button
@@ -1407,10 +1407,10 @@ export const FreehandWorkspace: React.FC = () => {
 
       {/* Candlestick Tool Dedicated Properties Panel */}
       {tool === 'CANDLE' && (
-        <div className="bg-slate-900/95 border border-amber-500/40 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-lg text-xs animate-in fade-in">
+        <div className="bg-slate-950/95 border border-blue-500/40 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-lg text-xs animate-in fade-in">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-military font-bold text-amber-400 tracking-wider flex items-center gap-1.5">
-              <CandlestickChart className="w-4 h-4 text-amber-400" />
+            <span className="text-[11px] font-military font-bold text-cyan-400 tracking-wider flex items-center gap-1.5">
+              <CandlestickChart className="w-4 h-4 text-cyan-400" />
               CANDLESTICK MODEL:
             </span>
             {/* Bullish vs Bearish */}
@@ -1462,7 +1462,7 @@ export const FreehandWorkspace: React.FC = () => {
                   onClick={() => setCandleWidth(item.w)}
                   className={`px-2 py-0.5 rounded text-[10px] font-bold transition cursor-pointer ${
                     candleWidth === item.w
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50'
+                      ? 'bg-blue-500/20 text-amber-300 border border-blue-500/50'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -1482,7 +1482,7 @@ export const FreehandWorkspace: React.FC = () => {
               step="0.05"
               value={candleOpacity}
               onChange={(e) => setCandleOpacity(parseFloat(e.target.value))}
-              className="w-24 accent-amber-400 cursor-pointer"
+              className="w-24 accent-cyan-400 cursor-pointer"
             />
             <span className="font-mono-code text-slate-300 text-[11px] w-9">
               {Math.round(candleOpacity * 100)}%
@@ -1565,9 +1565,9 @@ export const FreehandWorkspace: React.FC = () => {
               placeholder="Type note & press Enter..."
               style={{ color }}
               rows={2}
-              className="px-2 py-1 bg-slate-950/90 border border-amber-500/80 rounded-lg text-xs font-mono-code shadow-2xl focus:outline-none min-w-[220px] resize-both backdrop-blur-sm"
+              className="px-2 py-1 bg-slate-950/90 border border-blue-500/80 rounded-lg text-xs font-mono-code shadow-2xl focus:outline-none min-w-[220px] resize-both backdrop-blur-sm"
             />
-            <div className="flex items-center gap-1.5 text-[9px] text-slate-400 bg-slate-900/90 px-2 py-0.5 rounded border border-slate-800 w-fit">
+            <div className="flex items-center gap-1.5 text-[9px] text-slate-400 bg-slate-950/90 px-2 py-0.5 rounded border border-slate-800 w-fit">
               <span>Press <strong className="text-amber-300">Enter</strong> to place • <strong className="text-slate-300">Esc</strong> to cancel</span>
               <button
                 onClick={handleCommitInlineText}
@@ -1582,7 +1582,7 @@ export const FreehandWorkspace: React.FC = () => {
         {/* Tooltip hint bar at bottom of canvas */}
         <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-[11px] text-slate-500 font-mono-code pointer-events-none">
           <div className="bg-slate-950/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-800/80 flex items-center gap-2">
-            <span className="text-amber-400 font-bold uppercase">{tool.replace(/_/g, ' ')}</span>
+            <span className="text-cyan-400 font-bold uppercase">{tool.replace(/_/g, ' ')}</span>
             <span>•</span>
             <span>
               {tool === 'SELECT'
@@ -1605,7 +1605,7 @@ export const FreehandWorkspace: React.FC = () => {
       {/* CLEAR CANVAS CONFIRMATION MODAL */}
       {isClearModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-rose-500/40 p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl text-xs">
+          <div className="bg-slate-950 border border-rose-500/40 p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl text-xs">
             <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto">
               <AlertTriangle className="w-6 h-6" />
             </div>
@@ -1642,7 +1642,7 @@ export const FreehandWorkspace: React.FC = () => {
       {/* Save Modal */}
       {isSaveModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 p-5 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl">
+          <div className="bg-slate-950 border border-slate-700 p-5 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl">
             <h4 className="text-sm font-military font-bold text-slate-100 uppercase">
               Save Workspace Drawing
             </h4>
@@ -1652,7 +1652,7 @@ export const FreehandWorkspace: React.FC = () => {
               value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
               placeholder="e.g. Gold Weekly Liquidity Sweep"
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 text-xs font-mono-code focus:outline-none focus:border-amber-500"
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 text-xs font-mono-code focus:outline-none focus:border-blue-500"
             />
             <div className="flex justify-end gap-2">
               <button
@@ -1663,7 +1663,7 @@ export const FreehandWorkspace: React.FC = () => {
               </button>
               <button
                 onClick={handleSaveWorkspace}
-                className="px-4 py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-lg cursor-pointer font-military"
+                className="px-4 py-1.5 bg-blue-500 text-slate-950 font-bold text-xs rounded-lg cursor-pointer font-military"
               >
                 SAVE
               </button>
@@ -1675,7 +1675,7 @@ export const FreehandWorkspace: React.FC = () => {
       {/* Load Modal */}
       {isLoadModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 p-5 rounded-2xl max-w-md w-full space-y-4 max-h-[80vh] overflow-y-auto shadow-2xl">
+          <div className="bg-slate-950 border border-slate-700 p-5 rounded-2xl max-w-md w-full space-y-4 max-h-[80vh] overflow-y-auto shadow-2xl">
             <h4 className="text-sm font-military font-bold text-slate-100 uppercase">
               Saved Workspace Drawings
             </h4>
@@ -1689,13 +1689,13 @@ export const FreehandWorkspace: React.FC = () => {
                   <div
                     key={idx}
                     onClick={() => handleLoadWorkspace(sw.data)}
-                    className="p-3 bg-slate-950 border border-slate-800 hover:border-amber-500/60 rounded-xl cursor-pointer transition flex items-center justify-between"
+                    className="p-3 bg-slate-950 border border-slate-800 hover:border-blue-500/60 rounded-xl cursor-pointer transition flex items-center justify-between"
                   >
                     <div>
                       <div className="text-xs font-bold text-slate-200">{sw.name}</div>
                       <div className="text-[10px] text-slate-500 font-mono-code">{sw.date}</div>
                     </div>
-                    <span className="text-xs font-mono-code text-amber-400 font-bold">LOAD ➔</span>
+                    <span className="text-xs font-mono-code text-cyan-400 font-bold">LOAD ➔</span>
                   </div>
                 ))}
               </div>

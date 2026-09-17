@@ -148,33 +148,33 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
      ========================================================================== */
   if (isLocked) {
     return (
-      <div className="min-h-[750px] w-full flex items-center justify-center p-4 sm:p-8 bg-[#070A11] relative overflow-hidden">
+      <div className="min-h-[750px] w-full flex items-center justify-center p-4 sm:p-8 bg-[#020617] relative overflow-hidden">
         {/* Ambient Grid Background */}
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
 
         {/* Holographic Glowing Rings */}
-        <div className="absolute w-[500px] h-[500px] rounded-full border border-amber-500/10 animate-spin [animation-duration:40s] pointer-events-none" />
-        <div className="absolute w-[360px] h-[360px] rounded-full border border-dashed border-amber-500/20 animate-spin [animation-duration:25s] pointer-events-none" />
+        <div className="absolute w-[500px] h-[500px] rounded-full border border-blue-500/10 animate-spin [animation-duration:40s] pointer-events-none" />
+        <div className="absolute w-[360px] h-[360px] rounded-full border border-dashed border-blue-500/20 animate-spin [animation-duration:25s] pointer-events-none" />
 
         {/* Central Lock Card */}
-        <div className="relative z-10 max-w-lg w-full bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-10 shadow-2xl backdrop-blur-xl text-center space-y-6">
+        <div className="relative z-10 max-w-lg w-full bg-slate-950/90 border border-slate-800 rounded-2xl p-6 sm:p-10 shadow-2xl backdrop-blur-xl text-center space-y-6">
           {/* 3D Security Lock Centerpiece */}
-          <div className="relative mx-auto w-24 h-24 rounded-2xl bg-gradient-to-br from-amber-500/20 via-amber-600/10 to-slate-950 border border-amber-500/40 flex items-center justify-center shadow-lg shadow-amber-500/20 group">
-            <div className="absolute inset-0 rounded-2xl bg-amber-400/10 blur-xl animate-pulse" />
-            <Lock className="w-12 h-12 text-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.5)]" />
+          <div className="relative mx-auto w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-500/20 via-amber-600/10 to-slate-950 border border-blue-500/40 flex items-center justify-center shadow-lg shadow-blue-500/20 group">
+            <div className="absolute inset-0 rounded-2xl bg-cyan-400/10 blur-xl animate-pulse" />
+            <Lock className="w-12 h-12 text-cyan-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.5)]" />
           </div>
 
           {/* Coming Soon & Status Badges */}
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 font-mono-code text-xs font-bold tracking-widest uppercase animate-pulse">
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/15 border border-blue-500/30 text-cyan-400 font-mono-code text-xs font-bold tracking-widest uppercase animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-cyan-400" />
               <span>COMING SOON</span>
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-military font-bold text-slate-100 tracking-wider">
               PRE-TRADE PLAN
             </h2>
-            <p className="text-xs font-mono-code text-amber-400/90 uppercase tracking-widest">
+            <p className="text-xs font-mono-code text-cyan-400/90 uppercase tracking-widest">
               3-PHASE EXECUTION GATEKEEPER
             </p>
           </div>
@@ -182,7 +182,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
           {/* Institutional Security Notice */}
           <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-xs font-mono-code text-slate-400 leading-relaxed text-left space-y-2">
             <div className="flex items-center gap-2 text-slate-200 font-bold">
-              <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+              <ShieldAlert className="w-4 h-4 text-cyan-400 shrink-0" />
               <span>SECURITY PROTOCOL ACTIVE</span>
             </div>
             <p>
@@ -196,7 +196,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
               <button
                 type="button"
                 onClick={() => setShowPinInput(true)}
-                className="text-[11px] font-mono-code text-slate-500 hover:text-amber-400 transition flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
+                className="text-[11px] font-mono-code text-slate-500 hover:text-cyan-400 transition flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
               >
                 <Unlock className="w-3.5 h-3.5" />
                 <span>Authorized Preview / Unlock</span>
@@ -210,7 +210,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   <button
                     type="button"
                     onClick={handleUnlockAttempt}
-                    className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-md shadow-amber-500/20"
+                    className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-md shadow-blue-500/20"
                   >
                     ENTER 3-PHASE WORKSPACE
                   </button>
@@ -236,9 +236,9 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
       {/* Header & Lock Back Button */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+          <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
             <ShieldCheck className="w-6 h-6 stroke-[2.2]" />
           </div>
           <div>
@@ -263,7 +263,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono-code transition cursor-pointer border border-slate-700"
             title="Lock module again"
           >
-            <Lock className="w-3.5 h-3.5 text-amber-400" />
+            <Lock className="w-3.5 h-3.5 text-cyan-400" />
             <span>LOCK MODULE</span>
           </button>
         </div>
@@ -277,12 +277,12 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
           onClick={() => setCurrentPhase(1)}
           className={`p-4 rounded-xl border text-left transition relative cursor-pointer ${
             currentPhase === 1
-              ? 'bg-amber-500/15 border-amber-500/50 shadow-md shadow-amber-500/10'
-              : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
+              ? 'bg-blue-500/15 border-blue-500/50 shadow-md shadow-blue-500/10'
+              : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-military font-bold text-amber-400 tracking-wider">
+            <span className="text-xs font-military font-bold text-cyan-400 tracking-wider">
               PHASE 1
             </span>
             {allPhase1Complete ? (
@@ -296,7 +296,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
             News • Timeframes • 5 Rules
           </p>
           {currentPhase === 1 && (
-            <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-amber-400 rounded-full" />
+            <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-cyan-400 rounded-full" />
           )}
         </button>
 
@@ -306,12 +306,12 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
           onClick={() => setCurrentPhase(2)}
           className={`p-4 rounded-xl border text-left transition relative cursor-pointer ${
             currentPhase === 2
-              ? 'bg-amber-500/15 border-amber-500/50 shadow-md shadow-amber-500/10'
-              : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
+              ? 'bg-blue-500/15 border-blue-500/50 shadow-md shadow-blue-500/10'
+              : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-military font-bold text-amber-400 tracking-wider">
+            <span className="text-xs font-military font-bold text-cyan-400 tracking-wider">
               PHASE 2
             </span>
             {allPhase2Complete ? (
@@ -325,7 +325,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
             Lot Size • 1:2 R:R • Obstacles • Entry
           </p>
           {currentPhase === 2 && (
-            <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-amber-400 rounded-full" />
+            <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-cyan-400 rounded-full" />
           )}
         </button>
 
@@ -335,12 +335,12 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
           onClick={() => setCurrentPhase(3)}
           className={`p-4 rounded-xl border text-left transition relative cursor-pointer ${
             currentPhase === 3
-              ? 'bg-amber-500/15 border-amber-500/50 shadow-md shadow-amber-500/10'
-              : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
+              ? 'bg-blue-500/15 border-blue-500/50 shadow-md shadow-blue-500/10'
+              : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-military font-bold text-amber-400 tracking-wider">
+            <span className="text-xs font-military font-bold text-cyan-400 tracking-wider">
               PHASE 3
             </span>
             <Circle className="w-4 h-4 text-slate-600" />
@@ -350,7 +350,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
             Post-Entry Logging & Tracking
           </p>
           {currentPhase === 3 && (
-            <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-amber-400 rounded-full" />
+            <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-cyan-400 rounded-full" />
           )}
         </button>
       </div>
@@ -369,10 +369,10 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
       {currentPhase === 1 && (
         <div className="space-y-6">
           {/* Phase 1, Point 1: Check News */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xs font-mono-code font-bold text-amber-400">
+                <span className="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-xs font-mono-code font-bold text-cyan-400">
                   1
                 </span>
                 <h3 className="text-base font-military font-bold text-slate-100 tracking-wider">
@@ -415,15 +415,15 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   href={source.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-3 rounded-xl bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 hover:border-amber-500/40 transition group cursor-pointer"
+                  className="p-3 rounded-xl bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 hover:border-blue-500/40 transition group cursor-pointer"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-military font-bold text-slate-200 group-hover:text-amber-400 transition">
+                    <span className="text-xs font-military font-bold text-slate-200 group-hover:text-cyan-400 transition">
                       {source.name}
                     </span>
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400 transition" />
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 transition" />
                   </div>
-                  <span className="inline-block mt-1 text-[9px] font-mono-code text-amber-400/80 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
+                  <span className="inline-block mt-1 text-[9px] font-mono-code text-cyan-400/80 bg-blue-500/10 px-1.5 py-0.2 rounded border border-blue-500/20">
                     {source.tag}
                   </span>
                   <p className="text-[11px] text-slate-400 font-sans mt-1 leading-snug">
@@ -435,10 +435,10 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
           </div>
 
           {/* Phase 1, Point 2: Time Frame Analysis Check */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xs font-mono-code font-bold text-amber-400">
+                <span className="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-xs font-mono-code font-bold text-cyan-400">
                   2
                 </span>
                 <h3 className="text-base font-military font-bold text-slate-100 tracking-wider">
@@ -486,8 +486,8 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                       onClick={() => setHtfTimeframe(tf)}
                       className={`flex-1 py-1 rounded text-xs font-mono-code font-bold border transition ${
                         htfTimeframe === tf
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                          : 'bg-slate-900 text-slate-400 border-slate-800'
+                          ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
+                          : 'bg-slate-950 text-slate-400 border-slate-800'
                       }`}
                     >
                       {tf}
@@ -508,8 +508,8 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                       onClick={() => setAnalysisTimeframe(tf)}
                       className={`flex-1 py-1 rounded text-xs font-mono-code font-bold border transition ${
                         analysisTimeframe === tf
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                          : 'bg-slate-900 text-slate-400 border-slate-800'
+                          ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
+                          : 'bg-slate-950 text-slate-400 border-slate-800'
                       }`}
                     >
                       {tf}
@@ -530,8 +530,8 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                       onClick={() => setEntryTimeframe(tf)}
                       className={`flex-1 py-1 rounded text-xs font-mono-code font-bold border transition ${
                         entryTimeframe === tf
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                          : 'bg-slate-900 text-slate-400 border-slate-800'
+                          ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
+                          : 'bg-slate-950 text-slate-400 border-slate-800'
                       }`}
                     >
                       {tf}
@@ -543,10 +543,10 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
           </div>
 
           {/* Phase 1, Point 3: Five Conditions Check */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xs font-mono-code font-bold text-amber-400">
+                <span className="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-xs font-mono-code font-bold text-cyan-400">
                   3
                 </span>
                 <div>
@@ -559,7 +559,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                 </div>
               </div>
 
-              <div className="text-xs font-mono-code font-bold text-amber-400">
+              <div className="text-xs font-mono-code font-bold text-cyan-400">
                 {[
                   condition1DoubleStructure,
                   condition2NoPdArray,
@@ -585,11 +585,11 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   type="checkbox"
                   checked={condition1DoubleStructure}
                   onChange={(e) => setCondition1DoubleStructure(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-amber-500 focus:ring-amber-500/20"
+                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20"
                 />
                 <div className="space-y-0.5">
                   <div className="text-xs font-military font-bold tracking-wide flex items-center gap-2">
-                    <span className="text-amber-400 font-mono-code">1.</span>
+                    <span className="text-cyan-400 font-mono-code">1.</span>
                     <span>DOUBLE STRUCTURE LEVEL</span>
                   </div>
                   <p className="text-[11px] text-slate-400 font-sans">
@@ -610,11 +610,11 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   type="checkbox"
                   checked={condition2NoPdArray}
                   onChange={(e) => setCondition2NoPdArray(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-amber-500 focus:ring-amber-500/20"
+                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20"
                 />
                 <div className="space-y-0.5">
                   <div className="text-xs font-military font-bold tracking-wide flex items-center gap-2">
-                    <span className="text-amber-400 font-mono-code">2.</span>
+                    <span className="text-cyan-400 font-mono-code">2.</span>
                     <span>NO PD ARRAY</span>
                   </div>
                   <p className="text-[11px] text-slate-400 font-sans">
@@ -635,11 +635,11 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   type="checkbox"
                   checked={condition3AlreadyMitigated}
                   onChange={(e) => setCondition3AlreadyMitigated(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-amber-500 focus:ring-amber-500/20"
+                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20"
                 />
                 <div className="space-y-0.5">
                   <div className="text-xs font-military font-bold tracking-wide flex items-center gap-2">
-                    <span className="text-amber-400 font-mono-code">3.</span>
+                    <span className="text-cyan-400 font-mono-code">3.</span>
                     <span>ALREADY MITIGATED</span>
                   </div>
                   <p className="text-[11px] text-slate-400 font-sans">
@@ -660,11 +660,11 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   type="checkbox"
                   checked={condition4MarketRetest}
                   onChange={(e) => setCondition4MarketRetest(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-amber-500 focus:ring-amber-500/20"
+                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20"
                 />
                 <div className="space-y-0.5">
                   <div className="text-xs font-military font-bold tracking-wide flex items-center gap-2">
-                    <span className="text-amber-400 font-mono-code">4.</span>
+                    <span className="text-cyan-400 font-mono-code">4.</span>
                     <span>MARKET RETEST OF UNMITIGATED DEMAND/SUPPLY ORDER BLOCK</span>
                   </div>
                   <p className="text-[11px] text-slate-400 font-sans">
@@ -685,11 +685,11 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   type="checkbox"
                   checked={condition5FailureOfSwing}
                   onChange={(e) => setCondition5FailureOfSwing(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-amber-500 focus:ring-amber-500/20"
+                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20"
                 />
                 <div className="space-y-0.5">
                   <div className="text-xs font-military font-bold tracking-wide flex items-center gap-2">
-                    <span className="text-amber-400 font-mono-code">5.</span>
+                    <span className="text-cyan-400 font-mono-code">5.</span>
                     <span>FAILURE OF SWING</span>
                   </div>
                   <p className="text-[11px] text-slate-400 font-sans">
@@ -713,7 +713,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                 onClick={() => setCurrentPhase(2)}
                 className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-military font-bold tracking-wider transition ${
                   allPhase1Complete
-                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 cursor-pointer'
+                    ? 'bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-blue-500/20 cursor-pointer'
                     : 'bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed'
                 }`}
               >
@@ -736,10 +736,10 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
       {currentPhase === 2 && (
         <div className="space-y-6">
           {/* Phase 2, Point 1: Risk Management */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xs font-mono-code font-bold text-amber-400">
+                <span className="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-xs font-mono-code font-bold text-cyan-400">
                   1
                 </span>
                 <div>
@@ -777,7 +777,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
 
             <div className="p-4 bg-slate-950/70 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
               <div className="space-y-1">
-                <span className="text-[10px] font-mono-code text-amber-400 uppercase tracking-wider font-bold">
+                <span className="text-[10px] font-mono-code text-cyan-400 uppercase tracking-wider font-bold">
                   DIRECT ACTION REQUIRED
                 </span>
                 <p className="text-xs text-slate-300">
@@ -794,7 +794,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   // Auto-prepare completion upon returning
                   setRiskManagementChecked(true);
                 }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-md shadow-amber-500/20"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-md shadow-blue-500/20"
               >
                 <Calculator className="w-4 h-4" />
                 <span>OPEN LOT SIZE CALCULATOR</span>
@@ -804,10 +804,10 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
           </div>
 
           {/* Phase 2, Point 2: Risk-to-Reward Ratio Check (Listed as 1:2) */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xs font-mono-code font-bold text-amber-400">
+                <span className="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-xs font-mono-code font-bold text-cyan-400">
                   2
                 </span>
                 <div>
@@ -844,7 +844,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
             </div>
 
             <div className="p-4 bg-slate-950/70 rounded-xl border border-slate-800 flex items-center gap-4">
-              <div className="px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-500/40 text-center">
+              <div className="px-4 py-2 rounded-xl bg-blue-500/20 border border-blue-500/40 text-center">
                 <span className="text-xl font-military font-bold text-amber-300">
                   1 : 2
                 </span>
@@ -859,10 +859,10 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
           </div>
 
           {/* Phase 2, Point 3: Checking for any obstacles in the path */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xs font-mono-code font-bold text-amber-400">
+                <span className="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-xs font-mono-code font-bold text-cyan-400">
                   3
                 </span>
                 <div>
@@ -946,7 +946,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                 onClick={() => setCurrentPhase(3)}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-military font-bold tracking-wider transition ${
                   allPhase2Complete
-                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 cursor-pointer'
+                    ? 'bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-blue-500/20 cursor-pointer'
                     : 'bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed'
                 }`}
               >
@@ -964,13 +964,13 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
           ====================================================================== */}
       {currentPhase === 3 && (
         <div className="space-y-6">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl text-center space-y-6">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto">
+          <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl text-center space-y-6">
+            <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 mx-auto">
               <BookOpen className="w-8 h-8 stroke-[2.2]" />
             </div>
 
             <div className="space-y-2">
-              <span className="text-xs font-mono-code font-bold text-amber-400 uppercase tracking-widest">
+              <span className="text-xs font-mono-code font-bold text-cyan-400 uppercase tracking-widest">
                 PHASE 3 PROTOCOL
               </span>
               <h3 className="text-2xl font-military font-bold text-slate-100 tracking-wider">
@@ -982,7 +982,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
             </div>
 
             <div className="p-4 bg-slate-950/80 rounded-xl border border-slate-800 max-w-lg mx-auto text-xs font-mono-code text-slate-300 text-left space-y-2">
-              <div className="flex items-center gap-2 text-amber-400 font-bold">
+              <div className="flex items-center gap-2 text-cyan-400 font-bold">
                 <CheckCircle2 className="w-4 h-4" />
                 <span>PHASE 1 & PHASE 2 COMPLIANCE CERTIFIED</span>
               </div>
@@ -1004,7 +1004,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                     onNavigateToJournal();
                   }
                 }}
-                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-military font-bold tracking-wider transition cursor-pointer shadow-lg shadow-amber-500/25 active:scale-95"
+                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 text-sm font-military font-bold tracking-wider transition cursor-pointer shadow-lg shadow-blue-500/25 active:scale-95"
               >
                 <BookOpen className="w-4 h-4" />
                 <span>MAKE A JOURNAL — LOG TRADE NOW</span>

@@ -80,7 +80,7 @@ export const DashboardRiskDefense: React.FC<DashboardRiskDefenseProps> = ({
               defconLevel === 5
                 ? 'bg-rose-500/20 text-rose-400 border-rose-500/40'
                 : defconLevel === 3
-                ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                ? 'bg-blue-500/20 text-cyan-400 border-blue-500/40'
                 : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
             }`}
           >
@@ -92,7 +92,7 @@ export const DashboardRiskDefense: React.FC<DashboardRiskDefenseProps> = ({
         <div className="mt-3.5 grid grid-cols-2 gap-2.5 font-mono-code text-xs">
           <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80">
             <span className="text-[10px] text-slate-400 block uppercase">1% BASELINE RISK</span>
-            <div className="text-base font-bold text-amber-400 mt-1">
+            <div className="text-base font-bold text-cyan-400 mt-1">
               {formatCurrency(master1Percent, account.currency)}
             </div>
             <div className="text-[10px] text-slate-500 mt-0.5">Per-trade max exposure</div>
@@ -135,7 +135,7 @@ export const DashboardRiskDefense: React.FC<DashboardRiskDefenseProps> = ({
 
         {/* Tactical Guidance Callout */}
         <div className="mt-3.5 p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-xs font-mono-code text-slate-300 leading-relaxed">
-          <div className="flex items-center gap-1.5 text-[10px] font-military font-bold text-amber-400 uppercase tracking-wider mb-1">
+          <div className="flex items-center gap-1.5 text-[10px] font-military font-bold text-cyan-400 uppercase tracking-wider mb-1">
             <Info className="w-3 h-3" />
             TACTICAL RISK DIRECTIVE
           </div>
@@ -148,7 +148,7 @@ export const DashboardRiskDefense: React.FC<DashboardRiskDefenseProps> = ({
         <button
           type="button"
           onClick={() => onNavigateToTab('LOT_SIZE')}
-          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-emerald-500/40 text-emerald-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer"
+          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-emerald-500/40 text-emerald-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer"
         >
           <Calculator className="w-3.5 h-3.5" />
           <span>LOT CALCULATOR</span>
@@ -157,7 +157,7 @@ export const DashboardRiskDefense: React.FC<DashboardRiskDefenseProps> = ({
         <button
           type="button"
           onClick={() => onNavigateToTab('RISK')}
-          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/40 text-amber-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer"
+          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-blue-500/40 text-amber-300 text-xs font-military font-bold tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer"
         >
           <Crosshair className="w-3.5 h-3.5" />
           <span>RISK RULES</span>

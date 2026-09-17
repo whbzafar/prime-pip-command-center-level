@@ -51,9 +51,9 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
     return (
       <div className="space-y-6">
         {/* Empty State Banner */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-8 sm:p-12 text-center shadow-2xl relative overflow-hidden">
+        <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-8 sm:p-12 text-center shadow-2xl relative overflow-hidden">
           <div className="max-w-xl mx-auto space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto shadow-lg shadow-amber-500/10">
+            <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 mx-auto shadow-lg shadow-blue-500/10">
               <BarChart3 className="w-8 h-8" />
             </div>
 
@@ -78,7 +78,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
                 <button
                   id="perf-empty-record-trade-btn"
                   onClick={onOpenNewTrade}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-military font-bold text-xs tracking-wider shadow-lg shadow-amber-500/20 transition transform active:scale-95"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-amber-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-military font-bold text-xs tracking-wider shadow-lg shadow-blue-500/20 transition transform active:scale-95"
                 >
                   <PlusCircle className="w-4 h-4 text-slate-950 stroke-[2.5]" />
                   <span>RECORD YOUR FIRST TRADE</span>
@@ -167,17 +167,17 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Directive Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900/90 to-[#0F172A] border border-amber-500/30 rounded-xl p-5 shadow-2xl relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-80 h-full bg-amber-500/5 blur-3xl pointer-events-none"></div>
+      <div className="bg-gradient-to-r from-slate-900 via-slate-900/90 to-[#0F172A] border border-blue-500/30 rounded-xl p-5 shadow-2xl relative overflow-hidden">
+        <div className="absolute right-0 top-0 w-80 h-full bg-blue-500/5 blur-3xl pointer-events-none"></div>
 
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
               <Sparkles className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold">
+                <span className="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded bg-blue-500/10 text-cyan-400 border border-blue-500/30 font-bold">
                   PERFORMANCE LAB • LIVE AUDIT
                 </span>
                 <span className="text-[10px] font-mono-code text-slate-400">
@@ -205,7 +205,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
               <button
                 id="perf-log-trade-btn"
                 onClick={onOpenNewTrade}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-military font-bold tracking-wider shadow transition"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider shadow transition"
               >
                 <PlusCircle className="w-4 h-4 text-slate-950" />
                 <span>NEW TRADE</span>
@@ -217,7 +217,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
 
       {/* Section 1: Core Performance Indicators Matrix */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 shadow">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 shadow">
           <span className="text-[10px] font-mono-code text-slate-400 block uppercase">TOTAL TRADES</span>
           <span className="text-xl font-bold font-mono-code text-slate-100 mt-0.5 block">{totalTrades}</span>
           <span className="text-[10px] font-mono-code text-slate-500 mt-1 block">
@@ -225,9 +225,9 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
           </span>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 shadow">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 shadow">
           <span className="text-[10px] font-mono-code text-slate-400 block uppercase">WIN RATE</span>
-          <span className={`text-xl font-bold font-mono-code mt-0.5 block ${winRate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
+          <span className={`text-xl font-bold font-mono-code mt-0.5 block ${winRate >= 50 ? 'text-emerald-400' : 'text-cyan-400'}`}>
             {winRate}%
           </span>
           <span className="text-[10px] font-mono-code text-slate-500 mt-1 block">
@@ -235,9 +235,9 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
           </span>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 shadow">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 shadow">
           <span className="text-[10px] font-mono-code text-slate-400 block uppercase">PROFIT FACTOR</span>
-          <span className={`text-xl font-bold font-mono-code mt-0.5 block ${profitFactor >= 1.5 ? 'text-emerald-400' : profitFactor >= 1.0 ? 'text-amber-400' : 'text-rose-400'}`}>
+          <span className={`text-xl font-bold font-mono-code mt-0.5 block ${profitFactor >= 1.5 ? 'text-emerald-400' : profitFactor >= 1.0 ? 'text-cyan-400' : 'text-rose-400'}`}>
             {profitFactor}
           </span>
           <span className="text-[10px] font-mono-code text-slate-500 mt-1 block">
@@ -245,15 +245,15 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
           </span>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 shadow">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 shadow">
           <span className="text-[10px] font-mono-code text-slate-400 block uppercase">AVG R-MULTIPLE</span>
-          <span className={`text-xl font-bold font-mono-code mt-0.5 block ${avgRMultiple >= 1.0 ? 'text-amber-400' : 'text-slate-200'}`}>
+          <span className={`text-xl font-bold font-mono-code mt-0.5 block ${avgRMultiple >= 1.0 ? 'text-cyan-400' : 'text-slate-200'}`}>
             {avgRMultiple >= 0 ? '+' : ''}{avgRMultiple}R
           </span>
           <span className="text-[10px] font-mono-code text-slate-500 mt-1 block">PER EXECUTION</span>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 shadow">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 shadow">
           <span className="text-[10px] font-mono-code text-slate-400 block uppercase">AVERAGE WIN</span>
           <span className="text-xl font-bold font-mono-code text-emerald-400 mt-0.5 block">
             {formatCurrency(avgWinTrade, currency)}
@@ -263,7 +263,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
           </span>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 shadow">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 shadow">
           <span className="text-[10px] font-mono-code text-slate-400 block uppercase">AVERAGE LOSS</span>
           <span className="text-xl font-bold font-mono-code text-rose-400 mt-0.5 block">
             {formatCurrency(avgLossTrade, currency)}
@@ -277,10 +277,10 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
       {/* Section 2: Sweet Spot Recon (Pair, Model, Session, Timeframe) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Most Traded & Profitable Pair */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 shadow flex flex-col justify-between">
+        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 shadow flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <span className="text-[10px] font-mono-code text-slate-400 uppercase font-bold">INSTRUMENTS</span>
-            <Target className="w-4 h-4 text-amber-400" />
+            <Target className="w-4 h-4 text-cyan-400" />
           </div>
           <div className="mt-3 space-y-2 text-xs font-mono-code">
             <div>
@@ -288,7 +288,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
                 {pairMetrics.length <= 1 ? 'LOGGED INSTRUMENT' : 'MOST TRADED PAIR'}
               </span>
               <div className="flex items-center justify-between mt-0.5">
-                <span className="font-bold text-amber-400 text-sm">{mostTradedPair?.instrument || 'N/A'}</span>
+                <span className="font-bold text-cyan-400 text-sm">{mostTradedPair?.instrument || 'N/A'}</span>
                 <span className="text-slate-400 text-[11px]">{mostTradedPair?.trades || 0} trade{mostTradedPair?.trades === 1 ? '' : 's'}</span>
               </div>
             </div>
@@ -307,10 +307,10 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
         </div>
 
         {/* Most Used & Profitable SBT Model */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 shadow flex flex-col justify-between">
+        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 shadow flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <span className="text-[10px] font-mono-code text-slate-400 uppercase font-bold">SBT MODELS</span>
-            <Zap className="w-4 h-4 text-amber-400" />
+            <Zap className="w-4 h-4 text-cyan-400" />
           </div>
           <div className="mt-3 space-y-2 text-xs font-mono-code">
             <div>
@@ -318,7 +318,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
                 {strategyMetrics.length <= 1 ? 'LOGGED SBT MODEL' : 'MOST USED SBT MODEL'}
               </span>
               <div className="flex items-center justify-between mt-0.5">
-                <span className="font-bold text-amber-400 text-sm">{mostUsedSbtModel?.strategy || 'N/A'}</span>
+                <span className="font-bold text-cyan-400 text-sm">{mostUsedSbtModel?.strategy || 'N/A'}</span>
                 <span className="text-slate-400 text-[11px]">{mostUsedSbtModel?.trades || 0} trade{mostUsedSbtModel?.trades === 1 ? '' : 's'}</span>
               </div>
             </div>
@@ -337,10 +337,10 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
         </div>
 
         {/* Most Used & Profitable Timeframe */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 shadow flex flex-col justify-between">
+        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 shadow flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <span className="text-[10px] font-mono-code text-slate-400 uppercase font-bold">TIMEFRAMES</span>
-            <Layers className="w-4 h-4 text-amber-400" />
+            <Layers className="w-4 h-4 text-cyan-400" />
           </div>
           <div className="mt-3 space-y-2 text-xs font-mono-code">
             <div>
@@ -348,7 +348,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
                 {timeframeMetrics.length <= 1 ? 'LOGGED TIMEFRAME' : 'MOST USED TIMEFRAME'}
               </span>
               <div className="flex items-center justify-between mt-0.5">
-                <span className="font-bold text-amber-400 text-sm">{mostUsedTimeframe?.timeframe || 'N/A'}</span>
+                <span className="font-bold text-cyan-400 text-sm">{mostUsedTimeframe?.timeframe || 'N/A'}</span>
                 <span className="text-slate-400 text-[11px]">{mostUsedTimeframe?.trades || 0} trade{mostUsedTimeframe?.trades === 1 ? '' : 's'}</span>
               </div>
             </div>
@@ -367,7 +367,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
         </div>
 
         {/* Most Active & Profitable Session */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 shadow flex flex-col justify-between">
+        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 shadow flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <span className="text-[10px] font-mono-code text-slate-400 uppercase font-bold">SESSIONS</span>
             <Clock className="w-4 h-4 text-sky-400" />
@@ -400,7 +400,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
       {/* Section 3: Best Trade, Worst Trade & Maximum Drawdown */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Best Trade Card */}
-        <div className="bg-slate-900/70 border border-emerald-500/30 rounded-xl p-4 shadow flex flex-col justify-between">
+        <div className="bg-slate-950/70 border border-emerald-500/30 rounded-xl p-4 shadow flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between text-xs font-mono-code mb-2">
               <span className="text-emerald-400 font-bold uppercase flex items-center gap-1">
@@ -420,7 +420,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">R-Multiple:</span>
-                  <span className="text-amber-400 font-bold">+{bestTrade.rMultiple || 0}R</span>
+                  <span className="text-cyan-400 font-bold">+{bestTrade.rMultiple || 0}R</span>
                 </div>
                 <div className="flex justify-between pt-1 border-t border-slate-800">
                   <span className="text-slate-400">Net Profit:</span>
@@ -436,7 +436,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
         </div>
 
         {/* Worst Trade Card */}
-        <div className={`bg-slate-900/70 border ${worstTrade && worstTrade.profitLoss < 0 ? 'border-rose-500/30' : 'border-slate-800'} rounded-xl p-4 shadow flex flex-col justify-between`}>
+        <div className={`bg-slate-950/70 border ${worstTrade && worstTrade.profitLoss < 0 ? 'border-rose-500/30' : 'border-slate-800'} rounded-xl p-4 shadow flex flex-col justify-between`}>
           <div>
             <div className="flex items-center justify-between text-xs font-mono-code mb-2">
               <span className={`${worstTrade && worstTrade.profitLoss < 0 ? 'text-rose-400' : 'text-slate-400'} font-bold uppercase flex items-center gap-1`}>
@@ -471,7 +471,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
               </div>
             ) : closedTrades.length === 1 ? (
               <div className="py-4 text-center font-mono-code space-y-1.5">
-                <span className="text-amber-400 font-bold text-xs block">
+                <span className="text-cyan-400 font-bold text-xs block">
                   NO COMPARISON AVAILABLE
                 </span>
                 <p className="text-[11px] text-slate-400 leading-relaxed max-w-xs mx-auto">
@@ -485,10 +485,10 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
         </div>
 
         {/* Maximum Drawdown Card */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 shadow flex flex-col justify-between">
+        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 shadow flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between text-xs font-mono-code mb-2">
-              <span className="text-amber-400 font-bold uppercase flex items-center gap-1">
+              <span className="text-cyan-400 font-bold uppercase flex items-center gap-1">
                 <ShieldCheck className="w-4 h-4" /> MAX DRAWDOWN
               </span>
               <span className="text-slate-400">REAL METRIC</span>
@@ -502,7 +502,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Max Percent Drop:</span>
-                <span className="text-amber-400 font-bold">{maxDrawdownPct.toFixed(2)}%</span>
+                <span className="text-cyan-400 font-bold">{maxDrawdownPct.toFixed(2)}%</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Account Safety:</span>
@@ -540,7 +540,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
               onClick={() => setActiveSubTab(tab.id as any)}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-military font-bold tracking-wider transition ${
                 isActive
-                  ? 'bg-amber-500/15 text-amber-400 border border-amber-500/40'
+                  ? 'bg-blue-500/15 text-cyan-400 border border-blue-500/40'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
               }`}
             >
@@ -558,7 +558,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
 
       {/* View 0: Analytics Summary Table */}
       {activeSubTab === 'OVERVIEW' && (
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
+        <div className="bg-slate-950/70 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
           <div className="p-4 border-b border-slate-800 flex items-center justify-between text-xs font-mono-code text-slate-400">
             <span className="text-slate-100 font-bold font-military tracking-wider text-sm">
               REAL PERFORMANCE AUDIT LEDGER
@@ -579,7 +579,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
               </div>
               <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
                 <span className="text-slate-500 block text-[10px]">EXPECTANCY (AVG R)</span>
-                <span className="text-amber-400 font-bold text-base">+{avgRMultiple}R</span>
+                <span className="text-cyan-400 font-bold text-base">+{avgRMultiple}R</span>
                 <span className="text-slate-500 text-[10px] block mt-0.5">Total Return: +{totalR.toFixed(1)}R</span>
               </div>
               <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
@@ -598,11 +598,11 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
       {activeSubTab === 'STRATEGY' && (
         <div className="space-y-4">
           {strategyMetrics.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 font-mono-code bg-slate-900/60 rounded-xl border border-slate-800">
+            <div className="p-8 text-center text-slate-500 font-mono-code bg-slate-950/60 rounded-xl border border-slate-800">
               NO STRATEGY DATA LOGGED FOR THIS ACCOUNT
             </div>
           ) : (
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-slate-950/70 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
               <div className="p-4 border-b border-slate-800 flex items-center justify-between text-xs font-mono-code text-slate-400">
                 <span className="text-slate-100 font-bold font-military tracking-wider text-sm">
                   RECORDED STRATEGY & SBT MODEL MATRIX
@@ -635,7 +635,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
                             {row.winRate}%
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-center font-bold text-amber-400">+{row.avgR}R</td>
+                        <td className="py-3 px-3 text-center font-bold text-cyan-400">+{row.avgR}R</td>
                         <td className="py-3 px-3 text-center text-slate-300">{row.profitFactor}</td>
                         <td className={`py-3 px-4 text-right font-bold text-sm ${row.totalProfitLoss >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {formatCurrency(row.totalProfitLoss, currency, { showSign: true })}
@@ -654,7 +654,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
       {activeSubTab === 'SESSIONS' && (
         <div className="space-y-4">
           {sessionMetrics.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 font-mono-code bg-slate-900/60 rounded-xl border border-slate-800">
+            <div className="p-8 text-center text-slate-500 font-mono-code bg-slate-950/60 rounded-xl border border-slate-800">
               NO SESSION EXECUTIONS LOGGED FOR THIS ACCOUNT
             </div>
           ) : (
@@ -662,7 +662,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
               {sessionMetrics.map((sess) => (
                 <div
                   key={sess.session}
-                  className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col justify-between"
+                  className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between text-xs font-mono-code text-slate-400 mb-2">
@@ -681,7 +681,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
                       </div>
                       <div className="flex justify-between">
                         <span>Avg Return:</span>
-                        <span className="text-amber-400 font-bold">+{sess.avgR}R</span>
+                        <span className="text-cyan-400 font-bold">+{sess.avgR}R</span>
                       </div>
                     </div>
                   </div>
@@ -702,11 +702,11 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
       {activeSubTab === 'PAIRS' && (
         <div className="space-y-4">
           {pairMetrics.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 font-mono-code bg-slate-900/60 rounded-xl border border-slate-800">
+            <div className="p-8 text-center text-slate-500 font-mono-code bg-slate-950/60 rounded-xl border border-slate-800">
               NO INSTRUMENT EXECUTIONS LOGGED FOR THIS ACCOUNT
             </div>
           ) : (
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-slate-950/70 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
               <div className="p-4 border-b border-slate-800 flex items-center justify-between text-xs font-mono-code text-slate-400">
                 <span className="text-slate-100 font-bold font-military tracking-wider text-sm">
                   RECORDED INSTRUMENT MATRIX
@@ -728,11 +728,11 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
                   <tbody className="divide-y divide-slate-800/50">
                     {pairMetrics.map((p) => (
                       <tr key={p.instrument} className="hover:bg-slate-800/40 transition">
-                        <td className="py-3 px-4 font-bold text-amber-400 text-sm">{p.instrument}</td>
+                        <td className="py-3 px-4 font-bold text-cyan-400 text-sm">{p.instrument}</td>
                         <td className="py-3 px-3 text-center text-slate-300">{p.trades}</td>
                         <td className="py-3 px-3 text-center text-emerald-400 font-bold">{p.wins}</td>
                         <td className="py-3 px-3 text-center font-bold text-slate-100">{p.winRate}%</td>
-                        <td className="py-3 px-3 text-center font-bold text-amber-400">+{p.avgR}R</td>
+                        <td className="py-3 px-3 text-center font-bold text-cyan-400">+{p.avgR}R</td>
                         <td className={`py-3 px-4 text-right font-bold text-sm ${p.totalProfitLoss >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {formatCurrency(p.totalProfitLoss, currency, { showSign: true })}
                         </td>
@@ -750,7 +750,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
       {activeSubTab === 'TIMEFRAMES' && (
         <div className="space-y-4">
           {timeframeMetrics.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 font-mono-code bg-slate-900/60 rounded-xl border border-slate-800">
+            <div className="p-8 text-center text-slate-500 font-mono-code bg-slate-950/60 rounded-xl border border-slate-800">
               NO TIMEFRAME EXECUTIONS LOGGED FOR THIS ACCOUNT
             </div>
           ) : (
@@ -758,9 +758,9 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
               {timeframeMetrics.map((tf) => (
                 <div
                   key={tf.timeframe}
-                  className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-lg text-center"
+                  className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg text-center"
                 >
-                  <span className="text-2xl font-military font-bold text-amber-400 block mb-1">
+                  <span className="text-2xl font-military font-bold text-cyan-400 block mb-1">
                     {tf.timeframe}
                   </span>
                   <span className="text-xs font-mono-code text-slate-400 block">
@@ -780,7 +780,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
       {activeSubTab === 'GRADES' && (
         <div className="space-y-5">
           {gradeMetrics.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 font-mono-code bg-slate-900/60 rounded-xl border border-slate-800">
+            <div className="p-8 text-center text-slate-500 font-mono-code bg-slate-950/60 rounded-xl border border-slate-800">
               NO GRADED TRADES LOGGED FOR THIS ACCOUNT
             </div>
           ) : (
@@ -788,7 +788,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
               {gradeMetrics.map((gm) => (
                 <div
                   key={gm.grade}
-                  className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col justify-between"
+                  className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between text-xs font-mono-code mb-2">
@@ -799,7 +799,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
                             : gm.grade === 'B'
                             ? 'bg-sky-500/20 text-sky-400'
                             : gm.grade === 'C'
-                            ? 'bg-amber-500/20 text-amber-400'
+                            ? 'bg-blue-500/20 text-cyan-400'
                             : 'bg-rose-500/20 text-rose-400'
                         }`}
                       >
@@ -815,7 +815,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
                       </div>
                       <div className="flex justify-between text-slate-400">
                         <span>Profit Share:</span>
-                        <span className="text-amber-400 font-bold">{gm.profitContributionPercent}%</span>
+                        <span className="text-cyan-400 font-bold">{gm.profitContributionPercent}%</span>
                       </div>
                     </div>
                   </div>

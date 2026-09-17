@@ -167,12 +167,12 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#070A11]/90 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 bg-[#020617]/90 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="w-full max-w-2xl bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
         <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
@@ -215,7 +215,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                 </span>
                 <button
                   onClick={handleStartCreate}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-military font-bold tracking-wider transition shadow-md shadow-amber-500/20"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider transition shadow-md shadow-blue-500/20"
                 >
                   <Plus className="w-3.5 h-3.5 stroke-[3]" />
                   <span>CREATE NEW ACCOUNT</span>
@@ -231,7 +231,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                       onClick={() => onSelectAccount(acc.id)}
                       className={`p-4 rounded-xl border cursor-pointer transition flex flex-wrap items-center justify-between gap-3 ${
                         isActive
-                          ? 'bg-amber-500/10 border-amber-500/60 shadow-lg shadow-amber-500/5'
+                          ? 'bg-blue-500/10 border-blue-500/60 shadow-lg shadow-blue-500/5'
                           : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40'
                       }`}
                     >
@@ -239,7 +239,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                         <div
                           className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${
                             isActive
-                              ? 'bg-amber-500 text-slate-950'
+                              ? 'bg-blue-500 text-slate-950'
                               : 'bg-slate-800 text-slate-300'
                           }`}
                         >
@@ -257,7 +257,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                             )}
                           </div>
                           <div className="text-xs text-slate-400 font-mono-code mt-0.5 flex items-center gap-2">
-                            <span className="text-amber-400/90 font-bold">
+                            <span className="text-cyan-400/90 font-bold">
                               Starting: {formatCurrency(acc.initialBalance, acc.currency)}
                             </span>
                             <span>•</span>
@@ -299,8 +299,8 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
             <form onSubmit={view === 'CREATE' ? handleCreateSubmit : handleEditSubmit} className="space-y-4">
               {/* Recalculation Warning for EDIT view */}
               {view === 'EDIT' && (
-                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5 leading-relaxed">
-                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+                <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-amber-300 text-xs flex items-start gap-2.5 leading-relaxed">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-cyan-400 mt-0.5" />
                   <div>
                     <span className="font-bold block">NOTICE: RECALCULATION IMPACT</span>
                     Changing the starting balance will recalculate your account statistics, drawdown levels, and net P&L % based on your trade history.
@@ -319,7 +319,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. My FTMO Account"
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 text-sm font-mono-code transition"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 text-sm font-mono-code transition"
                 />
               </div>
 
@@ -337,7 +337,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                     value={balance}
                     onChange={(e) => setBalance(e.target.value)}
                     placeholder="5000"
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 text-sm font-mono-code transition font-bold"
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 text-sm font-mono-code transition font-bold"
                   />
                 </div>
 
@@ -353,7 +353,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                         onClick={() => setCurrency(c)}
                         className={`py-2 text-xs font-mono-code rounded-lg border transition font-bold text-center ${
                           currency === c
-                            ? 'bg-amber-500 text-slate-950 border-amber-400'
+                            ? 'bg-blue-500 text-slate-950 border-cyan-400'
                             : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
                         }`}
                       >
@@ -386,7 +386,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                       onClick={() => setAccountType(opt.id)}
                       className={`p-2.5 rounded-lg border text-left text-xs font-mono-code transition ${
                         accountType === opt.id
-                          ? 'bg-amber-500/10 border-amber-500 text-amber-300 font-bold'
+                          ? 'bg-blue-500/10 border-blue-500 text-amber-300 font-bold'
                           : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                       }`}
                     >
@@ -434,7 +434,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-military font-bold tracking-wider uppercase shadow-lg shadow-amber-500/20 cursor-pointer"
+                    className="px-5 py-2.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider uppercase shadow-lg shadow-blue-500/20 cursor-pointer"
                   >
                     {view === 'CREATE' ? 'CREATE ACCOUNT' : 'SAVE CHANGES'}
                   </button>
@@ -448,7 +448,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
       {/* CONFIRM DELETE ACCOUNT MODAL */}
       {accountToDelete && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-rose-500/40 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 font-mono-code text-xs">
+          <div className="bg-slate-950 border border-rose-500/40 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 font-mono-code text-xs">
             <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto">
               <AlertTriangle className="w-6 h-6" />
             </div>
@@ -458,7 +458,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
               </h3>
               <p className="text-xs text-slate-300">
                 Are you sure you want to permanently delete{' '}
-                <strong className="text-amber-400">{accountToDelete.accountName}</strong>?
+                <strong className="text-cyan-400">{accountToDelete.accountName}</strong>?
               </p>
               <p className="text-[11px] text-rose-400/90 leading-relaxed pt-1">
                 Associated account data, trades, and rules will be deleted permanently. If this was your active account, another account will be selected automatically, or the account creation screen will open.

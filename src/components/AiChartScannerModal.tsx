@@ -141,11 +141,11 @@ export const AiChartScannerModal: React.FC<AiChartScannerModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+      <div className="bg-slate-950 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400">
+            <span className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 text-cyan-400">
               <Sparkles className="w-5 h-5" />
             </span>
             <div>
@@ -168,8 +168,8 @@ export const AiChartScannerModal: React.FC<AiChartScannerModalProps> = ({
 
         {/* Upload Zone */}
         {!imagePreview ? (
-          <label className="border-2 border-dashed border-slate-700 hover:border-amber-500/60 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition bg-slate-950/60 group">
-            <Upload className="w-8 h-8 text-slate-400 group-hover:text-amber-400 group-hover:scale-110 transition mb-2" />
+          <label className="border-2 border-dashed border-slate-700 hover:border-blue-500/60 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition bg-slate-950/60 group">
+            <Upload className="w-8 h-8 text-slate-400 group-hover:text-cyan-400 group-hover:scale-110 transition mb-2" />
             <span className="text-xs font-military font-bold text-slate-200">
               DROP CHART SCREENSHOT HERE OR CLICK TO BROWSE
             </span>
@@ -206,7 +206,7 @@ export const AiChartScannerModal: React.FC<AiChartScannerModalProps> = ({
             {/* Scanning state */}
             {isScanning && (
               <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl text-center space-y-2">
-                <div className="flex items-center justify-center gap-2 text-amber-400 font-mono-code text-xs font-bold animate-pulse">
+                <div className="flex items-center justify-center gap-2 text-cyan-400 font-mono-code text-xs font-bold animate-pulse">
                   <Sparkles className="w-4 h-4" />
                   <span>ANALYZING CHART LEVELS & SWINGS...</span>
                 </div>
@@ -226,9 +226,9 @@ export const AiChartScannerModal: React.FC<AiChartScannerModalProps> = ({
 
             {/* Draft Parameters Result */}
             {draftDetected && (
-              <div className="p-4 bg-slate-950 border border-amber-500/40 rounded-xl space-y-3 font-mono-code text-xs">
+              <div className="p-4 bg-slate-950 border border-blue-500/40 rounded-xl space-y-3 font-mono-code text-xs">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span className="font-bold text-amber-400 flex items-center gap-1.5">
+                  <span className="font-bold text-cyan-400 flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>AI DETECTED — PLEASE VERIFY</span>
                   </span>
@@ -264,8 +264,8 @@ export const AiChartScannerModal: React.FC<AiChartScannerModalProps> = ({
                   </div>
                 </div>
 
-                <div className="p-2 rounded bg-slate-900 border border-slate-800 text-[11px] text-slate-300">
-                  <strong className="text-amber-400">{draftDetected.setupName}:</strong>{' '}
+                <div className="p-2 rounded bg-slate-950 border border-slate-800 text-[11px] text-slate-300">
+                  <strong className="text-cyan-400">{draftDetected.setupName}:</strong>{' '}
                   {draftDetected.rationale}
                 </div>
 
@@ -279,7 +279,7 @@ export const AiChartScannerModal: React.FC<AiChartScannerModalProps> = ({
                   </button>
                   <button
                     onClick={handleConfirmDraft}
-                    className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold font-military rounded-lg text-xs flex items-center gap-1.5"
+                    className="px-4 py-1.5 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-bold font-military rounded-lg text-xs flex items-center gap-1.5"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>CONFIRM & LOAD INTO JOURNAL</span>

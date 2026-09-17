@@ -34,7 +34,7 @@ export const CrisisCard: React.FC<CrisisCardProps> = ({ payload }) => {
         {payload.helplines.map((line, idx) => (
           <div
             key={idx}
-            className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-mono-code space-y-1"
+            className="p-3 rounded-xl bg-slate-950/90 border border-slate-800 text-xs font-mono-code space-y-1"
           >
             <div className="flex items-center justify-between">
               <span className="font-bold text-teal-300">{line.name}</span>

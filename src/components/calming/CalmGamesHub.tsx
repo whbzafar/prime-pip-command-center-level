@@ -81,7 +81,7 @@ export const CalmGamesHub: React.FC = () => {
               className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-center gap-2.5 ${
                 isSelected
                   ? 'bg-teal-500/20 border-teal-400 text-teal-200 shadow-md shadow-teal-500/10'
-                  : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200'
+                  : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200'
               }`}
             >
               <div
@@ -308,7 +308,7 @@ const MemoryCalmGame: React.FC = () => {
               className={`h-16 rounded-xl border text-xl font-mono-code transition cursor-pointer flex items-center justify-center ${
                 isRevealed
                   ? 'bg-teal-500/20 border-teal-400 text-teal-300'
-                  : 'bg-slate-900 border-slate-800 text-slate-600 hover:border-slate-700'
+                  : 'bg-slate-950 border-slate-800 text-slate-600 hover:border-slate-700'
               }`}
             >
               {isRevealed ? glyph : '•'}
@@ -340,7 +340,7 @@ const ColorFlowGame: React.FC = () => {
       <div
         className="w-full h-44 rounded-2xl border border-white/[0.1] transition-colors duration-200 flex items-center justify-center shadow-inner"
         style={{
-          background: `radial-gradient(circle, hsl(${hue}, 60%, 25%), #070A11)`,
+          background: `radial-gradient(circle, hsl(${hue}, 60%, 25%), #020617)`,
         }}
       >
         <span className="text-xs font-mono-code text-slate-200 px-3 py-1 rounded-full bg-black/40 backdrop-blur-sm">

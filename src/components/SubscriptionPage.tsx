@@ -102,7 +102,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
 
       {/* Top Hero */}
       <div className="text-center space-y-3">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-mono-code font-bold">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-cyan-400 text-xs font-mono-code font-bold">
           <Zap className="w-3.5 h-3.5" />
           PRIMEPIPFX TRADING COMMAND CENTER
         </div>
@@ -116,10 +116,10 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
       </div>
 
       {/* Referral Banner / Input */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-500/10 rounded-xl text-amber-400 border border-amber-500/20">
+            <div className="p-2 bg-blue-500/10 rounded-xl text-cyan-400 border border-blue-500/20">
               <Tag className="w-5 h-5" />
             </div>
             <div>
@@ -138,12 +138,12 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
               value={referralInput}
               onChange={(e) => setReferralInput(e.target.value.toUpperCase())}
               placeholder="ENTER REFERRAL CODE"
-              className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-400 uppercase tracking-wider w-full sm:w-48 font-bold"
+              className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-400 uppercase tracking-wider w-full sm:w-48 font-bold"
             />
             <button
               onClick={() => verifyReferral(referralInput)}
               disabled={verifying}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs rounded-xl transition-colors shrink-0 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs rounded-xl transition-colors shrink-0 disabled:opacity-50"
             >
               {verifying ? 'CHECKING...' : 'APPLY'}
             </button>
@@ -167,7 +167,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
       {/* Pricing Tiers Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Tier 1: Standard Access */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-military font-bold text-slate-400 uppercase tracking-wider">
@@ -226,16 +226,16 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
 
         {/* Tier 2: Referral Discount Access (Prime Gradient Treatment) */}
         <div className="prime-gradient-box p-6 flex flex-col justify-between relative shadow-2xl">
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-military font-bold text-[10px] uppercase tracking-wider shadow-md">
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-military font-bold text-[10px] uppercase tracking-wider shadow-md">
             RECOMMENDED FOR TRADERS
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-4 mt-1">
-              <span className="text-xs font-military font-bold text-amber-400 uppercase tracking-wider">
+              <span className="text-xs font-military font-bold text-cyan-400 uppercase tracking-wider">
                 REFERRAL ACCESS
               </span>
-              <span className="text-[10px] font-mono-code px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+              <span className="text-[10px] font-mono-code px-2 py-0.5 rounded-lg bg-blue-500/20 text-amber-300 font-bold border border-blue-500/30">
                 SAVE $10
               </span>
             </div>
@@ -284,7 +284,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
         </div>
 
         {/* Tier 3: Lifetime Referral Reward / Member Stats */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-military font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -307,7 +307,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
 
             <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl mb-4 text-xs font-mono-code text-purple-200">
               <span className="font-bold block mb-1">🎁 REFERRAL BONUS RULE:</span>
-              Once your referred trader activates their subscription, your account is automatically upgraded to <span className="text-amber-400 font-bold">LIFETIME FREE ACCESS</span>!
+              Once your referred trader activates their subscription, your account is automatically upgraded to <span className="text-cyan-400 font-bold">LIFETIME FREE ACCESS</span>!
             </div>
 
             {currentUser ? (
@@ -318,7 +318,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-400">Referral Code:</span>
-                  <span className="font-bold text-amber-400 uppercase">{currentUser.username}</span>
+                  <span className="font-bold text-cyan-400 uppercase">{currentUser.username}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-400">Account Status:</span>
@@ -375,7 +375,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
       </div>
 
       {/* Developer Contact Card */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <div className="text-xs font-military font-bold tracking-wider text-slate-200 uppercase">
             DIRECT DEVELOPER / OWNER ACTIVATION
@@ -386,7 +386,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
               href={whatsappUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-amber-400 font-bold hover:underline"
+              className="text-cyan-400 font-bold hover:underline"
             >
               03406671495
             </a>
@@ -408,7 +408,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
               if (onClose) onClose();
               if (onOpenLogin) onOpenLogin();
             }}
-            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs rounded-xl transition-colors cursor-pointer"
+            className="px-4 py-2.5 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs rounded-xl transition-colors cursor-pointer"
           >
             ALREADY SUBSCRIBED? LOGIN
           </button>

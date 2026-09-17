@@ -64,8 +64,8 @@ export const SbtModelChart: React.FC<SbtModelChartProps> = ({
             onClick={() => setShowZones(!showZones)}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-mono-code transition cursor-pointer border ${
               showZones
-                ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                : 'bg-slate-900 border-slate-800 text-slate-500'
+                ? 'bg-blue-500/15 border-blue-500/40 text-amber-300'
+                : 'bg-slate-950 border-slate-800 text-slate-500'
             }`}
           >
             <Layers className="w-3 h-3" />
@@ -79,7 +79,7 @@ export const SbtModelChart: React.FC<SbtModelChartProps> = ({
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-mono-code transition cursor-pointer border ${
               showLabels
                 ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                : 'bg-slate-900 border-slate-800 text-slate-500'
+                : 'bg-slate-950 border-slate-800 text-slate-500'
             }`}
           >
             {showLabels ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
@@ -88,7 +88,7 @@ export const SbtModelChart: React.FC<SbtModelChartProps> = ({
 
           {/* Step Replay Controls */}
           {interactiveReplay && (
-            <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5">
+            <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5">
               <button
                 type="button"
                 onClick={() => setActiveStep(Math.max(1, activeStep - 1))}
@@ -113,7 +113,7 @@ export const SbtModelChart: React.FC<SbtModelChartProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveStep(variation.candles.length)}
-                className="p-1 text-slate-400 hover:text-amber-400 cursor-pointer"
+                className="p-1 text-slate-400 hover:text-cyan-400 cursor-pointer"
                 title="Reset to full chart"
               >
                 <RotateCcw className="w-3 h-3" />
@@ -124,7 +124,7 @@ export const SbtModelChart: React.FC<SbtModelChartProps> = ({
       </div>
 
       {/* SVG Canvas Container */}
-      <div className="relative w-full aspect-[800/440] bg-[#070A11] rounded-xl border border-slate-800/70 overflow-hidden shadow-inner">
+      <div className="relative w-full aspect-[800/440] bg-[#020617] rounded-xl border border-slate-800/70 overflow-hidden shadow-inner">
         {/* Ambient Subtle Grid */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
 
@@ -378,7 +378,7 @@ export const SbtModelChart: React.FC<SbtModelChartProps> = ({
       {variation.notes && (
         <div className="mt-3 px-3 py-2 rounded-xl bg-slate-950/80 border border-slate-800 text-xs font-mono-code text-slate-400 flex items-center justify-between">
           <span>{variation.notes}</span>
-          <span className="text-amber-400 font-bold shrink-0 ml-2">PDF VERBATIM</span>
+          <span className="text-cyan-400 font-bold shrink-0 ml-2">PDF VERBATIM</span>
         </div>
       )}
     </div>
