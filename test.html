@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; padding: 0; height: 2000px; font-family: sans-serif; }
+  .contents { display: contents; }
+  .sticky { position: sticky; }
+  .relative { position: relative; }
+  
+  .top-bar { top: 0; height: 50px; background: red; z-index: 100; }
+  .upper { height: 100px; background: blue; }
+  .nav { top: 50px; height: 50px; background: green; z-index: 99; }
+  .explore { height: 30px; background: orange; }
+</style>
+</head>
+<body>
+  <header class="contents">
+    <div class="sticky top-bar">Top Bar</div>
+    <div class="relative upper">Upper Block</div>
+    <div class="sticky nav">Nav Bar</div>
+    <div class="relative explore">Explore Strip</div>
+  </header>
+  <div style="padding: 20px;">Content here...</div>
+</body>
+</html>

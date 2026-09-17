@@ -232,31 +232,25 @@ export const Header: React.FC<HeaderProps> = ({
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);
 
   // Dynamic header collapse on scroll
-  useEffect(() => {
-    let lastScrollY = window.scrollY;
 
+  useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      
-      // Collapse when scrolling down past a small threshold
-      if (currentScrollY > lastScrollY && currentScrollY > 50) {
+      // Use hysteresis (different thresholds) to prevent layout thrashing and blinking!
+      // The collapsible header is around 250px tall. 
+      // If we collapse it at 50px, scrollY drops below 0 and it instantly expands again (blinking).
+      // By waiting until scrollY > 400 to collapse, and expanding only when scrollY < 50, we eliminate the loop.
+      if (currentScrollY > 400 && !isHeaderCollapsed) {
         setIsHeaderCollapsed(true);
-      } 
-      // Expand when scrolling up
-      else if (currentScrollY < lastScrollY) {
+      } else if (currentScrollY < 50 && isHeaderCollapsed) {
         setIsHeaderCollapsed(false);
       }
-      
-      lastScrollY = currentScrollY;
     };
-
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [isHeaderCollapsed]);
 
-  const toggleHeader = () => {
-    setIsHeaderCollapsed((prev) => !prev);
-  };
+  
 
   const checkScrollState = () => {
     if (navScrollRef.current) {
@@ -377,7 +371,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="relative z-[100] border-b border-slate-800/80 bg-[#0B0F19] flex flex-col transition-all duration-300 ease-in-out">
+    <header className="contents">
       {/* Persistent Slim Top Bar: Active Category, Notification Bell & Manual Chevron Toggle */}
       <div className="w-full h-14 shrink-0 sticky top-0 px-3 sm:px-4 bg-[#080C14]/95 backdrop-blur border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300 z-[1000]">
         {/* Left: Active Category / Section */}
@@ -432,35 +426,14 @@ export const Header: React.FC<HeaderProps> = ({
             />
           </button>
 
-          {/* Manual Chevron Toggle Button (Inverts upward/downward arrow) */}
-          <button
-            type="button"
-            id="header-collapse-chevron-toggle-btn"
-            onClick={toggleHeader}
-            title={!isHeaderCollapsed ? 'Collapse upper header section' : 'Expand upper header section'}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-slate-300 hover:text-amber-400 transition cursor-pointer"
-            aria-expanded={!isHeaderCollapsed}
-            aria-label={!isHeaderCollapsed ? 'Collapse header' : 'Expand header'}
-          >
-            {!isHeaderCollapsed ? (
-              <>
-                <ChevronUp className="w-4 h-4 text-amber-400 transition-transform duration-200" />
-                <span className="text-[10px] font-mono-code text-slate-400 hidden sm:inline">COLLAPSE</span>
-              </>
-            ) : (
-              <>
-                <ChevronDown className="w-4 h-4 text-amber-400 transition-transform duration-200" />
-                <span className="text-[10px] font-mono-code text-amber-400 hidden sm:inline">EXPAND</span>
-              </>
-            )}
-          </button>
+          
         </div>
       </div>
 
       
       {/* Collapsible Upper Header Block (Status, Prayer Bar, Logo & Profile) */}
       <div
-        className={`header-collapsible transition-all duration-300 ease-in-out overflow-hidden ${
+        className={`w-full bg-[#0B0F19] relative z-[100] header-collapsible transition-all duration-300 ease-in-out overflow-hidden ${
           !isHeaderCollapsed
             ? 'max-h-[900px] opacity-100'
             : 'max-h-0 opacity-0 pointer-events-none'
@@ -877,7 +850,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Horizontally Scrollable Full Navigation Bar (Desktop, Laptop, Tablet & Mobile) */}
-      <div className="w-full border-t border-slate-800/60 py-1.5 bg-[#090D15]/95 backdrop-blur sticky top-[56px] z-[990] overflow-hidden shadow-md shadow-slate-900/50">
+      <div className="w-full border-t border-slate-800/60 py-1.5 bg-[#090D15]/95 backdrop-blur overflow-hidden sticky top-14 z-[990] min-h-[52px] flex flex-col justify-center shadow-md shadow-slate-900/50">
         {/* Overflow Gradient Shadows for Visual Cue */}
         {canScrollLeft && (
           <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#090D15] to-transparent pointer-events-none z-10" />
@@ -947,12 +920,12 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* PC & Laptop Scroll Control & Discovery Indicator Strip */}
-      <div className="w-full bg-[#060A12] border-t border-slate-800/60 px-3 sm:px-6 py-0.5 flex items-center justify-between gap-2 sm:gap-3 text-[10px] font-mono-code text-slate-400 select-none">
+      <div className="w-full bg-[#060A12]/95 backdrop-blur border-t border-b border-slate-800/60 px-3 sm:px-4 py-1 flex items-center justify-between gap-2 sm:gap-4 text-[10px] font-mono-code text-slate-400 select-none overflow-x-auto no-scrollbar whitespace-nowrap">
         <button
           type="button"
           onClick={handleScrollLeft}
           disabled={!canScrollLeft}
-          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
             canScrollLeft
               ? 'bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-amber-500/50 shadow-sm shadow-amber-500/10 active:scale-95'
               : 'opacity-30 text-slate-600 border-transparent cursor-not-allowed'
@@ -963,7 +936,7 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden sm:inline font-bold">PREV</span>
         </button>
 
-        <div className="flex-1 max-w-md mx-auto flex items-center gap-3">
+        <div className="flex-1 min-w-[200px] max-w-md mx-auto flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-1.5 text-[10px] text-slate-400 shrink-0 uppercase tracking-wider font-semibold">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
             <span>EXPLORE ALL CATEGORIES</span>
@@ -984,7 +957,7 @@ export const Header: React.FC<HeaderProps> = ({
           type="button"
           onClick={handleScrollRight}
           disabled={!canScrollRight}
-          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
             canScrollRight
               ? 'bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-amber-500/50 shadow-sm shadow-amber-500/15 ring-1 ring-amber-500/40 active:scale-95 animate-pulse'
               : 'opacity-30 text-slate-600 border-transparent cursor-not-allowed'
