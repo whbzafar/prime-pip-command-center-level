@@ -491,7 +491,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       {commMode === 'FRIENDS' && (
         <FriendSystem
           currentUser={currentUser}
-          onOpenPrivateChat={(contact: { id: string; username: string; displayName: string }) => {
+          onStartPrivateChat={(contact) => {
             setActivePrivateContact(contact);
             setCommMode('PRIVATE');
           }}
@@ -541,9 +541,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                     <div className="flex items-center gap-2 mb-1 text-[11px] font-mono-code">
                       <span className={`font-bold ${isOwner ? 'text-amber-400' : 'text-slate-300'}`}>{m.displayName}</span>
                       {isOwner && (
-                        <span className="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[9px] font-bold">
-                          ADMIN
-                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[9px] font-bold">ADMIN</span>
                       )}
                       <span className="text-slate-500 text-[10px] flex items-center gap-1">
                         <Clock className="w-2.5 h-2.5" /> {m.timePkt} PKT
