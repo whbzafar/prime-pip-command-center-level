@@ -1003,24 +1003,22 @@ app.post('/api/media/voice/upload', (req, res) => {
       return res.status(413).json({ ok: false, error: 'Voice payload exceeds 25MB maximum limit.' });
     }
 
-    const meta = saveVoiceAttachmentFile(
-      buffer,
-      user.id,
-      user.username,
+    const meta = saveVoiceAttachmentFile({
+      userId: user.id,
+      audioData: cleanBase64,
       mimeType,
-      Number(durationSeconds) || 0,
-      Boolean(isPrivate),
-      Array.isArray(allowedUserIds) ? allowedUserIds : [],
-      conversationId
-    );
+      durationSeconds: Number(durationSeconds) || 0,
+      isPrivate: Boolean(isPrivate),
+      participantIds: Array.isArray(allowedUserIds) ? allowedUserIds : [],
+    });
 
     return res.json({
       ok: true,
       audioAttachmentId: meta.id,
-      audioMimeType: meta.mimeType,
-      audioDurationSeconds: meta.durationSeconds,
-      audioSize: meta.sizeBytes,
-      audioUrl: `/api/media/voice/${meta.id}`,
+      audioMimeType: meta.audioMimeType,
+      audioDurationSeconds: meta.audioDurationSeconds,
+      audioSize: meta.audioSize,
+      audioUrl: meta.audioUrl,
     });
   } catch (err: any) {
     console.error('Voice upload error:', err);
@@ -1048,8 +1046,8 @@ app.get('/api/media/voice/:id', (req, res) => {
         return res.status(401).json({ ok: false, error: 'Invalid user session.' });
       }
 
-      const isUploader = user.id === meta.uploaderId;
-      const isAllowed = meta.allowedUserIds && meta.allowedUserIds.includes(user.id);
+      const isUploader = user.id === meta.userId;
+      const isAllowed = meta.participantIds && meta.participantIds.includes(user.id);
       const isAdmin = user.role === 'ADMIN' || user.username === 'primepipfx-admin';
 
       if (!isUploader && !isAllowed && !isAdmin) {
@@ -1110,11 +1108,11 @@ app.delete('/api/media/voice/:id', (req, res) => {
     const { meta } = getVoiceAttachment(id);
     if (!meta) return res.status(404).json({ ok: false, error: 'Attachment not found' });
 
-    if (user.id !== meta.uploaderId && user.role !== 'ADMIN') {
+    if (user.id !== meta.userId && user.role !== 'ADMIN') {
       return res.status(403).json({ ok: false, error: 'Unauthorized to delete this audio recording' });
     }
 
-    const deleted = deleteVoiceAttachment(id);
+    const deleted = deleteVoiceAttachment(id, user.id);
     return res.json({ ok: true, deleted });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
@@ -1300,7 +1298,7 @@ app.get('/api/friends/list', (req, res) => {
 
     // Attach real live online status to friends list
     const enrichedFriends = (data.friends || []).map((f) => {
-      const otherUserId = f.userId1 === user.id ? f.userId2 : f.userId1;
+      const otherUserId = f.friendId;
       const online = isUserOnline(otherUserId);
       return {
         ...f,
@@ -1475,11 +1473,9 @@ app.post('/api/messages/private', (req, res) => {
     const newMsg = postPrivateMessage({
       senderId: user.id,
       senderUsername: user.username,
-      senderDisplayName: user.name || user.username,
       receiverId,
       receiverUsername,
       text: text || (msgType === 'VOICE' ? '🎙 Voice message' : 'Photo message'),
-      type: msgType,
       photoBase64: photoBase64 || undefined,
       audioBase64: audioBase64 || undefined,
       audioAttachmentId: audioAttachmentId || undefined,
@@ -1487,8 +1483,6 @@ app.post('/api/messages/private', (req, res) => {
       audioDurationSeconds: audioDurationSeconds || undefined,
       audioSize: audioSize || undefined,
       audioUrl: audioUrl || (audioAttachmentId ? `/api/media/voice/${audioAttachmentId}` : undefined),
-      timePkt: timePkt || '00:00',
-      datePkt: datePkt || '2026-09-11',
     });
 
     return res.json({ ok: true, message: newMsg });

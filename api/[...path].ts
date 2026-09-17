@@ -22,5 +22,5 @@ async function getApp(): Promise<RequestHandler> {
 
 export default async function handler(req: any, res: any) {
   const app = await getApp();
-  return app(req, res);
+  return app(req, res, () => {});
 }

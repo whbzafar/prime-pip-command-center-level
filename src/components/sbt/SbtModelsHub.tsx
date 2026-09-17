@@ -152,16 +152,6 @@ export const SbtModelsHub: React.FC = () => {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="flex items-center gap-2">
-            <a href="https://drive.google.com/drive/u/0/my-drive" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-[11px] font-mono-code font-bold transition">
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>OFFICIAL PDF 1</span>
-            </a>
-            <a href="https://drive.google.com/drive/u/0/my-drive" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-[11px] font-mono-code font-bold transition">
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>OFFICIAL PDF 2</span>
-            </a>
-          </div>
           <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-mono-code font-bold transition">
             <QrCode className="w-4 h-4 text-amber-400" />
             <span>SCAN QR</span>
@@ -176,14 +166,9 @@ export const SbtModelsHub: React.FC = () => {
         <div className="flex flex-wrap items-center gap-3">
           {/* OFFICIAL SBT PDF LINK */}
           <a
-            href="/SBT/Official_Yearly_SBT_Models_Reference.pdf"
+            href={typeof window !== 'undefined' ? new URL('/SBT/Official_Yearly_SBT_Models_Reference.pdf', window.location.href).href : '/SBT/Official_Yearly_SBT_Models_Reference.pdf'}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => {
-              // Ensure clean opening in a new tab
-              const pdfUrl = `${window.location.origin}/SBT/Official_Yearly_SBT_Models_Reference.pdf`;
-              window.open(pdfUrl, '_blank', 'noopener,noreferrer');
-            }}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 via-emerald-400 to-teal-500 text-slate-950 font-bold text-xs font-mono-code hover:brightness-110 shadow-lg shadow-teal-500/25 transition cursor-pointer border border-teal-300/40"
             title="Open official 12-page yearly SBT reference material PDF directly in browser viewer"
           >
@@ -236,18 +221,6 @@ export const SbtModelsHub: React.FC = () => {
             <strong className="text-amber-300 font-bold">SBT Reference Disclaimer: </strong>
             The graphical representation provided in the Command Center is for convenient reference. If there is any issue, difference, missing information, or display problem with the graphical representation, please click the official SBT PDF link above to view the complete reference material.
           </p>
-          <div className="flex items-center gap-2 pt-1">
-            <a
-              href="/SBT/Official_Yearly_SBT_Models_Reference.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-300 hover:text-teal-200 underline decoration-teal-400/50"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Click here to open Official SBT PDF in new tab</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
         </div>
       </div>
 

@@ -713,14 +713,14 @@ export function saveVoiceAttachmentFile(params: {
   };
 }
 
-export function getVoiceAttachment(id: string): { meta: VoiceMeta; buffer: Buffer } | null {
+export function getVoiceAttachment(id: string): { meta: VoiceMeta; filePath: string } | null {
   const all = readVoiceMetadata();
   const meta = all.find((m) => m.id === id);
   if (!meta) return null;
   const ext = meta.mimeType.includes('ogg') ? 'ogg' : meta.mimeType.includes('mp4') ? 'm4a' : 'webm';
   const filePath = path.join(VOICE_DIR, `${id}.${ext}`);
   if (!fs.existsSync(filePath)) return null;
-  return { meta, buffer: fs.readFileSync(filePath) };
+  return { meta, filePath };
 }
 
 export function deleteVoiceAttachment(id: string, userId: string): boolean {

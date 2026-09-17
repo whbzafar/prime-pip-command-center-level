@@ -60,16 +60,6 @@ export const SbtDeterministicChart: React.FC<SbtDeterministicChartProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
-          <a
-            href="/SBT/Official_Yearly_SBT_Models_Reference.pdf"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-100"
-            title="Open the authoritative SBT PDF"
-          >
-            <FileText className="h-3.5 w-3.5" />
-            PDF
-          </a>
           <button type="button" onClick={() => setZoom((z) => Math.min(2, z + 0.15))} className="rounded border border-slate-300 bg-white p-1.5 text-slate-600 hover:bg-slate-100" title="Zoom in">
             <ZoomIn className="h-3.5 w-3.5" />
           </button>
