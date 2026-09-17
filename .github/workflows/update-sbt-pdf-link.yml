@@ -1,21 +1,23 @@
 name: Update SBT PDF link
 
 on:
-  push:
-    branches:
-      - main
+  pull_request:
+    types: [opened]
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   update-sbt-pdf-link:
-    if: github.event.head_commit.message != 'chore: use Google Drive for SBT PDF'
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
 
       - name: Replace SBT PDF link and remove bundled PDF
@@ -31,15 +33,9 @@ jobs:
           if old not in text:
               raise SystemExit('Expected SBT local PDF href was not found; stopping without changing application code.')
           text = text.replace(old, new, 1)
-
           text = text.replace(
               'title="Open official 12-page yearly SBT reference material PDF directly in browser viewer"',
               'title="Open the official SBT PDF on Google Drive"',
-              1,
-          )
-          text = text.replace(
-              '<span>Open Official SBT PDF</span>',
-              '<span>Open Official SBT PDF</span>',
               1,
           )
           text = text.replace(
@@ -52,19 +48,17 @@ jobs:
               'please click the official SBT PDF link above to open the complete reference material on Google Drive.',
               1,
           )
-
           path.write_text(text, encoding='utf-8')
 
           pdf = Path('public/SBT/Official_Yearly_SBT_Models_Reference.pdf')
           if pdf.exists():
               pdf.unlink()
 
-      - name: Commit changes and remove one-time workflow
+      - name: Commit application change to PR branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/components/sbt/SbtModelsHub.tsx
           git add -u public/SBT/Official_Yearly_SBT_Models_Reference.pdf
-          git rm .github/workflows/update-sbt-pdf-link.yml
           git commit -m "chore: use Google Drive for SBT PDF"
-          git push origin main
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
