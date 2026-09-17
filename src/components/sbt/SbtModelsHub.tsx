@@ -89,7 +89,7 @@ export const SbtModelsHub: React.FC = () => {
   const [activeVariationId, setActiveVariationId] = useState<string | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [displayMode, setDisplayMode] = useState<'SOURCE_ASSET' | 'VECTOR_STUDIO'>('VECTOR_STUDIO');
+  const [displayMode, setDisplayMode] = useState<'SOURCE_ASSET' | 'VECTOR_STUDIO'>('SOURCE_ASSET');
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isFullscreenModelOpen, setIsFullscreenModelOpen] = useState(false);
 
@@ -171,6 +171,7 @@ export const SbtModelsHub: React.FC = () => {
           >
             <FileText className="w-4 h-4 text-slate-950" />
             <span>Open Official SBT PDF</span>
+            <span className="sr-only">Google PDF Viewer available from the model viewer</span>
             <ExternalLink className="w-3.5 h-3.5 text-slate-950" />
           </a>
 

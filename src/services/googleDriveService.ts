@@ -220,14 +220,11 @@ class GoogleDriveService {
       return true;
     }
 
-    // Fallback: If GSI script not yet loaded or blocked in sandboxed iframe, provide friendly guided token/demo auth
-    console.warn('Google GSI Token Client not ready, using direct OAuth dialog');
-    const simulatedToken = `gdrive_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    localStorage.setItem(DRIVE_TOKEN_KEY, simulatedToken);
-    localStorage.setItem(DRIVE_EXPIRY_KEY, String(Date.now() + 86400000));
-    localStorage.setItem(DRIVE_USER_KEY, 'student@trading.pfx');
-    this.notifyStatus({ state: 'CONNECTED', userEmail: 'student@trading.pfx' });
-    return true;
+    // Never fabricate a Drive token. A connected state is valid only after Google OAuth succeeds.
+    const message = 'Google Drive OAuth is not ready. Configure VITE_GOOGLE_CLIENT_ID and an authorized JavaScript origin, then retry.';
+    console.warn(message);
+    this.notifyStatus({ state: 'ERROR', lastError: message });
+    return false;
   }
 
   public async connect(customClientId?: string): Promise<boolean> {

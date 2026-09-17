@@ -107,8 +107,8 @@ interface ActiveAudioAlert {
 
 export const FundamentalCalendar: React.FC = () => {
   // Navigation & View states
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('YEAR'); // Default is FULL YEAR
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
+  const [viewMode, setViewMode] = useState<CalendarViewMode>('UPCOMING'); // Default is FULL YEAR
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1); // 1-12
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [meta, setMeta] = useState<CalendarMeta | null>(null);
@@ -121,7 +121,7 @@ export const FundamentalCalendar: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [lastRefreshedTime, setLastRefreshedTime] = useState<string>(new Date().toLocaleTimeString());
+  const [lastRefreshedTime, setLastRefreshedTime] = useState<string>(new Date().toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi' }));
 
   // Internet connectivity state
   const [isOnline, setIsOnline] = useState<boolean>(() => {
@@ -262,7 +262,7 @@ export const FundamentalCalendar: React.FC = () => {
       setEvents(loaded);
       const metaData = await getCalendarMeta();
       setMeta(metaData);
-      setLastRefreshedTime(new Date().toLocaleTimeString());
+      setLastRefreshedTime(new Date().toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi' }));
     } catch (err) {
       console.warn('Failed to load economic calendar from network, loading cached data:', err);
       const cached = getCachedCalendar();
