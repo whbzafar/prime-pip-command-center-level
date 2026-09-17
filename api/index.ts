@@ -1,15 +1,27 @@
 import http from 'node:http';
+import type { RequestHandler } from 'express';
 
-// server.ts is also the local development entrypoint and starts Express with app.listen().
-// Vercel needs the same Express app as a serverless handler, so suppress the local listener
-// only while importing the application into this function.
-const originalListen = http.Server.prototype.listen;
-(http.Server.prototype as any).listen = function () {
-  return this;
-};
+let appPromise: Promise<{ app: RequestHandler }> | null = null;
 
-const { app } = await import('../server.ts');
+async function getApp(): Promise<RequestHandler> {
+  if (!appPromise) {
+    const originalListen = http.Server.prototype.listen;
+    (http.Server.prototype as any).listen = function () {
+      return this;
+    };
 
-(http.Server.prototype as any).listen = originalListen;
+    appPromise = import('../server.ts')
+      .then(({ app }) => app as RequestHandler)
+      .then((app) => ({ app }))
+      .finally(() => {
+        (http.Server.prototype as any).listen = originalListen;
+      });
+  }
 
-export default app;
+  return (await appPromise).app;
+}
+
+export default async function handler(req: any, res: any) {
+  const app = await getApp();
+  return app(req, res);
+}
