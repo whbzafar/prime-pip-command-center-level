@@ -7,6 +7,7 @@
  * 3. Real-time Market Sessions (Sydney, Tokyo, London, New York, London/NY Overlap)
  * 4. UTC timestamps for authoritative trade storage and cross-timezone consistency
  * 5. Full backwards compatibility with existing callers
+ * 6. Strict Pakistan Standard Time (Asia/Karachi) daily trade limit helpers
  */
 
 export const DEFAULT_FALLBACK_TIMEZONE = 'Asia/Karachi';
@@ -612,3 +613,60 @@ export const getPakistanDateString = getKarachiDate;
 export const getPakistanTimeString = getKarachiTime;
 export const formatPakistanFull = formatFullKarachiDateTime;
 export const formatJournalDateTime = formatTradeDateTime;
+
+// ----------------------------------------------------------------------
+// DAILY TRADE LIMIT HELPERS (Issue #1)
+// Strict Pakistan Standard Time (Asia/Karachi) calendar-day enforcement
+// ----------------------------------------------------------------------
+
+/**
+ * Authoritative current Pakistan calendar date (YYYY-MM-DD).
+ * Always uses Asia/Karachi. Never relies on browser local timezone.
+ */
+export function getCurrentPakistanDate(): string {
+  return getKarachiDate();
+}
+
+/**
+ * Normalize any trade date string (or ISO timestamp) to a pure
+ * YYYY-MM-DD string in Asia/Karachi. Handles:
+ * - "2026-09-16"
+ * - "2026-09-16T18:30:00.000Z"
+ * - full ISO strings
+ */
+export function normalizeTradeDateToPakistan(dateInput: string | Date | number | undefined | null): string {
+  if (dateInput === undefined || dateInput === null || dateInput === '') {
+    return getCurrentPakistanDate();
+  }
+  // Already a clean YYYY-MM-DD string
+  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput.trim())) {
+    return dateInput.trim();
+  }
+  // Convert any other representation via Karachi formatter
+  return getKarachiDate(dateInput);
+}
+
+/**
+ * Count how many trades belong to a specific Pakistan calendar day.
+ * Defaults to today (PKT). Used by TradeEntryModal, metrics, RiskCenter.
+ */
+export function countTradesForPakistanDate(
+  trades: Array<{ date?: string }> | null | undefined,
+  targetDate?: string
+): number {
+  const day = targetDate ? normalizeTradeDateToPakistan(targetDate) : getCurrentPakistanDate();
+  if (!Array.isArray(trades) || trades.length === 0) return 0;
+  return trades.filter((t) => normalizeTradeDateToPakistan(t.date) === day).length;
+}
+
+/**
+ * Returns true when the given date already has reached the hard daily limit.
+ */
+export function isPakistanDailyTradeLimitReached(
+  trades: Array<{ date?: string }> | null | undefined,
+  maxDailyTrades: number = 2,
+  targetDate?: string
+): boolean {
+  if (maxDailyTrades <= 0) return false;
+  return countTradesForPakistanDate(trades, targetDate) >= maxDailyTrades;
+}
