@@ -106,19 +106,31 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const driveFileInputRef = useRef<HTMLInputElement>(null);
 
+  const communityRequest = (init: RequestInit = {}): RequestInit => {
+    const token = getStoredToken();
+    return {
+      ...init,
+      credentials: 'include',
+      headers: {
+        ...(init.headers || {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    };
+  };
+
   useEffect(() => {
     if (!currentUser?.id) return;
     const sendHeartbeat = async () => {
       try {
         const token = getStoredToken();
-        await fetch('/api/user/heartbeat', {
+        await fetch('/api/user/heartbeat', communityRequest({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({ userId: currentUser.id }),
-        });
+        }));
       } catch { /* ignore */ }
     };
     sendHeartbeat();
@@ -131,14 +143,18 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       if (!currentUser) return;
       try {
         const token = getStoredToken();
-        const res = await fetch('/api/friends/all-traders', {
+        const res = await fetch('/api/friends/all-traders', communityRequest({
           headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        }));
         if (res.ok) {
           const data = await res.json();
           if (data.traders) setAllTraders(data.traders);
+        } else if (res.status === 401 || res.status === 403) {
+          setFeedError('Please sign in with an active subscription to view the trader feed.');
         }
-      } catch { /* ignore */ }
+      } catch {
+        setFeedError('Community server unavailable. Retrying automatically…');
+      }
     };
     fetchTraders();
     const intv = setInterval(fetchTraders, 15000);
@@ -175,14 +191,14 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     setIsSavingPrivacy(true);
     try {
       const token = getStoredToken();
-      const res = await fetch('/api/user/presence-privacy', {
+      const res = await fetch('/api/user/presence-privacy', communityRequest({
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ showActiveStatus: nextValue }),
-      });
+      }));
       if (!res.ok) setShowActiveStatus(!nextValue);
     } catch {
       setShowActiveStatus(!nextValue);
@@ -199,7 +215,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     if (!unseenIds.length) return;
     try {
       const token = getStoredToken();
-      await fetch('/api/community/messages/seen', {
+      await fetch('/api/community/messages/seen', communityRequest({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -213,12 +229,18 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
             displayName: currentUser.name || currentUser.username,
           },
         }),
-      });
+      }));
     } catch { /* ignore */ }
   };
 
   const fetchMessages = async (isInitial = false) => {
     if (isInitial) setIsFeedLoading(true);
+    if (!currentUser) {
+      setMessages([]);
+      setFeedError('Sign in with an active subscription to use the community feed.');
+      setIsFeedLoading(false);
+      return;
+    }
     try {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         setIsOffline(true);
@@ -230,7 +252,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
         return;
       }
       setIsOffline(false);
-      const res = await fetch('/api/community/messages');
+      const res = await fetch('/api/community/messages', communityRequest());
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         setFeedError((errBody as { error?: string }).error || `Unable to load community feed (${res.status}).`);
@@ -251,7 +273,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       } catch { /* ignore */ }
       if (commMode === 'PUBLIC') markMessagesSeen(unique);
     } catch {
-      setFeedError('Network error while loading community feed.');
+      setFeedError('Community server unavailable. Retrying automatically…');
       try {
         const cached = localStorage.getItem('primepipfx_community_cache');
         if (cached) setMessages(JSON.parse(cached));
@@ -301,7 +323,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     fetchMessages(true);
     const interval = setInterval(() => fetchMessages(false), 6000);
     return () => clearInterval(interval);
-  }, [commMode]);
+  }, [commMode, currentUser?.id]);
 
   useEffect(() => {
     if (commMode === 'PUBLIC') {
@@ -397,7 +419,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       try {
         const uploadHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
         if (token) uploadHeaders.Authorization = `Bearer ${token}`;
-        const uploadRes = await fetch('/api/media/voice/upload', {
+        const uploadRes = await fetch('/api/media/voice/upload', communityRequest({
           method: 'POST',
           headers: uploadHeaders,
           body: JSON.stringify({
@@ -406,7 +428,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
             durationSeconds: audioDuration,
             isPrivate: false,
           }),
-        });
+        }));
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json();
           if (uploadData.ok && uploadData.audioAttachmentId) {
@@ -447,11 +469,11 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers.Authorization = `Bearer ${token}`;
-      const res = await fetch('/api/community/messages', {
+      const res = await fetch('/api/community/messages', communityRequest({
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
-      });
+      }));
       if (res.ok) {
         setInputText('');
         setSelectedPhoto(null);
