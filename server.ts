@@ -1441,8 +1441,9 @@ app.get('/api/admin/gaps', (req, res) => {
 // ----------------------------------------------------
 // FRIEND SYSTEM API ENDPOINTS
 // ----------------------------------------------------
-app.get('/api/friends/list', (req, res) => {
+app.get('/api/friends/list', async (req, res) => {
   try {
+    await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
@@ -1476,8 +1477,9 @@ app.get('/api/friends/list', (req, res) => {
 });
 
 // Get all registered traders with live presence status
-app.get('/api/friends/all-traders', (req, res) => {
+app.get('/api/friends/all-traders', async (req, res) => {
   try {
+    await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const currentUser = getUserByToken(token);
@@ -1493,8 +1495,9 @@ app.get('/api/friends/all-traders', (req, res) => {
   }
 });
 
-app.get('/api/friends/search', (req, res) => {
+app.get('/api/friends/search', async (req, res) => {
   try {
+    await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const currentUser = getUserByToken(token);
@@ -1521,8 +1524,9 @@ app.get('/api/friends/search', (req, res) => {
   }
 });
 
-app.post('/api/friends/request', (req, res) => {
+app.post('/api/friends/request', async (req, res) => {
   try {
+    await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
