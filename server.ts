@@ -74,6 +74,7 @@ import {
   rollbackEvolutionEvent,
   getTraderProfile,
   saveTraderProfile,
+  startAutonomousEvolution,
 } from "./server/evolutionService.js";
 import { analyzeIntent } from "./server/intelligence/intentRouter.js";
 import { resolveCapability } from "./server/intelligence/capabilityRegistry.js";
@@ -2154,6 +2155,8 @@ async function startServer() {
 
   httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`[PRIMEPIPFX COMMAND CENTER] Server active on port ${PORT}`);
+    startAutonomousEvolution();
+    console.log("[EvolutionEngine] Autonomous safe-sandbox scheduler started (5 minute interval)");
   });
 }
 

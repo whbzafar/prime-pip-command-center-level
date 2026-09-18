@@ -94,6 +94,18 @@ export class EvolutionEngine {
     this.seedInitialState();
   }
 
+  public restoreRuntimeState(snapshot: { activeCycle?: number; lastCycleTimestamp?: number; isEnginePaused?: boolean }): void {
+    if (Number.isInteger(snapshot.activeCycle) && (snapshot.activeCycle || 0) >= 0) {
+      this.activeCycle = snapshot.activeCycle as number;
+    }
+    if (Number.isFinite(snapshot.lastCycleTimestamp) && (snapshot.lastCycleTimestamp || 0) > 0) {
+      this.lastCycleTimestamp = snapshot.lastCycleTimestamp as number;
+    }
+    if (typeof snapshot.isEnginePaused === 'boolean') {
+      this.isPaused = snapshot.isEnginePaused;
+    }
+  }
+
   private seedInitialState(): void {
     // Populate initial proposals & evaluations
     const defaultProposals = this.featureGenerator.generateProposals([]);

@@ -49,7 +49,11 @@ export const EvolutionStatusBadge: React.FC<EvolutionStatusBadgeProps> = ({
           if (res.systemHealth?.overallUptime) {
             setUptimePercent(res.systemHealth.overallUptime);
           }
-          if (res.isEnginePaused) {
+          if (res.autonomy?.connectivity && !res.autonomy.connectivity.online) {
+            setStatus('OFFLINE');
+          } else if (res.autonomy?.cycleInProgress) {
+            setStatus('UPDATING');
+          } else if (res.isEnginePaused) {
             setStatus('RECOVERY MODE');
           } else {
             setStatus('UP TO DATE');
