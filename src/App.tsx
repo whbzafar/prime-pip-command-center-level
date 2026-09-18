@@ -1,5 +1,5 @@
 // Force HMR refresh
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Header } from './components/Header';
 import { MainDashboard } from './components/MainDashboard';
 import { TradeJournal } from './components/TradeJournal';
@@ -94,6 +94,19 @@ export default function App() {
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
+
+  // Main content container ref for smooth auto-scroll reset on tab and category changes
+  const contentRef = useRef<HTMLElement>(null);
+
+  // Auto-Scroll Reset on Tab / Category Change (Mobile & Desktop)
+  useEffect(() => {
+    // Smoothly scroll window viewport to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Also scroll main content container into view if available
+    if (contentRef.current) {
+      contentRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [activeTab]);
 
   // Continuous Telemetry Observation Hook
   useEffect(() => {
@@ -805,7 +818,7 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-3.5 sm:p-6 lg:p-8 pb-24 md:pb-8">
+      <main ref={contentRef} className="flex-1 max-w-7xl w-full mx-auto p-3.5 sm:p-6 lg:p-8 pb-24 md:pb-8">
         {activeTab === 'DASHBOARD' && (
           <MainDashboard
             metrics={metrics}

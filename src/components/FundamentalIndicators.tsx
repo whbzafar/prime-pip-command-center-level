@@ -7,6 +7,7 @@ import {
   ExternalLink,
   Globe2,
   Landmark,
+  Lock,
   RefreshCw,
   ShieldCheck,
   TrendingDown,
@@ -294,79 +295,50 @@ export const FundamentalIndicators: React.FC = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-cyan-400/20 bg-slate-950/80 p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 text-[10px] font-mono-code font-bold text-cyan-300">
-              <BarChart3 className="h-4 w-4" /> FUNDAMENTAL STRENGTH METER
+      <section className="rounded-2xl border border-amber-400/30 bg-gradient-to-b from-slate-950/90 to-[#070B14] p-6 sm:p-8 relative overflow-hidden shadow-2xl">
+        {/* Ambient background glow */}
+        <div className="absolute -top-16 -right-16 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800/80">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/5">
+              <Lock className="w-5 h-5" />
             </div>
-            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-400">
-              A transparent 0-100 composite for eight major currencies plus gold and silver. Every score shows its freshness and coverage;
-              unavailable factors remain neutral rather than being disguised as live data.
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-military font-bold tracking-wider text-slate-100 uppercase">
+                  FUNDAMENTAL STRENGTH METER
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/30 text-amber-400 text-[10px] font-mono-code font-bold uppercase tracking-wider">
+                  COMING SOON
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 font-mono-code mt-0.5">
+                Automated multi-currency macro scorecards & institutional central bank policy models.
+              </p>
+            </div>
           </div>
-          <button type="button" onClick={() => void loadDashboard()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-[10px] font-mono-code text-cyan-300 hover:border-cyan-400/50">
-            <RefreshCw className={`h-3 w-3 ${dashboardLoading ? 'animate-spin' : ''}`} /> REFRESH
-          </button>
+
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] font-mono-code text-slate-400 w-fit">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span>FEATURE LOCKED · COMING SOON</span>
+          </div>
         </div>
-        {dashboardError ? (
-          <p className="mt-4 rounded-lg border border-rose-400/30 bg-rose-400/5 p-3 text-xs text-rose-200">{dashboardError}</p>
-        ) : dashboardLoading && !dashboard ? (
-          <p className="mt-4 text-xs text-slate-500">Loading verified market inputs...</p>
-        ) : dashboard ? (
-          <>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-              {dashboard.instruments.map((instrument) => (
-                <button
-                  key={instrument.code}
-                  type="button"
-                  onClick={() => setSelectedInstrument(instrument.code)}
-                  className={`rounded-xl border p-3 text-left ${selectedInstrument === instrument.code ? 'border-cyan-400/60 bg-cyan-400/10' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-100">{instrument.code}</span>
-                    <span className={`text-[9px] font-mono-code ${instrument.freshness === 'PARTIAL' ? 'text-amber-300' : 'text-slate-500'}`}>{instrument.freshness}</span>
-                  </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
-                    <div className={`h-full ${instrument.label === 'Bullish' ? 'bg-emerald-400' : instrument.label === 'Bearish' ? 'bg-rose-400' : 'bg-amber-300'}`} style={{ width: `${instrument.score}%` }} />
-                  </div>
-                  <div className="mt-1 flex justify-between text-[10px] font-mono-code text-slate-400"><span>{instrument.label}</span><span>{instrument.score}%</span></div>
-                </button>
-              ))}
-            </div>
-            <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-xs font-bold text-slate-200">{selectedInstrument} factor breakdown</h3>
-                  <span className="text-[10px] font-mono-code text-amber-300">{selectedDashboardInstrument?.freshness}</span>
-                </div>
-                <div className="mt-3 space-y-3">
-                  {selectedDashboardInstrument?.factors.map((factor) => (
-                    <div key={factor.key}>
-                      <div className="flex justify-between text-[10px] text-slate-400"><span>{factor.label} ({factor.weight}%)</span><span>{factor.status === 'LIVE' ? `${factor.score}/100` : 'Unavailable'}</span></div>
-                      <div className="mt-1 h-1.5 rounded-full bg-slate-800"><div className="h-full rounded-full bg-cyan-400" style={{ width: `${factor.score}%` }} /></div>
-                      <p className="mt-1 text-[10px] leading-relaxed text-slate-500">{factor.reason}{factor.updatedAt ? ` Updated ${new Date(factor.updatedAt).toLocaleDateString()}.` : ''}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-xs font-bold text-slate-200">Pair fundamental bias</h3>
-                  <select value={selectedPair} onChange={(event) => setSelectedPair(event.target.value)} className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-[10px] text-cyan-200">
-                    {['EUR/USD', 'GBP/JPY', 'USD/CHF', 'AUD/USD', 'XAU/USD', 'XAG/USD'].map((pair) => <option key={pair}>{pair}</option>)}
-                  </select>
-                </div>
-                <div className="mt-5 text-center">
-                  <div className={`text-3xl font-bold ${pairBias > 0 ? 'text-emerald-300' : pairBias < 0 ? 'text-rose-300' : 'text-amber-300'}`}>{pairBias > 0 ? '+' : ''}{pairBias}</div>
-                  <p className="mt-1 text-xs text-slate-300">{pairBase} is {Math.abs(pairBias) < 8 ? 'roughly as strong as' : pairBias > 0 ? 'fundamentally stronger than' : 'fundamentally weaker than'} {pairQuote}.</p>
-                </div>
-                <div className="mt-4 flex items-center gap-2 text-[10px] font-mono-code text-slate-500"><span>{pairBase} {pairBaseScore}%</span><div className="h-1.5 flex-1 rounded-full bg-slate-800"><div className="h-full rounded-full bg-cyan-400" style={{ width: `${Math.max(0, Math.min(100, 50 + pairBias / 2))}%` }} /></div><span>{pairQuote} {pairQuoteScore}%</span></div>
-                <p className="mt-4 text-[10px] leading-relaxed text-amber-200/80">Coverage: {dashboard.coverage.liveFactors}/{dashboard.coverage.totalFactors} factor groups live. {dashboard.coverage.note}</p>
-              </div>
-            </div>
-          </>
-        ) : null}
+
+        <div className="mt-6 py-6 px-4 sm:px-8 rounded-xl bg-slate-900/40 border border-slate-800/60 text-center max-w-2xl mx-auto space-y-3">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+            <Lock className="w-6 h-6" />
+          </div>
+          <h3 className="text-sm font-military font-bold text-slate-200 tracking-wide uppercase">
+            FEATURE LOCKED — COMING SOON
+          </h3>
+          <p className="text-xs text-slate-400 leading-relaxed font-mono-code">
+            The automated Fundamental Strength Meter is locked while institutional macro feeds and real-time central bank policy algorithms are undergoing calibration. Institutional currency scoring across 8 major pairs, gold, and silver will unlock in the upcoming release.
+          </p>
+          <p className="text-[11px] text-cyan-400 font-mono-code pt-1">
+            ↓ In the meantime, consult the comprehensive Fundamental Indicators Library below.
+          </p>
+        </div>
       </section>
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">

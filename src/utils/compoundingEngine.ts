@@ -11,10 +11,32 @@ export interface CompoundingInputs {
   expectedWinRate: number; // e.g. 60 (60%)
   riskRewardRatio: number; // e.g. 2.0 (2:1)
   tradesPerDay: number; // e.g. 1 or 2
-  tradingDaysPerMonth: number; // e.g. 20
+  tradingDaysPerMonth: number; // 21 trading days per month
   calculationMonths: number; // 1, 3, 6, 12, or custom
   customDays?: number;
   startDate?: string | Date;
+}
+
+export interface CompoundingWeeklyRow {
+  week: number;
+  startDateStr: string;
+  endDateStr: string;
+  startBalance: number;
+  pnl: number;
+  endBalance: number;
+  growthPercent: number;
+  tradingDaysCount: number;
+}
+
+export interface CompoundingMonthlyRow {
+  month: number;
+  startDateStr: string;
+  endDateStr: string;
+  startBalance: number;
+  pnl: number;
+  endBalance: number;
+  growthPercent: number;
+  tradingDaysCount: number;
 }
 
 export interface CompoundingDayRow {
@@ -30,12 +52,16 @@ export interface CompoundingDayRow {
 
 export interface CompoundingResult {
   rows: CompoundingDayRow[];
+  weeklyRows: CompoundingWeeklyRow[];
+  monthlyRows: CompoundingMonthlyRow[];
   totalDays: number;
   totalCalendarDaysSpan: number; // includes skipped weekend days
   finalProjectedBalance: number;
   totalProjectedGainDollars: number;
   totalProjectedReturnPercent: number;
   averageDailyGainDollars: number;
+  averageWeeklyGainDollars: number;
+  averageMonthlyGainDollars: number;
   expectedValuePerTrade: number;
   maxSimulatedDrawdownDollars: number;
 }
@@ -55,10 +81,58 @@ function getNextTradingDay(date: Date): Date {
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+export function aggregateWeeklyProjections(rows: CompoundingDayRow[]): CompoundingWeeklyRow[] {
+  const weekly: CompoundingWeeklyRow[] = [];
+  const chunkSize = 5; // 5 trading days per week
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    if (chunk.length === 0) continue;
+    const startBal = chunk[0].startBalance;
+    const endBal = chunk[chunk.length - 1].endBalance;
+    const pnl = Number((endBal - startBal).toFixed(2));
+    const growthPercent = startBal > 0 ? Number(((pnl / startBal) * 100).toFixed(2)) : 0;
+    weekly.push({
+      week: Math.floor(i / chunkSize) + 1,
+      startDateStr: chunk[0].dateStr,
+      endDateStr: chunk[chunk.length - 1].dateStr,
+      startBalance: startBal,
+      pnl,
+      endBalance: endBal,
+      growthPercent,
+      tradingDaysCount: chunk.length,
+    });
+  }
+  return weekly;
+}
+
+export function aggregateMonthlyProjections(rows: CompoundingDayRow[], daysPerMonth = 21): CompoundingMonthlyRow[] {
+  const monthly: CompoundingMonthlyRow[] = [];
+  const chunkSize = daysPerMonth || 21; // 21 trading days per month
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    if (chunk.length === 0) continue;
+    const startBal = chunk[0].startBalance;
+    const endBal = chunk[chunk.length - 1].endBalance;
+    const pnl = Number((endBal - startBal).toFixed(2));
+    const growthPercent = startBal > 0 ? Number(((pnl / startBal) * 100).toFixed(2)) : 0;
+    monthly.push({
+      month: Math.floor(i / chunkSize) + 1,
+      startDateStr: chunk[0].dateStr,
+      endDateStr: chunk[chunk.length - 1].dateStr,
+      startBalance: startBal,
+      pnl,
+      endBalance: endBal,
+      growthPercent,
+      tradingDaysCount: chunk.length,
+    });
+  }
+  return monthly;
+}
+
 export function calculateCompoundingProjection(inputs: CompoundingInputs): CompoundingResult {
   const totalDays = inputs.customDays && inputs.customDays > 0
     ? inputs.customDays
-    : Math.round(inputs.calculationMonths * (inputs.tradingDaysPerMonth || 20));
+    : Math.round(inputs.calculationMonths * (inputs.tradingDaysPerMonth || 21));
 
   const safeDays = Math.min(365, Math.max(1, totalDays));
   const winRateFrac = Math.max(0.1, Math.min(0.95, inputs.expectedWinRate / 100));
@@ -149,14 +223,23 @@ export function calculateCompoundingProjection(inputs: CompoundingInputs): Compo
     ? Math.round((currentDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
     : safeDays;
 
+  const weeklyRows = aggregateWeeklyProjections(rows);
+  const monthlyRows = aggregateMonthlyProjections(rows, inputs.tradingDaysPerMonth || 21);
+  const averageWeeklyGainDollars = weeklyRows.length > 0 ? totalProjectedGainDollars / weeklyRows.length : 0;
+  const averageMonthlyGainDollars = monthlyRows.length > 0 ? totalProjectedGainDollars / monthlyRows.length : 0;
+
   return {
     rows,
+    weeklyRows,
+    monthlyRows,
     totalDays: safeDays,
     totalCalendarDaysSpan,
     finalProjectedBalance: Number(finalProjectedBalance.toFixed(2)),
     totalProjectedGainDollars: Number(totalProjectedGainDollars.toFixed(2)),
     totalProjectedReturnPercent: Number(totalProjectedReturnPercent.toFixed(2)),
     averageDailyGainDollars: Number(averageDailyGainDollars.toFixed(2)),
+    averageWeeklyGainDollars: Number(averageWeeklyGainDollars.toFixed(2)),
+    averageMonthlyGainDollars: Number(averageMonthlyGainDollars.toFixed(2)),
     expectedValuePerTrade: Number(expectedValuePerTrade.toFixed(2)),
     maxSimulatedDrawdownDollars: Number(maxSimulatedDip.toFixed(2)),
   };

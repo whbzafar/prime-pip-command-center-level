@@ -36,7 +36,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
   account,
   trades,
 }) => {
-  const [engineTab, setEngineTab] = useState<'CALCULATOR' | 'COMPOUNDING' | 'RECOVERY_SIMULATOR' | 'REAL_VS_PROJECTED'>('CALCULATOR');
+  const [engineTab, setEngineTab] = useState<'COMPOUNDING' | 'RECOVERY_SIMULATOR' | 'REAL_VS_PROJECTED'>('COMPOUNDING');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Currency Selection (Requirement 2)
@@ -53,9 +53,10 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
   const [expectedWinRate, setExpectedWinRate] = useState<number>(55);
   const [riskRewardRatio, setRiskRewardRatio] = useState<number>(2.0);
   const [tradesPerDay, setTradesPerDay] = useState<number>(1);
-  const [tradingDaysPerMonth, setTradingDaysPerMonth] = useState<number>(20);
-  const [selectedPeriodMonths, setSelectedPeriodMonths] = useState<number>(3); // 1, 3, 6, 12, or custom
-  const [customDays, setCustomDays] = useState<number>(60);
+  const [tradingDaysPerMonth, setTradingDaysPerMonth] = useState<number>(21); // 21 trading days/month (5 days/week)
+  const [selectedPeriodMonths, setSelectedPeriodMonths] = useState<number>(1); // Default to 1 Month (21 trading days)
+  const [customDays, setCustomDays] = useState<number>(21);
+  const [scheduleViewMode, setScheduleViewMode] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('DAILY');
   const [tablePage, setTablePage] = useState<number>(1);
   const rowsPerPage = 10;
 
@@ -67,6 +68,13 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
 
   // Calculate Compounding Projection
   const projection = useMemo(() => {
+    let calcMonths = selectedPeriodMonths;
+    let overrideDays = selectedPeriodMonths === 0 ? customDays : undefined;
+    if (selectedPeriodMonths === -1) {
+      // 1 Week = 5 trading days
+      calcMonths = 0;
+      overrideDays = 5;
+    }
     const inputs: CompoundingInputs = {
       startingBalance: effectiveStartBalance,
       compoundingMode,
@@ -75,9 +83,9 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
       expectedWinRate,
       riskRewardRatio,
       tradesPerDay,
-      tradingDaysPerMonth,
-      calculationMonths: selectedPeriodMonths,
-      customDays: selectedPeriodMonths === 0 ? customDays : undefined,
+      tradingDaysPerMonth: tradingDaysPerMonth || 21,
+      calculationMonths: calcMonths,
+      customDays: overrideDays,
     };
     return calculateCompoundingProjection(inputs);
   }, [
@@ -111,9 +119,17 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
   const realTotalPnl = closedTrades.reduce((acc, t) => acc + (t.profitLoss || 0), 0);
   const realReturnPct = account.initialBalance > 0 ? (realTotalPnl / account.initialBalance) * 100 : 0;
 
-  // Table Pagination
-  const totalPages = Math.ceil(projection.rows.length / rowsPerPage);
-  const displayedRows = projection.rows.slice((tablePage - 1) * rowsPerPage, tablePage * rowsPerPage);
+  // Table Pagination supporting Daily, Weekly, and Monthly views
+  const currentTableList = useMemo(() => {
+    if (scheduleViewMode === 'WEEKLY') return projection.weeklyRows || [];
+    if (scheduleViewMode === 'MONTHLY') return projection.monthlyRows || [];
+    return projection.rows || [];
+  }, [scheduleViewMode, projection]);
+
+  const totalPages = Math.max(1, Math.ceil(currentTableList.length / rowsPerPage));
+  const displayedDailyRows = (projection.rows || []).slice((tablePage - 1) * rowsPerPage, tablePage * rowsPerPage);
+  const displayedWeeklyRows = (projection.weeklyRows || []).slice((tablePage - 1) * rowsPerPage, tablePage * rowsPerPage);
+  const displayedMonthlyRows = (projection.monthlyRows || []).slice((tablePage - 1) * rowsPerPage, tablePage * rowsPerPage);
 
   // SVG Chart Calculation
   const chartPoints = useMemo(() => {
@@ -169,18 +185,6 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
         {/* Tab Switcher & Fullscreen Button */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-mono-code">
-            <button
-              id="tab-compounding-calc"
-              type="button"
-              onClick={() => setEngineTab('CALCULATOR')}
-              className={`px-3 py-1.5 rounded transition cursor-pointer ${
-                engineTab === 'CALCULATOR'
-                  ? 'bg-blue-500 text-slate-950 font-bold shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              COMPOUNDING CALCULATOR
-            </button>
             <button
               id="tab-compounding-sim"
               type="button"
@@ -251,15 +255,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
         <span className="text-[10px] text-slate-500 uppercase">OFFLINE MATHEMATICAL MODEL</span>
       </div>
 
-      {/* VIEW 0: DEDICATED COMPOUNDING CALCULATOR */}
-      {engineTab === 'CALCULATOR' && (
-        <DedicatedCompoundingCalculator
-          initialCapital={effectiveStartBalance}
-          currency={currency}
-        />
-      )}
-
-      {/* VIEW 1: COMPOUNDING ENGINE */}
+      {/* VIEW 1: COMPOUNDING SIMULATOR ENGINE */}
       {engineTab === 'COMPOUNDING' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Controls Column */}
@@ -458,24 +454,32 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
               </div>
             </div>
 
-            {/* 5. Period Selection (Item 5) */}
+            {/* 5. Period Selection (21 Trading Days / Month) */}
             <div className="space-y-1.5 pt-2 border-t border-slate-800/80">
-              <label className="text-slate-400 text-xs font-mono-code block">Calculation Period</label>
-              <div className="grid grid-cols-5 gap-1.5 text-xs font-mono-code">
+              <div className="flex items-center justify-between">
+                <label className="text-slate-400 text-xs font-mono-code block">Calculation Period</label>
+                <span className="text-[10px] font-mono-code text-cyan-400">1 Mo = 21 Trading Days</span>
+              </div>
+              <div className="grid grid-cols-6 gap-1 text-xs font-mono-code">
                 {[
-                  { label: '1M', months: 1 },
-                  { label: '3M', months: 3 },
-                  { label: '6M', months: 6 },
-                  { label: '12M', months: 12 },
-                  { label: 'CUST', months: 0 },
+                  { label: '1W', months: -1, title: '1 Week (5 trading days)' },
+                  { label: '1M', months: 1, title: '1 Month (21 trading days)' },
+                  { label: '3M', months: 3, title: '3 Months (63 trading days)' },
+                  { label: '6M', months: 6, title: '6 Months (126 trading days)' },
+                  { label: '12M', months: 12, title: '12 Months (252 trading days)' },
+                  { label: 'CUST', months: 0, title: 'Custom trading days' },
                 ].map((item) => (
                   <button
                     key={item.label}
                     type="button"
-                    onClick={() => setSelectedPeriodMonths(item.months)}
+                    onClick={() => {
+                      setSelectedPeriodMonths(item.months);
+                      setTablePage(1);
+                    }}
+                    title={item.title}
                     className={`py-1.5 rounded border text-center transition ${
                       selectedPeriodMonths === item.months
-                        ? 'bg-blue-500 text-slate-950 border-cyan-400 font-bold'
+                        ? 'bg-blue-500 text-slate-950 border-cyan-400 font-bold shadow'
                         : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                     }`}
                   >
@@ -484,19 +488,26 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                 ))}
               </div>
 
-              {selectedPeriodMonths === 0 && (
+              {selectedPeriodMonths === 0 ? (
                 <div className="mt-2">
-                  <label className="text-slate-400 text-[10px] font-mono-code block mb-1">Custom Trading Days</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-400 text-[10px] font-mono-code block">Custom Trading Days</label>
+                    <span className="text-[10px] font-mono-code text-slate-500">5 sessions/week</span>
+                  </div>
                   <input
                     id="compounding-custom-days-input"
                     type="number"
-                    min="5"
-                    max="365"
+                    min="1"
+                    max="500"
                     value={customDays}
-                    onChange={(e) => setCustomDays(parseInt(e.target.value, 10) || 30)}
+                    onChange={(e) => setCustomDays(parseInt(e.target.value, 10) || 21)}
                     className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 font-mono-code text-xs outline-none focus:border-cyan-400"
                   />
                 </div>
+              ) : (
+                <p className="text-[10px] font-mono-code text-slate-500 mt-1">
+                  Excludes weekends. {selectedPeriodMonths === -1 ? '1 Week = 5 Trading Days' : `${selectedPeriodMonths} Month${selectedPeriodMonths > 1 ? 's' : ''} = ${selectedPeriodMonths * 21} Trading Days`}.
+                </p>
               )}
             </div>
           </div>
@@ -504,32 +515,46 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
           {/* Results & Chart Column */}
           <div className="lg:col-span-7 space-y-4">
             {/* Top Scorecards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
                 <span className="text-[10px] text-slate-400 font-mono-code uppercase block">START CAPITAL</span>
-                <span className="text-base font-military font-bold text-slate-100">
+                <span className="text-sm font-military font-bold text-slate-100 truncate block">
                   {formatCurrency(effectiveStartBalance, currency)}
                 </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-blue-500/30">
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-blue-500/30">
                 <span className="text-[10px] text-cyan-400 font-mono-code uppercase block">PROJECTED END</span>
-                <span className="text-base font-military font-bold text-cyan-400">
+                <span className="text-sm font-military font-bold text-cyan-400 truncate block">
                   {formatCurrency(projection.finalProjectedBalance, currency)}
                 </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
-                <span className="text-[10px] text-slate-400 font-mono-code uppercase block">PROJECTED RETURN</span>
-                <span className={`text-base font-military font-bold ${projection.totalProjectedReturnPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 font-mono-code uppercase block">TOTAL RETURN</span>
+                <span className={`text-sm font-military font-bold truncate block ${projection.totalProjectedReturnPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                   +{projection.totalProjectedReturnPercent.toFixed(1)}%
                 </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
-                <span className="text-[10px] text-slate-400 font-mono-code uppercase block">EV / TRADE</span>
-                <span className="text-base font-military font-bold text-slate-200">
-                  +{formatCurrency(projection.expectedValuePerTrade, currency)}
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 font-mono-code uppercase block">AVG DAILY GAIN</span>
+                <span className="text-sm font-military font-bold text-emerald-400 truncate block">
+                  +{formatCurrency(projection.averageDailyGainDollars, currency)}
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 font-mono-code uppercase block">AVG WEEKLY GAIN</span>
+                <span className="text-sm font-military font-bold text-emerald-400 truncate block">
+                  +{formatCurrency(projection.averageWeeklyGainDollars, currency)}
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 font-mono-code uppercase block">AVG MONTHLY (21D)</span>
+                <span className="text-sm font-military font-bold text-amber-300 truncate block">
+                  +{formatCurrency(projection.averageMonthlyGainDollars, currency)}
                 </span>
               </div>
             </div>
@@ -587,49 +612,151 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
               </div>
             </div>
 
-            {/* Compounding Projection Table (Item 7) */}
+            {/* Compounding Projection Table with Daily, Weekly, and Monthly Views */}
             <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <h4 className="text-xs font-military font-bold text-slate-200 tracking-wider">
-                  COMPOUNDING PROJECTION SCHEDULE ({currency})
-                </h4>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-800 gap-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h4 className="text-xs font-military font-bold text-slate-200 tracking-wider">
+                    PROJECTION SCHEDULE ({currency})
+                  </h4>
+                  {/* Schedule View Mode Switcher */}
+                  <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded border border-slate-800 text-[10px] font-mono-code">
+                    <button
+                      type="button"
+                      onClick={() => { setScheduleViewMode('DAILY'); setTablePage(1); }}
+                      className={`px-2 py-0.5 rounded transition cursor-pointer ${
+                        scheduleViewMode === 'DAILY'
+                          ? 'bg-blue-500 text-slate-950 font-bold shadow'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      DAILY ({projection.rows.length}D)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setScheduleViewMode('WEEKLY'); setTablePage(1); }}
+                      className={`px-2 py-0.5 rounded transition cursor-pointer ${
+                        scheduleViewMode === 'WEEKLY'
+                          ? 'bg-blue-500 text-slate-950 font-bold shadow'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      WEEKLY ({projection.weeklyRows?.length || 0}W)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setScheduleViewMode('MONTHLY'); setTablePage(1); }}
+                      className={`px-2 py-0.5 rounded transition cursor-pointer ${
+                        scheduleViewMode === 'MONTHLY'
+                          ? 'bg-blue-500 text-slate-950 font-bold shadow'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      MONTHLY ({projection.monthlyRows?.length || 0}M)
+                    </button>
+                  </div>
+                </div>
                 <span className="text-[10px] font-mono-code text-cyan-400">
                   PAGE {tablePage} OF {totalPages || 1}
                 </span>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono-code mt-2">
-                  <thead>
-                    <tr className="text-[10px] text-slate-400 border-b border-slate-800">
-                      <th className="py-2 px-2">TRADING DAY</th>
-                      <th className="py-2 px-2">MARKET DATE (MON-FRI)</th>
-                      <th className="py-2 px-2">START BALANCE</th>
-                      <th className="py-2 px-2">PROFIT / LOSS</th>
-                      <th className="py-2 px-2">END BALANCE</th>
-                      <th className="py-2 px-2 text-right">NEXT RISK</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    {displayedRows.map((row) => (
-                      <tr key={row.day} className="hover:bg-slate-800/30">
-                        <td className="py-1.5 px-2 text-slate-300 font-bold">
-                          Day {row.day}
-                        </td>
-                        <td className="py-1.5 px-2 text-slate-400 flex items-center gap-1.5">
-                          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-cyan-400 font-bold">
-                            {row.dayOfWeek}
-                          </span>
-                          <span>{row.dateStr}</span>
-                        </td>
-                        <td className="py-1.5 px-2 text-slate-300">{formatCurrency(row.startBalance, currency)}</td>
-                        <td className="py-1.5 px-2 text-emerald-400 font-bold">+{formatCurrency(row.pnl, currency)}</td>
-                        <td className="py-1.5 px-2 text-amber-300 font-bold">{formatCurrency(row.endBalance, currency)}</td>
-                        <td className="py-1.5 px-2 text-right text-slate-400">{formatCurrency(row.nextRisk, currency)}</td>
+                {scheduleViewMode === 'DAILY' && (
+                  <table className="w-full text-left text-xs font-mono-code mt-2">
+                    <thead>
+                      <tr className="text-[10px] text-slate-400 border-b border-slate-800">
+                        <th className="py-2 px-2">TRADING DAY</th>
+                        <th className="py-2 px-2">MARKET DATE (MON-FRI)</th>
+                        <th className="py-2 px-2">START BALANCE</th>
+                        <th className="py-2 px-2">PROFIT / LOSS</th>
+                        <th className="py-2 px-2">END BALANCE</th>
+                        <th className="py-2 px-2 text-right">NEXT RISK</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {displayedDailyRows.map((row) => (
+                        <tr key={row.day} className="hover:bg-slate-800/30">
+                          <td className="py-1.5 px-2 text-slate-300 font-bold">
+                            Day {row.day}
+                          </td>
+                          <td className="py-1.5 px-2 text-slate-400 flex items-center gap-1.5">
+                            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-cyan-400 font-bold">
+                              {row.dayOfWeek}
+                            </span>
+                            <span>{row.dateStr}</span>
+                          </td>
+                          <td className="py-1.5 px-2 text-slate-300">{formatCurrency(row.startBalance, currency)}</td>
+                          <td className="py-1.5 px-2 text-emerald-400 font-bold">+{formatCurrency(row.pnl, currency)}</td>
+                          <td className="py-1.5 px-2 text-amber-300 font-bold">{formatCurrency(row.endBalance, currency)}</td>
+                          <td className="py-1.5 px-2 text-right text-slate-400">{formatCurrency(row.nextRisk, currency)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+
+                {scheduleViewMode === 'WEEKLY' && (
+                  <table className="w-full text-left text-xs font-mono-code mt-2">
+                    <thead>
+                      <tr className="text-[10px] text-slate-400 border-b border-slate-800">
+                        <th className="py-2 px-2">WEEK</th>
+                        <th className="py-2 px-2">MARKET SPAN (5 TRADING DAYS)</th>
+                        <th className="py-2 px-2">START BALANCE</th>
+                        <th className="py-2 px-2">WEEKLY P&L</th>
+                        <th className="py-2 px-2">END BALANCE</th>
+                        <th className="py-2 px-2 text-right">RETURN %</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {displayedWeeklyRows.map((w) => (
+                        <tr key={w.week} className="hover:bg-slate-800/30">
+                          <td className="py-1.5 px-2 text-slate-200 font-bold">
+                            Week {w.week}
+                          </td>
+                          <td className="py-1.5 px-2 text-slate-400">
+                            {w.startDateStr} → {w.endDateStr} ({w.tradingDaysCount} sessions)
+                          </td>
+                          <td className="py-1.5 px-2 text-slate-300">{formatCurrency(w.startBalance, currency)}</td>
+                          <td className="py-1.5 px-2 text-emerald-400 font-bold">+{formatCurrency(w.pnl, currency)}</td>
+                          <td className="py-1.5 px-2 text-amber-300 font-bold">{formatCurrency(w.endBalance, currency)}</td>
+                          <td className="py-1.5 px-2 text-right text-emerald-400 font-bold">+{w.growthPercent}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+
+                {scheduleViewMode === 'MONTHLY' && (
+                  <table className="w-full text-left text-xs font-mono-code mt-2">
+                    <thead>
+                      <tr className="text-[10px] text-slate-400 border-b border-slate-800">
+                        <th className="py-2 px-2">MONTH</th>
+                        <th className="py-2 px-2">MARKET SPAN (21 TRADING DAYS)</th>
+                        <th className="py-2 px-2">START BALANCE</th>
+                        <th className="py-2 px-2">MONTHLY P&L</th>
+                        <th className="py-2 px-2">END BALANCE</th>
+                        <th className="py-2 px-2 text-right">RETURN %</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {displayedMonthlyRows.map((m) => (
+                        <tr key={m.month} className="hover:bg-slate-800/30">
+                          <td className="py-1.5 px-2 text-slate-200 font-bold">
+                            Month {m.month}
+                          </td>
+                          <td className="py-1.5 px-2 text-slate-400">
+                            {m.startDateStr} → {m.endDateStr} ({m.tradingDaysCount} sessions)
+                          </td>
+                          <td className="py-1.5 px-2 text-slate-300">{formatCurrency(m.startBalance, currency)}</td>
+                          <td className="py-1.5 px-2 text-emerald-400 font-bold">+{formatCurrency(m.pnl, currency)}</td>
+                          <td className="py-1.5 px-2 text-amber-300 font-bold">{formatCurrency(m.endBalance, currency)}</td>
+                          <td className="py-1.5 px-2 text-right text-emerald-400 font-bold">+{m.growthPercent}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
 
               {/* Table Pagination */}
@@ -644,7 +771,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                     PREVIOUS
                   </button>
                   <span className="text-[11px] text-slate-400">
-                    Showing days {(tablePage - 1) * rowsPerPage + 1} - {Math.min(projection.rows.length, tablePage * rowsPerPage)} of {projection.rows.length}
+                    Showing {(tablePage - 1) * rowsPerPage + 1} - {Math.min(currentTableList.length, tablePage * rowsPerPage)} of {currentTableList.length} items
                   </span>
                   <button
                     type="button"

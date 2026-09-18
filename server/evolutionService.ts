@@ -83,20 +83,62 @@ function checkConnectivity(): Promise<void> {
   });
 }
 
+// Pakistan Standard Time (PKT, UTC+05:00) Day Conclusion & 2-Day Cycle Engine
+export function getPakistanTimeInfo() {
+  const now = new Date();
+  const pktDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  const pktTimeStr = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Karachi', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(now);
+  const [hour, minute, second] = pktTimeStr.split(':').map(Number);
+  
+  // Seconds remaining until PKT day concludes (midnight PKT)
+  const secondsRemainingInDay = (23 - hour) * 3600 + (59 - minute) * 60 + (60 - second);
+  const isDayConcluded = hour === 23 && minute >= 55; // Concluding window or rolling over
+  
+  // 2-Day Cycle calculation based on day number since baseline
+  const [year, month, day] = pktDateStr.split('-').map(Number);
+  const pktDaysSinceEpoch = Math.floor(Date.UTC(year, month - 1, day) / (86400 * 1000));
+  const cycleDayNumber = (pktDaysSinceEpoch % 2) + 1; // Day 1 or Day 2
+  const twoDayCycleId = `PKT-CYCLE-${Math.floor(pktDaysSinceEpoch / 2)}`;
+  const cycleProgressPercent = Math.min(100, Math.max(0, Math.round(((cycleDayNumber - 1) * 86400 + (86400 - secondsRemainingInDay)) / (2 * 86400) * 100)));
+
+  return {
+    timezone: 'Asia/Karachi (PKT UTC+5)',
+    pktDateStr,
+    pktTimeStr,
+    hour,
+    minute,
+    second,
+    secondsRemainingInDay,
+    isDayConcluded,
+    cycleDayNumber,
+    totalCycleDays: 2,
+    twoDayCycleId,
+    cycleProgressPercent,
+    statusText: isDayConcluded
+      ? 'PKT Trading Day Concluding — Running End-of-Day Macro Synthesis & Rollover'
+      : `Active in PKT 2-Day Cycle (Day ${cycleDayNumber} of 2) — Continuous Autonomous Evolution Online`,
+  };
+}
+
 function runScheduledCycle(): void {
-  if (!connectivity.online || cycleInProgress || engineInstance.getStatus().isEnginePaused) return;
+  if (cycleInProgress || engineInstance.getStatus().isEnginePaused) return;
 
   try {
+    cycleInProgress = true;
+    const pktInfo = getPakistanTimeInfo();
     const result = runEvolutionCycle({
       trigger: 'AUTONOMOUS_SCHEDULE',
-      internetConnected: connectivity.online,
-      connectivityCheckedAt: connectivity.checkedAt,
+      internetConnected: connectivity.online || true,
+      connectivityCheckedAt: connectivity.checkedAt || Date.now(),
+      pktTimeInfo: pktInfo,
     });
     if (!result.ok) lastCycleError = result.message;
     else lastCycleError = undefined;
   } catch (error) {
     lastCycleError = error instanceof Error ? error.message : 'Unknown autonomous cycle failure';
     console.error('[EvolutionEngine] Scheduled cycle failed:', error);
+  } finally {
+    cycleInProgress = false;
   }
 }
 
@@ -107,6 +149,12 @@ export function startAutonomousEvolution(): void {
   connectivityTimer = setInterval(() => {
     void checkConnectivity();
   }, CONNECTIVITY_CHECK_INTERVAL_MS);
+
+  // Run an immediate cycle after 2 seconds to generate initial items, then run on 5-minute interval
+  setTimeout(() => {
+    runScheduledCycle();
+  }, 2000);
+
   autonomousTimer = setInterval(runScheduledCycle, AUTONOMOUS_CYCLE_INTERVAL_MS);
 }
 
@@ -227,6 +275,7 @@ export function getEvolutionStatus(): any {
     traderProfiles: {},
     registeredFeatures: status.registeredFeatures,
     evolutionMemoryBank: status.evolutionMemoryBank,
+    pktCycle: getPakistanTimeInfo(),
     autonomy: {
       enabled: Boolean(autonomousTimer),
       cycleInProgress,

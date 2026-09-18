@@ -9,7 +9,7 @@ import { VoiceMessagePlayer } from './communication/VoiceMessagePlayer';
 import {
   Users, Send, Image as ImageIcon, Mic, MicOff, Clock, RefreshCw, X,
   MessageSquare, UserPlus, Radio, Paperclip, CheckCheck,
-  Search, Eye, EyeOff, WifiOff,
+  Search, Eye, EyeOff, WifiOff, Maximize2, Minimize2, ChevronDown, ChevronUp, Minus,
 } from 'lucide-react';
 import { googleDriveService } from '../services/googleDriveService';
 import { IntentCard } from './chat/IntentCard';
@@ -94,6 +94,9 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   const [onlineOnly, setOnlineOnly] = useState(false);
   const [showActiveStatus, setShowActiveStatus] = useState(true);
   const [isSavingPrivacy, setIsSavingPrivacy] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [showTraderFeed, setShowTraderFeed] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedTraderSearch(traderSearch), 250);
@@ -548,53 +551,114 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     return `Last active ${Math.floor(elapsedHours / 24)}d ago`;
   };
 
-  return (
-    <div className="mx-auto flex min-h-[calc(100svh-10rem)] max-w-5xl flex-col space-y-4 md:h-[84vh] md:min-h-0">
-      <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-xl shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-cyan-400">
-            <Radio className="w-5 h-5" />
+  if (isMinimized) {
+    return (
+      <div className="mx-auto max-w-5xl bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-xl">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1 rounded-md bg-blue-500/10 border border-blue-500/30 text-cyan-400">
+            <Radio className="w-3.5 h-3.5" />
           </div>
-          <div>
-            <h2 className="text-sm font-military font-bold tracking-wider text-slate-100 flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-military font-bold text-slate-200">PRIMEPIPFX COMMUNICATIONS</span>
+            <span className="text-[9px] font-mono-code px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">
+              {onlineCount} ONLINE
+            </span>
+            <span className="text-[10px] text-slate-400 font-mono-code hidden sm:inline">
+              · Minimized view ({messages.length} messages)
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsMinimized(false)}
+          className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider transition shadow-md shadow-blue-500/20 cursor-pointer flex items-center gap-1.5"
+        >
+          <ChevronUp className="w-3.5 h-3.5" />
+          <span>EXPAND CHAT</span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`mx-auto flex flex-col transition-all duration-200 ${
+      isFullscreen
+        ? 'fixed inset-0 z-50 bg-[#070B14] p-3 sm:p-5 h-screen w-screen max-w-none overflow-hidden space-y-2'
+        : 'max-w-5xl w-full min-h-[calc(100svh-10rem)] md:h-[86vh] md:min-h-0 space-y-2.5'
+    }`}>
+      {/* Shifted upwards, compact header with controls */}
+      <div className="bg-slate-950/95 border border-slate-800 rounded-xl px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 shadow-lg shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="p-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-cyan-400">
+            <Radio className="w-3.5 h-3.5" />
+          </div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-military font-bold tracking-wider text-slate-100 flex items-center gap-1.5">
               <span>PRIMEPIPFX COMMUNICATIONS</span>
-              <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">
+              <span className="text-[9px] font-mono-code px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">
                 {onlineCount} ONLINE ({allTraders.length} REGISTERED)
               </span>
             </h2>
-            <p className="text-[11px] text-slate-400">Community Hub · Trader Feed · Private Friends</p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-mono-code">
-          <button
-            type="button"
-            onClick={() => { setCommMode('PUBLIC'); setActivePrivateContact(null); }}
-            className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
-              commMode === 'PUBLIC' ? 'bg-blue-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" /> Community Hub
-          </button>
-          <button
-            type="button"
-            onClick={() => { setCommMode('FRIENDS'); setActivePrivateContact(null); }}
-            className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
-              commMode === 'FRIENDS' ? 'bg-blue-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <UserPlus className="w-3.5 h-3.5" /> Friends
-          </button>
-          {activePrivateContact && (
+
+        <div className="flex items-center gap-1.5">
+          {/* Navigation modes */}
+          <div className="flex items-center gap-1 bg-slate-900/80 p-0.5 rounded-lg border border-slate-800 text-[11px] font-mono-code">
             <button
               type="button"
-              onClick={() => setCommMode('PRIVATE')}
-              className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
-                commMode === 'PRIVATE' ? 'bg-blue-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+              onClick={() => { setCommMode('PUBLIC'); setActivePrivateContact(null); }}
+              className={`px-2.5 py-1 rounded-md transition cursor-pointer flex items-center gap-1 text-[11px] ${
+                commMode === 'PUBLIC' ? 'bg-blue-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <MessageSquare className="w-3.5 h-3.5" /> DM: {activePrivateContact.displayName}
+              <Users className="w-3 h-3" /> <span className="hidden sm:inline">Hub</span>
             </button>
-          )}
+            <button
+              type="button"
+              onClick={() => { setCommMode('FRIENDS'); setActivePrivateContact(null); }}
+              className={`px-2.5 py-1 rounded-md transition cursor-pointer flex items-center gap-1 text-[11px] ${
+                commMode === 'FRIENDS' ? 'bg-blue-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <UserPlus className="w-3 h-3" /> <span className="hidden sm:inline">Friends</span>
+            </button>
+            {activePrivateContact && (
+              <button
+                type="button"
+                onClick={() => setCommMode('PRIVATE')}
+                className={`px-2.5 py-1 rounded-md transition cursor-pointer flex items-center gap-1 text-[11px] ${
+                  commMode === 'PRIVATE' ? 'bg-blue-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <MessageSquare className="w-3 h-3" /> DM: {activePrivateContact.displayName}
+              </button>
+            )}
+          </div>
+
+          {/* Full Screen & Minimize Controls */}
+          <div className="flex items-center gap-1 pl-1 border-l border-slate-800">
+            <button
+              type="button"
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              title={isFullscreen ? "Exit Full Screen" : "Full Screen View"}
+              className={`p-1.5 rounded-lg border text-xs transition cursor-pointer ${
+                isFullscreen
+                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-cyan-300 hover:bg-slate-850'
+              }`}
+            >
+              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsMinimized(true)}
+              title="Minimize Screen"
+              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-850 transition cursor-pointer"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -619,81 +683,99 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       )}
 
       {commMode === 'PUBLIC' && (
-        <div className="flex-1 flex flex-col min-h-0 space-y-3">
-          <section className="bg-slate-950 border border-slate-800 rounded-2xl p-3 shadow-xl shrink-0">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-              <div>
-                <h3 className="text-xs font-military font-bold tracking-wider text-slate-100">COMMUNITY TRADER FEED</h3>
-                <p className="text-[10px] text-slate-500 font-mono-code">Active subscribers only · sorted by live presence</p>
-              </div>
-              {currentUser && (
+        <div className="flex-1 flex flex-col min-h-0 space-y-2">
+          {/* Collapsible Trader Feed Strip (Conserves massive vertical space for chatting) */}
+          <div className="bg-slate-950/90 border border-slate-800 rounded-xl px-3 py-1.5 flex items-center justify-between shadow-sm shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-military font-bold tracking-wider text-slate-300">
+                COMMUNITY TRADERS
+              </span>
+              <span className="text-[9px] font-mono-code px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                {filteredTraders.length} available · {onlineCount} online
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {currentUser && showTraderFeed && (
                 <button
                   type="button"
                   disabled={isSavingPrivacy}
                   onClick={() => updatePresencePrivacy(!showActiveStatus)}
-                  className="text-[10px] font-mono-code text-slate-400 hover:text-cyan-300 flex items-center gap-1.5"
-                  title="Presence is reciprocal: hiding yours also hides live status"
+                  className="text-[10px] font-mono-code text-slate-400 hover:text-cyan-300 flex items-center gap-1"
+                  title="Presence is reciprocal"
                 >
-                  {showActiveStatus ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                  {showActiveStatus ? 'Showing active status' : 'Active status hidden'}
+                  {showActiveStatus ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                  <span className="hidden sm:inline">{showActiveStatus ? 'Status visible' : 'Status hidden'}</span>
                 </button>
               )}
-            </div>
-            <div className="flex flex-wrap gap-2 mb-3">
-              <div className="relative flex-1 min-w-[180px]">
-                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  value={traderSearch}
-                  onChange={(event) => setTraderSearch(event.target.value)}
-                  placeholder="Search name or username…"
-                  className="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-100 focus:outline-none focus:border-cyan-500"
-                />
-              </div>
               <button
                 type="button"
-                onClick={() => setOnlineOnly((value) => !value)}
-                className={`px-3 py-2 rounded-lg border text-[10px] font-mono-code ${
-                  onlineOnly
-                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                    : 'bg-slate-900 border-slate-800 text-slate-400'
-                }`}
+                onClick={() => setShowTraderFeed(!showTraderFeed)}
+                className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-850 text-cyan-400 border border-slate-800 flex items-center gap-1 cursor-pointer transition"
               >
-                {onlineOnly ? 'Online only' : 'Everyone'} · {onlineCount}
+                {showTraderFeed ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                <span>{showTraderFeed ? 'HIDE TRADER STRIP' : 'SHOW TRADER STRIP'}</span>
               </button>
             </div>
-            {currentUser && filteredTraders.length > 0 ? (
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {filteredTraders.map((trader) => {
-                  const isActive = trader.presenceStatus === 'ACTIVE' || trader.isOnline;
-                  return (
-                    <button
-                      type="button"
-                      key={trader.id}
-                      onClick={() => {
-                        setActivePrivateContact({ id: trader.id, username: trader.username, displayName: trader.displayName });
-                        setCommMode('FRIENDS');
-                      }}
-                      className="min-w-[170px] text-left p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 transition"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${isActive ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                        <span className="text-xs font-bold text-slate-200 truncate">{trader.displayName}</span>
-                        {trader.isNewThisWeek && <span className="text-[8px] text-amber-300">NEW</span>}
-                      </div>
-                      <span className="block text-[10px] text-slate-500 truncate">@{trader.username}</span>
-                      <span className="block text-[9px] text-slate-500 mt-1">
-                        {isActive ? (trader.traderStatus || 'Active now') : formatLastActive(trader.lastSeen)}
-                      </span>
-                    </button>
-                  );
-                })}
+          </div>
+
+          {showTraderFeed && (
+            <section className="bg-slate-950 border border-slate-800 rounded-xl p-3 shadow-md shrink-0">
+              <div className="flex flex-wrap gap-2 mb-2.5">
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    value={traderSearch}
+                    onChange={(event) => setTraderSearch(event.target.value)}
+                    placeholder="Search name or username…"
+                    className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 font-mono-code"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOnlineOnly((value) => !value)}
+                  className={`px-3 py-1.5 rounded-lg border text-[10px] font-mono-code ${
+                    onlineOnly
+                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                      : 'bg-slate-900 border-slate-800 text-slate-400'
+                  }`}
+                >
+                  {onlineOnly ? 'Online only' : 'Everyone'} · {onlineCount}
+                </button>
               </div>
-            ) : (
-              <p className="text-[10px] text-slate-500 font-mono-code py-2">
-                {currentUser ? 'No active subscribers match this search.' : 'Login with an active subscription to view the trader feed.'}
-              </p>
-            )}
-          </section>
+              {currentUser && filteredTraders.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {filteredTraders.map((trader) => {
+                    const isActive = trader.presenceStatus === 'ACTIVE' || trader.isOnline;
+                    return (
+                      <button
+                        type="button"
+                        key={trader.id}
+                        onClick={() => {
+                          setActivePrivateContact({ id: trader.id, username: trader.username, displayName: trader.displayName });
+                          setCommMode('FRIENDS');
+                        }}
+                        className="min-w-[160px] text-left p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 transition"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${isActive ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                          <span className="text-xs font-bold text-slate-200 truncate">{trader.displayName}</span>
+                          {trader.isNewThisWeek && <span className="text-[8px] text-amber-300">NEW</span>}
+                        </div>
+                        <span className="block text-[10px] text-slate-500 truncate">@{trader.username}</span>
+                        <span className="block text-[9px] text-slate-500 mt-0.5">
+                          {isActive ? (trader.traderStatus || 'Active now') : formatLastActive(trader.lastSeen)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-[10px] text-slate-500 font-mono-code py-1">
+                  {currentUser ? 'No active subscribers match this search.' : 'Login with an active subscription to view the trader feed.'}
+                </p>
+              )}
+            </section>
+          )}
           {(isOffline || feedError) && (
             <div className="p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-xl text-cyan-200 text-xs font-mono-code text-center">
               {isOffline ? <><WifiOff className="inline w-3.5 h-3.5 mr-1" /> You're offline — messages will not send.</> : `FEED NOTICE — ${feedError || 'Connection lost. Showing last known messages.'}`}
@@ -710,7 +792,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
             </div>
           )}
 
-          <div className="flex-1 bg-slate-950/80 border border-slate-800 rounded-2xl p-4 overflow-y-auto space-y-3.5 shadow-inner">
+          <div className={`flex-1 bg-slate-950/90 border border-slate-800 rounded-xl p-3 sm:p-4 overflow-y-auto space-y-3.5 shadow-inner ${isFullscreen ? 'h-full min-h-0' : 'min-h-[480px] md:min-h-[580px]'}`}>
             {isFeedLoading && messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500 font-mono-code text-xs gap-2">
                 <RefreshCw className="w-6 h-6 animate-spin text-cyan-400 opacity-70" />
