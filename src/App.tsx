@@ -38,7 +38,6 @@ import { TradingResearchCenter } from './components/TradingResearchCenter';
 import { PremiumSignalsHub } from './components/PremiumSignalsHub';
 import { AiChartScannerModal } from './components/AiChartScannerModal';
 import { UserProfileModal } from './components/UserProfileModal';
-import { HelpImproveModal } from './components/evolution/HelpImproveModal';
 import { TraderExperienceProfileModal } from './components/evolution/TraderExperienceProfileModal';
 import { EvolutionCommandCenter } from './components/evolution/EvolutionCommandCenter';
 import { CalmingSuiteMaster } from './components/calming/CalmingSuiteMaster';
@@ -86,7 +85,6 @@ export default function App() {
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isChartScannerOpen, setIsChartScannerOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isHelpImproveOpen, setIsHelpImproveOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isTraderProfileOpen, setIsTraderProfileOpen] = useState(false);
   const [prefilledTradeData, setPrefilledTradeData] = useState<Partial<Trade> | null>(null);
@@ -727,7 +725,6 @@ export default function App() {
           }
         }}
         onOpenProfile={() => setIsProfileModalOpen(true)}
-        onOpenHelpImprove={() => setIsHelpImproveOpen(true)}
         onOpenTraderProfile={() => setIsTraderProfileOpen(true)}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
         onOpenEvolution={() => setActiveTab('EVOLUTION')}
@@ -814,7 +811,6 @@ export default function App() {
             onOpenNewTrade={() => setIsEntryModalOpen(true)}
             onNavigateToTab={(tab) => setActiveTab(tab as any)}
             onOpenAccountModal={() => setIsLoginModalOpen(true)}
-            onOpenHelpImprove={() => setIsHelpImproveOpen(true)}
             onOpenTraderProfile={() => setIsTraderProfileOpen(true)}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
             onOpenEvolution={() => setActiveTab('EVOLUTION')}
@@ -1226,13 +1222,6 @@ export default function App() {
         />
       )}
 
-      {/* Help PRIMEPIPFX Improve Modal */}
-      {isHelpImproveOpen && (
-        <HelpImproveModal
-          currentUser={currentUser || undefined}
-          onClose={() => setIsHelpImproveOpen(false)}
-        />
-      )}
     </div>
   );
 }

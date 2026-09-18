@@ -32,7 +32,6 @@ import {
   Users,
   RefreshCw,
   TrendingUp,
-  Sparkles,
   Cpu,
   Wind,
   Radio,
@@ -53,6 +52,7 @@ import { playDisciplineAlert, getAlertSettings, toggleSoundEnabled, AlertSetting
 import { DailyPrayerBar } from './DailyPrayerBar';
 import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
 import { GlobalTimeSessionModal } from './GlobalTimeSessionModal';
+import { GlobalSearch } from './GlobalSearch';
 
 export type MainNavTab =
   | 'DASHBOARD'
@@ -102,7 +102,6 @@ interface HeaderProps {
   onOpenSubscription?: () => void;
   onOpenAdmin?: () => void;
   onOpenProfile?: () => void;
-  onOpenHelpImprove?: () => void;
   onOpenTraderProfile?: () => void;
   onOpenEvolution?: () => void;
   onOpenNotifications?: () => void;
@@ -138,7 +137,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSubscription,
   onOpenAdmin,
   onOpenProfile,
-  onOpenHelpImprove,
   onOpenTraderProfile,
   onOpenEvolution,
   onOpenNotifications,
@@ -689,8 +687,9 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* Action Buttons & User Auth Control */}
+        {/* Global discovery and account actions */}
         <div className="flex items-center gap-2.5">
+          <GlobalSearch onNavigate={switchTab} />
           {currentUser ? (
             <div className="flex items-center gap-2">
               <button
@@ -762,20 +761,6 @@ export const Header: React.FC<HeaderProps> = ({
                   </span>
                 </div>
               </button>
-
-              {/* Help PRIMEPIPFX Improve Button */}
-              {onOpenHelpImprove && (
-                <button
-                  id="header-help-improve-btn"
-                  type="button"
-                  onClick={onOpenHelpImprove}
-                  title="Help PRIMEPIPFX Improve — Suggest features, report workflow friction, or request educational drills."
-                  className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-blue-500/50 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-amber-300 font-military font-bold text-xs tracking-wider transition cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>HELP IMPROVE</span>
-                </button>
-              )}
 
               {/* Evolution Engine Owner Shortcut */}
               {(currentUser.role === 'ADMIN' || currentUser.role === 'DEVELOPER' || currentUser.isDeveloper || currentUser.username === 'primepipfx-admin') && (
