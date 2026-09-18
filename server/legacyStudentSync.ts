@@ -1,5 +1,6 @@
 import crypto from "crypto";
-import { readUsers, writeUsers, StoredUser } from "./authService.js";
+import { readUsers, writeUsers } from "./authService.js";
+import type { StoredUser } from "./authService.js";
 
 const LEGACY_STUDENTS_URL =
   "https://kvdb.io/2ST3F4wjgBy2qEaTquQPuU/primepipfx_students_v1";
