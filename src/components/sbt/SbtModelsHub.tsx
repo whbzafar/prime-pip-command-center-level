@@ -26,7 +26,6 @@ import {
   Minimize2,
   Download,
   Image as ImageIcon,
-  Box,
   Cpu,
   X,
   ExternalLink,
@@ -374,84 +373,17 @@ export const SbtModelsHub: React.FC = () => {
                       </p>
                     </div>
 
-                    {/* 3D Vector Model Graphical Representation Thumbnail */}
+                    {/* PDF-exact model artwork thumbnail */}
                     <div className="w-full h-36 rounded-lg border border-slate-800 bg-[#070B14] overflow-hidden flex items-center justify-center p-2 relative group-hover:border-teal-500/40 transition-colors">
-                      <svg
-                        viewBox={m.viewBox || "0 0 460 330"}
-                        className="w-full h-full pointer-events-none"
-                        preserveAspectRatio="xMidYMid meet"
-                      >
-                        <rect width="100%" height="100%" fill="#070B14" />
-                        {/* Zones */}
-                        {m.zones.map((z) => (
-                          <rect
-                            key={z.id}
-                            x={z.x}
-                            y={z.y}
-                            width={z.width}
-                            height={z.height}
-                            fill="rgba(51, 65, 85, 0.4)"
-                            stroke="#64748B"
-                            strokeWidth="1"
-                            strokeDasharray="2 2"
-                          />
-                        ))}
-                        {/* Structural Lines */}
-                        {m.lines.map((l) => (
-                          <line
-                            key={l.id}
-                            x1={l.x1}
-                            y1={l.y1}
-                            x2={l.x2}
-                            y2={l.y2}
-                            stroke="#94A3B8"
-                            strokeWidth="1.2"
-                            strokeDasharray={l.dashed ? '4 3' : 'none'}
-                          />
-                        ))}
-                        {/* 3D Isometric Candlesticks */}
-                        {m.candles.map((c) => {
-                          const cw = c.width || 12;
-                          const hw = cw / 2;
-                          const bTop = Math.min(c.openY, c.closeY);
-                          const bH = Math.max(Math.abs(c.openY - c.closeY), 2);
-                          const isBull = c.type === 'BULLISH';
-                          return (
-                            <g key={c.id}>
-                              <line
-                                x1={c.x}
-                                y1={c.highY}
-                                x2={c.x}
-                                y2={c.lowY}
-                                stroke={c.wickColor}
-                                strokeWidth="1.5"
-                              />
-                              {/* 3D Top Cap */}
-                              <polygon
-                                points={`${c.x - hw},${bTop} ${c.x - hw + 2.5},${bTop - 2.5} ${c.x + hw + 2.5},${bTop - 2.5} ${c.x + hw},${bTop}`}
-                                fill={isBull ? '#34D399' : '#F87171'}
-                              />
-                              {/* 3D Side Extrusion */}
-                              <polygon
-                                points={`${c.x + hw},${bTop} ${c.x + hw + 2.5},${bTop - 2.5} ${c.x + hw + 2.5},${bTop + bH - 2.5} ${c.x + hw},${bTop + bH}`}
-                                fill={isBull ? '#065F46' : '#991B1B'}
-                              />
-                              {/* 3D Front Face */}
-                              <rect
-                                x={c.x - hw}
-                                y={bTop}
-                                width={cw}
-                                height={bH}
-                                fill={isBull ? '#10B981' : '#EF4444'}
-                                rx="0.5"
-                              />
-                            </g>
-                          );
-                        })}
-                      </svg>
+                      <img
+                        src={getSbtAssetPath(m.modelNumber)}
+                        alt={`${m.title} PDF source diagram`}
+                        className="block h-full w-full object-contain pointer-events-none"
+                        draggable={false}
+                      />
                       <div className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded bg-slate-950/90 border border-teal-500/40 text-[9px] font-mono-code text-teal-400 font-bold flex items-center gap-1 shadow-md">
-                        <Box className="w-2.5 h-2.5 text-cyan-400" />
-                        <span>3D VECTOR SHAPE</span>
+                        <ImageIcon className="w-2.5 h-2.5 text-cyan-400" />
+                        <span>PDF SOURCE ARTWORK</span>
                       </div>
                     </div>
 
@@ -727,9 +659,9 @@ export const SbtModelsHub: React.FC = () => {
           categoryBadge="03. SBT MODELS"
           subtitle={`${activeModel.subtitle} • Source Diagram Page ${activeModel.sourcePage}`}
         >
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* 3D Graphical Representation Chart */}
-            <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-2xl">
+            <div className="lg:col-span-7 bg-slate-950/60 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-2xl">
               <SbtDeterministicChart
                 model={activeModel}
                 selectedVariationId={activeVariationId}
@@ -737,7 +669,7 @@ export const SbtModelsHub: React.FC = () => {
             </div>
 
             {/* Verbatim Rules and Execution Matrix */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="lg:col-span-5 space-y-4">
               <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center gap-2 text-teal-400 font-military font-bold text-sm tracking-wide">
                   <FileText className="w-4 h-4" />

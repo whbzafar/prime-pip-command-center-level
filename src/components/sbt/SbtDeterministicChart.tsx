@@ -46,7 +46,7 @@ export const SbtDeterministicChart: React.FC<SbtDeterministicChartProps> = ({
   return (
     <div
       id={`sbt-chart-container-${modelNumber}`}
-      className={`relative overflow-hidden rounded-xl border border-slate-800 bg-white ${
+      className={`relative overflow-visible rounded-xl border border-slate-800 bg-white ${
         isFullscreen ? 'fixed inset-0 z-[100] rounded-none h-screen w-screen' : ''
       } ${className}`}
     >
@@ -78,12 +78,12 @@ export const SbtDeterministicChart: React.FC<SbtDeterministicChartProps> = ({
         </div>
       </div>
 
-      <div className={`relative flex items-center justify-center overflow-auto bg-white p-2 ${isFullscreen ? 'h-[calc(100vh-54px)]' : 'aspect-[460/330] max-h-[620px]'}`}>
-        <div className="flex h-full w-full items-center justify-center" style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}>
+      <div className={`relative flex min-h-0 items-center justify-center overflow-auto bg-white p-2 ${isFullscreen ? 'h-[calc(100vh-54px)]' : 'aspect-[460/330] max-h-[620px]'}`}>
+        <div className="flex min-h-full min-w-full items-center justify-center" style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}>
           <img
             src={sourceGraphicUrl}
             alt={`SBT Model ${modelNumber} authoritative PDF source diagram`}
-            className="block max-h-full max-w-full object-contain select-none"
+            className="block h-auto max-h-full w-auto max-w-full object-contain select-none"
             draggable={false}
           />
         </div>
