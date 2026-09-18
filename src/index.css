@@ -16,12 +16,41 @@
   --radius-card: 16px;
   --radius-btn: 12px;
   --radius-pill: 9999px;
+  --prime-brightness: 100%;
+}
+
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+html[data-theme='forest'] {
+  --bg: #071512;
+  --bg-surface: #0a1c18;
+  --accent: #10b981;
+  --accent-secondary: #2dd4bf;
+}
+
+html[data-theme='violet'] {
+  --bg: #100d1d;
+  --bg-surface: #171126;
+  --accent: #8b5cf6;
+  --accent-secondary: #c084fc;
+}
+
+html[data-theme='sand'] {
+  --bg: #17120b;
+  --bg-surface: #21190d;
+  --accent: #f59e0b;
+  --accent-secondary: #fbbf24;
 }
 
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #070A11;
+    background-color: var(--bg);
     color: #f1f5f9;
     letter-spacing: -0.01em;
     -webkit-tap-highlight-color: transparent;

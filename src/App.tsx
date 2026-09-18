@@ -60,6 +60,8 @@ import {
 import { Loader2, Shield } from 'lucide-react';
 import { playDisciplineAlert } from './utils/audioAlerts';
 import { getKarachiDate, getKarachiTime } from './utils/time';
+import { AppearanceControls } from './components/AppearanceControls';
+import { AppFooter } from './components/AppFooter';
 
 export default function App() {
   // Navigation State
@@ -86,6 +88,7 @@ export default function App() {
   const [isChartScannerOpen, setIsChartScannerOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [isTraderProfileOpen, setIsTraderProfileOpen] = useState(false);
   const [prefilledTradeData, setPrefilledTradeData] = useState<Partial<Trade> | null>(null);
 
@@ -669,7 +672,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col selection:bg-blue-500/30 selection:text-cyan-200 relative overflow-hidden">
+    <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col selection:bg-blue-500/30 selection:text-cyan-200 relative overflow-x-hidden" style={{ filter: 'brightness(var(--prime-brightness, 100%))' }}>
       {/* Global Animated Background Elements */}
       <div className="fixed inset-0 pointer-events-none z-0" style={{ background: 'radial-gradient(circle at 15% 50%, rgba(14, 165, 233, 0.05), transparent 40%), radial-gradient(circle at 85% 30%, rgba(245, 158, 11, 0.05), transparent 40%)' }}></div>
       <div className="fixed inset-0 pointer-events-none z-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
@@ -727,6 +730,7 @@ export default function App() {
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenTraderProfile={() => setIsTraderProfileOpen(true)}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
+        onOpenAppearance={() => setIsAppearanceOpen(true)}
         onOpenEvolution={() => setActiveTab('EVOLUTION')}
       />
 
@@ -1028,6 +1032,8 @@ export default function App() {
         </div>
       )}
 
+      <AppFooter />
+
       {/* Native Mobile Bottom App Bar (Sticky Thumb Navigation for Modern Phones) */}
       {isNotificationsOpen && (
         <NotificationsPanel
@@ -1047,6 +1053,8 @@ export default function App() {
         onOpenEvolution={() => setActiveTab('EVOLUTION')}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
       />
+
+      <AppearanceControls isOpen={isAppearanceOpen} onClose={() => setIsAppearanceOpen(false)} />
 
       {/* Trade Entry Modal */}
       {isEntryModalOpen && (

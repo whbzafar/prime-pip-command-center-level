@@ -549,7 +549,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   };
 
   return (
-    <div className="space-y-4 max-w-5xl mx-auto h-[84vh] flex flex-col">
+    <div className="mx-auto flex min-h-[calc(100svh-10rem)] max-w-5xl flex-col space-y-4 md:h-[84vh] md:min-h-0">
       <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-xl shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-cyan-400">
