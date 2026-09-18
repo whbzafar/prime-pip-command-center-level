@@ -36,38 +36,43 @@ import {
 export const getSbtAssetPath = (modelNumber: number, variationId?: string): string => {
   switch (modelNumber) {
     case 1:
-      return '/SBT/Model-01/model-01-source.png';
+      return '/SBT/pdf-exact/model-01.png';
     case 2:
-      return '/SBT/Model-02/model-02-source.png';
+      return '/SBT/pdf-exact/model-02.png';
     case 3:
-      return '/SBT/Model-03/model-03-source.png';
+      return '/SBT/pdf-exact/model-03.png';
     case 4:
-      return '/SBT/Model-04/model-04-source.png';
+      return '/SBT/pdf-exact/model-04.png';
     case 5:
-      return variationId === '5-MULTI' || variationId === '5-B'
-        ? '/SBT/Model-05/model-05-multi.png'
-        : '/SBT/Model-05/model-05-single.png';
+      return variationId === '5-MCOB' || variationId === '5-MULTI' || variationId === '5-B'
+        ? '/SBT/pdf-exact/model-05-mcob.png'
+        : '/SBT/pdf-exact/model-05-single.png';
     case 6:
-      return '/SBT/Model-06/model-06-source.png';
+      return '/SBT/pdf-exact/model-06.png';
     case 7:
       return variationId === '7-B'
-        ? '/SBT/Model-07/model-07B-source.png'
-        : '/SBT/Model-07/model-07A-source.png';
+        ? '/SBT/pdf-exact/model-07B.png'
+        : '/SBT/pdf-exact/model-07A.png';
     case 8:
       return variationId === '8-B'
-        ? '/SBT/Model-08/model-08B-source.png'
-        : '/SBT/Model-08/model-08A-source.png';
+        ? '/SBT/pdf-exact/model-08B.png'
+        : '/SBT/pdf-exact/model-08A.png';
     case 9:
-      return variationId === '9-TWO-CANDLE' || variationId === '9-B'
-        ? '/SBT/Model-09/model-09-twocandle.png'
-        : '/SBT/Model-09/model-09-wick.png';
+      return variationId === '9-TWO_CANDLE' || variationId === '9-TWO-CANDLE' || variationId === '9-B'
+        ? '/SBT/pdf-exact/model-09-twocandle.png'
+        : '/SBT/pdf-exact/model-09-wick.png';
     case 10:
-      return variationId === '10-2' || variationId === '10-B'
-        ? '/SBT/Model-10/model-10-variation-02.png'
-        : '/SBT/Model-10/model-10-variation-01.png';
+      return variationId === '10-VAR2' || variationId === '10-2' || variationId === '10-B'
+        ? '/SBT/pdf-exact/model-10-var2.png'
+        : '/SBT/pdf-exact/model-10-var1.png';
     default:
-      return `/SBT/Model-0${modelNumber}/model-0${modelNumber}-source.png`;
+      return `/SBT/pdf-exact/model-${String(modelNumber).padStart(2, '0')}.png`;
   }
+};
+
+export const getSbtDownloadName = (modelNumber: number, variationId?: string): string => {
+  const suffix = variationId ? `-${variationId.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : '';
+  return `SBT-Model-${modelNumber}${suffix}.png`;
 };
 
 export type SbtHubView =
@@ -799,7 +804,7 @@ export const SbtModelsHub: React.FC = () => {
             <div className="flex items-center gap-2">
               <a
                 href={getSbtAssetPath(activeModel.modelNumber, activeVariationId)}
-                download={`SBT-Model-${activeModel.modelNumber}.png`}
+                download={getSbtDownloadName(activeModel.modelNumber, activeVariationId)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/40 text-xs font-mono-code font-bold hover:bg-teal-500/30 transition cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
