@@ -148,7 +148,9 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   useEffect(() => {
     if (!currentUser) return;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${protocol}//${window.location.host}/api/presence`);
+    const presenceToken = getStoredToken();
+    const presenceUrl = `${protocol}//${window.location.host}/api/presence${presenceToken ? `?token=${encodeURIComponent(presenceToken)}` : ''}`;
+    const socket = new WebSocket(presenceUrl);
     const heartbeat = window.setInterval(() => {
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'presence:ping' }));
@@ -230,7 +232,14 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
         return;
       }
       setIsOffline(false);
-      const res = await fetch('/api/community/messages');
+      const token = getStoredToken();
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch('/api/community/messages', {
+        headers,
+        credentials: 'include',
+        cache: 'no-store',
+      });
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         setFeedError((errBody as { error?: string }).error || `Unable to load community feed (${res.status}).`);
