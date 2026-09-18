@@ -32,7 +32,6 @@ import {
   Users,
   RefreshCw,
   TrendingUp,
-  Sparkles,
   Cpu,
   Wind,
   Radio,
@@ -43,16 +42,18 @@ import {
   Lock,
   Layers,
   Globe,
+  Palette,
 } from 'lucide-react';
 import { AccountSettings, TraderPerformanceScores, UserAccount } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
-import { getAppLiveClock, getMarketSessions, getTimezoneLabel, getUserTimezone } from '../utils/time';
+import { getAppLiveClock, getMarketSessions, getTimezoneLabel, getUserTimezone, MarketSession } from '../utils/time';
 import { OfflineIndicator } from './OfflineIndicator';
 import { PWAInstallButton } from './PWAInstallButton';
 import { playDisciplineAlert, getAlertSettings, toggleSoundEnabled, AlertSettings } from '../utils/audioAlerts';
 import { DailyPrayerBar } from './DailyPrayerBar';
 import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
 import { GlobalTimeSessionModal } from './GlobalTimeSessionModal';
+import { GlobalSearch } from './GlobalSearch';
 
 export type MainNavTab =
   | 'DASHBOARD'
@@ -102,10 +103,10 @@ interface HeaderProps {
   onOpenSubscription?: () => void;
   onOpenAdmin?: () => void;
   onOpenProfile?: () => void;
-  onOpenHelpImprove?: () => void;
   onOpenTraderProfile?: () => void;
   onOpenEvolution?: () => void;
   onOpenNotifications?: () => void;
+  onOpenAppearance?: () => void;
 }
 
 interface NavItem {
@@ -138,10 +139,10 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSubscription,
   onOpenAdmin,
   onOpenProfile,
-  onOpenHelpImprove,
   onOpenTraderProfile,
   onOpenEvolution,
   onOpenNotifications,
+  onOpenAppearance,
 }) => {
   const switchTab = onSelectTab || setActiveTab || (() => {});
   const displayScore = overallScore ?? scores?.overallTradingScore ?? 76;
@@ -149,6 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [liveClockStr, setLiveClockStr] = React.useState<string>('');
   const [activeSessionSummary, setActiveSessionSummary] = React.useState<string>('');
   const [isPeakLiquidity, setIsPeakLiquidity] = React.useState<boolean>(false);
+  const [marketSessions, setMarketSessions] = React.useState<MarketSession[]>([]);
   const [soundTested, setSoundTested] = React.useState<boolean>(false);
   const [alertSettings, setAlertSettings] = React.useState<AlertSettings>(() => getAlertSettings());
 
@@ -175,6 +177,7 @@ export const Header: React.FC<HeaderProps> = ({
       const sessionData = getMarketSessions(now);
       setActiveSessionSummary(sessionData.activeSessionSummary);
       setIsPeakLiquidity(sessionData.isPeakLiquidityActive);
+      setMarketSessions(sessionData.sessions);
     };
     update();
     const interval = setInterval(update, 1000);
@@ -495,7 +498,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="font-bold">{liveClockStr || 'WORLD CLOCK'}</span>
             {activeSessionSummary && (
               <span
-                className={`hidden xl:inline-block px-1.5 py-0.2 rounded text-[10px] font-bold tracking-tight ${
+                  className={`inline-block max-w-[48vw] truncate px-1.5 py-0.2 rounded text-[10px] font-bold tracking-tight ${
                   isPeakLiquidity
                     ? 'bg-blue-500/20 text-amber-300 border border-blue-500/40 animate-pulse'
                     : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
@@ -585,6 +588,19 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Database className="w-3.5 h-3.5 text-cyan-400" />
               <span className="hidden sm:inline">BACKUP</span>
+            </button>
+          )}
+
+          {onOpenAppearance && (
+            <button
+              type="button"
+              onClick={onOpenAppearance}
+              title="Brightness and theme"
+              aria-label="Open appearance controls"
+              className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-950/90 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-400/50 hover:text-cyan-300"
+            >
+              <Palette className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">APPEARANCE</span>
             </button>
           )}
 
@@ -689,8 +705,9 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* Action Buttons & User Auth Control */}
+        {/* Global discovery and account actions */}
         <div className="flex items-center gap-2.5">
+          <GlobalSearch onNavigate={switchTab} />
           {currentUser ? (
             <div className="flex items-center gap-2">
               <button
@@ -762,20 +779,6 @@ export const Header: React.FC<HeaderProps> = ({
                   </span>
                 </div>
               </button>
-
-              {/* Help PRIMEPIPFX Improve Button */}
-              {onOpenHelpImprove && (
-                <button
-                  id="header-help-improve-btn"
-                  type="button"
-                  onClick={onOpenHelpImprove}
-                  title="Help PRIMEPIPFX Improve — Suggest features, report workflow friction, or request educational drills."
-                  className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-blue-500/50 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-amber-300 font-military font-bold text-xs tracking-wider transition cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>HELP IMPROVE</span>
-                </button>
-              )}
 
               {/* Evolution Engine Owner Shortcut */}
               {(currentUser.role === 'ADMIN' || currentUser.role === 'DEVELOPER' || currentUser.isDeveloper || currentUser.username === 'primepipfx-admin') && (
@@ -872,6 +875,19 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="sm:hidden">TRADE</span>
           </button>
         </div>
+      </div>
+
+      {/* Responsive current-session indicator */}
+      <div className="flex w-full items-center gap-2 overflow-x-auto border-t border-slate-800/60 bg-[#070C16]/95 px-3 py-2 no-scrollbar sm:px-6">
+        <span className="shrink-0 text-[10px] font-mono-code font-bold uppercase tracking-wider text-slate-500">Market now</span>
+        {marketSessions.filter((session) => session.isOpen).map((session) => (
+          <span key={session.id} className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-mono-code ${session.isPeakLiquidity ? 'border-amber-400/50 bg-amber-400/10 text-amber-200' : 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'}`}>
+            <span>{session.flag}</span>
+            <span>{session.name.replace(' Session', '')}</span>
+            <span className="text-slate-500">{session.timeRemainingStr}</span>
+          </span>
+        ))}
+        {!marketSessions.some((session) => session.isOpen) && <span className="shrink-0 text-[10px] font-mono-code text-slate-400">Global sessions closed</span>}
       </div>
 
       {/* Horizontally Scrollable Full Navigation Bar (Desktop, Laptop, Tablet & Mobile) */}

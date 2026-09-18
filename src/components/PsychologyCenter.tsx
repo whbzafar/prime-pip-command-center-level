@@ -65,6 +65,7 @@ import { CalmingToolsHub } from './psychology/CalmingToolsHub';
 import { HabitsGamificationDashboard } from './psychology/HabitsGamificationDashboard';
 import { InteractiveSessionRunner } from './psychology/InteractiveSessionRunner';
 import { Wind } from 'lucide-react';
+import { NasheedPlaylist } from './psychology/NasheedPlaylist';
 
 interface PsychologyCenterProps {
   trades: Trade[];
@@ -498,6 +499,8 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
             <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-300 shadow-lg shadow-indigo-950/50">
               <Brain className="w-7 h-7" />
             </div>
+
+            <NasheedPlaylist />
 
             <div>
               <div className="flex items-center gap-2">

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -45,7 +45,6 @@ interface MainDashboardProps {
   onOpenNewTrade: () => void;
   onNavigateToTab: (tab: any) => void;
   onOpenAccountModal?: () => void;
-  onOpenHelpImprove?: () => void;
   onOpenTraderProfile?: () => void;
   onOpenEvolution?: () => void;
 }
@@ -58,7 +57,6 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   onOpenNewTrade,
   onNavigateToTab,
   onOpenAccountModal,
-  onOpenHelpImprove,
   onOpenTraderProfile,
   onOpenEvolution,
 }) => {
@@ -67,12 +65,53 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
 
   // Radar/bars for performance scores
   const scoreCategories = [
-    { label: 'Risk Management', score: scores.riskManagement, weight: '25%' },
-    { label: 'Psychology', score: scores.psychology, weight: '15%' },
-    { label: 'Strategy Execution', score: scores.strategyExecution, weight: '20%' },
-    { label: 'Discipline', score: scores.discipline, weight: '25%' },
-    { label: 'Consistency', score: scores.consistency, weight: '15%' },
+    { key: 'riskManagement', label: 'Risk Management', score: scores.riskManagement, weight: '25%' },
+    { key: 'psychology', label: 'Psychology', score: scores.psychology, weight: '15%' },
+    { key: 'strategyExecution', label: 'Strategy Execution', score: scores.strategyExecution, weight: '20%' },
+    { key: 'discipline', label: 'Discipline', score: scores.discipline, weight: '25%' },
+    { key: 'consistency', label: 'Consistency', score: scores.consistency, weight: '15%' },
   ];
+  type ScoreKey = (typeof scoreCategories)[number]['key'];
+  const [selectedScoreKey, setSelectedScoreKey] = useState<ScoreKey | null>(null);
+
+  const scoreEvidence = selectedScoreKey
+    ? (() => {
+        const orderedTrades = [...trades].sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`));
+        const matches = orderedTrades.filter((trade) => {
+          if (selectedScoreKey === 'riskManagement') {
+            return (trade.riskPercent ?? (account.initialBalance > 0 ? (trade.riskAmount / account.initialBalance) * 100 : 0)) > 1.5;
+          }
+          if (selectedScoreKey === 'psychology') {
+            return ['FEARFUL', 'ANGRY', 'GREEDY', 'STRESSED'].includes(trade.preEmotion) ||
+              Boolean(trade.postPsychology?.revengeTraded || trade.postPsychology?.overtraded || trade.postPsychology?.closedEarly);
+          }
+          if (selectedScoreKey === 'strategyExecution') return (trade.alignmentScore?.totalQuality ?? 75) < 70;
+          if (selectedScoreKey === 'discipline') return trade.ruleViolation === 'MAJOR' || trade.ruleViolation === 'MINOR';
+          return trade.profitLoss < 0;
+        });
+        const trade = matches[0];
+        if (!trade) return null;
+        const reason = selectedScoreKey === 'riskManagement'
+          ? `Risk was ${((trade.riskPercent ?? (account.initialBalance > 0 ? (trade.riskAmount / account.initialBalance) * 100 : 0))).toFixed(2)}% of account size.`
+          : selectedScoreKey === 'psychology'
+          ? `The journal records ${trade.preEmotion || 'a psychological'} pressure${trade.postPsychology?.revengeTraded ? ' and revenge trading' : trade.postPsychology?.overtraded ? ' and overtrading' : trade.postPsychology?.closedEarly ? ' and an early close' : ''}.`
+          : selectedScoreKey === 'strategyExecution'
+          ? `Alignment quality was ${trade.alignmentScore?.totalQuality ?? 75}/100.`
+          : selectedScoreKey === 'discipline'
+          ? `Rule adherence was marked ${trade.ruleViolation}.`
+          : `This losing entry reduced the recent win/loss consistency ratio (${formatCurrency(trade.profitLoss, account.currency, { showSign: true })}).`;
+        const fix = selectedScoreKey === 'riskManagement'
+          ? 'Keep risk at or below 1% and recalculate size before submitting the ticket.'
+          : selectedScoreKey === 'psychology'
+          ? 'Complete a pre-trade grounding check and pause after an emotional trigger.'
+          : selectedScoreKey === 'strategyExecution'
+          ? 'Require the full setup confirmation checklist before entry.'
+          : selectedScoreKey === 'discipline'
+          ? 'Write the invalidation rule in the plan and stop execution when it is breached.'
+          : 'Review the setup quality, then take the next valid trade at standard risk rather than chasing recovery.';
+        return { trade, reason, fix };
+      })()
+    : null;
 
   const recentTrades = [...trades]
     .sort(
@@ -189,19 +228,6 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
             >
               <Award className="w-3.5 h-3.5 text-emerald-400" />
               <span>EXPERIENCE PROFILE</span>
-            </button>
-          )}
-
-          {/* User Feedback / Help Improve Modal */}
-          {onOpenHelpImprove && (
-            <button
-              id="dash-help-improve-btn"
-              onClick={onOpenHelpImprove}
-              className="prime-btn-secondary text-xs py-1.5 px-2.5 hidden md:inline-flex"
-              title="Help PRIMEPIPFX Improve (Suggest Features or Report Friction)"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              <span>HELP IMPROVE</span>
             </button>
           )}
 
@@ -724,9 +750,18 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                 const isHigh = cat.score >= 80;
                 const isMed = cat.score >= 60 && cat.score < 80;
                 return (
-                  <div key={cat.label} className="text-xs">
+                  <button
+                    key={cat.label}
+                    type="button"
+                    onClick={() => setSelectedScoreKey(cat.key)}
+                    aria-pressed={selectedScoreKey === cat.key}
+                    className={`w-full text-left text-xs rounded-lg p-1.5 transition ${
+                      selectedScoreKey === cat.key ? 'bg-slate-800/70 ring-1 ring-cyan-400/50' : 'hover:bg-slate-800/30'
+                    }`}
+                    title={`Inspect journal evidence for ${cat.label}`}
+                  >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-slate-300 font-medium">{cat.label}</span>
+                      <span className="text-slate-300 font-medium group-hover:text-cyan-300">{cat.label}</span>
                       <span className="font-mono-code font-bold text-slate-200">
                         <span
                           className={
@@ -754,9 +789,26 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                         style={{ width: `${cat.score}%` }}
                       ></div>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
+              {scoreEvidence && (
+                <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-[11px] leading-relaxed" aria-live="polite">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-military font-bold uppercase tracking-wider text-amber-300">Journal evidence</span>
+                    <span className="font-mono-code text-slate-500">Entry #{scoreEvidence.trade.tradeNumber} · {scoreEvidence.trade.date}</span>
+                  </div>
+                  <p className="mt-1 text-slate-300">{scoreEvidence.reason}</p>
+                  <p className="mt-1 text-cyan-300"><span className="font-bold">Practical fix:</span> {scoreEvidence.fix}</p>
+                  <button
+                    type="button"
+                    onClick={() => onNavigateToTab('JOURNAL')}
+                    className="mt-2 text-[10px] font-bold uppercase tracking-wider text-cyan-400 underline-offset-2 hover:text-amber-300 hover:underline focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
+                  >
+                    Open journal
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
