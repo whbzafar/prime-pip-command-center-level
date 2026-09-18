@@ -7,6 +7,7 @@ import {
   ExternalLink,
   Globe2,
   Landmark,
+  RefreshCw,
   ShieldCheck,
   TrendingDown,
   TrendingUp,
@@ -32,6 +33,30 @@ interface OnlineIndicator {
   description: string;
   source: string;
   url: string;
+}
+
+interface DashboardFactor {
+  key: string;
+  label: string;
+  score: number;
+  weight: number;
+  status: 'LIVE' | 'UNAVAILABLE';
+  updatedAt: string | null;
+  reason: string;
+}
+
+interface DashboardInstrument {
+  code: string;
+  score: number;
+  label: 'Bullish' | 'Bearish' | 'Neutral';
+  freshness: 'LIVE' | 'PARTIAL' | 'UNAVAILABLE';
+  factors: DashboardFactor[];
+}
+
+interface StrengthDashboard {
+  generatedAt: string;
+  coverage: { liveFactors: number; totalFactors: number; note: string };
+  instruments: DashboardInstrument[];
 }
 
 const INDICATORS: FundamentalIndicator[] = [
@@ -163,6 +188,35 @@ export const FundamentalIndicators: React.FC = () => {
   const [onlineResults, setOnlineResults] = useState<OnlineIndicator[]>([]);
   const [isOnlineLoading, setIsOnlineLoading] = useState(false);
   const [onlineError, setOnlineError] = useState<string | null>(null);
+  const [dashboard, setDashboard] = useState<StrengthDashboard | null>(null);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [selectedInstrument, setSelectedInstrument] = useState('USD');
+  const [selectedPair, setSelectedPair] = useState('EUR/USD');
+
+  const loadDashboard = async () => {
+    setDashboardLoading(true);
+    setDashboardError(null);
+    try {
+      const response = await fetch('/api/fundamental-indicators/dashboard', {
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Strength data is unavailable.');
+      setDashboard(body);
+    } catch (error) {
+      setDashboardError(error instanceof Error ? error.message : 'Strength data is unavailable.');
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadDashboard();
+    const timer = window.setInterval(() => void loadDashboard(), 15 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -208,6 +262,11 @@ export const FundamentalIndicators: React.FC = () => {
       searchable.includes(query.trim().toLowerCase());
   });
   const selected = INDICATORS.find((indicator) => indicator.id === selectedId) || filteredIndicators[0] || INDICATORS[0];
+  const selectedDashboardInstrument = dashboard?.instruments.find((item) => item.code === selectedInstrument);
+  const [pairBase, pairQuote] = selectedPair.split('/');
+  const pairBaseScore = dashboard?.instruments.find((item) => item.code === pairBase)?.score ?? 50;
+  const pairQuoteScore = dashboard?.instruments.find((item) => item.code === pairQuote)?.score ?? 50;
+  const pairBias = pairBaseScore - pairQuoteScore;
 
   const updateBias = (id: string, value: Bias) => {
     setBiases((current) => ({ ...current, [id]: value }));
@@ -233,6 +292,81 @@ export const FundamentalIndicators: React.FC = () => {
             <ShieldCheck className="h-4 w-4" /> EDUCATIONAL REFERENCE
           </div>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-cyan-400/20 bg-slate-950/80 p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-[10px] font-mono-code font-bold text-cyan-300">
+              <BarChart3 className="h-4 w-4" /> FUNDAMENTAL STRENGTH METER
+            </div>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-400">
+              A transparent 0-100 composite for eight major currencies plus gold and silver. Every score shows its freshness and coverage;
+              unavailable factors remain neutral rather than being disguised as live data.
+            </p>
+          </div>
+          <button type="button" onClick={() => void loadDashboard()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-[10px] font-mono-code text-cyan-300 hover:border-cyan-400/50">
+            <RefreshCw className={`h-3 w-3 ${dashboardLoading ? 'animate-spin' : ''}`} /> REFRESH
+          </button>
+        </div>
+        {dashboardError ? (
+          <p className="mt-4 rounded-lg border border-rose-400/30 bg-rose-400/5 p-3 text-xs text-rose-200">{dashboardError}</p>
+        ) : dashboardLoading && !dashboard ? (
+          <p className="mt-4 text-xs text-slate-500">Loading verified market inputs...</p>
+        ) : dashboard ? (
+          <>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+              {dashboard.instruments.map((instrument) => (
+                <button
+                  key={instrument.code}
+                  type="button"
+                  onClick={() => setSelectedInstrument(instrument.code)}
+                  className={`rounded-xl border p-3 text-left ${selectedInstrument === instrument.code ? 'border-cyan-400/60 bg-cyan-400/10' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-100">{instrument.code}</span>
+                    <span className={`text-[9px] font-mono-code ${instrument.freshness === 'PARTIAL' ? 'text-amber-300' : 'text-slate-500'}`}>{instrument.freshness}</span>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
+                    <div className={`h-full ${instrument.label === 'Bullish' ? 'bg-emerald-400' : instrument.label === 'Bearish' ? 'bg-rose-400' : 'bg-amber-300'}`} style={{ width: `${instrument.score}%` }} />
+                  </div>
+                  <div className="mt-1 flex justify-between text-[10px] font-mono-code text-slate-400"><span>{instrument.label}</span><span>{instrument.score}%</span></div>
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold text-slate-200">{selectedInstrument} factor breakdown</h3>
+                  <span className="text-[10px] font-mono-code text-amber-300">{selectedDashboardInstrument?.freshness}</span>
+                </div>
+                <div className="mt-3 space-y-3">
+                  {selectedDashboardInstrument?.factors.map((factor) => (
+                    <div key={factor.key}>
+                      <div className="flex justify-between text-[10px] text-slate-400"><span>{factor.label} ({factor.weight}%)</span><span>{factor.status === 'LIVE' ? `${factor.score}/100` : 'Unavailable'}</span></div>
+                      <div className="mt-1 h-1.5 rounded-full bg-slate-800"><div className="h-full rounded-full bg-cyan-400" style={{ width: `${factor.score}%` }} /></div>
+                      <p className="mt-1 text-[10px] leading-relaxed text-slate-500">{factor.reason}{factor.updatedAt ? ` Updated ${new Date(factor.updatedAt).toLocaleDateString()}.` : ''}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold text-slate-200">Pair fundamental bias</h3>
+                  <select value={selectedPair} onChange={(event) => setSelectedPair(event.target.value)} className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-[10px] text-cyan-200">
+                    {['EUR/USD', 'GBP/JPY', 'USD/CHF', 'AUD/USD', 'XAU/USD', 'XAG/USD'].map((pair) => <option key={pair}>{pair}</option>)}
+                  </select>
+                </div>
+                <div className="mt-5 text-center">
+                  <div className={`text-3xl font-bold ${pairBias > 0 ? 'text-emerald-300' : pairBias < 0 ? 'text-rose-300' : 'text-amber-300'}`}>{pairBias > 0 ? '+' : ''}{pairBias}</div>
+                  <p className="mt-1 text-xs text-slate-300">{pairBase} is {Math.abs(pairBias) < 8 ? 'roughly as strong as' : pairBias > 0 ? 'fundamentally stronger than' : 'fundamentally weaker than'} {pairQuote}.</p>
+                </div>
+                <div className="mt-4 flex items-center gap-2 text-[10px] font-mono-code text-slate-500"><span>{pairBase} {pairBaseScore}%</span><div className="h-1.5 flex-1 rounded-full bg-slate-800"><div className="h-full rounded-full bg-cyan-400" style={{ width: `${Math.max(0, Math.min(100, 50 + pairBias / 2))}%` }} /></div><span>{pairQuote} {pairQuoteScore}%</span></div>
+                <p className="mt-4 text-[10px] leading-relaxed text-amber-200/80">Coverage: {dashboard.coverage.liveFactors}/{dashboard.coverage.totalFactors} factor groups live. {dashboard.coverage.note}</p>
+              </div>
+            </div>
+          </>
+        ) : null}
       </section>
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
