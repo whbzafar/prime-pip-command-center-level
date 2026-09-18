@@ -32,6 +32,20 @@ export interface EvolutionStatusResponse {
   systemHealth?: any;
   liveFeed?: any[];
   updatePackage?: any;
+  autonomy?: {
+    enabled: boolean;
+    cycleInProgress: boolean;
+    intervalMs: number;
+    lastCycleError: string | null;
+    connectivity: {
+      online: boolean;
+      checkedAt: number;
+      latencyMs: number;
+      source: string;
+    };
+    executionPolicy: string;
+    protectedDomains: string[];
+  };
   error?: string;
 }
 
@@ -311,11 +325,11 @@ export async function apiRunEvolutionCycle(triggerContext: Record<string, any> =
     return await res.json();
   } catch {
     return {
-      ok: true,
-      cycleNumber: 43,
-      message: 'Autonomous Evolution Cycle 43 completed successfully using adaptive local intelligence.',
-      newProposalsCount: 2,
-      consensusApprovedCount: 2,
+      ok: false,
+      cycleNumber: 0,
+      message: 'Evolution cycle unavailable while the server is offline.',
+      newProposalsCount: 0,
+      consensusApprovedCount: 0,
     };
   }
 }
@@ -346,9 +360,10 @@ export async function apiExecuteRollback(featureId: string, reason: string, auth
     return await res.json();
   } catch {
     return {
-      ok: true,
-      message: `Feature ${featureId} successfully restored to previous baseline checkpoint.`,
+      ok: false,
+      message: `Rollback for ${featureId} is unavailable while the server is offline.`,
       rollbackTimestamp: Date.now(),
+      error: 'Rollback unavailable while the server is offline.',
     };
   }
 }

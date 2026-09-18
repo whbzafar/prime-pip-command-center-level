@@ -3,6 +3,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import https from 'https';
 import { EvolutionEngine } from './evolution/evolutionEngine.js';
 import {
   TelemetrySignal,
@@ -26,9 +27,95 @@ export type {
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const EVOLUTION_FILE = path.join(DATA_DIR, 'evolution_engine_state.json');
+const AUTONOMOUS_CYCLE_INTERVAL_MS = 5 * 60 * 1000;
+const CONNECTIVITY_CHECK_INTERVAL_MS = 60 * 1000;
+const CONNECTIVITY_TIMEOUT_MS = 5000;
 
 // Singleton instance of the master multi-agent EvolutionEngine
 const engineInstance = new EvolutionEngine();
+let autonomousTimer: NodeJS.Timeout | undefined;
+let connectivityTimer: NodeJS.Timeout | undefined;
+let cycleInProgress = false;
+let lastCycleError: string | undefined;
+let connectivity = {
+  online: false,
+  checkedAt: 0,
+  latencyMs: 0,
+  source: 'https://www.gstatic.com/generate_204',
+};
+
+function restorePersistedRuntimeState(): void {
+  try {
+    if (!fs.existsSync(EVOLUTION_FILE)) return;
+    const snapshot = JSON.parse(fs.readFileSync(EVOLUTION_FILE, 'utf8'));
+    engineInstance.restoreRuntimeState(snapshot);
+  } catch (error) {
+    console.error('[EvolutionEngine] Ignoring invalid persisted state:', error);
+  }
+}
+
+restorePersistedRuntimeState();
+
+function checkConnectivity(): Promise<void> {
+  const startedAt = Date.now();
+  return new Promise((resolve) => {
+    const request = https.get(connectivity.source, { timeout: CONNECTIVITY_TIMEOUT_MS }, (response) => {
+      response.resume();
+      connectivity = {
+        ...connectivity,
+        online: response.statusCode !== undefined && response.statusCode >= 200 && response.statusCode < 400,
+        checkedAt: Date.now(),
+        latencyMs: Date.now() - startedAt,
+      };
+      resolve();
+    });
+
+    request.on('timeout', () => request.destroy());
+    request.on('error', () => {
+      connectivity = {
+        ...connectivity,
+        online: false,
+        checkedAt: Date.now(),
+        latencyMs: Date.now() - startedAt,
+      };
+      resolve();
+    });
+  });
+}
+
+function runScheduledCycle(): void {
+  if (!connectivity.online || cycleInProgress || engineInstance.getStatus().isEnginePaused) return;
+
+  try {
+    const result = runEvolutionCycle({
+      trigger: 'AUTONOMOUS_SCHEDULE',
+      internetConnected: connectivity.online,
+      connectivityCheckedAt: connectivity.checkedAt,
+    });
+    if (!result.ok) lastCycleError = result.message;
+    else lastCycleError = undefined;
+  } catch (error) {
+    lastCycleError = error instanceof Error ? error.message : 'Unknown autonomous cycle failure';
+    console.error('[EvolutionEngine] Scheduled cycle failed:', error);
+  }
+}
+
+export function startAutonomousEvolution(): void {
+  if (autonomousTimer) return;
+
+  void checkConnectivity();
+  connectivityTimer = setInterval(() => {
+    void checkConnectivity();
+  }, CONNECTIVITY_CHECK_INTERVAL_MS);
+  autonomousTimer = setInterval(runScheduledCycle, AUTONOMOUS_CYCLE_INTERVAL_MS);
+}
+
+export function stopAutonomousEvolution(): void {
+  if (autonomousTimer) clearInterval(autonomousTimer);
+  if (connectivityTimer) clearInterval(connectivityTimer);
+  autonomousTimer = undefined;
+  connectivityTimer = undefined;
+}
 
 function persistStateToFile(): void {
   try {
@@ -36,7 +123,9 @@ function persistStateToFile(): void {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     const state = engineInstance.getStatus();
-    fs.writeFileSync(EVOLUTION_FILE, JSON.stringify(state, null, 2), 'utf8');
+    const temporaryFile = `${EVOLUTION_FILE}.tmp`;
+    fs.writeFileSync(temporaryFile, JSON.stringify(state, null, 2), 'utf8');
+    fs.renameSync(temporaryFile, EVOLUTION_FILE);
   } catch (err) {
     console.error('[EvolutionEngine] Error persisting state file:', err);
   }
@@ -138,6 +227,21 @@ export function getEvolutionStatus(): any {
     traderProfiles: {},
     registeredFeatures: status.registeredFeatures,
     evolutionMemoryBank: status.evolutionMemoryBank,
+    autonomy: {
+      enabled: Boolean(autonomousTimer),
+      cycleInProgress,
+      intervalMs: AUTONOMOUS_CYCLE_INTERVAL_MS,
+      lastCycleError: lastCycleError || null,
+      connectivity,
+      executionPolicy: 'SAFE_SANDBOX_ONLY',
+      protectedDomains: [
+        'AUTHENTICATION',
+        'PAYMENTS',
+        'FINANCIAL_CALCULATIONS',
+        'RISK_LIMITS',
+        'ARBITRARY_CODE_EXECUTION',
+      ],
+    },
     stats: status.stats || {
       cyclesCompleted: status.activeCycle,
       needsDetectedCount: status.userNeedsAndGaps?.length || 0,
@@ -171,6 +275,18 @@ export function submitUserFeedback(feedback: any): void {
 }
 
 export function runEvolutionCycle(triggerContext: any = {}): any {
+  if (cycleInProgress) {
+    return {
+      ok: false,
+      cycleNumber: engineInstance.getStatus().activeCycle,
+      message: 'An evolution cycle is already in progress.',
+      newProposalsCount: 0,
+      consensusApprovedCount: 0,
+    };
+  }
+
+  cycleInProgress = true;
+  try {
   const result = engineInstance.runCycle(triggerContext);
   persistStateToFile();
   return {
@@ -185,6 +301,9 @@ export function runEvolutionCycle(triggerContext: any = {}): any {
       consensusRationale: 'Unanimous 5-Agent Quorum with AST static sandboxing.',
     },
   };
+  } finally {
+    cycleInProgress = false;
+  }
 }
 
 export function executeRollback(
