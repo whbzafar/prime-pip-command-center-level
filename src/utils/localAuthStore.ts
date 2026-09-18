@@ -39,7 +39,7 @@ export const MASTER_ADMIN_USER: UserAccount = {
 export function getLocalAdminPassword(): string {
   try {
     const saved = localStorage.getItem(ADMIN_PASSWORD_KEY);
-    if (saved && saved.trim()) return saved.trim();
+    if (typeof saved === 'string' && saved.trim()) return saved.trim();
   } catch {
     // fallback
   }
@@ -69,10 +69,17 @@ export function setLocalAdminPassword(password: string): void {
 export function getLocalStudents(): StoredStudentUser[] {
   try {
     const raw = localStorage.getItem(STUDENTS_STORE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-    }
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    const validStudents = parsed.filter(
+      (student): student is StoredStudentUser =>
+        !!student && typeof student === 'object' && typeof (student as Partial<StoredStudentUser>).username === 'string'
+    );
+
+    return validStudents;
   } catch (e) {
     console.warn('Failed to parse local students:', e);
   }

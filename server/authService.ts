@@ -37,6 +37,10 @@ export interface StoredUser {
   warningsCount?: number;
   hasCompletedOnboarding?: boolean;
   needsOnboarding?: boolean;
+  showActiveStatus?: boolean;
+  tradingFocus?: string;
+  experienceLevel?: string;
+  traderStatus?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -623,27 +627,64 @@ export function recordUserHeartbeat(userId: string): void {
 export function isUserOnline(userId: string): boolean {
   const last = userHeartbeatMap.get(userId);
   if (!last) return false;
-  return Date.now() - last < 45000; // Online if heartbeat received in last 45s
+  return Date.now() - last < 5 * 60 * 1000;
 }
 
 export function getAllRegisteredTraders(currentUserId?: string) {
   const users = readUsers();
   const now = Date.now();
+  const currentUser = currentUserId ? users.find((u) => u.id === currentUserId) : undefined;
+  const canSeePresence = currentUser?.showActiveStatus !== false;
 
   return users
-    .filter((u) => !currentUserId || u.id !== currentUserId)
+    .filter((u) => {
+      if (currentUserId && u.id === currentUserId) return false;
+      if (u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER') return false;
+      if (u.subscriptionStatus !== 'ACTIVE' && u.subscriptionStatus !== 'LIFETIME') return false;
+      return !u.expiryDate || new Date(u.expiryDate).getTime() >= now;
+    })
     .map((u) => {
       const lastHeartbeat = userHeartbeatMap.get(u.id) || 0;
-      const online = (now - lastHeartbeat) < 45000;
+      const online = canSeePresence && now - lastHeartbeat < 5 * 60 * 1000;
       return {
         id: u.id,
         username: u.username,
         displayName: u.name || u.username,
         role: u.isDeveloper || u.role === 'ADMIN' ? 'ADMIN' : 'STUDENT',
         isOnline: online,
+        presenceStatus: canSeePresence
+          ? online
+            ? 'ACTIVE'
+            : 'OFFLINE'
+          : 'HIDDEN',
         lastSeen: lastHeartbeat,
         createdAt: u.createdAt,
+        isNewThisWeek: Boolean(u.createdAt && now - new Date(u.createdAt).getTime() <= 7 * 24 * 60 * 60 * 1000),
+        tradingFocus: u.tradingFocus || '',
+        experienceLevel: u.experienceLevel || '',
+        traderStatus: u.traderStatus || '',
       };
+    })
+    .sort((a, b) => {
+      if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
+      if (a.lastSeen !== b.lastSeen) return b.lastSeen - a.lastSeen;
+      return a.displayName.localeCompare(b.displayName);
     });
 }
 
+export function updatePresencePrivacy(userId: string, showActiveStatus: boolean): boolean {
+  const users = readUsers();
+  const user = users.find((candidate) => candidate.id === userId);
+  if (!user) return false;
+  user.showActiveStatus = showActiveStatus;
+  user.updatedAt = new Date().toISOString();
+  writeUsers(users);
+  return true;
+}
+
+export function isActiveCommunityMember(user: StoredUser | null | undefined): boolean {
+  if (!user) return false;
+  if (user.isDeveloper || user.role === 'ADMIN' || user.role === 'DEVELOPER' || user.isLifetime) return true;
+  if (user.subscriptionStatus !== 'ACTIVE' && user.subscriptionStatus !== 'LIFETIME') return false;
+  return !user.expiryDate || new Date(user.expiryDate).getTime() >= Date.now();
+}
