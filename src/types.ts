@@ -557,6 +557,9 @@ export interface LotCalculationHistoryItem {
   riskPercent: number;
   riskAmount: number;
   stopLossPips: number;
+  stopLossInputMode?: 'PIPS' | 'PRICE';
+  entryPrice?: number;
+  stopLossPrice?: number;
   pipValue: number;
   recommendedLotSize: number;
   estimatedLoss: number;
@@ -636,4 +639,3 @@ export interface ModerationWarning {
   timePkt: string;
   acknowledgedByAdmin?: boolean;
 }
-

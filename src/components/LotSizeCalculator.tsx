@@ -70,7 +70,10 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
   const [balance, setBalance] = useState<number>(() => activeAccount?.currentBalance || 5000);
   const [currency, setCurrency] = useState<string>(() => activeAccount?.currency || 'USD');
   const [riskPercent, setRiskPercent] = useState<number>(1);
+  const [stopLossInputMode, setStopLossInputMode] = useState<'PIPS' | 'PRICE'>('PIPS');
   const [stopLossPips, setStopLossPips] = useState<number>(50);
+  const [entryPrice, setEntryPrice] = useState<number>(0);
+  const [stopLossPrice, setStopLossPrice] = useState<number>(0);
 
   // Advanced / Custom mode settings
   const [isCustomMode, setIsCustomMode] = useState<boolean>(false);
@@ -148,6 +151,16 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
   // Determine effective pip value per standard lot
   let effectivePipValue = isCustomMode ? customPipValue : (matchedSpec ? matchedSpec.pipValuePerStandardLot : 10);
   if (effectivePipValue <= 0) effectivePipValue = 10;
+  const effectivePipSize = isCustomMode
+    ? Math.max(0.00000001, tickSize || 0.0001)
+    : (matchedSpec?.pipSize || 0.0001);
+  const priceDistance = Math.abs(entryPrice - stopLossPrice);
+  const hasValidPriceLevels =
+    stopLossInputMode === 'PRICE' &&
+    entryPrice > 0 &&
+    stopLossPrice > 0 &&
+    priceDistance > 0;
+  const derivedStopLossPips = hasValidPriceLevels ? priceDistance / effectivePipSize : 0;
 
   // ----------------------------------------------------
   // CORE LOT SIZE MATHEMATICAL CALCULATION
@@ -156,7 +169,10 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
   const riskAmount = (Math.max(0, balance) * Math.max(0, riskPercent)) / 100;
 
   // 2. Lot Size = Risk Amount / (Stop Loss in Pips * Pip Value per Standard Lot)
-  const sl = Math.max(0.1, stopLossPips || 1);
+  const sl = Math.max(
+    0.1,
+    stopLossInputMode === 'PRICE' ? (derivedStopLossPips || 0) : (stopLossPips || 1),
+  );
   const rawLotSize = riskAmount / (sl * effectivePipValue);
 
   // Professional formatting (forex standard 2 decimal places, rounded down to avoid over-risking)
@@ -185,6 +201,9 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
       riskPercent,
       riskAmount,
       stopLossPips: sl,
+      stopLossInputMode,
+      entryPrice: stopLossInputMode === 'PRICE' ? entryPrice : undefined,
+      stopLossPrice: stopLossInputMode === 'PRICE' ? stopLossPrice : undefined,
       pipValue: effectivePipValue,
       recommendedLotSize,
       estimatedLoss: estimatedLossAtSL,
@@ -409,25 +428,87 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
             </div>
           </div>
 
-          {/* 4. Stop Loss in Pips */}
+          {/* 4. Stop Loss distance */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-mono-code text-slate-300 font-bold uppercase">
-                4. STOP LOSS (PIPS / POINTS)
+                4. STOP LOSS DISTANCE
               </label>
               <span className="text-[11px] font-mono-code text-slate-400">
-                Distance to structural invalidation
+                Choose pips or calculate from price levels
               </span>
             </div>
-            <input
-              type="number"
-              min="1"
-              step="any"
-              value={stopLossPips || ''}
-              onChange={(e) => setStopLossPips(parseFloat(e.target.value) || 0)}
-              placeholder="e.g. 50"
-              className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-cyan-400 font-bold"
-            />
+            <div className="flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-950 p-1 mb-3">
+              <button
+                type="button"
+                onClick={() => setStopLossInputMode('PIPS')}
+                className={`flex-1 rounded-lg px-3 py-2 text-xs font-mono-code font-bold transition ${
+                  stopLossInputMode === 'PIPS'
+                    ? 'bg-blue-500/20 text-cyan-300 border border-blue-500/50'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Enter Pips / Points
+              </button>
+              <button
+                type="button"
+                onClick={() => setStopLossInputMode('PRICE')}
+                className={`flex-1 rounded-lg px-3 py-2 text-xs font-mono-code font-bold transition ${
+                  stopLossInputMode === 'PRICE'
+                    ? 'bg-blue-500/20 text-cyan-300 border border-blue-500/50'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Use Entry &amp; SL Price
+              </button>
+            </div>
+            {stopLossInputMode === 'PIPS' ? (
+              <input
+                type="number"
+                min="1"
+                step="any"
+                value={stopLossPips || ''}
+                onChange={(e) => setStopLossPips(parseFloat(e.target.value) || 0)}
+                placeholder="e.g. 50"
+                className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-100 focus:outline-none focus:border-cyan-400 font-bold"
+              />
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="text-xs font-mono-code text-slate-400">
+                    Entry Point
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={entryPrice || ''}
+                      onChange={(e) => setEntryPrice(parseFloat(e.target.value) || 0)}
+                      placeholder={cleanPair.includes('JPY') ? 'e.g. 150.250' : 'e.g. 1.08500'}
+                      className="mt-1.5 w-full px-3 py-3 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-cyan-400 font-bold"
+                    />
+                  </label>
+                  <label className="text-xs font-mono-code text-slate-400">
+                    SL Point
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={stopLossPrice || ''}
+                      onChange={(e) => setStopLossPrice(parseFloat(e.target.value) || 0)}
+                      placeholder={cleanPair.includes('JPY') ? 'e.g. 149.750' : 'e.g. 1.08000'}
+                      className="mt-1.5 w-full px-3 py-3 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-cyan-400 font-bold"
+                    />
+                  </label>
+                </div>
+                <p className={`mt-1.5 text-[11px] font-mono-code ${
+                  hasValidPriceLevels ? 'text-emerald-400' : 'text-amber-300'
+                }`}>
+                  {hasValidPriceLevels
+                    ? `${priceDistance.toFixed(6)} price distance = ${derivedStopLossPips.toFixed(2)} pips using ${effectivePipSize} pip size.`
+                    : 'Enter two different positive price levels to calculate the stop-loss distance.'}
+                </p>
+              </>
+            )}
           </div>
 
           {/* Custom Mode / Advanced Specs Drawer */}
@@ -513,7 +594,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                 </div>
               </div>
               <span className="text-[10px] font-mono-code text-slate-500 mt-2 block">
-                Formula: {formatCurrency(riskAmount, currency)} ÷ ({sl} pips × {formatCurrency(effectivePipValue, 'USD')})
+                Formula: {formatCurrency(riskAmount, currency)} ÷ ({sl.toFixed(2)} pips × {formatCurrency(effectivePipValue, 'USD')})
               </span>
             </div>
 
@@ -533,7 +614,10 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
               </div>
               <div className="flex items-center justify-between py-1 border-b border-slate-800/50">
                 <span className="text-slate-400">Stop Loss Distance:</span>
-                <span className="font-bold text-slate-200">{sl} Pips</span>
+                <span className="font-bold text-slate-200">
+                  {sl.toFixed(2)} Pips
+                  {stopLossInputMode === 'PRICE' && hasValidPriceLevels ? ' (from prices)' : ''}
+                </span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-slate-800/50">
                 <span className="text-slate-400">Pip Value (per Lot):</span>
@@ -689,7 +773,10 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                             setBalance(item.balance);
                             setCurrency(item.currency);
                             setRiskPercent(item.riskPercent);
+                            setStopLossInputMode(item.stopLossInputMode || 'PIPS');
                             setStopLossPips(item.stopLossPips);
+                            setEntryPrice(item.entryPrice || 0);
+                            setStopLossPrice(item.stopLossPrice || 0);
                           }}
                           className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[10px] transition-colors"
                           title="Load into Calculator"
