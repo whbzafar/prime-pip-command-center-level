@@ -1,4 +1,4 @@
-import { CommunityMessage } from "./commandCenterService.js";
+import type { CommunityMessage } from "./commandCenterService.js";
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || "";
