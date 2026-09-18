@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { readUsers, writeUsers, StoredUser, hashLegacyPasswordForMigration } from "./authService.js";
+import { readUsers, writeUsers, StoredUser } from "./authService.js";
 
 const LEGACY_STUDENTS_URL =
   "https://kvdb.io/2ST3F4wjgBy2qEaTquQPuU/primepipfx_students_v1";
