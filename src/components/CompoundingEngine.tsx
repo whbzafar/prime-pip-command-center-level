@@ -21,11 +21,11 @@ import { AccountSettings, Trade } from '../types';
 import {
   CompoundingMode,
   CompoundingInputs,
+  DEFAULT_TRADING_DAYS_PER_MONTH,
   calculateCompoundingProjection,
   calculateLossRecoveryMetrics,
 } from '../utils/compoundingEngine';
 import { formatCurrency, getCurrencySymbol } from '../utils/currencyFormatter';
-import { DedicatedCompoundingCalculator } from './compounding/DedicatedCompoundingCalculator';
 
 interface CompoundingEngineProps {
   account: AccountSettings;
@@ -36,7 +36,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
   account,
   trades,
 }) => {
-  const [engineTab, setEngineTab] = useState<'CALCULATOR' | 'COMPOUNDING' | 'RECOVERY_SIMULATOR' | 'REAL_VS_PROJECTED'>('CALCULATOR');
+  const [engineTab, setEngineTab] = useState<'COMPOUNDING' | 'RECOVERY_SIMULATOR' | 'REAL_VS_PROJECTED'>('COMPOUNDING');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Currency Selection (Requirement 2)
@@ -53,7 +53,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
   const [expectedWinRate, setExpectedWinRate] = useState<number>(55);
   const [riskRewardRatio, setRiskRewardRatio] = useState<number>(2.0);
   const [tradesPerDay, setTradesPerDay] = useState<number>(1);
-  const [tradingDaysPerMonth, setTradingDaysPerMonth] = useState<number>(20);
+  const [tradingDaysPerMonth, setTradingDaysPerMonth] = useState<number>(DEFAULT_TRADING_DAYS_PER_MONTH);
   const [selectedPeriodMonths, setSelectedPeriodMonths] = useState<number>(3); // 1, 3, 6, 12, or custom
   const [customDays, setCustomDays] = useState<number>(60);
   const [tablePage, setTablePage] = useState<number>(1);
@@ -170,18 +170,6 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-mono-code">
             <button
-              id="tab-compounding-calc"
-              type="button"
-              onClick={() => setEngineTab('CALCULATOR')}
-              className={`px-3 py-1.5 rounded transition cursor-pointer ${
-                engineTab === 'CALCULATOR'
-                  ? 'bg-blue-500 text-slate-950 font-bold shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              COMPOUNDING CALCULATOR
-            </button>
-            <button
               id="tab-compounding-sim"
               type="button"
               onClick={() => setEngineTab('COMPOUNDING')}
@@ -251,15 +239,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
         <span className="text-[10px] text-slate-500 uppercase">OFFLINE MATHEMATICAL MODEL</span>
       </div>
 
-      {/* VIEW 0: DEDICATED COMPOUNDING CALCULATOR */}
-      {engineTab === 'CALCULATOR' && (
-        <DedicatedCompoundingCalculator
-          initialCapital={effectiveStartBalance}
-          currency={currency}
-        />
-      )}
-
-      {/* VIEW 1: COMPOUNDING ENGINE */}
+      {/* VIEW 0: COMPOUNDING ENGINE */}
       {engineTab === 'COMPOUNDING' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Controls Column */}

@@ -93,8 +93,8 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
 
   // 2. Time Frame Analysis Check
   const [timeframeChecked, setTimeframeChecked] = useState(false);
-  const [htfTimeframe, setHtfTimeframe] = useState<'Daily' | 'H4' | 'H1'>('H4');
-  const [analysisTimeframe, setAnalysisTimeframe] = useState<'H4' | 'H1' | 'M15'>('H1');
+  const [htfTimeframe, setHtfTimeframe] = useState<'Weekly' | 'Daily' | 'H4' | 'H1'>('H4');
+  const [analysisTimeframe, setAnalysisTimeframe] = useState<'Weekly' | 'H4' | 'H1' | 'M15'>('H1');
   const [entryTimeframe, setEntryTimeframe] = useState<'M15' | 'M5' | 'M1'>('M15');
   const [timeframeNotes, setTimeframeNotes] = useState('');
 
@@ -479,7 +479,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   HIGHER TIME FRAME (HTF)
                 </label>
                 <div className="flex items-center gap-1.5">
-                  {(['Daily', 'H4', 'H1'] as const).map((tf) => (
+                  {(['Weekly', 'Daily', 'H4', 'H1'] as const).map((tf) => (
                     <button
                       key={tf}
                       type="button"
@@ -501,7 +501,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   ANALYSIS / STRUCTURE FRAME
                 </label>
                 <div className="flex items-center gap-1.5">
-                  {(['H4', 'H1', 'M15'] as const).map((tf) => (
+                  {(['Weekly', 'H4', 'H1', 'M15'] as const).map((tf) => (
                     <button
                       key={tf}
                       type="button"

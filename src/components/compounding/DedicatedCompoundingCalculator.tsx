@@ -11,6 +11,7 @@ import {
   Table,
 } from 'lucide-react';
 import { formatCurrency, getCurrencySymbol } from '../../utils/currencyFormatter';
+import { DEFAULT_TRADING_DAYS_PER_MONTH } from '../../utils/compoundingEngine';
 
 export type CompoundingFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 
@@ -39,7 +40,7 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
   const [frequency, setFrequency] = useState<CompoundingFrequency>('DAILY');
   const [selectedMonths, setSelectedMonths] = useState<number>(3); // 1, 3, 6, 12, or custom
   const [customMonths, setCustomMonths] = useState<number>(9);
-  const [tradingDaysPerMonth, setTradingDaysPerMonth] = useState<number>(20);
+  const [tradingDaysPerMonth, setTradingDaysPerMonth] = useState<number>(DEFAULT_TRADING_DAYS_PER_MONTH);
 
   // Table pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -395,7 +396,7 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
                   <span className="text-teal-400 font-bold">{tradingDaysPerMonth} Days</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {[18, 20, 21, 22].map((d) => (
+                  {[18, 21, 22, 23].map((d) => (
                     <button
                       key={d}
                       type="button"
@@ -406,7 +407,7 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
                           : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                       }`}
                     >
-                      {d} days {d === 20 ? '(Standard)' : ''}
+                      {d} days {d === DEFAULT_TRADING_DAYS_PER_MONTH ? '(Standard)' : ''}
                     </button>
                   ))}
                 </div>
