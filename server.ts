@@ -512,6 +512,87 @@ app.get('/api/auth/me', (req, res) => {
     ok: true,
     user: sanitizeUser(user),
   });
+
+  app.get('/api/research/openalex', async (req, res) => {
+    const query = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+    if (!query) {
+      res.status(400).json({ error: 'A research search query is required.' });
+      return;
+    }
+
+    const page = Math.min(1000, Math.max(1, Number.parseInt(String(req.query.page || '1'), 10) || 1));
+    const perPage = Math.min(25, Math.max(1, Number.parseInt(String(req.query.perPage || '10'), 10) || 10));
+    const sort = typeof req.query.sort === 'string' && /^[a-z_]+:(asc|desc)$/.test(req.query.sort)
+      ? req.query.sort
+      : 'relevance_score:desc';
+    const year = typeof req.query.year === 'string' && /^\d{4}$/.test(req.query.year) ? req.query.year : '';
+    const openAccessOnly = req.query.openAccess === 'true';
+    const filters = [
+      year ? `from_publication_date:${year}-01-01` : '',
+      openAccessOnly ? 'is_oa:true' : '',
+    ].filter(Boolean);
+
+    const url = new URL('https://api.openalex.org/works');
+    url.searchParams.set('search', query);
+    url.searchParams.set('page', String(page));
+    url.searchParams.set('per-page', String(perPage));
+    url.searchParams.set('sort', sort);
+    if (filters.length) url.searchParams.set('filter', filters.join(','));
+
+    try {
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json', 'User-Agent': 'PrimePipFX-Trading-Research/1.0' },
+        signal: AbortSignal.timeout(15000),
+      });
+      const body = await response.text();
+      if (!response.ok) {
+        res.status(502).json({ error: `Academic provider returned HTTP ${response.status}.` });
+        return;
+      }
+      res.type('application/json').send(body);
+    } catch (error) {
+      console.error('OpenAlex proxy error:', error);
+      res.status(502).json({ error: 'Academic search provider is temporarily unavailable.' });
+    }
+  });
+
+  app.get('/api/fundamental-indicators/search', async (req, res) => {
+    const query = typeof req.query.q === 'string' ? req.query.q.trim().toLowerCase() : '';
+    if (query.length < 2) {
+      res.json({ results: [] });
+      return;
+    }
+
+    try {
+      const url = new URL('https://api.worldbank.org/v2/indicator');
+      url.searchParams.set('format', 'json');
+      url.searchParams.set('per_page', '3000');
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json', 'User-Agent': 'PrimePipFX-Fundamental-Indicators/1.0' },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) {
+        res.status(502).json({ error: 'Indicator catalog is temporarily unavailable.' });
+        return;
+      }
+      const payload = await response.json() as [unknown, Array<{ id?: string; name?: string; sourceNote?: string; sourceOrganization?: string }>];
+      const rows = Array.isArray(payload?.[1]) ? payload[1] : [];
+      const results = rows
+        .filter((item) => `${item.name || ''} ${item.id || ''} ${item.sourceNote || ''}`.toLowerCase().includes(query))
+        .slice(0, 20)
+        .map((item) => ({
+          id: item.id || '',
+          name: item.name || 'Unnamed indicator',
+          description: item.sourceNote || 'World Bank economic indicator.',
+          source: item.sourceOrganization || 'World Bank',
+          url: `https://data.worldbank.org/indicator/${encodeURIComponent(item.id || '')}`,
+        }));
+      res.json({ results });
+    } catch (error) {
+      console.error('World Bank indicator search error:', error);
+      res.status(502).json({ error: 'Indicator catalog is temporarily unavailable.' });
+    }
+  });
 });
 
 // Route: Logout

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   BarChart3,
@@ -24,6 +24,14 @@ interface FundamentalIndicator {
   bearishSignal: string;
   timing: string;
   sources: { label: string; url: string }[];
+}
+
+interface OnlineIndicator {
+  id: string;
+  name: string;
+  description: string;
+  source: string;
+  url: string;
 }
 
 const INDICATORS: FundamentalIndicator[] = [
@@ -152,6 +160,43 @@ export const FundamentalIndicators: React.FC = () => {
   const [category, setCategory] = useState('ALL');
   const [selectedId, setSelectedId] = useState(INDICATORS[0].id);
   const [biases, setBiases] = useState<Record<string, Bias>>({});
+  const [onlineResults, setOnlineResults] = useState<OnlineIndicator[]>([]);
+  const [isOnlineLoading, setIsOnlineLoading] = useState(false);
+  const [onlineError, setOnlineError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setOnlineResults([]);
+      setOnlineError(null);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setIsOnlineLoading(true);
+      setOnlineError(null);
+      try {
+        const response = await fetch(`/api/fundamental-indicators/search?q=${encodeURIComponent(trimmed)}`, {
+          signal: controller.signal,
+          headers: { Accept: 'application/json' },
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || 'Online indicator search failed.');
+        setOnlineResults(Array.isArray(body.results) ? body.results : []);
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setOnlineResults([]);
+          setOnlineError(error instanceof Error ? error.message : 'Online indicator search failed.');
+        }
+      } finally {
+        if (!controller.signal.aborted) setIsOnlineLoading(false);
+      }
+    }, 250);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
 
   const categories = useMemo(
     () => ['ALL', ...Array.from(new Set(INDICATORS.map((indicator) => indicator.category)))],
@@ -213,6 +258,37 @@ export const FundamentalIndicators: React.FC = () => {
                 </button>
               ))}
             </div>
+            {query.trim().length >= 2 && (
+              <div className="mt-3 border-t border-slate-800 pt-3">
+                <div className="mb-2 flex items-center justify-between text-[10px] font-mono-code text-slate-400">
+                  <span>ONLINE INDICATOR CATALOG (WORLD BANK)</span>
+                  {isOnlineLoading && <span className="text-cyan-300">SEARCHING...</span>}
+                </div>
+                {onlineError ? (
+                  <p className="text-[10px] text-amber-300">{onlineError} Curated indicators remain available.</p>
+                ) : onlineResults.length > 0 ? (
+                  <div className="space-y-2">
+                    {onlineResults.map((result) => (
+                      <a
+                        key={result.id}
+                        href={result.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block rounded-lg border border-slate-800 bg-slate-900/60 p-2.5 hover:border-cyan-400/50"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-bold text-cyan-200">{result.name}</span>
+                          <ExternalLink className="h-3 w-3 shrink-0 text-cyan-400" />
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-slate-500">{result.description}</p>
+                      </a>
+                    ))}
+                  </div>
+                ) : !isOnlineLoading ? (
+                  <p className="text-[10px] text-slate-500">No online catalog match. Try a broader term such as inflation, employment, GDP, or trade.</p>
+                ) : null}
+              </div>
+            )}
           </div>
           {filteredIndicators.map((indicator) => {
             const bias = biases[indicator.id] || 'MIXED';

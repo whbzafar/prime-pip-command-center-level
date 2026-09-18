@@ -125,24 +125,19 @@ export const TradingResearchCenter: React.FC = () => {
         if (sortOption === 'date') sortParam = 'publication_year:desc';
         if (sortOption === 'citations') sortParam = 'cited_by_count:desc';
 
-        let url = `https://api.openalex.org/works?search=${encodeURIComponent(
+        let url = `/api/research/openalex?search=${encodeURIComponent(
           trimmed
-        )}&page=${pageNumber}&per-page=10&sort=${sortParam}`;
+        )}&page=${pageNumber}&perPage=10&sort=${encodeURIComponent(sortParam)}`;
 
         // Apply filters
         const filterParts: string[] = [];
         if (yearFilter !== 'ALL') {
-          filterParts.push(`from_publication_date:${yearFilter}-01-01`);
+          url += `&year=${encodeURIComponent(yearFilter)}`;
         }
         if (oaOnly) {
-          filterParts.push('is_oa:true');
+          url += '&openAccess=true';
         }
-
-        if (filterParts.length > 0) {
-          url += `&filter=${encodeURIComponent(filterParts.join(','))}`;
-        }
-
-        const response = await fetch(url);
+        const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'include' });
         if (!response.ok) {
           throw new Error(`OpenAlex response status: ${response.status}`);
         }
@@ -196,7 +191,7 @@ export const TradingResearchCenter: React.FC = () => {
         setActiveSearchTerm(trimmed);
       } catch (err) {
         console.error('Academic search error:', err);
-        setErrorMessage('Research search is temporarily unavailable. Please try again.');
+        setErrorMessage(err instanceof Error ? err.message : 'Research search is temporarily unavailable. Please try again.');
         setArticles([]);
       } finally {
         setIsLoading(false);
