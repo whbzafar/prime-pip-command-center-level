@@ -78,6 +78,16 @@ import {
 import { analyzeIntent } from "./server/intelligence/intentRouter.js";
 import { resolveCapability } from "./server/intelligence/capabilityRegistry.js";
 import { getClusters } from "./server/intelligence/gapLedger.js";
+import { syncLegacyStudentsToServer } from "./server/legacyStudentSync.js";
+import {
+  isSupabaseCommunityEnabled,
+  upsertTraderProfile,
+  syncTraderProfiles,
+  readCommunityMessagesSupabase,
+  postCommunityMessageSupabase,
+  markCommunityMessagesSeenSupabase,
+  getCommunityTradersSupabase,
+} from "./server/supabaseCommunityService.js";
 
 dotenv.config();
 
@@ -457,8 +467,9 @@ function getAuthToken(req: express.Request): string {
 }
 
 // Route: Login
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { username, password, rememberMe = true } = req.body || {};
+  await syncLegacyStudentsToServer(true);
   if (!username || !password) {
     return res.status(400).json({ ok: false, error: 'Username and password are required' });
   }
@@ -1286,8 +1297,9 @@ app.patch('/api/user/presence-privacy', (req, res) => {
 // ----------------------------------------------------
 // COMMUNITY CHAT API ENDPOINTS
 // ----------------------------------------------------
-app.get('/api/community/messages', (req, res) => {
+app.get('/api/community/messages', async (req, res) => {
   try {
+    await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
@@ -1295,15 +1307,23 @@ app.get('/api/community/messages', (req, res) => {
       return res.status(403).json({ ok: false, error: 'An active subscription is required for the community.' });
     }
     recordUserHeartbeat(user.id);
+
+    if (isSupabaseCommunityEnabled) {
+      await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: user.role });
+      const messages = await readCommunityMessagesSupabase();
+      return res.json({ ok: true, messages, backend: 'supabase' });
+    }
+
     const messages = readCommunityMessages();
-    return res.json({ ok: true, messages });
+    return res.json({ ok: true, messages, backend: 'local-fallback' });
   } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err?.message });
+    console.error('[COMMUNITY GET] Failed:', err);
+    return res.status(500).json({ ok: false, error: err?.message || 'Community backend failed.' });
   }
 });
 
 // Mark community messages as seen
-app.post('/api/community/messages/seen', (req, res) => {
+app.post('/api/community/messages/seen', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
@@ -1319,11 +1339,13 @@ app.post('/api/community/messages/seen', (req, res) => {
       return res.json({ ok: true, updated: 0 });
     }
 
-    const updated = markCommunityMessagesSeen(messageIds, {
-      id: user.id,
-      username: user.username,
-      displayName: user.name || user.username,
-    });
+    const updated = isSupabaseCommunityEnabled
+      ? await markCommunityMessagesSeenSupabase(messageIds, user.id)
+      : markCommunityMessagesSeen(messageIds, {
+          id: user.id,
+          username: user.username,
+          displayName: user.name || user.username,
+        });
 
     return res.json({ ok: true, updated });
   } catch (err: any) {
@@ -1336,6 +1358,7 @@ const userLastCardTime = new Map<string, number>();
 
 app.post('/api/community/messages', async (req, res) => {
   try {
+    await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized. Please login to participate in the community.' });
     const user = getUserByToken(token);
@@ -1352,7 +1375,6 @@ app.post('/api/community/messages', async (req, res) => {
     }
 
     const { text } = req.body || {};
-    // Server-side profanity and prohibited contact filter
     const modCheck = moderateMessage(user.id, user.username, text || '');
     if (!modCheck.passed) {
       return res.status(400).json({
@@ -1364,73 +1386,39 @@ app.post('/api/community/messages', async (req, res) => {
       });
     }
 
-    // Run Chat Intelligence Layer
-    let intentCard: any = undefined;
-    if (text && typeof text === 'string') {
-      const now = Date.now();
-      const lastTime = userLastCardTime.get(user.id) || 0;
-      const cooldownPassed = now - lastTime >= 20000;
-
-      try {
-        const classified = await analyzeIntent(text, user.id, getGeminiClient());
-        if (classified && classified.confidence >= 0.75 && (cooldownPassed || classified.capability === 'CRISIS_RESOURCE')) {
-          const handler = resolveCapability(classified.capability);
-          if (handler) {
-            // 3000ms timeout budget for card execution
-            const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
-            const card = await Promise.race([
-              handler(classified.entities, user.id),
-              timeoutPromise,
-            ]);
-            if (card) {
-              intentCard = card;
-              userLastCardTime.set(user.id, now);
-            }
-          }
-        }
-      } catch (intelErr) {
-        console.warn('[Intelligence] Failed to resolve card:', intelErr);
-      }
-    }
-
-
-    // Handle mentions
-    const mentions = [];
-    if (text) {
-      const mentionRegex = /@(\w+)/g;
-      let match;
-      const allTraders = getAllRegisteredTraders();
-      while ((match = mentionRegex.exec(text)) !== null) {
-        const uName = match[1];
-        const matchedUser = allTraders.find(t => t.username.toLowerCase() === uName.toLowerCase());
-        if (matchedUser && !mentions.find(m => m.userId === matchedUser.id)) {
-          mentions.push({ userId: matchedUser.id, username: matchedUser.username });
-          // Notify
-          import("./server/notificationsService.js").then(mod => {
-            mod.createNotification({
-              userId: matchedUser.id,
-              type: "MENTION",
-              title: "New Mention",
-              body: `${user.username} mentioned you in the Community Hub.`,
-              link: "/community"
-            });
-          });
-        }
-      }
+    if (isSupabaseCommunityEnabled) {
+      await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: user.role });
+      const body = req.body || {};
+      const messageType = body.audioAttachmentId || body.audioBase64
+        ? 'VOICE'
+        : body.photoBase64 || body.photoUrl
+          ? 'IMAGE'
+          : body.fileBase64 || body.attachmentUrl || body.driveFile
+            ? 'FILE'
+            : 'TEXT';
+      const message = await postCommunityMessageSupabase({
+        userId: user.id,
+        text: body.text || '',
+        messageType,
+        attachmentPath: body.attachmentUrl || body.photoUrl || body.audioUrl,
+        attachmentName: body.attachmentName || body.driveFile?.fileName,
+        attachmentMimeType: body.audioMimeType || body.driveFile?.mimeType,
+        attachmentSize: body.attachmentSize || body.audioSize,
+      });
+      return res.json({ ok: true, message, backend: 'supabase' });
     }
 
     const newMsg = postCommunityMessage({
-      mentions,
       ...req.body,
       userId: user.id,
       username: user.username,
       displayName: user.name || user.username,
       avatarBadge: user.role === 'ADMIN' || user.username === 'primepipfx-admin' ? 'DEV / OWNER' : undefined,
-      intentCard,
     });
-    return res.json({ ok: true, message: newMsg });
+    return res.json({ ok: true, message: newMsg, backend: 'local-fallback' });
   } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err?.message });
+    console.error('[COMMUNITY POST] Failed:', err);
+    return res.status(500).json({ ok: false, error: err?.message || 'Community backend failed.' });
   }
 });
 
@@ -1453,8 +1441,9 @@ app.get('/api/admin/gaps', (req, res) => {
 // ----------------------------------------------------
 // FRIEND SYSTEM API ENDPOINTS
 // ----------------------------------------------------
-app.get('/api/friends/list', (req, res) => {
+app.get('/api/friends/list', async (req, res) => {
   try {
+    await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
@@ -1488,8 +1477,9 @@ app.get('/api/friends/list', (req, res) => {
 });
 
 // Get all registered traders with live presence status
-app.get('/api/friends/all-traders', (req, res) => {
+app.get('/api/friends/all-traders', async (req, res) => {
   try {
+    await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const currentUser = getUserByToken(token);
@@ -1505,8 +1495,9 @@ app.get('/api/friends/all-traders', (req, res) => {
   }
 });
 
-app.get('/api/friends/search', (req, res) => {
+app.get('/api/friends/search', async (req, res) => {
   try {
+    await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const currentUser = getUserByToken(token);
@@ -1533,8 +1524,9 @@ app.get('/api/friends/search', (req, res) => {
   }
 });
 
-app.post('/api/friends/request', (req, res) => {
+app.post('/api/friends/request', async (req, res) => {
   try {
+    await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);

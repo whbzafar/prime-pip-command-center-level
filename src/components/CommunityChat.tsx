@@ -252,7 +252,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
         return;
       }
       setIsOffline(false);
-      const res = await fetch('/api/community/messages', communityRequest());
+      const res = await fetch('/api/community/messages', communityRequest({ cache: 'no-store' }));
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         setFeedError((errBody as { error?: string }).error || `Unable to load community feed (${res.status}).`);
