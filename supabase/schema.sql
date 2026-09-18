@@ -31,6 +31,13 @@ create table if not exists public.community_message_seen (
   primary key (message_id, user_id)
 );
 
+create table if not exists public.message_reads (
+  message_id uuid not null references public.community_messages(id) on delete cascade,
+  user_id text not null references public.trader_profiles(user_id) on delete cascade,
+  read_at timestamptz not null default now(),
+  primary key (message_id, user_id)
+);
+
 create table if not exists public.friend_requests (
   id uuid primary key default gen_random_uuid(),
   sender_id text not null references public.trader_profiles(user_id) on delete cascade,
@@ -39,6 +46,14 @@ create table if not exists public.friend_requests (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique(sender_id, receiver_id)
+);
+
+create table if not exists public.friendships (
+  user_id_1 text not null references public.trader_profiles(user_id) on delete cascade,
+  user_id_2 text not null references public.trader_profiles(user_id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id_1, user_id_2),
+  check (user_id_1 < user_id_2)
 );
 
 create table if not exists public.private_messages (
@@ -54,6 +69,21 @@ create table if not exists public.private_messages (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.calls (
+  id uuid primary key default gen_random_uuid(),
+  caller_id text not null references public.trader_profiles(user_id) on delete cascade,
+  receiver_id text not null references public.trader_profiles(user_id) on delete cascade,
+  type text not null check (type in ('voice', 'video', 'screenshare')),
+  started_at timestamptz not null default now(),
+  ended_at timestamptz
+);
+
+create table if not exists public.presence (
+  user_id text primary key references public.trader_profiles(user_id) on delete cascade,
+  status text not null check (status in ('active', 'idle', 'offline')),
+  last_ping_at timestamptz not null default now()
+);
+
 create table if not exists public.call_signals (
   id uuid primary key default gen_random_uuid(),
   call_id text not null,
@@ -67,8 +97,12 @@ create table if not exists public.call_signals (
 alter table public.trader_profiles enable row level security;
 alter table public.community_messages enable row level security;
 alter table public.community_message_seen enable row level security;
+alter table public.message_reads enable row level security;
 alter table public.friend_requests enable row level security;
+alter table public.friendships enable row level security;
 alter table public.private_messages enable row level security;
+alter table public.calls enable row level security;
+alter table public.presence enable row level security;
 alter table public.call_signals enable row level security;
 
 -- The current PrimePipFx custom-auth server uses its own session token and performs
@@ -78,6 +112,9 @@ alter table public.call_signals enable row level security;
 -- Realtime publication for the server/client migration stage.
 alter publication supabase_realtime add table public.community_messages;
 alter publication supabase_realtime add table public.community_message_seen;
+alter publication supabase_realtime add table public.message_reads;
 alter publication supabase_realtime add table public.friend_requests;
+alter publication supabase_realtime add table public.friendships;
 alter publication supabase_realtime add table public.private_messages;
 alter publication supabase_realtime add table public.call_signals;
+alter publication supabase_realtime add table public.presence;

@@ -2,6 +2,8 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import path from "path";
 import fs from "fs";
+import { createServer } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import {
@@ -22,6 +24,8 @@ import {
   recordUserHeartbeat,
   isUserOnline,
   getAllRegisteredTraders,
+  isActiveCommunityMember,
+  updatePresencePrivacy,
 } from "./server/authService.js";
 import { getCustomerData, saveCustomerData } from "./server/customerDataService.js";
 import {
@@ -85,6 +89,45 @@ const currentAppDir = process.cwd();
 
 const app = express();
 const PORT = 3000;
+const presenceSockets = new Map<string, Set<WebSocket>>();
+
+function broadcastPresence() {
+  for (const [userId, sockets] of presenceSockets) {
+    const payload = JSON.stringify({
+      type: 'presence:update',
+      traders: getAllRegisteredTraders(userId),
+    });
+    for (const socket of sockets) {
+      if (socket.readyState === WebSocket.OPEN) socket.send(payload);
+    }
+  }
+}
+
+function registerPresenceSocket(socket: WebSocket, userId: string) {
+  const sockets = presenceSockets.get(userId) || new Set<WebSocket>();
+  sockets.add(socket);
+  presenceSockets.set(userId, sockets);
+  recordUserHeartbeat(userId);
+  socket.send(JSON.stringify({ type: 'presence:ready' }));
+  broadcastPresence();
+  socket.on('message', (raw) => {
+    try {
+      const message = JSON.parse(raw.toString());
+      if (message?.type === 'presence:ping') {
+        recordUserHeartbeat(userId);
+        socket.send(JSON.stringify({ type: 'presence:pong', timestamp: Date.now() }));
+        broadcastPresence();
+      }
+    } catch {
+      socket.send(JSON.stringify({ type: 'presence:error', error: 'Invalid presence message.' }));
+    }
+  });
+  socket.on('close', () => {
+    sockets.delete(socket);
+    if (sockets.size === 0) presenceSockets.delete(userId);
+    broadcastPresence();
+  });
+}
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -395,7 +438,22 @@ function getAuthToken(req: express.Request): string {
   if (req.cookies && req.cookies.primepipfx_session) {
     return req.cookies.primepipfx_session;
   }
-  return (req.query.token as string) || '';
+  const rawCookie = req.headers?.cookie || '';
+  const sessionCookie = rawCookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith('primepipfx_session='));
+  if (sessionCookie) return decodeURIComponent(sessionCookie.slice('primepipfx_session='.length));
+  const queryToken = (req.query?.token as string) || '';
+  if (queryToken) return queryToken;
+  if (req.url) {
+    try {
+      return new URL(req.url, 'http://localhost').searchParams.get('token') || '';
+    } catch {
+      return '';
+    }
+  }
+  return '';
 }
 
 // Route: Login
@@ -1196,9 +1254,30 @@ app.post('/api/user/heartbeat', (req, res) => {
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user session' });
+    if (!isActiveCommunityMember(user)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for community presence.' });
+    }
 
     recordUserHeartbeat(user.id);
     return res.json({ ok: true, userId: user.id, isOnline: true });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+app.patch('/api/user/presence-privacy', (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid user session' });
+    if (typeof req.body?.showActiveStatus !== 'boolean') {
+      return res.status(400).json({ ok: false, error: 'showActiveStatus must be a boolean' });
+    }
+    const updated = updatePresencePrivacy(user.id, req.body.showActiveStatus);
+    return updated
+      ? res.json({ ok: true, showActiveStatus: req.body.showActiveStatus })
+      : res.status(404).json({ ok: false, error: 'User not found' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
@@ -1210,10 +1289,12 @@ app.post('/api/user/heartbeat', (req, res) => {
 app.get('/api/community/messages', (req, res) => {
   try {
     const token = getAuthToken(req);
-    if (token) {
-      const user = getUserByToken(token);
-      if (user) recordUserHeartbeat(user.id);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token);
+    if (!isActiveCommunityMember(user)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for the community.' });
     }
+    recordUserHeartbeat(user.id);
     const messages = readCommunityMessages();
     return res.json({ ok: true, messages });
   } catch (err: any) {
@@ -1228,6 +1309,9 @@ app.post('/api/community/messages/seen', (req, res) => {
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isActiveCommunityMember(user)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for the community.' });
+    }
 
     recordUserHeartbeat(user.id);
     const { messageIds } = req.body || {};
@@ -1256,6 +1340,9 @@ app.post('/api/community/messages', async (req, res) => {
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized. Please login to participate in the community.' });
     const user = getUserByToken(token);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user session' });
+    if (!isActiveCommunityMember(user)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for the community.' });
+    }
 
     if (user.subscriptionStatus === 'SUSPENDED') {
       return res.status(403).json({
@@ -1372,6 +1459,9 @@ app.get('/api/friends/list', (req, res) => {
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isActiveCommunityMember(user)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for friends.' });
+    }
 
     recordUserHeartbeat(user.id);
     const data = getUserFriends(user.id);
@@ -1401,8 +1491,12 @@ app.get('/api/friends/list', (req, res) => {
 app.get('/api/friends/all-traders', (req, res) => {
   try {
     const token = getAuthToken(req);
-    const currentUser = token ? getUserByToken(token) : null;
-    if (currentUser) recordUserHeartbeat(currentUser.id);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const currentUser = getUserByToken(token);
+    if (!isActiveCommunityMember(currentUser)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for the trader feed.' });
+    }
+    recordUserHeartbeat(currentUser.id);
 
     const traders = getAllRegisteredTraders(currentUser?.id);
     return res.json({ ok: true, traders });
@@ -1417,6 +1511,9 @@ app.get('/api/friends/search', (req, res) => {
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const currentUser = getUserByToken(token);
     if (!currentUser) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isActiveCommunityMember(currentUser)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for trader search.' });
+    }
 
     recordUserHeartbeat(currentUser.id);
     const query = (req.query.q as string || '').toLowerCase().trim();
@@ -1442,10 +1539,17 @@ app.post('/api/friends/request', (req, res) => {
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isActiveCommunityMember(user)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required to add friends.' });
+    }
 
     const { targetUserId, targetUsername, targetDisplayName } = req.body || {};
     if (!targetUserId || !targetUsername) {
       return res.status(400).json({ ok: false, error: 'Target user ID and username required' });
+    }
+    const eligibleTarget = getAllRegisteredTraders(user.id).find((trader) => trader.id === targetUserId);
+    if (!eligibleTarget) {
+      return res.status(404).json({ ok: false, error: 'That trader is not currently eligible for community friends.' });
     }
 
     const result = sendFriendRequest(
@@ -1492,8 +1596,14 @@ app.get('/api/messages/private/:otherUserId', (req, res) => {
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isActiveCommunityMember(user)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for private messaging.' });
+    }
 
     const otherUserId = req.params.otherUserId;
+    if (!getUserFriends(user.id).friends.some((friend) => friend.friendId === otherUserId)) {
+      return res.status(403).json({ ok: false, error: 'Private messaging is available only between accepted friends.' });
+    }
     const messages = getPrivateConversation(user.id, otherUserId);
     return res.json({ ok: true, messages });
   } catch (err: any) {
@@ -1524,6 +1634,9 @@ app.post('/api/messages/private', (req, res) => {
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isActiveCommunityMember(user)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for private messaging.' });
+    }
 
     if (user.subscriptionStatus === 'SUSPENDED') {
       return res.status(403).json({
@@ -1548,6 +1661,10 @@ app.post('/api/messages/private', (req, res) => {
     } = req.body || {};
     if (!receiverId || !receiverUsername) {
       return res.status(400).json({ ok: false, error: 'Receiver required' });
+    }
+    const friendship = getUserFriends(user.id).friends.some((friend) => friend.friendId === receiverId);
+    if (!friendship) {
+      return res.status(403).json({ ok: false, error: 'Private messaging is available only between accepted friends.' });
     }
 
     if (text) {
@@ -1597,8 +1714,14 @@ app.post('/api/webrtc/call', (req, res) => {
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isActiveCommunityMember(user)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for calls.' });
+    }
 
     const { receiverId, receiverUsername, offer, isScreenSharing } = req.body || {};
+    if (!receiverId || !getUserFriends(user.id).friends.some((friend) => friend.friendId === receiverId)) {
+      return res.status(403).json({ ok: false, error: 'Calling is available only between accepted friends.' });
+    }
     const session = initiateWebRTCCall({
       callerId: user.id,
       callerUsername: user.username,
@@ -1615,8 +1738,14 @@ app.post('/api/webrtc/call', (req, res) => {
 
 app.get('/api/webrtc/status/:callId', (req, res) => {
   try {
+    const token = getAuthToken(req);
+    const user = token ? getUserByToken(token) : null;
+    if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Active subscription required.' });
     const session = getCallSession(req.params.callId);
     if (!session) return res.status(404).json({ ok: false, error: 'Call not found' });
+    if (session.callerId !== user?.id && session.receiverId !== user?.id) {
+      return res.status(403).json({ ok: false, error: 'You are not a participant in this call.' });
+    }
     return res.json({ ok: true, session });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
@@ -1629,6 +1758,7 @@ app.get('/api/webrtc/active', (req, res) => {
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Active subscription required.' });
 
     const session = getActiveCallForUser(user.id);
     return res.json({ ok: true, session });
@@ -1640,6 +1770,15 @@ app.get('/api/webrtc/active', (req, res) => {
 app.post('/api/webrtc/answer', (req, res) => {
   try {
     const { callId, answer } = req.body || {};
+    const token = getAuthToken(req);
+    const user = token ? getUserByToken(token) : null;
+    const existing = callId ? getCallSession(callId) : null;
+    if (!isActiveCommunityMember(user) || !existing) {
+      return res.status(403).json({ ok: false, error: 'Call authorization failed.' });
+    }
+    if (existing.receiverId !== user?.id && existing.callerId !== user?.id) {
+      return res.status(403).json({ ok: false, error: 'You are not a participant in this call.' });
+    }
     const session = updateCallSession(callId, { answer, status: 'CONNECTED' });
     if (!session) return res.status(404).json({ ok: false, error: 'Call not found' });
     return res.json({ ok: true, session });
@@ -1651,6 +1790,16 @@ app.post('/api/webrtc/answer', (req, res) => {
 app.post('/api/webrtc/candidate', (req, res) => {
   try {
     const { callId, isCaller, candidate } = req.body || {};
+    const token = getAuthToken(req);
+    const user = token ? getUserByToken(token) : null;
+    const session = callId ? getCallSession(callId) : null;
+    if (!isActiveCommunityMember(user) || !session) {
+      return res.status(403).json({ ok: false, error: 'Call authorization failed.' });
+    }
+    const expectedCaller = session.callerId === user?.id;
+    if (expectedCaller !== Boolean(isCaller)) {
+      return res.status(403).json({ ok: false, error: 'Invalid signaling participant.' });
+    }
     const success = addIceCandidate(callId, isCaller, candidate);
     return res.json({ ok: success });
   } catch (err: any) {
@@ -1661,6 +1810,15 @@ app.post('/api/webrtc/candidate', (req, res) => {
 app.post('/api/webrtc/end', (req, res) => {
   try {
     const { callId } = req.body || {};
+    const token = getAuthToken(req);
+    const user = token ? getUserByToken(token) : null;
+    const existing = callId ? getCallSession(callId) : null;
+    if (!isActiveCommunityMember(user) || !existing) {
+      return res.status(403).json({ ok: false, error: 'Call authorization failed.' });
+    }
+    if (existing.callerId !== user?.id && existing.receiverId !== user?.id) {
+      return res.status(403).json({ ok: false, error: 'You are not a participant in this call.' });
+    }
     const session = updateCallSession(callId, { status: 'ENDED' });
     return res.json({ ok: true, session });
   } catch (err: any) {
@@ -1912,7 +2070,19 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const httpServer = createServer(app);
+  const presenceServer = new WebSocketServer({ server: httpServer, path: '/api/presence' });
+  presenceServer.on('connection', (socket, request) => {
+    const token = getAuthToken(request as express.Request);
+    const user = token ? getUserByToken(token) : null;
+    if (!isActiveCommunityMember(user)) {
+      socket.close(1008, 'Active subscription required');
+      return;
+    }
+    registerPresenceSocket(socket, user.id);
+  });
+
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`[PRIMEPIPFX COMMAND CENTER] Server active on port ${PORT}`);
   });
 }

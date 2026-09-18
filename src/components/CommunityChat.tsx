@@ -9,6 +9,7 @@ import { VoiceMessagePlayer } from './communication/VoiceMessagePlayer';
 import {
   Users, Send, Image as ImageIcon, Mic, MicOff, Clock, RefreshCw, X,
   MessageSquare, UserPlus, Radio, Paperclip, CheckCheck,
+  Search, Eye, EyeOff, WifiOff,
 } from 'lucide-react';
 import { googleDriveService } from '../services/googleDriveService';
 import { IntentCard } from './chat/IntentCard';
@@ -85,7 +86,19 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   const [sendError, setSendError] = useState<string | null>(null);
   const [allTraders, setAllTraders] = useState<Array<{
     id: string; username: string; displayName: string; role?: string; isOnline: boolean;
+    presenceStatus?: 'ACTIVE' | 'OFFLINE' | 'HIDDEN'; lastSeen?: number;
+    isNewThisWeek?: boolean; tradingFocus?: string; experienceLevel?: string; traderStatus?: string;
   }>>([]);
+  const [traderSearch, setTraderSearch] = useState('');
+  const [debouncedTraderSearch, setDebouncedTraderSearch] = useState('');
+  const [onlineOnly, setOnlineOnly] = useState(false);
+  const [showActiveStatus, setShowActiveStatus] = useState(true);
+  const [isSavingPrivacy, setIsSavingPrivacy] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedTraderSearch(traderSearch), 250);
+    return () => window.clearTimeout(timer);
+  }, [traderSearch]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -115,8 +128,12 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
 
   useEffect(() => {
     const fetchTraders = async () => {
+      if (!currentUser) return;
       try {
-        const res = await fetch('/api/friends/all-traders');
+        const token = getStoredToken();
+        const res = await fetch('/api/friends/all-traders', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (res.ok) {
           const data = await res.json();
           if (data.traders) setAllTraders(data.traders);
@@ -126,7 +143,53 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     fetchTraders();
     const intv = setInterval(fetchTraders, 15000);
     return () => clearInterval(intv);
-  }, []);
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(`${protocol}//${window.location.host}/api/presence`);
+    const heartbeat = window.setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'presence:ping' }));
+      }
+    }, 30000);
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data?.type === 'presence:update' && Array.isArray(data.traders)) {
+          setAllTraders(data.traders);
+        }
+      } catch {
+        // The HTTP polling fallback remains authoritative if a presence frame is malformed.
+      }
+    };
+    return () => {
+      window.clearInterval(heartbeat);
+      socket.close();
+    };
+  }, [currentUser?.id]);
+
+  const updatePresencePrivacy = async (nextValue: boolean) => {
+    setShowActiveStatus(nextValue);
+    setIsSavingPrivacy(true);
+    try {
+      const token = getStoredToken();
+      const res = await fetch('/api/user/presence-privacy', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ showActiveStatus: nextValue }),
+      });
+      if (!res.ok) setShowActiveStatus(!nextValue);
+    } catch {
+      setShowActiveStatus(!nextValue);
+    } finally {
+      setIsSavingPrivacy(false);
+    }
+  };
 
   const markMessagesSeen = async (msgs: ChatMessage[]) => {
     if (!currentUser?.id || !msgs?.length) return;
@@ -210,9 +273,27 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     };
     window.addEventListener('online', goOnline);
     window.addEventListener('offline', goOffline);
+    const checkBackend = async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setIsOffline(true);
+        return;
+      }
+      try {
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 3000);
+        const response = await fetch('/api/health', { method: 'HEAD', cache: 'no-store', signal: controller.signal });
+        window.clearTimeout(timeout);
+        setIsOffline(!response.ok);
+      } catch {
+        setIsOffline(true);
+      }
+    };
+    checkBackend();
+    const backendInterval = window.setInterval(checkBackend, 30000);
     return () => {
       window.removeEventListener('online', goOnline);
       window.removeEventListener('offline', goOffline);
+      window.clearInterval(backendInterval);
     };
   }, []);
 
@@ -289,6 +370,10 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     if (e) e.preventDefault();
     if (!currentUser) {
       onOpenLogin?.();
+      return;
+    }
+    if (isOffline) {
+      setSendError("You're offline — messages will not send.");
       return;
     }
     if (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedDriveFile && !selectedLocalFile) return;
@@ -423,7 +508,23 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     setIsCallModalOpen(true);
   };
 
-  const onlineCount = allTraders.filter((t) => t.isOnline).length;
+  const filteredTraders = allTraders.filter((trader) => {
+    const query = debouncedTraderSearch.trim().toLowerCase();
+    const matchesQuery =
+      !query ||
+      trader.displayName.toLowerCase().includes(query) ||
+      trader.username.toLowerCase().includes(query);
+    return matchesQuery && (!onlineOnly || trader.presenceStatus === 'ACTIVE' || trader.isOnline);
+  });
+  const onlineCount = allTraders.filter((t) => t.presenceStatus === 'ACTIVE' || t.isOnline).length;
+  const formatLastActive = (timestamp?: number) => {
+    if (!timestamp) return 'Never active';
+    const elapsedMinutes = Math.max(1, Math.floor((Date.now() - timestamp) / 60000));
+    if (elapsedMinutes < 60) return `Last active ${elapsedMinutes}m ago`;
+    const elapsedHours = Math.floor(elapsedMinutes / 60);
+    if (elapsedHours < 24) return `Last active ${elapsedHours}h ago`;
+    return `Last active ${Math.floor(elapsedHours / 24)}d ago`;
+  };
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto h-[84vh] flex flex-col">
@@ -439,7 +540,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                 {onlineCount} ONLINE ({allTraders.length} REGISTERED)
               </span>
             </h2>
-            <p className="text-[11px] text-slate-400">Community · Private DMs · WebRTC</p>
+            <p className="text-[11px] text-slate-400">Community Hub · Trader Feed · Private Friends</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-mono-code">
@@ -497,9 +598,83 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
 
       {commMode === 'PUBLIC' && (
         <div className="flex-1 flex flex-col min-h-0 space-y-3">
+          <section className="bg-slate-950 border border-slate-800 rounded-2xl p-3 shadow-xl shrink-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div>
+                <h3 className="text-xs font-military font-bold tracking-wider text-slate-100">COMMUNITY TRADER FEED</h3>
+                <p className="text-[10px] text-slate-500 font-mono-code">Active subscribers only · sorted by live presence</p>
+              </div>
+              {currentUser && (
+                <button
+                  type="button"
+                  disabled={isSavingPrivacy}
+                  onClick={() => updatePresencePrivacy(!showActiveStatus)}
+                  className="text-[10px] font-mono-code text-slate-400 hover:text-cyan-300 flex items-center gap-1.5"
+                  title="Presence is reciprocal: hiding yours also hides live status"
+                >
+                  {showActiveStatus ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                  {showActiveStatus ? 'Showing active status' : 'Active status hidden'}
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 mb-3">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  value={traderSearch}
+                  onChange={(event) => setTraderSearch(event.target.value)}
+                  placeholder="Search name or username…"
+                  className="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-100 focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setOnlineOnly((value) => !value)}
+                className={`px-3 py-2 rounded-lg border text-[10px] font-mono-code ${
+                  onlineOnly
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                    : 'bg-slate-900 border-slate-800 text-slate-400'
+                }`}
+              >
+                {onlineOnly ? 'Online only' : 'Everyone'} · {onlineCount}
+              </button>
+            </div>
+            {currentUser && filteredTraders.length > 0 ? (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {filteredTraders.map((trader) => {
+                  const isActive = trader.presenceStatus === 'ACTIVE' || trader.isOnline;
+                  return (
+                    <button
+                      type="button"
+                      key={trader.id}
+                      onClick={() => {
+                        setActivePrivateContact({ id: trader.id, username: trader.username, displayName: trader.displayName });
+                        setCommMode('FRIENDS');
+                      }}
+                      className="min-w-[170px] text-left p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 transition"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${isActive ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                        <span className="text-xs font-bold text-slate-200 truncate">{trader.displayName}</span>
+                        {trader.isNewThisWeek && <span className="text-[8px] text-amber-300">NEW</span>}
+                      </div>
+                      <span className="block text-[10px] text-slate-500 truncate">@{trader.username}</span>
+                      <span className="block text-[9px] text-slate-500 mt-1">
+                        {isActive ? (trader.traderStatus || 'Active now') : formatLastActive(trader.lastSeen)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-500 font-mono-code py-2">
+                {currentUser ? 'No active subscribers match this search.' : 'Login with an active subscription to view the trader feed.'}
+              </p>
+            )}
+          </section>
           {(isOffline || feedError) && (
             <div className="p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-xl text-cyan-200 text-xs font-mono-code text-center">
-              {isOffline ? 'OFFLINE' : 'FEED NOTICE'} — {feedError || 'Connection lost. Showing last known messages.'}
+              {isOffline ? <><WifiOff className="inline w-3.5 h-3.5 mr-1" /> You're offline — messages will not send.</> : `FEED NOTICE — ${feedError || 'Connection lost. Showing last known messages.'}`}
             </div>
           )}
           {micNotice && (
@@ -678,7 +853,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
             />
             <button
               type="submit"
-              disabled={isSending || (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedLocalFile && !selectedDriveFile)}
+              disabled={isOffline || isSending || (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedLocalFile && !selectedDriveFile)}
               className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-amber-600 text-slate-950 font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5"
             >
               {isSending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

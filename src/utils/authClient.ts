@@ -12,9 +12,16 @@ const TOKEN_KEY = 'primepipfx_auth_token';
 const USER_KEY = 'primepipfx_user_profile';
 const REFERRAL_KEY = 'primepipfx_applied_referral';
 
+function isValidStoredUser(value: unknown): value is UserAccount {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<UserAccount>;
+  return typeof candidate.id === 'string' && candidate.id.trim().length > 0;
+}
+
 export function getStoredToken(): string | null {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    const token = localStorage.getItem(TOKEN_KEY);
+    return typeof token === 'string' && token.trim() ? token : null;
   } catch {
     return null;
   }
@@ -36,7 +43,11 @@ export function getStoredUser(): UserAccount | null {
   try {
     const raw = localStorage.getItem(USER_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+
+    const parsed = JSON.parse(raw);
+    if (!isValidStoredUser(parsed)) return null;
+
+    return parsed;
   } catch {
     return null;
   }
