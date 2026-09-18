@@ -3,6 +3,8 @@
 
 export type CompoundingMode = 'FIXED_RISK' | 'PERCENTAGE_COMPOUNDING';
 
+export const DEFAULT_TRADING_DAYS_PER_MONTH = 21;
+
 export interface CompoundingInputs {
   startingBalance: number;
   compoundingMode: CompoundingMode;
@@ -130,9 +132,14 @@ export function aggregateMonthlyProjections(rows: CompoundingDayRow[], daysPerMo
 }
 
 export function calculateCompoundingProjection(inputs: CompoundingInputs): CompoundingResult {
+  const normalizedTradingDaysPerMonth = Number.isFinite(inputs.tradingDaysPerMonth) && inputs.tradingDaysPerMonth > 0
+    ? inputs.tradingDaysPerMonth
+    : DEFAULT_TRADING_DAYS_PER_MONTH;
+
+  const tradingDaysPerMonthValue = Math.max(1, Math.min(365, normalizedTradingDaysPerMonth));
   const totalDays = inputs.customDays && inputs.customDays > 0
     ? inputs.customDays
-    : Math.round(inputs.calculationMonths * (inputs.tradingDaysPerMonth || 21));
+    : Math.round(inputs.calculationMonths * tradingDaysPerMonthValue);
 
   const safeDays = Math.min(365, Math.max(1, totalDays));
   const winRateFrac = Math.max(0.1, Math.min(0.95, inputs.expectedWinRate / 100));
@@ -224,7 +231,7 @@ export function calculateCompoundingProjection(inputs: CompoundingInputs): Compo
     : safeDays;
 
   const weeklyRows = aggregateWeeklyProjections(rows);
-  const monthlyRows = aggregateMonthlyProjections(rows, inputs.tradingDaysPerMonth || 21);
+  const monthlyRows = aggregateMonthlyProjections(rows, tradingDaysPerMonthValue);
   const averageWeeklyGainDollars = weeklyRows.length > 0 ? totalProjectedGainDollars / weeklyRows.length : 0;
   const averageMonthlyGainDollars = monthlyRows.length > 0 ? totalProjectedGainDollars / monthlyRows.length : 0;
 

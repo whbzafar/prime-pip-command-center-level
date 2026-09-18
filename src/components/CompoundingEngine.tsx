@@ -21,11 +21,11 @@ import { AccountSettings, Trade } from '../types';
 import {
   CompoundingMode,
   CompoundingInputs,
+  DEFAULT_TRADING_DAYS_PER_MONTH,
   calculateCompoundingProjection,
   calculateLossRecoveryMetrics,
 } from '../utils/compoundingEngine';
 import { formatCurrency, getCurrencySymbol } from '../utils/currencyFormatter';
-import { DedicatedCompoundingCalculator } from './compounding/DedicatedCompoundingCalculator';
 
 interface CompoundingEngineProps {
   account: AccountSettings;
@@ -53,7 +53,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
   const [expectedWinRate, setExpectedWinRate] = useState<number>(55);
   const [riskRewardRatio, setRiskRewardRatio] = useState<number>(2.0);
   const [tradesPerDay, setTradesPerDay] = useState<number>(1);
-  const [tradingDaysPerMonth, setTradingDaysPerMonth] = useState<number>(21); // 21 trading days/month (5 days/week)
+  const [tradingDaysPerMonth, setTradingDaysPerMonth] = useState<number>(DEFAULT_TRADING_DAYS_PER_MONTH);
   const [selectedPeriodMonths, setSelectedPeriodMonths] = useState<number>(1); // Default to 1 Month (21 trading days)
   const [customDays, setCustomDays] = useState<number>(21);
   const [scheduleViewMode, setScheduleViewMode] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('DAILY');
