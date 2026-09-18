@@ -29,6 +29,7 @@ import { DeveloperAdminPanel } from './components/DeveloperAdminPanel';
 import { PreTradePlan } from './components/PreTradePlan';
 import { SbtModelsHub } from './components/sbt/SbtModelsHub';
 import { FundamentalCalendar } from './components/FundamentalCalendar';
+import { FundamentalIndicators } from './components/FundamentalIndicators';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { FreehandWorkspace } from './components/FreehandWorkspace';
 import { CommunityChat } from './components/CommunityChat';
@@ -838,6 +839,10 @@ export default function App() {
 
         {activeTab === 'FUNDAMENTAL_CALENDAR' && (
           <FundamentalCalendar />
+        )}
+
+        {activeTab === 'FUNDAMENTAL_INDICATORS' && (
+          <FundamentalIndicators />
         )}
 
         {activeTab === 'FREEHAND_WORKSPACE' && (
