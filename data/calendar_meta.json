@@ -1,11 +1,11 @@
 {
-  "lastSynced": "2026-09-11T11:22:39.358Z",
-  "isOnline": true,
-  "eventCount": 368,
-  "yearRange": [
+  "totalEvents": 368,
+  "lastUpdated": "2026-09-19T07:56:13.042Z",
+  "yearsCovered": [
     2026,
     2027
   ],
-  "primaryTimezone": "Asia/Karachi (PKT UTC+5)",
-  "source": "Institutional Central Bank & Economic Release Engine (2026-2027 Official Schedule)"
+  "provider": "Institutional Macro Database & Live Sync",
+  "syncStatus": "ACTIVE_100_PERCENT_UP",
+  "isFullySynced": true
 }

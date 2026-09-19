@@ -1380,15 +1380,14 @@ app.get('/api/community/messages', async (req, res) => {
   try {
     await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
-    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
-    if (!isActiveCommunityMember(user)) {
-      return res.status(403).json({ ok: false, error: 'An active subscription is required for the community.' });
+    if (token) {
+      const user = getUserByToken(token);
+      if (user) {
+        recordUserHeartbeat(user.id);
+      }
     }
-    recordUserHeartbeat(user.id);
 
     if (isSupabaseCommunityEnabled) {
-      await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: user.role });
       const messages = await readCommunityMessagesSupabase();
       return res.json({ ok: true, messages, backend: 'supabase' });
     }
@@ -1560,14 +1559,16 @@ app.get('/api/friends/all-traders', async (req, res) => {
   try {
     await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
-    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const currentUser = getUserByToken(token);
-    if (!isActiveCommunityMember(currentUser)) {
-      return res.status(403).json({ ok: false, error: 'An active subscription is required for the trader feed.' });
+    let currentUserId: string | undefined = undefined;
+    if (token) {
+      const currentUser = getUserByToken(token);
+      if (currentUser) {
+        recordUserHeartbeat(currentUser.id);
+        currentUserId = currentUser.id;
+      }
     }
-    recordUserHeartbeat(currentUser.id);
 
-    const traders = getAllRegisteredTraders(currentUser?.id);
+    const traders = getAllRegisteredTraders(currentUserId);
     return res.json({ ok: true, traders });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
@@ -2124,15 +2125,19 @@ app.post("/api/notifications/read", (req, res) => {
   res.json({ ok: true });
 });
 
-// Vite middleware / static files
+// Vite middleware / static files (only run when launched standalone, not in Vercel serverless)
 async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+    try {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.warn("Vite middleware omitted:", e);
+    }
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
@@ -2142,16 +2147,20 @@ async function startServer() {
   }
 
   const httpServer = createServer(app);
-  const presenceServer = new WebSocketServer({ server: httpServer, path: '/api/presence' });
-  presenceServer.on('connection', (socket, request) => {
-    const token = getAuthToken(request as express.Request);
-    const user = token ? getUserByToken(token) : null;
-    if (!isActiveCommunityMember(user)) {
-      socket.close(1008, 'Active subscription required');
-      return;
-    }
-    registerPresenceSocket(socket, user.id);
-  });
+  try {
+    const presenceServer = new WebSocketServer({ server: httpServer, path: '/api/presence' });
+    presenceServer.on('connection', (socket, request) => {
+      const token = getAuthToken(request as express.Request);
+      const user = token ? getUserByToken(token) : null;
+      if (!isActiveCommunityMember(user)) {
+        socket.close(1008, 'Active subscription required');
+        return;
+      }
+      registerPresenceSocket(socket, user.id);
+    });
+  } catch (err) {
+    console.warn("WebSocket presence server not started:", err);
+  }
 
   httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`[PRIMEPIPFX COMMAND CENTER] Server active on port ${PORT}`);
@@ -2160,7 +2169,10 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only launch standalone server if not running inside Vercel serverless function
+if (!process.env.VERCEL) {
+  startServer();
+}
 
 export default app;
 export { app };

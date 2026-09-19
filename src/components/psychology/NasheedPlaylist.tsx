@@ -1,16 +1,41 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ExternalLink, Music2, Play, Plus, Trash2 } from 'lucide-react';
+import { ExternalLink, Music2, Play, Pause, Plus, Trash2, Volume2, Youtube } from 'lucide-react';
 
-interface PlaylistItem {
+export interface PlaylistItem {
   id: string;
   title: string;
   url: string;
 }
 
 const STORAGE_KEY = 'primepipfx_psychology_nasheed_playlist';
-const isSafeAudioUrl = (value: string) => {
+
+export const DEFAULT_FOCUS_TRACKS: PlaylistItem[] = [
+  {
+    id: 'track-1-hubbuka',
+    title: 'Hubbuka Fi Qalbi - Ikyy Pahlevii Slow Remix Arabic ( Official Lyric Video )',
+    url: 'https://youtu.be/VatATQACUhE?list=RDrH9mDCe83v0',
+  },
+  {
+    id: 'track-2-abeer',
+    title: 'Abeer Nehme - Bi Saraha | عبير نعمة - بصراحة',
+    url: 'https://youtu.be/rH9mDCe83v0?list=RDrH9mDCe83v0',
+  },
+];
+
+export function extractYouTubeVideoId(rawUrl: string): string | null {
   try {
-    const url = new URL(value);
+    const trimmed = rawUrl.trim();
+    const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+    const match = trimmed.match(regExp);
+    return match && match[1].length === 11 ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+const isPlayableUrl = (value: string) => {
+  try {
+    const url = new URL(value.trim());
     return url.protocol === 'https:' || url.protocol === 'http:';
   } catch {
     return false;
@@ -21,65 +46,223 @@ export const NasheedPlaylist: React.FC = () => {
   const [items, setItems] = useState<PlaylistItem[]>(() => {
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      return Array.isArray(stored) ? stored : [];
-    } catch {
-      return [];
-    }
+      if (Array.isArray(stored) && stored.length > 0) {
+        // Guarantee both required tracks are included
+        const hasTrack1 = stored.some((t) => t.url?.includes('VatATQACUhE'));
+        const hasTrack2 = stored.some((t) => t.url?.includes('rH9mDCe83v0'));
+        const merged = [...stored];
+        if (!hasTrack2) merged.unshift(DEFAULT_FOCUS_TRACKS[1]);
+        if (!hasTrack1) merged.unshift(DEFAULT_FOCUS_TRACKS[0]);
+        return merged;
+      }
+    } catch {}
+    return DEFAULT_FOCUS_TRACKS;
   });
+
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(DEFAULT_FOCUS_TRACKS[0].id);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch {}
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch {}
   }, [items]);
+
+  const activeItem = items.find((item) => item.id === activeId) || null;
+  const activeYouTubeId = activeItem ? extractYouTubeVideoId(activeItem.url) : null;
 
   const addItem = () => {
     const trimmedUrl = url.trim();
-    if (!isSafeAudioUrl(trimmedUrl)) {
-      setError('Use a direct http(s) audio URL from a source you trust.');
+    if (!trimmedUrl) {
+      setError('Please provide a track link (YouTube or audio URL).');
       return;
     }
-    setItems((current) => [...current, { id: `${Date.now()}`, title: title.trim() || 'Untitled nasheed', url: trimmedUrl }]);
+    if (!isPlayableUrl(trimmedUrl)) {
+      setError('Please enter a valid URL starting with http:// or https://');
+      return;
+    }
+
+    const isYt = Boolean(extractYouTubeVideoId(trimmedUrl));
+    const fallbackTitle = isYt ? 'YouTube Focus Audio' : 'Custom Audio Track';
+    const newTrack: PlaylistItem = {
+      id: `track-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title: title.trim() || fallbackTitle,
+      url: trimmedUrl,
+    };
+
+    setItems((current) => [...current, newTrack]);
+    setActiveId(newTrack.id);
     setTitle('');
     setUrl('');
     setError('');
   };
 
   const playItem = (item: PlaylistItem) => {
-    setActiveId(item.id);
-    window.setTimeout(() => audioRef.current?.play().catch(() => setError('This source does not allow browser playback.')), 0);
+    if (activeId === item.id) {
+      // Toggle pause/stop
+      setActiveId(null);
+    } else {
+      setActiveId(item.id);
+      setError('');
+    }
   };
 
   return (
-    <section className="rounded-2xl border border-indigo-500/20 bg-[#090e1c]/80 p-4 shadow-lg">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <section className="rounded-2xl border border-indigo-500/20 bg-[#090e1c]/90 p-4 shadow-xl backdrop-blur-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-500/10 pb-3">
         <div className="flex items-center gap-2">
-          <Music2 className="h-4 w-4 text-indigo-300" />
-          <h2 className="font-military text-xs font-bold uppercase tracking-wider text-slate-200">Focus playlist</h2>
+          <Music2 className="h-4 w-4 text-cyan-400 animate-pulse" />
+          <h2 className="font-military text-xs font-bold uppercase tracking-wider text-slate-100">
+            Psychological Focus Playlist
+          </h2>
         </div>
-        <span className="text-[10px] font-mono-code text-slate-500">Remote URLs only · no audio bundled</span>
+        <span className="text-[10px] font-mono-code text-cyan-400/80 bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-500/20">
+          YouTube & Audio Stream Enabled
+        </span>
       </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1.5fr_auto]">
-        <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Track name" className="prime-input min-w-0" />
-        <input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://trusted-source.example/audio.mp3" inputMode="url" className="prime-input min-w-0" />
-        <button type="button" onClick={addItem} className="prime-btn-secondary flex items-center justify-center gap-1.5 text-xs"><Plus className="h-3.5 w-3.5" /> Add</button>
+
+      {/* Add New Track Form */}
+      <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1.6fr_auto]">
+        <input
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="Track title (e.g., Focus Nasheed / Lo-Fi)"
+          className="prime-input min-w-0 text-xs"
+        />
+        <input
+          value={url}
+          onChange={(event) => setUrl(event.target.value)}
+          placeholder="https://youtu.be/... or https://audio.mp3"
+          inputMode="url"
+          className="prime-input min-w-0 text-xs"
+        />
+        <button
+          type="button"
+          onClick={addItem}
+          className="prime-btn-secondary flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-2 cursor-pointer"
+        >
+          <Plus className="h-3.5 w-3.5 text-cyan-400" /> Add Track
+        </button>
       </div>
-      {error && <p className="mt-2 text-[11px] text-rose-300">{error}</p>}
-      {activeId && <audio ref={audioRef} controls className="mt-3 w-full" src={items.find((item) => item.id === activeId)?.url} onEnded={() => setActiveId(null)} />}
-      <div className="mt-3 space-y-1.5">
-        {items.length === 0 ? (
-          <p className="text-[11px] text-slate-500">Add a licensed or personally hosted track to build your calming queue.</p>
-        ) : items.map((item) => (
-          <div key={item.id} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-2.5 py-2">
-            <button type="button" onClick={() => playItem(item)} className="rounded-lg p-1.5 text-cyan-300 hover:bg-cyan-400/10" aria-label={`Play ${item.title}`}><Play className="h-3.5 w-3.5" /></button>
-            <span className="min-w-0 flex-1 truncate text-xs text-slate-200">{item.title}</span>
-            <a href={item.url} target="_blank" rel="noreferrer noopener" className="text-slate-500 hover:text-cyan-300" aria-label={`Open ${item.title}`}><ExternalLink className="h-3.5 w-3.5" /></a>
-            <button type="button" onClick={() => { if (activeId === item.id) setActiveId(null); setItems((current) => current.filter((entry) => entry.id !== item.id)); }} className="text-slate-500 hover:text-rose-300" aria-label={`Remove ${item.title}`}><Trash2 className="h-3.5 w-3.5" /></button>
+
+      {error && <p className="mt-2 text-[11px] text-rose-400 font-mono-code">{error}</p>}
+
+      {/* Active Track Player Engine */}
+      {activeItem && (
+        <div className="mt-3 p-3 rounded-xl border border-indigo-500/30 bg-slate-950/80 space-y-2">
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <Volume2 className="h-4 w-4 text-emerald-400 shrink-0 animate-pulse" />
+              <span className="font-mono-code text-[11px] text-emerald-400 uppercase tracking-wider">Now Playing:</span>
+              <span className="text-slate-200 font-semibold truncate text-xs">{activeItem.title}</span>
+            </div>
+            <button
+              onClick={() => setActiveId(null)}
+              className="text-[11px] text-slate-400 hover:text-rose-400 font-mono-code transition cursor-pointer"
+            >
+              Stop
+            </button>
           </div>
-        ))}
+
+          {activeYouTubeId ? (
+            <div className="relative w-full rounded-lg overflow-hidden border border-slate-800 bg-black shadow-lg">
+              <div className="aspect-[16/9] max-h-56 sm:max-h-64 w-full">
+                <iframe
+                  src={`https://www.youtube-nocookie.com/embed/${activeYouTubeId}?autoplay=1&rel=0&enablejsapi=1`}
+                  title={activeItem.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full border-0"
+                />
+              </div>
+            </div>
+          ) : (
+            <audio
+              ref={audioRef}
+              controls
+              autoPlay
+              className="w-full mt-2"
+              src={activeItem.url}
+              onEnded={() => setActiveId(null)}
+              onError={() => setError('Direct audio stream could not be loaded. Please check link format.')}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Track Queue */}
+      <div className="mt-3 space-y-2">
+        <div className="text-[10px] font-mono-code uppercase tracking-wider text-slate-400 flex items-center justify-between">
+          <span>Queued Focus Audio ({items.length})</span>
+          <span>Click play on any track</span>
+        </div>
+
+        {items.map((item) => {
+          const isPlaying = activeId === item.id;
+          const isYt = Boolean(extractYouTubeVideoId(item.url));
+
+          return (
+            <div
+              key={item.id}
+              className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 transition ${
+                isPlaying
+                  ? 'border-cyan-500/60 bg-cyan-950/30 text-cyan-200'
+                  : 'border-slate-800/80 bg-slate-950/60 text-slate-300 hover:border-slate-700'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => playItem(item)}
+                className={`rounded-lg p-2 transition cursor-pointer ${
+                  isPlaying
+                    ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                    : 'bg-slate-900 text-cyan-400 hover:bg-cyan-500/20'
+                }`}
+                aria-label={`Play ${item.title}`}
+              >
+                {isPlaying ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}
+              </button>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  {isYt ? (
+                    <Youtube className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                  ) : (
+                    <Music2 className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                  )}
+                  <span className="truncate text-xs font-medium text-slate-200">{item.title}</span>
+                </div>
+              </div>
+
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="p-1.5 text-slate-400 hover:text-cyan-400 transition"
+                title="Open in new tab"
+                aria-label={`Open ${item.title}`}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeId === item.id) setActiveId(null);
+                  setItems((current) => current.filter((entry) => entry.id !== item.id));
+                }}
+                className="p-1.5 text-slate-500 hover:text-rose-400 transition cursor-pointer"
+                title="Remove track"
+                aria-label={`Remove ${item.title}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

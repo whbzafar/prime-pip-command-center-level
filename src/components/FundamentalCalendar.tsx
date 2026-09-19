@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CalendarEvent,
   CalendarMeta,
@@ -109,10 +110,10 @@ interface ActiveAudioAlert {
 
 export const FundamentalCalendar: React.FC = () => {
   // Navigation & View states
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('UPCOMING'); // Default is FULL YEAR
+  const [viewMode, setViewMode] = useState<CalendarViewMode>('UPCOMING'); // Default is UPCOMING
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1); // 1-12
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>(() => getCachedCalendar());
   const [meta, setMeta] = useState<CalendarMeta | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
@@ -261,7 +262,14 @@ export const FundamentalCalendar: React.FC = () => {
         loaded = await fetchHistoricalEvents(50);
       }
 
-      setEvents(loaded);
+      if (loaded.length === 0) {
+        const cached = getCachedCalendar();
+        if (cached && cached.length > 0) {
+          loaded = viewMode === 'UPCOMING' ? cached.slice(0, 50) : cached;
+        }
+      }
+
+      setEvents(loaded.length > 0 ? loaded : getCachedCalendar());
       const metaData = await getCalendarMeta();
       setMeta(metaData);
       setLastRefreshedTime(new Date().toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi' }));
@@ -346,6 +354,17 @@ export const FundamentalCalendar: React.FC = () => {
   const dismissActiveAlert = (id: string) => {
     setActiveAlerts((prev) => prev.filter((a) => a.id !== id));
   };
+
+  useEffect(() => {
+    if (selectedEvent) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedEvent]);
 
   // Filtered Events
   const filteredEvents = useMemo(() => {
@@ -816,8 +835,9 @@ export const FundamentalCalendar: React.FC = () => {
                             onClick={() => setSelectedEvent(ev)}
                             className="bg-white hover:bg-slate-50 cursor-pointer transition border-b border-slate-200 font-sans text-[12px] text-slate-800"
                           >
-                            <td className="py-2 px-3 text-slate-500 whitespace-nowrap border-r border-slate-100">
-                              {ev.datePkt.split(',')[1]?.trim() || ev.datePkt}
+                            <td className="py-2 px-3 text-slate-700 whitespace-nowrap border-r border-slate-100 font-medium">
+                              <span className="text-slate-800 font-semibold">{ev.datePkt.split(',')[0]}</span>
+                              <span className="text-slate-400 text-[10px] ml-1">{ev.datePkt.split(',')[1]?.trim()}</span>
                             </td>
                             <td className="py-2 px-3 whitespace-nowrap text-slate-700 border-r border-slate-100">
                               {ev.timePkt}
@@ -845,19 +865,19 @@ export const FundamentalCalendar: React.FC = () => {
                               </div>
                             </td>
                             <td className="py-2 px-3 text-center border-r border-slate-100">
-                              {ev.actual ? (
-                                <span className={`font-bold ${parseFloat(ev.actual) > parseFloat(ev.forecast || '0') ? 'text-emerald-600' : parseFloat(ev.actual) < parseFloat(ev.forecast || '0') ? 'text-rose-600' : 'text-slate-800'}`}>
-                                  {ev.actual}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">—</span>
-                              )}
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono-code font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                Coming Soon
+                              </span>
                             </td>
                             <td className="py-2 px-3 text-center text-slate-600 border-r border-slate-100">
-                              {ev.forecast || '—'}
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono-code font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                Coming Soon
+                              </span>
                             </td>
                             <td className="py-2 px-3 text-center text-slate-600 border-r border-slate-100">
-                              {ev.previous || '—'}
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono-code font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                Coming Soon
+                              </span>
                             </td>
                             <td className="py-2 px-2 text-center">
                               <div className="flex justify-center text-slate-400 hover:text-blue-500 transition">
@@ -909,8 +929,9 @@ export const FundamentalCalendar: React.FC = () => {
                             onClick={() => setSelectedEvent(ev)}
                             className="bg-white hover:bg-slate-50 cursor-pointer transition border-b border-slate-200 font-sans text-[12px] text-slate-800"
                           >
-                            <td className="py-2 px-3 text-slate-500 whitespace-nowrap border-r border-slate-100">
-                              {ev.datePkt.split(',')[1]?.trim() || ev.datePkt}
+                            <td className="py-2 px-3 text-slate-700 whitespace-nowrap border-r border-slate-100 font-medium">
+                              <span className="text-slate-800 font-semibold">{ev.datePkt.split(',')[0]}</span>
+                              <span className="text-slate-400 text-[10px] ml-1">{ev.datePkt.split(',')[1]?.trim()}</span>
                             </td>
                             <td className="py-2 px-3 whitespace-nowrap text-slate-700 border-r border-slate-100">
                               {ev.timePkt}
@@ -938,19 +959,19 @@ export const FundamentalCalendar: React.FC = () => {
                               </div>
                             </td>
                             <td className="py-2 px-3 text-center border-r border-slate-100">
-                              {ev.actual ? (
-                                <span className={`font-bold ${parseFloat(ev.actual) > parseFloat(ev.forecast || '0') ? 'text-emerald-600' : parseFloat(ev.actual) < parseFloat(ev.forecast || '0') ? 'text-rose-600' : 'text-slate-800'}`}>
-                                  {ev.actual}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">—</span>
-                              )}
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono-code font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                Coming Soon
+                              </span>
                             </td>
                             <td className="py-2 px-3 text-center text-slate-600 border-r border-slate-100">
-                              {ev.forecast || '—'}
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono-code font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                Coming Soon
+                              </span>
                             </td>
                             <td className="py-2 px-3 text-center text-slate-600 border-r border-slate-100">
-                              {ev.previous || '—'}
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono-code font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                Coming Soon
+                              </span>
                             </td>
                             <td className="py-2 px-2 text-center">
                               <div className="flex justify-center text-slate-400 hover:text-blue-500 transition">
@@ -1029,7 +1050,7 @@ export const FundamentalCalendar: React.FC = () => {
       </div>
 
       {/* Deep-Dive Modal Breakdown */}
-      {selectedEvent && (
+      {selectedEvent && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
@@ -1075,20 +1096,20 @@ export const FundamentalCalendar: React.FC = () => {
             <div className="grid grid-cols-3 gap-3 my-4">
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
                 <div className="text-[10px] text-slate-500 font-mono-code uppercase font-bold">Actual</div>
-                <div className={`text-base font-bold font-mono-code mt-0.5 ${selectedEvent.actual ? 'text-emerald-400' : 'text-slate-400 italic'}`}>
-                  {selectedEvent.actual || 'Pending'}
+                <div className="text-xs font-semibold font-mono-code text-cyan-400 mt-1">
+                  Coming Soon
                 </div>
               </div>
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
                 <div className="text-[10px] text-slate-500 font-mono-code uppercase font-bold">Forecast</div>
-                <div className="text-base font-bold font-mono-code text-slate-200 mt-0.5">
-                  {selectedEvent.forecast || '—'}
+                <div className="text-xs font-semibold font-mono-code text-slate-400 mt-1">
+                  Coming Soon
                 </div>
               </div>
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
                 <div className="text-[10px] text-slate-500 font-mono-code uppercase font-bold">Previous</div>
-                <div className="text-base font-bold font-mono-code text-slate-400 mt-0.5">
-                  {selectedEvent.previous || '—'}
+                <div className="text-xs font-semibold font-mono-code text-slate-400 mt-1">
+                  Coming Soon
                 </div>
               </div>
             </div>
@@ -1210,7 +1231,8 @@ export const FundamentalCalendar: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

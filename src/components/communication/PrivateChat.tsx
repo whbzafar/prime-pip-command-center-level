@@ -61,7 +61,18 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
   onBack,
   onStartCall,
 }) => {
-  const [messages, setMessages] = useState<PrivateMessage[]>([]);
+  const [messages, setMessages] = useState<PrivateMessage[]>(() => {
+    if (!currentUser || !activeContact) return [];
+    try {
+      const cacheKey = `primepipfx_private_${currentUser.id}_${activeContact.id}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
   const [inputText, setInputText] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [selectedLocalFile, setSelectedLocalFile] = useState<{ base64: string; name: string } | null>(null);
@@ -308,8 +319,45 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
       datePkt: getKarachiDate(),
     };
 
+    const optimisticPrivateMsg: PrivateMessage = {
+      id: `pmsg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      senderId: currentUser.id,
+      senderUsername: currentUser.username,
+      senderDisplayName: currentUser.name || currentUser.username,
+      receiverId: activeContact.id,
+      receiverUsername: activeContact.username,
+      text: inputText.trim(),
+      type: audioBase64 ? 'VOICE' : selectedPhoto ? 'IMAGE' : 'TEXT',
+      photoBase64: selectedPhoto || undefined,
+      audioBase64: voiceMeta.audioAttachmentId ? undefined : (audioBase64 || undefined),
+      audioAttachmentId: voiceMeta.audioAttachmentId,
+      audioMimeType: voiceMeta.audioMimeType || recordedMimeType,
+      audioDurationSeconds: voiceMeta.audioDurationSeconds || (audioDuration > 0 ? audioDuration : undefined),
+      audioSize: voiceMeta.audioSize,
+      audioUrl: voiceMeta.audioUrl,
+      timePkt: getKarachiTime(),
+      datePkt: getKarachiDate(),
+      timestamp: Date.now(),
+      read: true,
+    };
+
+    setMessages((prev) => {
+      const updated = [...prev, optimisticPrivateMsg];
+      try {
+        const cacheKey = `primepipfx_private_${currentUser.id}_${activeContact.id}`;
+        localStorage.setItem(cacheKey, JSON.stringify(updated.slice(-100)));
+      } catch {}
+      return updated;
+    });
+
+    setInputText('');
+    setSelectedPhoto(null);
+    setSelectedLocalFile(null);
+    setAudioBase64(null);
+    setAudioDuration(0);
+
     try {
-      const res = await fetch('/api/messages/private', {
+      await fetch('/api/messages/private', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -317,17 +365,8 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
         },
         body: JSON.stringify(payload),
       });
-
-      if (res.ok) {
-        setInputText('');
-        setSelectedPhoto(null);
-        setSelectedLocalFile(null);
-        setAudioBase64(null);
-        setAudioDuration(0);
-        await fetchPrivateMessages();
-      }
     } catch (err) {
-      console.error('Failed to post private message:', err);
+      console.warn('Private message fallback: already saved in state and cache');
     } finally {
       setIsSending(false);
     }

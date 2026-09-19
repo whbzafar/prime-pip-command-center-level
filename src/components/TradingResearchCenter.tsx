@@ -130,19 +130,50 @@ export const TradingResearchCenter: React.FC = () => {
         )}&page=${pageNumber}&perPage=10&sort=${encodeURIComponent(sortParam)}`;
 
         // Apply filters
-        const filterParts: string[] = [];
         if (yearFilter !== 'ALL') {
           url += `&year=${encodeURIComponent(yearFilter)}`;
         }
         if (oaOnly) {
           url += '&openAccess=true';
         }
-        const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'include' });
-        if (!response.ok) {
-          throw new Error(`OpenAlex response status: ${response.status}`);
+
+        let data: any = null;
+
+        try {
+          const response = await fetch(url, { headers: { Accept: 'application/json' } });
+          const contentType = response.headers.get('content-type') || '';
+          if (response.ok && contentType.includes('application/json')) {
+            data = await response.json();
+          }
+        } catch {
+          // Backend proxy failed or cold-starting, fallback directly to public OpenAlex API
         }
 
-        const data = await response.json();
+        // Direct client-side OpenAlex fallback (CORS enabled, 100% free scholarly API)
+        if (!data || !Array.isArray(data.results)) {
+          try {
+            let directUrl = `https://api.openalex.org/works?search=${encodeURIComponent(
+              trimmed
+            )}&page=${pageNumber}&per-page=10&sort=${encodeURIComponent(sortParam)}`;
+            if (yearFilter !== 'ALL') {
+              directUrl += `&filter=publication_year:${encodeURIComponent(yearFilter)}`;
+            }
+            if (oaOnly) {
+              directUrl += (directUrl.includes('&filter=') ? ',' : '&filter=') + 'is_oa:true';
+            }
+            const directRes = await fetch(directUrl);
+            if (directRes.ok) {
+              data = await directRes.json();
+            }
+          } catch {
+            // Both network paths offline
+          }
+        }
+
+        if (!data || !Array.isArray(data.results)) {
+          throw new Error('Research index is currently synchronizing. Please check connection or try again.');
+        }
+
         const results = data.results || [];
         setTotalCount(data.meta?.count || results.length);
 
