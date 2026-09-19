@@ -1,5 +1,6 @@
 // Force HMR refresh
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Header } from './components/Header';
 import { MainDashboard } from './components/MainDashboard';
 import { TradeJournal } from './components/TradeJournal';
@@ -137,6 +138,16 @@ export default function App() {
       }
     });
   }, []);
+
+  // Body scroll lock while subscription modal is open
+  useEffect(() => {
+    if (!isSubscriptionModalOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isSubscriptionModalOpen]);
 
   // Core Data States
   const [accounts, setAccounts] = useState<AccountSettings[]>([]);
@@ -1190,21 +1201,23 @@ export default function App() {
       )}
 
       {/* Subscription Pricing & Referral Modal */}
-      {isSubscriptionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-150">
-          <div className="max-w-4xl w-full my-auto max-h-[92vh] flex flex-col bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl overflow-y-auto p-4 sm:p-6 animate-in zoom-in-95 duration-150">
-            <SubscriptionPage
-              currentUser={currentUser}
-              onClose={() => setIsSubscriptionModalOpen(false)}
-              onOpenLogin={() => {
-                setIsSubscriptionModalOpen(false);
-                setIsLoginModalOpen(true);
-              }}
-              onContinueDemo={handleEnterDemoMode}
-            />
-          </div>
-        </div>
-      )}
+      {isSubscriptionModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto p-4 animate-in fade-in duration-150">
+            <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl overflow-y-auto p-4 sm:p-6 animate-in zoom-in-95 duration-150">
+              <SubscriptionPage
+                currentUser={currentUser}
+                onClose={() => setIsSubscriptionModalOpen(false)}
+                onOpenLogin={() => {
+                  setIsSubscriptionModalOpen(false);
+                  setIsLoginModalOpen(true);
+                }}
+                onContinueDemo={handleEnterDemoMode}
+              />
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Subscription Gate Guard: Blocks expired, suspended, or unpaid non-developer accounts */}
       {currentUser &&

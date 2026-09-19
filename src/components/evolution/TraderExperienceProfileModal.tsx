@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Activity,
@@ -71,9 +72,18 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
     setTimeout(() => setSaveSuccess(false), 2500);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto">
-      <div className="bg-[#0D121F] border border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
+  // Body scroll lock while modal is open
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto p-4 animate-in fade-in duration-150">
+      <div className="relative bg-[#0D121F] border border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-800/80 bg-slate-950/70 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
@@ -315,6 +325,7 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

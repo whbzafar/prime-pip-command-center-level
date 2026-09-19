@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Shield, Crosshair, ArrowRight, DollarSign, Wallet, Building2, Check, AlertCircle } from 'lucide-react';
 import { AccountSettings, AccountType } from '../types';
 import { safeNumber } from '../utils/currencyFormatter';
@@ -91,9 +92,18 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
     onAccountCreated(newAccount);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-[#020617]/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in duration-150">
-      <div className="w-full max-w-xl bg-slate-950 border border-blue-500/40 rounded-2xl shadow-2xl p-5 sm:p-7 relative overflow-hidden my-auto max-h-[92vh] flex flex-col overflow-y-auto animate-in zoom-in-95 duration-150">
+  // Body scroll lock while modal is open
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto p-4 animate-in fade-in duration-150">
+      <div className="relative w-full max-w-xl bg-slate-950 border border-blue-500/40 rounded-2xl shadow-2xl p-5 sm:p-7 overflow-hidden max-h-[90vh] flex flex-col overflow-y-auto animate-in zoom-in-95 duration-150">
         {/* Radar ambient glow */}
         <div className="absolute -right-16 -top-16 w-36 h-36 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -left-16 -bottom-16 w-36 h-36 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -281,6 +291,7 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
           <span>No Fake Data</span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

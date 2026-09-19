@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search,
   Filter,
@@ -64,6 +65,16 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
   const [isInspectorFullscreen, setIsInspectorFullscreen] = useState(false);
   const [diagnosingTrade, setDiagnosingTrade] = useState<Trade | null>(null);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
+
+  // Body scroll lock while modal or inspector is open
+  useEffect(() => {
+    if (!inspectedTrade && !diagnosingTrade && !expandedImage) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [inspectedTrade, diagnosingTrade, expandedImage]);
 
   // Filter logic
   const filteredTrades = trades.filter((t) => {
@@ -914,21 +925,22 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
       )}
 
       {/* Trade Inspector Modal */}
-      {inspectedTrade && (
-        <div
-          className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-200 ${
-            isInspectorFullscreen
-              ? 'p-0 bg-black/95 backdrop-blur-md'
-              : 'p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto'
-          }`}
-        >
+      {inspectedTrade &&
+        createPortal(
           <div
-            className={`bg-[#0B0F19] border border-slate-700/80 shadow-2xl overflow-hidden flex flex-col transition-all duration-200 ${
+            className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-200 ${
               isInspectorFullscreen
-                ? 'w-full h-full rounded-none max-w-none max-h-none'
-                : 'rounded-2xl w-full max-w-4xl my-auto max-h-[90vh]'
+                ? 'p-0 bg-black/95 backdrop-blur-md'
+                : 'bg-black/80 backdrop-blur-sm overflow-y-auto p-4'
             }`}
           >
+            <div
+              className={`relative bg-[#0B0F19] border border-slate-700/80 shadow-2xl overflow-hidden flex flex-col transition-all duration-200 ${
+                isInspectorFullscreen
+                  ? 'w-full h-full rounded-none max-w-none max-h-none'
+                  : 'rounded-2xl w-full max-w-4xl max-h-[90vh]'
+              }`}
+            >
             {/* Inspector Header */}
             <div className="px-6 py-4 border-b border-slate-800 bg-[#020617] flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1274,42 +1286,47 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Trade Diagnostic Engine Modal */}
-      {diagnosingTrade && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
-          <div className="w-full max-w-4xl my-auto">
-            <TradeDiagnosticEngine
-              trade={diagnosingTrade}
-              currency={currency}
-              onSaveDiagnostic={handleDiagnosticSaved}
-              onClose={() => setDiagnosingTrade(null)}
-            />
-          </div>
-        </div>
-      )}
+      {diagnosingTrade &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto p-4 animate-in fade-in duration-150">
+            <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <TradeDiagnosticEngine
+                trade={diagnosingTrade}
+                currency={currency}
+                onSaveDiagnostic={handleDiagnosticSaved}
+                onClose={() => setDiagnosingTrade(null)}
+              />
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Expanded Image Modal */}
-      {expandedImage && (
-        <div
-          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/90 cursor-pointer"
-          onClick={() => setExpandedImage(null)}
-        >
-          <div className="max-w-5xl max-h-[90vh] relative">
-            <img
-              src={expandedImage}
-              alt="Expanded Chart"
-              className="max-w-full max-h-[90vh] object-contain rounded-lg border border-slate-700 shadow-2xl"
-              referrerPolicy="no-referrer"
-            />
-            <span className="absolute top-2 right-2 px-2 py-1 bg-black/70 text-slate-300 text-xs rounded font-mono-code">
-              CLICK ANYWHERE TO CLOSE
-            </span>
-          </div>
-        </div>
-      )}
+      {expandedImage &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm cursor-pointer animate-in fade-in duration-150"
+            onClick={() => setExpandedImage(null)}
+          >
+            <div className="max-w-5xl max-h-[90vh] relative">
+              <img
+                src={expandedImage}
+                alt="Expanded Chart"
+                className="max-w-full max-h-[90vh] object-contain rounded-lg border border-slate-700 shadow-2xl"
+                referrerPolicy="no-referrer"
+              />
+              <span className="absolute top-2 right-2 px-2 py-1 bg-black/70 text-slate-300 text-xs rounded font-mono-code">
+                CLICK ANYWHERE TO CLOSE
+              </span>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

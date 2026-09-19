@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Sparkles,
   CheckCircle2,
@@ -73,6 +74,16 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   onClose,
   onComplete,
 }) => {
+  // Body scroll lock while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleFinish = async () => {
@@ -87,12 +98,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     onClose();
   };
 
-  return (
+  return createPortal(
     <div
       id="onboarding-welcome-modal"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto p-4 animate-in fade-in duration-150"
     >
-      <div className="relative w-full max-w-4xl max-h-[92vh] my-auto bg-[#0B0F19] border border-blue-500/30 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#0B0F19] border border-blue-500/30 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
         {/* Animated Top Accent Shimmer */}
         <div className="h-1 bg-gradient-to-r from-blue-500 via-teal-400 to-indigo-500 animate-pulse" />
 
@@ -237,6 +248,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
