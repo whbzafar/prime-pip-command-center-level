@@ -98,6 +98,9 @@ export interface SessionResultLog {
   helpfulnessRating: 'SIGNIFICANT' | 'MODERATE' | 'SLIGHT' | 'NONE';
   reflectionNotes?: string;
   habitPointsEarned: number;
+  scenarioSymbol?: string;
+  scenarioDecision?: string;
+  isPlanAligned?: boolean;
 }
 
 export interface HabitProgressState {
@@ -202,11 +205,11 @@ export const PSYCHOLOGY_CATEGORIES: Record<PsychCategoryType, PsychologicalCateg
       },
       {
         id: 'fear_session_3',
-        title: 'Locus of Control Separation',
+        title: 'Loss Aversion and Uncertainty Simulation',
         durationMinutes: 5,
-        objective: 'Segregate actionable trading process from stochastic market randomness.',
-        defaultTrigger: 'Anxiety over high-volatility news events or session open',
-        tradingProblemExplanation: 'Fear thrives on the illusion that you must control the next 5-minute candle. You only control entry, stop, size, and exit.',
+        objective: 'Endure prolonged market chop and uncertainty without premature fear-driven exits.',
+        defaultTrigger: 'Anxiety over price hovering near entry for 45+ minutes',
+        tradingProblemExplanation: 'Fear thrives on the illusion that you must control the next 5-minute candle. Random price oscillation triggers dopamine deficits and an urge to abandon valid setups.',
         exerciseType: 'THOUGHT_SORT',
         exerciseCustomData: {
           thoughtCards: [
@@ -216,29 +219,29 @@ export const PSYCHOLOGY_CATEGORIES: Record<PsychCategoryType, PsychologicalCateg
             { text: 'Placing my stop loss at market invalidation prior to clicking buy', isControl: true, explanation: 'Risk definition is your primary job as risk manager.' },
           ],
         },
-        practicalDecisionRule: 'Rule: Write down: "I am a risk manager who executes probabilities, not a market prophet."',
-        groundingPrompt: 'Notice the sensation of gravity holding you grounded. The market will do what it will do.',
+        practicalDecisionRule: 'Rule: Write down: "I am a risk manager who executes probabilities, not a market prophet. I let setups develop."',
+        groundingPrompt: 'Notice the sensation of gravity holding you grounded. The market will take time to discover price.',
       },
       {
         id: 'fear_session_4',
-        title: 'Slow Focus Stabilization',
-        durationMinutes: 3,
-        objective: 'Break frantic visual scanning and restore calm alpha-band brainwave focus.',
-        defaultTrigger: 'Overstimulated from watching 15-second charts',
-        tradingProblemExplanation: 'Rapid erratic eye movements stimulate the locus coeruleus to secrete more adrenaline. Calming visual track down-regulates nervous system speed.',
+        title: 'Rule-Based Execution Under Pressure',
+        durationMinutes: 4,
+        objective: 'Overcome execution freeze and hesitate-free trigger clicking when all systematic criteria are satisfied.',
+        defaultTrigger: 'Hesitating at a confirmed breakout or pullback setup',
+        tradingProblemExplanation: 'Outcome terror paralyzes motor execution. When your checklist is 100% green, waiting for "one more candle of confirmation" severely worsens risk-to-reward.',
         exerciseType: 'SLOW_FOCUS',
-        practicalDecisionRule: 'Rule: Minimum chart timeframe for execution is 5m. 1m/15s charts locked out during active positions.',
-        groundingPrompt: 'Gently track the center orb without straining your eyes. Breathe rhythmically.',
+        practicalDecisionRule: 'Rule: Binary checklist execution: If 4 of 4 criteria are verified, execute immediately without deliberation.',
+        groundingPrompt: 'Gently track the center orb without straining your eyes. Breathe rhythmically and trust your preparation.',
       },
       {
         id: 'fear_session_5',
-        title: 'Pre-Trade Fear Defusion Checklist',
+        title: 'Post-Event Reflection and Recovery Planning',
         durationMinutes: 4,
-        objective: 'Step through an objective 5-stage fear neutralization audit before sending an order.',
-        defaultTrigger: 'Hesitating at a confirmed breakout setup',
-        tradingProblemExplanation: 'Fear creates irrational hesitation that makes you enter late at a worse price with expanded risk.',
+        objective: 'Absorb clean 1R stop-outs with composure and prevent tilt-driven revenge trading.',
+        defaultTrigger: 'Experiencing a normal stop-out during active trading',
+        tradingProblemExplanation: 'When a stop-loss is triggered, the ego feels personally attacked. Professional traders recognize stop-outs as simple inventory cost.',
         exerciseType: 'PRE_TRADE_GROUNDING',
-        practicalDecisionRule: 'Rule: If all 4 technical criteria match, execute order without second-guessing. Let the math play out over 50 trades.',
+        practicalDecisionRule: 'Rule: After any stop-out, mandatory 10-minute screen recess before looking for any new setup.',
         groundingPrompt: 'Anchor your attention to your physical breath. Accept the risk as the price of doing business.',
       },
     ],
