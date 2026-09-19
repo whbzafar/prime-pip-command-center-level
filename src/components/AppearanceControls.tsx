@@ -34,10 +34,10 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-start justify-end bg-slate-950/50 p-3 sm:p-6 overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 z-[120] flex items-center justify-center sm:items-start sm:justify-end bg-black/70 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-150" onClick={onClose}>
       <section
         aria-label="Appearance controls"
-        className="prime-card-elevated w-full max-w-sm rounded-2xl p-4 shadow-2xl"
+        className="prime-card-elevated w-full max-w-sm rounded-2xl p-4 shadow-2xl my-auto sm:my-0 animate-in zoom-in-95 duration-150"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">

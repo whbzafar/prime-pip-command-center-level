@@ -113,28 +113,28 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   )}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md prime-gradient-box p-6 sm:p-8 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-150">
+      <div className="relative w-full max-w-md prime-gradient-box p-5 sm:p-6 shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col overflow-y-auto animate-in zoom-in-95 duration-150">
         {/* Decorative corner glow */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-36 h-36 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-100 transition rounded-xl bg-slate-950/60 hover:bg-slate-800 border border-slate-700/60 cursor-pointer"
+          className="absolute top-3.5 right-3.5 p-1.5 text-slate-400 hover:text-slate-100 transition rounded-xl bg-slate-950/60 hover:bg-slate-800 border border-slate-700/60 cursor-pointer z-10"
         >
           <X className="w-4 h-4" />
         </button>
 
         {/* Header */}
-        <div className="text-center mb-6">
-          <div className="inline-flex p-3 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-cyan-400 mb-3 shadow-lg shadow-blue-500/10">
-            <Shield className="w-8 h-8" />
+        <div className="text-center mb-4">
+          <div className="inline-flex p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-cyan-400 mb-2 shadow-lg shadow-blue-500/10">
+            <Shield className="w-6 h-6" />
           </div>
-          <h2 className="text-lg font-military font-bold tracking-wider text-slate-100 uppercase">
+          <h2 className="text-base sm:text-lg font-military font-bold tracking-wider text-slate-100 uppercase">
             {step === 'CHANGE_PASSWORD' ? 'CHANGE DEVELOPER PASSWORD' : 'PRIMEPIPFX TRADING COMMAND CENTER'}
           </h2>
-          <p className="text-xs text-slate-400 font-mono-code mt-1">
+          <p className="text-[11px] sm:text-xs text-slate-400 font-mono-code mt-0.5">
             {step === 'CHANGE_PASSWORD'
               ? 'First login detected. Set your private permanent password.'
               : 'Authorized Trader & Developer Access'}

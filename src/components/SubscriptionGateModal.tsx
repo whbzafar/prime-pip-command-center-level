@@ -65,10 +65,10 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
   const whatsappUrl = `https://wa.me/923406671495?text=${encodeURIComponent(whatsappMessage)}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg prime-gradient-box p-6 sm:p-8 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-150">
+      <div className="relative w-full max-w-lg prime-gradient-box p-5 sm:p-6 shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col overflow-y-auto animate-in zoom-in-95 duration-150">
         {/* Decorative corner glow */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-36 h-36 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Close button (allowed if not strict lock) */}
         <button
@@ -78,27 +78,27 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
             }
             onClose();
           }}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-100 transition rounded-xl bg-slate-950/60 hover:bg-slate-800 border border-slate-700/60 cursor-pointer"
+          className="absolute top-3.5 right-3.5 p-1.5 text-slate-400 hover:text-slate-100 transition rounded-xl bg-slate-950/60 hover:bg-slate-800 border border-slate-700/60 cursor-pointer z-10"
         >
           <X className="w-4 h-4" />
         </button>
 
         {/* Header */}
-        <div className="text-center mb-6">
-          <div className={`inline-flex p-3 rounded-2xl border mb-3 shadow-lg ${badgeColor}`}>
+        <div className="text-center mb-4">
+          <div className={`inline-flex p-2.5 rounded-2xl border mb-2.5 shadow-lg ${badgeColor}`}>
             {icon}
           </div>
-          <h2 className="text-lg font-military font-bold tracking-wider text-slate-100 uppercase">
+          <h2 className="text-base sm:text-lg font-military font-bold tracking-wider text-slate-100 uppercase">
             {title}
           </h2>
-          <p className="text-xs text-slate-300 font-mono-code mt-1.5 max-w-sm mx-auto leading-relaxed">
+          <p className="text-[11px] sm:text-xs text-slate-300 font-mono-code mt-1 max-w-sm mx-auto leading-relaxed">
             {subtitle}
           </p>
         </div>
 
         {/* Account Status Badge */}
         {user && (
-          <div className="p-3 rounded-xl bg-slate-950/90 border border-slate-800 mb-5 flex items-center justify-between font-mono-code text-xs">
+          <div className="p-2.5 sm:p-3 rounded-xl bg-slate-950/90 border border-slate-800 mb-3.5 flex items-center justify-between font-mono-code text-xs">
             <div>
               <span className="text-slate-500 text-[10px] uppercase block">Authenticated Trader</span>
               <span className="font-bold text-slate-200">{user.name} (@{user.username})</span>
@@ -117,7 +117,7 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
         )}
 
         {/* Features Reminder */}
-        <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 mb-5 space-y-2 font-mono-code text-xs">
+        <div className="p-3 sm:p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80 mb-4 space-y-2 font-mono-code text-xs">
           <div className="text-cyan-400 font-bold uppercase text-[11px] mb-2 flex items-center gap-1.5">
             <Lock className="w-3.5 h-3.5" />
             WHAT YOU GET WITH FULL ACCESS:

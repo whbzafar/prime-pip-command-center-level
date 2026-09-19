@@ -37,6 +37,7 @@ interface MobileBottomNavProps {
   currentUser?: UserAccount | null;
   onOpenEvolution?: () => void;
   onOpenBackupModal?: () => void;
+  onOpenAllCategories?: () => void;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -46,6 +47,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   currentUser,
   onOpenEvolution,
   onOpenBackupModal,
+  onOpenAllCategories,
 }) => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -102,7 +104,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     <>
       <nav
         aria-label="Mobile Navigation"
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden prime-dock-blur px-2 pt-1.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]"
+        className="fixed bottom-0 left-0 right-0 z-40 bg-[#090d16] border-t border-cyan-500/20 px-2 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] md:hidden select-none shadow-2xl"
       >
         <div className="flex items-center justify-around max-w-md mx-auto relative">
           {/* 1. Dashboard */}
@@ -187,7 +189,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
           {/* 5. More (Reveals Remaining Categories) */}
           <button
-            onClick={() => setIsMoreOpen(true)}
+            onClick={() => {
+              if (onOpenAllCategories) {
+                onOpenAllCategories();
+              } else {
+                setIsMoreOpen(true);
+              }
+            }}
             className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all duration-150 relative min-w-[56px] min-h-[44px] prime-ios-touch cursor-pointer ${
               isMoreOpen || isMoreTabActive ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}

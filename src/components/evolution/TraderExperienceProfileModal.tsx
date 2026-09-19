@@ -72,38 +72,38 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-      <div className="bg-[#0D121F] border border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto">
+      <div className="bg-[#0D121F] border border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="p-6 border-b border-slate-800/80 bg-slate-950/50 flex items-center justify-between">
+        <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-800/80 bg-slate-950/70 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 shrink-0">
               <Brain className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold font-military tracking-wider text-slate-100 uppercase">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base sm:text-lg font-bold font-military tracking-wider text-slate-100 uppercase">
                   Trader Experience Profile
                 </h2>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono-code font-bold uppercase tracking-wider">
                   Adaptive Intelligence
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-mono-code mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-400 font-mono-code mt-0.5">
                 Continuously adapts the PrimePipFX Command Center to your execution cadence & cognitive focus.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800/60 transition cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800/60 transition cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto font-mono-code text-xs">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1 font-mono-code text-xs">
           {loading ? (
             <div className="py-16 text-center text-slate-400 flex flex-col items-center gap-3">
               <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
@@ -289,7 +289,7 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800/80 bg-slate-950/50 flex items-center justify-between">
+        <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-t border-slate-800/80 bg-slate-950/70 flex items-center justify-between shrink-0">
           <div className="text-[11px] text-slate-500 font-mono-code">
             {saveSuccess && (
               <span className="text-emerald-400 font-bold flex items-center gap-1 animate-in fade-in">
@@ -301,14 +301,14 @@ export const TraderExperienceProfileModal: React.FC<TraderExperienceProfileModal
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold font-military text-xs uppercase transition cursor-pointer"
+              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-bold font-military text-xs uppercase transition cursor-pointer"
             >
               Close
             </button>
             <button
               onClick={handleSavePreferences}
               disabled={saving}
-              className="px-4 py-2 bg-blue-500 hover:bg-cyan-400 text-slate-950 rounded-xl font-bold font-military text-xs uppercase tracking-wider transition shadow-lg shadow-blue-500/20 cursor-pointer disabled:opacity-50"
+              className="px-4 py-1.5 bg-blue-500 hover:bg-cyan-400 text-slate-950 rounded-lg font-bold font-military text-xs uppercase tracking-wider transition shadow-lg shadow-blue-500/20 cursor-pointer disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save Preferences'}
             </button>

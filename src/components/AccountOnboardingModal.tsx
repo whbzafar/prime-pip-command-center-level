@@ -92,28 +92,28 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#020617]/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="w-full max-w-xl bg-slate-950 border border-blue-500/40 rounded-2xl shadow-2xl p-6 sm:p-8 relative overflow-hidden my-auto">
+    <div className="fixed inset-0 z-50 bg-[#020617]/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in duration-150">
+      <div className="w-full max-w-xl bg-slate-950 border border-blue-500/40 rounded-2xl shadow-2xl p-5 sm:p-7 relative overflow-hidden my-auto max-h-[92vh] flex flex-col overflow-y-auto animate-in zoom-in-95 duration-150">
         {/* Radar ambient glow */}
-        <div className="absolute -right-16 -top-16 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -left-16 -bottom-16 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -right-16 -top-16 w-36 h-36 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -left-16 -bottom-16 w-36 h-36 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Tactical Header Badge */}
-        <div className="flex items-center gap-2 mb-3">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-blue-500/10 border border-blue-500/30 text-cyan-400 text-[11px] font-mono-code font-bold uppercase tracking-widest">
+        <div className="flex items-center gap-2 mb-2.5">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/30 text-cyan-400 text-[10px] sm:text-[11px] font-mono-code font-bold uppercase tracking-widest">
             <Crosshair className="w-3.5 h-3.5" />
             INITIAL SYSTEM INITIALIZATION
           </span>
-          <span className="text-[11px] font-mono-code text-slate-400">
+          <span className="text-[10px] sm:text-[11px] font-mono-code text-slate-400">
             OFFLINE-READY • ZERO CLOUD LOCK-IN
           </span>
         </div>
 
         {/* Titles */}
-        <h1 className="text-xl sm:text-2xl font-military font-bold text-slate-100 tracking-wide">
+        <h1 className="text-lg sm:text-xl md:text-2xl font-military font-bold text-slate-100 tracking-wide">
           WELCOME TO PRIMEPIPFX TRADING COMMAND CENTER
         </h1>
-        <p className="text-xs sm:text-sm text-slate-300 mt-1.5 leading-relaxed">
+        <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
           Create your first trading account to begin tracking your performance.
         </p>
 

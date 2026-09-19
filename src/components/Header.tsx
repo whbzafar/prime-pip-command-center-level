@@ -107,6 +107,7 @@ interface HeaderProps {
   onOpenEvolution?: () => void;
   onOpenNotifications?: () => void;
   onOpenAppearance?: () => void;
+  onOpenAllCategories?: () => void;
 }
 
 interface NavItem {
@@ -143,6 +144,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenEvolution,
   onOpenNotifications,
   onOpenAppearance,
+  onOpenAllCategories,
 }) => {
   const switchTab = onSelectTab || setActiveTab || (() => {});
   const displayScore = overallScore ?? scores?.overallTradingScore ?? 76;
@@ -232,27 +234,6 @@ export const Header: React.FC<HeaderProps> = ({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [scrollProgress, setScrollProgress] = useState(0);
-
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);
-
-  // Dynamic header collapse on scroll
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      // Use hysteresis (different thresholds) to prevent layout thrashing and blinking!
-      // The collapsible header is around 250px tall. 
-      // If we collapse it at 50px, scrollY drops below 0 and it instantly expands again (blinking).
-      // By waiting until scrollY > 400 to collapse, and expanding only when scrollY < 50, we eliminate the loop.
-      if (currentScrollY > 400 && !isHeaderCollapsed) {
-        setIsHeaderCollapsed(true);
-      } else if (currentScrollY < 50 && isHeaderCollapsed) {
-        setIsHeaderCollapsed(false);
-      }
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isHeaderCollapsed]);
 
   
 
@@ -377,40 +358,35 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="contents">
-      {/* Persistent Slim Top Bar: Active Category, Notification Bell & Manual Chevron Toggle */}
-      <div className="w-full h-12 shrink-0 sticky top-0 px-3 sm:px-4 bg-[#080C14]/95 backdrop-blur border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs font-mono-code text-slate-300 z-[1000]">
+      {/* Slim Top Bar: Active Category & Notification Bell */}
+      <div className="w-full h-9 sm:h-10 shrink-0 relative px-2.5 sm:px-4 bg-[#080C14]/95 backdrop-blur border-b border-slate-800/80 flex items-center justify-between gap-2 text-[11px] sm:text-xs font-mono-code text-slate-300 z-10 select-none">
         {/* Left: Active Category / Section */}
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-6 h-6 rounded-md bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+        <button
+          type="button"
+          onClick={() => {
+            if (onOpenAllCategories) onOpenAllCategories();
+          }}
+          className="flex items-center gap-1.5 sm:gap-2 min-w-0 hover:opacity-85 transition cursor-pointer text-left group"
+          title="Click to explore all 21 categories & modules"
+        >
+          <div className="w-5 h-5 rounded bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 shrink-0 group-hover:border-cyan-400/50">
             {React.createElement(
               allNavCategories.find((c) => c.id === activeTab)?.icon || Activity,
-              { className: 'w-3.5 h-3.5' }
+              { className: 'w-3 h-3' }
             )}
           </div>
           <div className="flex items-center gap-1.5 truncate">
-            <span className="font-military font-bold text-slate-100 tracking-wider truncate text-[11px] sm:text-xs">
+            <span className="font-military font-bold text-slate-100 tracking-wider truncate text-[10px] sm:text-xs group-hover:text-cyan-300 transition">
               {allNavCategories.find((c) => c.id === activeTab)?.label || 'COMMAND CENTER'}
             </span>
-            <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-slate-800/80 text-cyan-400/90 font-mono-code hidden sm:inline">
-              LIVE
+            <span className="text-[8px] uppercase px-1 py-0.2 rounded bg-slate-800/80 text-cyan-400/90 font-mono-code hidden sm:inline">
+              EXPLORE ALL
             </span>
           </div>
-        </div>
+        </button>
 
-        {/* Right: Quick Actions, Notification Bell & Manual Chevron Toggle */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Quick Trade Button when header is collapsed */}
-          {!!isHeaderCollapsed && (
-            <button
-              onClick={onOpenNewTrade}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-[10px] tracking-wider transition shadow-sm cursor-pointer"
-              title="Enter New Trade"
-            >
-              <PlusCircle className="w-3 h-3 stroke-[2.5]" />
-              <span className="hidden xs:inline">TRADE</span>
-            </button>
-          )}
-
+        {/* Right: Quick Actions & Notification Bell */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Tactical Notification Bell */}
           <button
             type="button"
@@ -421,36 +397,26 @@ export const Header: React.FC<HeaderProps> = ({
                 ? 'Notifications & Audio Alerts: ACTIVE (Click to test chime)'
                 : 'Notifications & Audio Alerts: MUTED (Click to activate)'
             }
-            className="relative p-1.5 rounded-lg bg-slate-950/90 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 text-slate-300 hover:text-cyan-400 transition cursor-pointer"
+            className="relative p-1 rounded-md bg-slate-950/90 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 text-slate-300 hover:text-cyan-400 transition cursor-pointer"
           >
-            <Bell className="w-4 h-4" />
+            <Bell className="w-3.5 h-3.5" />
             <span
-              className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
+              className={`absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full ${
                 alertSettings.soundEnabled ? 'bg-cyan-400 animate-pulse' : 'bg-rose-500'
               }`}
             />
           </button>
-
-          
         </div>
       </div>
 
-      
-      {/* Collapsible Upper Header Block (Status, Prayer Bar, Logo & Profile) */}
-      <div
-        className={`w-full bg-[#0B0F19] relative z-[100] header-collapsible transition-all duration-300 ease-in-out overflow-hidden ${
-          !isHeaderCollapsed
-            ? 'max-h-[900px] opacity-100'
-            : 'max-h-0 opacity-0 pointer-events-none'
-        }`}
-        
-      >
+      {/* Main Header Block (Status, Prayer Bar, Logo, Sessions, & Category Bar) */}
+      <div className="w-full bg-[#0B0F19] relative z-10">
         {/* Daily Astronomical Islamic Prayer Tracker Bar */}
         <DailyPrayerBar />
 
       {/* Top Tactical Status Bar */}
-      <div className="px-3 sm:px-4 py-1.5 border-b border-slate-800/60 bg-[#020617] flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 text-[10px] sm:text-xs font-mono-code text-slate-400">
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      <div className="px-2.5 sm:px-4 py-1 border-b border-slate-800/60 bg-[#020617] flex flex-wrap items-center justify-between gap-y-1 gap-x-1.5 text-[10px] font-mono-code text-slate-400">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 flex-wrap">
           {/* Offline/Online Status */}
           <OfflineIndicator />
 
@@ -459,7 +425,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Demo Mode Badge */}
           {isDemoMode && (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/20 text-amber-300 border border-blue-500/40 font-bold text-[10px] tracking-wide animate-pulse">
+            <div className="flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-blue-500/20 text-amber-300 border border-blue-500/40 font-bold text-[9px] tracking-wide animate-pulse">
               <span>● DEMO</span>
             </div>
           )}
@@ -468,19 +434,19 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Dynamic Trade Limit Protocol Status */}
           {isLimitReached ? (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/40 font-bold animate-pulse text-[11px]">
-              <ShieldAlert className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/40 font-bold animate-pulse text-[10px]">
+              <ShieldAlert className="w-3 h-3" />
               <span>STOP TRADING ({tradesToday}/{maxDailyTrades})</span>
             </div>
           ) : isOneTradeRemaining ? (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-500/15 text-cyan-400 border border-blue-500/30 font-bold text-[11px]">
-              <ShieldAlert className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">TRADE 1 OF {maxDailyTrades} COMPLETED • 1 REMAINING</span>
-              <span className="sm:hidden">1 REMAINING</span>
+            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/15 text-cyan-400 border border-blue-500/30 font-bold text-[10px]">
+              <ShieldAlert className="w-3 h-3" />
+              <span className="hidden sm:inline">TRADE 1 OF {maxDailyTrades} • 1 REMAINING</span>
+              <span className="sm:hidden">1 LEFT</span>
             </div>
           ) : (
-            <div className="hidden md:flex items-center gap-1.5 text-emerald-400 text-[11px]">
-              <ShieldAlert className="w-3.5 h-3.5" />
+            <div className="hidden md:flex items-center gap-1 text-emerald-400 text-[10px]">
+              <ShieldAlert className="w-3 h-3" />
               <span>DISCIPLINE READY ({tradesToday}/{maxDailyTrades})</span>
             </div>
           )}
@@ -491,14 +457,14 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => setIsTimeModalOpen(true)}
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-950/90 hover:bg-slate-800 border border-slate-800 hover:border-sky-500/50 text-slate-200 transition cursor-pointer group text-[11px]"
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-950/90 hover:bg-slate-800 border border-slate-800 hover:border-sky-500/50 text-slate-200 transition cursor-pointer group text-[10px]"
             title="Click to change timezone, switch 12h/24h format, and view global market sessions"
           >
-            <Clock className="w-3.5 h-3.5 text-sky-400 group-hover:rotate-12 transition-transform shrink-0" />
+            <Clock className="w-3 h-3 text-sky-400 group-hover:rotate-12 transition-transform shrink-0" />
             <span className="font-bold">{liveClockStr || 'WORLD CLOCK'}</span>
             {activeSessionSummary && (
               <span
-                  className={`inline-block max-w-[48vw] truncate px-1.5 py-0.2 rounded text-[10px] font-bold tracking-tight ${
+                  className={`inline-block max-w-[42vw] truncate px-1 py-0.2 rounded text-[9px] font-bold tracking-tight ${
                   isPeakLiquidity
                     ? 'bg-blue-500/20 text-amber-300 border border-blue-500/40 animate-pulse'
                     : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
@@ -513,7 +479,7 @@ export const Header: React.FC<HeaderProps> = ({
           {lastSavedTime && (
             <>
               <span className="text-slate-700 hidden lg:inline">|</span>
-              <div className="hidden lg:flex items-center gap-1 text-slate-400 text-[11px]">
+              <div className="hidden lg:flex items-center gap-1 text-slate-400 text-[10px]">
                 <span className="text-emerald-400">●</span>
                 <span>SAVED: {lastSavedTime}</span>
               </div>
@@ -521,7 +487,7 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Discipline Audio Alert Status & Tester */}
           <button
             id="header-sound-status-btn"
@@ -532,7 +498,7 @@ export const Header: React.FC<HeaderProps> = ({
                 ? `Tactical Audio Alerts: ACTIVE (${Math.round(alertSettings.volume * 100)}% volume). Click to test chime.`
                 : 'Tactical Audio Alerts: MUTED. Click to enable sound.'
             }
-            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono-code transition border cursor-pointer ${
+            className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono-code transition border cursor-pointer ${
               alertSettings.soundEnabled
                 ? 'bg-slate-950/90 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 border-slate-800'
                 : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/30'
@@ -554,7 +520,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* PWA Install Button */}
           <PWAInstallButton />
 
-          <div className="flex items-center gap-1 bg-slate-950/90 px-2 py-0.5 rounded border border-slate-800 text-slate-300 text-[11px]">
+          <div className="flex items-center gap-1 bg-slate-950/90 px-1.5 py-0.5 rounded border border-slate-800 text-slate-300 text-[10px]">
             <span className="text-slate-400 font-normal hidden sm:inline">SCORE:</span>
             <span
               className={`font-bold ${
@@ -572,10 +538,10 @@ export const Header: React.FC<HeaderProps> = ({
           {currentUser && onOpenNotifications && (
             <button
               onClick={onOpenNotifications}
-              className="flex items-center gap-1 p-1 rounded text-slate-400 hover:text-cyan-400 transition cursor-pointer"
+              className="flex items-center gap-1 p-0.5 rounded text-slate-400 hover:text-cyan-400 transition cursor-pointer"
               title="Notifications"
             >
-              <Bell className="w-4 h-4" />
+              <Bell className="w-3.5 h-3.5" />
             </button>
           )}
 
@@ -584,9 +550,9 @@ export const Header: React.FC<HeaderProps> = ({
               id="header-backup-data-btn"
               onClick={onOpenBackupModal}
               title="Backup & Restore Journal Data"
-              className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-950/90 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 border border-slate-800 text-[11px] font-mono-code transition cursor-pointer"
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-950/90 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 border border-slate-800 text-[10px] font-mono-code transition cursor-pointer"
             >
-              <Database className="w-3.5 h-3.5 text-cyan-400" />
+              <Database className="w-3 h-3 text-cyan-400" />
               <span className="hidden sm:inline">BACKUP</span>
             </button>
           )}
@@ -597,10 +563,10 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={onOpenAppearance}
               title="Brightness and theme"
               aria-label="Open appearance controls"
-              className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-950/90 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-400/50 hover:text-cyan-300"
+              className="flex items-center gap-1 rounded border border-slate-800 bg-slate-950/90 px-1.5 py-0.5 text-[10px] text-slate-300 transition hover:border-cyan-400/50 hover:text-cyan-300"
             >
-              <Palette className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">APPEARANCE</span>
+              <Palette className="h-3 w-3" />
+              <span className="hidden sm:inline">THEME</span>
             </button>
           )}
 
@@ -612,7 +578,7 @@ export const Header: React.FC<HeaderProps> = ({
                 title="Export Journal (JSON)"
                 className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
               >
-                <Download className="w-3.5 h-3.5" />
+                <Download className="w-3 h-3" />
               </button>
             )}
             {onImportData && (
@@ -620,7 +586,7 @@ export const Header: React.FC<HeaderProps> = ({
                 title="Import Journal (JSON)"
                 className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
               >
-                <Upload className="w-3.5 h-3.5" />
+                <Upload className="w-3 h-3" />
                 <input
                   type="file"
                   accept=".json"
@@ -634,7 +600,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Main Branding & Navigation Row */}
-      <div className="px-4 lg:px-6 py-1.5 lg:py-2 flex flex-wrap items-center justify-between gap-3">
+      <div className="px-2.5 sm:px-4 lg:px-6 py-1 sm:py-1.5 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         {/* Brand */}
         <button 
           onClick={() => {
@@ -644,7 +610,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="flex items-center gap-2 text-left group cursor-pointer transition-all duration-300 hover:opacity-90"
           title="Return to Dashboard"
         >
-          <div className="flex items-center justify-center w-10 h-10 shrink-0 group-hover:animate-prime-logo-pulse drop-shadow-[0_0_8px_rgba(14,165,233,0.5)]">
+          <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 shrink-0 group-hover:animate-prime-logo-pulse drop-shadow-[0_0_8px_rgba(14,165,233,0.5)]">
             <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
               {/* Ascending Chart Bars */}
               <rect x="10" y="55" width="15" height="35" rx="1.5" fill="url(#barGrad)"/>
@@ -664,16 +630,16 @@ export const Header: React.FC<HeaderProps> = ({
             </svg>
           </div>
           <div className="group-hover:animate-prime-logo-pulse transition-opacity duration-700">
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-slate-100 transition-colors leading-none" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-100 transition-colors leading-none" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
                 PrimePips<span className="text-sky-400">FX</span>
               </h1>
-              <span className="text-[8px] uppercase tracking-widest font-mono-code px-1.5 py-[1px] rounded bg-blue-500/10 text-cyan-400 border border-blue-500/30 font-bold group-hover:bg-blue-500/20">
-                COMMAND CENTER
+              <span className="text-[7px] sm:text-[8px] uppercase tracking-wider font-mono-code px-1 py-0.2 rounded bg-blue-500/10 text-cyan-400 border border-blue-500/30 font-bold group-hover:bg-blue-500/20">
+                COMMAND
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 tracking-wide font-sans group-hover:text-slate-300 transition-colors mt-0.5">
-              Tactical Journal • Psychology Intelligence • Risk Defense • AI Coach
+            <p className="text-[9px] text-slate-400 tracking-wide font-sans group-hover:text-slate-300 transition-colors hidden sm:block mt-0.5">
+              Tactical Journal • Psychology Intelligence • Risk Defense
             </p>
           </div>
         </button>
@@ -683,21 +649,21 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onOpenAccountManager}
             title="Manage or Switch Accounts"
-            className="hidden lg:flex items-center gap-3 bg-slate-950/80 hover:bg-slate-800/90 border border-slate-800 hover:border-blue-500/50 px-3.5 py-1.5 rounded-lg transition text-left cursor-pointer group"
+            className="hidden lg:flex items-center gap-2 bg-slate-950/80 hover:bg-slate-800/90 border border-slate-800 hover:border-blue-500/50 px-2.5 py-1 rounded-md transition text-left cursor-pointer group"
           >
-            <div className="w-7 h-7 rounded bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition">
-              <Wallet className="w-3.5 h-3.5" />
+            <div className="w-6 h-6 rounded bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition">
+              <Wallet className="w-3 h-3" />
             </div>
             <div>
-              <div className="text-[10px] uppercase font-mono-code text-slate-400 flex items-center gap-1">
+              <div className="text-[9px] uppercase font-mono-code text-slate-400 flex items-center gap-1">
                 <span>{account.accountName}</span>
-                <span className="text-cyan-400/80 text-[9px] font-bold">[{account.accountType.replace(/_/g, ' ')}]</span>
+                <span className="text-cyan-400/80 text-[8px] font-bold">[{account.accountType.replace(/_/g, ' ')}]</span>
               </div>
-              <div className="text-sm font-bold font-mono-code text-slate-100 flex items-center gap-2">
+              <div className="text-xs font-bold font-mono-code text-slate-100 flex items-center gap-1.5">
                 <span>
                   {formatCurrency(account.currentBalance, account.currency)}
                 </span>
-                <span className="text-[10px] text-cyan-400 font-semibold bg-blue-500/10 border border-blue-500/20 px-1 rounded">
+                <span className="text-[9px] text-cyan-400 font-semibold bg-blue-500/10 border border-blue-500/20 px-1 rounded">
                   SWITCH ▾
                 </span>
               </div>
@@ -706,30 +672,30 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {/* Global discovery and account actions */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <GlobalSearch onNavigate={switchTab} />
           {currentUser ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={onOpenProfile}
                 title="Edit Your Profile & Status"
-                className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 text-slate-300 text-xs font-mono-code transition cursor-pointer group"
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 text-slate-300 text-[11px] font-mono-code transition cursor-pointer group"
               >
                 <div className="relative">
                   {currentUser.avatarUrl ? (
                     <img
                       src={currentUser.avatarUrl}
                       alt={currentUser.name}
-                      className="w-6 h-6 rounded-full object-cover border border-blue-500/50"
+                      className="w-5 h-5 rounded-full object-cover border border-blue-500/50"
                     />
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-cyan-400">
-                      <User className="w-3.5 h-3.5" />
+                    <div className="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-cyan-400">
+                      <User className="w-3 h-3" />
                     </div>
                   )}
                   {/* Online status indicator dot */}
                   <span
-                    className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-slate-900 ${
+                    className={`absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-slate-900 ${
                       currentUser.onlineStatus === 'AWAY'
                         ? 'bg-cyan-400'
                         : currentUser.onlineStatus === 'OFFLINE'
@@ -741,13 +707,13 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
 
                 <div className="text-left hidden sm:block">
-                  <div className="text-[11px] font-bold text-slate-200 group-hover:text-amber-300 transition flex items-center gap-1">
+                  <div className="text-[10px] font-bold text-slate-200 group-hover:text-amber-300 transition flex items-center gap-1 leading-tight">
                     <span>{currentUser.name || currentUser.username}</span>
                     {currentUser.role === 'ADMIN' || currentUser.role === 'DEVELOPER' || currentUser.isDeveloper ? (
-                      <ShieldCheck className="w-3 h-3 text-cyan-400 inline" />
+                      <ShieldCheck className="w-2.5 h-2.5 text-cyan-400 inline" />
                     ) : null}
                   </div>
-                  <span className="text-[9px] text-slate-500 block -mt-0.5">
+                  <span className="text-[8px] text-slate-500 block leading-none">
                     @{currentUser.username}
                   </span>
                 </div>
@@ -759,24 +725,19 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={() => switchTab('PSYCHOLOGY')}
                 title="Psychological Center — Train your mindset. Protect your discipline. Improve your execution."
-                className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border font-military font-bold text-xs tracking-wider transition-all duration-200 cursor-pointer shadow-sm group ${
+                className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition-all duration-200 cursor-pointer shadow-sm group ${
                   activeTab === 'PSYCHOLOGY'
                     ? 'bg-gradient-to-r from-blue-500 to-amber-600 text-slate-950 border-cyan-400 shadow-blue-500/25 ring-1 ring-cyan-400'
                     : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-amber-300 border-slate-800 hover:border-blue-500/50'
                 }`}
               >
-                <div className={`w-5 h-5 rounded flex items-center justify-center transition-transform group-hover:scale-110 ${
+                <div className={`w-4 h-4 rounded flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
                   activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-cyan-400'
                 }`}>
-                  <Brain className="w-4 h-4 stroke-[2.2]" />
+                  <Brain className="w-3.5 h-3.5 stroke-[2.2]" />
                 </div>
                 <div className="text-left flex flex-col justify-center leading-tight">
-                  <span className="whitespace-nowrap">Psychological Center</span>
-                  <span className={`text-[9px] font-mono-code hidden md:inline uppercase tracking-normal ${
-                    activeTab === 'PSYCHOLOGY' ? 'text-slate-950 font-semibold' : 'text-slate-400 group-hover:text-cyan-400/80'
-                  }`}>
-                    Command Center
-                  </span>
+                  <span className="whitespace-nowrap">Psych Center</span>
                 </div>
               </button>
 
@@ -787,13 +748,13 @@ export const Header: React.FC<HeaderProps> = ({
                   type="button"
                   onClick={() => switchTab('EVOLUTION')}
                   title="PrimePipFX Self-Evolving Intelligence Engine"
-                  className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border font-military font-bold text-xs tracking-wider transition cursor-pointer ${
+                  className={`hidden lg:flex items-center gap-1 px-2 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition cursor-pointer ${
                     activeTab === 'EVOLUTION'
                       ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-black'
                       : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30 hover:border-emerald-500/50'
                   }`}
                 >
-                  <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                  <Cpu className="w-3 h-3 text-emerald-400" />
                   <span>EVOLUTION</span>
                 </button>
               )}
@@ -802,20 +763,20 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   onClick={onLogout}
                   title={`Logout (${currentUser.username})`}
-                  className="p-1.5 rounded-lg bg-slate-950 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-500/30 transition cursor-pointer"
+                  className="p-1 rounded-md bg-slate-950 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-500/30 transition cursor-pointer"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {onOpenLogin && (
                 <button
                   onClick={onOpenLogin}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider transition shadow-md shadow-blue-500/20 cursor-pointer"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-500 hover:bg-cyan-400 text-slate-950 text-[11px] font-military font-bold tracking-wider transition shadow-md shadow-blue-500/20 cursor-pointer"
                 >
-                  <LogIn className="w-3.5 h-3.5" />
+                  <LogIn className="w-3 h-3" />
                   <span>LOGIN</span>
                 </button>
               )}
@@ -826,25 +787,20 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={() => switchTab('PSYCHOLOGY')}
                 title="Psychological Center — Train your mindset. Protect your discipline. Improve your execution."
-                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border font-military font-bold text-xs tracking-wider transition-all duration-200 cursor-pointer shadow-sm group prime-ios-touch ${
+                className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition-all duration-200 cursor-pointer shadow-sm group prime-ios-touch ${
                   activeTab === 'PSYCHOLOGY'
                     ? 'bg-gradient-to-r from-blue-500 to-amber-600 text-slate-950 border-cyan-400 shadow-blue-500/25 ring-1 ring-cyan-400'
                     : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-amber-300 border-slate-800 hover:border-blue-500/50'
                 }`}
               >
-                <div className={`w-5 h-5 rounded flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
+                <div className={`w-4 h-4 rounded flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
                   activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-cyan-400'
                 }`}>
-                  <Brain className="w-4 h-4 stroke-[2.2]" />
+                  <Brain className="w-3.5 h-3.5 stroke-[2.2]" />
                 </div>
                 <div className="text-left flex flex-col justify-center leading-tight">
-                  <span className="whitespace-nowrap hidden sm:inline">Psychological Center</span>
-                  <span className="sm:hidden font-mono-code text-[11px]">MINDSET</span>
-                  <span className={`text-[9px] font-mono-code hidden md:inline uppercase tracking-normal ${
-                    activeTab === 'PSYCHOLOGY' ? 'text-slate-950 font-semibold' : 'text-slate-400 group-hover:text-cyan-400/80'
-                  }`}>
-                    Command Center
-                  </span>
+                  <span className="whitespace-nowrap hidden sm:inline">Psych Center</span>
+                  <span className="sm:hidden font-mono-code text-[10px]">MINDSET</span>
                 </div>
               </button>
             </div>
@@ -854,12 +810,12 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="mobile-account-manage-btn"
               onClick={onOpenAccountManager}
-              className="lg:hidden flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-blue-500/40 text-cyan-400 font-military text-xs font-bold prime-ios-touch cursor-pointer"
+              className="lg:hidden flex items-center gap-1 px-2 py-1 rounded-md bg-slate-950 border border-slate-800 hover:border-blue-500/40 text-cyan-400 font-military text-[11px] font-bold prime-ios-touch cursor-pointer"
               title="Accounts & Balance"
             >
-              <Wallet className="w-3.5 h-3.5 shrink-0" />
+              <Wallet className="w-3 h-3 shrink-0" />
               <span className="hidden sm:inline">ACCOUNTS</span>
-              <span className="sm:hidden text-[10px] font-mono-code">
+              <span className="sm:hidden text-[9px] font-mono-code">
                 {account ? formatCurrency(account.currentBalance, account.currency).split('.')[0] : 'ACC'}
               </span>
             </button>
@@ -868,9 +824,9 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             id="open-new-trade-btn"
             onClick={onOpenNewTrade}
-            className="prime-btn-primary prime-light-sweep flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm shadow-xl shadow-blue-500/20 cursor-pointer prime-ios-touch"
+            className="prime-btn-primary prime-light-sweep flex items-center gap-1 sm:gap-1.5 px-2.5 py-1 text-[11px] sm:text-xs shadow-md shadow-blue-500/20 cursor-pointer prime-ios-touch"
           >
-            <PlusCircle className="w-4 h-4 stroke-[2.5] shrink-0" />
+            <PlusCircle className="w-3.5 h-3.5 stroke-[2.5] shrink-0" />
             <span className="hidden sm:inline">ENTER NEW TRADE</span>
             <span className="sm:hidden">TRADE</span>
           </button>
@@ -878,26 +834,48 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Responsive current-session indicator */}
-      <div className="flex w-full items-center gap-2 overflow-x-auto border-t border-slate-800/60 bg-[#070C16]/95 px-3 py-2 no-scrollbar sm:px-6">
-        <span className="shrink-0 text-[10px] font-mono-code font-bold uppercase tracking-wider text-slate-500">Market now</span>
+      <div className="flex w-full items-center gap-1.5 overflow-x-auto border-t border-slate-800/60 bg-[#070C16]/95 px-2.5 py-1 no-scrollbar sm:px-4">
+        <span className="shrink-0 text-[9px] font-mono-code font-bold uppercase tracking-wider text-slate-500">Market now</span>
         {marketSessions.filter((session) => session.isOpen).map((session) => (
-          <span key={session.id} className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-mono-code ${session.isPeakLiquidity ? 'border-amber-400/50 bg-amber-400/10 text-amber-200' : 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'}`}>
+          <span key={session.id} className={`flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-[9px] font-mono-code ${session.isPeakLiquidity ? 'border-amber-400/50 bg-amber-400/10 text-amber-200' : 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'}`}>
             <span>{session.flag}</span>
             <span>{session.name.replace(' Session', '')}</span>
             <span className="text-slate-500">{session.timeRemainingStr}</span>
           </span>
         ))}
-        {!marketSessions.some((session) => session.isOpen) && <span className="shrink-0 text-[10px] font-mono-code text-slate-400">Global sessions closed</span>}
+        {!marketSessions.some((session) => session.isOpen) && <span className="shrink-0 text-[9px] font-mono-code text-slate-400">Global sessions closed</span>}
       </div>
 
       {/* Horizontally Scrollable Full Navigation Bar (Desktop, Laptop, Tablet & Mobile) */}
-      <div className="w-full border-t border-slate-800/60 py-1.5 bg-[#090D15]/95 backdrop-blur overflow-hidden sticky top-12 z-[990] min-h-[44px] flex flex-col justify-center shadow-md shadow-slate-900/50">
+      <div id="category-navigation-bar" className="w-full border-t border-slate-800/60 py-0.5 sm:py-1 bg-[#090D15]/95 backdrop-blur overflow-hidden relative z-10 min-h-[34px] sm:min-h-[38px] flex flex-col justify-center shadow-md shadow-slate-900/50">
         {/* Overflow Gradient Shadows for Visual Cue */}
         {canScrollLeft && (
-          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#090D15] to-transparent pointer-events-none z-10" />
+          <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-10 bg-gradient-to-r from-[#090D15] via-[#090D15]/80 to-transparent pointer-events-none z-10" />
         )}
         {canScrollRight && (
-          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#090D15] to-transparent pointer-events-none z-10" />
+          <div className="absolute right-0 top-0 bottom-0 w-8 sm:w-10 bg-gradient-to-l from-[#090D15] via-[#090D15]/80 to-transparent pointer-events-none z-10" />
+        )}
+
+        {/* Dedicated Desktop / PC Quick Scroll Buttons */}
+        {canScrollLeft && (
+          <button
+            type="button"
+            onClick={handleScrollLeft}
+            className="hidden md:flex absolute left-1 top-1/2 -translate-y-1/2 z-20 w-6 h-6 rounded-full bg-slate-950/90 border border-slate-700/80 hover:border-cyan-400 text-cyan-300 items-center justify-center shadow-lg transition cursor-pointer active:scale-95"
+            title="Previous Categories (PC)"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {canScrollRight && (
+          <button
+            type="button"
+            onClick={handleScrollRight}
+            className="hidden md:flex absolute right-1 top-1/2 -translate-y-1/2 z-20 w-6 h-6 rounded-full bg-slate-950/90 border border-slate-700/80 hover:border-cyan-400 text-cyan-300 items-center justify-center shadow-lg transition cursor-pointer active:scale-95"
+            title="Next Categories (PC)"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         )}
 
         <div
@@ -907,7 +885,7 @@ export const Header: React.FC<HeaderProps> = ({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUpOrLeave}
           onMouseLeave={handleMouseUpOrLeave}
-          className="flex items-center gap-1.5 px-3 sm:px-6 overflow-x-auto overflow-y-hidden select-none whitespace-nowrap cursor-grab active:cursor-grabbing [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden touch-pan-x"
+          className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 overflow-x-auto no-scrollbar whitespace-nowrap select-none cursor-grab active:cursor-grabbing touch-pan-x"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
         >
           {allNavCategories.map((item) => {
@@ -926,7 +904,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }
                   handleNavClick(item.id);
                 }}
-                className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-military tracking-wider font-semibold transition-all duration-200 select-none whitespace-nowrap active:scale-95 cursor-pointer shrink-0 ${
+                className={`group flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-md text-[11px] sm:text-xs font-military tracking-wider font-semibold transition-all duration-200 select-none whitespace-nowrap active:scale-95 cursor-pointer shrink-0 ${
                   isActive
                     ? 'bg-blue-500/15 text-amber-300 shadow-sm shadow-blue-500/15 border border-blue-500/40'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850/70 border border-transparent'
@@ -934,25 +912,25 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 {/* Animated Logo Container */}
                 <div
-                  className={`w-5 h-5 rounded flex items-center justify-center transition-all duration-200 group-hover:scale-110 ${
+                  className={`w-4 h-4 rounded flex items-center justify-center transition-all duration-200 group-hover:scale-110 ${
                     isActive
                       ? 'bg-blue-500/20 text-amber-300'
                       : 'text-slate-400 group-hover:text-amber-300 group-hover:bg-slate-800'
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 group-hover:rotate-6 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
+                  <Icon className={`w-3 h-3 shrink-0 transition-transform duration-200 group-hover:rotate-6 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
                 </div>
                 <span className="truncate">{item.label}</span>
 
                 {isComingSoon && (
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code bg-blue-500/10 text-cyan-400/90 border border-blue-500/30">
-                    <Lock className="w-2.5 h-2.5" />
+                  <span className="flex items-center gap-0.5 px-1 py-0.2 rounded text-[8px] font-mono-code bg-blue-500/10 text-cyan-400/90 border border-blue-500/30">
+                    <Lock className="w-2 h-2" />
                     <span>SOON</span>
                   </span>
                 )}
 
                 {item.highlight && !isComingSoon && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shrink-0"></span>
+                  <span className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse shrink-0"></span>
                 )}
               </button>
             );
@@ -961,52 +939,61 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* PC & Laptop Scroll Control & Discovery Indicator Strip */}
-      <div className="w-full bg-[#060A12]/95 backdrop-blur border-t border-b border-slate-800/60 px-3 sm:px-4 py-1 flex items-center justify-between gap-2 sm:gap-4 text-[10px] font-mono-code text-slate-400 select-none overflow-x-auto no-scrollbar whitespace-nowrap">
+      <div className="w-full bg-[#060A12]/95 backdrop-blur border-t border-b border-slate-800/60 px-2.5 sm:px-4 py-0.5 sm:py-1 flex items-center justify-between gap-2 sm:gap-3 text-[9px] sm:text-[10px] font-mono-code text-slate-400 select-none overflow-x-auto no-scrollbar whitespace-nowrap">
         <button
           type="button"
           onClick={handleScrollLeft}
           disabled={!canScrollLeft}
-          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
+          className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border transition-all cursor-pointer shrink-0 ${
             canScrollLeft
               ? 'bg-slate-950/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-blue-500/50 shadow-sm shadow-blue-500/10 active:scale-95'
               : 'opacity-30 text-slate-600 border-transparent cursor-not-allowed'
           }`}
           title="Scroll Left — See previous categories"
         >
-          <ChevronLeft className="w-3.5 h-3.5 text-cyan-400" />
+          <ChevronLeft className="w-3 h-3 text-cyan-400" />
           <span className="hidden sm:inline font-bold">PREV</span>
         </button>
 
-        <div className="flex-1 min-w-[200px] max-w-md mx-auto flex items-center gap-3 shrink-0">
-          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 shrink-0 uppercase tracking-wider font-semibold">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-            <span>EXPLORE ALL CATEGORIES</span>
+        <button
+          type="button"
+          onClick={() => {
+            if (onOpenAllCategories) {
+              onOpenAllCategories();
+            }
+          }}
+          className="flex-1 min-w-[200px] max-w-md mx-auto flex items-center gap-2 sm:gap-3 shrink-0 px-2 sm:px-3 py-0.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/25 border border-blue-500/30 hover:border-cyan-400/50 transition cursor-pointer active:scale-98 group shadow-sm shadow-blue-500/10"
+          title="Click to explore all 21 categories & modules"
+        >
+          <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-cyan-300 font-military font-bold tracking-wider shrink-0 uppercase">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+            <span className="group-hover:text-amber-300 transition">EXPLORE ALL CATEGORIES (21)</span>
           </div>
-          <div className="flex-1 h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800 relative">
+          <div className="flex-1 h-1 sm:h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800 relative">
             <div
               className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-amber-300 rounded-full transition-all duration-200"
               style={{ width: `${Math.max(12, scrollProgress)}%` }}
             />
           </div>
-          <div className="flex items-center gap-1 text-[10px] text-cyan-400/90 shrink-0 font-semibold">
-            <span className="hidden md:inline">SCROLL FOR MORE</span>
-            <ChevronRight className={`w-3.5 h-3.5 text-cyan-400 ${canScrollRight ? 'animate-bounce' : ''}`} />
+          <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-amber-300 shrink-0 font-mono-code font-bold">
+            <span className="hidden sm:inline">OPEN</span>
+            <ChevronRight className="w-3 h-3 text-cyan-400 group-hover:translate-x-0.5 transition-transform" />
           </div>
-        </div>
+        </button>
 
         <button
           type="button"
           onClick={handleScrollRight}
           disabled={!canScrollRight}
-          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
+          className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border transition-all cursor-pointer shrink-0 ${
             canScrollRight
               ? 'bg-slate-950/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-blue-500/50 shadow-sm shadow-blue-500/15 ring-1 ring-blue-500/40 active:scale-95 animate-pulse'
               : 'opacity-30 text-slate-600 border-transparent cursor-not-allowed'
           }`}
           title="Scroll Right — More categories ahead"
         >
-          <span className="hidden sm:inline font-bold">MORE CATEGORIES</span>
-          <ChevronRight className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="hidden sm:inline font-bold">MORE</span>
+          <ChevronRight className="w-3 h-3 text-cyan-400" />
         </button>
       </div>
       </div>

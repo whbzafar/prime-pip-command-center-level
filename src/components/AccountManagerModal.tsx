@@ -167,23 +167,23 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-2xl bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
         {/* Modal Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
+            <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 shrink-0">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-military font-bold tracking-wide text-slate-100">
+              <h2 className="text-sm sm:text-base font-military font-bold tracking-wide text-slate-100">
                 {view === 'LIST'
                   ? 'TRADING ACCOUNTS & RISK PROFILES'
                   : view === 'CREATE'
                   ? 'CREATE NEW TRADING ACCOUNT'
                   : 'ACCOUNT SETTINGS'}
               </h2>
-              <p className="text-xs text-slate-400 font-mono-code">
+              <p className="text-[11px] sm:text-xs text-slate-400 font-mono-code">
                 {view === 'LIST'
                   ? `${accounts.length} ISOLATED ACCOUNTS CONFIGURED`
                   : 'OFFLINE-FIRST LOCAL ISOLATION'}
@@ -192,14 +192,14 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 flex items-center justify-center transition"
+            className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 flex items-center justify-center transition shrink-0 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto flex-1">
+        <div className="p-4 sm:p-5 md:p-6 overflow-y-auto flex-1">
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -447,13 +447,13 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
 
       {/* CONFIRM DELETE ACCOUNT MODAL */}
       {accountToDelete && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
-          <div className="bg-slate-950 border border-rose-500/40 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 font-mono-code text-xs">
-            <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto">
-              <AlertTriangle className="w-6 h-6" />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/85 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-slate-950 border border-rose-500/40 rounded-2xl w-full max-w-md p-5 sm:p-6 my-auto shadow-2xl space-y-3.5 font-mono-code text-xs animate-in zoom-in-95 duration-150">
+            <div className="w-11 h-11 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto">
+              <AlertTriangle className="w-5 h-5" />
             </div>
             <div className="text-center space-y-1.5">
-              <h3 className="font-military font-bold text-base text-slate-100 tracking-wider">
+              <h3 className="font-military font-bold text-sm sm:text-base text-slate-100 tracking-wider">
                 DELETE THIS TRADING ACCOUNT?
               </h3>
               <p className="text-xs text-slate-300">
@@ -464,7 +464,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                 Associated account data, trades, and rules will be deleted permanently. If this was your active account, another account will be selected automatically, or the account creation screen will open.
               </p>
             </div>
-            <div className="flex items-center justify-center gap-3 pt-2">
+            <div className="flex items-center justify-center gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setAccountToDelete(null)}

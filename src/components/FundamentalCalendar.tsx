@@ -385,7 +385,7 @@ export const FundamentalCalendar: React.FC = () => {
   }, [filteredEvents, viewMode]);
 
   return (
-    <div className={`space-y-6 max-w-7xl mx-auto ${isFullscreen ? 'fixed inset-0 z-50 bg-[#020617] p-6 overflow-y-auto max-w-none' : ''}`}>
+    <div className={`w-full max-w-7xl mx-auto space-y-6 overflow-x-hidden ${isFullscreen ? 'fixed inset-0 z-50 bg-[#020617] p-4 sm:p-6 overflow-y-auto max-w-none' : ''}`}>
       {/* Offline Alert Notification Banner */}
       {!isOnline && (
         <div className="bg-rose-950/70 border-2 border-rose-500/80 rounded-xl p-4 text-rose-200 flex items-center justify-between gap-3 shadow-2xl animate-pulse">

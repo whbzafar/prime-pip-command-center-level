@@ -90,22 +90,22 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   return (
     <div
       id="onboarding-welcome-modal"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-150"
     >
-      <div className="relative w-full max-w-4xl max-h-[92vh] bg-[#0B0F19] border border-blue-500/30 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-4xl max-h-[92vh] my-auto bg-[#0B0F19] border border-blue-500/30 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
         {/* Animated Top Accent Shimmer */}
         <div className="h-1 bg-gradient-to-r from-blue-500 via-teal-400 to-indigo-500 animate-pulse" />
 
         {/* Modal Header */}
-        <div className="px-6 py-5 border-b border-slate-800/80 bg-slate-950/60 flex items-start justify-between gap-4">
-          <div className="space-y-1">
+        <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-800/80 bg-slate-950/60 flex items-start justify-between gap-4 shrink-0">
+          <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
-              <h2 className="text-xl sm:text-2xl font-military font-bold text-slate-100 tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <h2 className="text-base sm:text-xl font-military font-bold text-slate-100 tracking-wider">
                 WELCOME TO PFX COMMAND CENTER
               </h2>
             </div>
-            <p className="text-xs font-mono-code text-cyan-400/90 font-semibold">
+            <p className="text-[11px] sm:text-xs font-mono-code text-cyan-400/90 font-semibold">
               Assalam o Alaikum, {user.name || user.username}! Your Institutional Trading Ecosystem is Ready.
             </p>
           </div>
@@ -114,15 +114,15 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             id="onboarding-close-btn"
             type="button"
             onClick={handleFinish}
-            className="p-2 rounded-lg bg-slate-950 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer border border-slate-800"
+            className="p-1.5 rounded-lg bg-slate-950 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer border border-slate-800 shrink-0"
             title="Close Welcome Overview"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4.5 h-4.5" />
           </button>
         </div>
 
         {/* Modal Body (Scrollable) */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-slate-300 text-xs sm:text-sm">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5 text-slate-300 text-xs sm:text-sm">
           {/* Mission & Purpose */}
           <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 sm:p-5 space-y-2">
             <div className="flex items-center gap-2 text-teal-400 font-military font-bold text-sm tracking-wide">
@@ -211,17 +211,17 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/80 flex flex-wrap items-center justify-between gap-3">
+        <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-t border-slate-800 bg-slate-950/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="text-[11px] font-mono-code text-slate-500">
             Account: <strong className="text-slate-300">{user.username}</strong> • Status: <span className="text-emerald-400 font-bold">{user.subscriptionStatus}</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               id="onboarding-close-secondary-btn"
               type="button"
               onClick={handleFinish}
-              className="px-4 py-2 rounded-xl text-xs font-mono-code text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-slate-800 transition cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-mono-code text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-slate-800 transition cursor-pointer"
             >
               Close
             </button>
@@ -229,7 +229,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               id="onboarding-get-started-btn"
               type="button"
               onClick={handleFinish}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-military font-bold bg-blue-500 hover:bg-cyan-400 text-slate-950 transition cursor-pointer shadow-lg shadow-blue-500/20"
+              className="flex items-center gap-1.5 px-4 sm:px-5 py-1.5 rounded-xl text-xs font-military font-bold bg-blue-500 hover:bg-cyan-400 text-slate-950 transition cursor-pointer shadow-lg shadow-blue-500/20"
             >
               <span>ENTER COMMAND CENTER</span>
               <ArrowRight className="w-4 h-4" />

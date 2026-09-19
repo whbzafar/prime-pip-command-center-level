@@ -65,27 +65,31 @@ export const NotificationsPanel: React.FC<Props> = ({ onClose, onNavigate }) => 
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-80 bg-[#020617] border-l border-slate-800 shadow-2xl z-50 flex flex-col font-mono-code animate-in slide-in-from-right duration-300">
-      <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-slate-200 font-bold">
-          <Bell className="w-4 h-4 text-cyan-400" />
-          NOTIFICATIONS
-        </div>
-        <div className="flex items-center gap-2">
-          {notifications.some(n => !n.isRead) && (
-            <button 
-              onClick={() => markRead()}
-              className="text-xs text-slate-400 hover:text-emerald-400 transition cursor-pointer"
-              title="Mark all as read"
-            >
-              <CheckCheck className="w-4 h-4" />
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs animate-in fade-in duration-150" onClick={onClose}>
+      <div 
+        className="relative w-80 max-w-[88vw] h-full bg-[#020617] border-l border-slate-800 shadow-2xl flex flex-col font-mono-code animate-in slide-in-from-right duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-3.5 sm:p-4 border-b border-slate-800 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 text-slate-200 font-bold text-xs sm:text-sm">
+            <Bell className="w-4 h-4 text-cyan-400" />
+            NOTIFICATIONS
+          </div>
+          <div className="flex items-center gap-2">
+            {notifications.some(n => !n.isRead) && (
+              <button 
+                onClick={() => markRead()}
+                className="text-xs text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                title="Mark all as read"
+              >
+                <CheckCheck className="w-4 h-4" />
+              </button>
+            )}
+            <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 transition cursor-pointer">
+              <X className="w-4 h-4" />
             </button>
-          )}
-          <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 transition cursor-pointer">
-            <X className="w-4 h-4" />
-          </button>
+          </div>
         </div>
-      </div>
       
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {isLoading ? (
@@ -143,5 +147,6 @@ export const NotificationsPanel: React.FC<Props> = ({ onClose, onNavigate }) => 
         )}
       </div>
     </div>
+  </div>
   );
 };

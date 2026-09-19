@@ -140,16 +140,16 @@ export const AiChartScannerModal: React.FC<AiChartScannerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-slate-950 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-150">
+      <div className="bg-slate-950 border border-slate-700 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 my-auto max-h-[92vh] flex flex-col overflow-y-auto animate-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 text-cyan-400">
+            <span className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 text-cyan-400 shrink-0">
               <Sparkles className="w-5 h-5" />
             </span>
             <div>
-              <h3 className="text-base font-military font-bold text-slate-100">
+              <h3 className="text-sm sm:text-base font-military font-bold text-slate-100">
                 AI CHART SCANNER
               </h3>
               <p className="text-[11px] text-slate-400 font-mono-code">
@@ -160,9 +160,9 @@ export const AiChartScannerModal: React.FC<AiChartScannerModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition"
+            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition shrink-0 cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4.5 h-4.5" />
           </button>
         </div>
 

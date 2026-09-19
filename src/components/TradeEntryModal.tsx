@@ -433,17 +433,17 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-[#0B0F19] border border-slate-700/80 rounded-2xl w-full max-w-5xl my-auto shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 md:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-150">
+      <div className="bg-[#0B0F19] border border-slate-700/80 rounded-2xl w-full max-w-5xl my-auto shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-800 bg-[#020617] flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3 sm:py-3.5 border-b border-slate-800 bg-[#020617] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-cyan-400">
-              <Crosshair className="w-5 h-5" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-cyan-400 shrink-0">
+              <Crosshair className="w-4.5 h-4.5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-military font-bold tracking-wider text-slate-100">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm sm:text-base font-military font-bold tracking-wider text-slate-100">
                   PROFESSIONAL TRADE ENTRY SYSTEM
                 </h3>
                 <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-blue-500/10 text-cyan-400 border border-blue-500/30">
@@ -453,7 +453,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                   {APP_TIMEZONE_FULL_LABEL}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-[11px] sm:text-xs text-slate-400">
                 Record execution, market structure, psychology parameters, and screenshots in Asia/Karachi (UTC+5).
               </p>
             </div>
@@ -461,14 +461,14 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition shrink-0 cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4.5 h-4.5" />
           </button>
         </div>
 
         {/* Modal Body with Scrollable Sections */}
-        <div className="p-6 overflow-y-auto space-y-6 text-xs text-slate-200">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 text-xs text-slate-200 flex-1">
           {/* Pre-Execution Protocol & Readiness Guidance Banner */}
           <div className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
             preReadiness.status === 'RED'
@@ -1727,10 +1727,10 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-slate-800 bg-[#020617] flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3 sm:py-3.5 border-t border-slate-800 bg-[#020617] flex items-center justify-between shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 font-mono-code text-xs transition"
+            className="px-3.5 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 font-mono-code text-xs transition cursor-pointer"
           >
             CANCEL
           </button>
@@ -1738,7 +1738,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
           <button
             id="save-trade-submit-btn"
             onClick={handleSave}
-            className="px-6 py-2.5 rounded-lg font-military font-bold text-xs tracking-wider shadow-lg bg-gradient-to-r from-blue-500 to-amber-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-blue-500/20 cursor-pointer transition transform active:scale-95 flex items-center gap-2"
+            className="px-4 sm:px-6 py-2 rounded-lg font-military font-bold text-xs tracking-wider shadow-lg bg-gradient-to-r from-blue-500 to-amber-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-blue-500/20 cursor-pointer transition transform active:scale-95 flex items-center gap-2"
           >
             <CheckCircle2 className="w-4 h-4 text-slate-950" />
             <span>

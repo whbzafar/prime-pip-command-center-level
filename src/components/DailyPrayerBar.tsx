@@ -133,21 +133,21 @@ export const DailyPrayerBar: React.FC = () => {
 
   if (isCollapsed) {
     return (
-      <div className="bg-[#050811] border-b border-slate-800/80 px-3 py-1 flex items-center justify-between text-[11px] font-mono-code text-slate-400">
-        <div className="flex items-center gap-2">
-          <Moon className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="font-bold text-slate-300">PRAYER TRACKER:</span>
-          <span className="text-amber-300">
+      <div className="bg-[#050811] border-b border-slate-800/80 px-2.5 sm:px-3 py-0.5 sm:py-1 flex items-center justify-between text-[10px] sm:text-[11px] font-mono-code text-slate-400 select-none">
+        <div className="flex items-center gap-1.5 sm:gap-2 truncate min-w-0">
+          <Moon className="w-3 h-3 text-cyan-400 shrink-0" />
+          <span className="font-bold text-slate-300 shrink-0 text-[10px]">PRAYER:</span>
+          <span className="text-amber-300 truncate text-[10px]">
             {schedule?.nextPrayer ? `Next: ${schedule.nextPrayer.name} in ${schedule.nextPrayer.timeRemainingStr}` : `${settings.cityName}`}
           </span>
-          <span className="text-emerald-400">({totalPrayedToday}/5 Offered)</span>
+          <span className="text-emerald-400 shrink-0 text-[10px]">({totalPrayedToday}/5)</span>
         </div>
         <button
           type="button"
           onClick={toggleCollapsed}
-          className="flex items-center gap-1 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+          className="flex items-center gap-1 text-slate-400 hover:text-slate-200 transition cursor-pointer shrink-0 text-[10px] ml-2"
         >
-          <span>Expand</span>
+          <span className="hidden xs:inline">Expand</span>
           <ChevronDown className="w-3 h-3" />
         </button>
       </div>
@@ -155,37 +155,37 @@ export const DailyPrayerBar: React.FC = () => {
   }
 
   return (
-    <div className="bg-[#050811] border-b border-slate-800/80 text-xs font-mono-code px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 text-slate-300">
+    <div className="bg-[#050811] border-b border-slate-800/80 text-[10px] sm:text-[11px] font-mono-code px-2.5 sm:px-3 py-1 flex flex-wrap items-center justify-between gap-y-1 gap-x-2 text-slate-300">
       {/* City selector & Category badge */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <div className="flex items-center gap-1 text-cyan-400 font-bold tracking-wider">
-          <Moon className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-          <span className="hidden sm:inline">DAILY PRAYER TRACKER</span>
-          <span className="sm:hidden">PRAYER</span>
+          <Moon className="w-3 h-3 text-cyan-400 animate-pulse shrink-0" />
+          <span className="hidden sm:inline text-[10px]">DAILY PRAYER</span>
+          <span className="sm:hidden text-[10px]">PRAYER</span>
         </div>
 
         {/* City and Method trigger */}
         <button
           type="button"
           onClick={() => setIsSettingsOpen(true)}
-          className="flex items-center gap-1 bg-slate-950/90 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 px-2 py-0.5 rounded text-[11px] text-slate-200 transition cursor-pointer group"
+          className="flex items-center gap-1 bg-slate-950/90 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 px-1.5 py-0.5 rounded text-[10px] text-slate-200 transition cursor-pointer group"
           title="Click to change city, GPS location, and calculation method"
         >
           <span className="font-bold group-hover:text-cyan-400">{settings.cityName}</span>
-          <span className="text-slate-400 text-[10px]">({settings.juristicSchool === 'HANAFI' ? 'Han' : 'Std'})</span>
-          <Settings className="w-3 h-3 text-slate-400 group-hover:rotate-45 transition-transform" />
+          <span className="text-slate-400 text-[9px]">({settings.juristicSchool === 'HANAFI' ? 'Han' : 'Std'})</span>
+          <Settings className="w-2.5 h-2.5 text-slate-400 group-hover:rotate-45 transition-transform" />
         </button>
 
         {/* Next Prayer Countdown Chip */}
         {schedule?.nextPrayer && (
           <div
-            className={`hidden md:flex items-center gap-1 px-2 py-0.5 rounded border text-[11px] font-bold ${
+            className={`hidden md:flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-bold ${
               schedule.nextPrayer.isImminentWarning
                 ? 'bg-blue-500/20 text-amber-300 border-blue-500/40 animate-pulse'
                 : 'bg-slate-950 border-slate-800 text-slate-300'
             }`}
           >
-            <Clock className="w-3 h-3 text-cyan-400" />
+            <Clock className="w-2.5 h-2.5 text-cyan-400" />
             <span>
               Next: <strong>{schedule.nextPrayer.name}</strong> in {schedule.nextPrayer.timeRemainingStr}
             </span>
@@ -194,7 +194,7 @@ export const DailyPrayerBar: React.FC = () => {
       </div>
 
       {/* 5 Prayers with time & personal completion check */}
-      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+      <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
         {prayersList.map((p) => {
           const isDone = prayerRecord.prayed[p.key];
           const isNext = schedule?.nextPrayer?.key === p.key;
@@ -204,7 +204,7 @@ export const DailyPrayerBar: React.FC = () => {
               type="button"
               onClick={() => handleTogglePrayer(p.key)}
               title={`Click to toggle ${p.name} prayer offered (${p.time})`}
-              className={`flex items-center gap-1.5 px-2 py-0.5 rounded border cursor-pointer transition text-[11px] ${
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded border cursor-pointer transition text-[10px] ${
                 isDone
                   ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
                   : isNext
@@ -212,14 +212,14 @@ export const DailyPrayerBar: React.FC = () => {
                   : 'bg-slate-950/60 border-slate-800/80 text-slate-300 hover:border-slate-700'
               }`}
             >
-              <span className={`font-semibold ${isDone ? 'text-emerald-400' : isNext ? 'text-cyan-400' : 'text-slate-300'}`}>
+              <span className={`font-semibold text-[10px] ${isDone ? 'text-emerald-400' : isNext ? 'text-cyan-400' : 'text-slate-300'}`}>
                 {p.name}
               </span>
-              <span className="text-slate-400 text-[10px]">{p.time}</span>
+              <span className="text-slate-400 text-[9px]">{p.time}</span>
               {isDone ? (
-                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
               ) : (
-                <span className="w-2.5 h-2.5 rounded-full border border-slate-600 inline-block" />
+                <span className="w-2 h-2 rounded-full border border-slate-600 inline-block" />
               )}
             </button>
           );
@@ -227,8 +227,8 @@ export const DailyPrayerBar: React.FC = () => {
       </div>
 
       {/* Right controls: Daily count, Mute toggle, Collapse button */}
-      <div className="flex items-center gap-2">
-        <div className="hidden lg:flex items-center gap-1 text-[11px] text-slate-400">
+      <div className="flex items-center gap-1.5">
+        <div className="hidden lg:flex items-center gap-1 text-[10px] text-slate-400">
           <span>Today:</span>
           <span className="text-emerald-400 font-bold">{totalPrayedToday}/5</span>
         </div>
@@ -237,23 +237,23 @@ export const DailyPrayerBar: React.FC = () => {
           type="button"
           onClick={toggleReminders}
           title={settings.remindersEnabled ? 'Prayer reminders ACTIVE' : 'Prayer reminders MUTED'}
-          className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] border transition cursor-pointer ${
+          className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] border transition cursor-pointer ${
             settings.remindersEnabled
               ? 'bg-blue-500/10 border-blue-500/30 text-amber-300 hover:bg-blue-500/20'
               : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
           }`}
         >
-          {settings.remindersEnabled ? <Bell className="w-3 h-3 text-cyan-400" /> : <BellOff className="w-3 h-3" />}
-          <span className="hidden sm:inline">{settings.remindersEnabled ? 'ALERTS ON' : 'MUTED'}</span>
+          {settings.remindersEnabled ? <Bell className="w-2.5 h-2.5 text-cyan-400" /> : <BellOff className="w-2.5 h-2.5" />}
+          <span className="hidden sm:inline">{settings.remindersEnabled ? 'ALERTS' : 'MUTED'}</span>
         </button>
 
         <button
           type="button"
           onClick={toggleCollapsed}
           title="Minimize prayer bar"
-          className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+          className="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
         >
-          <ChevronUp className="w-3.5 h-3.5" />
+          <ChevronUp className="w-3 h-3" />
         </button>
       </div>
 

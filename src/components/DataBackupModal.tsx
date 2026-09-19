@@ -353,26 +353,26 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-2xl bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950/80 flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-800 bg-slate-950/80 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400">
+            <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 shrink-0">
               <Database className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-military font-bold tracking-wide text-slate-100 flex items-center gap-2">
+              <h2 className="text-sm sm:text-base font-military font-bold tracking-wide text-slate-100 flex items-center gap-2">
                 <span>SYSTEM SETTINGS & DATA CENTER</span>
               </h2>
-              <p className="text-xs text-slate-400 font-mono-code">
+              <p className="text-[11px] sm:text-xs text-slate-400 font-mono-code">
                 GLOBAL SOUND CONTROLS • OFFLINE PERSISTENCE • EXPORT VAULT
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 flex items-center justify-center transition"
+            className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 flex items-center justify-center transition shrink-0 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -1313,11 +1313,11 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between text-xs font-mono-code text-slate-500">
-          <span>TIMEZONE: Asia/Karachi (PKT UTC+5)</span>
+        <div className="px-4 sm:px-6 py-3 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between text-xs font-mono-code text-slate-500 shrink-0">
+          <span className="text-[11px] sm:text-xs">TIMEZONE: Asia/Karachi (PKT UTC+5)</span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+            className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer text-xs font-bold"
           >
             CLOSE
           </button>

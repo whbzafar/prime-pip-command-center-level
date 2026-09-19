@@ -124,33 +124,35 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <div className="bg-[#0D121F] border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in duration-150">
+      <div className="bg-[#0D121F] border border-slate-800 rounded-2xl max-w-2xl w-full shadow-2xl my-auto flex flex-col max-h-[92vh] overflow-hidden animate-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <span className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-cyan-400">
-              <Moon className="w-6 h-6" />
+            <span className="p-2 sm:p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-cyan-400 shrink-0">
+              <Moon className="w-5 h-5 sm:w-6 sm:h-6" />
             </span>
             <div>
-              <h3 className="text-lg font-military font-bold text-slate-100 flex items-center gap-2">
+              <h3 className="text-sm sm:text-base md:text-lg font-military font-bold text-slate-100 flex items-center gap-2">
                 <span>GLOBAL ISLAMIC PRAYER CALCULATION SETTINGS</span>
               </h3>
-              <p className="text-xs text-slate-400 font-mono-code mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-400 font-mono-code mt-0.5">
                 Configure astronomical calculation methods, juristic schools, and location-aware prayer reminders.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4.5 h-4.5" />
           </button>
         </div>
 
-        {/* Current Config summary */}
-        <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-between font-mono-code text-xs">
+        {/* Scrollable Body */}
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1 font-mono-code text-xs">
+          {/* Current Config summary */}
+          <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-between font-mono-code text-xs">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-cyan-400" />
             <span>
@@ -379,12 +381,14 @@ export const PrayerSettingsModal: React.FC<PrayerSettingsModalProps> = ({ isOpen
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-3 pt-2">
+        </div>
+
+        {/* Actions Footer */}
+        <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-t border-slate-800 bg-slate-950/60 flex justify-end gap-3 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs transition cursor-pointer"
+            className="w-full sm:w-auto px-5 py-2 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs transition cursor-pointer"
           >
             SAVE & APPLY GLOBALLY
           </button>

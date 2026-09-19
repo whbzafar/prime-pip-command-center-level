@@ -62,6 +62,7 @@ import { playDisciplineAlert } from './utils/audioAlerts';
 import { getKarachiDate, getKarachiTime } from './utils/time';
 import { AppearanceControls } from './components/AppearanceControls';
 import { AppFooter } from './components/AppFooter';
+import { AllCategoriesModal } from './components/AllCategoriesModal';
 
 export default function App() {
   // Navigation State
@@ -90,23 +91,23 @@ export default function App() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [isTraderProfileOpen, setIsTraderProfileOpen] = useState(false);
+  const [isAllCategoriesOpen, setIsAllCategoriesOpen] = useState(false);
   const [prefilledTradeData, setPrefilledTradeData] = useState<Partial<Trade> | null>(null);
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
 
-  // Main content container ref for smooth auto-scroll reset on tab and category changes
-  const contentRef = useRef<HTMLElement>(null);
+  // Active Category / Tab State & Main Container Reference
+  const activeCategory = activeTab;
+  const mainContainerRef = useRef<HTMLElement>(null);
 
-  // Auto-Scroll Reset on Tab / Category Change (Mobile & Desktop)
+  // Fix Navigation Gap / Black Screen: Immediately align scroll position so content is visible right away
   useEffect(() => {
-    // Smoothly scroll window viewport to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    // Also scroll main content container into view if available
-    if (contentRef.current) {
-      contentRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (mainContainerRef.current) {
+      mainContainerRef.current.scrollTo({ top: 0, behavior: 'instant' });
     }
-  }, [activeTab]);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [activeCategory, activeTab]);
 
   // Continuous Telemetry Observation Hook
   useEffect(() => {
@@ -685,10 +686,20 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col selection:bg-blue-500/30 selection:text-cyan-200 relative overflow-x-hidden" style={{ filter: 'brightness(var(--prime-brightness, 100%))' }}>
+    <div className="w-full max-w-full min-h-screen bg-[#020617] text-slate-100 flex flex-col selection:bg-blue-500/30 selection:text-cyan-200 relative overflow-x-hidden">
       {/* Global Animated Background Elements */}
       <div className="fixed inset-0 pointer-events-none z-0" style={{ background: 'radial-gradient(circle at 15% 50%, rgba(14, 165, 233, 0.05), transparent 40%), radial-gradient(circle at 85% 30%, rgba(245, 158, 11, 0.05), transparent 40%)' }}></div>
       <div className="fixed inset-0 pointer-events-none z-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+
+      {/* Dynamic Screen Dimmer: Adjusts brightness without CSS filter on root to ensure position:fixed remains viewport-fixed */}
+      <div
+        aria-hidden="true"
+        className="fixed inset-0 pointer-events-none z-[99999] transition-opacity duration-200"
+        style={{
+          backgroundColor: '#000000',
+          opacity: 'calc((100% - var(--prime-brightness, 100%)) / 100)',
+        }}
+      />
 
       {/* Navigation HUD Header */}
       <Header
@@ -745,6 +756,7 @@ export default function App() {
         onOpenNotifications={() => setIsNotificationsOpen(true)}
         onOpenAppearance={() => setIsAppearanceOpen(true)}
         onOpenEvolution={() => setActiveTab('EVOLUTION')}
+        onOpenAllCategories={() => setIsAllCategoriesOpen(true)}
       />
 
       {/* Demo Mode Notification HUD */}
@@ -818,7 +830,7 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main ref={contentRef} className="flex-1 max-w-7xl w-full mx-auto p-3.5 sm:p-6 lg:p-8 pb-24 md:pb-8">
+      <main ref={mainContainerRef} className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-6 pt-1 sm:pt-3 pb-24 md:pb-6 overflow-x-hidden focus:outline-none">
         {activeTab === 'DASHBOARD' && (
           <MainDashboard
             metrics={metrics}
@@ -1030,22 +1042,21 @@ export default function App() {
             onClose={() => setActiveTab('DASHBOARD')}
           />
         )}
+        {/* Secondary Bottom Process Goal Link */}
+        {activeTab !== 'GOALS' && (
+          <div className="border-t border-slate-800/80 bg-slate-950/60 py-3 px-6 text-center text-xs font-mono-code text-slate-400 mt-6 mb-4">
+            <span>PROCESS OVER OUTCOME • </span>
+            <button
+              onClick={() => setActiveTab('GOALS')}
+              className="text-cyan-400 hover:underline font-bold cursor-pointer"
+            >
+              VIEW PROCESS DISCIPLINE GOALS ({goals.filter((g) => g.isCompleted).length}/{goals.length} ACTIVE)
+            </button>
+          </div>
+        )}
+
+        <AppFooter />
       </main>
-
-      {/* Secondary Bottom Process Goal Link */}
-      {activeTab !== 'GOALS' && (
-        <div className="border-t border-slate-800/80 bg-slate-950/60 py-3 px-6 text-center text-xs font-mono-code text-slate-400">
-          <span>PROCESS OVER OUTCOME • </span>
-          <button
-            onClick={() => setActiveTab('GOALS')}
-            className="text-cyan-400 hover:underline font-bold cursor-pointer"
-          >
-            VIEW PROCESS DISCIPLINE GOALS ({goals.filter((g) => g.isCompleted).length}/{goals.length} ACTIVE)
-          </button>
-        </div>
-      )}
-
-      <AppFooter />
 
       {/* Native Mobile Bottom App Bar (Sticky Thumb Navigation for Modern Phones) */}
       {isNotificationsOpen && (
@@ -1065,6 +1076,19 @@ export default function App() {
         currentUser={currentUser}
         onOpenEvolution={() => setActiveTab('EVOLUTION')}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
+        onOpenAllCategories={() => setIsAllCategoriesOpen(true)}
+      />
+
+      {/* All 21 Categories Directory Modal */}
+      <AllCategoriesModal
+        isOpen={isAllCategoriesOpen}
+        onClose={() => setIsAllCategoriesOpen(false)}
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          setIsAllCategoriesOpen(false);
+        }}
+        currentUser={currentUser}
       />
 
       <AppearanceControls isOpen={isAppearanceOpen} onClose={() => setIsAppearanceOpen(false)} />
@@ -1130,12 +1154,10 @@ export default function App() {
 
       {/* Account Onboarding Modal (if triggered manually) */}
       {isOnboardingOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <AccountOnboardingModal
-            onAccountCreated={handleAccountCreated}
-            onExploreDemo={handleEnterDemoMode}
-          />
-        </div>
+        <AccountOnboardingModal
+          onAccountCreated={handleAccountCreated}
+          onExploreDemo={handleEnterDemoMode}
+        />
       )}
 
       {/* User Login Modal */}
@@ -1169,8 +1191,8 @@ export default function App() {
 
       {/* Subscription Pricing & Referral Modal */}
       {isSubscriptionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
-          <div className="max-w-4xl w-full my-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-150">
+          <div className="max-w-4xl w-full my-auto max-h-[92vh] flex flex-col bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl overflow-y-auto p-4 sm:p-6 animate-in zoom-in-95 duration-150">
             <SubscriptionPage
               currentUser={currentUser}
               onClose={() => setIsSubscriptionModalOpen(false)}
