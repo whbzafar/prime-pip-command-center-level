@@ -484,26 +484,24 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
       {/* ========================================================================= */}
       <div className="psychology-calm-card p-5 sm:p-6 rounded-2xl shadow-xl relative overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             {onClose && (
               <button
                 type="button"
                 onClick={onClose}
                 title="Return to Main Dashboard"
-                className="p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 text-slate-300 hover:text-indigo-300 border border-slate-700/80 transition active:scale-95 cursor-pointer"
+                className="p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 text-slate-300 hover:text-indigo-300 border border-slate-700/80 transition active:scale-95 cursor-pointer shrink-0"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
 
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-300 shadow-lg shadow-indigo-950/50">
-              <Brain className="w-7 h-7" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-300 shadow-lg shadow-indigo-950/50 shrink-0">
+              <Brain className="w-6 h-6 sm:w-7 sm:h-7" />
             </div>
 
-            <NasheedPlaylist />
-
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-bold">
                   CENTRAL BEHAVIORAL PROTOCOL
                 </span>
@@ -514,7 +512,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
                   CALM MODE
                 </span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-military font-bold text-slate-100 tracking-wider mt-1">
+              <h1 className="text-lg sm:text-2xl font-military font-bold text-slate-100 tracking-wider mt-1 truncate">
                 Psychological Command Center
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 font-sans mt-0.5">
@@ -559,6 +557,11 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* PSYCHOLOGICAL FOCUS PLAYLIST & AUDIO ENGINE */}
+      {/* ========================================================================= */}
+      <NasheedPlaylist />
 
       {/* ========================================================================= */}
       {/* MEDICAL & BEHAVIORAL SCOPE DISCLAIMER BANNER */}
