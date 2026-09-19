@@ -336,7 +336,6 @@ export const applyInterfaceTemplate = (templateId: string, brightness = 100): vo
     html, body {
       background-color: ${template.bg} !important;
       color: ${template.ink} !important;
-      filter: brightness(${brightness}%);
     }
     .bg-\\[\\#070A11\\], .bg-\\[\\#070a11\\], .bg-slate-950, .bg-slate-950\\/90, .bg-slate-950\\/80, .bg-slate-950\\/60 {
       background-color: ${template.surface} !important;

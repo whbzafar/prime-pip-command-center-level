@@ -11,11 +11,22 @@ async function getApp(): Promise<RequestHandler> {
       return this;
     };
 
-    appPromise = import('../server.ts')
-      .then((mod: any) => ((mod.app || mod.default) as RequestHandler))
-      .finally(() => {
-        (http.Server.prototype as any).listen = originalListen;
-      });
+    appPromise = (async () => {
+      try {
+        const mod: any = await import('../server.js');
+        return (mod.app || mod.default) as RequestHandler;
+      } catch (err1) {
+        try {
+          const mod: any = await import('../server.ts');
+          return (mod.app || mod.default) as RequestHandler;
+        } catch (err2) {
+          console.error('[API] Failed to import server:', err1, err2);
+          throw err2 || err1;
+        }
+      }
+    })().finally(() => {
+      (http.Server.prototype as any).listen = originalListen;
+    });
   }
 
   return appPromise;
@@ -23,19 +34,24 @@ async function getApp(): Promise<RequestHandler> {
 
 export default async function handler(req: any, res: any) {
   try {
+    // Ensure the URL path begins with /api so Express routes match correctly
+    if (req.url && !req.url.startsWith('/api')) {
+      req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+    }
+
     const app = await getApp();
     return app(req, res, (err?: any) => {
       if (err) {
         console.error('API middleware unhandled error:', err);
         if (!res.headersSent) {
-          res.status(500).json({ error: 'Internal Server Error' });
+          res.status(500).json({ error: err?.message || 'Internal Server Error' });
         }
       }
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Vercel API handler failure:', err);
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Server initialization error' });
+      res.status(500).json({ error: err?.message || 'Server initialization error' });
     }
   }
 }

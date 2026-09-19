@@ -165,15 +165,12 @@ export function stopAutonomousEvolution(): void {
   connectivityTimer = undefined;
 }
 
+import { safeWriteJsonFile } from './dataPath.js';
+
 function persistStateToFile(): void {
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
     const state = engineInstance.getStatus();
-    const temporaryFile = `${EVOLUTION_FILE}.tmp`;
-    fs.writeFileSync(temporaryFile, JSON.stringify(state, null, 2), 'utf8');
-    fs.renameSync(temporaryFile, EVOLUTION_FILE);
+    safeWriteJsonFile('evolution_engine_state.json', state);
   } catch (err) {
     console.error('[EvolutionEngine] Error persisting state file:', err);
   }

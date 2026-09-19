@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
 
 export type UserRole = 'ADMIN' | 'CUSTOMER' | 'DEVELOPER';
 
@@ -85,54 +86,29 @@ function verifyPassword(password: string, hash: string, salt: string): boolean {
   return computed === hash;
 }
 
-// Read and write helpers
+// Read and write helpers using safe storage that never crashes on serverless
 export function readUsers(): StoredUser[] {
-  ensureDataDir();
-  if (!fs.existsSync(USERS_FILE)) return [];
-  try {
-    const raw = fs.readFileSync(USERS_FILE, 'utf8');
-    return JSON.parse(raw);
-  } catch (err) {
-    console.error('Error reading users file:', err);
-    return [];
-  }
+  return safeReadJsonFile<StoredUser[]>('users.json', []);
 }
 
 export function writeUsers(users: StoredUser[]) {
-  ensureDataDir();
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+  safeWriteJsonFile('users.json', users);
 }
 
 function readSessions(): StoredSession[] {
-  ensureDataDir();
-  if (!fs.existsSync(SESSIONS_FILE)) return [];
-  try {
-    const raw = fs.readFileSync(SESSIONS_FILE, 'utf8');
-    return JSON.parse(raw);
-  } catch (err) {
-    return [];
-  }
+  return safeReadJsonFile<StoredSession[]>('sessions.json', []);
 }
 
 function writeSessions(sessions: StoredSession[]) {
-  ensureDataDir();
-  fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf8');
+  safeWriteJsonFile('sessions.json', sessions);
 }
 
 function readReferrals(): ReferralRecord[] {
-  ensureDataDir();
-  if (!fs.existsSync(REFERRALS_FILE)) return [];
-  try {
-    const raw = fs.readFileSync(REFERRALS_FILE, 'utf8');
-    return JSON.parse(raw);
-  } catch (err) {
-    return [];
-  }
+  return safeReadJsonFile<ReferralRecord[]>('referrals.json', []);
 }
 
 function writeReferrals(referrals: ReferralRecord[]) {
-  ensureDataDir();
-  fs.writeFileSync(REFERRALS_FILE, JSON.stringify(referrals, null, 2), 'utf8');
+  safeWriteJsonFile('referrals.json', referrals);
 }
 
 // Initialize default developer account if not present

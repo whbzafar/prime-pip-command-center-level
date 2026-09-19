@@ -25,29 +25,14 @@ export interface ModerationWarning {
   acknowledgedByAdmin?: boolean;
 }
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const WARNINGS_FILE = path.join(DATA_DIR, 'moderation_warnings.json');
-
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-}
+import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
 
 export function readModerationWarnings(): ModerationWarning[] {
-  ensureDataDir();
-  if (!fs.existsSync(WARNINGS_FILE)) return [];
-  try {
-    const raw = fs.readFileSync(WARNINGS_FILE, 'utf8');
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
+  return safeReadJsonFile<ModerationWarning[]>('moderation_warnings.json', []);
 }
 
 export function writeModerationWarnings(warnings: ModerationWarning[]) {
-  ensureDataDir();
-  fs.writeFileSync(WARNINGS_FILE, JSON.stringify(warnings, null, 2), 'utf8');
+  safeWriteJsonFile('moderation_warnings.json', warnings);
 }
 
 // Prohibited profanity and abusive terms (English + Roman Urdu)

@@ -58,7 +58,7 @@ import {
   syncUserDataFromServer,
   syncUserDataToServer,
 } from './utils/db';
-import { Loader2, Shield } from 'lucide-react';
+import { Loader2, Shield, AlertTriangle, X } from 'lucide-react';
 import { playDisciplineAlert } from './utils/audioAlerts';
 import { getKarachiDate, getKarachiTime } from './utils/time';
 import { AppearanceControls } from './components/AppearanceControls';
@@ -395,12 +395,8 @@ export default function App() {
 
     if (isDemoMode && !currentUser) {
       playDisciplineAlert('WARNING');
-      setDemoToast('DEMO MODE IS READ-ONLY: Live journal saving is restricted in preview mode. Please Login or Subscribe on WhatsApp (03406671495) to record permanent trades.');
-      setIsEntryModalOpen(false);
-      return;
-    }
-
-    if (
+      setDemoToast('WARNING: Running in demo preview mode. Trade recorded to local session.');
+    } else if (
       currentUser &&
       currentUser.role !== 'DEVELOPER' &&
       !currentUser.isDeveloper &&
@@ -410,7 +406,7 @@ export default function App() {
     ) {
       playDisciplineAlert('WARNING');
       setDemoToast(
-        'SUBSCRIPTION RESTRICTED: Your access status does not permit recording live executions. Contact Developer WhatsApp (03406671495) to renew or activate access.'
+        'WARNING: Account access status is restricted from recording live executions.'
       );
       setIsEntryModalOpen(false);
       return;
@@ -490,7 +486,7 @@ export default function App() {
     if (!activeAccount) return;
     if (isDemoMode && !currentUser) {
       playDisciplineAlert('WARNING');
-      setDemoToast('DEMO MODE IS READ-ONLY: Trade deletion is restricted in preview mode.');
+      setDemoToast('WARNING: Trade deletion is restricted in preview mode.');
       return;
     }
 
@@ -504,7 +500,7 @@ export default function App() {
     ) {
       playDisciplineAlert('WARNING');
       setDemoToast(
-        'SUBSCRIPTION RESTRICTED: Trade modification is disabled. Contact WhatsApp (03406671495) to reactivate.'
+        'WARNING: Trade modification is disabled for this account status.'
       );
       return;
     }
@@ -798,42 +794,33 @@ export default function App() {
         </div>
       )}
 
-      {/* Demo Mode Read-Only Toast Alert with Signature Accent */}
+      {/* Warning / Advisory Alert Toast */}
       {demoToast && (
-        <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-50 max-w-md prime-gold-accent-box p-4 shadow-2xl text-xs font-mono-code text-slate-200 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-4">
-          <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0 text-cyan-400">
-            <Shield className="w-4 h-4" />
+        <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-50 max-w-md bg-slate-900/95 border border-amber-500/40 p-4 shadow-2xl rounded-xl text-xs font-mono-code text-slate-200 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-4 backdrop-blur-md">
+          <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400">
+            <AlertTriangle className="w-4 h-4" />
           </div>
-          <div className="flex-1">
-            <div className="font-bold font-military text-cyan-400 text-xs mb-1 tracking-wider flex items-center gap-1.5">
-              <span>DEMO PREVIEW NOTICE</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            </div>
-            <p className="text-slate-300 text-[11px] leading-relaxed">{demoToast}</p>
-            <div className="mt-3 flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setDemoToast(null);
-                  setIsLoginModalOpen(true);
-                }}
-                className="prime-btn-primary text-[10px] py-1 px-3 uppercase"
-              >
-                LOGIN
-              </button>
-              <button
-                onClick={() => {
-                  setDemoToast(null);
-                  setIsSubscriptionModalOpen(true);
-                }}
-                className="prime-btn-secondary text-[10px] py-1 px-3 uppercase"
-              >
-                SUBSCRIBE
-              </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="font-bold font-military text-amber-400 text-xs tracking-wider flex items-center gap-1.5">
+                <span>SYSTEM WARNING</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              </div>
               <button
                 onClick={() => setDemoToast(null)}
-                className="px-2 py-1 text-slate-500 hover:text-slate-300 text-[10px] cursor-pointer transition"
+                className="text-slate-400 hover:text-slate-200 transition p-0.5 rounded cursor-pointer"
+                title="Dismiss"
               >
-                DISMISS
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="text-slate-300 text-[11px] leading-relaxed">{demoToast}</p>
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setDemoToast(null)}
+                className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-medium transition cursor-pointer"
+              >
+                Dismiss
               </button>
             </div>
           </div>

@@ -1,11 +1,8 @@
-import fs from 'fs';
-import path from 'path';
+import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-
-function getCustomerFile(userId: string): string {
+function getCustomerFileName(userId: string): string {
   const safeId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  return path.join(DATA_DIR, `customer_${safeId}.json`);
+  return `customer_${safeId}.json`;
 }
 
 function getDefaultCustomerData() {
@@ -31,33 +28,21 @@ function getDefaultCustomerData() {
 }
 
 export function getCustomerData(userId: string): any {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  const file = getCustomerFile(userId);
-  if (!fs.existsSync(file)) {
+  const fileName = getCustomerFileName(userId);
+  const data = safeReadJsonFile<any>(fileName, null);
+  if (!data) {
     return getDefaultCustomerData();
   }
-  try {
-    const raw = fs.readFileSync(file, 'utf8');
-    const parsed = JSON.parse(raw);
-    return {
-      ...getDefaultCustomerData(),
-      ...parsed,
-    };
-  } catch (err) {
-    console.error('Error reading customer data:', err);
-    return getDefaultCustomerData();
-  }
+  return {
+    ...getDefaultCustomerData(),
+    ...data,
+  };
 }
 
 export function saveCustomerData(userId: string, data: any): boolean {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  const file = getCustomerFile(userId);
+  const fileName = getCustomerFileName(userId);
   try {
-    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+    safeWriteJsonFile(fileName, data);
     return true;
   } catch (err) {
     console.error('Error saving customer data:', err);

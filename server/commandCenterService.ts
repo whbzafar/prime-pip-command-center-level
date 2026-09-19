@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { safeReadJsonFile, safeWriteJsonFile, getDataDir } from './dataPath.js';
 
 export interface AppointmentRecord {
   id: string;
@@ -75,15 +76,13 @@ export interface CommunityMessage {
   datePkt: string;
 }
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const APPOINTMENTS_FILE = path.join(DATA_DIR, 'appointments.json');
-const SESSION_CONFIG_FILE = path.join(DATA_DIR, 'session_config.json');
-const COMMUNITY_FILE = path.join(DATA_DIR, 'community_messages.json');
+const DATA_DIR = getDataDir();
+const APPOINTMENTS_FILE = 'appointments.json';
+const SESSION_CONFIG_FILE = 'session_config.json';
+const COMMUNITY_FILE = 'community_messages.json';
 
 function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+  // Handled by dataPath.ts
 }
 
 export interface MentorshipPackage {
@@ -115,18 +114,11 @@ export const MENTORSHIP_PACKAGES: MentorshipPackage[] = [
 ];
 
 export function readAppointments(): AppointmentRecord[] {
-  ensureDataDir();
-  if (!fs.existsSync(APPOINTMENTS_FILE)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(APPOINTMENTS_FILE, 'utf8'));
-  } catch {
-    return [];
-  }
+  return safeReadJsonFile<AppointmentRecord[]>(APPOINTMENTS_FILE, []);
 }
 
 export function writeAppointments(appointments: AppointmentRecord[]) {
-  ensureDataDir();
-  fs.writeFileSync(APPOINTMENTS_FILE, JSON.stringify(appointments, null, 2), 'utf8');
+  safeWriteJsonFile(APPOINTMENTS_FILE, appointments);
 }
 
 export function createAppointment(
@@ -163,74 +155,46 @@ export function updateAppointmentStatus(
   return all[idx];
 }
 
+const DEFAULT_SESSION_CONFIG: SessionConfig = {
+  price: 10,
+  currency: 'USD',
+  durationMinutes: 60,
+  availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+  availableTimeSlots: ['10:00 AM', '12:00 PM', '02:00 PM', '04:00 PM', '06:00 PM', '08:00 PM'],
+  sessionTypes: ['General Mentorship', 'Trade Review', 'Risk Management'],
+  maxDailyBookings: 5,
+  ownerWhatsApp: '03406671495',
+};
+
 export function getSessionConfig(): SessionConfig {
-  ensureDataDir();
-  if (!fs.existsSync(SESSION_CONFIG_FILE)) {
-    const defaults: SessionConfig = {
-      price: 10,
-      currency: 'USD',
-      durationMinutes: 60,
-      availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-      availableTimeSlots: ['10:00 AM', '12:00 PM', '02:00 PM', '04:00 PM', '06:00 PM', '08:00 PM'],
-      sessionTypes: ['General Mentorship', 'Trade Review', 'Risk Management'],
-      maxDailyBookings: 5,
-      ownerWhatsApp: '03406671495',
-    };
-    fs.writeFileSync(SESSION_CONFIG_FILE, JSON.stringify(defaults, null, 2), 'utf8');
-    return defaults;
-  }
-  try {
-    return JSON.parse(fs.readFileSync(SESSION_CONFIG_FILE, 'utf8'));
-  } catch {
-    return {
-      price: 10,
-      currency: 'USD',
-      durationMinutes: 60,
-      availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-      availableTimeSlots: ['10:00 AM', '12:00 PM', '02:00 PM', '04:00 PM'],
-      sessionTypes: ['General Mentorship'],
-      maxDailyBookings: 5,
-      ownerWhatsApp: '03406671495',
-    };
-  }
+  return safeReadJsonFile<SessionConfig>(SESSION_CONFIG_FILE, DEFAULT_SESSION_CONFIG);
 }
 
 export function saveSessionConfig(config: SessionConfig): SessionConfig {
-  ensureDataDir();
-  fs.writeFileSync(SESSION_CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+  safeWriteJsonFile(SESSION_CONFIG_FILE, config);
   return config;
 }
 
+const DEFAULT_COMMUNITY_MESSAGES: CommunityMessage[] = [
+  {
+    id: 'msg-welcome-owner',
+    userId: 'dev-owner-master',
+    username: 'primepipfx-admin',
+    userRole: 'ADMIN',
+    displayName: 'PrimePipFX Developer / Owner',
+    text: 'Welcome to the PrimePipFX Command Center Community Hub. Trade with precision, manage your risk, and keep all discussions professional.',
+    timestamp: Date.now() - 3600000,
+    timePkt: '01:30 PM',
+    datePkt: '2026-09-11',
+  },
+];
+
 export function readCommunityMessages(): CommunityMessage[] {
-  ensureDataDir();
-  if (!fs.existsSync(COMMUNITY_FILE)) {
-    const initialMessages: CommunityMessage[] = [
-      {
-        id: 'msg-welcome-owner',
-        userId: 'dev-owner-master',
-        username: 'primepipfx-admin',
-        userRole: 'ADMIN',
-        displayName: 'PrimePipFX Developer / Owner',
-        text: 'Welcome to the PrimePipFX Command Center Community Hub. Trade with precision, manage your risk, and keep all discussions professional.',
-        timestamp: Date.now() - 3600000,
-        timePkt: '01:30 PM',
-        datePkt: '2026-09-11',
-      },
-    ];
-    fs.writeFileSync(COMMUNITY_FILE, JSON.stringify(initialMessages, null, 2), 'utf8');
-    return initialMessages;
-  }
-  try {
-    const raw = fs.readFileSync(COMMUNITY_FILE, 'utf8');
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
+  return safeReadJsonFile<CommunityMessage[]>(COMMUNITY_FILE, DEFAULT_COMMUNITY_MESSAGES);
 }
 
 export function writeCommunityMessages(messages: CommunityMessage[]) {
-  ensureDataDir();
-  fs.writeFileSync(COMMUNITY_FILE, JSON.stringify(messages, null, 2), 'utf8');
+  safeWriteJsonFile(COMMUNITY_FILE, messages);
 }
 
 export function postCommunityMessage(msg: Omit<CommunityMessage, 'id' | 'timestamp'> & { fileBase64?: string }): CommunityMessage {
@@ -341,21 +305,12 @@ export interface FriendshipRecord {
   updatedAt: number;
 }
 
-const FRIENDS_FILE = path.join(DATA_DIR, 'friends.json');
-
 export function readFriendships(): FriendshipRecord[] {
-  ensureDataDir();
-  if (!fs.existsSync(FRIENDS_FILE)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(FRIENDS_FILE, 'utf8'));
-  } catch {
-    return [];
-  }
+  return safeReadJsonFile<FriendshipRecord[]>('friends.json', []);
 }
 
 export function writeFriendships(records: FriendshipRecord[]) {
-  ensureDataDir();
-  fs.writeFileSync(FRIENDS_FILE, JSON.stringify(records, null, 2), 'utf8');
+  safeWriteJsonFile('friends.json', records);
 }
 
 export interface FriendListItem {
@@ -550,22 +505,13 @@ export interface PrivateMessageRecord {
   read: boolean;
 }
 
-const PRIVATE_MESSAGES_FILE = path.join(DATA_DIR, 'private_messages.json');
-
 export function readPrivateMessages(): PrivateMessageRecord[] {
-  ensureDataDir();
-  if (!fs.existsSync(PRIVATE_MESSAGES_FILE)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(PRIVATE_MESSAGES_FILE, 'utf8'));
-  } catch {
-    return [];
-  }
+  return safeReadJsonFile<PrivateMessageRecord[]>('private_messages.json', []);
 }
 
 export function writePrivateMessages(messages: PrivateMessageRecord[]) {
-  ensureDataDir();
   const trimmed = messages.slice(-1000);
-  fs.writeFileSync(PRIVATE_MESSAGES_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
+  safeWriteJsonFile('private_messages.json', trimmed);
 }
 
 function getConversationId(userId1: string, userId2: string): string {
@@ -716,49 +662,55 @@ export function addIceCandidate(
 const VOICE_DIR = path.join(DATA_DIR, 'voice');
 const IMAGE_DIR = path.join(DATA_DIR, 'images');
 const FILE_DIR = path.join(DATA_DIR, 'files');
-const VOICE_META_FILE = path.join(DATA_DIR, 'voice_metadata.json');
 
 export function saveFileAttachmentFile(base64Data: string, originalName: string): { url: string; size: number } {
-  ensureDataDir();
-  if (!fs.existsSync(FILE_DIR)) fs.mkdirSync(FILE_DIR, { recursive: true });
-  const id = `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-  let ext = originalName.split('.').pop() || 'bin';
-  let data = base64Data;
-  if (base64Data.includes(',')) {
-    data = base64Data.split(',')[1];
+  try {
+    if (!fs.existsSync(FILE_DIR)) fs.mkdirSync(FILE_DIR, { recursive: true });
+    const id = `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    let ext = originalName.split('.').pop() || 'bin';
+    let data = base64Data;
+    if (base64Data.includes(',')) {
+      data = base64Data.split(',')[1];
+    }
+    const buffer = Buffer.from(data, 'base64');
+    const fileName = `${id}.${ext}`;
+    const filePath = path.join(FILE_DIR, fileName);
+    fs.writeFileSync(filePath, buffer);
+    return { url: `/api/media/file/${fileName}`, size: buffer.length };
+  } catch (err) {
+    console.error('Failed to save file attachment:', err);
+    return { url: base64Data, size: 0 };
   }
-  const buffer = Buffer.from(data, 'base64');
-  const fileName = `${id}.${ext}`;
-  const filePath = path.join(FILE_DIR, fileName);
-  fs.writeFileSync(filePath, buffer);
-  return { url: `/api/media/file/${fileName}`, size: buffer.length };
 }
 
 export function saveImageAttachmentFile(base64Data: string): string {
-  ensureDataDir();
-  if (!fs.existsSync(IMAGE_DIR)) fs.mkdirSync(IMAGE_DIR, { recursive: true });
-  const id = `img-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-  // Determine extension from data url or default to jpeg
-  let ext = 'jpg';
-  let data = base64Data;
-  if (base64Data.startsWith('data:image/')) {
-    const parts = base64Data.split(';');
-    if (parts.length > 0) {
-      ext = parts[0].replace('data:image/', '');
-      if (ext === 'jpeg') ext = 'jpg';
+  try {
+    if (!fs.existsSync(IMAGE_DIR)) fs.mkdirSync(IMAGE_DIR, { recursive: true });
+    const id = `img-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    let ext = 'jpg';
+    let data = base64Data;
+    if (base64Data.startsWith('data:image/')) {
+      const parts = base64Data.split(';');
+      if (parts.length > 0) {
+        ext = parts[0].replace('data:image/', '');
+        if (ext === 'jpeg') ext = 'jpg';
+      }
     }
+    if (base64Data.includes(',')) {
+      data = base64Data.split(',')[1];
+    }
+    const buffer = Buffer.from(data, 'base64');
+    const fileName = `${id}.${ext}`;
+    const filePath = path.join(IMAGE_DIR, fileName);
+    fs.writeFileSync(filePath, buffer);
+    return `/api/media/image/${fileName}`;
+  } catch (err) {
+    console.error('Failed to save image attachment:', err);
+    return base64Data;
   }
-  if (base64Data.includes(',')) {
-    data = base64Data.split(',')[1];
-  }
-  const buffer = Buffer.from(data, 'base64');
-  const fileName = `${id}.${ext}`;
-  const filePath = path.join(IMAGE_DIR, fileName);
-  fs.writeFileSync(filePath, buffer);
-  return `/api/media/image/${fileName}`;
 }
 
-interface VoiceMeta {
+export interface VoiceMeta {
   id: string;
   userId: string;
   mimeType: string;
@@ -770,18 +722,11 @@ interface VoiceMeta {
 }
 
 function readVoiceMetadata(): VoiceMeta[] {
-  ensureDataDir();
-  if (!fs.existsSync(VOICE_META_FILE)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(VOICE_META_FILE, 'utf8'));
-  } catch {
-    return [];
-  }
+  return safeReadJsonFile<VoiceMeta[]>('voice_metadata.json', []);
 }
 
 function writeVoiceMetadata(meta: VoiceMeta[]) {
-  ensureDataDir();
-  fs.writeFileSync(VOICE_META_FILE, JSON.stringify(meta, null, 2), 'utf8');
+  safeWriteJsonFile('voice_metadata.json', meta);
 }
 
 export function saveVoiceAttachmentFile(params: {

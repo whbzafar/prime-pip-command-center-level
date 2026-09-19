@@ -20,8 +20,7 @@ export interface EvolutionMemoryData {
   lastUpdated: number;
 }
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const MEMORY_FILE = path.join(DATA_DIR, 'evolution_memory_events.json');
+import { safeReadJsonFile, safeWriteJsonFile } from '../dataPath.js';
 
 export class EvolutionMemory {
   private memory: EvolutionMemoryData;
@@ -32,12 +31,9 @@ export class EvolutionMemory {
 
   private loadOrCreateStore(): EvolutionMemoryData {
     try {
-      if (fs.existsSync(MEMORY_FILE)) {
-        const raw = fs.readFileSync(MEMORY_FILE, 'utf8');
-        const parsed = JSON.parse(raw);
-        if (parsed && Array.isArray(parsed.events)) {
-          return parsed;
-        }
+      const parsed = safeReadJsonFile<EvolutionMemoryData | null>('evolution_memory_events.json', null);
+      if (parsed && Array.isArray(parsed.events)) {
+        return parsed;
       }
     } catch (err) {
       console.warn('[EvolutionMemory] Could not load existing memory file, initializing default seed:', err);
@@ -50,11 +46,8 @@ export class EvolutionMemory {
 
   private persistToDisk(store?: EvolutionMemoryData): void {
     try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
       const dataToSave = store || this.memory;
-      fs.writeFileSync(MEMORY_FILE, JSON.stringify(dataToSave, null, 2), 'utf8');
+      safeWriteJsonFile('evolution_memory_events.json', dataToSave);
     } catch (err) {
       console.error('[EvolutionMemory] Failed to persist memory to disk:', err);
     }

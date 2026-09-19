@@ -52,21 +52,10 @@ let lastMeta: CalendarMeta = {
   sourceConfigured: true,
 };
 
-function ensureDataDir() { if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true }); }
+import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
 
 function loadBaseEvents(): CalendarEvent[] {
-  try {
-    if (fs.existsSync(CALENDAR_FILE)) {
-      const raw = fs.readFileSync(CALENDAR_FILE, 'utf8');
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-  } catch (err) {
-    console.error('Error reading base economic_calendar.json:', err);
-  }
-  return [];
+  return safeReadJsonFile<CalendarEvent[]>('economic_calendar.json', []);
 }
 
 export function formatToKarachiTime(utcTimestamp: number) {
@@ -140,7 +129,7 @@ async function fetchProviderRange(from: Date, to: Date): Promise<CalendarEvent[]
   lastMeta = { lastSynced: new Date().toISOString(), isOnline: true, eventCount: events.length,
     yearRange: [from.getUTCFullYear(), to.getUTCFullYear()], primaryTimezone: 'Asia/Karachi (PKT, UTC+05:00)',
     source: customUrl ? 'Configured live economic-calendar endpoint' : 'Financial Modeling Prep Economic Calendar', sourceConfigured: true };
-  ensureDataDir(); fs.writeFileSync(META_FILE, JSON.stringify(lastMeta, null, 2), 'utf8');
+  safeWriteJsonFile('calendar_meta.json', lastMeta);
   return events;
 }
 

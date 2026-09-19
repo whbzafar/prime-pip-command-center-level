@@ -488,7 +488,7 @@ export const FundamentalCalendar: React.FC = () => {
               </span>
             </h2>
             <p className="text-xs text-slate-400 font-sans mt-0.5">
-              Live Macro Releases • Actual vs Forecast vs Previous • Audio Alerts System • Asia/Karachi (PKT UTC+5)
+              Upcoming Macro Releases Schedule • Event Names & Timings (Detailed Data: Coming Soon) • Asia/Karachi (PKT UTC+5)
             </p>
           </div>
         </div>

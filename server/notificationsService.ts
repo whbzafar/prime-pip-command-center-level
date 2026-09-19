@@ -1,8 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const NOTIFICATIONS_FILE = path.join(DATA_DIR, 'notifications.json');
+import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
 
 export interface AppNotification {
   id: string;
@@ -15,27 +14,13 @@ export interface AppNotification {
   timestamp: number;
 }
 
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-}
-
 export function readNotifications(): AppNotification[] {
-  try {
-    if (!fs.existsSync(NOTIFICATIONS_FILE)) return [];
-    const data = fs.readFileSync(NOTIFICATIONS_FILE, 'utf8');
-    return JSON.parse(data) || [];
-  } catch {
-    return [];
-  }
+  return safeReadJsonFile<AppNotification[]>('notifications.json', []);
 }
 
 export function writeNotifications(notifications: AppNotification[]) {
-  ensureDataDir();
-  // Keep last 1000 notifications maybe, or clean old ones
   const trim = notifications.slice(-5000);
-  fs.writeFileSync(NOTIFICATIONS_FILE, JSON.stringify(trim, null, 2), 'utf8');
+  safeWriteJsonFile('notifications.json', trim);
 }
 
 export function createNotification(n: Omit<AppNotification, 'id' | 'isRead' | 'timestamp'>) {
