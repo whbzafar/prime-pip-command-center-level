@@ -42,6 +42,8 @@ interface PrivateMessage {
   datePkt: string;
   timestamp: number;
   read: boolean;
+  readAt?: number;
+  listenedAt?: number;
 }
 
 interface PrivateChatProps {
@@ -128,6 +130,25 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
       });
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const markMessageListened = async (messageId: string) => {
+    if (!currentUser || !activeContact || !messageId) return;
+    try {
+      await fetch('/api/messages/private/listened', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ messageId }),
+      });
+      setMessages((prev) => prev.map((message) =>
+        message.id === messageId
+          ? { ...message, listenedAt: Date.now(), read: true }
+          : message
+      ));
+    } catch {
+      // Listening receipt is best-effort; playback should never be interrupted.
     }
   };
 
@@ -350,7 +371,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
       timePkt: getKarachiTime(),
       datePkt: getKarachiDate(),
       timestamp: Date.now(),
-      read: true,
+      read: false,
     };
 
     setMessages((prev) => {
@@ -375,9 +396,16 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
         credentials: 'include',
         body: JSON.stringify(payload),
       });
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
         throw new Error(data.error || 'Message could not be delivered.');
+      }
+      if (data?.message?.id) {
+        setMessages((prev) => prev.map((message) =>
+          message.id === optimisticPrivateMsg.id
+            ? { ...data.message, read: Boolean(data.message.read), readAt: data.message.readAt, listenedAt: data.message.listenedAt }
+            : message
+        ));
       }
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== optimisticPrivateMsg.id));
@@ -482,7 +510,14 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
               >
                 <div className="flex items-center gap-1.5 mb-1 text-[10px] text-slate-500">
                   <span>{m.timePkt} PKT</span>
-                  {isMe && <CheckCheck className={`w-3 h-3 ${m.read ? 'text-sky-400' : 'text-slate-500'}`} title={m.read ? 'Read' : 'Delivered'} />}
+                  {isMe && (
+                    <span className="flex items-center gap-1">
+                      <CheckCheck className={`w-3 h-3 ${m.listenedAt || m.read ? 'text-sky-400' : 'text-slate-500'}`} />
+                      <span className={`text-[9px] ${m.listenedAt ? 'text-emerald-400' : m.read ? 'text-sky-400' : 'text-slate-500'}`}>
+                        {m.listenedAt && m.type === 'VOICE' ? 'Listened' : m.read ? 'Read' : 'Delivered'}
+                      </span>
+                    </span>
+                  )}
                 </div>
 
                 <div
@@ -520,6 +555,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
                         durationSeconds={m.audioDurationSeconds}
                         mimeType={m.audioMimeType}
                         isSelf={isMe}
+                        onListened={!isMe ? () => markMessageListened(m.id) : undefined}
                       />
                     </div>
                   )}
