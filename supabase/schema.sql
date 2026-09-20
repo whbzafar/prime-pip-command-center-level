@@ -145,3 +145,42 @@ create index if not exists idx_friendships_user_id_2 on public.friendships(user_
 create index if not exists idx_message_reads_user_id on public.message_reads(user_id);
 create index if not exists idx_private_messages_receiver_id on public.private_messages(receiver_id);
 create index if not exists idx_private_messages_sender_id on public.private_messages(sender_id);
+
+
+-- Durable application identity/profile store. Supabase Auth owns passwords and sessions.
+create table if not exists public.primepipfx_users (
+  auth_user_id uuid primary key references auth.users(id) on delete cascade,
+  legacy_user_id text not null unique,
+  username text not null unique,
+  name text not null,
+  role text not null default 'CUSTOMER',
+  subscription_status text not null default 'DEMO',
+  subscription_price numeric not null default 50,
+  start_date date not null default current_date,
+  expiry_date date,
+  is_lifetime boolean not null default false,
+  payment_status text not null default 'UNPAID',
+  referral_code text unique,
+  referred_by text,
+  admin_notes text,
+  is_developer boolean not null default false,
+  phone text,
+  must_change_password boolean not null default false,
+  warnings_count integer not null default 0,
+  has_completed_onboarding boolean not null default false,
+  needs_onboarding boolean not null default true,
+  show_active_status boolean not null default true,
+  trading_focus text,
+  experience_level text,
+  trader_status text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.primepipfx_users enable row level security;
+create policy "deny direct data api access" on public.primepipfx_users
+  for all to anon, authenticated using (false) with check (false);
+revoke all on table public.primepipfx_users from anon, authenticated;
+grant select, insert, update, delete on table public.primepipfx_users to service_role;
+create index if not exists idx_primepipfx_users_username on public.primepipfx_users(username);
+create index if not exists idx_primepipfx_users_legacy_user_id on public.primepipfx_users(legacy_user_id);
