@@ -572,6 +572,7 @@ app.post('/api/auth/login', async (req, res) => {
           httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
           sameSite: 'lax', maxAge, path: '/',
         });
+        cacheAuthenticatedUser(localResult.token, localResult.user, Math.min(maxAge, 55 * 60 * 1000));
         return res.json({ ok: true, user: sanitizeUser(localResult.user), authMode: 'legacy-compatibility' });
       }
       const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
