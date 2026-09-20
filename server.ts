@@ -992,7 +992,10 @@ app.post('/api/customer/data', requireUserSession, (req, res) => {
   }
 
   const validation = validateCustomerDataPayload(req.body?.data || {}, user);
-  if (!validation.ok) return res.status(validation.status).json({ ok: false, error: validation.error });
+  if (!validation.ok) {
+    const failure = validation as { ok: false; status: number; error: string };
+    return res.status(failure.status).json({ ok: false, error: failure.error });
+  }
 
   const success = saveCustomerData(user.id, validation.data);
   return res.json({ ok: success });
