@@ -406,7 +406,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                     )}
 
                     <button
-                      onClick={() => handleRemoveFriend(f.id, f.friendUsername)}
+                      onClick={() => handleRemoveFriend(f.id, f.friendUsername, f.friendId)}
                       title="Remove Friend"
                       className="p-2 rounded-lg bg-slate-950 hover:bg-rose-950/40 text-slate-500 hover:text-rose-400 border border-slate-800 transition cursor-pointer"
                     >
