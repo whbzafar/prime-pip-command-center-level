@@ -32,6 +32,7 @@ import { formatCurrency } from '../utils/currencyFormatter';
 import { getKarachiEpoch } from '../utils/time';
 import { calculateNextTradeReadiness } from '../utils/readinessEngine';
 import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
+import { DashboardLiveNewsRadar } from './dashboard/DashboardLiveNewsRadar';
 
 
 
@@ -190,6 +191,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
 
   return (
     <div className="space-y-6">
+      <DashboardLiveNewsRadar />
       {/* Top Header Row: Profile / Account & Psychological Center */}
       <div className="flex items-center justify-between flex-wrap gap-3 p-3.5 sm:p-4 rounded-2xl bg-[#0B0F19]/90 border border-slate-800/80 shadow-xl backdrop-blur-md">
         <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
