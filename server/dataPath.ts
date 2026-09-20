@@ -7,8 +7,9 @@ let resolvedDataDir: string | null = null;
 /**
  * Resolves a safe, writable data directory.
  * In local dev / normal servers: uses process.cwd()/data.
- * In serverless / read-only environments (Vercel, AWS Lambda): falls back to os.tmpdir()/primepipfx_data
- * and copies any existing seed JSON files so data is preserved.
+ * In serverless / read-only environments (Vercel, AWS Lambda): falls back to os.tmpdir()/primepipfx_data.
+ * This fallback is runtime-local and NOT durable across instance replacement; durable production
+ * records should be stored in an external database/object store.
  */
 export function getDataDir(): string {
   if (resolvedDataDir) return resolvedDataDir;
@@ -34,7 +35,8 @@ export function getDataDir(): string {
     return resolvedDataDir;
   }
 
-  // Fallback to writable temporary directory in serverless environments
+  // Fallback to writable temporary directory in serverless environments.
+  // IMPORTANT: /tmp is scratch storage, not durable application storage.
   const tmpData = path.join(os.tmpdir(), 'primepipfx_data');
   try {
     if (!fs.existsSync(tmpData)) {
