@@ -120,14 +120,15 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   const driveFileInputRef = useRef<HTMLInputElement>(null);
 
   const communityRequest = (init: RequestInit = {}): RequestInit => {
-    const token = getStoredToken();
+    // Prefer the server-set HttpOnly session cookie in production. A stale
+    // localStorage bearer token can belong to a previous Vercel instance and
+    // cause otherwise valid Community requests to return "Invalid user".
+    const headers = new Headers(init.headers || {});
+    headers.delete('Authorization');
     return {
       ...init,
       credentials: 'include',
-      headers: {
-        ...(init.headers || {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers,
     };
   };
 
