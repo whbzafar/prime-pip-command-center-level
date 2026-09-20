@@ -1957,25 +1957,29 @@ app.post('/api/appointments/config', requireDeveloper, (req, res) => {
   }
 });
 
-app.get('/api/appointments', (req, res) => {
+app.get('/api/appointments', requireUserSession, (req, res) => {
   try {
-    const appointments = readAppointments();
+    const user = (req as any).currentUser;
+    const isAdmin = user.role === 'ADMIN' || user.role === 'DEVELOPER' || user.isDeveloper;
+    const appointments = isAdmin ? readAppointments() : readAppointments().filter((a) => a.userId === user.id);
     return res.json({ ok: true, appointments });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
 });
 
-app.post('/api/appointments', (req, res) => {
+app.post('/api/appointments', requireUserSession, (req, res) => {
   try {
-    const apt = createAppointment(req.body);
+    const user = (req as any).currentUser;
+    if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Active subscription required.' });
+    const apt = createAppointment({ ...req.body, userId: user.id, customerUsername: user.username, customerName: user.name });
     return res.json({ ok: true, appointment: apt });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
 });
 
-app.put('/api/appointments/:id', (req, res) => {
+app.put('/api/appointments/:id', requireDeveloper, (req, res) => {
   try {
     const updated = updateAppointmentStatus(req.params.id, req.body?.status || req.body);
     return res.json({ ok: true, appointment: updated });
