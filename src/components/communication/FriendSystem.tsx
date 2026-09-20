@@ -75,12 +75,9 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
       setIsLoadingFriends(false);
       return;
     }
-    const token = getStoredToken();
     try {
       const res = await fetch('/api/friends/list', {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -113,12 +110,9 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
       return;
     }
     setIsSearching(true);
-    const token = getStoredToken();
     try {
       const res = await fetch(`/api/friends/search?q=${encodeURIComponent(searchQuery.trim())}`, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -155,7 +149,6 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
       showNotice('Cannot send a friend request to yourself.');
       return;
     }
-    const token = getStoredToken();
     try {
       const res = await fetch('/api/friends/request', {
         method: 'POST',
@@ -182,7 +175,6 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
   };
 
   const handleRespondRequest = async (requestId: string, status: 'ACCEPTED' | 'REJECTED') => {
-    const token = getStoredToken();
     try {
       const res = await fetch('/api/friends/respond', {
         method: 'POST',
@@ -205,7 +197,6 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
   };
 
   const handleRemoveFriend = async (friendshipId: string, friendUsername: string) => {
-    const token = getStoredToken();
     try {
       const res = await fetch('/api/friends/respond', {
         method: 'POST',
