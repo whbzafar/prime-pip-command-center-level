@@ -6,6 +6,7 @@ import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import { randomUUID } from "crypto";
 import {
   initAuthStore,
   loginUser,
@@ -1996,7 +1997,7 @@ app.post('/api/webrtc/call', async (req, res) => {
     const { receiverId, receiverUsername, offer, isScreenSharing, callType = 'video' } = req.body || {};
     if (!receiverId || !getUserFriends(user.id).friends.some((friend) => friend.friendId === receiverId)) return res.status(403).json({ ok: false, error: 'Calling is available only between accepted friends.' });
     if (isSupabaseCommunityEnabled) {
-      const callId = 'call_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+      const callId = randomUUID();
       const type = callType === 'voice' ? 'voice' : isScreenSharing ? 'screenshare' : 'video';
       const session = await createCallSupabase({ callId, callerId: user.id, receiverId, type, offer });
       return res.json({ ok: true, session, backend: 'supabase' });
