@@ -851,6 +851,7 @@ app.post('/api/admin/subscription', requireDeveloper, (req, res) => {
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
   }
+  if (isSupabaseAuthEnabled && result.user) void syncPrimePipfxUser(result.user).catch((error) => console.warn('[AUTH] Profile sync failed:', error?.message || error));
   return res.json({ ok: true, user: sanitizeUser(result.user!) });
 });
 
@@ -868,6 +869,7 @@ app.put('/api/admin/subscription', requireDeveloper, (req, res) => {
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
   }
+  if (isSupabaseAuthEnabled && result.user) void syncPrimePipfxUser(result.user).catch((error) => console.warn('[AUTH] Profile sync failed:', error?.message || error));
   return res.json({ ok: true, user: sanitizeUser(result.user!) });
 });
 
@@ -905,6 +907,7 @@ app.put('/api/admin/payments', requireDeveloper, (req, res) => {
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
   }
+  if (isSupabaseAuthEnabled && result.user) void syncPrimePipfxUser(result.user).catch((error) => console.warn('[AUTH] Profile sync failed:', error?.message || error));
   return res.json({ ok: true, user: sanitizeUser(result.user!) });
 });
 
