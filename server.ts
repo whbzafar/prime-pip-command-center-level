@@ -100,6 +100,31 @@ initAuthStore();
 const currentAppDir = process.cwd();
 
 const app = express();
+
+const MAX_REQUEST_BODY_BYTES = 5 * 1024 * 1024;
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_REQUESTS = 120;
+const requestRateBuckets = new Map<string, { windowStart: number; count: number }>();
+
+app.use((req, res, next) => {
+  const forwarded = req.headers['x-forwarded-for'];
+  const clientIp = typeof forwarded === 'string'
+    ? forwarded.split(',')[0].trim()
+    : req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const bucket = requestRateBuckets.get(clientIp);
+  if (!bucket || now - bucket.windowStart >= RATE_WINDOW_MS) {
+    requestRateBuckets.set(clientIp, { windowStart: now, count: 1 });
+    return next();
+  }
+  bucket.count += 1;
+  if (bucket.count > RATE_MAX_REQUESTS) {
+    return res.status(429).json({ ok: false, error: 'Too many requests. Please retry shortly.' });
+  }
+  return next();
+});
+
+
 const PORT = 3000;
 const presenceSockets = new Map<string, Set<WebSocket>>();
 
@@ -141,8 +166,8 @@ function registerPresenceSocket(socket: WebSocket, userId: string) {
   });
 }
 
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.json({ limit: MAX_REQUEST_BODY_BYTES }));
+app.use(express.urlencoded({ extended: true, limit: MAX_REQUEST_BODY_BYTES }));
 app.use(cookieParser());
 
 // Lazy Gemini client helper
