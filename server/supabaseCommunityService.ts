@@ -167,7 +167,7 @@ export async function syncTraderProfiles(
 
 export async function readCommunityMessagesSupabase(): Promise<CommunityMessage[]> {
   const rows = await supabaseRequest(
-    "community_messages?select=id,user_id,text_content,message_type,attachment_path,attachment_name,attachment_mime_type,attachment_size,created_at,trader_profiles(username,display_name,role)&order=created_at.asc&limit=500"
+    "community_messages?select=id,user_id,text_content,message_type,attachment_path,attachment_name,attachment_mime_type,attachment_size,created_at,trader_profiles(username,display_name,role)&message_type=in.(TEXT,VOICE,IMAGE,FILE)&order=created_at.asc&limit=500"
   );
 
   return (Array.isArray(rows) ? rows : []).map((row: any) => ({
