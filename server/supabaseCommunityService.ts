@@ -190,3 +190,144 @@ export async function getCommunityTradersSupabase() {
     "trader_profiles?select=user_id,username,display_name,role,last_seen_at,created_at&order=created_at.asc&limit=1000"
   );
 }
+
+function mapPrivateMessageRow(row: any) {
+  const createdAt = new Date(row.created_at).getTime();
+  return {
+    id: String(row.id),
+    senderId: row.sender_id,
+    senderUsername: row.sender_username || row.sender_id,
+    senderDisplayName: row.sender_display_name || row.sender_username || row.sender_id,
+    receiverId: row.receiver_id,
+    receiverUsername: row.receiver_username || row.receiver_id,
+    text: row.text_content || '',
+    type: row.message_type === 'VOICE' ? 'VOICE' : row.message_type === 'IMAGE' ? 'IMAGE' : 'TEXT',
+    photoUrl: row.message_type === 'IMAGE' ? row.attachment_path || undefined : undefined,
+    audioUrl: row.message_type === 'VOICE' ? row.attachment_path || undefined : undefined,
+    audioAttachmentId: row.message_type === 'VOICE' && row.attachment_path ? String(row.attachment_path).split('/').pop() : undefined,
+    audioMimeType: row.message_type === 'VOICE' ? row.attachment_mime_type || undefined : undefined,
+    audioSize: row.message_type === 'VOICE' ? row.attachment_size || undefined : undefined,
+    attachmentUrl: row.message_type === 'FILE' ? row.attachment_path || undefined : undefined,
+    attachmentName: row.attachment_name || undefined,
+    attachmentSize: row.attachment_size || undefined,
+    timestamp: createdAt,
+    timePkt: new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(createdAt)),
+    datePkt: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(createdAt)),
+    read: false,
+  };
+}
+
+export async function readPrivateMessagesSupabase(userId1: string, userId2: string) {
+  const filter = `or(and(sender_id.eq.${encodeURIComponent(userId1)},receiver_id.eq.${encodeURIComponent(userId2)}),and(sender_id.eq.${encodeURIComponent(userId2)},receiver_id.eq.${encodeURIComponent(userId1)}))`;
+  const rows = await supabaseRequest(
+    `private_messages?select=id,sender_id,receiver_id,text_content,message_type,attachment_path,attachment_name,attachment_mime_type,attachment_size,created_at&${filter}&order=created_at.asc&limit=1000`
+  );
+  return (Array.isArray(rows) ? rows : []).map(mapPrivateMessageRow);
+}
+
+export async function postPrivateMessageSupabase(msg: {
+  senderId: string;
+  receiverId: string;
+  text?: string;
+  messageType?: string;
+  attachmentPath?: string;
+  attachmentName?: string;
+  attachmentMimeType?: string;
+  attachmentSize?: number;
+}) {
+  const rows = await supabaseRequest('private_messages', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      sender_id: msg.senderId,
+      receiver_id: msg.receiverId,
+      text_content: msg.text || '',
+      message_type: msg.messageType || 'TEXT',
+      attachment_path: msg.attachmentPath || null,
+      attachment_name: msg.attachmentName || null,
+      attachment_mime_type: msg.attachmentMimeType || null,
+      attachment_size: msg.attachmentSize || null,
+    }),
+  });
+  return Array.isArray(rows) ? mapPrivateMessageRow(rows[0]) : mapPrivateMessageRow(rows);
+}
+
+export async function createCallSupabase(params: {
+  callId: string;
+  callerId: string;
+  receiverId: string;
+  type: 'voice' | 'video' | 'screenshare';
+  offer?: any;
+}) {
+  await supabaseRequest('calls', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      id: params.callId,
+      caller_id: params.callerId,
+      receiver_id: params.receiverId,
+      type: params.type,
+    }),
+  });
+  if (params.offer) {
+    await addCallSignalSupabase(params.callId, params.callerId, params.receiverId, 'OFFER', params.offer);
+  }
+  return { callId: params.callId, callerId: params.callerId, receiverId: params.receiverId, status: 'CALLING', offer: params.offer || null };
+}
+
+export async function addCallSignalSupabase(
+  callId: string,
+  callerId: string,
+  receiverId: string,
+  signalType: 'OFFER' | 'ANSWER' | 'CANDIDATE' | 'END',
+  payload: any
+) {
+  const rows = await supabaseRequest('call_signals', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      call_id: callId,
+      caller_id: callerId,
+      receiver_id: receiverId,
+      signal_type: signalType,
+      payload: payload ?? {},
+    }),
+  });
+  return Array.isArray(rows) ? rows[0] : rows;
+}
+
+export async function getCallSupabase(callId: string, userId: string) {
+  const calls = await supabaseRequest(`calls?id=eq.${encodeURIComponent(callId)}&select=id,caller_id,receiver_id,type,started_at,ended_at&limit=1`);
+  const call = Array.isArray(calls) ? calls[0] : null;
+  if (!call) return null;
+  if (call.caller_id !== userId && call.receiver_id !== userId) return null;
+  const signals = await supabaseRequest(`call_signals?call_id=eq.${encodeURIComponent(callId)}&select=id,caller_id,receiver_id,signal_type,payload,created_at&order=created_at.asc&limit=1000`);
+  return {
+    callId: String(call.id),
+    callerId: call.caller_id,
+    receiverId: call.receiver_id,
+    type: call.type,
+    status: call.ended_at ? 'ENDED' : 'CALLING',
+    updatedAt: new Date(call.started_at).getTime(),
+    signals: Array.isArray(signals) ? signals : [],
+  };
+}
+
+export async function getActiveCallSupabase(userId: string) {
+  const calls = await supabaseRequest(`calls?or=(caller_id.eq.${encodeURIComponent(userId)},receiver_id.eq.${encodeURIComponent(userId)})&ended_at=is.null&select=id,caller_id,receiver_id,type,started_at,ended_at&order=started_at.desc&limit=1`);
+  const call = Array.isArray(calls) ? calls[0] : null;
+  if (!call) return null;
+  return getCallSupabase(String(call.id), userId);
+}
+
+export async function endCallSupabase(callId: string, userId: string) {
+  const calls = await supabaseRequest(`calls?id=eq.${encodeURIComponent(callId)}&or=(caller_id.eq.${encodeURIComponent(userId)},receiver_id.eq.${encodeURIComponent(userId)})&select=id,caller_id,receiver_id&limit=1`);
+  const call = Array.isArray(calls) ? calls[0] : null;
+  if (!call) return null;
+  await supabaseRequest(`calls?id=eq.${encodeURIComponent(callId)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ ended_at: new Date().toISOString() }),
+  });
+  return { callId: String(call.id), status: 'ENDED' };
+}
