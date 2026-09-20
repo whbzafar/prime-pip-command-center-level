@@ -369,11 +369,6 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setMicNotice('Image must be under 5MB');
-      setTimeout(() => setMicNotice(null), 3500);
-      return;
-    }
     const reader = new FileReader();
     reader.onload = () => setSelectedPhoto(reader.result as string);
     reader.readAsDataURL(file);
@@ -584,11 +579,6 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     const file = e.target.files?.[0];
     if (!file) return;
     
-    if (file.size > 10 * 1024 * 1024) {
-      setMicNotice('File must be under 10MB');
-      setTimeout(() => setMicNotice(null), 3500);
-      return;
-    }
     
     const reader = new FileReader();
     reader.onload = () => {
