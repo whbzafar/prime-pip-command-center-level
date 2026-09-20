@@ -232,7 +232,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
           const contentType = res.headers.get('content-type') || '';
           if (contentType.includes('application/json')) {
             const data = await res.json();
-            if (Array.isArray(data.traders) && data.traders.length > 0) {
+            if (Array.isArray(data.traders)) {
               setAllTraders(data.traders);
               return;
             }
