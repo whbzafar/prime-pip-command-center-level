@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import type { CommunityMessage } from "./commandCenterService.js";
 
 function getSupabaseConfig() {
@@ -266,7 +267,7 @@ function mapPrivateMessageRow(row: any) {
     receiverId: row.receiver_id,
     receiverUsername: row.receiver?.username || row.receiver_id,
     text: row.text_content || '',
-    type: row.message_type === 'VOICE' ? 'VOICE' : row.message_type === 'IMAGE' ? 'IMAGE' : 'TEXT',
+    type: row.message_type === 'VOICE' ? 'VOICE' : row.message_type === 'IMAGE' ? 'IMAGE' : row.message_type === 'FILE' ? 'FILE' : 'TEXT',
     photoUrl: row.message_type === 'IMAGE' ? row.attachment_path || undefined : undefined,
     audioUrl: row.message_type === 'VOICE' ? row.attachment_path || undefined : undefined,
     audioAttachmentId: row.message_type === 'VOICE' && row.attachment_path ? String(row.attachment_path).split('/').pop() : undefined,
@@ -316,6 +317,178 @@ export async function postPrivateMessageSupabase(msg: {
   });
   return Array.isArray(rows) ? mapPrivateMessageRow(rows[0]) : mapPrivateMessageRow(rows);
 }
+
+
+export async function isUserBlocked(userId1: string, userId2: string) {
+  const filter = `or(and(blocker_id.eq.${encodeURIComponent(userId1)},blocked_id.eq.${encodeURIComponent(userId2)}),and(blocker_id.eq.${encodeURIComponent(userId2)},blocked_id.eq.${encodeURIComponent(userId1)}))`;
+  const rows = await supabaseRequest(`user_blocks?select=blocker_id,blocked_id&${filter}&limit=1`);
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+export async function setUserBlock(blockerId: string, blockedId: string, blocked: boolean) {
+  if (blocked) {
+    await supabaseRequest('user_blocks', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ blocker_id: blockerId, blocked_id: blockedId }),
+    });
+    return true;
+  }
+  await supabaseRequest(`user_blocks?blocker_id=eq.${encodeURIComponent(blockerId)}&blocked_id=eq.${encodeURIComponent(blockedId)}`, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=minimal' },
+  });
+  return true;
+}
+
+export async function createAppNotification(params: {
+  userId: string;
+  type: string;
+  title: string;
+  body: string;
+  data?: Record<string, any>;
+}) {
+  const rows = await supabaseRequest('app_notifications', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      user_id: params.userId,
+      type: params.type,
+      title: params.title,
+      body: params.body,
+      data: params.data || {},
+    }),
+  });
+  return Array.isArray(rows) ? rows[0] : rows;
+}
+
+export async function readAppNotifications(userId: string) {
+  const rows = await supabaseRequest(`app_notifications?user_id=eq.${encodeURIComponent(userId)}&select=id,type,title,body,data,created_at,read_at&order=created_at.desc&limit=50`);
+  return Array.isArray(rows) ? rows : [];
+}
+
+export async function markAppNotificationsRead(userId: string, ids?: string[]) {
+  const idFilter = Array.isArray(ids) && ids.length
+    ? `&id=in.(${ids.map((id) => encodeURIComponent(id)).join(',')})`
+    : '';
+  await supabaseRequest(`app_notifications?user_id=eq.${encodeURIComponent(userId)}&read_at=is.null${idFilter}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ read_at: new Date().toISOString() }),
+  });
+}
+
+export async function getNotificationSettings(userId: string) {
+  const rows = await supabaseRequest(`notification_settings?user_id=eq.${encodeURIComponent(userId)}&select=user_id,muted,sound_enabled,updated_at&limit=1`);
+  return Array.isArray(rows) && rows[0]
+    ? rows[0]
+    : { user_id: userId, muted: false, sound_enabled: true };
+}
+
+export async function updateNotificationSettings(userId: string, muted: boolean, soundEnabled: boolean) {
+  const rows = await supabaseRequest('notification_settings?on_conflict=user_id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify({
+      user_id: userId,
+      muted,
+      sound_enabled: soundEnabled,
+      updated_at: new Date().toISOString(),
+    }),
+  });
+  return Array.isArray(rows) ? rows[0] : rows;
+}
+
+export async function createChatGroup(ownerId: string, name: string, memberIds: string[]) {
+  const groups = await supabaseRequest('chat_groups', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ owner_id: ownerId, name: name.trim().slice(0, 80) }),
+  });
+  const group = Array.isArray(groups) ? groups[0] : groups;
+  const ids = Array.from(new Set([ownerId, ...memberIds].filter(Boolean)));
+  await supabaseRequest('chat_group_members', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify(ids.map((userId) => ({
+      group_id: group.id,
+      user_id: userId,
+      role: userId === ownerId ? 'OWNER' : 'MEMBER',
+    }))),
+  });
+  return group;
+}
+
+export async function listChatGroups(userId: string) {
+  const memberships = await supabaseRequest(`chat_group_members?user_id=eq.${encodeURIComponent(userId)}&select=group_id,role,chat_groups(id,name,owner_id,created_at)&order=created_at.desc`);
+  return Array.isArray(memberships)
+    ? memberships.map((row: any) => ({
+        id: row.chat_groups?.id || row.group_id,
+        name: row.chat_groups?.name || 'Group',
+        ownerId: row.chat_groups?.owner_id,
+        role: row.role,
+        createdAt: row.chat_groups?.created_at,
+      }))
+    : [];
+}
+
+export async function listChatGroupMembers(groupId: string) {
+  const rows = await supabaseRequest(`chat_group_members?group_id=eq.${encodeURIComponent(groupId)}&select=group_id,user_id,role,created_at,trader_profiles(username,display_name)&order=created_at.asc`);
+  return Array.isArray(rows) ? rows.map((row: any) => ({
+    groupId: row.group_id,
+    userId: row.user_id,
+    role: row.role,
+    username: row.trader_profiles?.username || row.user_id,
+    displayName: row.trader_profiles?.display_name || row.trader_profiles?.username || row.user_id,
+  })) : [];
+}
+
+export async function isGroupMember(groupId: string, userId: string) {
+  const rows = await supabaseRequest(`chat_group_members?group_id=eq.${encodeURIComponent(groupId)}&user_id=eq.${encodeURIComponent(userId)}&select=user_id&limit=1`);
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+export async function addChatGroupMember(groupId: string, userId: string) {
+  await supabaseRequest('chat_group_members', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({ group_id: groupId, user_id: userId, role: 'MEMBER' }),
+  });
+  return true;
+}
+
+export async function readGroupMessages(groupId: string, limit = 200) {
+  const rows = await supabaseRequest(`group_messages?group_id=eq.${encodeURIComponent(groupId)}&select=id,group_id,sender_id,text_content,message_type,attachment_path,attachment_name,attachment_mime_type,attachment_size,created_at&order=created_at.asc&limit=${Math.min(Math.max(limit, 1), 500)}`);
+  return Array.isArray(rows) ? rows : [];
+}
+
+export async function postGroupMessage(params: {
+  groupId: string;
+  senderId: string;
+  text?: string;
+  messageType?: string;
+  attachmentPath?: string;
+  attachmentName?: string;
+  attachmentMimeType?: string;
+  attachmentSize?: number;
+}) {
+  const rows = await supabaseRequest('group_messages', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      group_id: params.groupId,
+      sender_id: params.senderId,
+      text_content: params.text || '',
+      message_type: params.messageType || 'TEXT',
+      attachment_path: params.attachmentPath || null,
+      attachment_name: params.attachmentName || null,
+      attachment_mime_type: params.attachmentMimeType || null,
+      attachment_size: params.attachmentSize || null,
+    }),
+  });
+  return Array.isArray(rows) ? rows[0] : rows;
+}
+
 
 export async function createCallSupabase(params: {
   callId: string;
