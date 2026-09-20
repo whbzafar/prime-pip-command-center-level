@@ -61,6 +61,71 @@ async function supabaseRequest(path: string, init: RequestInit = {}) {
   return data;
 }
 
+async function ensureMediaBucket() {
+  const { url, key } = getSupabaseConfig();
+  if (!url || !key) return false;
+  const response = await fetch(url + '/storage/v1/bucket', {
+    method: 'POST',
+    headers: { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: 'primepipfx-media',
+      name: 'primepipfx-media',
+      public: true,
+      file_size_limit: 524288000,
+    }),
+  });
+  return response.ok || response.status === 409;
+}
+
+export async function uploadMediaSupabase(params: {
+  id: string;
+  data: string;
+  mimeType: string;
+}) {
+  const { url, key } = getSupabaseConfig();
+  if (!url || !key) throw new Error('Supabase storage is not configured.');
+  await ensureMediaBucket();
+  const clean = params.data.includes(',') ? params.data.split(',')[1] : params.data;
+  const buffer = Buffer.from(clean, 'base64');
+  const ext = params.mimeType.includes('mp4') ? 'm4a' : params.mimeType.includes('ogg') ? 'ogg' : params.mimeType.includes('png') ? 'png' : params.mimeType.includes('jpeg') ? 'jpg' : params.mimeType.includes('webm') ? 'webm' : 'bin';
+  const objectPath = 'media/' + params.id + '.' + ext;
+  const response = await fetch(url + '/storage/v1/object/primepipfx-media/' + objectPath, {
+    method: 'POST',
+    headers: {
+      apikey: key,
+      Authorization: 'Bearer ' + key,
+      'Content-Type': params.mimeType || 'application/octet-stream',
+      'x-upsert': 'true',
+    },
+    body: buffer,
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error('Supabase media upload failed: ' + detail);
+  }
+  return '/api/media/voice/' + params.id;
+}
+
+export async function readMediaObjectSupabase(id: string) {
+  const { url, key } = getSupabaseConfig();
+  if (!url || !key) return null;
+  const prefix = 'media/' + id;
+  const response = await fetch(url + '/storage/v1/object/list/primepipfx-media', {
+    method: 'POST',
+    headers: { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prefix, limit: 10 }),
+  });
+  if (!response.ok) return null;
+  const rows = await response.json().catch(() => []);
+  const row = Array.isArray(rows) ? rows.find((item: any) => typeof item?.name === 'string' && item.name.startsWith(id + '.')) : null;
+  if (!row) return null;
+  const ext = String(row.name).split('.').pop() || 'bin';
+  const objectUrl = url + '/storage/v1/object/primepipfx-media/' + prefix + '.' + ext;
+  const file = await fetch(objectUrl, { headers: { apikey: key, Authorization: 'Bearer ' + key } });
+  if (!file.ok) return null;
+  return { response: file, contentType: file.headers.get('content-type') || 'application/octet-stream' };
+}
+
 export async function upsertTraderProfile(user: {
   id: string;
   username: string;
