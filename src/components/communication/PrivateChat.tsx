@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { UserAccount } from '../../types';
 import { getKarachiDate, getKarachiTime } from '../../utils/time';
-import { getStoredToken } from '../../utils/authClient';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 
 interface PrivateMessage {
@@ -90,11 +89,10 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
 
   const fetchPrivateMessages = async () => {
     if (!currentUser || !activeContact) return;
-    const token = getStoredToken();
     try {
       const res = await fetch(`/api/messages/private/${activeContact.id}`, {
+        credentials: 'include',
         headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
       if (res.ok) {
@@ -117,14 +115,13 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
 
   const markMessagesRead = async () => {
     if (!currentUser || !activeContact) return;
-    const token = getStoredToken();
     try {
       await fetch('/api/messages/private/read', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({ senderId: activeContact.id })
       });
     } catch (e) {
@@ -257,7 +254,6 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
     if (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedLocalFile) return;
 
     setIsSending(true);
-    const token = getStoredToken();
 
     let voiceMeta: {
       audioAttachmentId?: string;
@@ -361,8 +357,8 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
     } catch (err) {
