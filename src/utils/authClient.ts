@@ -8,7 +8,6 @@ import {
   syncStudentsFromCloud,
 } from './localAuthStore';
 
-const TOKEN_KEY = 'primepipfx_auth_token';
 const USER_KEY = 'primepipfx_user_profile';
 const REFERRAL_KEY = 'primepipfx_applied_referral';
 
@@ -18,26 +17,8 @@ function isValidStoredUser(value: unknown): value is UserAccount {
   return typeof candidate.id === 'string' && candidate.id.trim().length > 0;
 }
 
-export function getStoredToken(): string | null {
-  try {
-    const token = localStorage.getItem(TOKEN_KEY);
-    return typeof token === 'string' && token.trim() ? token : null;
-  } catch {
-    return null;
-  }
-}
-
-export function setStoredToken(token: string | null) {
-  try {
-    if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
-  } catch (err) {
-    console.error('Error saving token:', err);
-  }
-}
+export function getStoredToken(): string | null { return null; }
+export function setStoredToken(_token: string | null) { /* Session is HttpOnly cookie only. */ }
 
 export function getStoredUser(): UserAccount | null {
   try {
@@ -148,9 +129,6 @@ export async function apiLogin(
     if (contentType.includes('application/json')) {
       const data = await res.json();
       if (res.ok && data.ok && data.user) {
-        if (data.token) {
-          setStoredToken(data.token);
-        }
         setStoredUser(data.user);
         return { ok: true, user: data.user, token: data.token };
       }
@@ -298,7 +276,6 @@ export async function apiChangePassword(newPassword: string): Promise<{ ok: bool
     if (contentType.includes('application/json')) {
       const data = await res.json();
       if (data.ok) {
-        if (data.token) setStoredToken(data.token);
         if (data.user) setStoredUser(data.user);
       }
       return data;
