@@ -117,7 +117,7 @@ export async function readMediaObjectSupabase(id: string) {
   });
   if (!response.ok) return null;
   const rows = await response.json().catch(() => []);
-  const row = Array.isArray(rows) ? rows.find((item: any) => typeof item?.name === 'string' && item.name.startsWith(id + '.')) : null;
+  const row = Array.isArray(rows) ? rows.find((item: any) => typeof item?.name === 'string' && item.name.startsWith('media/' + id + '.')) : null;
   if (!row) return null;
   const ext = String(row.name).split('.').pop() || 'bin';
   const objectUrl = url + '/storage/v1/object/primepipfx-media/' + prefix + '.' + ext;
