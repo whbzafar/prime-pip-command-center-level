@@ -8,6 +8,7 @@ interface VoiceMessagePlayerProps {
   durationSeconds?: number;
   mimeType?: string;
   isSelf?: boolean;
+  onListened?: () => void;
 }
 
 export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
@@ -16,6 +17,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
   durationSeconds = 0,
   mimeType,
   isSelf = false,
+  onListened,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -26,6 +28,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressRef = useRef<HTMLDivElement | null>(null);
+  const listenedReportedRef = useRef(false);
 
   // Compute effective audio source URL
   const audioSrc = React.useMemo(() => {
@@ -79,6 +82,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
     }
 
     if (!audioRef.current) {
+      listenedReportedRef.current = false;
       const audio = new Audio(audioSrc);
       audioRef.current = audio;
 
@@ -91,6 +95,11 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
 
       audio.ontimeupdate = () => {
         setCurrentTime(audio.currentTime);
+        const effectiveDuration = duration || audio.duration || durationSeconds || 0;
+        if (!listenedReportedRef.current && onListened && effectiveDuration > 0 && audio.currentTime >= Math.min(5, effectiveDuration * 0.5)) {
+          listenedReportedRef.current = true;
+          onListened();
+        }
       };
 
       audio.onended = () => {
