@@ -1455,16 +1455,14 @@ app.patch('/api/user/presence-privacy', (req, res) => {
 // ----------------------------------------------------
 // COMMUNITY CHAT API ENDPOINTS
 // ----------------------------------------------------
-app.get('/api/community/messages', async (req, res) => {
+app.get('/api/community/messages', requireUserSession, async (req, res) => {
   try {
     await syncLegacyStudentsToServer();
-    const token = getAuthToken(req);
-    if (token) {
-      const user = getUserByToken(token);
-      if (user) {
-        recordUserHeartbeat(user.id);
-      }
+    const user = (req as any).currentUser;
+    if (!isActiveCommunityMember(user)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for the community.' });
     }
+    recordUserHeartbeat(user.id);
 
     if (isSupabaseCommunityEnabled) {
       const messages = await readCommunityMessagesSupabase();
@@ -1634,20 +1632,16 @@ app.get('/api/friends/list', async (req, res) => {
 });
 
 // Get all registered traders with live presence status
-app.get('/api/friends/all-traders', async (req, res) => {
+app.get('/api/friends/all-traders', requireUserSession, async (req, res) => {
   try {
     await syncLegacyStudentsToServer();
-    const token = getAuthToken(req);
-    let currentUserId: string | undefined = undefined;
-    if (token) {
-      const currentUser = getUserByToken(token);
-      if (currentUser) {
-        recordUserHeartbeat(currentUser.id);
-        currentUserId = currentUser.id;
-      }
+    const currentUser = (req as any).currentUser;
+    if (!isActiveCommunityMember(currentUser)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for trader discovery.' });
     }
+    recordUserHeartbeat(currentUser.id);
 
-    const traders = getAllRegisteredTraders(currentUserId);
+    const traders = getAllRegisteredTraders(currentUser.id);
     return res.json({ ok: true, traders });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
@@ -2197,20 +2191,14 @@ app.put('/api/evolution/profile', requireUserSession, (req, res) => {
 // ----------------------------------------------------
 import { getNotificationsForUser, markNotificationsRead } from "./server/notificationsService.js";
 
-app.get("/api/notifications", (req, res) => {
-  const token = getAuthToken(req);
-  if (!token) return res.status(401).json({ ok: false, error: "Unauthorized" });
-  const user = getUserByToken(token);
-  if (!user) return res.status(401).json({ ok: false, error: "Invalid user" });
+app.get("/api/notifications", requireUserSession, (req, res) => {
+  const user = (req as any).currentUser;
   const notifs = getNotificationsForUser(user.id);
   res.json({ ok: true, notifications: notifs });
 });
 
-app.post("/api/notifications/read", (req, res) => {
-  const token = getAuthToken(req);
-  if (!token) return res.status(401).json({ ok: false, error: "Unauthorized" });
-  const user = getUserByToken(token);
-  if (!user) return res.status(401).json({ ok: false, error: "Invalid user" });
+app.post("/api/notifications/read", requireUserSession, (req, res) => {
+  const user = (req as any).currentUser;
   const { notifIds } = req.body || {};
   markNotificationsRead(user.id, notifIds);
   res.json({ ok: true });
