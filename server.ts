@@ -100,6 +100,13 @@ import {
   postCommunityMessageSupabase,
   markCommunityMessagesSeenSupabase,
   getCommunityTradersSupabase,
+  readPrivateMessagesSupabase,
+  postPrivateMessageSupabase,
+  createCallSupabase,
+  addCallSignalSupabase,
+  getCallSupabase,
+  getActiveCallSupabase,
+  endCallSupabase,
 } from "./server/supabaseCommunityService.js";
 
 dotenv.config();
@@ -1823,8 +1830,12 @@ app.get('/api/messages/private/:otherUserId', (req, res) => {
     if (!getUserFriends(user.id).friends.some((friend) => friend.friendId === otherUserId)) {
       return res.status(403).json({ ok: false, error: 'Private messaging is available only between accepted friends.' });
     }
+    if (isSupabaseCommunityEnabled) {
+      const messages = await readPrivateMessagesSupabase(user.id, otherUserId);
+      return res.json({ ok: true, messages, backend: 'supabase' });
+    }
     const messages = getPrivateConversation(user.id, otherUserId);
-    return res.json({ ok: true, messages });
+    return res.json({ ok: true, messages, backend: 'local-fallback' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
@@ -1875,8 +1886,10 @@ app.post('/api/messages/private', (req, res) => {
       audioDurationSeconds,
       audioSize,
       audioUrl,
-      timePkt,
-      datePkt,
+      fileBase64,
+      attachmentName,
+      attachmentMimeType,
+      attachmentSize,
     } = req.body || {};
     if (!receiverId || !receiverUsername) {
       return res.status(400).json({ ok: false, error: 'Receiver required' });
@@ -1903,22 +1916,43 @@ app.post('/api/messages/private', (req, res) => {
     if (audioAttachmentId || audioBase64) msgType = 'VOICE';
     else if (photoBase64) msgType = 'IMAGE';
 
+    const messageText = text || (msgType === 'VOICE' ? '🎙 Voice message' : msgType === 'IMAGE' ? 'Photo message' : 'File attachment');
+    if (isSupabaseCommunityEnabled) {
+      let attachmentPath = audioUrl || (audioAttachmentId ? '/api/media/voice/' + audioAttachmentId : undefined);
+      if (photoBase64 && !attachmentPath) attachmentPath = saveImageAttachmentFile(photoBase64);
+      if (fileBase64 && !attachmentPath && attachmentName) attachmentPath = saveFileAttachmentFile(fileBase64, attachmentName).url;
+      const durable = await postPrivateMessageSupabase({
+        senderId: user.id,
+        receiverId,
+        text: messageText,
+        messageType: msgType,
+        attachmentPath,
+        attachmentName,
+        attachmentMimeType: audioMimeType || attachmentMimeType,
+        attachmentSize: audioSize || attachmentSize,
+      });
+      return res.json({ ok: true, message: durable, backend: 'supabase' });
+    }
+
     const newMsg = postPrivateMessage({
       senderId: user.id,
       senderUsername: user.username,
       receiverId,
       receiverUsername,
-      text: text || (msgType === 'VOICE' ? '🎙 Voice message' : 'Photo message'),
+      text: messageText,
       photoBase64: photoBase64 || undefined,
       audioBase64: audioBase64 || undefined,
       audioAttachmentId: audioAttachmentId || undefined,
       audioMimeType: audioMimeType || undefined,
       audioDurationSeconds: audioDurationSeconds || undefined,
       audioSize: audioSize || undefined,
-      audioUrl: audioUrl || (audioAttachmentId ? `/api/media/voice/${audioAttachmentId}` : undefined),
+      audioUrl: audioUrl || (audioAttachmentId ? '/api/media/voice/' + audioAttachmentId : undefined),
+      fileBase64: fileBase64 || undefined,
+      attachmentName: attachmentName || undefined,
+      attachmentSize: attachmentSize || undefined,
     });
 
-    return res.json({ ok: true, message: newMsg });
+    return res.json({ ok: true, message: newMsg, backend: 'local-fallback' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
@@ -1927,124 +1961,105 @@ app.post('/api/messages/private', (req, res) => {
 // ----------------------------------------------------
 // WEBRTC SIGNALING API ENDPOINTS
 // ----------------------------------------------------
-app.post('/api/webrtc/call', (req, res) => {
+app.post('/api/webrtc/call', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
-    if (!isActiveCommunityMember(user)) {
-      return res.status(403).json({ ok: false, error: 'An active subscription is required for calls.' });
+    if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'An active subscription is required for calls.' });
+    const { receiverId, receiverUsername, offer, isScreenSharing, callType = 'video' } = req.body || {};
+    if (!receiverId || !getUserFriends(user.id).friends.some((friend) => friend.friendId === receiverId)) return res.status(403).json({ ok: false, error: 'Calling is available only between accepted friends.' });
+    if (isSupabaseCommunityEnabled) {
+      const callId = 'call_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+      const type = callType === 'voice' ? 'voice' : isScreenSharing ? 'screenshare' : 'video';
+      const session = await createCallSupabase({ callId, callerId: user.id, receiverId, type, offer });
+      return res.json({ ok: true, session, backend: 'supabase' });
     }
-
-    const { receiverId, receiverUsername, offer, isScreenSharing } = req.body || {};
-    if (!receiverId || !getUserFriends(user.id).friends.some((friend) => friend.friendId === receiverId)) {
-      return res.status(403).json({ ok: false, error: 'Calling is available only between accepted friends.' });
-    }
-    const session = initiateWebRTCCall({
-      callerId: user.id,
-      callerUsername: user.username,
-      receiverId,
-      receiverUsername,
-      offer,
-      isScreenSharing,
-    });
-    return res.json({ ok: true, session });
-  } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err?.message });
-  }
+    const session = initiateWebRTCCall({ callerId: user.id, callerUsername: user.username, receiverId, receiverUsername, offer, isScreenSharing });
+    return res.json({ ok: true, session, backend: 'local-fallback' });
+  } catch (err) { return res.status(500).json({ ok: false, error: err?.message }); }
 });
 
-app.get('/api/webrtc/status/:callId', (req, res) => {
+app.get('/api/webrtc/status/:callId', async (req, res) => {
   try {
-    const token = getAuthToken(req);
-    const user = token ? getUserByToken(token) : null;
+    const token = getAuthToken(req); const user = token ? getUserByToken(token) : null;
     if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Active subscription required.' });
+    if (isSupabaseCommunityEnabled) {
+      const session = await getCallSupabase(req.params.callId, user.id);
+      if (!session) return res.status(404).json({ ok: false, error: 'Call not found' });
+      return res.json({ ok: true, session, backend: 'supabase' });
+    }
     const session = getCallSession(req.params.callId);
     if (!session) return res.status(404).json({ ok: false, error: 'Call not found' });
-    if (session.callerId !== user?.id && session.receiverId !== user?.id) {
-      return res.status(403).json({ ok: false, error: 'You are not a participant in this call.' });
-    }
-    return res.json({ ok: true, session });
-  } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err?.message });
-  }
+    if (session.callerId !== user.id && session.receiverId !== user.id) return res.status(403).json({ ok: false, error: 'You are not a participant in this call.' });
+    return res.json({ ok: true, session, backend: 'local-fallback' });
+  } catch (err) { return res.status(500).json({ ok: false, error: err?.message }); }
 });
 
-app.get('/api/webrtc/active', (req, res) => {
+app.get('/api/webrtc/active', async (req, res) => {
   try {
-    const token = getAuthToken(req);
-    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
-    if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Active subscription required.' });
-
-    const session = getActiveCallForUser(user.id);
-    return res.json({ ok: true, session });
-  } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err?.message });
-  }
+    if (isSupabaseCommunityEnabled) return res.json({ ok: true, session: await getActiveCallSupabase(user.id), backend: 'supabase' });
+    return res.json({ ok: true, session: getActiveCallForUser(user.id), backend: 'local-fallback' });
+  } catch (err) { return res.status(500).json({ ok: false, error: err?.message }); }
 });
 
-app.post('/api/webrtc/answer', (req, res) => {
+app.post('/api/webrtc/answer', async (req, res) => {
   try {
-    const { callId, answer } = req.body || {};
-    const token = getAuthToken(req);
-    const user = token ? getUserByToken(token) : null;
+    const { callId, answer } = req.body || {}; const token = getAuthToken(req); const user = token ? getUserByToken(token) : null;
+    if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Call authorization failed.' });
+    if (isSupabaseCommunityEnabled) {
+      const existing = await getCallSupabase(callId, user.id);
+      if (!existing || existing.receiverId !== user.id) return res.status(403).json({ ok: false, error: 'Call authorization failed.' });
+      const signal = await addCallSignalSupabase(callId, existing.callerId, existing.receiverId, 'ANSWER', answer);
+      return res.json({ ok: true, signal, backend: 'supabase' });
+    }
     const existing = callId ? getCallSession(callId) : null;
-    if (!isActiveCommunityMember(user) || !existing) {
-      return res.status(403).json({ ok: false, error: 'Call authorization failed.' });
-    }
-    if (existing.receiverId !== user?.id && existing.callerId !== user?.id) {
-      return res.status(403).json({ ok: false, error: 'You are not a participant in this call.' });
-    }
+    if (!existing || (existing.receiverId !== user.id && existing.callerId !== user.id)) return res.status(403).json({ ok: false, error: 'You are not a participant in this call.' });
     const session = updateCallSession(callId, { answer, status: 'CONNECTED' });
-    if (!session) return res.status(404).json({ ok: false, error: 'Call not found' });
-    return res.json({ ok: true, session });
-  } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err?.message });
-  }
+    return res.json({ ok: true, session, backend: 'local-fallback' });
+  } catch (err) { return res.status(500).json({ ok: false, error: err?.message }); }
 });
 
-app.post('/api/webrtc/candidate', (req, res) => {
+app.post('/api/webrtc/candidate', async (req, res) => {
   try {
-    const { callId, isCaller, candidate } = req.body || {};
-    const token = getAuthToken(req);
-    const user = token ? getUserByToken(token) : null;
+    const { callId, isCaller, candidate } = req.body || {}; const token = getAuthToken(req); const user = token ? getUserByToken(token) : null;
+    if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Call authorization failed.' });
+    if (isSupabaseCommunityEnabled) {
+      const existing = await getCallSupabase(callId, user.id);
+      if (!existing || (existing.callerId !== user.id && existing.receiverId !== user.id)) return res.status(403).json({ ok: false, error: 'You are not a participant in this call.' });
+      const expectedCaller = existing.callerId === user.id;
+      if (expectedCaller !== Boolean(isCaller)) return res.status(403).json({ ok: false, error: 'Invalid signaling participant.' });
+      await addCallSignalSupabase(callId, existing.callerId, existing.receiverId, 'CANDIDATE', candidate);
+      return res.json({ ok: true, backend: 'supabase' });
+    }
     const session = callId ? getCallSession(callId) : null;
-    if (!isActiveCommunityMember(user) || !session) {
-      return res.status(403).json({ ok: false, error: 'Call authorization failed.' });
-    }
-    const expectedCaller = session.callerId === user?.id;
-    if (expectedCaller !== Boolean(isCaller)) {
-      return res.status(403).json({ ok: false, error: 'Invalid signaling participant.' });
-    }
-    const success = addIceCandidate(callId, isCaller, candidate);
-    return res.json({ ok: success });
-  } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err?.message });
-  }
+    if (!session) return res.status(404).json({ ok: false, error: 'Call not found' });
+    const expectedCaller = session.callerId === user.id;
+    if (expectedCaller !== Boolean(isCaller)) return res.status(403).json({ ok: false, error: 'Invalid signaling participant.' });
+    const success = addIceCandidate(callId, candidate, isCaller);
+    return res.json({ ok: success, backend: 'local-fallback' });
+  } catch (err) { return res.status(500).json({ ok: false, error: err?.message }); }
 });
 
-app.post('/api/webrtc/end', (req, res) => {
+app.post('/api/webrtc/end', async (req, res) => {
   try {
-    const { callId } = req.body || {};
-    const token = getAuthToken(req);
-    const user = token ? getUserByToken(token) : null;
+    const { callId } = req.body || {}; const token = getAuthToken(req); const user = token ? getUserByToken(token) : null;
+    if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Call authorization failed.' });
+    if (isSupabaseCommunityEnabled) {
+      const result = await endCallSupabase(callId, user.id);
+      if (!result) return res.status(404).json({ ok: false, error: 'Call not found' });
+      return res.json({ ok: true, session: result, backend: 'supabase' });
+    }
     const existing = callId ? getCallSession(callId) : null;
-    if (!isActiveCommunityMember(user) || !existing) {
-      return res.status(403).json({ ok: false, error: 'Call authorization failed.' });
-    }
-    if (existing.callerId !== user?.id && existing.receiverId !== user?.id) {
-      return res.status(403).json({ ok: false, error: 'You are not a participant in this call.' });
-    }
+    if (!existing || (existing.callerId !== user.id && existing.receiverId !== user.id)) return res.status(403).json({ ok: false, error: 'You are not a participant in this call.' });
     const session = updateCallSession(callId, { status: 'ENDED' });
-    return res.json({ ok: true, session });
-  } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err?.message });
-  }
+    return res.json({ ok: true, session, backend: 'local-fallback' });
+  } catch (err) { return res.status(500).json({ ok: false, error: err?.message }); }
 });
-
 // ----------------------------------------------------
 // APPOINTMENTS & SESSIONS API ENDPOINTS
 // ----------------------------------------------------
