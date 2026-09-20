@@ -15,8 +15,6 @@ import {
   Cloud, Download, ExternalLink, ShieldCheck, Check
 } from 'lucide-react';
 import { googleDriveService, DriveBackupFile } from '../services/googleDriveService';
-import { IntentCard } from './chat/IntentCard';
-import { IntentCardPayload } from './chat/types';
 import { DEFAULT_TRADERS, DEFAULT_COMMUNITY_MESSAGES } from '../data/defaultTraders';
 
 interface SeenReceipt {
@@ -50,7 +48,6 @@ interface ChatMessage {
   audioDurationSeconds?: number;
   audioSize?: number;
   audioUrl?: string;
-  intentCard?: IntentCardPayload;
   timestamp: number;
   timePkt: string;
   datePkt: string;
@@ -61,6 +58,13 @@ interface ChatMessage {
   attachmentSize?: number;
   reactions?: Record<string, number>;
 }
+
+const isConversationMessage = (message: any): boolean => {
+  if (!message || typeof message !== 'object') return false;
+  if (message.tradeSetup || message.intentCard) return false;
+  const category = String(message.category || '').toUpperCase();
+  return !['SIGNAL', 'SETUP', 'DISPATCH', 'ANALYSIS', 'MARKET_ANALYSIS'].includes(category);
+};
 
 interface CommunityChatProps {
   currentUser?: UserAccount | null;
@@ -83,7 +87,10 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       const cached = localStorage.getItem('primepipfx_community_cache');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length >= 4) return parsed;
+        if (Array.isArray(parsed)) {
+          const clean = parsed.filter(isConversationMessage);
+          if (clean.length > 0) return clean;
+        }
       }
     } catch {}
     return DEFAULT_COMMUNITY_MESSAGES as unknown as ChatMessage[];
@@ -362,7 +369,9 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
         return;
       }
       const data = await res.json();
-      const fetchedMessages: ChatMessage[] = Array.isArray(data.messages) ? data.messages : [];
+      const fetchedMessages: ChatMessage[] = Array.isArray(data.messages)
+        ? data.messages.filter(isConversationMessage)
+        : [];
       if (fetchedMessages.length > 0) {
         setMessages((prev) => {
           const map = new Map<string, ChatMessage>();
@@ -402,6 +411,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       bc = new BroadcastChannel('primepipfx_community_channel');
       bc.onmessage = (event) => {
         if (event.data?.type === 'NEW_MESSAGE' && event.data.message) {
+          if (!isConversationMessage(event.data.message)) return;
           setMessages((prev) => {
             if (prev.some((m) => m.id === event.data.message.id)) return prev;
             const updated = [...prev, event.data.message];
@@ -890,102 +900,6 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
 
       {commMode === 'PUBLIC' && (
         <div className="flex-1 flex flex-col min-h-0 space-y-2">
-          {/* Collapsible Trader Feed Strip (Conserves massive vertical space for chatting) */}
-          <div className="bg-slate-950/90 border border-slate-800 rounded-xl px-3 py-1.5 flex items-center justify-between shadow-sm shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-military font-bold tracking-wider text-slate-300">
-                COMMUNITY TRADERS
-              </span>
-              <span className="text-[9px] font-mono-code px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
-                {filteredTraders.length} available · {onlineCount} online
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {currentUser && showTraderFeed && (
-                <button
-                  type="button"
-                  disabled={isSavingPrivacy}
-                  onClick={() => updatePresencePrivacy(!showActiveStatus)}
-                  className="text-[10px] font-mono-code text-slate-400 hover:text-cyan-300 flex items-center gap-1"
-                  title="Presence is reciprocal"
-                >
-                  {showActiveStatus ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                  <span className="hidden sm:inline">{showActiveStatus ? 'Status visible' : 'Status hidden'}</span>
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowTraderFeed(!showTraderFeed)}
-                className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-850 text-cyan-400 border border-slate-800 flex items-center gap-1 cursor-pointer transition"
-              >
-                {showTraderFeed ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                <span>{showTraderFeed ? 'HIDE TRADER STRIP' : 'SHOW TRADER STRIP'}</span>
-              </button>
-            </div>
-          </div>
-
-          {showTraderFeed && (
-            <section className="bg-slate-950 border border-slate-800 rounded-xl p-3 shadow-md shrink-0">
-              <div className="flex flex-wrap gap-2 mb-2.5">
-                <div className="relative flex-1 min-w-[180px]">
-                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    value={traderSearch}
-                    onChange={(event) => setTraderSearch(event.target.value)}
-                    placeholder="Search name or username…"
-                    className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 font-mono-code"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setOnlineOnly((value) => !value)}
-                  className={`px-3 py-1.5 rounded-lg border text-[10px] font-mono-code ${
-                    onlineOnly
-                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                      : 'bg-slate-900 border-slate-800 text-slate-400'
-                  }`}
-                >
-                  {onlineOnly ? 'Online only' : 'Everyone'} · {onlineCount}
-                </button>
-              </div>
-              {filteredTraders.length > 0 ? (
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {filteredTraders.map((trader) => {
-                    const isActive = trader.presenceStatus === 'ACTIVE' || trader.isOnline;
-                    return (
-                      <button
-                        type="button"
-                        key={trader.id}
-                        onClick={() => {
-                          if (!currentUser && onOpenLogin) {
-                            onOpenLogin();
-                            return;
-                          }
-                          setActivePrivateContact({ id: trader.id, username: trader.username, displayName: trader.displayName });
-                          setCommMode('FRIENDS');
-                        }}
-                        className="min-w-[160px] text-left p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 transition cursor-pointer"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${isActive ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                          <span className="text-xs font-bold text-slate-200 truncate">{trader.displayName}</span>
-                          {trader.isNewThisWeek && <span className="text-[8px] text-amber-300">NEW</span>}
-                        </div>
-                        <span className="block text-[10px] text-slate-500 truncate">@{trader.username}</span>
-                        <span className="block text-[9px] text-slate-500 mt-0.5">
-                          {isActive ? (trader.traderStatus || 'Active now') : formatLastActive(trader.lastSeen)}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-[10px] text-slate-500 font-mono-code py-1">
-                  No active traders match this search.
-                </p>
-              )}
-            </section>
-          )}
           {(isOffline || (feedError && messages.length === 0)) && (
             <div className="p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-xl text-cyan-200 text-xs font-mono-code text-center">
               {isOffline ? <><WifiOff className="inline w-3.5 h-3.5 mr-1" /> You're offline — messages will not send.</> : `FEED NOTICE — ${feedError || 'Connection lost. Showing last known messages.'}`}
@@ -1211,7 +1125,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-cyan-400" />
                 <span className="text-xs text-slate-300 font-mono-code">
-                  Join the PrimePipFX verified trader community to post signals & dispatches.
+                  Join the PrimePipFX community to send messages, voice notes, and files.
                 </span>
               </div>
               <button
@@ -1272,6 +1186,103 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                 SEND
               </button>
             </form>
+          )}
+
+          {/* Collapsible Trader Feed Strip (Conserves massive vertical space for chatting) */}
+          <div className="bg-slate-950/90 border border-slate-800 rounded-xl px-3 py-1.5 flex items-center justify-between shadow-sm shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-military font-bold tracking-wider text-slate-300">
+                COMMUNITY TRADERS
+              </span>
+              <span className="text-[9px] font-mono-code px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                {filteredTraders.length} available · {onlineCount} online
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {currentUser && showTraderFeed && (
+                <button
+                  type="button"
+                  disabled={isSavingPrivacy}
+                  onClick={() => updatePresencePrivacy(!showActiveStatus)}
+                  className="text-[10px] font-mono-code text-slate-400 hover:text-cyan-300 flex items-center gap-1"
+                  title="Presence is reciprocal"
+                >
+                  {showActiveStatus ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                  <span className="hidden sm:inline">{showActiveStatus ? 'Status visible' : 'Status hidden'}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowTraderFeed(!showTraderFeed)}
+                className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-850 text-cyan-400 border border-slate-800 flex items-center gap-1 cursor-pointer transition"
+              >
+                {showTraderFeed ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                <span>{showTraderFeed ? 'HIDE TRADER STRIP' : 'SHOW TRADER STRIP'}</span>
+              </button>
+            </div>
+          </div>
+
+          {showTraderFeed && (
+            <section className="bg-slate-950 border border-slate-800 rounded-xl p-3 shadow-md shrink-0">
+              <div className="flex flex-wrap gap-2 mb-2.5">
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    value={traderSearch}
+                    onChange={(event) => setTraderSearch(event.target.value)}
+                    placeholder="Search name or username…"
+                    className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 font-mono-code"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOnlineOnly((value) => !value)}
+                  className={`px-3 py-1.5 rounded-lg border text-[10px] font-mono-code ${
+                    onlineOnly
+                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                      : 'bg-slate-900 border-slate-800 text-slate-400'
+                  }`}
+                >
+                  {onlineOnly ? 'Online only' : 'Everyone'} · {onlineCount}
+                </button>
+              </div>
+              {filteredTraders.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {filteredTraders.map((trader) => {
+                    const isActive = trader.presenceStatus === 'ACTIVE' || trader.isOnline;
+                    return (
+                      <button
+                        type="button"
+                        key={trader.id}
+                        onClick={() => {
+                          if (!currentUser && onOpenLogin) {
+                            onOpenLogin();
+                            return;
+                          }
+                          setActivePrivateContact({ id: trader.id, username: trader.username, displayName: trader.displayName });
+                          setCommMode('FRIENDS');
+                        }}
+                        className="min-w-[160px] text-left p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 transition cursor-pointer"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${isActive ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                          <span className="text-xs font-bold text-slate-200 truncate">{trader.displayName}</span>
+                          {trader.isNewThisWeek && <span className="text-[8px] text-amber-300">NEW</span>}
+                        </div>
+                        <span className="block text-[10px] text-slate-500 truncate">@{trader.username}</span>
+                        <span className="block text-[9px] text-slate-500 mt-0.5">
+                          {isActive ? (trader.traderStatus || 'Active now') : formatLastActive(trader.lastSeen)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-[10px] text-slate-500 font-mono-code py-1">
+                  No active traders match this search.
+                </p>
+              )}
+            </section>
           )}
         </div>
       )}
