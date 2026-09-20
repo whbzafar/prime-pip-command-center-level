@@ -134,13 +134,30 @@ export async function getUserFromSupabaseAccessToken(accessToken: string): Promi
 }
 export async function syncPrimePipfxUser(user: StoredUser) {
   if (!isSupabaseAuthEnabled) return;
+  const lookup = new URL(`${SUPABASE_URL}/rest/v1/primepipfx_users`);
+  lookup.searchParams.set('legacy_user_id', `eq.${user.id}`); lookup.searchParams.set('limit', '1');
+  const lookupResponse = await supaFetch(lookup.pathname + lookup.search, {}, true);
+  const rows = lookupResponse.ok ? await readJson(lookupResponse) : [];
+  const authUserId = Array.isArray(rows) && rows[0]?.auth_user_id;
+  if (!authUserId) return;
   const url = new URL(`${SUPABASE_URL}/rest/v1/primepipfx_users`);
   url.searchParams.set('legacy_user_id', `eq.${user.id}`);
   const response = await supaFetch(url.pathname + url.search, {
-    method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(storedUserToProfile(user, '')),
+    method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(storedUserToProfile(user, authUserId)),
   }, true);
   if (!response.ok) console.warn('[AUTH] Supabase profile sync failed:', response.status);
 }
+
+export async function provisionPrimePipfxUser(user: StoredUser, password: string) {
+  if (!isSupabaseAuthEnabled || !password) return;
+  const authId = await createOrFindAuthUser(user, password);
+  if (authId) await upsertProfile(user, authId);
+  else {
+    const session = await signIn(user.username, password);
+    if (session?.user?.id) await upsertProfile(user, session.user.id);
+  }
+}
+
 export async function provisionBootstrapAdmin(username: string, password: string) {
   if (!isSupabaseAuthEnabled || password.length < 12) return;
   const user: StoredUser = {
