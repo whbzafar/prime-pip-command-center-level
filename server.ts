@@ -1979,7 +1979,7 @@ app.post('/api/friends/request', async (req, res) => {
   }
 });
 
-app.post('/api/friends/respond', (req, res) => {
+app.post('/api/friends/respond', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
