@@ -357,8 +357,18 @@ ${effectivePrompt}`;
 }
 
 // Health check
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+app.get("/api/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    service: "PRIMEPIPFX Trading Command Center",
+    runtime: process.env.VERCEL ? "vercel-serverless" : "node-server",
+    liveEconomicNewsConfigured: Boolean(process.env.ECONOMIC_NEWS_RADAR_URL?.trim()),
+    communityBackend: isSupabaseCommunityEnabled ? "supabase" : "local-fallback",
+    storageWarning: process.env.VERCEL
+      ? "Server-side JSON storage uses ephemeral runtime storage. Browser IndexedDB remains the client journal source; configure a durable database for cross-device/server persistence."
+      : null,
+  });
 });
 
 app.get('/api/live-economic-news/status', requireUserSession, async (_req, res) => {
