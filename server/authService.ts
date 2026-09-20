@@ -117,7 +117,11 @@ export function initAuthStore() {
   const existingDev = users.find((u) => u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER');
   
   if (!existingDev) {
-    const { hash, salt } = hashPassword('PPFX@Admin#2026');
+    const initialPassword = process.env.PRIMEPIPFX_ADMIN_PASSWORD;
+    if (!initialPassword || initialPassword.length < 12) {
+      throw new Error('PRIMEPIPFX_ADMIN_PASSWORD must be configured (minimum 12 characters) before the developer account can be initialized.');
+    }
+    const { hash, salt } = hashPassword(initialPassword);
     const devUser: StoredUser = {
       id: 'dev-owner-master',
       name: 'PrimePipFX Developer / Owner',
@@ -132,7 +136,7 @@ export function initAuthStore() {
       isLifetime: true,
       paymentStatus: 'VERIFIED',
       isDeveloper: true,
-      phone: '03406671495',
+      phone: process.env.PRIMEPIPFX_ADMIN_PHONE || undefined,
       referralCode: 'PPFX-MASTER',
       mustChangePassword: false,
       adminNotes: 'Permanent Developer Master Account. Never expires. Full system privileges.',
@@ -153,8 +157,9 @@ export function initAuthStore() {
       existingDev.role = 'ADMIN';
       changed = true;
     }
-    if (existingDev.phone !== '03406671495') {
-      existingDev.phone = '03406671495';
+    const configuredAdminPhone = process.env.PRIMEPIPFX_ADMIN_PHONE || '';
+    if (configuredAdminPhone && existingDev.phone !== configuredAdminPhone) {
+      existingDev.phone = configuredAdminPhone;
       changed = true;
     }
     if (existingDev.isDeveloper !== true) {
@@ -235,13 +240,14 @@ export function loginUser(
     const phone = (u.phone || '').replace(/[^0-9]/g, '');
     const inputPhone = cleanInput.replace(/[^0-9]/g, '');
     
-    // Developer can log in via "primepipfx-admin", "developer", "admin" or phone number "03406671495"
+    // Developer aliases are intentionally limited to configured administrator identifiers.
     if (u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER') {
+      const configuredPhone = (process.env.PRIMEPIPFX_ADMIN_PHONE || '').replace(/[^0-9]/g, '');
       if (
         cleanInput === 'primepipfx-admin' ||
         cleanInput === 'developer' ||
         cleanInput === 'admin' ||
-        (inputPhone && inputPhone === '03406671495')
+        (configuredPhone && inputPhone === configuredPhone)
       ) {
         return true;
       }
@@ -255,12 +261,13 @@ export function loginUser(
   let isPasswordValid = verifyPassword(passwordInput, user.passwordHash, user.salt);
   
   if (!isPasswordValid && (user.isDeveloper || user.role === 'ADMIN' || user.role === 'DEVELOPER')) {
-    // If developer logged in with temporary password PPFX@Admin#2026
-    if (passwordInput === 'PPFX@Admin#2026') {
+    // Optional bootstrap compatibility: only accept the explicitly configured
+    // administrator password, never a password embedded in source code.
+    const configuredInitialPassword = process.env.PRIMEPIPFX_ADMIN_PASSWORD;
+    if (configuredInitialPassword && passwordInput === configuredInitialPassword) {
       isPasswordValid = true;
       user.mustChangePassword = false;
-      // Update hash to PPFX@Admin#2026 so subsequent logins match
-      const { hash, salt } = hashPassword('PPFX@Admin#2026');
+      const { hash, salt } = hashPassword(configuredInitialPassword);
       user.passwordHash = hash;
       user.salt = salt;
       writeUsers(users);

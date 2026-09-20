@@ -81,6 +81,7 @@ import { resolveCapability } from "./server/intelligence/capabilityRegistry.js";
 import { getClusters } from "./server/intelligence/gapLedger.js";
 import { syncLegacyStudentsToServer } from "./server/legacyStudentSync.js";
 import { getFundamentalStrengthDashboard } from "./server/fundamentalStrengthService.js";
+import { securityHeaders, validateCustomerDataPayload } from "./server/security.js";
 import {
   isSupabaseCommunityEnabled,
   upsertTraderProfile,
@@ -100,6 +101,36 @@ initAuthStore();
 const currentAppDir = process.cwd();
 
 const app = express();
+app.disable('x-powered-by');
+app.use(securityHeaders);
+
+const MAX_REQUEST_BODY_BYTES = 5 * 1024 * 1024;
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_REQUESTS = 120;
+const requestRateBuckets = new Map<string, { windowStart: number; count: number }>();
+const loginFailureBuckets = new Map<string, { windowStart: number; count: number }>();
+const LOGIN_WINDOW_MS = 15 * 60_000;
+const LOGIN_MAX_FAILURES = 8;
+
+app.use((req, res, next) => {
+  const forwarded = req.headers['x-forwarded-for'];
+  const clientIp = typeof forwarded === 'string'
+    ? forwarded.split(',')[0].trim()
+    : req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const bucket = requestRateBuckets.get(clientIp);
+  if (!bucket || now - bucket.windowStart >= RATE_WINDOW_MS) {
+    requestRateBuckets.set(clientIp, { windowStart: now, count: 1 });
+    return next();
+  }
+  bucket.count += 1;
+  if (bucket.count > RATE_MAX_REQUESTS) {
+    return res.status(429).json({ ok: false, error: 'Too many requests. Please retry shortly.' });
+  }
+  return next();
+});
+
+
 const PORT = 3000;
 const presenceSockets = new Map<string, Set<WebSocket>>();
 
@@ -141,8 +172,8 @@ function registerPresenceSocket(socket: WebSocket, userId: string) {
   });
 }
 
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.json({ limit: MAX_REQUEST_BODY_BYTES }));
+app.use(express.urlencoded({ extended: true, limit: MAX_REQUEST_BODY_BYTES }));
 app.use(cookieParser());
 
 // Lazy Gemini client helper
@@ -245,6 +276,47 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
 }
 
+app.post('/api/gemini/translate', requireUserSession, async (req, res) => {
+  const { targetLanguage, keys, texts } = req.body || {};
+  if (typeof targetLanguage !== 'string' || !Array.isArray(keys) || !Array.isArray(texts) || keys.length !== texts.length || keys.length > 150) {
+    return res.status(400).json({ ok: false, error: 'Invalid translation payload.' });
+  }
+  const ai = getGeminiClient();
+  if (!ai) return res.status(503).json({ ok: false, error: 'Translation service is not configured.' });
+
+  const safeTexts = texts.map((v: unknown) => typeof v === 'string' ? v.slice(0, 1200) : '');
+  const languageNames: Record<string,string> = {
+    hi:'Hindi', ar:'Arabic', es:'Spanish', fr:'French', de:'German', tr:'Turkish',
+    id:'Indonesian', bn:'Bengali', fa:'Persian', pt:'Portuguese', zh:'Chinese',
+    ja:'Japanese', ko:'Korean', ru:'Russian'
+  };
+  const language = languageNames[targetLanguage] || targetLanguage;
+  const prompt = [
+    'Translate the following UI text for a trading psychology education application.',
+    'Use plain, natural language that a non-expert can understand.',
+    'Preserve meaning, numbers, placeholders, product names and trading terms such as FOMO, stop-loss, R, P&L and PRIMEPIPFX.',
+    'Return ONLY valid JSON: an object whose keys exactly match the supplied keys and whose values are the translations.',
+    `Target language: ${language}`,
+    JSON.stringify(Object.fromEntries(keys.map((k: string, i: number) => [k, safeTexts[i]])))
+  ].join('\n');
+
+  try {
+    const response = await withTimeout(ai.models.generateContent({
+      model: 'gemini-flash-latest',
+      contents: prompt,
+      config: { temperature: 0.2, responseMimeType: 'application/json' }
+    }), 8000);
+    const raw = response.text?.trim() || '{}';
+    const parsed = JSON.parse(raw);
+    const translations: Record<string,string> = {};
+    for (const key of keys) if (typeof parsed[key] === 'string') translations[key] = parsed[key].slice(0, 1600);
+    return res.json({ ok: true, targetLanguage, translations });
+  } catch (error) {
+    console.error('[TRANSLATION] Failed:', error);
+    return res.status(503).json({ ok: false, error: 'Translation temporarily unavailable.' });
+  }
+});
+
 // Unified AI Trading Coach Controller
 async function handleTradingCoach(req: express.Request, res: express.Response) {
   const { prompt, context, mode, question, tradeContext } = req.body || {};
@@ -329,16 +401,65 @@ ${effectivePrompt}`;
 }
 
 // Health check
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+app.get("/api/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    service: "PRIMEPIPFX Trading Command Center",
+    runtime: process.env.VERCEL ? "vercel-serverless" : "node-server",
+    liveEconomicNewsConfigured: Boolean(process.env.ECONOMIC_NEWS_RADAR_URL?.trim()),
+    communityBackend: isSupabaseCommunityEnabled ? "supabase" : "local-fallback",
+    storageWarning: process.env.VERCEL
+      ? "Server-side JSON storage uses ephemeral runtime storage. Browser IndexedDB remains the client journal source; configure a durable database for cross-device/server persistence."
+      : null,
+  });
+});
+
+app.get('/api/live-economic-news/status', requireUserSession, async (_req, res) => {
+  try {
+    const endpoint = process.env.ECONOMIC_NEWS_RADAR_URL?.trim();
+    if (!endpoint) {
+      return res.status(503).json({
+        ok: false,
+        sourceConfigured: false,
+        fetchedAt: new Date().toISOString(),
+        items: [],
+        error: 'No live economic news provider is configured.',
+      });
+    }
+    const response = await fetch(endpoint, {
+      headers: { Accept: 'application/json', 'User-Agent': 'PrimePipFX-LiveNewsRadar/1.0' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return res.status(502).json({ ok: false, sourceConfigured: true, items: [], error: 'Live news provider returned HTTP ' + response.status + '.' });
+    const payload = await response.json();
+    const rawItems = Array.isArray(payload) ? payload : payload?.events ?? payload?.items;
+    if (!Array.isArray(rawItems)) return res.status(502).json({ ok: false, sourceConfigured: true, items: [], error: 'Live provider returned an unsupported payload.' });
+    const items = rawItems.slice(0, 100).map((item: any, index: number) => ({
+      id: String(item?.id ?? item?.eventId ?? ('news-' + index)),
+      title: String(item?.title ?? item?.event ?? item?.eventName ?? item?.name ?? '').trim(),
+      currency: item?.currency ?? item?.currencyCode,
+      country: item?.country,
+      impact: String(item?.impact ?? item?.importance ?? 'UNKNOWN').toUpperCase(),
+      timestamp: item?.timestamp ?? item?.date ?? item?.datetime ?? item?.utcTimestamp,
+      source: item?.source ?? 'Configured live provider',
+      url: item?.url ?? item?.link,
+      actual: item?.actual ?? null,
+      forecast: item?.forecast ?? item?.consensus ?? null,
+      previous: item?.previous ?? item?.prior ?? null,
+    })).filter((item: any) => item.title);
+    return res.json({ ok: true, sourceConfigured: true, fetchedAt: new Date().toISOString(), items });
+  } catch (error: any) {
+    return res.status(502).json({ ok: false, sourceConfigured: true, fetchedAt: new Date().toISOString(), items: [], error: error?.message || 'Live news provider unavailable.' });
+  }
 });
 
 // AI Trading Coach endpoints (both routes supported)
-app.post("/api/gemini/trading-coach", handleTradingCoach);
-app.post("/api/gemini/coach", handleTradingCoach);
+app.post("/api/gemini/trading-coach", requireUserSession, handleTradingCoach);
+app.post("/api/gemini/coach", requireUserSession, handleTradingCoach);
 
 // Screenshot Analyzer endpoint
-app.post("/api/gemini/analyze-screenshot", async (req, res) => {
+app.post("/api/gemini/analyze-screenshot", requireUserSession, async (req, res) => {
   try {
     const { imageBase64, mimeType = "image/png", tradeData, stage } = req.body;
     const ai = getGeminiClient();
@@ -456,21 +577,18 @@ function getAuthToken(req: express.Request): string {
     .map((part) => part.trim())
     .find((part) => part.startsWith('primepipfx_session='));
   if (sessionCookie) return decodeURIComponent(sessionCookie.slice('primepipfx_session='.length));
-  const queryToken = (req.query?.token as string) || '';
-  if (queryToken) return queryToken;
-  if (req.url) {
-    try {
-      return new URL(req.url, 'http://localhost').searchParams.get('token') || '';
-    } catch {
-      return '';
-    }
-  }
   return '';
 }
 
 // Route: Login
 app.post('/api/auth/login', async (req, res) => {
   const { username, password, rememberMe = true } = req.body || {};
+  const loginKey = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim() + ':' + String(username || '').trim().toLowerCase();
+  const now = Date.now();
+  const loginBucket = loginFailureBuckets.get(loginKey);
+  if (loginBucket && now - loginBucket.windowStart < LOGIN_WINDOW_MS && loginBucket.count >= LOGIN_MAX_FAILURES) {
+    return res.status(429).json({ ok: false, error: 'Too many failed login attempts. Please wait 15 minutes before trying again.' });
+  }
   await syncLegacyStudentsToServer(true);
   if (!username || !password) {
     return res.status(400).json({ ok: false, error: 'Username and password are required' });
@@ -478,8 +596,15 @@ app.post('/api/auth/login', async (req, res) => {
 
   const result = loginUser(username, password, rememberMe);
   if (!result) {
+    const bucket = loginFailureBuckets.get(loginKey);
+    if (!bucket || now - bucket.windowStart >= LOGIN_WINDOW_MS) {
+      loginFailureBuckets.set(loginKey, { windowStart: now, count: 1 });
+    } else {
+      bucket.count += 1;
+    }
     return res.status(401).json({ ok: false, error: 'Invalid username or password' });
   }
+  loginFailureBuckets.delete(loginKey);
 
   // Set secure HttpOnly cookie with 1-year persistence if rememberMe
   const maxAge = rememberMe ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
@@ -674,6 +799,19 @@ app.get('/api/referral/check/:code', (req, res) => {
 });
 
 // Admin Middleware: Developer / Admin check
+function requireUserSession(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const token = getAuthToken(req);
+  if (!token) {
+    return res.status(401).json({ ok: false, error: '401 UNAUTHORIZED: Authentication token required' });
+  }
+  const user = getUserByToken(token);
+  if (!user) {
+    return res.status(401).json({ ok: false, error: '401 UNAUTHORIZED: Invalid or expired session' });
+  }
+  (req as any).currentUser = user;
+  next();
+}
+
 function requireDeveloper(req: express.Request, res: express.Response, next: express.NextFunction) {
   const token = getAuthToken(req);
   if (!token) {
@@ -898,27 +1036,25 @@ app.get('/api/user/warnings', (req, res) => {
 });
 
 // Route: Customer Data isolation endpoints
-app.get('/api/customer/data', (req, res) => {
-  const token = getAuthToken(req);
-  if (!token) return res.status(401).json({ error: 'Auth required' });
-  const user = getUserByToken(token);
-  if (!user) return res.status(401).json({ error: 'Invalid user' });
-
+app.get('/api/customer/data', requireUserSession, (req, res) => {
+  const user = (req as any).currentUser;
   const data = getCustomerData(user.id);
   return res.json({ ok: true, data });
 });
 
-app.post('/api/customer/data', (req, res) => {
-  const token = getAuthToken(req);
-  if (!token) return res.status(401).json({ error: 'Auth required' });
-  const user = getUserByToken(token);
-  if (!user) return res.status(401).json({ error: 'Invalid user' });
-
+app.post('/api/customer/data', requireUserSession, (req, res) => {
+  const user = (req as any).currentUser;
   if (!user.isDeveloper && user.role !== 'ADMIN' && user.subscriptionStatus !== 'ACTIVE' && user.subscriptionStatus !== 'LIFETIME') {
     return res.status(403).json({ error: 'Active subscription required to save data' });
   }
 
-  const success = saveCustomerData(user.id, req.body?.data || {});
+  const validation = validateCustomerDataPayload(req.body?.data || {}, user);
+  if (!validation.ok) {
+    const failure = validation as { ok: false; status: number; error: string };
+    return res.status(failure.status).json({ ok: false, error: failure.error });
+  }
+
+  const success = saveCustomerData(user.id, validation.data);
   return res.json({ ok: success });
 });
 
@@ -1376,16 +1512,14 @@ app.patch('/api/user/presence-privacy', (req, res) => {
 // ----------------------------------------------------
 // COMMUNITY CHAT API ENDPOINTS
 // ----------------------------------------------------
-app.get('/api/community/messages', async (req, res) => {
+app.get('/api/community/messages', requireUserSession, async (req, res) => {
   try {
     await syncLegacyStudentsToServer();
-    const token = getAuthToken(req);
-    if (token) {
-      const user = getUserByToken(token);
-      if (user) {
-        recordUserHeartbeat(user.id);
-      }
+    const user = (req as any).currentUser;
+    if (!isActiveCommunityMember(user)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for the community.' });
     }
+    recordUserHeartbeat(user.id);
 
     if (isSupabaseCommunityEnabled) {
       const messages = await readCommunityMessagesSupabase();
@@ -1555,20 +1689,16 @@ app.get('/api/friends/list', async (req, res) => {
 });
 
 // Get all registered traders with live presence status
-app.get('/api/friends/all-traders', async (req, res) => {
+app.get('/api/friends/all-traders', requireUserSession, async (req, res) => {
   try {
     await syncLegacyStudentsToServer();
-    const token = getAuthToken(req);
-    let currentUserId: string | undefined = undefined;
-    if (token) {
-      const currentUser = getUserByToken(token);
-      if (currentUser) {
-        recordUserHeartbeat(currentUser.id);
-        currentUserId = currentUser.id;
-      }
+    const currentUser = (req as any).currentUser;
+    if (!isActiveCommunityMember(currentUser)) {
+      return res.status(403).json({ ok: false, error: 'An active subscription is required for trader discovery.' });
     }
+    recordUserHeartbeat(currentUser.id);
 
-    const traders = getAllRegisteredTraders(currentUserId);
+    const traders = getAllRegisteredTraders(currentUser.id);
     return res.json({ ok: true, traders });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
@@ -1919,25 +2049,29 @@ app.post('/api/appointments/config', requireDeveloper, (req, res) => {
   }
 });
 
-app.get('/api/appointments', (req, res) => {
+app.get('/api/appointments', requireUserSession, (req, res) => {
   try {
-    const appointments = readAppointments();
+    const user = (req as any).currentUser;
+    const isAdmin = user.role === 'ADMIN' || user.role === 'DEVELOPER' || user.isDeveloper;
+    const appointments = isAdmin ? readAppointments() : readAppointments().filter((a) => a.userId === user.id);
     return res.json({ ok: true, appointments });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
 });
 
-app.post('/api/appointments', (req, res) => {
+app.post('/api/appointments', requireUserSession, (req, res) => {
   try {
-    const apt = createAppointment(req.body);
+    const user = (req as any).currentUser;
+    if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Active subscription required.' });
+    const apt = createAppointment({ ...req.body, userId: user.id, customerUsername: user.username, customerName: user.name });
     return res.json({ ok: true, appointment: apt });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
 });
 
-app.put('/api/appointments/:id', (req, res) => {
+app.put('/api/appointments/:id', requireDeveloper, (req, res) => {
   try {
     const updated = updateAppointmentStatus(req.params.id, req.body?.status || req.body);
     return res.json({ ok: true, appointment: updated });
@@ -1958,7 +2092,7 @@ app.get('/api/evolution/status', (req, res) => {
   }
 });
 
-app.post('/api/evolution/cycle', (req, res) => {
+app.post('/api/evolution/cycle', requireDeveloper, (req, res) => {
   try {
     const result = runEvolutionCycle(req.body?.triggerContext);
     return res.json(result);
@@ -2024,7 +2158,7 @@ app.get('/api/evolution/roadmap', (req, res) => {
   }
 });
 
-app.post('/api/evolution/rollback', (req, res) => {
+app.post('/api/evolution/rollback', requireDeveloper, (req, res) => {
   try {
     const { featureId, reason, author } = req.body || {};
     if (!featureId) {
@@ -2037,7 +2171,7 @@ app.post('/api/evolution/rollback', (req, res) => {
   }
 });
 
-app.post('/api/evolution/events/rollback', (req, res) => {
+app.post('/api/evolution/events/rollback', requireDeveloper, (req, res) => {
   try {
     const { eventId, reason, author } = req.body || {};
     if (!eventId) {
@@ -2050,12 +2184,13 @@ app.post('/api/evolution/events/rollback', (req, res) => {
   }
 });
 
-app.post('/api/evolution/telemetry', (req, res) => {
+app.post('/api/evolution/telemetry', requireUserSession, (req, res) => {
   try {
-    const { userId, signalType, workflow, context, durationMs } = req.body || {};
+    const user = (req as any).currentUser;
+    const { signalType, workflow, context, durationMs } = req.body || {};
     if (signalType && workflow) {
       recordTelemetrySignal({
-        userId: userId || 'trader_default',
+        userId: user.id,
         signalType,
         workflow,
         context,
@@ -2069,9 +2204,10 @@ app.post('/api/evolution/telemetry', (req, res) => {
   }
 });
 
-app.post('/api/evolution/feedback', (req, res) => {
+app.post('/api/evolution/feedback', requireUserSession, (req, res) => {
   try {
-    submitUserFeedback(req.body);
+    const user = (req as any).currentUser;
+    submitUserFeedback({ ...req.body, userId: user.id });
     return res.json({
       ok: true,
       message: 'Feedback queued into the Autonomous Evolution Engine pipeline.',
@@ -2081,9 +2217,12 @@ app.post('/api/evolution/feedback', (req, res) => {
   }
 });
 
-app.get('/api/evolution/profile', (req, res) => {
+app.get('/api/evolution/profile', requireUserSession, (req, res) => {
   try {
-    const userId = (req.query.userId as string) || 'default';
+    const user = (req as any).currentUser;
+    const requestedUserId = (req.query.userId as string) || user.id;
+    const isAdmin = user.role === 'ADMIN' || user.role === 'DEVELOPER' || user.isDeveloper;
+    const userId = isAdmin ? requestedUserId : user.id;
     const profile = getTraderProfile(userId);
     return res.json(profile);
   } catch (err: any) {
@@ -2091,10 +2230,13 @@ app.get('/api/evolution/profile', (req, res) => {
   }
 });
 
-app.put('/api/evolution/profile', (req, res) => {
+app.put('/api/evolution/profile', requireUserSession, (req, res) => {
   try {
-    const { userId, ...data } = req.body || {};
-    const result = saveTraderProfile(userId || 'default', data);
+    const user = (req as any).currentUser;
+    const { userId: requestedUserId, ...data } = req.body || {};
+    const isAdmin = user.role === 'ADMIN' || user.role === 'DEVELOPER' || user.isDeveloper;
+    const userId = isAdmin && requestedUserId ? requestedUserId : user.id;
+    const result = saveTraderProfile(userId, data);
     return res.json(result);
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
@@ -2106,20 +2248,14 @@ app.put('/api/evolution/profile', (req, res) => {
 // ----------------------------------------------------
 import { getNotificationsForUser, markNotificationsRead } from "./server/notificationsService.js";
 
-app.get("/api/notifications", (req, res) => {
-  const token = getAuthToken(req);
-  if (!token) return res.status(401).json({ ok: false, error: "Unauthorized" });
-  const user = getUserByToken(token);
-  if (!user) return res.status(401).json({ ok: false, error: "Invalid user" });
+app.get("/api/notifications", requireUserSession, (req, res) => {
+  const user = (req as any).currentUser;
   const notifs = getNotificationsForUser(user.id);
   res.json({ ok: true, notifications: notifs });
 });
 
-app.post("/api/notifications/read", (req, res) => {
-  const token = getAuthToken(req);
-  if (!token) return res.status(401).json({ ok: false, error: "Unauthorized" });
-  const user = getUserByToken(token);
-  if (!user) return res.status(401).json({ ok: false, error: "Invalid user" });
+app.post("/api/notifications/read", requireUserSession, (req, res) => {
+  const user = (req as any).currentUser;
   const { notifIds } = req.body || {};
   markNotificationsRead(user.id, notifIds);
   res.json({ ok: true });

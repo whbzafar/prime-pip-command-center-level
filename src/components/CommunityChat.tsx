@@ -182,6 +182,26 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     if (!currentUser) return;
     let socket: WebSocket | null = null;
     let heartbeat: number | null = null;
+    let presencePoll: number | null = null;
+
+    const refreshPresence = async () => {
+      try {
+        const token = getStoredToken();
+        const res = await fetch('/api/friends/all-traders', communityRequest({
+          cache: 'no-store',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }));
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data.traders)) setAllTraders(data.traders);
+      } catch {
+        // Keep the last known presence state.
+      }
+    };
+
+    refreshPresence();
+    presencePoll = window.setInterval(refreshPresence, 30000);
+
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       socket = new WebSocket(`${protocol}//${window.location.host}/api/presence`);
@@ -193,23 +213,23 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data?.type === 'presence:update' && Array.isArray(data.traders) && data.traders.length > 0) {
+          if (data?.type === 'presence:update' && Array.isArray(data.traders)) {
             setAllTraders(data.traders);
           }
         } catch {}
       };
       socket.onerror = () => {
-        // Fall back to polling silently
+        // HTTP polling remains active for serverless deployments.
       };
     } catch {
-      // WebSocket not available in serverless
+      // HTTP polling remains active when WebSocket is unavailable.
     }
     return () => {
       if (heartbeat) window.clearInterval(heartbeat);
+      if (presencePoll) window.clearInterval(presencePoll);
       if (socket) socket.close();
     };
   }, [currentUser?.id]);
-
   const updatePresencePrivacy = async (nextValue: boolean) => {
     setShowActiveStatus(nextValue);
     setIsSavingPrivacy(true);

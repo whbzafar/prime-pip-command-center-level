@@ -59,7 +59,7 @@ import {
   SessionResultLog,
   HabitProgressState,
 } from './psychology/psychologyData';
-import { CategoriesDashboard } from './psychology/CategoriesDashboard';
+import { PsychologyProfessionalDashboard } from './psychology/PsychologyProfessionalDashboard';
 import { CategoryDetailView } from './psychology/CategoryDetailView';
 import { CalmingToolsHub } from './psychology/CalmingToolsHub';
 import { HabitsGamificationDashboard } from './psychology/HabitsGamificationDashboard';
@@ -731,7 +731,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
           {/* SECTION: 17 DEDICATED PSYCHOLOGY CATEGORIES */}
           {/* ========================================================================= */}
           {activeSection === 'CATEGORIES' && (
-            <CategoriesDashboard
+            <PsychologyProfessionalDashboard
               onSelectCategory={(category) => setSelectedCategory(category)}
               onLaunchSessionDirect={(category, session) =>
                 setActiveSessionToRun({ category, session })

@@ -60,7 +60,7 @@ import {
 } from './utils/db';
 import { Loader2, Shield, AlertTriangle, X } from 'lucide-react';
 import { playDisciplineAlert } from './utils/audioAlerts';
-import { getKarachiDate, getKarachiTime } from './utils/time';
+import { getKarachiDate, getKarachiTime, normalizeTradeDateToPakistan } from './utils/time';
 import { AppearanceControls } from './components/AppearanceControls';
 import { AppFooter } from './components/AppFooter';
 import { AllCategoriesModal } from './components/AllCategoriesModal';
@@ -420,8 +420,8 @@ export default function App() {
     const isRiskExceeded = tradeRisk > 1.001;
 
     // Risk Management Rule: Maximum 2 trades per day (Non-blocking warning)
-    const tradeDate = newTrade.date || getKarachiDate();
-    const existingDayTrades = trades.filter((t) => t.date === tradeDate);
+    const tradeDate = normalizeTradeDateToPakistan(newTrade.date || getKarachiDate());
+    const existingDayTrades = trades.filter((t) => normalizeTradeDateToPakistan(t.date) === tradeDate);
     const isDailyLimitExceeded = existingDayTrades.length >= 2;
 
     // Trigger visual advisory toast and audio alert without blocking the user
@@ -457,7 +457,7 @@ export default function App() {
 
     // Check Discipline Alerts & Trigger Web Audio Synthesizer
     const todayDate = getKarachiDate();
-    const todayTrades = nextTrades.filter((t) => t.date === todayDate);
+    const todayTrades = nextTrades.filter((t) => normalizeTradeDateToPakistan(t.date) === todayDate);
     const tradesTodayCount = todayTrades.length;
     const todayPnL = todayTrades.reduce(
       (acc, t) => acc + (typeof t.profitLoss === 'number' ? t.profitLoss : 0),
