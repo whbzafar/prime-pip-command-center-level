@@ -108,6 +108,9 @@ const MAX_REQUEST_BODY_BYTES = 5 * 1024 * 1024;
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX_REQUESTS = 120;
 const requestRateBuckets = new Map<string, { windowStart: number; count: number }>();
+const loginFailureBuckets = new Map<string, { windowStart: number; count: number }>();
+const LOGIN_WINDOW_MS = 15 * 60_000;
+const LOGIN_MAX_FAILURES = 8;
 
 app.use((req, res, next) => {
   const forwarded = req.headers['x-forwarded-for'];
@@ -539,6 +542,12 @@ function getAuthToken(req: express.Request): string {
 // Route: Login
 app.post('/api/auth/login', async (req, res) => {
   const { username, password, rememberMe = true } = req.body || {};
+  const loginKey = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim() + ':' + String(username || '').trim().toLowerCase();
+  const now = Date.now();
+  const loginBucket = loginFailureBuckets.get(loginKey);
+  if (loginBucket && now - loginBucket.windowStart < LOGIN_WINDOW_MS && loginBucket.count >= LOGIN_MAX_FAILURES) {
+    return res.status(429).json({ ok: false, error: 'Too many failed login attempts. Please wait 15 minutes before trying again.' });
+  }
   await syncLegacyStudentsToServer(true);
   if (!username || !password) {
     return res.status(400).json({ ok: false, error: 'Username and password are required' });
@@ -546,8 +555,15 @@ app.post('/api/auth/login', async (req, res) => {
 
   const result = loginUser(username, password, rememberMe);
   if (!result) {
+    const bucket = loginFailureBuckets.get(loginKey);
+    if (!bucket || now - bucket.windowStart >= LOGIN_WINDOW_MS) {
+      loginFailureBuckets.set(loginKey, { windowStart: now, count: 1 });
+    } else {
+      bucket.count += 1;
+    }
     return res.status(401).json({ ok: false, error: 'Invalid username or password' });
   }
+  loginFailureBuckets.delete(loginKey);
 
   // Set secure HttpOnly cookie with 1-year persistence if rememberMe
   const maxAge = rememberMe ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
