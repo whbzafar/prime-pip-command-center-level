@@ -372,7 +372,7 @@ export async function respondToSupabaseFriendRequest(params: {
     if (!friendUserId) return { success: false, error: "Friend user ID is required." };
     const userIds = [params.actingUserId, friendUserId].sort();
     await supabaseRequest(
-      `friendships?user_id_1.eq.${encodeURIComponent(userIds[0])}&user_id_2.eq.${encodeURIComponent(userIds[1])}`,
+      `friendships?user_id_1=eq.${encodeURIComponent(userIds[0])}&user_id_2=eq.${encodeURIComponent(userIds[1])}`,
       { method: "DELETE", headers: { Prefer: "return=minimal" } }
     );
     return { success: true };
@@ -410,28 +410,65 @@ export async function respondToSupabaseFriendRequest(params: {
 
 export async function markPrivateMessagesReadSupabase(receiverId: string, senderId: string) {
   const rows = await supabaseRequest(
-    `private_messages?sender_id.eq.${encodeURIComponent(senderId)}&receiver_id.eq.${encodeURIComponent(receiverId)}&select=id`
+    `private_messages?sender_id=eq.${encodeURIComponent(senderId)}&receiver_id=eq.${encodeURIComponent(receiverId)}&select=id`
   );
   const ids = (Array.isArray(rows) ? rows : []).map((row: any) => String(row.id));
   if (!ids.length) return 0;
-  await supabaseRequest("private_message_receipts?on_conflict=message_id,user_id", {
-    method: "POST",
-    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify(ids.map((messageId: string) => ({
-      message_id: messageId,
-      user_id: receiverId,
-      read_at: new Date().toISOString(),
-    }))),
-  });
+
+  const existingRows = await supabaseRequest(
+    `private_message_receipts?user_id=eq.${encodeURIComponent(receiverId)}&message_id=in.(${ids.join(",")})&select=message_id`
+  );
+  const existingIds = new Set((Array.isArray(existingRows) ? existingRows : []).map((row: any) => String(row.message_id)));
+  const now = new Date().toISOString();
+
+  if (existingIds.size) {
+    await supabaseRequest(
+      `private_message_receipts?user_id=eq.${encodeURIComponent(receiverId)}&message_id=in.(${Array.from(existingIds).join(",")})`,
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ read_at: now, updated_at: now }),
+      }
+    );
+  }
+
+  const missingIds = ids.filter((id: string) => !existingIds.has(id));
+  if (missingIds.length) {
+    await supabaseRequest("private_message_receipts", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify(missingIds.map((messageId: string) => ({
+        message_id: messageId,
+        user_id: receiverId,
+        read_at: now,
+      }))),
+    });
+  }
+
   return ids.length;
 }
 
 export async function markPrivateMessageListenedSupabase(messageId: string, userId: string) {
-  await supabaseRequest("private_message_receipts?on_conflict=message_id,user_id", {
-    method: "POST",
-    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify({ message_id: messageId, user_id: userId, read_at: new Date().toISOString(), listened_at: new Date().toISOString() }),
-  });
+  const existingRows = await supabaseRequest(
+    `private_message_receipts?message_id=eq.${encodeURIComponent(messageId)}&user_id=eq.${encodeURIComponent(userId)}&select=message_id&limit=1`
+  );
+  const now = new Date().toISOString();
+  if (Array.isArray(existingRows) && existingRows.length) {
+    await supabaseRequest(
+      `private_message_receipts?message_id=eq.${encodeURIComponent(messageId)}&user_id=eq.${encodeURIComponent(userId)}`,
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ read_at: now, listened_at: now, updated_at: now }),
+      }
+    );
+  } else {
+    await supabaseRequest("private_message_receipts", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ message_id: messageId, user_id: userId, read_at: now, listened_at: now }),
+    });
+  }
   return true;
 }
 
@@ -475,7 +512,8 @@ export async function readPrivateMessagesSupabase(userId1: string, userId2: stri
   const receiptMap = new Map<string, any>();
   for (const receipt of Array.isArray(receiptRows) ? receiptRows : []) receiptMap.set(String(receipt.message_id) + ":" + String(receipt.user_id), receipt);
   return messages.map((message: any) => {
-    const receipt = receiptMap.get(String(message.id) + ":" + String(userId2)) || receiptMap.get(String(message.id) + ":" + String(userId1));
+    const viewerId = message.receiverId === userId1 ? userId1 : userId2;
+    const receipt = receiptMap.get(String(message.id) + ":" + String(viewerId));
     return {
       ...message,
       read: Boolean(receipt?.read_at),
