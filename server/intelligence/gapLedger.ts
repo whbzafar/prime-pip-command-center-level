@@ -37,7 +37,9 @@ export function recordGap(rawText: string): void {
   // Anonymize text
   const clean = rawText
     .replace(/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/g, '[REDACTED_EMAIL]')
-    .replace(/\b\d{7,}\b/g, '[REDACTED_NUM]')
+    .replace(/(?:https?:\/\/|www\.)\S+/gi, '[REDACTED_LINK]')
+    .replace(/\+?\d[\d\s().-]{7,}\d/g, '[REDACTED_PHONE]')
+    .replace(/\b\d{7,}\b/g, '[REDACTED_NUMBER]')
     .slice(0, 150);
 
   let assignedCluster = 'UNCLASSIFIED_INTENT';

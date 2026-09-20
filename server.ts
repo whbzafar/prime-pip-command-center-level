@@ -82,6 +82,16 @@ import { getClusters } from "./server/intelligence/gapLedger.js";
 import { syncLegacyStudentsToServer } from "./server/legacyStudentSync.js";
 import { getFundamentalStrengthDashboard } from "./server/fundamentalStrengthService.js";
 import {
+  isSupabaseAuthEnabled,
+  authenticatePrimePipfx,
+  refreshSupabaseSession,
+  getUserFromSupabaseAccessToken,
+  provisionBootstrapAdmin,
+  provisionPrimePipfxUser,
+  syncPrimePipfxUser,
+  updatePrimePipfxPassword,
+} from "./server/supabaseAuthService.js";
+import {
   isSupabaseCommunityEnabled,
   upsertTraderProfile,
   syncTraderProfiles,
@@ -95,6 +105,15 @@ dotenv.config();
 
 // Initialize permanent developer account on server boot
 initAuthStore();
+if (isSupabaseAuthEnabled) {
+  const bootstrapPassword = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD || 'PPFX@Admin#2026').trim();
+  const bootstrapUsername = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_USERNAME || 'primepipfx-admin').trim().toLowerCase();
+  if (bootstrapPassword && bootstrapPassword.length >= 12) {
+    void provisionBootstrapAdmin(bootstrapUsername, bootstrapPassword).catch((error) => {
+      console.warn('[AUTH] Supabase bootstrap provisioning failed:', error?.message || error);
+    });
+  }
+}
 
 // Safe directory reference for CJS/ESM
 const currentAppDir = process.cwd();
@@ -144,6 +163,47 @@ function registerPresenceSocket(socket: WebSocket, userId: string) {
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
+
+const supabaseAuthCache = new Map<string, { userId: string; expiresAt: number }>();
+
+app.use(async (req, res, next) => {
+  if (!isSupabaseAuthEnabled) return next();
+  const accessToken = req.cookies?.primepipfx_session;
+  if (!accessToken) return next();
+
+  let user = await getUserFromSupabaseAccessToken(accessToken);
+  if (user) {
+    const { cacheAuthenticatedUser } = await import('./server/authService.js');
+    cacheAuthenticatedUser(accessToken, user);
+    supabaseAuthCache.set(accessToken, { userId: user.id, expiresAt: Date.now() + 55 * 60 * 1000 });
+    return next();
+  }
+
+  const refreshToken = req.cookies?.primepipfx_refresh;
+  if (refreshToken) {
+    try {
+      const refreshed = await refreshSupabaseSession(refreshToken);
+      if (refreshed?.access_token) {
+        user = await getUserFromSupabaseAccessToken(refreshed.access_token);
+        if (user) {
+          const { cacheAuthenticatedUser } = await import('./server/authService.js');
+          cacheAuthenticatedUser(refreshed.access_token, user);
+          res.cookie('primepipfx_session', refreshed.access_token, {
+            httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+            sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000, path: '/',
+          });
+          res.cookie('primepipfx_refresh', refreshed.refresh_token, {
+            httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+            sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000, path: '/',
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('[AUTH] Supabase session refresh failed:', error instanceof Error ? error.message : error);
+    }
+  }
+  next();
+});
 
 // Lazy Gemini client helper
 let geminiClient: GoogleGenAI | null = null;
@@ -456,15 +516,6 @@ function getAuthToken(req: express.Request): string {
     .map((part) => part.trim())
     .find((part) => part.startsWith('primepipfx_session='));
   if (sessionCookie) return decodeURIComponent(sessionCookie.slice('primepipfx_session='.length));
-  const queryToken = (req.query?.token as string) || '';
-  if (queryToken) return queryToken;
-  if (req.url) {
-    try {
-      return new URL(req.url, 'http://localhost').searchParams.get('token') || '';
-    } catch {
-      return '';
-    }
-  }
   return '';
 }
 
@@ -476,26 +527,55 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(400).json({ ok: false, error: 'Username and password are required' });
   }
 
-  const result = loginUser(username, password, rememberMe);
-  if (!result) {
+  const localResult = loginUser(username, password, rememberMe);
+
+  if (isSupabaseAuthEnabled) {
+    try {
+      const durable = await authenticatePrimePipfx(username, password, localResult?.user || null);
+      if (!durable) {
+        const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
+        res.cookie('primepipfx_session', localResult!.token, {
+          httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+          sameSite: 'lax', maxAge, path: '/',
+        });
+        return res.json({ ok: true, user: sanitizeUser(localResult!.user), authMode: 'legacy-compatibility' });
+      }
+      const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
+      res.cookie('primepipfx_session', durable.accessToken, {
+        httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+        sameSite: 'lax', maxAge, path: '/',
+      });
+      res.cookie('primepipfx_refresh', durable.refreshToken, {
+        httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+        sameSite: 'lax', maxAge, path: '/',
+      });
+      const { cacheAuthenticatedUser } = await import('./server/authService.js');
+      cacheAuthenticatedUser(durable.accessToken, durable.user, Math.min(durable.expiresIn * 1000 - 30_000, 55 * 60 * 1000));
+      return res.json({ ok: true, user: sanitizeUser(durable.user) });
+    } catch (error) {
+      console.error('[AUTH] Supabase login failed:', error instanceof Error ? error.message : error);
+      if (localResult) {
+        const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
+        res.cookie('primepipfx_session', localResult.token, {
+          httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+          sameSite: 'lax', maxAge, path: '/',
+        });
+        return res.json({ ok: true, user: sanitizeUser(localResult.user), authMode: 'legacy-compatibility' });
+      }
+      return res.status(503).json({ ok: false, error: 'Authentication service is temporarily unavailable.' });
+    }
+  }
+
+  if (!localResult) {
     return res.status(401).json({ ok: false, error: 'Invalid username or password' });
   }
 
-  // Set secure HttpOnly cookie with 1-year persistence if rememberMe
-  const maxAge = rememberMe ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
-  res.cookie('primepipfx_session', result.token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge,
-    path: '/',
+  const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
+  res.cookie('primepipfx_session', localResult.token, {
+    httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+    sameSite: 'lax', maxAge, path: '/',
   });
-
-  return res.json({
-    ok: true,
-    token: result.token,
-    user: sanitizeUser(result.user),
-  });
+  return res.json({ ok: true, user: sanitizeUser(localResult.user) });
 });
 
 app.get('/api/research/openalex', async (req, res) => {
@@ -600,11 +680,12 @@ app.post('/api/auth/logout', (req, res) => {
     logoutToken(token);
   }
   res.clearCookie('primepipfx_session', { path: '/' });
+  res.clearCookie('primepipfx_refresh', { path: '/' });
   return res.json({ ok: true });
 });
 
 // Route: Change Password
-app.post('/api/auth/change-password', (req, res) => {
+app.post('/api/auth/change-password', async (req, res) => {
   const token = getAuthToken(req);
   if (!token) {
     return res.status(401).json({ ok: false, error: 'No token provided' });
@@ -620,18 +701,34 @@ app.post('/api/auth/change-password', (req, res) => {
   }
 
   const result = changeDeveloperPassword(user.id, newPassword);
+  if (result.ok && isSupabaseAuthEnabled && result.user) {
+    try { await updatePrimePipfxPassword(result.user, newPassword); } catch (error) {
+      console.error('[AUTH] Supabase password rotation failed:', error);
+      return res.status(503).json({ ok: false, error: 'Password service is temporarily unavailable. Your current password remains active.' });
+    }
+  }
   if (!result.ok) {
     return res.status(400).json({ ok: false, error: result.error || 'Failed to change password' });
   }
 
-  // Update session cookie with fresh persistent token so the session continues uninterrupted
-  if (result.token) {
+  if (!isSupabaseAuthEnabled && result.token) {
     res.cookie('primepipfx_session', result.token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
       sameSite: 'lax',
-      maxAge: 365 * 24 * 60 * 60 * 1000,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
       path: '/',
+    });
+  } else if (isSupabaseAuthEnabled && result.user) {
+    const durable = await authenticatePrimePipfx(result.user.username, newPassword, result.user);
+    if (!durable) return res.status(503).json({ ok: false, error: 'Unable to renew the authenticated session.' });
+    res.cookie('primepipfx_session', durable.accessToken, {
+      httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+      sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000, path: '/',
+    });
+    res.cookie('primepipfx_refresh', durable.refreshToken, {
+      httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+      sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000, path: '/',
     });
   }
 
@@ -698,10 +795,13 @@ app.get('/api/admin/customers', requireDeveloper, (req, res) => {
 });
 
 // Route: Create customer (Developer/Admin only)
-app.post('/api/admin/customers', requireDeveloper, (req, res) => {
+app.post('/api/admin/customers', requireDeveloper, async (req, res) => {
   const result = createCustomer(req.body);
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
+  }
+  if (isSupabaseAuthEnabled && result.user && result.generatedPassword) {
+    void provisionPrimePipfxUser(result.user, result.generatedPassword).catch((error) => console.warn('[AUTH] Customer provisioning failed:', error?.message || error));
   }
   return res.json({
     ok: true,
@@ -711,10 +811,18 @@ app.post('/api/admin/customers', requireDeveloper, (req, res) => {
 });
 
 // Alias for create customer
-app.post('/api/admin/create-customer', requireDeveloper, (req, res) => {
+app.post('/api/admin/create-customer', requireDeveloper, async (req, res) => {
   const result = createCustomer(req.body);
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
+  }
+  if (isSupabaseAuthEnabled && result.user && result.generatedPassword) {
+    try {
+      await provisionPrimePipfxUser(result.user, result.generatedPassword);
+    } catch (error) {
+      console.error('[AUTH] Customer provisioning failed:', error);
+      return res.status(503).json({ ok: false, error: 'Student account was created locally, but durable authentication provisioning failed.' });
+    }
   }
   return res.json({
     ok: true,
@@ -724,11 +832,22 @@ app.post('/api/admin/create-customer', requireDeveloper, (req, res) => {
 });
 
 // Route: Update customer (Developer/Admin only)
-app.put('/api/admin/customers/:id', requireDeveloper, (req, res) => {
+app.put('/api/admin/customers/:id', requireDeveloper, async (req, res) => {
   const id = req.params.id;
   const result = updateCustomer(id, req.body);
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
+  }
+  if (isSupabaseAuthEnabled && result.user) {
+    try {
+      if (typeof req.body?.password === 'string' && req.body.password.trim()) {
+        await updatePrimePipfxPassword(result.user, req.body.password.trim());
+      }
+      await syncPrimePipfxUser(result.user);
+    } catch (error) {
+      console.error('[AUTH] Customer update auth sync failed:', error);
+      return res.status(503).json({ ok: false, error: 'Student profile was updated, but durable authentication could not be synchronized.' });
+    }
   }
   return res.json({
     ok: true,
@@ -737,11 +856,20 @@ app.put('/api/admin/customers/:id', requireDeveloper, (req, res) => {
 });
 
 // Route: Reset customer password (Developer/Admin only)
-app.post('/api/admin/customers/:id/reset-password', requireDeveloper, (req, res) => {
+app.post('/api/admin/customers/:id/reset-password', requireDeveloper, async (req, res) => {
   const id = req.params.id;
   const result = resetCustomerPassword(id, req.body?.password);
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
+  }
+  if (isSupabaseAuthEnabled && result.password) {
+    const updatedUser = getAllCustomers().find((customer) => customer.id === id);
+    if (updatedUser) {
+      try { await updatePrimePipfxPassword(updatedUser, result.password); } catch (error) {
+        console.error('[AUTH] Supabase reset-password sync failed:', error);
+        return res.status(503).json({ ok: false, error: 'Password service is temporarily unavailable.' });
+      }
+    }
   }
   return res.json({
     ok: true,
@@ -750,7 +878,7 @@ app.post('/api/admin/customers/:id/reset-password', requireDeveloper, (req, res)
 });
 
 // Alias for reset customer password
-app.post('/api/admin/reset-password', requireDeveloper, (req, res) => {
+app.post('/api/admin/reset-password', requireDeveloper, async (req, res) => {
   const id = req.body?.userId || req.body?.customerId || req.body?.id;
   if (!id) {
     return res.status(400).json({ ok: false, error: 'User ID is required' });
@@ -758,6 +886,15 @@ app.post('/api/admin/reset-password', requireDeveloper, (req, res) => {
   const result = resetCustomerPassword(id, req.body?.password);
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
+  }
+  if (isSupabaseAuthEnabled && result.password) {
+    const updatedUser = getAllCustomers().find((customer) => customer.id === id);
+    if (updatedUser) {
+      try { await updatePrimePipfxPassword(updatedUser, result.password); } catch (error) {
+        console.error('[AUTH] Supabase reset-password sync failed:', error);
+        return res.status(503).json({ ok: false, error: 'Password service is temporarily unavailable.' });
+      }
+    }
   }
   return res.json({
     ok: true,
@@ -780,6 +917,7 @@ app.post('/api/admin/subscription', requireDeveloper, (req, res) => {
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
   }
+  if (isSupabaseAuthEnabled && result.user) void syncPrimePipfxUser(result.user).catch((error) => console.warn('[AUTH] Profile sync failed:', error?.message || error));
   return res.json({ ok: true, user: sanitizeUser(result.user!) });
 });
 
@@ -797,6 +935,7 @@ app.put('/api/admin/subscription', requireDeveloper, (req, res) => {
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
   }
+  if (isSupabaseAuthEnabled && result.user) void syncPrimePipfxUser(result.user).catch((error) => console.warn('[AUTH] Profile sync failed:', error?.message || error));
   return res.json({ ok: true, user: sanitizeUser(result.user!) });
 });
 
@@ -834,6 +973,7 @@ app.put('/api/admin/payments', requireDeveloper, (req, res) => {
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
   }
+  if (isSupabaseAuthEnabled && result.user) void syncPrimePipfxUser(result.user).catch((error) => console.warn('[AUTH] Profile sync failed:', error?.message || error));
   return res.json({ ok: true, user: sanitizeUser(result.user!) });
 });
 

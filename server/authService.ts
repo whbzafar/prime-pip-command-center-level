@@ -69,6 +69,20 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const REFERRALS_FILE = path.join(DATA_DIR, 'referrals.json');
 
+// Durable Supabase Auth sessions are hydrated into this short-lived request cache.
+// The cache is never the source of truth; it only lets the existing synchronous
+// authorization helpers consume the user resolved by the async request middleware.
+const authenticatedUserCache = new Map<string, { user: StoredUser; expiresAt: number }>();
+
+export function cacheAuthenticatedUser(token: string, user: StoredUser, ttlMs = 55 * 60 * 1000) {
+  if (!token || !user) return;
+  authenticatedUserCache.set(token, { user, expiresAt: Date.now() + ttlMs });
+}
+
+export function clearAuthenticatedUser(token: string) {
+  if (token) authenticatedUserCache.delete(token);
+}
+
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -111,75 +125,59 @@ function writeReferrals(referrals: ReferralRecord[]) {
   safeWriteJsonFile('referrals.json', referrals);
 }
 
-// Initialize default developer account if not present
+// Bootstrap the developer account only when an explicit deployment secret is configured.
 export function initAuthStore() {
   const users = readUsers();
+  const bootstrapPassword = process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD?.trim();
+  const bootstrapUsername = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_USERNAME || 'primepipfx-admin').trim().toLowerCase();
   const existingDev = users.find((u) => u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER');
-  
+
   if (!existingDev) {
-    const { hash, salt } = hashPassword('PPFX@Admin#2026');
-    const devUser: StoredUser = {
+    if (!bootstrapPassword || bootstrapPassword.length < 12) {
+      console.warn('[AUTH] Developer bootstrap skipped: PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD (12+ chars) is required.');
+      return;
+    }
+    const { hash, salt } = hashPassword(bootstrapPassword);
+    const now = new Date().toISOString();
+    users.push({
       id: 'dev-owner-master',
       name: 'PrimePipFX Developer / Owner',
-      username: 'primepipfx-admin',
+      username: bootstrapUsername,
       passwordHash: hash,
-      salt: salt,
+      salt,
       role: 'ADMIN',
       subscriptionStatus: 'LIFETIME',
       subscriptionPrice: 0,
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: now.split('T')[0],
       expiryDate: '2099-12-31',
       isLifetime: true,
       paymentStatus: 'VERIFIED',
       isDeveloper: true,
-      phone: '03406671495',
       referralCode: 'PPFX-MASTER',
       mustChangePassword: false,
-      adminNotes: 'Permanent Developer Master Account. Never expires. Full system privileges.',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    users.push(devUser);
+      adminNotes: 'Permanent Developer Master Account.',
+      createdAt: now,
+      updatedAt: now,
+    });
     writeUsers(users);
-    console.log('[AUTH] Seeded permanent Developer ADMIN account (username: primepipfx-admin)');
-  } else {
-    // Ensure the developer username is updated to primepipfx-admin and role is ADMIN
-    let changed = false;
-    if (existingDev.username !== 'primepipfx-admin') {
-      existingDev.username = 'primepipfx-admin';
-      changed = true;
-    }
-    if (existingDev.role !== 'ADMIN') {
-      existingDev.role = 'ADMIN';
-      changed = true;
-    }
-    if (existingDev.phone !== '03406671495') {
-      existingDev.phone = '03406671495';
-      changed = true;
-    }
-    if (existingDev.isDeveloper !== true) {
-      existingDev.isDeveloper = true;
-      changed = true;
-    }
+    return;
+  }
 
-    // Ensure all other users are strictly CUSTOMER
-    for (const u of users) {
-      if (u.id !== existingDev.id) {
-        if (u.role !== 'CUSTOMER') {
-          u.role = 'CUSTOMER';
-          changed = true;
-        }
-        if (u.isDeveloper) {
-          u.isDeveloper = false;
-          changed = true;
-        }
-      }
-    }
-
-    if (changed) {
-      writeUsers(users);
+  let changed = false;
+  if (bootstrapUsername && existingDev.username !== bootstrapUsername) {
+    existingDev.username = bootstrapUsername;
+    changed = true;
+  }
+  if (existingDev.role !== 'ADMIN') { existingDev.role = 'ADMIN'; changed = true; }
+  if (!existingDev.isDeveloper) { existingDev.isDeveloper = true; changed = true; }
+  if (existingDev.phone) { delete existingDev.phone; changed = true; }
+  for (const u of users) {
+    if (u.id !== existingDev.id) {
+      if (u.role !== 'CUSTOMER') { u.role = 'CUSTOMER'; changed = true; }
+      if (u.isDeveloper) { u.isDeveloper = false; changed = true; }
     }
   }
+  if (changed) writeUsers(users);
 }
 
 // Clean user object for client responses (no passwordHash or salt)
@@ -194,7 +192,7 @@ export function changeDeveloperPassword(userId: string, newPassword: string): { 
     return { ok: false, error: 'Password must be at least 6 characters long' };
   }
   const users = readUsers();
-  const dev = users.find((u) => (u.id === userId || u.username === userId || u.username === 'primepipfx-admin') && (u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER'));
+  const dev = users.find((u) => u.id === userId && (u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER'));
   if (!dev) {
     return { ok: false, error: 'Developer account not found' };
   }
@@ -205,19 +203,19 @@ export function changeDeveloperPassword(userId: string, newPassword: string): { 
   dev.updatedAt = new Date().toISOString();
   writeUsers(users);
 
-  // Generate a fresh persistent 1-year session so the Admin is never logged out
+  // Issue a bounded session after password rotation.
   const newToken = crypto.randomBytes(32).toString('hex');
   const sessions = readSessions().filter((s) => s.expiresAt > Date.now());
-  const oneYearMs = 365 * 24 * 60 * 60 * 1000;
+  const sessionTtlMs = 30 * 24 * 60 * 60 * 1000;
   sessions.push({
     token: newToken,
     userId: dev.id,
     createdAt: Date.now(),
-    expiresAt: Date.now() + oneYearMs,
+    expiresAt: Date.now() + sessionTtlMs,
   });
   writeSessions(sessions);
 
-  console.log('[AUTH] Developer password changed successfully and fresh persistent session issued');
+  console.log('[AUTH] Developer password changed successfully and bounded session issued');
   return { ok: true, token: newToken, user: dev };
 }
 
@@ -230,42 +228,11 @@ export function loginUser(
   const users = readUsers();
   const cleanInput = (usernameInput || '').trim().toLowerCase();
 
-  const user = users.find((u) => {
-    const uName = (u.username || '').toLowerCase();
-    const phone = (u.phone || '').replace(/[^0-9]/g, '');
-    const inputPhone = cleanInput.replace(/[^0-9]/g, '');
-    
-    // Developer can log in via "primepipfx-admin", "developer", "admin" or phone number "03406671495"
-    if (u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER') {
-      if (
-        cleanInput === 'primepipfx-admin' ||
-        cleanInput === 'developer' ||
-        cleanInput === 'admin' ||
-        (inputPhone && inputPhone === '03406671495')
-      ) {
-        return true;
-      }
-    }
-    return uName === cleanInput;
-  });
+  const user = users.find((u) => (u.username || '').toLowerCase() === cleanInput);
 
   if (!user) return null;
 
-  // Check password - support stored hash verification OR temporary default password for developer
-  let isPasswordValid = verifyPassword(passwordInput, user.passwordHash, user.salt);
-  
-  if (!isPasswordValid && (user.isDeveloper || user.role === 'ADMIN' || user.role === 'DEVELOPER')) {
-    // If developer logged in with temporary password PPFX@Admin#2026
-    if (passwordInput === 'PPFX@Admin#2026') {
-      isPasswordValid = true;
-      user.mustChangePassword = false;
-      // Update hash to PPFX@Admin#2026 so subsequent logins match
-      const { hash, salt } = hashPassword('PPFX@Admin#2026');
-      user.passwordHash = hash;
-      user.salt = salt;
-      writeUsers(users);
-    }
-  }
+  const isPasswordValid = verifyPassword(passwordInput, user.passwordHash, user.salt);
 
   if (!isPasswordValid) {
     return null;
@@ -274,7 +241,7 @@ export function loginUser(
   // Create session token with persistent 1-year TTL if rememberMe, otherwise 30 days
   const token = crypto.randomBytes(32).toString('hex');
   const sessions = readSessions().filter((s) => s.expiresAt > Date.now());
-  const ttlMs = rememberMe ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+  const ttlMs = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
   
   sessions.push({
     token,
@@ -290,6 +257,11 @@ export function loginUser(
 // Get user by token
 export function getUserByToken(token: string): StoredUser | null {
   if (!token) return null;
+  const cached = authenticatedUserCache.get(token);
+  if (cached) {
+    if (cached.expiresAt > Date.now()) return cached.user;
+    authenticatedUserCache.delete(token);
+  }
   const sessions = readSessions();
   const session = sessions.find((s) => s.token === token && s.expiresAt > Date.now());
   if (!session) return null;
