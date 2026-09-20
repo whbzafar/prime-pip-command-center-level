@@ -3,7 +3,7 @@
     "id": "dev-owner-master",
     "name": "PrimePipFX Developer / Owner",
     "username": "primepipfx-admin",
-    "passwordHash": "c0c3e904f0e50167435fda53975951845cb05715312e881df3e7656f0eb6b4a9f30d3fb1f1bddf92e06e533ee56c8443fa0f9606a5089a939176bbc58bb7fbcd",
+    "passwordHash": "717469530d8cf5cbbdff0f73955fdf43404af27240101ae139af0a989b4133895b4453d844ef28fc3683a415b850ce10358b43fb60bf534a2781853fcc32ebdc",
     "salt": "dd81fca96ec8a8febba44ab3cbfcf7e4",
     "role": "ADMIN",
     "subscriptionStatus": "LIFETIME",
@@ -16,7 +16,7 @@
     "referralCode": "PPFX-MASTER",
     "adminNotes": "Permanent Developer Master Account.",
     "createdAt": "2026-09-10T08:58:20.711Z",
-    "updatedAt": "2026-09-20T09:05:03.220Z",
+    "updatedAt": "2026-09-20T12:17:04.389Z",
     "mustChangePassword": false
   }
 ]
