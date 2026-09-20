@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Crosshair, Gauge, Radio, ShieldCheck, Sparkles, TrendingUp } from 'lucide-react';
+import { Crosshair, Gauge, Radio, ShieldCheck, Sparkles, TrendingUp } from 'lucide-react';
 
 type Props = {
   account: any;
