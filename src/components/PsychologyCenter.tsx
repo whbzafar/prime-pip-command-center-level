@@ -59,7 +59,6 @@ import {
   SessionResultLog,
   HabitProgressState,
 } from './psychology/psychologyData';
-import { CategoriesDashboard } from './psychology/CategoriesDashboard';
 import { PsychologyProfessionalDashboard } from './psychology/PsychologyProfessionalDashboard';
 import { CategoryDetailView } from './psychology/CategoryDetailView';
 import { CalmingToolsHub } from './psychology/CalmingToolsHub';
