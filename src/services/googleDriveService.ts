@@ -136,7 +136,12 @@ class GoogleDriveService {
         scope: SCOPES,
         callback: (tokenResponse: any) => {
           if (tokenResponse.error) {
-            console.error('Google OAuth token error:', tokenResponse.error);
+            if (tokenResponse.error === 'popup_closed_by_user' || tokenResponse.error === 'access_denied') {
+              console.info('Google Identity Services OAuth window closed by user.');
+              this.notifyStatus(this.getStatus());
+              return;
+            }
+            console.warn('Google OAuth token error:', tokenResponse.error);
             this.notifyStatus({ state: 'ERROR', lastError: tokenResponse.error });
             return;
           }
@@ -289,8 +294,17 @@ class GoogleDriveService {
         // Ensure folder hierarchy is prepared in user's Drive
         this.ensureFolderStructure(fbResult.accessToken).catch(() => {});
         return true;
+      } else if (fbResult === null) {
+        // User deliberately closed or cancelled the popup window
+        this.notifyStatus(this.getStatus());
+        return false;
       }
     } catch (fbErr: any) {
+      const code = fbErr?.code || '';
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        this.notifyStatus(this.getStatus());
+        return false;
+      }
       console.warn('Firebase Google Auth popup skipped or unavailable, falling back to GIS tokenClient:', fbErr?.message || fbErr);
     }
 
