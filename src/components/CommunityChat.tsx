@@ -35,17 +35,6 @@ interface DriveAttachmentMeta {
   categoryFolder?: string;
 }
 
-export interface TradeSetupPayload {
-  pair: string;
-  type: 'BUY' | 'SELL';
-  entry: string;
-  stopLoss: string;
-  takeProfit: string;
-  riskReward?: string;
-  timeframe?: string;
-  status?: 'ACTIVE' | 'TARGET_HIT' | 'STOPPED' | 'CLOSED';
-}
-
 interface ChatMessage {
   id: string;
   userId: string;
@@ -70,9 +59,7 @@ interface ChatMessage {
   attachmentUrl?: string;
   attachmentName?: string;
   attachmentSize?: number;
-  category?: 'SIGNAL' | 'ANALYSIS' | 'GENERAL' | 'POLL';
   reactions?: Record<string, number>;
-  tradeSetup?: TradeSetupPayload;
 }
 
 interface CommunityChatProps {
@@ -128,17 +115,6 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [showTraderFeed, setShowTraderFeed] = useState(true);
-
-  // New Live Feed Filter & Setup Builder State
-  const [feedFilter, setFeedFilter] = useState<'ALL' | 'SIGNALS' | 'ANALYSIS' | 'MEDIA'>('ALL');
-  const [feedSearch, setFeedSearch] = useState('');
-  const [isSetupComposerOpen, setIsSetupComposerOpen] = useState(false);
-  const [setupPair, setSetupPair] = useState('XAUUSD');
-  const [setupType, setSetupType] = useState<'BUY' | 'SELL'>('BUY');
-  const [setupEntry, setSetupEntry] = useState('');
-  const [setupSL, setSetupSL] = useState('');
-  const [setupTP, setSetupTP] = useState('');
-  const [setupTF, setSetupTF] = useState('M15');
 
   // Google Drive File Picker Integration State
   const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
@@ -211,8 +187,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     // localStorage bearer token can belong to a previous Vercel instance and
     // cause otherwise valid Community requests to return "Invalid user".
     const headers = new Headers(init.headers || {});
-    headers.delete('Authorization');
-    return {
+        return {
       ...init,
       credentials: 'include',
       headers,
@@ -398,7 +373,6 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
               map.set(m.id, {
                 ...m,
                 reactions: existing.reactions || m.reactions,
-                tradeSetup: m.tradeSetup || existing.tradeSetup,
               });
             } else {
               map.set(m.id, m);
@@ -603,26 +577,12 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       }
     }
 
-    const tradeSetupData: TradeSetupPayload | undefined =
-      isSetupComposerOpen && setupEntry.trim()
-        ? {
-            pair: setupPair,
-            type: setupType,
-            entry: setupEntry.trim(),
-            stopLoss: setupSL.trim() || 'N/A',
-            takeProfit: setupTP.trim() || 'N/A',
-            timeframe: setupTF,
-            status: 'ACTIVE',
-            riskReward: setupSL && setupTP ? '1:2.5' : undefined,
-          }
-        : undefined;
-
     const payload = {
       userId: currentUser.id,
       username: currentUser.username,
       userRole: isDev ? 'ADMIN' : 'CUSTOMER',
       displayName: isDev ? 'PrimePipFX Developer / Owner' : currentUser.name || currentUser.username,
-      text: inputText.trim() || (tradeSetupData ? `${tradeSetupData.type} ${tradeSetupData.pair} @ ${tradeSetupData.entry}` : ''),
+      text: inputText.trim(),
       photoBase64: selectedPhoto || undefined,
       audioBase64: voiceMeta.audioAttachmentId ? undefined : audioBase64 || undefined,
       audioAttachmentId: voiceMeta.audioAttachmentId,
@@ -633,8 +593,6 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       driveFile: selectedDriveFile || undefined,
       fileBase64: selectedLocalFile?.base64 || undefined,
       attachmentName: selectedLocalFile?.name || undefined,
-      category: tradeSetupData ? 'SIGNAL' : 'GENERAL',
-      tradeSetup: tradeSetupData,
       timePkt: getKarachiTime(),
       datePkt: getKarachiDate(),
     };
@@ -645,7 +603,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       username: currentUser.username,
       userRole: isDev ? 'ADMIN' : 'CUSTOMER',
       displayName: isDev ? 'PrimePipFX Developer / Owner' : currentUser.name || currentUser.username,
-      text: inputText.trim() || (tradeSetupData ? `${tradeSetupData.type} ${tradeSetupData.pair} @ ${tradeSetupData.entry}` : ''),
+      text: inputText.trim(),
       photoBase64: selectedPhoto || undefined,
       audioBase64: voiceMeta.audioAttachmentId ? undefined : audioBase64 || undefined,
       audioAttachmentId: voiceMeta.audioAttachmentId,
@@ -654,8 +612,6 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       audioSize: voiceMeta.audioSize,
       audioUrl: voiceMeta.audioUrl,
       driveFile: selectedDriveFile || undefined,
-      category: tradeSetupData ? 'SIGNAL' : 'GENERAL',
-      tradeSetup: tradeSetupData,
       reactions: { '🔥': 1 },
       timestamp: Date.now(),
       timePkt: getKarachiTime(),
@@ -684,10 +640,6 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     setAudioBase64(null);
     setAudioDuration(0);
     setSendError(null);
-    setIsSetupComposerOpen(false);
-    setSetupEntry('');
-    setSetupSL('');
-    setSetupTP('');
 
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -1034,80 +986,6 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
               )}
             </section>
           )}
-          {/* Live Feed Filter Navigation & Search Bar */}
-          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-2 flex flex-wrap items-center justify-between gap-2 shrink-0">
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-              <button
-                type="button"
-                onClick={() => setFeedFilter('ALL')}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono-code font-bold transition cursor-pointer flex items-center gap-1 shrink-0 ${
-                  feedFilter === 'ALL'
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                    : 'bg-slate-900/90 text-slate-400 border border-slate-800 hover:text-slate-200'
-                }`}
-              >
-                <span>ALL DISPATCHES</span>
-                <span className="px-1 py-0.2 rounded bg-slate-950 text-[9px] text-cyan-400">{messages.length}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFeedFilter('SIGNALS')}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono-code font-bold transition cursor-pointer flex items-center gap-1 shrink-0 ${
-                  feedFilter === 'SIGNALS'
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                    : 'bg-slate-900/90 text-slate-400 border border-slate-800 hover:text-slate-200'
-                }`}
-              >
-                <Target className="w-3 h-3 text-emerald-400" />
-                <span>SIGNALS & SETUPS</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFeedFilter('ANALYSIS')}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono-code font-bold transition cursor-pointer flex items-center gap-1 shrink-0 ${
-                  feedFilter === 'ANALYSIS'
-                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm'
-                    : 'bg-slate-900/90 text-slate-400 border border-slate-800 hover:text-slate-200'
-                }`}
-              >
-                <BarChart2 className="w-3 h-3 text-purple-400" />
-                <span>MARKET ANALYSIS</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFeedFilter('MEDIA')}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono-code font-bold transition cursor-pointer flex items-center gap-1 shrink-0 ${
-                  feedFilter === 'MEDIA'
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                    : 'bg-slate-900/90 text-slate-400 border border-slate-800 hover:text-slate-200'
-                }`}
-              >
-                <Radio className="w-3 h-3 text-amber-400" />
-                <span>MEDIA & VOICE</span>
-              </button>
-            </div>
-
-            <div className="relative flex-1 sm:max-w-[220px] min-w-[140px]">
-              <Search className="w-3 h-3 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={feedSearch}
-                onChange={(e) => setFeedSearch(e.target.value)}
-                placeholder="Filter XAUUSD, EURUSD, trader…"
-                className="w-full pl-7 pr-6 py-1 bg-slate-900 border border-slate-800 rounded-lg text-[11px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 font-mono-code"
-              />
-              {feedSearch && (
-                <button
-                  type="button"
-                  onClick={() => setFeedSearch('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          </div>
-
           {(isOffline || (feedError && messages.length === 0)) && (
             <div className="p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-xl text-cyan-200 text-xs font-mono-code text-center">
               {isOffline ? <><WifiOff className="inline w-3.5 h-3.5 mr-1" /> You're offline — messages will not send.</> : `FEED NOTICE — ${feedError || 'Connection lost. Showing last known messages.'}`}
@@ -1141,32 +1019,9 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
               </div>
             ) : (
               <AnimatePresence initial={false}>
-                {messages
-                  .filter((m) => {
-                    if (feedFilter === 'SIGNALS') {
-                      const isSignal = m.tradeSetup || m.category === 'SIGNAL' || /(buy|sell|tp|sl|target|entry|pips)/i.test(m.text || '');
-                      if (!isSignal) return false;
-                    } else if (feedFilter === 'ANALYSIS') {
-                      const isAnalysis = m.category === 'ANALYSIS' || /(fvg|liquidity|breaker|sweep|structure|market|orderblock|candle)/i.test(m.text || '');
-                      if (!isAnalysis) return false;
-                    } else if (feedFilter === 'MEDIA') {
-                      const isMedia = Boolean(m.photoUrl || m.photoBase64 || m.audioUrl || m.audioBase64 || m.driveFile || m.attachmentUrl);
-                      if (!isMedia) return false;
-                    }
-
-                    if (feedSearch.trim()) {
-                      const q = feedSearch.toLowerCase();
-                      const matchText = m.text?.toLowerCase().includes(q);
-                      const matchAuthor = m.displayName?.toLowerCase().includes(q) || m.username?.toLowerCase().includes(q);
-                      const matchPair = m.tradeSetup?.pair?.toLowerCase().includes(q);
-                      if (!matchText && !matchAuthor && !matchPair) return false;
-                    }
-                    return true;
-                  })
-                  .map((m) => {
+                {messages.map((m) => {
                     const isOwner = m.userRole === 'ADMIN';
                     const isMe = currentUser && m.userId === currentUser.id;
-                    const setup = m.tradeSetup;
                     return (
                       <motion.div
                         key={m.id}
@@ -1180,17 +1035,6 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                           <span className={`font-bold ${isOwner ? 'text-cyan-400' : 'text-slate-300'}`}>{m.displayName}</span>
                           {isOwner && (
                             <span className="px-1.5 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-amber-300 text-[9px] font-bold">ADMIN</span>
-                          )}
-                          {m.category && (
-                            <span className={`px-1.5 py-0.2 rounded text-[8px] font-mono-code border ${
-                              m.category === 'SIGNAL'
-                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                                : m.category === 'ANALYSIS'
-                                ? 'bg-purple-500/15 border-purple-500/40 text-purple-300'
-                                : 'bg-slate-800 border-slate-700 text-slate-400'
-                            }`}>
-                              {m.category}
-                            </span>
                           )}
                           <span className="text-slate-500 text-[10px] flex items-center gap-1">
                             <Clock className="w-2.5 h-2.5" /> {m.timePkt} PKT
@@ -1216,60 +1060,6 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                               : 'bg-slate-950 border-slate-700 text-slate-200 rounded-tl-none'
                           }`}
                         >
-                          {/* Institutional Trade Setup Card */}
-                          {setup && (
-                            <div className={`p-2.5 rounded-xl border font-mono-code space-y-2 ${
-                              setup.type === 'BUY'
-                                ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
-                                : 'bg-rose-950/30 border-rose-500/40 text-rose-200'
-                            }`}>
-                              <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5">
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-2 py-0.5 rounded font-bold text-xs flex items-center gap-1 ${
-                                    setup.type === 'BUY' ? 'bg-emerald-500 text-slate-950' : 'bg-rose-500 text-slate-950'
-                                  }`}>
-                                    {setup.type === 'BUY' ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                                    {setup.type}
-                                  </span>
-                                  <span className="font-military font-bold text-sm text-slate-100 tracking-wide">
-                                    {setup.pair}
-                                  </span>
-                                  {setup.timeframe && (
-                                    <span className="px-1.5 py-0.5 rounded bg-slate-900 text-[10px] text-slate-400 border border-slate-800">
-                                      {setup.timeframe}
-                                    </span>
-                                  )}
-                                </div>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                                  setup.status === 'TARGET_HIT'
-                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse'
-                                }`}>
-                                  {setup.status === 'TARGET_HIT' ? '🎯 TP HIT' : '● ACTIVE'}
-                                </span>
-                              </div>
-
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                                <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800">
-                                  <div className="text-[9px] text-slate-500 font-bold">ENTRY</div>
-                                  <div className="text-slate-200 font-bold">{setup.entry}</div>
-                                </div>
-                                <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800">
-                                  <div className="text-[9px] text-rose-400 font-bold">STOP LOSS</div>
-                                  <div className="text-rose-300 font-bold">{setup.stopLoss}</div>
-                                </div>
-                                <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800">
-                                  <div className="text-[9px] text-emerald-400 font-bold">TAKE PROFIT</div>
-                                  <div className="text-emerald-300 font-bold">{setup.takeProfit}</div>
-                                </div>
-                                <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800">
-                                  <div className="text-[9px] text-cyan-400 font-bold">RISK:REWARD</div>
-                                  <div className="text-cyan-300 font-bold">{setup.riskReward || '1:2.5'}</div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
                           {m.text && (
                             <p className="whitespace-pre-wrap break-words">
                               {m.text.split(/(@\w+)/g).map((part, i) => {
@@ -1415,101 +1205,6 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
             </div>
           )}
 
-          {/* Quick Institutional Trade Setup Drawer */}
-          {isSetupComposerOpen && (
-            <div className="bg-slate-950 border border-cyan-500/40 rounded-xl p-3 shadow-lg space-y-2.5 animate-fadeIn">
-              <div className="flex items-center justify-between text-xs font-military font-bold text-cyan-300">
-                <span className="flex items-center gap-1.5">
-                  <Target className="w-3.5 h-3.5 text-cyan-400" />
-                  POST INSTITUTIONAL TRADE SETUP
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsSetupComposerOpen(false)}
-                  className="text-slate-500 hover:text-slate-300 cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono-code">
-                <div>
-                  <label className="text-[9px] text-slate-500 font-bold block mb-1">PAIR / ASSET</label>
-                  <select
-                    value={setupPair}
-                    onChange={(e) => setSetupPair(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500"
-                  >
-                    <option value="XAUUSD">XAUUSD (Gold)</option>
-                    <option value="EURUSD">EURUSD</option>
-                    <option value="GBPJPY">GBPJPY</option>
-                    <option value="BTCUSD">BTCUSD</option>
-                    <option value="US30">US30 (Dow)</option>
-                    <option value="NAS100">NAS100</option>
-                    <option value="AUDUSD">AUDUSD</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[9px] text-slate-500 font-bold block mb-1">ORDER TYPE</label>
-                  <div className="flex rounded-lg overflow-hidden border border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => setSetupType('BUY')}
-                      className={`flex-1 py-1.5 text-[10px] font-bold cursor-pointer ${
-                        setupType === 'BUY' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900 text-slate-400'
-                      }`}
-                    >
-                      BUY
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSetupType('SELL')}
-                      className={`flex-1 py-1.5 text-[10px] font-bold cursor-pointer ${
-                        setupType === 'SELL' ? 'bg-rose-500 text-slate-950' : 'bg-slate-900 text-slate-400'
-                      }`}
-                    >
-                      SELL
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[9px] text-slate-500 font-bold block mb-1">ENTRY PRICE</label>
-                  <input
-                    type="text"
-                    value={setupEntry}
-                    onChange={(e) => setSetupEntry(e.target.value)}
-                    placeholder="e.g. 2642.50"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[9px] text-rose-400 font-bold block mb-1">STOP LOSS (SL)</label>
-                  <input
-                    type="text"
-                    value={setupSL}
-                    onChange={(e) => setSetupSL(e.target.value)}
-                    placeholder="e.g. 2635.80"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-slate-100 focus:outline-none focus:border-rose-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[9px] text-emerald-400 font-bold block mb-1">TAKE PROFIT (TP)</label>
-                  <input
-                    type="text"
-                    value={setupTP}
-                    onChange={(e) => setSetupTP(e.target.value)}
-                    placeholder="e.g. 2662.00"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Chat Composer / Dispatch Bar */}
           {!currentUser ? (
             <div className="bg-slate-950 border border-cyan-500/30 rounded-xl p-3 flex items-center justify-between gap-3 shadow-md shrink-0">
@@ -1532,20 +1227,6 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
               <input ref={driveFileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
               <input type="file" accept="image/*" className="hidden" id="cc-photo-input" onChange={handlePhotoSelect} />
               
-              <button
-                type="button"
-                onClick={() => setIsSetupComposerOpen(!isSetupComposerOpen)}
-                className={`px-2.5 py-2.5 rounded-xl border text-xs font-mono-code font-bold cursor-pointer transition flex items-center gap-1 shrink-0 ${
-                  isSetupComposerOpen
-                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm'
-                    : 'bg-slate-950 border-slate-700 text-cyan-400 hover:bg-slate-900'
-                }`}
-                title="Post Institutional Trade Setup"
-              >
-                <Target className="w-4 h-4" />
-                <span className="hidden sm:inline">SETUP</span>
-              </button>
-
               <button type="button" onClick={() => document.getElementById('cc-photo-input')?.click()} className="p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-400 hover:text-cyan-400 cursor-pointer" title="Photo">
                 <ImageIcon className="w-4 h-4" />
               </button>
@@ -1578,13 +1259,13 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder={isSetupComposerOpen ? 'Add thesis or commentary to setup…' : 'Message the community or discuss market structure…'}
+                placeholder="Message the community…"
                 className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 font-mono-code"
                 disabled={isSending}
               />
               <button
                 type="submit"
-                disabled={isOffline || isSending || (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedLocalFile && !selectedDriveFile && (!isSetupComposerOpen || !setupEntry.trim()))}
+                disabled={isOffline || isSending || (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedLocalFile && !selectedDriveFile)}
                 className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-amber-600 hover:from-blue-400 hover:to-amber-500 text-slate-950 font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 transition"
               >
                 {isSending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
