@@ -103,6 +103,20 @@ import {
   getCommunityTradersSupabase,
   readPrivateMessagesSupabase,
   postPrivateMessageSupabase,
+  isUserBlocked,
+  setUserBlock,
+  createAppNotification,
+  readAppNotifications,
+  markAppNotificationsRead,
+  getNotificationSettings,
+  updateNotificationSettings,
+  createChatGroup,
+  listChatGroups,
+  listChatGroupMembers,
+  isGroupMember,
+  addChatGroupMember,
+  readGroupMessages,
+  postGroupMessage,
   createCallSupabase,
   addCallSignalSupabase,
   getCallSupabase,
@@ -1811,6 +1825,9 @@ app.post('/api/friends/request', async (req, res) => {
     if (!result.success) {
       return res.status(400).json({ ok: false, error: result.error });
     }
+    if (isSupabaseCommunityEnabled) {
+      try { await createAppNotification({ userId: targetUserId, type: 'FRIEND_REQUEST', title: 'New friend request', body: '@' + user.username + ' wants to connect with you.', data: { senderId: user.id } }); } catch {}
+    }
     return res.json({ ok: true, record: result.record });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
@@ -1842,7 +1859,7 @@ app.post('/api/friends/respond', (req, res) => {
 // ----------------------------------------------------
 // PRIVATE CHAT API ENDPOINTS
 // ----------------------------------------------------
-app.get('/api/messages/private/:otherUserId', (req, res) => {
+app.get('/api/messages/private/:otherUserId', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
@@ -1884,7 +1901,7 @@ app.post('/api/messages/private/read', (req, res) => {
   }
 });
 
-app.post('/api/messages/private', (req, res) => {
+app.post('/api/messages/private', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
@@ -1920,9 +1937,15 @@ app.post('/api/messages/private', (req, res) => {
     if (!receiverId || !receiverUsername) {
       return res.status(400).json({ ok: false, error: 'Receiver required' });
     }
+    if (isSupabaseCommunityEnabled && await isUserBlocked(user.id, receiverId)) {
+      return res.status(403).json({ ok: false, error: 'Messaging is unavailable because one of you has blocked the other.' });
+    }
     const friendship = getUserFriends(user.id).friends.some((friend) => friend.friendId === receiverId);
     if (!friendship) {
       return res.status(403).json({ ok: false, error: 'Private messaging is available only between accepted friends.' });
+    }
+    if (isSupabaseCommunityEnabled && await isUserBlocked(user.id, receiverId)) {
+      return res.status(403).json({ ok: false, error: 'Messaging is unavailable because one of you has blocked the other.' });
     }
 
     if (text) {
@@ -1938,15 +1961,19 @@ app.post('/api/messages/private', (req, res) => {
       }
     }
 
-    let msgType: 'TEXT' | 'VOICE' | 'IMAGE' = 'TEXT';
+    let msgType: 'TEXT' | 'VOICE' | 'IMAGE' | 'FILE' = 'TEXT';
     if (audioAttachmentId || audioBase64) msgType = 'VOICE';
     else if (photoBase64) msgType = 'IMAGE';
+    else if (fileBase64) msgType = 'FILE';
 
     const messageText = text || (msgType === 'VOICE' ? '🎙 Voice message' : msgType === 'IMAGE' ? 'Photo message' : 'File attachment');
     if (isSupabaseCommunityEnabled) {
       let attachmentPath = audioUrl || (audioAttachmentId ? '/api/media/voice/' + audioAttachmentId : undefined);
       if (photoBase64 && !attachmentPath) attachmentPath = saveImageAttachmentFile(photoBase64);
       if (fileBase64 && !attachmentPath && attachmentName) attachmentPath = saveFileAttachmentFile(fileBase64, attachmentName).url;
+      await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: user.role });
+      const receiverProfile = getAllRegisteredTraders(user.id).find((trader) => trader.id === receiverId);
+      if (receiverProfile) await upsertTraderProfile({ id: receiverProfile.id, username: receiverProfile.username, displayName: receiverProfile.displayName, role: receiverProfile.role || 'CUSTOMER' });
       const durable = await postPrivateMessageSupabase({
         senderId: user.id,
         receiverId,
@@ -1957,6 +1984,11 @@ app.post('/api/messages/private', (req, res) => {
         attachmentMimeType: audioMimeType || attachmentMimeType,
         attachmentSize: audioSize || attachmentSize,
       });
+      try {
+        await createAppNotification({ userId: receiverId, type: 'MESSAGE', title: 'New message from @' + user.username, body: messageText.slice(0, 180), data: { senderId: user.id, senderUsername: user.username, conversationWith: user.id } });
+      } catch (notificationError) {
+        console.warn('[NOTIFICATIONS] private message notification failed:', notificationError?.message || notificationError);
+      }
       return res.json({ ok: true, message: durable, backend: 'supabase' });
     }
 
@@ -1985,6 +2017,149 @@ app.post('/api/messages/private', (req, res) => {
 });
 
 // ----------------------------------------------------
+// BLOCKS, NOTIFICATIONS & GROUP CHAT API ENDPOINTS
+// ----------------------------------------------------
+app.get('/api/notifications', async (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isSupabaseCommunityEnabled) return res.json({ ok: true, notifications: [], settings: { muted: false, sound_enabled: true }, backend: 'local-fallback' });
+    await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: user.role });
+    const [notifications, settings] = await Promise.all([readAppNotifications(user.id), getNotificationSettings(user.id)]);
+    return res.json({ ok: true, notifications, settings, backend: 'supabase' });
+  } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message || 'Notification service failed.' }); }
+});
+
+app.post('/api/notifications/read', async (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (isSupabaseCommunityEnabled) await markAppNotificationsRead(user.id, Array.isArray(req.body?.ids) ? req.body.ids : undefined);
+    return res.json({ ok: true });
+  } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
+});
+
+app.patch('/api/notifications/settings', async (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    const muted = Boolean(req.body?.muted);
+    const soundEnabled = req.body?.soundEnabled !== false;
+    if (!isSupabaseCommunityEnabled) return res.json({ ok: true, settings: { muted, sound_enabled: soundEnabled } });
+    await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: user.role });
+    const settings = await updateNotificationSettings(user.id, muted, soundEnabled);
+    return res.json({ ok: true, settings });
+  } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
+});
+
+app.post('/api/users/block', async (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    const targetUserId = String(req.body?.userId || '');
+    if (!targetUserId || targetUserId === user.id) return res.status(400).json({ ok: false, error: 'A different user is required.' });
+    if (!isSupabaseCommunityEnabled) return res.status(503).json({ ok: false, error: 'Blocking requires the durable Supabase community backend.' });
+    const blocked = req.body?.blocked !== false;
+    await setUserBlock(user.id, targetUserId, blocked);
+    return res.json({ ok: true, blocked });
+  } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
+});
+
+app.get('/api/users/block/:userId', async (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isSupabaseCommunityEnabled) return res.json({ ok: true, blocked: false });
+    return res.json({ ok: true, blocked: await isUserBlocked(user.id, req.params.userId) });
+  } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
+});
+
+app.get('/api/groups', async (req, res) => {
+  try {
+    const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isSupabaseCommunityEnabled) return res.json({ ok: true, groups: [] });
+    return res.json({ ok: true, groups: await listChatGroups(user.id) });
+  } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
+});
+
+app.post('/api/groups', async (req, res) => {
+  try {
+    const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isSupabaseCommunityEnabled) return res.status(503).json({ ok: false, error: 'Groups require the durable Supabase community backend.' });
+    const name = String(req.body?.name || '').trim();
+    const memberIds = Array.isArray(req.body?.memberIds) ? req.body.memberIds.map(String) : [];
+    if (!name) return res.status(400).json({ ok: false, error: 'Group name is required.' });
+    await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: user.role });
+    const eligible = getAllRegisteredTraders(user.id).filter((trader) => memberIds.includes(trader.id));
+    for (const member of eligible) await upsertTraderProfile({ id: member.id, username: member.username, displayName: member.displayName, role: member.role || 'CUSTOMER' });
+    const group = await createChatGroup(user.id, name, eligible.map((member) => member.id));
+    for (const member of eligible) { try { await createAppNotification({ userId: member.id, type: 'GROUP', title: 'Added to ' + name, body: '@' + user.username + ' added you to a group.', data: { groupId: group.id } }); } catch {} }
+    return res.json({ ok: true, group });
+  } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
+});
+
+app.get('/api/groups/:groupId/members', async (req, res) => {
+  try {
+    const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isSupabaseCommunityEnabled || !(await isGroupMember(req.params.groupId, user.id))) return res.status(403).json({ ok: false, error: 'You are not a member of this group.' });
+    return res.json({ ok: true, members: await listChatGroupMembers(req.params.groupId) });
+  } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
+});
+
+app.post('/api/groups/:groupId/members', async (req, res) => {
+  try {
+    const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isSupabaseCommunityEnabled) return res.status(503).json({ ok: false, error: 'Groups require the durable Supabase community backend.' });
+    const groupId = req.params.groupId; const members = await listChatGroupMembers(groupId); const me = members.find((member: any) => member.userId === user.id);
+    if (!me || !['OWNER','ADMIN'].includes(me.role)) return res.status(403).json({ ok: false, error: 'Only group admins can add members.' });
+    const target = getAllRegisteredTraders(user.id).find((trader) => trader.id === String(req.body?.userId || ''));
+    if (!target) return res.status(404).json({ ok: false, error: 'Trader not found.' });
+    await upsertTraderProfile({ id: target.id, username: target.username, displayName: target.displayName, role: target.role || 'CUSTOMER' });
+    await addChatGroupMember(groupId, target.id);
+    try { await createAppNotification({ userId: target.id, type: 'GROUP', title: 'Added to a group', body: '@' + user.username + ' added you to a group.', data: { groupId } }); } catch {}
+    return res.json({ ok: true });
+  } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
+});
+
+app.get('/api/groups/:groupId/messages', async (req, res) => {
+  try {
+    const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isSupabaseCommunityEnabled || !(await isGroupMember(req.params.groupId, user.id))) return res.status(403).json({ ok: false, error: 'You are not a member of this group.' });
+    return res.json({ ok: true, messages: await readGroupMessages(req.params.groupId) });
+  } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
+});
+
+app.post('/api/groups/:groupId/messages', async (req, res) => {
+  try {
+    const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    if (!isSupabaseCommunityEnabled || !(await isGroupMember(req.params.groupId, user.id))) return res.status(403).json({ ok: false, error: 'You are not a member of this group.' });
+    const text = String(req.body?.text || '').trim();
+    if (!text) return res.status(400).json({ ok: false, error: 'Message text is required.' });
+    const modCheck = moderateMessage(user.id, user.username, text);
+    if (!modCheck.passed) return res.status(400).json({ ok: false, error: 'Message rejected by community guidelines.' });
+    const message = await postGroupMessage({ groupId: req.params.groupId, senderId: user.id, text, messageType: 'TEXT' });
+    const members = await listChatGroupMembers(req.params.groupId);
+    for (const member of members) { if (member.userId !== user.id) { try { if (!(await isUserBlocked(user.id, member.userId))) await createAppNotification({ userId: member.userId, type: 'GROUP_MESSAGE', title: 'New group message', body: text.slice(0, 180), data: { groupId: req.params.groupId, senderId: user.id } }); } catch {} } }
+    return res.json({ ok: true, message });
+  } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
+});
+// ----------------------------------------------------
 // WEBRTC SIGNALING API ENDPOINTS
 // ----------------------------------------------------
 app.post('/api/webrtc/call', async (req, res) => {
@@ -1996,10 +2171,15 @@ app.post('/api/webrtc/call', async (req, res) => {
     if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'An active subscription is required for calls.' });
     const { receiverId, receiverUsername, offer, isScreenSharing, callType = 'video' } = req.body || {};
     if (!receiverId || !getUserFriends(user.id).friends.some((friend) => friend.friendId === receiverId)) return res.status(403).json({ ok: false, error: 'Calling is available only between accepted friends.' });
+    if (isSupabaseCommunityEnabled && await isUserBlocked(user.id, receiverId)) return res.status(403).json({ ok: false, error: 'Calling is unavailable because one of you has blocked the other.' });
     if (isSupabaseCommunityEnabled) {
       const callId = randomUUID();
       const type = callType === 'voice' ? 'voice' : isScreenSharing ? 'screenshare' : 'video';
+      await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: user.role });
+      const receiverProfile = getAllRegisteredTraders(user.id).find((trader) => trader.id === receiverId);
+      if (receiverProfile) await upsertTraderProfile({ id: receiverProfile.id, username: receiverProfile.username, displayName: receiverProfile.displayName, role: receiverProfile.role || 'CUSTOMER' });
       const session = await createCallSupabase({ callId, callerId: user.id, receiverId, type, offer });
+      try { await createAppNotification({ userId: receiverId, type: 'CALL', title: 'Incoming ' + type + ' call', body: '@' + user.username + ' is calling you.', data: { callId, callerId: user.id, callerUsername: user.username, callType: type } }); } catch {}
       return res.json({ ok: true, session, backend: 'supabase' });
     }
     const session = initiateWebRTCCall({ callerId: user.id, callerUsername: user.username, receiverId, receiverUsername, offer, isScreenSharing });
