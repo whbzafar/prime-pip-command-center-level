@@ -99,7 +99,11 @@ export const FreehandWorkspace: React.FC = () => {
   const [items, setItems] = useState<CanvasItem[]>(() => {
     try {
       const saved = localStorage.getItem('primepipfx_freehand_autosave');
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed?.items)) return parsed.items;
+      return [];
     } catch {
       return [];
     }
@@ -158,16 +162,28 @@ export const FreehandWorkspace: React.FC = () => {
     setRedoStack([]);
   }, [items]);
 
-  // Auto-save effect
+  // Reliable debounced auto-save. Writing on every pointer movement can
+  // freeze the canvas, especially while dragging selected objects.
   useEffect(() => {
-    try {
-      localStorage.setItem('primepipfx_freehand_autosave', JSON.stringify(items));
-      setAutoSavedNotice(true);
-      const timer = setTimeout(() => setAutoSavedNotice(false), 2000);
-      return () => clearTimeout(timer);
-    } catch (e) {
-      console.error('Auto-save failed:', e);
-    }
+    const timer = window.setTimeout(() => {
+      try {
+        localStorage.setItem(
+          'primepipfx_freehand_autosave',
+          JSON.stringify({
+            version: 2,
+            savedAt: Date.now(),
+            items,
+          })
+        );
+        setAutoSavedNotice(true);
+        const noticeTimer = window.setTimeout(() => setAutoSavedNotice(false), 1200);
+        return () => window.clearTimeout(noticeTimer);
+      } catch (e) {
+        console.error('Freehand auto-save failed:', e);
+      }
+    }, 300);
+
+    return () => window.clearTimeout(timer);
   }, [items]);
 
   // Undo / Redo
@@ -262,10 +278,31 @@ export const FreehandWorkspace: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-    return () => window.removeEventListener('resize', resizeCanvas);
-  }, [isFullscreen, resizeCanvas]);
+    let frame = 0;
+    const syncCanvasSize = () => {
+      resizeCanvas();
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => redrawAll());
+    };
+
+    syncCanvasSize();
+    window.addEventListener('resize', syncCanvasSize);
+
+    const observer =
+      typeof ResizeObserver !== 'undefined' && containerRef.current
+        ? new ResizeObserver(syncCanvasSize)
+        : null;
+
+    if (observer && containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', syncCanvasSize);
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+    };
+  }, [isFullscreen, resizeCanvas, redrawAll]);
 
   // Drawing rendering routines
   const drawGrid = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
@@ -1504,9 +1541,22 @@ export const FreehandWorkspace: React.FC = () => {
       >
         <canvas
           ref={canvasRef}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            handleMouseDown(e as unknown as React.MouseEvent<HTMLCanvasElement>);
+          }}
+          onPointerMove={(e) =>
+            handleMouseMove(e as unknown as React.MouseEvent<HTMLCanvasElement>)
+          }
+          onPointerUp={(e) => {
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+              e.currentTarget.releasePointerCapture(e.pointerId);
+            }
+            handleMouseUp();
+          }}
+          onPointerCancel={() => handleMouseUp()}
+          onMouseDown={(e) => e.preventDefault()}
+          onContextMenu={(e) => e.preventDefault()}
           onWheel={(e) => {
             if (e.ctrlKey || tool === 'PAN') {
               e.preventDefault();
@@ -1520,7 +1570,8 @@ export const FreehandWorkspace: React.FC = () => {
               }));
             }
           }}
-          className={`w-full h-full block ${
+          style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
+          className={`w-full h-full block select-none ${
             tool === 'PAN'
               ? isPanning
                 ? 'cursor-grabbing'
