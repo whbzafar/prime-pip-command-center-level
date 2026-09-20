@@ -186,6 +186,38 @@ export function sanitizeUser(user: StoredUser) {
   return safe;
 }
 
+// Change password for any authenticated account.
+// The caller is responsible for authenticating the current session first.
+export function changeAuthenticatedPassword(userId: string, newPassword: string): { ok: boolean; error?: string; token?: string; user?: StoredUser } {
+  if (!newPassword || newPassword.length < 8) {
+    return { ok: false, error: 'Password must be at least 8 characters long' };
+  }
+  const users = readUsers();
+  const index = users.findIndex((u) => u.id === userId);
+  if (index === -1) {
+    return { ok: false, error: 'User account not found' };
+  }
+  const user = users[index];
+  const { hash, salt } = hashPassword(newPassword);
+  user.passwordHash = hash;
+  user.salt = salt;
+  user.mustChangePassword = false;
+  user.updatedAt = new Date().toISOString();
+  users[index] = user;
+  writeUsers(users);
+
+  const newToken = crypto.randomBytes(32).toString('hex');
+  const sessions = readSessions().filter((s) => s.expiresAt > Date.now() && s.userId !== user.id);
+  sessions.push({
+    token: newToken,
+    userId: user.id,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+  });
+  writeSessions(sessions);
+  return { ok: true, token: newToken, user };
+}
+
 // Change Developer Password
 export function changeDeveloperPassword(userId: string, newPassword: string): { ok: boolean; error?: string; token?: string; user?: StoredUser } {
   if (!newPassword || newPassword.length < 6) {
