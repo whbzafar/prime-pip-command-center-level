@@ -44,6 +44,7 @@ import {
   getKarachiTime24,
   formatTo12Hour,
   getKarachiTimestamp,
+  normalizeTradeDateToPakistan,
   APP_TIMEZONE_LABEL,
   APP_TIMEZONE_FULL_LABEL,
 } from '../utils/time';
@@ -221,8 +222,8 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
     ? Number(((riskAmount / account.initialBalance) * 100).toFixed(2))
     : account.maxRiskPerTrade;
 
-  const tradeEntryDate = date || getKarachiDate();
-  const todayTradesCount = (existingTrades || []).filter((t) => t.date === tradeEntryDate).length;
+  const tradeEntryDate = normalizeTradeDateToPakistan(date || getKarachiDate());
+  const todayTradesCount = (existingTrades || []).filter((t) => normalizeTradeDateToPakistan(t.date) === tradeEntryDate).length;
   const isRiskExceeded = calculatedRiskPercent > 1.001;
   const isDailyLimitReached = todayTradesCount >= 2;
 
@@ -361,7 +362,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
       id: tradeId,
       accountId: account.id,
       tradeNumber: nextTradeNumber,
-      date: date || getKarachiDate(),
+      date: tradeEntryDate,
       time: formattedTime,
       broker,
       accountType,
