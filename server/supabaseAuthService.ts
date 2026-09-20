@@ -108,7 +108,19 @@ export async function authenticatePrimePipfx(username: string, password: string,
   const cleanUsername = username.trim().toLowerCase();
   let profile = await getProfileByUsername(cleanUsername);
   let authUserId = '';
-  if (localUser) authUserId = await createOrFindAuthUser(localUser, password);
+  if (localUser) {
+    authUserId = await createOrFindAuthUser(localUser, password);
+    if (authUserId) {
+      const passwordResponse = await supaFetch(`/auth/v1/admin/users/${authUserId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ password }),
+      }, true);
+      if (!passwordResponse.ok) {
+        const body = await readJson(passwordResponse);
+        throw new Error(body?.message || body?.msg || `Supabase password repair failed (${passwordResponse.status}).`);
+      }
+    }
+  }
   const session = await signIn(cleanUsername, password);
   if (!session?.access_token) return null;
   authUserId = session.user?.id || authUserId;
