@@ -83,6 +83,7 @@ export const NasheedPlaylist: React.FC<NasheedPlaylistProps> = ({
     return DEFAULT_FOCUS_TRACKS;
   });
 
+  // Mobile-first: start expanded by default so playlist is completely visible
   const [isMinimized, setIsMinimized] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem(MINIMIZED_STORAGE_KEY);
@@ -173,25 +174,25 @@ export const NasheedPlaylist: React.FC<NasheedPlaylistProps> = ({
 
   // Reusable Track Content Renderer
   const renderTrackForm = () => (
-    <div className="space-y-2">
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.5fr_auto] gap-2">
+    <div className="space-y-2 w-full max-w-full">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
         <input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           placeholder="Track title (e.g., Focus Nasheed / Lo-Fi)"
-          className="w-full min-w-0 px-3 py-2 text-xs rounded-xl bg-slate-950/90 border border-slate-700/80 text-slate-200 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition"
+          className="w-full flex-1 min-w-0 px-3 py-2.5 text-xs rounded-xl bg-slate-950/90 border border-slate-700/80 text-slate-200 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition min-h-[44px]"
         />
         <input
           value={url}
           onChange={(event) => setUrl(event.target.value)}
-          placeholder="https://youtu.be/... or audio URL"
+          placeholder="YouTube link (https://youtu.be/...)"
           inputMode="url"
-          className="w-full min-w-0 px-3 py-2 text-xs rounded-xl bg-slate-950/90 border border-slate-700/80 text-slate-200 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition"
+          className="w-full flex-[1.5] min-w-0 px-3 py-2.5 text-xs rounded-xl bg-slate-950/90 border border-slate-700/80 text-slate-200 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition min-h-[44px]"
         />
         <button
           type="button"
           onClick={addItem}
-          className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition active:scale-95 cursor-pointer shrink-0 shadow-md shadow-cyan-500/20"
+          className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition active:scale-95 cursor-pointer shrink-0 shadow-md shadow-cyan-500/20 min-h-[44px]"
         >
           <Plus className="h-4 w-4" />
           <span>Add Track</span>
@@ -345,21 +346,21 @@ export const NasheedPlaylist: React.FC<NasheedPlaylistProps> = ({
     return (
       <div
         id="nasheed-playlist-fullscreen"
-        className="fixed inset-0 z-[9999] bg-[#060a14]/98 backdrop-blur-2xl p-3 sm:p-6 md:p-8 flex flex-col overflow-y-auto animate-in fade-in duration-200"
+        className="fixed inset-0 z-[9999] bg-[#060a14]/98 backdrop-blur-2xl p-3 sm:p-6 md:p-8 pt-[calc(1rem+env(safe-area-inset-top,0px))] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] flex flex-col overflow-y-auto animate-in fade-in duration-200"
       >
         <div className="w-full max-w-5xl mx-auto flex-1 flex flex-col space-y-4">
           {/* Fullscreen Header */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-slate-950/90 border border-indigo-500/30 shadow-2xl">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-slate-950/90 border border-cyan-500/40 shadow-2xl">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-cyan-400 shrink-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0">
                 <Music2 className="w-5 h-5 animate-pulse" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-bold">
+                  <span className="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold">
                     FULLSCREEN FOCUS THEATER
                   </span>
-                  <span className="text-[10px] font-mono-code text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30">
+                  <span className="text-[10px] font-mono-code text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-700">
                     ESC to Exit
                   </span>
                 </div>
@@ -373,11 +374,12 @@ export const NasheedPlaylist: React.FC<NasheedPlaylistProps> = ({
               <button
                 type="button"
                 onClick={() => setIsFullscreen(false)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-mono-code transition active:scale-95 cursor-pointer shadow-md"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-mono-code transition active:scale-95 cursor-pointer shadow-md min-h-[40px]"
                 title="Minimize / Exit Fullscreen (Esc)"
+                aria-label="Exit Fullscreen"
               >
                 <Minimize2 className="w-4 h-4 text-cyan-400" />
-                <span>Exit Fullscreen</span>
+                <span className="font-semibold text-xs">Exit Fullscreen</span>
               </button>
             </div>
           </div>
@@ -411,11 +413,11 @@ export const NasheedPlaylist: React.FC<NasheedPlaylistProps> = ({
     return (
       <div
         id="nasheed-playlist-minimized"
-        className={`w-full rounded-2xl border border-indigo-500/30 bg-[#090e1c]/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-200 ${className}`}
+        className={`w-full rounded-2xl border border-cyan-500/30 bg-[#090e1c]/95 p-3 sm:p-4 shadow-xl backdrop-blur-sm transition-all duration-200 ${className}`}
       >
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
               <Music2 className={`w-4 h-4 ${activeItem ? 'animate-pulse text-emerald-400' : ''}`} />
             </div>
             <div className="min-w-0 flex-1">
@@ -423,7 +425,7 @@ export const NasheedPlaylist: React.FC<NasheedPlaylistProps> = ({
                 <span className="text-xs font-military font-bold text-slate-100 uppercase tracking-wider">
                   Psychological Focus Playlist
                 </span>
-                <span className="text-[10px] font-mono-code text-cyan-400/80 bg-cyan-950/50 px-1.5 py-0.2 rounded border border-cyan-500/20">
+                <span className="text-[10px] font-mono-code text-cyan-400/90 bg-cyan-950/70 px-1.5 py-0.5 rounded border border-cyan-500/30">
                   {items.length} tracks
                 </span>
               </div>
@@ -442,27 +444,28 @@ export const NasheedPlaylist: React.FC<NasheedPlaylistProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
             {activeItem && (
               <button
                 type="button"
                 onClick={() => playItem(activeItem)}
-                className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/40 transition cursor-pointer"
+                className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/40 transition cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
                 title={activeId ? 'Pause / Stop' : 'Play'}
                 aria-label={activeId ? 'Pause' : 'Play'}
               >
-                {activeId ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                {activeId ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
               </button>
             )}
 
             <button
               type="button"
               onClick={() => setIsMinimized(false)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-mono-code transition active:scale-95 cursor-pointer shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-mono-code transition active:scale-95 cursor-pointer shadow-sm min-h-[40px]"
               title="Expand playlist"
+              aria-label="Expand Playlist"
             >
-              <ChevronDown className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="text-[11px]">Expand</span>
+              <ChevronDown className="w-4 h-4 text-cyan-400" />
+              <span className="text-xs font-semibold">Expand</span>
             </button>
 
             <button
@@ -471,11 +474,12 @@ export const NasheedPlaylist: React.FC<NasheedPlaylistProps> = ({
                 setIsMinimized(false);
                 setIsFullscreen(true);
               }}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-950/60 hover:bg-indigo-900/60 text-indigo-200 border border-indigo-500/40 text-xs font-mono-code transition active:scale-95 cursor-pointer shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-950/80 hover:bg-cyan-900/80 text-cyan-200 border border-cyan-500/40 text-xs font-mono-code transition active:scale-95 cursor-pointer shadow-sm min-h-[40px]"
               title="Maximize to Fullscreen"
+              aria-label="Maximize to Fullscreen"
             >
-              <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden sm:inline text-[11px]">Full Screen</span>
+              <Maximize2 className="w-4 h-4 text-cyan-400" />
+              <span className="text-xs font-semibold">Full Screen</span>
             </button>
           </div>
         </div>
@@ -489,12 +493,12 @@ export const NasheedPlaylist: React.FC<NasheedPlaylistProps> = ({
   return (
     <section
       id="nasheed-playlist-container"
-      className={`w-full max-w-full rounded-2xl border border-indigo-500/30 bg-[#090e1c]/95 p-3.5 sm:p-5 shadow-2xl backdrop-blur-sm transition-all duration-200 box-border overflow-hidden ${className}`}
+      className={`w-full max-w-full rounded-2xl border border-cyan-500/30 bg-[#090e1c]/95 p-3.5 sm:p-5 shadow-2xl backdrop-blur-sm transition-all duration-200 box-border overflow-hidden ${className}`}
     >
       {/* Header with Title, Badge, and Minimize & Full Screen Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-indigo-500/20 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cyan-500/20 pb-3.5">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
             <Music2 className="h-4 w-4 text-cyan-400 animate-pulse" />
           </div>
           <div className="min-w-0">
@@ -513,27 +517,27 @@ export const NasheedPlaylist: React.FC<NasheedPlaylistProps> = ({
         </div>
 
         {/* Maximize to Full Screen and Minimize Actions */}
-        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
           <button
             type="button"
             onClick={() => setIsMinimized(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-slate-100 border border-slate-700/80 text-xs font-mono-code transition active:scale-95 cursor-pointer shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-slate-100 border border-slate-700/80 text-xs font-mono-code transition active:scale-95 cursor-pointer shadow-sm min-h-[40px]"
             title="Minimize to compact bar"
             aria-label="Minimize Playlist"
           >
             <Minus className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline text-[11px]">Minimize</span>
+            <span className="text-xs font-semibold">Minimize</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsFullscreen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-950/70 hover:bg-indigo-900/70 text-indigo-200 hover:text-white border border-indigo-500/40 text-xs font-mono-code transition active:scale-95 cursor-pointer shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-950/80 hover:bg-cyan-900/80 text-cyan-200 hover:text-white border border-cyan-500/40 text-xs font-mono-code transition active:scale-95 cursor-pointer shadow-sm min-h-[40px]"
             title="Maximize to Full Screen"
             aria-label="Maximize to Full Screen"
           >
             <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden sm:inline text-[11px]">Full Screen</span>
+            <span className="text-xs font-semibold">Full Screen</span>
           </button>
         </div>
       </div>

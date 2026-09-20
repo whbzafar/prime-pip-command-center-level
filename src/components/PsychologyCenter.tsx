@@ -478,7 +478,7 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
   ];
 
   return (
-    <div className="psychology-calm-canvas p-3 sm:p-6 rounded-3xl space-y-6 border border-indigo-950/60 shadow-2xl transition-all duration-300">
+    <div className="psychology-calm-canvas w-full max-w-full overflow-x-hidden box-border p-3 sm:p-6 rounded-3xl space-y-6 border border-indigo-950/60 shadow-2xl transition-all duration-300">
       {/* ========================================================================= */}
       {/* 1. TOP HEADER BANNER: Psychological Command Center (Calm Mode) */}
       {/* ========================================================================= */}
