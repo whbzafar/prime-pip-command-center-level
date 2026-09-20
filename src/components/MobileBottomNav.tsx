@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { MainNavTab } from './Header';
 import { UserAccount } from '../types';
+import { ALL_CATEGORIES_DATA } from './AllCategoriesModal';
 
 interface MobileBottomNavProps {
   activeTab: MainNavTab;
@@ -52,30 +53,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const allCategories = useMemo(() => {
-    return [
-      { id: 'DASHBOARD' as MainNavTab, label: '01. Dashboard', desc: 'Tactical overview & trade metrics', icon: Activity, section: 'Core' },
-      { id: 'JOURNAL' as MainNavTab, label: '02. Trade Journal', desc: 'Detailed log & execution vault', icon: BookOpen, section: 'Core' },
-      { id: 'SBT_MODELS' as MainNavTab, label: '03. SBT Models', desc: '10 Structure-Based Trading models & PDF assets', icon: Layers, highlight: true, section: 'Core' },
-      { id: 'LOT_SIZE' as MainNavTab, label: '04. Lot Size Calculator', desc: 'Exact risk positioning tool', icon: Calculator, section: 'Risk & Strategy' },
-      { id: 'RISK' as MainNavTab, label: '05. Risk Management', desc: 'Discipline rules & trade limits', icon: Crosshair, section: 'Risk & Strategy' },
-      { id: 'PRE_TRADE_PLAN' as MainNavTab, label: '06. Pre-Trade Plan', desc: '3-phase execution checklist gatekeeper', icon: ShieldAlert, highlight: true, section: 'Risk & Strategy' },
-      { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: '07. Fundamental Calendar', desc: 'Macro news & high-impact releases', icon: Calendar, highlight: true, section: 'Market Intelligence' },
-      { id: 'SIGNALS' as MainNavTab, label: '08. Premium Signals', desc: 'Institutional VIP trade setups', icon: Radio, comingSoon: true, highlight: true, section: 'Market Intelligence' },
-      { id: 'COMPOUNDING' as MainNavTab, label: '09. Compounding Tools', desc: 'Long-term growth simulator', icon: Calculator, section: 'Market Intelligence' },
-      { id: 'PERFORMANCE' as MainNavTab, label: '10. Performance Report', desc: 'Win rates, R:R & drawdowns', icon: BarChart3, section: 'Analytics' },
-      { id: 'DAILY_DEV' as MainNavTab, label: '11. Daily Development', desc: 'Traders habit tracker & routines', icon: Award, section: 'Mindset & Health' },
-      { id: 'PSYCHOLOGY' as MainNavTab, label: '12. Psychological Center', desc: 'Emotional state & cognitive audit', icon: Brain, highlight: true, section: 'Mindset & Health' },
-      { id: 'CALMING_TOOLS' as MainNavTab, label: '13. Trading Tool Suite', desc: 'Diaphragmatic breathing & focus tools', icon: Wind, highlight: true, section: 'Mindset & Health' },
-      { id: 'RESEARCH' as MainNavTab, label: '14. Academic Research', desc: 'OpenAlex academic market research engine', icon: Compass, highlight: true, section: 'Research & Tools' },
-      { id: 'FREEHAND_WORKSPACE' as MainNavTab, label: '15. Freehand Canvas', desc: 'Diagramming & markup workspace', icon: PenTool, section: 'Research & Tools' },
-      { id: 'COMMUNITY' as MainNavTab, label: '16. Trader Community Feed', desc: 'Live dispatches & peer sharing', icon: Users, section: 'Community' },
-      { id: 'BOOK_SESSION' as MainNavTab, label: '17. Book a Session', desc: '1-on-1 mentorship consultation', icon: MessageSquare, highlight: true, section: 'Community' },
-      { id: 'SETTINGS' as MainNavTab, label: '18. Data Export & Backup', desc: 'Export journal & restore state', icon: Settings2, section: 'Operations' },
-      { id: 'ADMIN' as MainNavTab, label: '19. Admin Panel (Owner)', desc: 'User access & customer controls', icon: ShieldCheck, highlight: true, section: 'Administration' },
-      { id: 'EVOLUTION' as MainNavTab, label: '20. Evaluation Engine', desc: 'Proprietary performance review & evolution', icon: Cpu, highlight: true, section: 'Administration' },
-    ];
-  }, [currentUser]);
+  // Keep mobile navigation on the same single source of truth as the desktop category directory.\n  // This prevents numbering/category drift and ensures every module remains reachable.\n  const allCategories = useMemo(() =>\n    ALL_CATEGORIES_DATA.map((category) => ({\n      id: category.id,\n      label: category.label,\n      desc: category.desc,\n      icon: category.icon,\n      section: category.section,\n      highlight: category.highlight,\n      comingSoon: category.comingSoon,\n    })),\n  []);
 
   const filteredCategories = useMemo(() => {
     if (!searchQuery.trim()) return allCategories;
