@@ -261,10 +261,10 @@ function mapPrivateMessageRow(row: any) {
   return {
     id: String(row.id),
     senderId: row.sender_id,
-    senderUsername: row.sender_username || row.sender_id,
-    senderDisplayName: row.sender_display_name || row.sender_username || row.sender_id,
+    senderUsername: row.sender?.username || row.sender_id,
+    senderDisplayName: row.sender?.display_name || row.sender?.username || row.sender_id,
     receiverId: row.receiver_id,
-    receiverUsername: row.receiver_username || row.receiver_id,
+    receiverUsername: row.receiver?.username || row.receiver_id,
     text: row.text_content || '',
     type: row.message_type === 'VOICE' ? 'VOICE' : row.message_type === 'IMAGE' ? 'IMAGE' : 'TEXT',
     photoUrl: row.message_type === 'IMAGE' ? row.attachment_path || undefined : undefined,
@@ -285,7 +285,7 @@ function mapPrivateMessageRow(row: any) {
 export async function readPrivateMessagesSupabase(userId1: string, userId2: string) {
   const filter = `or(and(sender_id.eq.${encodeURIComponent(userId1)},receiver_id.eq.${encodeURIComponent(userId2)}),and(sender_id.eq.${encodeURIComponent(userId2)},receiver_id.eq.${encodeURIComponent(userId1)}))`;
   const rows = await supabaseRequest(
-    `private_messages?select=id,sender_id,receiver_id,text_content,message_type,attachment_path,attachment_name,attachment_mime_type,attachment_size,created_at&${filter}&order=created_at.asc&limit=1000`
+    `private_messages?select=id,sender_id,receiver_id,text_content,message_type,attachment_path,attachment_name,attachment_mime_type,attachment_size,created_at,sender:trader_profiles!private_messages_sender_id_fkey(username,display_name),receiver:trader_profiles!private_messages_receiver_id_fkey(username,display_name)&${filter}&order=created_at.asc&limit=1000`
   );
   return (Array.isArray(rows) ? rows : []).map(mapPrivateMessageRow);
 }
