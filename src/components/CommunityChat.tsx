@@ -270,30 +270,33 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
         cache: 'no-store',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       }));
-      if (res.ok) {
-        const contentType = res.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-          const data = await res.json();
-          const fetchedMessages: ChatMessage[] = Array.isArray(data.messages) ? data.messages : [];
-          if (fetchedMessages.length > 0) {
-            const seen = new Set<string>();
-            const unique = fetchedMessages.filter((m) => {
-              if (!m?.id || seen.has(m.id)) return false;
-              seen.add(m.id);
-              return true;
-            });
-            setMessages(unique);
-            setFeedError(null);
-            try {
-              localStorage.setItem('primepipfx_community_cache', JSON.stringify(unique.slice(-200)));
-            } catch {}
-            if (commMode === 'PUBLIC') markMessagesSeen(unique);
-            return;
-          }
-        }
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.ok) {
+        let detail = '';
+        try {
+          detail = contentType.includes('application/json') ? JSON.stringify(await res.json()) : await res.text();
+        } catch {}
+        throw new Error(detail || `Community feed request failed (${res.status})`);
       }
-    } catch {
-      // Keep local cached or default messages silently
+      if (!contentType.includes('application/json')) {
+        throw new Error('Community feed returned a non-JSON response.');
+      }
+      const data = await res.json();
+      const fetchedMessages: ChatMessage[] = Array.isArray(data.messages) ? data.messages : [];
+      const seen = new Set<string>();
+      const unique = fetchedMessages.filter((m) => {
+        if (!m?.id || seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      });
+      setMessages(unique);
+      setFeedError(null);
+      try {
+        localStorage.setItem('primepipfx_community_cache', JSON.stringify(unique.slice(-200)));
+      } catch {}
+      if (commMode === 'PUBLIC') markMessagesSeen(unique);
+    } catch (err) {
+      setFeedError(err instanceof Error ? err.message : 'Unable to load the community feed.');
     } finally {
       setIsFeedLoading(false);
     }
@@ -541,13 +544,35 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers.Authorization = `Bearer ${token}`;
-      await fetch('/api/community/messages', communityRequest({
+      const res = await fetch('/api/community/messages', communityRequest({
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
       }));
-    } catch {
-      // Message already rendered optimistically and persisted locally
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.ok) {
+        let detail = '';
+        try {
+          detail = contentType.includes('application/json') ? JSON.stringify(await res.json()) : await res.text();
+        } catch {}
+        throw new Error(detail || `Message send failed (${res.status})`);
+      }
+      if (!contentType.includes('application/json')) {
+        throw new Error('Message send returned a non-JSON response.');
+      }
+      const result = await res.json();
+      if (result?.ok === false) {
+        throw new Error(result?.error || 'Message was not accepted by the server.');
+      }
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : 'Message could not be sent.');
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
+      try {
+        const cached = JSON.parse(localStorage.getItem('primepipfx_community_cache') || '[]');
+        localStorage.setItem('primepipfx_community_cache', JSON.stringify(
+          Array.isArray(cached) ? cached.filter((m: ChatMessage) => m.id !== optimisticMessage.id).slice(-200) : []
+        ));
+      } catch {}
     } finally {
       setIsSending(false);
     }
