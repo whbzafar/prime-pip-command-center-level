@@ -20,7 +20,7 @@ import { UserAccount } from '../types';
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: (user: UserAccount, token: string) => void;
+  onSuccess?: (user: UserAccount, token?: string) => void;
   onLoginSuccess?: (user: UserAccount, token?: string) => void;
   onOpenSubscription?: () => void;
   onContinueDemo?: () => void;
@@ -64,7 +64,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     const result = await apiLogin(username.trim(), password.trim(), rememberMe);
     setLoading(false);
 
-    if (result.ok && result.user && result.token) {
+    if (result.ok && result.user) {
+      // Authentication is carried by an HttpOnly cookie, so a client-readable
+      // token is intentionally not required for a successful login.
+      if (result.user.mustChangePassword) {
+        setPendingUser(result.user);
+        setPendingToken(result.token || null);
+        setStep('CHANGE_PASSWORD');
+        setPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        return;
+      }
       if (onSuccess) onSuccess(result.user, result.token);
       if (onLoginSuccess) onLoginSuccess(result.user, result.token);
       onClose();
