@@ -66,6 +66,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     id: string; username: string; displayName: string;
   } | null>(null);
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+  const [isIncomingCall, setIsIncomingCall] = useState(false);
   const [callTargetUser, setCallTargetUser] = useState<{
     id: string; username: string; displayName: string;
   } | null>(null);
@@ -618,6 +619,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
         if (session && session.receiverId === currentUser.id && session.status !== 'ENDED') {
           const caller = allTraders.find((t) => t.id === session.callerId);
           if (!isCallModalOpen) {
+            setIsIncomingCall(true);
             setCallTargetUser({
               id: session.callerId,
               username: caller?.username || session.callerId,
@@ -639,6 +641,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   }, [currentUser?.id, allTraders, isCallModalOpen]);
 
   const handleStartCall = (target: { id: string; username: string; displayName: string }) => {
+    setIsIncomingCall(false);
     setCallTargetUser(target);
     setIsCallModalOpen(true);
   };
@@ -1085,9 +1088,10 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
         <WebRTCCallModal
           currentUser={currentUser}
           targetUser={callTargetUser}
-          isIncoming={callTargetUser.id !== currentUser.id}
+          isIncoming={isIncomingCall}
           onClose={() => {
             setIsCallModalOpen(false);
+            setIsIncomingCall(false);
             setCallTargetUser(null);
           }}
         />
