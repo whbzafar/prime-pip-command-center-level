@@ -1,5 +1,5 @@
 import { Trade, AccountSettings, EmotionState, TradeIntention } from '../types';
-import { getKarachiDate, getKarachiEpoch } from './time';
+import { getKarachiDate, getKarachiEpoch, normalizeTradeDateToPakistan } from './time';
 
 export type ReadinessStatus = 'GREEN' | 'YELLOW' | 'RED';
 
@@ -68,7 +68,7 @@ export function calculateNextTradeReadiness(
   const maxDrawdownLimit = account.maxDrawdownPercent || 5.0;
 
   // Filter trades for today (Pakistan Time)
-  const tradesTodayList = trades.filter((t) => t.date === pakistanTodayStr);
+  const tradesTodayList = trades.filter((t) => normalizeTradeDateToPakistan(t.date) === pakistanTodayStr);
   const tradesToday = tradesTodayList.length;
   const maxDailyTrades = account.maxDailyTrades || 2;
   const tradesRemainingToday = Math.max(0, maxDailyTrades - tradesToday);
