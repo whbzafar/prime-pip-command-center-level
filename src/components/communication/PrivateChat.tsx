@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   CheckCheck,
   Paperclip,
+  Ban,
 } from 'lucide-react';
 import { UserAccount } from '../../types';
 import { getKarachiDate, getKarachiTime } from '../../utils/time';
@@ -81,6 +82,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
   const [recordedMimeType, setRecordedMimeType] = useState<string>('audio/webm;codecs=opus');
   const [isSending, setIsSending] = useState(false);
   const [micNotice, setMicNotice] = useState<string | null>(null);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -132,6 +134,10 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
   useEffect(() => {
     fetchPrivateMessages();
     markMessagesRead();
+    fetch('/api/users/block/' + encodeURIComponent(activeContact.id), { credentials: 'include', cache: 'no-store' })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => setIsBlocked(Boolean(data?.blocked)))
+      .catch(() => setIsBlocked(false));
     const interval = setInterval(fetchPrivateMessages, 1000);
     return () => clearInterval(interval);
   }, [activeContact.id, currentUser]);
@@ -238,9 +244,30 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
     e.target.value = '';
   };
 
+  const toggleBlock = async () => {
+    if (!currentUser) return;
+    const next = !isBlocked;
+    try {
+      const res = await fetch('/api/users/block', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: activeContact.id, blocked: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Unable to update block status.');
+      setIsBlocked(next);
+      setMicNotice(next ? 'User blocked. Messages and calls are disabled.' : 'User unblocked.');
+      setTimeout(() => setMicNotice(null), 3000);
+    } catch (error) {
+      setMicNotice(error instanceof Error ? error.message : 'Unable to update block status.');
+      setTimeout(() => setMicNotice(null), 3500);
+    }
+  };
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!currentUser) return;
+    if (!currentUser || isBlocked) return;
     if (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedLocalFile) return;
 
     setIsSending(true);
@@ -401,12 +428,22 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
           {onStartCall && (
             <button
               onClick={onStartCall}
+              disabled={isBlocked}
               className="px-3 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 text-xs font-mono-code font-bold flex items-center gap-1.5 transition cursor-pointer"
             >
               <Video className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">VIDEO / SCREEN</span>
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={toggleBlock}
+            title={isBlocked ? 'Unblock user' : 'Block user'}
+            className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-rose-400 transition cursor-pointer"
+          >
+            <Ban className="w-4 h-4" />
+          </button>
 
           <button
             onClick={fetchPrivateMessages}
