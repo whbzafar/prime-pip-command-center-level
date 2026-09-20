@@ -711,3 +711,103 @@ html[data-theme='sand'] {
     backdrop-filter: blur(16px) saturate(145%);
   }
 }
+
+
+/* ==========================================================================
+   FINAL COMMAND-CENTER INTERFACE PASS
+   Existing modules inherit the same material language without requiring
+   individual rewrites.
+   ========================================================================== */
+
+.prime-command-shell {
+  min-height: 100dvh;
+  color-scheme: dark;
+}
+
+.prime-command-shell .prime-card,
+.prime-command-shell .prime-card-elevated,
+.prime-command-shell .prime-premium-card,
+.prime-command-shell .prime-glass-card,
+.prime-command-shell .prime-glass-surface,
+.prime-command-shell .prime-gradient-box,
+.prime-command-shell .prime-gold-accent-box {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.025) 42%, rgba(5,10,18,.72)),
+    rgba(7,12,21,.70);
+  border-color: rgba(255,255,255,.10);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+  backdrop-filter: blur(22px) saturate(145%);
+  box-shadow:
+    0 18px 50px rgba(0,0,0,.32),
+    inset 0 1px 0 rgba(255,255,255,.14);
+}
+
+.prime-command-shell .prime-card-interactive:hover {
+  border-color: rgba(94,231,255,.24);
+  box-shadow:
+    0 20px 52px rgba(0,0,0,.36),
+    0 0 32px rgba(47,107,255,.10),
+    inset 0 1px 0 rgba(255,255,255,.18);
+}
+
+.prime-command-shell .prime-input {
+  background: rgba(3,8,15,.72);
+  border-color: rgba(255,255,255,.12);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.prime-command-shell .prime-input:focus {
+  border-color: rgba(94,231,255,.72);
+  box-shadow:
+    0 0 0 2px rgba(94,231,255,.12),
+    0 0 24px rgba(47,107,255,.10),
+    inset 0 2px 4px rgba(0,0,0,.35);
+}
+
+.prime-command-shell button:focus-visible,
+.prime-command-shell a:focus-visible,
+.prime-command-shell [role="button"]:focus-visible {
+  outline: 2px solid var(--prime-cyan);
+  outline-offset: 3px;
+}
+
+.prime-command-shell .prime-dock-blur {
+  background: rgba(5,10,18,.72);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  backdrop-filter: blur(28px) saturate(170%);
+  border-top-color: rgba(255,255,255,.12);
+}
+
+.prime-command-shell .prime-status-dot {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 768px) {
+  .prime-command-shell {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .prime-command-shell .prime-card,
+  .prime-command-shell .prime-card-elevated,
+  .prime-command-shell .prime-premium-card,
+  .prime-command-shell .prime-glass-card,
+  .prime-command-shell .prime-glass-surface {
+    -webkit-backdrop-filter: blur(16px) saturate(135%);
+    backdrop-filter: blur(16px) saturate(135%);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .prime-command-shell .prime-card,
+  .prime-command-shell .prime-card-elevated,
+  .prime-command-shell .prime-premium-card,
+  .prime-command-shell .prime-glass-card,
+  .prime-command-shell .prime-glass-surface,
+  .prime-command-shell .prime-gradient-box,
+  .prime-command-shell .prime-gold-accent-box {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: #0a101b;
+  }
+}
