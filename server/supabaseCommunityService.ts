@@ -209,16 +209,38 @@ export async function readCommunityMessagesSupabase(): Promise<CommunityMessage[
   const ids = messages.map((message: any) => message.id).filter(Boolean);
   if (ids.length) {
     const seenRows = await supabaseRequest(
-      `community_message_seen?select=message_id,user_id,seen_at&message_id=in.(${ids.join(",")})&order=seen_at.asc`
+      `community_message_seen?select=message_id,user_id,seen_at,listened_at&message_id=in.(${ids.join(",")})&order=seen_at.asc`
+    );
+    const seenUsers = Array.from(new Set((Array.isArray(seenRows) ? seenRows : []).map((row: any) => String(row.user_id))));
+    const profileRows = seenUsers.length
+      ? await supabaseRequest(`trader_profiles?user_id=in.(${seenUsers.map((id) => encodeURIComponent(id)).join(",")})&select=user_id,username,display_name`)
+      : [];
+    const profileMap = new Map<string, any>(
+      (Array.isArray(profileRows) ? profileRows : []).map((row: any) => [String(row.user_id), row])
     );
     const seenByMessage = new Map<string, any[]>();
+    const listenedByMessage = new Map<string, any[]>();
     for (const row of Array.isArray(seenRows) ? seenRows : []) {
-      const list = seenByMessage.get(String(row.message_id)) || [];
-      list.push({ userId: row.user_id, seenAt: new Date(row.seen_at).getTime() });
-      seenByMessage.set(String(row.message_id), list);
+      const profile = profileMap.get(String(row.user_id));
+      const person = {
+        userId: row.user_id,
+        username: profile?.username || row.user_id,
+        displayName: profile?.display_name || profile?.username || row.user_id,
+        seenAt: row.seen_at ? new Date(row.seen_at).getTime() : undefined,
+        listenedAt: row.listened_at ? new Date(row.listened_at).getTime() : undefined,
+      };
+      const seenList = seenByMessage.get(String(row.message_id)) || [];
+      seenList.push(person);
+      seenByMessage.set(String(row.message_id), seenList);
+      if (row.listened_at) {
+        const listenedList = listenedByMessage.get(String(row.message_id)) || [];
+        listenedList.push(person);
+        listenedByMessage.set(String(row.message_id), listenedList);
+      }
     }
     for (const message of messages) {
       message.seenBy = seenByMessage.get(message.id) || [];
+      (message as any).listenedBy = listenedByMessage.get(message.id) || [];
     }
   }
 
@@ -275,6 +297,30 @@ export async function markCommunityMessagesSeenSupabase(
   );
 
   return messageIds.length;
+}
+
+export async function markCommunityMessageListenedSupabase(messageId: string, userId: string) {
+  const existingRows = await supabaseRequest(
+    `community_message_seen?message_id=eq.${encodeURIComponent(messageId)}&user_id=eq.${encodeURIComponent(userId)}&select=message_id&limit=1`
+  );
+  const now = new Date().toISOString();
+  if (Array.isArray(existingRows) && existingRows.length) {
+    await supabaseRequest(
+      `community_message_seen?message_id=eq.${encodeURIComponent(messageId)}&user_id=eq.${encodeURIComponent(userId)}`,
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ listened_at: now }),
+      }
+    );
+  } else {
+    await supabaseRequest("community_message_seen", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ message_id: messageId, user_id: userId, seen_at: now, listened_at: now }),
+    });
+  }
+  return true;
 }
 
 export async function getCommunityTradersSupabase() {
