@@ -988,3 +988,95 @@ html[data-theme='sand'] {
   .prime-core-ring-2,
   .prime-core-glow { animation:none !important; }
 }
+
+
+/* ==========================================================================
+   MOBILE STABILITY / PERFORMANCE PASS
+   Prevent visual jitter, horizontal protrusion and GPU-heavy effects on phones.
+   ========================================================================== */
+@media (max-width: 768px) {
+  html, body, #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+  }
+
+  .prime-command-shell,
+  .prime-command-shell * {
+    box-sizing: border-box;
+  }
+
+  .prime-command-shell::before,
+  .prime-command-shell::after,
+  .prime-gradient-box::before,
+  .prime-premium-card::after,
+  .prime-shimmer-top::before,
+  .prime-light-sweep::after {
+    animation: none !important;
+  }
+
+  .prime-command-shell::before,
+  .prime-command-shell::after {
+    filter: none;
+  }
+
+  .prime-command-shell .prime-card,
+  .prime-command-shell .prime-card-elevated,
+  .prime-command-shell .prime-premium-card,
+  .prime-command-shell .prime-glass-card,
+  .prime-command-shell .prime-glass-surface,
+  .prime-command-shell .prime-gradient-box,
+  .prime-command-shell .prime-gold-accent-box,
+  .prime-liquid-glass,
+  .prime-data-glass {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    transform: none;
+  }
+
+  .prime-command-shell .prime-card-interactive:hover {
+    transform: none;
+  }
+
+  .prime-command-shell img,
+  .prime-command-shell video,
+  .prime-command-shell canvas,
+  .prime-command-shell iframe {
+    max-width: 100%;
+  }
+
+  .prime-command-shell input,
+  .prime-command-shell textarea,
+  .prime-command-shell select,
+  .prime-command-shell button {
+    max-width: 100%;
+  }
+
+  .prime-command-shell .overflow-x-auto {
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .prime-command-shell .overflow-x-auto::-webkit-scrollbar {
+    display: none;
+  }
+
+  .prime-cinematic-stage {
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+  }
+}
+
+/* Keep desktop command motion, but eliminate unnecessary compositor work when
+   the device explicitly requests reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .prime-command-shell *,
+  .prime-command-shell *::before,
+  .prime-command-shell *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
