@@ -43,25 +43,7 @@ interface DeveloperAdminPanelProps {
 }
 
 export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ currentUser, onClose, onUserUpdated }) => {
-  // Strict authorization check: Customer accounts can NEVER access Admin Panel
-  if (!isUserAdmin(currentUser)) {
-    return (
-      <div className="bg-slate-950 border border-rose-500/30 rounded-xl p-8 text-center space-y-4 max-w-lg mx-auto my-12">
-        <div className="w-16 h-16 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/20">
-          <Lock className="w-8 h-8" />
-        </div>
-        <h2 className="text-xl font-military font-bold text-rose-400 tracking-wider">
-          403 FORBIDDEN — RESTRICTED ACCESS
-        </h2>
-        <p className="text-xs font-mono-code text-slate-300 leading-relaxed">
-          The Admin Panel belongs exclusively to the PrimePipFX Developer / Owner (<strong>primepipfx-admin</strong>). Customer accounts can NEVER become administrators.
-        </p>
-        <div className="pt-2 text-[11px] font-mono-code text-slate-500">
-          Developer Official WhatsApp: 03406671495
-        </div>
-      </div>
-    );
-  }
+  const isAuthorized = isUserAdmin(currentUser);
 
   const [activeTab, setActiveTab] = useState<'CUSTOMERS' | 'CREATE' | 'APPOINTMENTS' | 'MODERATION' | 'REFERRALS' | 'DEVELOPER_SECURITY' | 'EVOLUTION'>('CUSTOMERS');
   const [customers, setCustomers] = useState<UserAccount[]>([]);
@@ -198,8 +180,9 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
   };
 
   useEffect(() => {
+    if (!isAuthorized) return;
     fetchAdminData();
-  }, []);
+  }, [isAuthorized]);
 
   const handleUpdateDevPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -409,9 +392,22 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       });
       const data = await res.json();
       if (data.ok) {
+        const existing = customers.find((customer) =>
+          customer.id === userId || customer.username.toLowerCase() === username.toLowerCase()
+        );
+        if (existing && data.password) {
+          saveLocalStudent({
+            ...existing,
+            password: data.password,
+            originalPassword: data.password,
+            updatedAt: new Date().toISOString(),
+          });
+          await syncStudentsToCloud();
+        }
         const msg = `*PrimePipFX Password Reset*\n\nUsername: ${username}\nNew Password: ${data.password}\n\nSupport: 03406671495`;
         setCreatedCredentialMessage(msg);
         setActionSuccess(`Password reset for ${username}! Message generated below.`);
+        await fetchAdminData();
       }
     } catch (err) {
       console.error('Reset error:', err);
@@ -481,6 +477,25 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
   const totalRevenue = regularCustomers
     .filter((c) => c.paymentStatus === 'VERIFIED')
     .reduce((acc, c) => acc + (c.subscriptionPrice || 50), 0);
+
+  if (!isAuthorized) {
+    return (
+      <div className="bg-slate-950 border border-rose-500/30 rounded-xl p-8 text-center space-y-4 max-w-lg mx-auto my-12">
+        <div className="w-16 h-16 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/20">
+          <Lock className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-military font-bold text-rose-400 tracking-wider">
+          403 FORBIDDEN — RESTRICTED ACCESS
+        </h2>
+        <p className="text-xs font-mono-code text-slate-300 leading-relaxed">
+          The Admin Panel belongs exclusively to the PrimePipFX Developer / Owner (<strong>primepipfx-admin</strong>). Customer accounts can NEVER become administrators.
+        </p>
+        <div className="pt-2 text-[11px] font-mono-code text-slate-500">
+          Developer Official WhatsApp: 03406671495
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
