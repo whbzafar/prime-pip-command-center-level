@@ -69,6 +69,20 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const REFERRALS_FILE = path.join(DATA_DIR, 'referrals.json');
 
+// Durable Supabase Auth sessions are hydrated into this short-lived request cache.
+// The cache is never the source of truth; it only lets the existing synchronous
+// authorization helpers consume the user resolved by the async request middleware.
+const authenticatedUserCache = new Map<string, { user: StoredUser; expiresAt: number }>();
+
+export function cacheAuthenticatedUser(token: string, user: StoredUser, ttlMs = 55 * 60 * 1000) {
+  if (!token || !user) return;
+  authenticatedUserCache.set(token, { user, expiresAt: Date.now() + ttlMs });
+}
+
+export function clearAuthenticatedUser(token: string) {
+  if (token) authenticatedUserCache.delete(token);
+}
+
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -243,6 +257,11 @@ export function loginUser(
 // Get user by token
 export function getUserByToken(token: string): StoredUser | null {
   if (!token) return null;
+  const cached = authenticatedUserCache.get(token);
+  if (cached) {
+    if (cached.expiresAt > Date.now()) return cached.user;
+    authenticatedUserCache.delete(token);
+  }
   const sessions = readSessions();
   const session = sessions.find((s) => s.token === token && s.expiresAt > Date.now());
   if (!session) return null;
