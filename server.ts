@@ -2469,30 +2469,6 @@ app.put('/api/evolution/profile', (req, res) => {
   }
 });
 
-// ----------------------------------------------------
-// NOTIFICATIONS API
-// ----------------------------------------------------
-import { getNotificationsForUser, markNotificationsRead } from "./server/notificationsService.js";
-
-app.get("/api/notifications", (req, res) => {
-  const token = getAuthToken(req);
-  if (!token) return res.status(401).json({ ok: false, error: "Unauthorized" });
-  const user = getUserByToken(token);
-  if (!user) return res.status(401).json({ ok: false, error: "Invalid user" });
-  const notifs = getNotificationsForUser(user.id);
-  res.json({ ok: true, notifications: notifs });
-});
-
-app.post("/api/notifications/read", (req, res) => {
-  const token = getAuthToken(req);
-  if (!token) return res.status(401).json({ ok: false, error: "Unauthorized" });
-  const user = getUserByToken(token);
-  if (!user) return res.status(401).json({ ok: false, error: "Invalid user" });
-  const { notifIds } = req.body || {};
-  markNotificationsRead(user.id, notifIds);
-  res.json({ ok: true });
-});
-
 // Vite middleware / static files (only run when launched standalone, not in Vercel serverless)
 async function startServer() {
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
