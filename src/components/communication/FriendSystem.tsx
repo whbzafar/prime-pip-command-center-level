@@ -120,6 +120,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
     try {
       const res = await fetch(`/api/friends/search?q=${encodeURIComponent(searchQuery.trim())}`, {
         credentials: 'include',
+        headers: authHeaders(),
       });
       if (res.ok) {
         const data = await res.json();
@@ -188,6 +189,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders(),
         },
         credentials: 'include',
         body: JSON.stringify({ requestId, status }),
@@ -210,6 +212,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders(),
         },
         credentials: 'include',
         body: JSON.stringify({ requestId: friendshipId, status: 'REMOVED' }),
