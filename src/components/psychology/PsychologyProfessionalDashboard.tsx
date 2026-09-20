@@ -30,7 +30,7 @@ const copy: Record<Lang, Record<string, string>> = {
     plain:'Simple language mode', advanced:'Advanced library', recommendation:'Recommended for you',
     start:'Start practice', open:'Open', recent:'Recent practice', noRecent:'No practice recorded yet.',
     plan:'Follow the plan. Protect risk. Let outcomes vary.', why:'Why this matters',
-    journal:'Journal signals', discipline:'Plan-following', sessions:'Practice sessions',
+    journal:'Journal signals', planFollow:'Plan-following', sessions:'Practice sessions',
     fear:'Fear & Loss', fearDesc:'Handle fear, stop-loss discomfort and the urge to exit too early.',
     impulse:'Impulse & FOMO', impulseDesc:'Stop chasing candles, boredom trades and revenge trades.',
     confidence:'Confidence & Ego', confidenceDesc:'Keep winning streaks and strong conviction from becoming oversized risk.',
@@ -65,10 +65,6 @@ const copy: Record<Lang, Record<string, string>> = {
     advancedRule:'ایڈوانس لائبریری', advancedDesc:'اصل 17 موضوعات محفوظ ہیں۔ اب یہ پہلے صفحے کے بجائے گہری سیکھنے کی تہہ ہیں۔',
   },
   hi: {}, ar: {}, es: {}, fr: {}
-};
-
-const fallbackLabels: Record<Lang, Record<string,string>> = {
-  hi:{}, ar:{}, es:{}, fr:{}, en:{}, ur:{}
 };
 
 const pillarDefs = [
@@ -165,7 +161,7 @@ export const PsychologyProfessionalDashboard: React.FC<Props> = ({
           <p className="mt-1 text-xs text-slate-500">{losses >= 2 ? 'Two recent losses detected.' : t('plan')}</p>
         </div>
         <div className="rounded-2xl border border-slate-800 bg-[#0a0f1b] p-4">
-          <div className="flex items-center justify-between text-xs text-slate-400"><span>{t('discipline')}</span><ShieldCheck className="h-4 w-4 text-emerald-300"/></div>
+          <div className="flex items-center justify-between text-xs text-slate-400"><span>{t('planFollow')}</span><ShieldCheck className="h-4 w-4 text-emerald-300"/></div>
           <div className="mt-2 text-lg font-bold text-emerald-300">{planRate}%</div>
           <p className="mt-1 text-xs text-slate-500">{t('journal')}</p>
         </div>
