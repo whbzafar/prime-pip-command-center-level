@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **PrimePipFX Chat Intelligence Layer** is an automated assistant subsystem built directly into the Community Chat. It observes conversational inquiries from traders and enriches public chat discussions with rich, interactive, real-time institutional and operational cards (e.g. CFTC COT reports, macroeconomic calendar releases, market session clocks, and lot size calculators) while maintaining strict safety, privacy, and rate-limiting safeguards.
+The **PrimePipFX Chat Intelligence Layer** is an automated assistant subsystem built directly into the Community Chat. It observes conversational inquiries from traders and enriches public chat discussions with rich, interactive, real-time institutional and operational cards (e.g. macroeconomic calendar releases, market session clocks, and lot size calculators) while maintaining strict safety, privacy, and rate-limiting safeguards.
 
 ---
 
@@ -42,7 +42,6 @@ To prevent open-ended hallucinations or irrelevant responses, the intelligence l
 
 | Capability ID | Description | Source Handler | Client Component |
 | :--- | :--- | :--- | :--- |
-| `COT_REPORT` | Institutional futures positioning (Hedge Funds vs Commercials) | `server/intelligence/handlers/cotHandler.ts` | `<CotCard />` |
 | `ECONOMIC_CALENDAR` | Upcoming high-impact macroeconomic data releases (NFP, CPI, Rates) | `server/intelligence/handlers/calendarHandler.ts` | `<CalendarCard />` |
 | `SESSION_CLOCK` | Global market sessions (London, NY, Tokyo, Sydney) and overlaps | `server/intelligence/handlers/sessionClockHandler.ts` | `<SessionClockCard />` |
 | `LOT_SIZE` | Position risk sizing calculated from account balance and stop loss pips | `server/intelligence/handlers/lotSizeHandler.ts` | `<LotSizeCard />` |
