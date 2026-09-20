@@ -163,5 +163,4 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           </button>
         </div>
       </nav>
-
     </>\n  );\n};\n
