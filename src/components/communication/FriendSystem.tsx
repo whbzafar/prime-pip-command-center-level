@@ -21,6 +21,8 @@ interface Friend {
   friendUsername: string;
   friendDisplayName: string;
   onlineStatus?: 'ONLINE' | 'AWAY' | 'OFFLINE';
+  isOnline?: boolean;
+  lastSeen?: number;
   avatarUrl?: string;
   tradingStyle?: string;
   since: string;
@@ -42,6 +44,9 @@ interface UserSearchResult {
   username: string;
   name?: string;
   role?: string;
+  isOnline?: boolean;
+  presenceStatus?: 'ACTIVE' | 'OFFLINE' | 'HIDDEN';
+  lastSeen?: number;
 }
 
 interface FriendSystemProps {
@@ -206,7 +211,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
     }
   };
 
-  const handleRemoveFriend = async (friendshipId: string, friendUsername: string) => {
+  const handleRemoveFriend = async (friendshipId: string, friendUsername: string, friendUserId: string) => {
     try {
       const res = await fetch('/api/friends/respond', {
         method: 'POST',
@@ -215,7 +220,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
           ...authHeaders(),
         },
         credentials: 'include',
-        body: JSON.stringify({ requestId: friendshipId, status: 'REMOVED' }),
+        body: JSON.stringify({ requestId: friendshipId, friendUserId, status: 'REMOVED' }),
       });
       if (res.ok) {
         showNotice(`Removed @${friendUsername} from friends.`);
@@ -362,6 +367,9 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                       </div>
                       <span className="text-[10px] text-slate-400 font-mono-code block truncate">
                         @{f.friendUsername}
+                      </span>
+                      <span className={`text-[9px] font-mono-code ${f.isOnline || f.onlineStatus === 'ONLINE' ? 'text-emerald-400' : 'text-slate-500'}`}>
+                        {f.isOnline || f.onlineStatus === 'ONLINE' ? 'ONLINE NOW' : 'OFFLINE'}
                       </span>
                     </div>
                   </div>
@@ -522,9 +530,15 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
                     key={u.id}
                     className="p-3 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-between gap-3 font-mono-code text-xs"
                   >
-                    <div>
-                      <span className="font-bold text-slate-200">{u.name || u.username}</span>
-                      <span className="text-slate-500 text-[10px] block">@{u.username}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-200 truncate">{u.name || u.username}</span>
+                        <span className={`inline-flex items-center gap-1 text-[9px] ${u.isOnline || u.presenceStatus === 'ACTIVE' ? 'text-emerald-400' : 'text-slate-500'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${u.isOnline || u.presenceStatus === 'ACTIVE' ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                          {u.isOnline || u.presenceStatus === 'ACTIVE' ? 'ONLINE' : 'OFFLINE'}
+                        </span>
+                      </div>
+                      <span className="text-slate-500 text-[10px] block truncate">@{u.username}</span>
                     </div>
 
                     <div>
