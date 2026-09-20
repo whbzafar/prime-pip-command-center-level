@@ -795,7 +795,7 @@ app.get('/api/admin/customers', requireDeveloper, (req, res) => {
 });
 
 // Route: Create customer (Developer/Admin only)
-app.post('/api/admin/customers', requireDeveloper, (req, res) => {
+app.post('/api/admin/customers', requireDeveloper, async (req, res) => {
   const result = createCustomer(req.body);
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
@@ -832,7 +832,7 @@ app.post('/api/admin/create-customer', requireDeveloper, async (req, res) => {
 });
 
 // Route: Update customer (Developer/Admin only)
-app.put('/api/admin/customers/:id', requireDeveloper, (req, res) => {
+app.put('/api/admin/customers/:id', requireDeveloper, async (req, res) => {
   const id = req.params.id;
   const result = updateCustomer(id, req.body);
   if (!result.success) {
