@@ -16,7 +16,7 @@ import { syncStudentsFromCloud } from '../utils/localAuthStore';
 import { UserAccount } from '../types';
 
 interface FirstOpenLoginScreenProps {
-  onLoginSuccess: (user: UserAccount, token: string) => void;
+  onLoginSuccess: (user: UserAccount, token?: string) => void;
   onExploreDemo: () => void;
   onOpenSubscription?: () => void;
 }
@@ -66,11 +66,12 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       const result = await apiLogin(username.trim(), password.trim(), rememberMe);
       setLoading(false);
 
-      if (result.ok && result.user && result.token) {
-        // If account requires immediate password change (Section 3)
+      if (result.ok && result.user) {
+        // Authentication is carried by an HttpOnly cookie. A client-readable
+        // token is intentionally not required for a successful login.
         if (result.user.mustChangePassword) {
           setPendingUser(result.user);
-          setPendingToken(result.token);
+          setPendingToken(result.token || null);
           setStep('CHANGE_PASSWORD');
           return;
         }
