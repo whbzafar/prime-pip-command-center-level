@@ -104,6 +104,12 @@ import {
   postCommunityMessageSupabase,
   markCommunityMessagesSeenSupabase,
   getCommunityTradersSupabase,
+  listSupabaseFriends,
+  getSupabaseFriendRequests,
+  createSupabaseFriendRequest,
+  respondToSupabaseFriendRequest,
+  markPrivateMessagesReadSupabase,
+  markPrivateMessageListenedSupabase,
   readPrivateMessagesSupabase,
   postPrivateMessageSupabase,
   isUserBlocked,
@@ -1552,6 +1558,14 @@ app.post('/api/user/heartbeat', (req, res) => {
     }
 
     recordUserHeartbeat(user.id);
+    if (isSupabaseCommunityEnabled) {
+      await upsertTraderProfile({
+        id: user.id,
+        username: user.username,
+        displayName: user.name || user.username,
+        role: user.role,
+      });
+    }
     return res.json({ ok: true, userId: user.id, isOnline: true });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
@@ -1761,16 +1775,31 @@ app.get('/api/friends/list', async (req, res) => {
     }
 
     recordUserHeartbeat(user.id);
-    const data = getUserFriends(user.id);
+    if (isSupabaseCommunityEnabled) {
+      await upsertTraderProfile({
+        id: user.id,
+        username: user.username,
+        displayName: user.name || user.username,
+        role: user.role,
+      });
+      const [friends, requests] = await Promise.all([
+        listSupabaseFriends(user.id),
+        getSupabaseFriendRequests(user.id),
+      ]);
+      return res.json({
+        ok: true,
+        friends,
+        incomingRequests: requests.incomingRequests,
+        outgoingRequests: requests.outgoingRequests,
+        backend: 'supabase',
+      });
+    }
 
-    // Attach real live online status to friends list
+    const data = getUserFriends(user.id);
     const enrichedFriends = (data.friends || []).map((f) => {
       const otherUserId = f.friendId;
       const online = isUserOnline(otherUserId);
-      return {
-        ...f,
-        isOnline: online,
-      };
+      return { ...f, isOnline: online };
     });
 
     return res.json({
@@ -1778,6 +1807,7 @@ app.get('/api/friends/list', async (req, res) => {
       friends: enrichedFriends,
       incomingRequests: data.incomingRequests || [],
       outgoingRequests: data.outgoingRequests || [],
+      backend: 'local-fallback',
     });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
@@ -1798,8 +1828,37 @@ app.get('/api/friends/all-traders', async (req, res) => {
       }
     }
 
+    if (isSupabaseCommunityEnabled) {
+      const localTraders = getAllRegisteredTraders(currentUserId);
+      if (localTraders.length) {
+        try { await syncTraderProfiles(localTraders); } catch (syncError) {
+          console.warn('[FRIENDS ALL] Supabase trader sync failed:', syncError instanceof Error ? syncError.message : syncError);
+        }
+      }
+      const rows = await getCommunityTradersSupabase();
+      const now = Date.now();
+      const traders = (Array.isArray(rows) ? rows : [])
+        .filter((row: any) => !currentUserId || String(row.user_id) !== String(currentUserId))
+        .map((row: any) => {
+          const lastSeen = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0;
+          const online = Boolean(lastSeen && now - lastSeen < 2 * 60 * 1000);
+          return {
+            id: row.user_id,
+            username: row.username,
+            displayName: row.display_name || row.username,
+            role: row.role === 'ADMIN' ? 'ADMIN' : 'STUDENT',
+            isOnline: online,
+            presenceStatus: online ? 'ACTIVE' : 'OFFLINE',
+            lastSeen,
+            createdAt: row.created_at,
+          };
+        })
+        .sort((a: any, b: any) => Number(b.isOnline) - Number(a.isOnline));
+      return res.json({ ok: true, traders, backend: 'supabase' });
+    }
+
     const traders = getAllRegisteredTraders(currentUserId);
-    return res.json({ ok: true, traders });
+    return res.json({ ok: true, traders, backend: 'local-fallback' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
@@ -1854,17 +1913,39 @@ app.post('/api/friends/request', async (req, res) => {
       return res.status(404).json({ ok: false, error: 'That trader is not currently eligible for community friends.' });
     }
 
-    const result = sendFriendRequest(
-      { id: user.id, username: user.username, displayName: user.name || user.username },
-      { id: targetUserId, username: targetUsername, displayName: targetDisplayName || targetUsername }
-    );
+    let result: any;
+    if (isSupabaseCommunityEnabled) {
+      await upsertTraderProfile({
+        id: user.id,
+        username: user.username,
+        displayName: user.name || user.username,
+        role: user.role,
+      });
+      const targetProfile = getAllRegisteredTraders(user.id).find((trader) => trader.id === targetUserId);
+      if (targetProfile) {
+        try {
+          await upsertTraderProfile({
+            id: targetProfile.id,
+            username: targetProfile.username,
+            displayName: targetProfile.displayName,
+            role: targetProfile.role || 'CUSTOMER',
+          });
+        } catch {}
+      }
+      result = await createSupabaseFriendRequest({ senderId: user.id, receiverId: targetUserId });
+    } else {
+      result = sendFriendRequest(
+        { id: user.id, username: user.username, displayName: user.name || user.username },
+        { id: targetUserId, username: targetUsername, displayName: targetDisplayName || targetUsername }
+      );
+    }
     if (!result.success) {
       return res.status(400).json({ ok: false, error: result.error });
     }
     if (isSupabaseCommunityEnabled) {
       try { await createAppNotification({ userId: targetUserId, type: 'FRIEND_REQUEST', title: 'New friend request', body: '@' + user.username + ' wants to connect with you.', data: { senderId: user.id } }); } catch {}
     }
-    return res.json({ ok: true, record: result.record });
+    return res.json({ ok: true, record: result.record, backend: isSupabaseCommunityEnabled ? 'supabase' : 'local-fallback' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
@@ -1882,11 +1963,14 @@ app.post('/api/friends/respond', (req, res) => {
       return res.status(400).json({ ok: false, error: 'Valid requestId and status required' });
     }
 
-    const result = updateFriendshipStatus(requestId, status, user.id);
+    const friendUserId = typeof req.body?.friendUserId === 'string' ? req.body.friendUserId : undefined;
+    const result = isSupabaseCommunityEnabled
+      ? await respondToSupabaseFriendRequest({ requestId, status, actingUserId: user.id, friendUserId })
+      : updateFriendshipStatus(requestId, status, user.id);
     if (!result.success) {
       return res.status(400).json({ ok: false, error: result.error });
     }
-    return res.json({ ok: true });
+    return res.json({ ok: true, backend: isSupabaseCommunityEnabled ? 'supabase' : 'local-fallback' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
@@ -1906,12 +1990,16 @@ app.get('/api/messages/private/:otherUserId', async (req, res) => {
     }
 
     const otherUserId = req.params.otherUserId;
-    if (!getUserFriends(user.id).friends.some((friend) => friend.friendId === otherUserId)) {
-      return res.status(403).json({ ok: false, error: 'Private messaging is available only between accepted friends.' });
-    }
     if (isSupabaseCommunityEnabled) {
+      const friends = await listSupabaseFriends(user.id);
+      if (!friends.some((friend: any) => friend.friendId === otherUserId)) {
+        return res.status(403).json({ ok: false, error: 'Private messaging is available only between accepted friends.' });
+      }
       const messages = await readPrivateMessagesSupabase(user.id, otherUserId);
       return res.json({ ok: true, messages, backend: 'supabase' });
+    }
+    if (!getUserFriends(user.id).friends.some((friend) => friend.friendId === otherUserId)) {
+      return res.status(403).json({ ok: false, error: 'Private messaging is available only between accepted friends.' });
     }
     const messages = getPrivateConversation(user.id, otherUserId);
     return res.json({ ok: true, messages, backend: 'local-fallback' });
@@ -1921,19 +2009,38 @@ app.get('/api/messages/private/:otherUserId', async (req, res) => {
 });
 
 
-app.post('/api/messages/private/read', (req, res) => {
+app.post('/api/messages/private/read', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     const user = getUserByToken(token);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
-    const { senderId } = req.body;
-    import("./server/commandCenterService.js").then(mod => {
-      const updated = mod.markPrivateMessagesRead(user.id, senderId);
-      res.json({ ok: true, updated });
-    });
+    const senderId = String(req.body?.senderId || '');
+    if (!senderId) return res.status(400).json({ ok: false, error: 'senderId is required' });
+    if (isSupabaseCommunityEnabled) {
+      const updated = await markPrivateMessagesReadSupabase(user.id, senderId);
+      return res.json({ ok: true, updated, backend: 'supabase' });
+    }
+    const updated = markPrivateMessagesRead(user.id, senderId);
+    return res.json({ ok: true, updated, backend: 'local-fallback' });
   } catch (err: any) {
-    res.status(500).json({ ok: false, error: err.message });
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+app.post('/api/messages/private/listened', async (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    const messageId = String(req.body?.messageId || '');
+    if (!messageId) return res.status(400).json({ ok: false, error: 'messageId is required' });
+    if (!isSupabaseCommunityEnabled) return res.json({ ok: true, backend: 'local-fallback' });
+    await markPrivateMessageListenedSupabase(messageId, user.id);
+    return res.json({ ok: true, backend: 'supabase' });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
   }
 });
 
@@ -1976,7 +2083,13 @@ app.post('/api/messages/private', async (req, res) => {
     if (isSupabaseCommunityEnabled && await isUserBlocked(user.id, receiverId)) {
       return res.status(403).json({ ok: false, error: 'Messaging is unavailable because one of you has blocked the other.' });
     }
-    const friendship = getUserFriends(user.id).friends.some((friend) => friend.friendId === receiverId);
+    let friendship = false;
+    if (isSupabaseCommunityEnabled) {
+      const friends = await listSupabaseFriends(user.id);
+      friendship = friends.some((friend: any) => friend.friendId === receiverId);
+    } else {
+      friendship = getUserFriends(user.id).friends.some((friend) => friend.friendId === receiverId);
+    }
     if (!friendship) {
       return res.status(403).json({ ok: false, error: 'Private messaging is available only between accepted friends.' });
     }
