@@ -698,14 +698,24 @@ app.post('/api/auth/change-password', async (req, res) => {
     return res.status(400).json({ ok: false, error: result.error || 'Failed to change password' });
   }
 
-  // Update session cookie with fresh persistent token so the session continues uninterrupted
-  if (result.token) {
+  if (!isSupabaseAuthEnabled && result.token) {
     res.cookie('primepipfx_session', result.token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
       sameSite: 'lax',
-      maxAge: 365 * 24 * 60 * 60 * 1000,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
       path: '/',
+    });
+  } else if (isSupabaseAuthEnabled && result.user) {
+    const durable = await authenticatePrimePipfx(result.user.username, newPassword, result.user);
+    if (!durable) return res.status(503).json({ ok: false, error: 'Unable to renew the authenticated session.' });
+    res.cookie('primepipfx_session', durable.accessToken, {
+      httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+      sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000, path: '/',
+    });
+    res.cookie('primepipfx_refresh', durable.refreshToken, {
+      httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+      sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000, path: '/',
     });
   }
 
