@@ -118,3 +118,30 @@ alter publication supabase_realtime add table public.friendships;
 alter publication supabase_realtime add table public.private_messages;
 alter publication supabase_realtime add table public.call_signals;
 alter publication supabase_realtime add table public.presence;
+
+-- Defense-in-depth for the current server-side secret-key architecture.
+-- Direct Data API access is denied until the application migrates to Supabase Auth
+-- and can bind row ownership to auth.uid().
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'trader_profiles','community_messages','community_message_seen','message_reads',
+    'friend_requests','friendships','private_messages','calls','presence','call_signals'
+  ] loop
+    execute format('drop policy if exists "deny direct data api access" on public.%I', t);
+    execute format('create policy "deny direct data api access" on public.%I for all to anon, authenticated using (false) with check (false)', t);
+  end loop;
+end $$;
+
+create index if not exists idx_call_signals_caller_id on public.call_signals(caller_id);
+create index if not exists idx_call_signals_receiver_id on public.call_signals(receiver_id);
+create index if not exists idx_calls_caller_id on public.calls(caller_id);
+create index if not exists idx_calls_receiver_id on public.calls(receiver_id);
+create index if not exists idx_community_message_seen_user_id on public.community_message_seen(user_id);
+create index if not exists idx_community_messages_user_id on public.community_messages(user_id);
+create index if not exists idx_friend_requests_receiver_id on public.friend_requests(receiver_id);
+create index if not exists idx_friendships_user_id_2 on public.friendships(user_id_2);
+create index if not exists idx_message_reads_user_id on public.message_reads(user_id);
+create index if not exists idx_private_messages_receiver_id on public.private_messages(receiver_id);
+create index if not exists idx_private_messages_sender_id on public.private_messages(sender_id);
