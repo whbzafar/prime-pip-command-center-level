@@ -50,7 +50,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onOpenBackupModal,
   onOpenAllCategories,
 }) => {
-  const isMoreTabActive = !['DASHBOARD', 'PRE_TRADE_PLAN', 'LOT_SIZE', 'JOURNAL'].includes(activeTab); = !['DASHBOARD', 'PRE_TRADE_PLAN', 'LOT_SIZE', 'JOURNAL'].includes(activeTab);
+  const isMoreTabActive = !['DASHBOARD', 'PRE_TRADE_PLAN', 'LOT_SIZE', 'JOURNAL'].includes(activeTab);
 
   return (
     <>
