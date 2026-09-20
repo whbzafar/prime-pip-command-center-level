@@ -60,7 +60,7 @@ import {
 } from './utils/db';
 import { Loader2, Shield, AlertTriangle, X } from 'lucide-react';
 import { playDisciplineAlert } from './utils/audioAlerts';
-import { getKarachiDate, getKarachiTime, normalizeTradeDateToPakistan, countTradesForPakistanDate } from './utils/time';
+import { getKarachiDate, getKarachiTime, normalizeTradeDateToPakistan } from './utils/time';
 import { AppearanceControls } from './components/AppearanceControls';
 import { AppFooter } from './components/AppFooter';
 import { AllCategoriesModal } from './components/AllCategoriesModal';
