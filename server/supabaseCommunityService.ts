@@ -150,6 +150,14 @@ export async function syncTraderProfiles(
   users: Array<{ id: string; username: string; name?: string; role?: string }>
 ) {
   if (!getSupabaseCommunityStatus().enabled || !users.length) return;
+  const ids = users.map((u) => u.id).filter(Boolean);
+  const existingRows = await supabaseRequest(
+    `trader_profiles?user_id=in.(${ids.map((id) => encodeURIComponent(id)).join(",")})&select=user_id,last_seen_at`
+  );
+  const existing = new Map<string, any>(
+    (Array.isArray(existingRows) ? existingRows : []).map((row: any) => [String(row.user_id), row])
+  );
+
   await supabaseRequest("trader_profiles?on_conflict=user_id", {
     method: "POST",
     headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
@@ -159,7 +167,7 @@ export async function syncTraderProfiles(
         username: u.username,
         display_name: u.name || u.username,
         role: u.role === "ADMIN" ? "ADMIN" : "CUSTOMER",
-        last_seen_at: new Date().toISOString(),
+        last_seen_at: existing.get(u.id)?.last_seen_at || null,
       }))
     ),
   });
