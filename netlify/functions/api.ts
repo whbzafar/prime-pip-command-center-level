@@ -7,7 +7,8 @@ const { app } = await import("../../server.ts");
 const expressHandler = serverless(app);
 
 export const handler = async (event: any, context: any) => {
-  const requestPath = event?.path || event?.rawPath || '';
+  const rawPath = event?.path || event?.rawPath || '';
+  const requestPath = String(rawPath).replace(/^\/\.netlify\/functions\/api/, '') || '/';
   const normalizedPath = requestPath.startsWith('/api/')
     ? requestPath
     : `/api${requestPath.startsWith('/') ? '' : '/'}${requestPath}`;
