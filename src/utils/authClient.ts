@@ -169,11 +169,7 @@ export async function checkAndHandleActivationLink(): Promise<UserAccount | null
 }
 
 export async function apiGetCurrentUser(): Promise<UserAccount | null> {
-  const token = getStoredToken();
   const headers: Record<string, string> = {};
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   try {
     const res = await fetch('/api/auth/me', {
@@ -189,7 +185,7 @@ export async function apiGetCurrentUser(): Promise<UserAccount | null> {
         setStoredUser(null);
         return null;
       }
-      return getStoredUser();
+      return null;
     }
 
     if (contentType.includes('application/json')) {
@@ -201,23 +197,17 @@ export async function apiGetCurrentUser(): Promise<UserAccount | null> {
     }
     return getStoredUser();
   } catch (err) {
-    // Offline / temporary network loss: return cached user so Admin is never prematurely logged out
-    console.warn('[AUTH CLIENT] Network offline, using cached credentials:', err);
-    return getStoredUser();
+    console.warn('[AUTH CLIENT] Session verification failed:', err);
+    return null;
   }
 }
 
 export async function apiLogout(): Promise<void> {
-  const token = getStoredToken();
   try {
     await fetch('/api/auth/logout', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ token }),
     });
   } catch {
     // ignore
@@ -232,7 +222,6 @@ export const logoutUser = apiLogout;
 export const verifyCurrentSession = apiGetCurrentUser;
 
 export async function apiChangePassword(newPassword: string): Promise<{ ok: boolean; error?: string; token?: string; user?: UserAccount }> {
-  const token = getStoredToken();
   const currentUser = getStoredUser();
 
   // Save to local store so password updates are immediately persistent on Vercel
@@ -249,10 +238,7 @@ export async function apiChangePassword(newPassword: string): Promise<{ ok: bool
   try {
     const res = await fetch('/api/auth/change-password', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ newPassword }),
     });
@@ -269,14 +255,7 @@ export async function apiChangePassword(newPassword: string): Promise<{ ok: bool
     console.warn('[AUTH CLIENT] Server change password endpoint unavailable, persisted locally:', err);
   }
 
-  // Fallback for Vercel static environments
-  if (currentUser) {
-    const updatedUser = { ...currentUser, mustChangePassword: false, updatedAt: new Date().toISOString() };
-    setStoredUser(updatedUser);
-    return { ok: true, user: updatedUser, token: token || `token_${Date.now()}` };
-  }
-
-  return { ok: true };
+  return { ok: false, error: 'Authentication service unavailable. Please try again.' };
 }
 
 export async function apiCheckReferral(code: string): Promise<{ valid: boolean; referrerName?: string; price: number }> {
