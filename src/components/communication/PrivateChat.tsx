@@ -120,7 +120,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
   const markMessagesRead = async () => {
     if (!currentUser || !activeContact) return;
     try {
-      await fetch('/api/messages/private/read', {
+      const response = await fetch('/api/messages/private/read', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,6 +128,13 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
         credentials: 'include',
         body: JSON.stringify({ senderId: activeContact.id })
       });
+      if (response.ok) {
+        setMessages((prev) => prev.map((message) =>
+          message.senderId === activeContact.id && message.receiverId === currentUser.id
+            ? { ...message, read: true, readAt: message.readAt || Date.now() }
+            : message
+        ));
+      }
     } catch (e) {
       console.error(e);
     }
