@@ -276,6 +276,47 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
 }
 
+app.post('/api/gemini/translate', requireUserSession, async (req, res) => {
+  const { targetLanguage, keys, texts } = req.body || {};
+  if (typeof targetLanguage !== 'string' || !Array.isArray(keys) || !Array.isArray(texts) || keys.length !== texts.length || keys.length > 150) {
+    return res.status(400).json({ ok: false, error: 'Invalid translation payload.' });
+  }
+  const ai = getGeminiClient();
+  if (!ai) return res.status(503).json({ ok: false, error: 'Translation service is not configured.' });
+
+  const safeTexts = texts.map((v: unknown) => typeof v === 'string' ? v.slice(0, 1200) : '');
+  const languageNames: Record<string,string> = {
+    hi:'Hindi', ar:'Arabic', es:'Spanish', fr:'French', de:'German', tr:'Turkish',
+    id:'Indonesian', bn:'Bengali', fa:'Persian', pt:'Portuguese', zh:'Chinese',
+    ja:'Japanese', ko:'Korean', ru:'Russian'
+  };
+  const language = languageNames[targetLanguage] || targetLanguage;
+  const prompt = [
+    'Translate the following UI text for a trading psychology education application.',
+    'Use plain, natural language that a non-expert can understand.',
+    'Preserve meaning, numbers, placeholders, product names and trading terms such as FOMO, stop-loss, R, P&L and PRIMEPIPFX.',
+    'Return ONLY valid JSON: an object whose keys exactly match the supplied keys and whose values are the translations.',
+    `Target language: ${language}`,
+    JSON.stringify(Object.fromEntries(keys.map((k: string, i: number) => [k, safeTexts[i]])))
+  ].join('\n');
+
+  try {
+    const response = await withTimeout(ai.models.generateContent({
+      model: 'gemini-flash-latest',
+      contents: prompt,
+      config: { temperature: 0.2, responseMimeType: 'application/json' }
+    }), 8000);
+    const raw = response.text?.trim() || '{}';
+    const parsed = JSON.parse(raw);
+    const translations: Record<string,string> = {};
+    for (const key of keys) if (typeof parsed[key] === 'string') translations[key] = parsed[key].slice(0, 1600);
+    return res.json({ ok: true, targetLanguage, translations });
+  } catch (error) {
+    console.error('[TRANSLATION] Failed:', error);
+    return res.status(503).json({ ok: false, error: 'Translation temporarily unavailable.' });
+  }
+});
+
 // Unified AI Trading Coach Controller
 async function handleTradingCoach(req: express.Request, res: express.Response) {
   const { prompt, context, mode, question, tradeContext } = req.body || {};
