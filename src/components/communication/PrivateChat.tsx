@@ -267,7 +267,6 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
     if (audioBase64) {
       try {
         const uploadHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (token) uploadHeaders['Authorization'] = `Bearer ${token}`;
 
         const uploadRes = await fetch('/api/media/voice/upload', {
           method: 'POST',
