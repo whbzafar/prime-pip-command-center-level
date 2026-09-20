@@ -2,6 +2,7 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import './community-layout-fix.css';
 import { applyInterfaceTemplate } from './data/interfaceTemplates';
 
 try {
