@@ -1,13 +1,4 @@
 import { UserAccount, SubscriptionStatus } from '../types';
-import {
-  authenticateLocal,
-  authenticateLocalAsync,
-  setLocalAdminPassword,
-  saveLocalStudent,
-  getLocalStudents,
-  syncStudentsFromCloud,
-} from './localAuthStore';
-
 const USER_KEY = 'primepipfx_user_profile';
 const REFERRAL_KEY = 'primepipfx_applied_referral';
 
@@ -133,27 +124,13 @@ export async function apiLogin(
         return { ok: true, user: data.user, token: data.token };
       }
       
-      // If server returned an authentication error, also check local store before failing
-      // (in case the student account was created locally or on Vercel cloud KV)
-      const localResult = await authenticateLocalAsync(cleanUsername, cleanPassword);
-      if (localResult.ok && localResult.user) {
-        if (localResult.token) setStoredToken(localResult.token);
-        setStoredUser(localResult.user);
-        return localResult;
-      }
-
       return { ok: false, error: data.error || 'Login failed' };
     }
   } catch (err: any) {
     console.warn('[AUTH CLIENT] Server endpoint unavailable or network error, attempting local authentication:', err);
   }
 
-  // If server response is not JSON (e.g. 404 HTML on Vercel deployment) or server is unreachable:
-  const localAuth = await authenticateLocalAsync(cleanUsername, cleanPassword);
-  if (localAuth.ok && localAuth.user) {
-    if (localAuth.token) setStoredToken(localAuth.token);
-    setStoredUser(localAuth.user);
-    return localAuth;
+  return { ok: false, error: 'Authentication service unavailable. Please try again.' };
   }
   return { ok: false, error: localAuth.error || 'Invalid credentials.' };
 }
@@ -168,9 +145,6 @@ export async function checkAndHandleActivationLink(): Promise<UserAccount | null
 
 export async function apiGetCurrentUser(): Promise<UserAccount | null> {
   const headers: Record<string, string> = {};
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   try {
     const res = await fetch('/api/auth/me', {
@@ -197,20 +171,17 @@ export async function apiGetCurrentUser(): Promise<UserAccount | null> {
     }
     return getStoredUser();
   } catch (err) {
-    // Offline / temporary network loss: return cached user so Admin is never prematurely logged out
-    console.warn('[AUTH CLIENT] Network offline, using cached credentials:', err);
-    return getStoredUser();
+    console.warn('[AUTH CLIENT] Session verification failed:', err);
+    return null;
   }
 }
 
 export async function apiLogout(): Promise<void> {
-  const token = getStoredToken();
   try {
     await fetch('/api/auth/logout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ token }),
     });
   } catch {
     // ignore
@@ -225,27 +196,12 @@ export const logoutUser = apiLogout;
 export const verifyCurrentSession = apiGetCurrentUser;
 
 export async function apiChangePassword(newPassword: string): Promise<{ ok: boolean; error?: string; token?: string; user?: UserAccount }> {
-  const token = getStoredToken();
   const currentUser = getStoredUser();
-
-  // Save to local store so password updates are immediately persistent on Vercel
-  if (currentUser?.role === 'ADMIN' || currentUser?.isDeveloper || currentUser?.username === 'primepipfx-admin') {
-    setLocalAdminPassword(newPassword);
-  } else if (currentUser) {
-    saveLocalStudent({
-      ...currentUser,
-      password: newPassword,
-      mustChangePassword: false,
-    });
-  }
 
   try {
     const res = await fetch('/api/auth/change-password', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ newPassword }),
     });
@@ -262,14 +218,7 @@ export async function apiChangePassword(newPassword: string): Promise<{ ok: bool
     console.warn('[AUTH CLIENT] Server change password endpoint unavailable, persisted locally:', err);
   }
 
-  // Fallback for Vercel static environments
-  if (currentUser) {
-    const updatedUser = { ...currentUser, mustChangePassword: false, updatedAt: new Date().toISOString() };
-    setStoredUser(updatedUser);
-    return { ok: true, user: updatedUser, token: token || `token_${Date.now()}` };
-  }
-
-  return { ok: true };
+  return { ok: false, error: 'Authentication service unavailable. Please try again.' };
 }
 
 export async function apiCheckReferral(code: string): Promise<{ valid: boolean; referrerName?: string; price: number }> {
@@ -286,16 +235,12 @@ export async function apiCheckReferral(code: string): Promise<{ valid: boolean; 
 
 // Complete student onboarding and persist to backend
 export async function apiCompleteOnboarding(): Promise<{ ok: boolean; user?: UserAccount; error?: string }> {
-  const token = getStoredToken();
   const currentUser = getStoredUser();
 
   try {
     const res = await fetch('/api/auth/complete-onboarding', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
     });
 
@@ -311,17 +256,5 @@ export async function apiCompleteOnboarding(): Promise<{ ok: boolean; user?: Use
     console.warn('[AUTH CLIENT] Server complete onboarding unavailable, saving locally:', err);
   }
 
-  // Fallback for offline or local cache
-  if (currentUser) {
-    const updated: UserAccount = {
-      ...currentUser,
-      hasCompletedOnboarding: true,
-      needsOnboarding: false,
-      updatedAt: new Date().toISOString(),
-    };
-    setStoredUser(updated);
-    return { ok: true, user: updated };
-  }
-
-  return { ok: true };
+  return { ok: false, error: 'Authentication service unavailable. Please try again.' };
 }
