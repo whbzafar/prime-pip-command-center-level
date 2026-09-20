@@ -473,7 +473,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   // Set secure HttpOnly cookie with 1-year persistence if rememberMe
-  const maxAge = rememberMe ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+  const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
   res.cookie('primepipfx_session', result.token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
