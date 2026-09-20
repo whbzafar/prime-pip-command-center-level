@@ -52,6 +52,7 @@ interface ChatMessage {
   timePkt: string;
   datePkt: string;
   seenBy?: SeenReceipt[];
+  listenedBy?: SeenReceipt[];
   driveFile?: DriveAttachmentMeta;
   attachmentUrl?: string;
   attachmentName?: string;
@@ -325,6 +326,40 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
         }),
       }));
     } catch { /* ignore */ }
+  };
+
+  const markMessageListened = async (messageId: string) => {
+    if (!currentUser?.id || !messageId) return;
+    try {
+      const token = getStoredToken();
+      await fetch('/api/community/messages/listened', communityRequest({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ messageId }),
+      }));
+      setMessages((prev) => prev.map((message) => {
+        if (message.id !== messageId) return message;
+        const existing = message.listenedBy || [];
+        if (existing.some((person) => person.userId === currentUser.id)) return message;
+        return {
+          ...message,
+          listenedBy: [
+            ...existing,
+            {
+              userId: currentUser.id,
+              username: currentUser.username,
+              displayName: currentUser.name || currentUser.username,
+              seenAt: Date.now(),
+            },
+          ],
+        };
+      }));
+    } catch {
+      // Listening receipts are best-effort and never block playback.
+    }
   };
 
   const handleToggleReaction = (messageId: string, emoji: string) => {
@@ -1072,11 +1107,26 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                                 );
                               })}
                             </div>
-                            {m.seenBy && m.seenBy.length > 0 && (
-                              <div className="flex items-center gap-1 text-[9px] text-slate-500">
-                                <CheckCheck className="w-3 h-3 text-cyan-400" /> Seen by {m.seenBy.length}
-                              </div>
-                            )}
+                            <div className="flex items-center gap-2 text-[9px] text-slate-500">
+                              {m.seenBy && m.seenBy.length > 0 && (
+                                <span
+                                  className="flex items-center gap-1"
+                                  title={m.seenBy.map((person) => `@${person.username}`).join(', ')}
+                                >
+                                  <CheckCheck className="w-3 h-3 text-cyan-400" />
+                                  Seen by {m.seenBy.length}
+                                </span>
+                              )}
+                              {m.listenedBy && m.listenedBy.length > 0 && (
+                                <span
+                                  className="flex items-center gap-1 text-emerald-400"
+                                  title={m.listenedBy.map((person) => `@${person.username}`).join(', ')}
+                                >
+                                  <span>🎧</span>
+                                  Listened by {m.listenedBy.length}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </motion.div>
