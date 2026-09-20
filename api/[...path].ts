@@ -5,6 +5,10 @@ export default function handler(req: Request, res: Response) {
   try {
     // Import server.ts statically so Vercel bundles the complete backend
     // instead of trying to load a .ts source file at runtime.
+    // Ensure the URL maintains the /api prefix when dispatched through Vercel serverless functions
+    if (req.url && !req.url.startsWith('/api')) {
+      req.url = `/api${req.url.startsWith('/') ? '' : '/'}${req.url}`;
+    }
     return app(req, res);
   } catch (err: any) {
     console.error('[API] Handler failure:', err);

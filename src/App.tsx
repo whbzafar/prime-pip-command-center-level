@@ -24,6 +24,7 @@ import { LotSizeCalculator } from './components/LotSizeCalculator';
 import { LoginModal } from './components/LoginModal';
 import { FirstOpenLoginScreen } from './components/FirstOpenLoginScreen';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { AppPerimeterGlow } from './components/AppPerimeterGlow';
 import { SubscriptionPage } from './components/SubscriptionPage';
 import { SubscriptionGateModal } from './components/SubscriptionGateModal';
 import { DeveloperAdminPanel } from './components/DeveloperAdminPanel';
@@ -57,7 +58,9 @@ import {
   saveGoalsForAccount,
   syncUserDataFromServer,
   syncUserDataToServer,
+  exportAllData,
 } from './utils/db';
+import { googleDriveService } from './services/googleDriveService';
 import { Loader2, Shield, AlertTriangle, X } from 'lucide-react';
 import { playDisciplineAlert } from './utils/audioAlerts';
 import { getKarachiDate, getKarachiTime } from './utils/time';
@@ -309,6 +312,29 @@ export default function App() {
       });
     }
   }, [currentUser?.id, initApp]);
+
+  // Sync current user ID with Google Drive service
+  useEffect(() => {
+    googleDriveService.setCurrentUserId(currentUser?.id);
+  }, [currentUser?.id]);
+
+  // Free Automatic Google Drive Storage Sync (runs whenever user updates trades, accounts, rules, or goals)
+  useEffect(() => {
+    if (!currentUser?.id || !googleDriveService.isConnected() || !googleDriveService.isAutoSaveEnabled()) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const allData = await exportAllData();
+        await googleDriveService.autoSaveUserData(allData);
+      } catch (err) {
+        console.warn('AutoSave to Google Drive error:', err);
+      }
+    }, 3500); // 3.5-second debounce
+
+    return () => clearTimeout(timer);
+  }, [trades, accounts, rules, goals, currentUser?.id]);
 
   // Account Operations
   const handleSelectAccount = async (accountId: string) => {
@@ -698,19 +724,12 @@ export default function App() {
     <div className="prime-command-shell w-full max-w-full min-h-screen text-slate-100 flex flex-col selection:bg-blue-500/30 selection:text-cyan-200 relative overflow-x-hidden">
       <CommunicationNotifications currentUser={currentUser} onOpenCommunication={() => setActiveTab('COMMUNITY')} />
 
-      {/* Global Animated Background Elements */}
-      <div className="fixed inset-0 pointer-events-none z-0" style={{ background: 'radial-gradient(circle at 15% 50%, rgba(14, 165, 233, 0.05), transparent 40%), radial-gradient(circle at 85% 30%, rgba(245, 158, 11, 0.05), transparent 40%)' }}></div>
-      <div className="fixed inset-0 pointer-events-none z-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+      {/* 4-Side Animated Laser Perimeter Frame */}
+      <AppPerimeterGlow />
 
-      {/* Dynamic Screen Dimmer: Adjusts brightness without CSS filter on root to ensure position:fixed remains viewport-fixed */}
-      <div
-        aria-hidden="true"
-        className="fixed inset-0 pointer-events-none z-[99999] transition-opacity duration-200"
-        style={{
-          backgroundColor: '#000000',
-          opacity: 'calc((100% - var(--prime-brightness, 100%)) / 100)',
-        }}
-      />
+      {/* Global Animated Background Elements with Calibrated Clean Cyber Atmosphere */}
+      <div className="fixed inset-0 pointer-events-none z-0" style={{ background: 'radial-gradient(circle at 18% 30%, rgba(14, 165, 233, 0.05), transparent 45%), radial-gradient(circle at 82% 25%, rgba(168, 85, 247, 0.04), transparent 45%), radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.03), transparent 55%)' }}></div>
+      <div className="fixed inset-0 pointer-events-none z-0 opacity-15" style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
 
       {/* Navigation HUD Header */}
       <Header

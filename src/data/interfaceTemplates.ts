@@ -18,15 +18,15 @@ export const INTERFACE_TEMPLATES: InterfaceTemplate[] = [
     id: 'midnight',
     label: 'Midnight Command',
     category: 'CYBER',
-    description: 'Classic institutional deep cyber navy with electric cyan highlights.',
-    accent: '#38bdf8',
-    accentSecondary: '#818cf8',
-    bg: '#070A11',
-    surface: '#0B111E',
-    elevated: '#111B2E',
-    border: '#1E293B',
-    ink: '#F1F5F9',
-    inkMuted: '#94A3B8',
+    description: 'Classic institutional deep cyber navy with electric cyan highlights and pro contrast.',
+    accent: '#00f0ff',
+    accentSecondary: '#38bdf8',
+    bg: '#080d1a',
+    surface: '#0e1628',
+    elevated: '#152238',
+    border: '#1e3052',
+    ink: '#f8fafc',
+    inkMuted: '#cbd5e1',
   },
   {
     id: 'bloomberg',
@@ -300,23 +300,48 @@ export const getTemplateById = (id: string): InterfaceTemplate => {
   return INTERFACE_TEMPLATES.find((t) => t.id === id) || INTERFACE_TEMPLATES[0];
 };
 
-export const applyInterfaceTemplate = (templateId: string, brightness = 100): void => {
+export const boostHexBrightness = (hex: string, boostPercent: number): string => {
+  try {
+    const clean = hex.replace('#', '');
+    if (clean.length !== 6) return hex;
+    const num = parseInt(clean, 16);
+    const boost = Math.round(255 * (boostPercent / 100));
+    let r = (num >> 16) + boost;
+    let g = ((num >> 8) & 0x00ff) + boost;
+    let b = (num & 0x0000ff) + boost;
+    r = Math.min(255, Math.max(0, r));
+    g = Math.min(255, Math.max(0, g));
+    b = Math.min(255, Math.max(0, b));
+    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+  } catch {
+    return hex;
+  }
+};
+
+export const applyInterfaceTemplate = (templateId: string, brightness = 104): void => {
   if (typeof document === 'undefined') return;
 
   const template = getTemplateById(templateId);
   const root = document.documentElement;
 
-  // Set standard data attribute
+  // Calculate safe native brightness boost without breaking CSS position:fixed
+  const boostPercent = Math.max(0, (brightness - 100) * 0.15);
+  const activeBg = boostHexBrightness(template.bg, boostPercent);
+  const activeSurface = boostHexBrightness(template.surface, boostPercent + 0.8);
+  const activeElevated = boostHexBrightness(template.elevated, boostPercent + 1.5);
+  const activeBorder = boostHexBrightness(template.border, boostPercent + 2);
+
+  // Set standard data attributes and CSS variables
   root.dataset.theme = template.id;
   root.style.setProperty('--prime-brightness', `${brightness}%`);
-  root.style.setProperty('--bg', template.bg);
-  root.style.setProperty('--bg-surface', template.surface);
-  root.style.setProperty('--bg-elevated', template.elevated);
+  root.style.setProperty('--bg', activeBg);
+  root.style.setProperty('--bg-surface', activeSurface);
+  root.style.setProperty('--bg-elevated', activeElevated);
   root.style.setProperty('--accent', template.accent);
   root.style.setProperty('--accent-secondary', template.accentSecondary);
   root.style.setProperty('--ink', template.ink);
   root.style.setProperty('--ink-muted', template.inkMuted);
-  root.style.setProperty('--border-color', template.border);
+  root.style.setProperty('--border-color', activeBorder);
 
   // Store in localStorage
   try {
@@ -334,17 +359,17 @@ export const applyInterfaceTemplate = (templateId: string, brightness = 100): vo
 
   styleEl.textContent = `
     html, body {
-      background-color: ${template.bg} !important;
+      background-color: ${activeBg} !important;
       color: ${template.ink} !important;
     }
-    .bg-\\[\\#070A11\\], .bg-\\[\\#070a11\\], .bg-slate-950, .bg-slate-950\\/90, .bg-slate-950\\/80, .bg-slate-950\\/60 {
-      background-color: ${template.surface} !important;
+    .bg-\\[\\#070A11\\], .bg-\\[\\#070a11\\], .bg-\\[\\#080C14\\], .bg-\\[\\#020617\\], .bg-slate-950, .bg-slate-950\\/90, .bg-slate-950\\/80, .bg-slate-950\\/60 {
+      background-color: ${activeSurface} !important;
     }
-    .bg-slate-900, .bg-slate-900\\/80, .bg-slate-900\\/90 {
-      background-color: ${template.elevated} !important;
+    .bg-slate-900, .bg-slate-900\\/80, .bg-slate-900\\/90, .bg-\\[\\#0B0F19\\], .bg-\\[\\#090D15\\] {
+      background-color: ${activeElevated} !important;
     }
     .border-slate-800, .border-slate-800\\/80, .border-slate-800\\/60, .border-slate-850 {
-      border-color: ${template.border} !important;
+      border-color: ${activeBorder} !important;
     }
     .text-cyan-400, .text-cyan-300 {
       color: ${template.accent} !important;
@@ -353,11 +378,11 @@ export const applyInterfaceTemplate = (templateId: string, brightness = 100): vo
       border-color: ${template.accent}66 !important;
     }
     .prime-card-elevated {
-      background: ${template.surface} !important;
-      border-color: ${template.border} !important;
+      background: ${activeSurface} !important;
+      border-color: ${activeBorder} !important;
     }
     ::-webkit-scrollbar-thumb {
-      background: ${template.border} !important;
+      background: ${activeBorder} !important;
     }
     ::-webkit-scrollbar-thumb:hover {
       background: ${template.accent} !important;

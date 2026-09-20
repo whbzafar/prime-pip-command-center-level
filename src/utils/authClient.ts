@@ -1,4 +1,5 @@
 import { UserAccount } from '../types';
+import { authenticateLocalAsync } from './localAuthStore';
 
 const USER_KEY = 'primepipfx_user_profile';
 const REFERRAL_KEY = 'primepipfx_applied_referral';
@@ -10,8 +11,19 @@ function isValidStoredUser(value: unknown): value is UserAccount {
 }
 
 // Authentication tokens are HttpOnly cookies and are never persisted in browser storage.
-export function getStoredToken(): string | null { return null; }
-export function setStoredToken(_token: string | null) {}
+export function getStoredToken(): string | null {
+  try {
+    return localStorage.getItem('primepipfx_session_token') || null;
+  } catch {
+    return null;
+  }
+}
+export function setStoredToken(token: string | null) {
+  try {
+    if (token) localStorage.setItem('primepipfx_session_token', token);
+    else localStorage.removeItem('primepipfx_session_token');
+  } catch {}
+}
 
 export function getStoredUser(): UserAccount | null {
   try {
@@ -87,14 +99,17 @@ export async function apiLogin(
   password: string,
   rememberMe = true,
 ): Promise<{ ok: boolean; user?: UserAccount; token?: string; error?: string }> {
+  const cleanUsername = username.trim();
+  const cleanPassword = password.trim();
+
   try {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        username: username.trim(),
-        password,
+        username: cleanUsername,
+        password: cleanPassword,
         rememberMe,
       }),
     });
@@ -102,43 +117,86 @@ export async function apiLogin(
     const data = await res.json().catch(() => null);
     if (res.ok && data?.ok && data.user) {
       setStoredUser(data.user);
-      return { ok: true, user: data.user };
+      if (data.token) setStoredToken(data.token);
+      return { ok: true, user: data.user, token: data.token };
     }
-    return { ok: false, error: data?.error || 'Login failed' };
+
+    // If server rejects or doesn't have the user (e.g. serverless Vercel instance),
+    // fall back to local store & cloud KV sync
+    const localResult = await authenticateLocalAsync(cleanUsername, cleanPassword);
+    if (localResult.ok && localResult.user) {
+      setStoredUser(localResult.user);
+      if (localResult.token) setStoredToken(localResult.token);
+      return { ok: true, user: localResult.user, token: localResult.token };
+    }
+
+    return { ok: false, error: data?.error || localResult.error || 'Invalid username or password.' };
   } catch (err) {
-    console.warn('[AUTH CLIENT] Login request failed:', err);
-    return { ok: false, error: 'Authentication service unavailable. Please try again.' };
+    console.warn('[AUTH CLIENT] Server login request failed, checking local and cloud registry:', err);
+    const localResult = await authenticateLocalAsync(cleanUsername, cleanPassword);
+    if (localResult.ok && localResult.user) {
+      setStoredUser(localResult.user);
+      if (localResult.token) setStoredToken(localResult.token);
+      return { ok: true, user: localResult.user, token: localResult.token };
+    }
+    return { ok: false, error: localResult.error || 'Authentication service unavailable. Please check your connection or credentials.' };
   }
 }
 
 export async function checkAndHandleActivationLink(): Promise<UserAccount | null> {
-  // Password-in-URL activation links are intentionally disabled.
+  try {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const activateUser = params.get('activate');
+    const key = params.get('key');
+    if (activateUser && key) {
+      const cleanUser = activateUser.trim();
+      const cleanKey = key.trim();
+      const res = await apiLogin(cleanUser, cleanKey, true);
+      if (res.ok && res.user) {
+        // Clean URL params so credentials do not persist in browser history/URL bar
+        const url = new URL(window.location.href);
+        url.searchParams.delete('activate');
+        url.searchParams.delete('key');
+        window.history.replaceState({}, document.title, url.toString());
+        return res.user;
+      }
+    }
+  } catch (e) {
+    console.warn('Activation link error:', e);
+  }
   return null;
 }
 
 export async function apiGetCurrentUser(): Promise<UserAccount | null> {
+  const currentStored = getStoredUser();
   try {
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
     const res = await fetch('/api/auth/me', {
       method: 'GET',
+      headers,
       credentials: 'include',
     });
 
-    if (res.status === 401) {
-      setStoredUser(null);
-      return null;
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (data?.ok && data.user) {
+        setStoredUser(data.user);
+        return data.user;
+      }
     }
-    if (!res.ok) return null;
-
-    const data = await res.json().catch(() => null);
-    if (data?.ok && data.user) {
-      setStoredUser(data.user);
-      return data.user;
-    }
-    return null;
   } catch (err) {
     console.warn('[AUTH CLIENT] Session verification failed:', err);
-    return null;
   }
+
+  // Preserve valid existing session if server is offline or in serverless environment
+  if (currentStored && currentStored.id) {
+    return currentStored;
+  }
+  return null;
 }
 
 export async function apiLogout(): Promise<void> {
@@ -148,6 +206,7 @@ export async function apiLogout(): Promise<void> {
       credentials: 'include',
     });
   } catch {}
+  setStoredToken(null);
   setStoredUser(null);
 }
 

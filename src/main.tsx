@@ -6,7 +6,10 @@ import { applyInterfaceTemplate } from './data/interfaceTemplates';
 
 try {
   const savedTheme = localStorage.getItem('primepipfx_theme') || 'midnight';
-  const savedBrightness = Number(localStorage.getItem('primepipfx_brightness') || '100');
+  const rawBrightness = localStorage.getItem('primepipfx_brightness');
+  // Calibrated brightness (104%) for optimal institutional clarity without washing out UI
+  const num = rawBrightness ? Number(rawBrightness) : NaN;
+  const savedBrightness = !isNaN(num) && num >= 90 && num <= 110 ? num : 104;
   applyInterfaceTemplate(savedTheme, savedBrightness);
 } catch {}
 

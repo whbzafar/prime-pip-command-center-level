@@ -572,7 +572,6 @@ app.post('/api/auth/login', async (req, res) => {
           httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
           sameSite: 'lax', maxAge, path: '/',
         });
-        cacheAuthenticatedUser(localResult.token, localResult.user, Math.min(maxAge, 55 * 60 * 1000));
         return res.json({ ok: true, user: sanitizeUser(localResult.user), authMode: 'legacy-compatibility' });
       }
       const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
@@ -1290,7 +1289,7 @@ app.post('/api/calendar/sync', async (req, res) => {
 // ----------------------------------------------------
 // SECURE VOICE MEDIA ATTACHMENT PIPELINE
 // ----------------------------------------------------
-app.post('/api/media/voice/upload', (req, res) => {
+app.post('/api/media/voice/upload', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) {
@@ -1576,7 +1575,7 @@ app.patch('/api/user/presence-privacy', (req, res) => {
 // ----------------------------------------------------
 app.get('/api/community/messages', async (req, res) => {
   try {
-    await syncLegacyStudentsToServer();
+    try { await syncLegacyStudentsToServer(); } catch {}
     const token = getAuthToken(req);
     if (token) {
       const user = getUserByToken(token);
@@ -1586,15 +1585,21 @@ app.get('/api/community/messages', async (req, res) => {
     }
 
     if (isSupabaseCommunityEnabled) {
-      const messages = await readCommunityMessagesSupabase();
-      return res.json({ ok: true, messages, backend: 'supabase' });
+      try {
+        const messages = await readCommunityMessagesSupabase();
+        if (Array.isArray(messages) && messages.length > 0) {
+          return res.json({ ok: true, messages, backend: 'supabase' });
+        }
+      } catch (sbErr: any) {
+        console.warn('[COMMUNITY GET] Supabase read failed, falling back to local storage:', sbErr?.message);
+      }
     }
 
     const messages = readCommunityMessages();
     return res.json({ ok: true, messages, backend: 'local-fallback' });
   } catch (err: any) {
-    console.error('[COMMUNITY GET] Failed:', err);
-    return res.status(500).json({ ok: false, error: err?.message || 'Community backend failed.' });
+    console.error('[COMMUNITY GET] Resilient fallback triggered:', err);
+    return res.json({ ok: true, messages: readCommunityMessages(), backend: 'resilient-fallback' });
   }
 });
 
@@ -1615,13 +1620,21 @@ app.post('/api/community/messages/seen', async (req, res) => {
       return res.json({ ok: true, updated: 0 });
     }
 
-    const updated = isSupabaseCommunityEnabled
-      ? await markCommunityMessagesSeenSupabase(messageIds, user.id)
-      : markCommunityMessagesSeen(messageIds, {
-          id: user.id,
-          username: user.username,
-          displayName: user.name || user.username,
-        });
+    let updated = 0;
+    if (isSupabaseCommunityEnabled) {
+      try {
+        updated = await markCommunityMessagesSeenSupabase(messageIds, user.id);
+        return res.json({ ok: true, updated });
+      } catch (err) {
+        console.warn('[COMMUNITY SEEN] Supabase failed, falling back to local:', err);
+      }
+    }
+
+    updated = markCommunityMessagesSeen(messageIds, {
+      id: user.id,
+      username: user.username,
+      displayName: user.name || user.username,
+    });
 
     return res.json({ ok: true, updated });
   } catch (err: any) {
@@ -1634,7 +1647,7 @@ const userLastCardTime = new Map<string, number>();
 
 app.post('/api/community/messages', async (req, res) => {
   try {
-    await syncLegacyStudentsToServer();
+    try { await syncLegacyStudentsToServer(); } catch {}
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized. Please login to participate in the community.' });
     const user = getUserByToken(token);
@@ -1663,25 +1676,38 @@ app.post('/api/community/messages', async (req, res) => {
     }
 
     if (isSupabaseCommunityEnabled) {
-      await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: user.role });
-      const body = req.body || {};
-      const messageType = body.audioAttachmentId || body.audioBase64
-        ? 'VOICE'
-        : body.photoBase64 || body.photoUrl
-          ? 'IMAGE'
-          : body.fileBase64 || body.attachmentUrl || body.driveFile
-            ? 'FILE'
-            : 'TEXT';
-      const message = await postCommunityMessageSupabase({
-        userId: user.id,
-        text: body.text || '',
-        messageType,
-        attachmentPath: body.attachmentUrl || body.photoUrl || body.audioUrl,
-        attachmentName: body.attachmentName || body.driveFile?.fileName,
-        attachmentMimeType: body.audioMimeType || body.driveFile?.mimeType,
-        attachmentSize: body.attachmentSize || body.audioSize,
-      });
-      return res.json({ ok: true, message, backend: 'supabase' });
+      try {
+        await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: user.role });
+        const body = req.body || {};
+        const messageType = body.audioAttachmentId || body.audioBase64
+          ? 'VOICE'
+          : body.photoBase64 || body.photoUrl
+            ? 'IMAGE'
+            : body.fileBase64 || body.attachmentUrl || body.driveFile
+              ? 'FILE'
+              : 'TEXT';
+        const message = await postCommunityMessageSupabase({
+          userId: user.id,
+          text: body.text || '',
+          messageType,
+          attachmentPath: body.attachmentUrl || body.photoUrl || body.audioUrl,
+          attachmentName: body.attachmentName || body.driveFile?.fileName,
+          attachmentMimeType: body.audioMimeType || body.driveFile?.mimeType,
+          attachmentSize: body.attachmentSize || body.audioSize,
+        });
+        try {
+          postCommunityMessage({
+            ...req.body,
+            userId: user.id,
+            username: user.username,
+            displayName: user.name || user.username,
+            avatarBadge: user.role === 'ADMIN' || user.username === 'primepipfx-admin' ? 'DEV / OWNER' : undefined,
+          });
+        } catch {}
+        return res.json({ ok: true, message, backend: 'supabase' });
+      } catch (sbErr: any) {
+        console.warn('[COMMUNITY POST] Supabase failed, falling back to local:', sbErr?.message);
+      }
     }
 
     const newMsg = postCommunityMessage({

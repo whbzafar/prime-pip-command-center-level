@@ -78,6 +78,18 @@ export async function syncLegacyStudentsToServer(force = false): Promise<number>
           users.push(user);
           byUsername.set(username, user);
           changed++;
+        } else if (password) {
+          let isMatch = false;
+          if (user.passwordHash && user.salt) {
+            isMatch = crypto.pbkdf2Sync(password, user.salt, 10000, 64, "sha512").toString("hex") === user.passwordHash;
+          }
+          if (!isMatch) {
+            const { passwordHash, salt } = hashPassword(password);
+            user.passwordHash = passwordHash;
+            user.salt = salt;
+            user.updatedAt = new Date().toISOString();
+            changed++;
+          }
         }
       }
 

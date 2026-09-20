@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { UserAccount } from '../types';
 import { getKarachiDate, getKarachiTime } from '../utils/time';
 import { getStoredToken } from '../utils/authClient';
@@ -10,8 +11,10 @@ import {
   Users, Send, Image as ImageIcon, Mic, MicOff, Clock, RefreshCw, X,
   MessageSquare, UserPlus, Radio, Paperclip, CheckCheck,
   Search, Eye, EyeOff, WifiOff, Maximize2, Minimize2, ChevronDown, ChevronUp, Minus,
+  Target, TrendingUp, TrendingDown, Filter, Sparkles, Flame, ThumbsUp, BarChart2,
+  Cloud, Download, ExternalLink, ShieldCheck, Check
 } from 'lucide-react';
-import { googleDriveService } from '../services/googleDriveService';
+import { googleDriveService, DriveBackupFile } from '../services/googleDriveService';
 import { IntentCard } from './chat/IntentCard';
 import { IntentCardPayload } from './chat/types';
 import { DEFAULT_TRADERS, DEFAULT_COMMUNITY_MESSAGES } from '../data/defaultTraders';
@@ -30,6 +33,17 @@ interface DriveAttachmentMeta {
   mimeType?: string;
   webViewLink?: string;
   categoryFolder?: string;
+}
+
+export interface TradeSetupPayload {
+  pair: string;
+  type: 'BUY' | 'SELL';
+  entry: string;
+  stopLoss: string;
+  takeProfit: string;
+  riskReward?: string;
+  timeframe?: string;
+  status?: 'ACTIVE' | 'TARGET_HIT' | 'STOPPED' | 'CLOSED';
 }
 
 interface ChatMessage {
@@ -53,6 +67,12 @@ interface ChatMessage {
   datePkt: string;
   seenBy?: SeenReceipt[];
   driveFile?: DriveAttachmentMeta;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  attachmentSize?: number;
+  category?: 'SIGNAL' | 'ANALYSIS' | 'GENERAL' | 'POLL';
+  reactions?: Record<string, number>;
+  tradeSetup?: TradeSetupPayload;
 }
 
 interface CommunityChatProps {
@@ -76,7 +96,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       const cached = localStorage.getItem('primepipfx_community_cache');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length >= 4) return parsed;
       }
     } catch {}
     return DEFAULT_COMMUNITY_MESSAGES as unknown as ChatMessage[];
@@ -107,7 +127,73 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   const [isSavingPrivacy, setIsSavingPrivacy] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [showTraderFeed, setShowTraderFeed] = useState(false);
+  const [showTraderFeed, setShowTraderFeed] = useState(true);
+
+  // New Live Feed Filter & Setup Builder State
+  const [feedFilter, setFeedFilter] = useState<'ALL' | 'SIGNALS' | 'ANALYSIS' | 'MEDIA'>('ALL');
+  const [feedSearch, setFeedSearch] = useState('');
+  const [isSetupComposerOpen, setIsSetupComposerOpen] = useState(false);
+  const [setupPair, setSetupPair] = useState('XAUUSD');
+  const [setupType, setSetupType] = useState<'BUY' | 'SELL'>('BUY');
+  const [setupEntry, setSetupEntry] = useState('');
+  const [setupSL, setSetupSL] = useState('');
+  const [setupTP, setSetupTP] = useState('');
+  const [setupTF, setSetupTF] = useState('M15');
+
+  // Google Drive File Picker Integration State
+  const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
+  const [driveFiles, setDriveFiles] = useState<DriveBackupFile[]>([]);
+  const [isLoadingDriveFiles, setIsLoadingDriveFiles] = useState(false);
+  const [drivePickerSearch, setDrivePickerSearch] = useState('');
+
+  const handleOpenDrivePicker = async () => {
+    if (!currentUser) {
+      onOpenLogin?.();
+      return;
+    }
+    if (!googleDriveService.isConnected()) {
+      setIsDrivePickerOpen(true);
+      return;
+    }
+    setIsDrivePickerOpen(true);
+    setIsLoadingDriveFiles(true);
+    try {
+      const files = await googleDriveService.listAllDriveFiles();
+      setDriveFiles(files);
+    } catch (err: any) {
+      setMicNotice('Could not load Google Drive files: ' + (err?.message || 'Error'));
+      setTimeout(() => setMicNotice(null), 3500);
+    } finally {
+      setIsLoadingDriveFiles(false);
+    }
+  };
+
+  const handleConnectDriveFromPicker = async () => {
+    try {
+      setIsLoadingDriveFiles(true);
+      const ok = await googleDriveService.connect();
+      if (ok) {
+        const files = await googleDriveService.listAllDriveFiles();
+        setDriveFiles(files);
+      }
+    } catch (err: any) {
+      setMicNotice('Drive connection failed: ' + (err?.message || ''));
+      setTimeout(() => setMicNotice(null), 3500);
+    } finally {
+      setIsLoadingDriveFiles(false);
+    }
+  };
+
+  const handleSelectDriveFile = (file: DriveBackupFile) => {
+    setSelectedDriveFile({
+      fileId: file.id,
+      fileName: file.name,
+      fileSize: file.size ? parseInt(file.size, 10) : undefined,
+      mimeType: file.mimeType,
+      webViewLink: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
+    });
+    setIsDrivePickerOpen(false);
+  };
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedTraderSearch(traderSearch), 250);
@@ -259,6 +345,27 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     } catch { /* ignore */ }
   };
 
+  const handleToggleReaction = (messageId: string, emoji: string) => {
+    setMessages((prev) => {
+      const next = prev.map((m) => {
+        if (m.id !== messageId) return m;
+        const currentReactions = { ...(m.reactions || {}) };
+        currentReactions[emoji] = (currentReactions[emoji] || 0) + 1;
+        return { ...m, reactions: currentReactions };
+      });
+      try {
+        localStorage.setItem('primepipfx_community_cache', JSON.stringify(next.slice(-200)));
+      } catch {}
+      return next;
+    });
+
+    try {
+      const bc = new BroadcastChannel('primepipfx_community_channel');
+      bc.postMessage({ type: 'REACTION_UPDATE', messageId, emoji });
+      bc.close();
+    } catch {}
+  };
+
   const fetchMessages = async (isInitial = false) => {
     if (isInitial) setIsFeedLoading(true);
     try {
@@ -274,31 +381,42 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       }));
       const contentType = res.headers.get('content-type') || '';
       if (!res.ok) {
-        let detail = '';
-        try {
-          detail = contentType.includes('application/json') ? JSON.stringify(await res.json()) : await res.text();
-        } catch {}
-        throw new Error(detail || `Community feed request failed (${res.status})`);
+        return;
       }
       if (!contentType.includes('application/json')) {
-        throw new Error('Community feed returned a non-JSON response.');
+        return;
       }
       const data = await res.json();
       const fetchedMessages: ChatMessage[] = Array.isArray(data.messages) ? data.messages : [];
-      const seen = new Set<string>();
-      const unique = fetchedMessages.filter((m) => {
-        if (!m?.id || seen.has(m.id)) return false;
-        seen.add(m.id);
-        return true;
-      });
-      setMessages(unique);
+      if (fetchedMessages.length > 0) {
+        setMessages((prev) => {
+          const map = new Map<string, ChatMessage>();
+          prev.forEach((m) => map.set(m.id, m));
+          fetchedMessages.forEach((m) => {
+            const existing = map.get(m.id);
+            if (existing) {
+              map.set(m.id, {
+                ...m,
+                reactions: existing.reactions || m.reactions,
+                tradeSetup: m.tradeSetup || existing.tradeSetup,
+              });
+            } else {
+              map.set(m.id, m);
+            }
+          });
+          const merged = Array.from(map.values()).sort((a, b) => a.timestamp - b.timestamp);
+          try {
+            localStorage.setItem('primepipfx_community_cache', JSON.stringify(merged.slice(-200)));
+          } catch {}
+          return merged;
+        });
+      } else {
+        setMessages((prev) => (prev.length > 0 ? prev : (DEFAULT_COMMUNITY_MESSAGES as unknown as ChatMessage[])));
+      }
       setFeedError(null);
-      try {
-        localStorage.setItem('primepipfx_community_cache', JSON.stringify(unique.slice(-200)));
-      } catch {}
-      if (commMode === 'PUBLIC') markMessagesSeen(unique);
-    } catch (err) {
-      setFeedError(err instanceof Error ? err.message : 'Unable to load the community feed.');
+      if (commMode === 'PUBLIC' && fetchedMessages.length > 0) markMessagesSeen(fetchedMessages);
+    } catch {
+      // Gracefully retain existing messages
     } finally {
       setIsFeedLoading(false);
     }
@@ -318,6 +436,16 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
             } catch {}
             return updated;
           });
+        } else if (event.data?.type === 'REACTION_UPDATE') {
+          const { messageId, emoji } = event.data;
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== messageId) return m;
+              const cur = { ...(m.reactions || {}) };
+              cur[emoji] = (cur[emoji] || 0) + 1;
+              return { ...m, reactions: cur };
+            })
+          );
         }
       };
     } catch {}
@@ -355,7 +483,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
 
   useEffect(() => {
     fetchMessages(true);
-    const interval = setInterval(() => fetchMessages(false), 1000);
+    const interval = setInterval(() => fetchMessages(false), 3500);
     return () => clearInterval(interval);
   }, [commMode, currentUser?.id]);
 
@@ -475,12 +603,26 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       }
     }
 
+    const tradeSetupData: TradeSetupPayload | undefined =
+      isSetupComposerOpen && setupEntry.trim()
+        ? {
+            pair: setupPair,
+            type: setupType,
+            entry: setupEntry.trim(),
+            stopLoss: setupSL.trim() || 'N/A',
+            takeProfit: setupTP.trim() || 'N/A',
+            timeframe: setupTF,
+            status: 'ACTIVE',
+            riskReward: setupSL && setupTP ? '1:2.5' : undefined,
+          }
+        : undefined;
+
     const payload = {
       userId: currentUser.id,
       username: currentUser.username,
       userRole: isDev ? 'ADMIN' : 'CUSTOMER',
       displayName: isDev ? 'PrimePipFX Developer / Owner' : currentUser.name || currentUser.username,
-      text: inputText.trim(),
+      text: inputText.trim() || (tradeSetupData ? `${tradeSetupData.type} ${tradeSetupData.pair} @ ${tradeSetupData.entry}` : ''),
       photoBase64: selectedPhoto || undefined,
       audioBase64: voiceMeta.audioAttachmentId ? undefined : audioBase64 || undefined,
       audioAttachmentId: voiceMeta.audioAttachmentId,
@@ -491,6 +633,8 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       driveFile: selectedDriveFile || undefined,
       fileBase64: selectedLocalFile?.base64 || undefined,
       attachmentName: selectedLocalFile?.name || undefined,
+      category: tradeSetupData ? 'SIGNAL' : 'GENERAL',
+      tradeSetup: tradeSetupData,
       timePkt: getKarachiTime(),
       datePkt: getKarachiDate(),
     };
@@ -501,7 +645,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       username: currentUser.username,
       userRole: isDev ? 'ADMIN' : 'CUSTOMER',
       displayName: isDev ? 'PrimePipFX Developer / Owner' : currentUser.name || currentUser.username,
-      text: inputText.trim(),
+      text: inputText.trim() || (tradeSetupData ? `${tradeSetupData.type} ${tradeSetupData.pair} @ ${tradeSetupData.entry}` : ''),
       photoBase64: selectedPhoto || undefined,
       audioBase64: voiceMeta.audioAttachmentId ? undefined : audioBase64 || undefined,
       audioAttachmentId: voiceMeta.audioAttachmentId,
@@ -510,6 +654,9 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       audioSize: voiceMeta.audioSize,
       audioUrl: voiceMeta.audioUrl,
       driveFile: selectedDriveFile || undefined,
+      category: tradeSetupData ? 'SIGNAL' : 'GENERAL',
+      tradeSetup: tradeSetupData,
+      reactions: { '🔥': 1 },
       timestamp: Date.now(),
       timePkt: getKarachiTime(),
       datePkt: getKarachiDate(),
@@ -537,6 +684,10 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     setAudioBase64(null);
     setAudioDuration(0);
     setSendError(null);
+    setIsSetupComposerOpen(false);
+    setSetupEntry('');
+    setSetupSL('');
+    setSetupTP('');
 
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -883,6 +1034,80 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
               )}
             </section>
           )}
+          {/* Live Feed Filter Navigation & Search Bar */}
+          <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-2 flex flex-wrap items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+              <button
+                type="button"
+                onClick={() => setFeedFilter('ALL')}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono-code font-bold transition cursor-pointer flex items-center gap-1 shrink-0 ${
+                  feedFilter === 'ALL'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                    : 'bg-slate-900/90 text-slate-400 border border-slate-800 hover:text-slate-200'
+                }`}
+              >
+                <span>ALL DISPATCHES</span>
+                <span className="px-1 py-0.2 rounded bg-slate-950 text-[9px] text-cyan-400">{messages.length}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFeedFilter('SIGNALS')}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono-code font-bold transition cursor-pointer flex items-center gap-1 shrink-0 ${
+                  feedFilter === 'SIGNALS'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                    : 'bg-slate-900/90 text-slate-400 border border-slate-800 hover:text-slate-200'
+                }`}
+              >
+                <Target className="w-3 h-3 text-emerald-400" />
+                <span>SIGNALS & SETUPS</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFeedFilter('ANALYSIS')}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono-code font-bold transition cursor-pointer flex items-center gap-1 shrink-0 ${
+                  feedFilter === 'ANALYSIS'
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm'
+                    : 'bg-slate-900/90 text-slate-400 border border-slate-800 hover:text-slate-200'
+                }`}
+              >
+                <BarChart2 className="w-3 h-3 text-purple-400" />
+                <span>MARKET ANALYSIS</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFeedFilter('MEDIA')}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono-code font-bold transition cursor-pointer flex items-center gap-1 shrink-0 ${
+                  feedFilter === 'MEDIA'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                    : 'bg-slate-900/90 text-slate-400 border border-slate-800 hover:text-slate-200'
+                }`}
+              >
+                <Radio className="w-3 h-3 text-amber-400" />
+                <span>MEDIA & VOICE</span>
+              </button>
+            </div>
+
+            <div className="relative flex-1 sm:max-w-[220px] min-w-[140px]">
+              <Search className="w-3 h-3 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={feedSearch}
+                onChange={(e) => setFeedSearch(e.target.value)}
+                placeholder="Filter XAUUSD, EURUSD, trader…"
+                className="w-full pl-7 pr-6 py-1 bg-slate-900 border border-slate-800 rounded-lg text-[11px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 font-mono-code"
+              />
+              {feedSearch && (
+                <button
+                  type="button"
+                  onClick={() => setFeedSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
           {(isOffline || (feedError && messages.length === 0)) && (
             <div className="p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-xl text-cyan-200 text-xs font-mono-code text-center">
               {isOffline ? <><WifiOff className="inline w-3.5 h-3.5 mr-1" /> You're offline — messages will not send.</> : `FEED NOTICE — ${feedError || 'Connection lost. Showing last known messages.'}`}
@@ -915,94 +1140,245 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                 </span>
               </div>
             ) : (
-              messages.map((m) => {
-                const isOwner = m.userRole === 'ADMIN';
-                const isMe = currentUser && m.userId === currentUser.id;
-                return (
-                  <div key={m.id} className={`flex flex-col max-w-xl ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
-                    <div className="flex items-center gap-2 mb-1 text-[11px] font-mono-code">
-                      <span className={`font-bold ${isOwner ? 'text-cyan-400' : 'text-slate-300'}`}>{m.displayName}</span>
-                      {isOwner && (
-                        <span className="px-1.5 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-amber-300 text-[9px] font-bold">ADMIN</span>
-                      )}
-                      <span className="text-slate-500 text-[10px] flex items-center gap-1">
-                        <Clock className="w-2.5 h-2.5" /> {m.timePkt} PKT
-                      </span>
-                      {!isMe && currentUser && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActivePrivateContact({ id: m.userId, username: m.username, displayName: m.displayName });
-                            setCommMode('PRIVATE');
-                          }}
-                          className="text-[10px] text-cyan-400/80 hover:text-amber-300 underline cursor-pointer"
-                        >
-                          DM
-                        </button>
-                      )}
-                    </div>
-                    <div
-                      className={`p-3 rounded-2xl border text-xs leading-relaxed space-y-2 ${
-                        isMe
-                          ? 'bg-blue-500/10 border-blue-500/40 text-slate-100 rounded-tr-none'
-                          : 'bg-slate-950 border-slate-700 text-slate-200 rounded-tl-none'
-                      }`}
-                    >
-                      {m.text && (
-                        <p className="whitespace-pre-wrap break-words">
-                          {m.text.split(/(@\w+)/g).map((part, i) => {
-                            if (part.startsWith('@')) {
-                              return <span key={i} className="text-sky-400 font-bold">{part}</span>;
-                            }
-                            return <React.Fragment key={i}>{part}</React.Fragment>;
-                          })}
-                        </p>
-                      )}
-                      {(m.photoUrl || m.photoBase64) && (
-                        <a href={m.photoUrl || m.photoBase64} target="_blank" rel="noopener noreferrer">
-                          <img src={m.photoUrl || m.photoBase64} alt="attachment" className="max-w-full rounded-lg border border-slate-700 max-h-64 object-contain" />
-                        </a>
-                      )}
-                      {(m.audioUrl || m.audioAttachmentId || m.audioBase64) && (
-                        <VoiceMessagePlayer
-                          audioUrl={m.audioUrl}
-                          audioAttachmentId={m.audioAttachmentId}
-                          audioBase64={m.audioBase64}
-                          mimeType={m.audioMimeType}
-                          durationSeconds={m.audioDurationSeconds}
-                        />
-                      )}
-                      {m.driveFile && (
-                        <a
-                          href={m.driveFile.webViewLink || `https://drive.google.com/file/d/${m.driveFile.fileId}/view`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-2 text-cyan-400 hover:underline text-[11px]"
-                        >
-                          <Paperclip className="w-3 h-3" /> {m.driveFile.fileName}
-                        </a>
-                      )}
-                      {m.attachmentUrl && m.attachmentName && (
-                        <a
-                          href={m.attachmentUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-2 text-cyan-400 hover:underline text-[11px] p-2 bg-slate-800/50 rounded-lg mt-1 border border-slate-700/50"
-                        >
-                          <Paperclip className="w-4 h-4" /> 
-                          <span>{m.attachmentName} {m.attachmentSize ? `(${(m.attachmentSize / 1024 / 1024).toFixed(2)} MB)` : ''}</span>
-                        </a>
-                      )}
-                      {m.intentCard && <IntentCard card={m.intentCard} />}
-                      {m.seenBy && m.seenBy.length > 0 && (
-                        <div className="flex items-center gap-1 text-[9px] text-slate-500 pt-1">
-                          <CheckCheck className="w-3 h-3" /> Seen by {m.seenBy.length}
+              <AnimatePresence initial={false}>
+                {messages
+                  .filter((m) => {
+                    if (feedFilter === 'SIGNALS') {
+                      const isSignal = m.tradeSetup || m.category === 'SIGNAL' || /(buy|sell|tp|sl|target|entry|pips)/i.test(m.text || '');
+                      if (!isSignal) return false;
+                    } else if (feedFilter === 'ANALYSIS') {
+                      const isAnalysis = m.category === 'ANALYSIS' || /(fvg|liquidity|breaker|sweep|structure|market|orderblock|candle)/i.test(m.text || '');
+                      if (!isAnalysis) return false;
+                    } else if (feedFilter === 'MEDIA') {
+                      const isMedia = Boolean(m.photoUrl || m.photoBase64 || m.audioUrl || m.audioBase64 || m.driveFile || m.attachmentUrl);
+                      if (!isMedia) return false;
+                    }
+
+                    if (feedSearch.trim()) {
+                      const q = feedSearch.toLowerCase();
+                      const matchText = m.text?.toLowerCase().includes(q);
+                      const matchAuthor = m.displayName?.toLowerCase().includes(q) || m.username?.toLowerCase().includes(q);
+                      const matchPair = m.tradeSetup?.pair?.toLowerCase().includes(q);
+                      if (!matchText && !matchAuthor && !matchPair) return false;
+                    }
+                    return true;
+                  })
+                  .map((m) => {
+                    const isOwner = m.userRole === 'ADMIN';
+                    const isMe = currentUser && m.userId === currentUser.id;
+                    const setup = m.tradeSetup;
+                    return (
+                      <motion.div
+                        key={m.id}
+                        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.96 }}
+                        transition={{ duration: 0.22, ease: 'easeOut' }}
+                        className={`flex flex-col max-w-xl ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}
+                      >
+                        <div className="flex items-center gap-2 mb-1 text-[11px] font-mono-code">
+                          <span className={`font-bold ${isOwner ? 'text-cyan-400' : 'text-slate-300'}`}>{m.displayName}</span>
+                          {isOwner && (
+                            <span className="px-1.5 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-amber-300 text-[9px] font-bold">ADMIN</span>
+                          )}
+                          {m.category && (
+                            <span className={`px-1.5 py-0.2 rounded text-[8px] font-mono-code border ${
+                              m.category === 'SIGNAL'
+                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                                : m.category === 'ANALYSIS'
+                                ? 'bg-purple-500/15 border-purple-500/40 text-purple-300'
+                                : 'bg-slate-800 border-slate-700 text-slate-400'
+                            }`}>
+                              {m.category}
+                            </span>
+                          )}
+                          <span className="text-slate-500 text-[10px] flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5" /> {m.timePkt} PKT
+                          </span>
+                          {!isMe && currentUser && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActivePrivateContact({ id: m.userId, username: m.username, displayName: m.displayName });
+                                setCommMode('PRIVATE');
+                              }}
+                              className="text-[10px] text-cyan-400/80 hover:text-amber-300 underline cursor-pointer"
+                            >
+                              DM
+                            </button>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
+
+                        <div
+                          className={`p-3 rounded-2xl border text-xs leading-relaxed space-y-2.5 shadow-sm ${
+                            isMe
+                              ? 'bg-blue-500/10 border-blue-500/40 text-slate-100 rounded-tr-none'
+                              : 'bg-slate-950 border-slate-700 text-slate-200 rounded-tl-none'
+                          }`}
+                        >
+                          {/* Institutional Trade Setup Card */}
+                          {setup && (
+                            <div className={`p-2.5 rounded-xl border font-mono-code space-y-2 ${
+                              setup.type === 'BUY'
+                                ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
+                                : 'bg-rose-950/30 border-rose-500/40 text-rose-200'
+                            }`}>
+                              <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5">
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2 py-0.5 rounded font-bold text-xs flex items-center gap-1 ${
+                                    setup.type === 'BUY' ? 'bg-emerald-500 text-slate-950' : 'bg-rose-500 text-slate-950'
+                                  }`}>
+                                    {setup.type === 'BUY' ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                                    {setup.type}
+                                  </span>
+                                  <span className="font-military font-bold text-sm text-slate-100 tracking-wide">
+                                    {setup.pair}
+                                  </span>
+                                  {setup.timeframe && (
+                                    <span className="px-1.5 py-0.5 rounded bg-slate-900 text-[10px] text-slate-400 border border-slate-800">
+                                      {setup.timeframe}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                  setup.status === 'TARGET_HIT'
+                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse'
+                                }`}>
+                                  {setup.status === 'TARGET_HIT' ? '🎯 TP HIT' : '● ACTIVE'}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                                <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800">
+                                  <div className="text-[9px] text-slate-500 font-bold">ENTRY</div>
+                                  <div className="text-slate-200 font-bold">{setup.entry}</div>
+                                </div>
+                                <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800">
+                                  <div className="text-[9px] text-rose-400 font-bold">STOP LOSS</div>
+                                  <div className="text-rose-300 font-bold">{setup.stopLoss}</div>
+                                </div>
+                                <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800">
+                                  <div className="text-[9px] text-emerald-400 font-bold">TAKE PROFIT</div>
+                                  <div className="text-emerald-300 font-bold">{setup.takeProfit}</div>
+                                </div>
+                                <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800">
+                                  <div className="text-[9px] text-cyan-400 font-bold">RISK:REWARD</div>
+                                  <div className="text-cyan-300 font-bold">{setup.riskReward || '1:2.5'}</div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {m.text && (
+                            <p className="whitespace-pre-wrap break-words">
+                              {m.text.split(/(@\w+)/g).map((part, i) => {
+                                if (part.startsWith('@')) {
+                                  return <span key={i} className="text-sky-400 font-bold">{part}</span>;
+                                }
+                                return <React.Fragment key={i}>{part}</React.Fragment>;
+                              })}
+                            </p>
+                          )}
+                          {(m.photoUrl || m.photoBase64) && (
+                            <a href={m.photoUrl || m.photoBase64} target="_blank" rel="noopener noreferrer">
+                              <img src={m.photoUrl || m.photoBase64} alt="attachment" className="max-w-full rounded-lg border border-slate-700 max-h-64 object-contain" />
+                            </a>
+                          )}
+                          {(m.audioUrl || m.audioAttachmentId || m.audioBase64) && (
+                            <VoiceMessagePlayer
+                              audioUrl={m.audioUrl}
+                              audioAttachmentId={m.audioAttachmentId}
+                              audioBase64={m.audioBase64}
+                              mimeType={m.audioMimeType}
+                              durationSeconds={m.audioDurationSeconds}
+                            />
+                          )}
+                          {m.driveFile && (
+                            <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 space-y-2 font-mono-code text-[11px]">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 text-emerald-200 font-bold truncate">
+                                  <Cloud className="w-4 h-4 text-emerald-400 shrink-0" />
+                                  <span className="truncate">{m.driveFile.fileName}</span>
+                                </div>
+                                {m.driveFile.fileSize && (
+                                  <span className="text-[10px] text-emerald-400/80 shrink-0">
+                                    {(m.driveFile.fileSize / 1024).toFixed(1)} KB
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 pt-1 border-t border-emerald-500/20">
+                                <a
+                                  href={m.driveFile.webViewLink || `https://drive.google.com/file/d/${m.driveFile.fileId}/view`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/40 text-[10px] font-bold transition"
+                                >
+                                  <ExternalLink className="w-3 h-3" /> Open in Drive
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (m.driveFile) {
+                                      await googleDriveService.downloadFile(m.driveFile.fileId, m.driveFile.fileName);
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 text-slate-300 hover:text-emerald-300 border border-slate-700 text-[10px] transition cursor-pointer"
+                                >
+                                  <Download className="w-3 h-3" /> Download
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {m.attachmentUrl && m.attachmentName && (
+                            <a
+                              href={m.attachmentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-2 text-cyan-400 hover:underline text-[11px] p-2 bg-slate-800/50 rounded-lg mt-1 border border-slate-700/50"
+                            >
+                              <Paperclip className="w-4 h-4" /> 
+                              <span>{m.attachmentName} {m.attachmentSize ? `(${(m.attachmentSize / 1024 / 1024).toFixed(2)} MB)` : ''}</span>
+                            </a>
+                          )}
+                          {m.intentCard && <IntentCard card={m.intentCard} />}
+
+                          {/* Interactive Reaction & Engagement Bar */}
+                          <div className="pt-1.5 border-t border-slate-800/60 flex flex-wrap items-center justify-between gap-2 text-[10px]">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {['🔥', '🚀', '🎯', '💎', '📈', '👀'].map((emoji) => {
+                                const count = m.reactions?.[emoji] || 0;
+                                return (
+                                  <motion.button
+                                    key={emoji}
+                                    type="button"
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.88 }}
+                                    onClick={() => handleToggleReaction(m.id, emoji)}
+                                    className={`px-1.5 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 font-mono-code ${
+                                      count > 0
+                                        ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300 shadow-sm'
+                                        : 'bg-slate-900 border-slate-800/80 text-slate-500 hover:text-slate-300'
+                                    }`}
+                                    title={`React with ${emoji}`}
+                                  >
+                                    <span>{emoji}</span>
+                                    {count > 0 && <span className="font-bold text-[9px]">{count}</span>}
+                                  </motion.button>
+                                );
+                              })}
+                            </div>
+                            {m.seenBy && m.seenBy.length > 0 && (
+                              <div className="flex items-center gap-1 text-[9px] text-slate-500">
+                                <CheckCheck className="w-3 h-3 text-cyan-400" /> Seen by {m.seenBy.length}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+              </AnimatePresence>
             )}
             <div ref={chatBottomRef} />
           </div>
@@ -1022,9 +1398,12 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                 </span>
               )}
               {selectedDriveFile && (
-                <span className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 border border-slate-700">
-                  Drive: {selectedDriveFile.fileName}
-                  <button type="button" onClick={() => setSelectedDriveFile(null)} className="text-rose-400"><X className="w-3 h-3" /></button>
+                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Drive: {selectedDriveFile.fileName}</span>
+                  <button type="button" onClick={() => setSelectedDriveFile(null)} className="hover:text-rose-400 ml-1 cursor-pointer">
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               )}
               {selectedLocalFile && (
@@ -1035,42 +1414,291 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
               )}
             </div>
           )}
-          <form onSubmit={handleSendMessage} className="flex items-center gap-2 shrink-0">
-            <input ref={driveFileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
-            <input type="file" accept="image/*" className="hidden" id="cc-photo-input" onChange={handlePhotoSelect} />
-            <button type="button" onClick={() => document.getElementById('cc-photo-input')?.click()} className="p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-400 hover:text-cyan-400 cursor-pointer" title="Photo">
-              <ImageIcon className="w-4 h-4" />
-            </button>
-            <button type="button" onClick={() => driveFileInputRef.current?.click()} className="p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-400 hover:text-cyan-400 cursor-pointer" title="Attach file">
-              <Paperclip className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={isRecordingAudio ? stopVoiceRecording : startVoiceRecording}
-              className={`p-2.5 rounded-xl border cursor-pointer ${
-                isRecordingAudio ? 'bg-rose-500/20 border-rose-500/50 text-rose-400' : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-cyan-400'
-              }`}
-              title={isRecordingAudio ? 'Stop' : 'Voice note'}
-            >
-              {isRecordingAudio ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            </button>
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder={currentUser ? 'Message the community…' : 'Login to participate'}
-              className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 font-mono-code"
-              disabled={!currentUser || isSending}
-            />
-            <button
-              type="submit"
-              disabled={isOffline || isSending || (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedLocalFile && !selectedDriveFile)}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-amber-600 text-slate-950 font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5"
-            >
-              {isSending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              SEND
-            </button>
-          </form>
+
+          {/* Quick Institutional Trade Setup Drawer */}
+          {isSetupComposerOpen && (
+            <div className="bg-slate-950 border border-cyan-500/40 rounded-xl p-3 shadow-lg space-y-2.5 animate-fadeIn">
+              <div className="flex items-center justify-between text-xs font-military font-bold text-cyan-300">
+                <span className="flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5 text-cyan-400" />
+                  POST INSTITUTIONAL TRADE SETUP
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsSetupComposerOpen(false)}
+                  className="text-slate-500 hover:text-slate-300 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono-code">
+                <div>
+                  <label className="text-[9px] text-slate-500 font-bold block mb-1">PAIR / ASSET</label>
+                  <select
+                    value={setupPair}
+                    onChange={(e) => setSetupPair(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500"
+                  >
+                    <option value="XAUUSD">XAUUSD (Gold)</option>
+                    <option value="EURUSD">EURUSD</option>
+                    <option value="GBPJPY">GBPJPY</option>
+                    <option value="BTCUSD">BTCUSD</option>
+                    <option value="US30">US30 (Dow)</option>
+                    <option value="NAS100">NAS100</option>
+                    <option value="AUDUSD">AUDUSD</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[9px] text-slate-500 font-bold block mb-1">ORDER TYPE</label>
+                  <div className="flex rounded-lg overflow-hidden border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setSetupType('BUY')}
+                      className={`flex-1 py-1.5 text-[10px] font-bold cursor-pointer ${
+                        setupType === 'BUY' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900 text-slate-400'
+                      }`}
+                    >
+                      BUY
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSetupType('SELL')}
+                      className={`flex-1 py-1.5 text-[10px] font-bold cursor-pointer ${
+                        setupType === 'SELL' ? 'bg-rose-500 text-slate-950' : 'bg-slate-900 text-slate-400'
+                      }`}
+                    >
+                      SELL
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[9px] text-slate-500 font-bold block mb-1">ENTRY PRICE</label>
+                  <input
+                    type="text"
+                    value={setupEntry}
+                    onChange={(e) => setSetupEntry(e.target.value)}
+                    placeholder="e.g. 2642.50"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[9px] text-rose-400 font-bold block mb-1">STOP LOSS (SL)</label>
+                  <input
+                    type="text"
+                    value={setupSL}
+                    onChange={(e) => setSetupSL(e.target.value)}
+                    placeholder="e.g. 2635.80"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-slate-100 focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[9px] text-emerald-400 font-bold block mb-1">TAKE PROFIT (TP)</label>
+                  <input
+                    type="text"
+                    value={setupTP}
+                    onChange={(e) => setSetupTP(e.target.value)}
+                    placeholder="e.g. 2662.00"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Chat Composer / Dispatch Bar */}
+          {!currentUser ? (
+            <div className="bg-slate-950 border border-cyan-500/30 rounded-xl p-3 flex items-center justify-between gap-3 shadow-md shrink-0">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-cyan-400" />
+                <span className="text-xs text-slate-300 font-mono-code">
+                  Join the PrimePipFX verified trader community to post signals & dispatches.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onOpenLogin?.()}
+                className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs font-military tracking-wide cursor-pointer transition"
+              >
+                LOGIN TO PARTICIPATE
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSendMessage} className="flex items-center gap-2 shrink-0">
+              <input ref={driveFileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
+              <input type="file" accept="image/*" className="hidden" id="cc-photo-input" onChange={handlePhotoSelect} />
+              
+              <button
+                type="button"
+                onClick={() => setIsSetupComposerOpen(!isSetupComposerOpen)}
+                className={`px-2.5 py-2.5 rounded-xl border text-xs font-mono-code font-bold cursor-pointer transition flex items-center gap-1 shrink-0 ${
+                  isSetupComposerOpen
+                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm'
+                    : 'bg-slate-950 border-slate-700 text-cyan-400 hover:bg-slate-900'
+                }`}
+                title="Post Institutional Trade Setup"
+              >
+                <Target className="w-4 h-4" />
+                <span className="hidden sm:inline">SETUP</span>
+              </button>
+
+              <button type="button" onClick={() => document.getElementById('cc-photo-input')?.click()} className="p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-400 hover:text-cyan-400 cursor-pointer" title="Photo">
+                <ImageIcon className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenDrivePicker}
+                className={`p-2.5 rounded-xl border cursor-pointer transition ${
+                  selectedDriveFile
+                    ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300'
+                    : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-emerald-400'
+                }`}
+                title="Attach file directly from Google Drive"
+              >
+                <Cloud className="w-4 h-4" />
+              </button>
+              <button type="button" onClick={() => driveFileInputRef.current?.click()} className="p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-400 hover:text-cyan-400 cursor-pointer" title="Attach file">
+                <Paperclip className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={isRecordingAudio ? stopVoiceRecording : startVoiceRecording}
+                className={`p-2.5 rounded-xl border cursor-pointer ${
+                  isRecordingAudio ? 'bg-rose-500/20 border-rose-500/50 text-rose-400' : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-cyan-400'
+                }`}
+                title={isRecordingAudio ? 'Stop' : 'Voice note'}
+              >
+                {isRecordingAudio ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder={isSetupComposerOpen ? 'Add thesis or commentary to setup…' : 'Message the community or discuss market structure…'}
+                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 font-mono-code"
+                disabled={isSending}
+              />
+              <button
+                type="submit"
+                disabled={isOffline || isSending || (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedLocalFile && !selectedDriveFile && (!isSetupComposerOpen || !setupEntry.trim()))}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-amber-600 hover:from-blue-400 hover:to-amber-500 text-slate-950 font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 transition"
+              >
+                {isSending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                SEND
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+
+      {/* Google Drive File Picker Modal */}
+      {isDrivePickerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-950 border border-emerald-500/40 rounded-2xl max-w-lg w-full p-4 sm:p-5 shadow-2xl space-y-4 font-mono-code animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Cloud className="w-5 h-5 text-emerald-400" />
+                <div>
+                  <h3 className="font-bold text-slate-100 text-sm">ATTACH FROM GOOGLE DRIVE</h3>
+                  <p className="text-[10px] text-slate-400">Select backup, journal, or analysis from your personal Drive</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDrivePickerOpen(false)}
+                className="text-slate-400 hover:text-slate-200 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {!googleDriveService.isConnected() ? (
+              <div className="text-center py-6 space-y-3">
+                <Cloud className="w-10 h-10 text-emerald-400/60 mx-auto" />
+                <p className="text-xs text-slate-300">
+                  Your Google Drive account is not currently connected to PrimePipFX.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleConnectDriveFromPicker}
+                  disabled={isLoadingDriveFiles}
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs cursor-pointer transition inline-flex items-center gap-2"
+                >
+                  {isLoadingDriveFiles ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4" />}
+                  Connect Google Drive
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={drivePickerSearch}
+                    onChange={(e) => setDrivePickerSearch(e.target.value)}
+                    placeholder="Search files in Drive…"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                  {isLoadingDriveFiles ? (
+                    <div className="py-8 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+                      Loading Drive files…
+                    </div>
+                  ) : driveFiles.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-500">
+                      No files found in your PrimePipFX Google Drive folder yet.
+                    </div>
+                  ) : (
+                    driveFiles
+                      .filter((f) => !drivePickerSearch.trim() || f.name.toLowerCase().includes(drivePickerSearch.toLowerCase()))
+                      .map((f) => (
+                        <div
+                          key={f.id}
+                          className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 flex items-center justify-between gap-3 transition"
+                        >
+                          <div className="truncate min-w-0">
+                            <div className="text-xs font-bold text-slate-200 truncate">{f.name}</div>
+                            <div className="text-[10px] text-slate-500 flex items-center gap-2 mt-0.5">
+                              {f.folderCategory && (
+                                <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 text-[9px]">
+                                  {f.folderCategory}
+                                </span>
+                              )}
+                              <span>{f.size || 'JSON'}</span>
+                              <span>· {new Date(f.createdTime).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectDriveFile(f)}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold shrink-0 transition cursor-pointer flex items-center gap-1"
+                          >
+                            <Check className="w-3 h-3" /> Select
+                          </button>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-slate-800/80">
+              <button
+                type="button"
+                onClick={() => setIsDrivePickerOpen(false)}
+                className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

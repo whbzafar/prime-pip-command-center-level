@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #070A11;
-  --bg-surface: #0B0F19;
-  --bg-elevated: #111726;
-  --ink: #f1f5f9;
-  --ink-muted: #94a3b8;
-  --ink-faint: #475569;
-  --accent: #3b82f6;
-  --accent-secondary: #06b6d4;
-  --accent-violet: #8b5cf6;
+  --bg: #080d1a;
+  --bg-surface: #0e1628;
+  --bg-elevated: #152238;
+  --ink: #f8fafc;
+  --ink-muted: #cbd5e1;
+  --ink-faint: #94a3b8;
+  --accent: #00f0ff;
+  --accent-secondary: #38bdf8;
+  --accent-violet: #a855f7;
   --accent-rose: #f43f5e;
   --success: #10b981;
   --danger: #ef4444;
   --radius-card: 16px;
   --radius-btn: 12px;
   --radius-pill: 9999px;
-  --prime-brightness: 100%;
+  --prime-brightness: 104%;
 }
 
 html,
@@ -69,6 +69,140 @@ html[data-theme='sand'] {
 
 .font-mono-code {
   font-family: 'JetBrains Mono', monospace;
+}
+
+/* ==========================================================================
+   ANIMATED 4-SIDE PERIMETER HYPER-LASER CONDUIT & TACTICAL RETICLES
+   Pro-level institutional command center perimeter with photon comets
+   ========================================================================== */
+
+@keyframes photon-beam-x {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(350%);
+    opacity: 0;
+  }
+}
+
+@keyframes photon-beam-x-rev {
+  0% {
+    transform: translateX(350%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes photon-beam-y {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(350%);
+    opacity: 0;
+  }
+}
+
+@keyframes photon-beam-y-rev {
+  0% {
+    transform: translateY(350%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes reticle-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes reticle-pulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+.animate-perimeter-top {
+  animation: photon-beam-x 3.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+}
+
+.animate-perimeter-right {
+  animation: photon-beam-y 3.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite 0.8s;
+}
+
+.animate-perimeter-bottom {
+  animation: photon-beam-x-rev 3.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite 1.6s;
+}
+
+.animate-perimeter-left {
+  animation: photon-beam-y-rev 3.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite 2.4s;
+}
+
+/* Category specific dual-orbital hyper loops */
+.animate-category-beam-top {
+  animation: photon-beam-x 2.6s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+}
+
+.animate-category-beam-right {
+  animation: photon-beam-y 2.6s cubic-bezier(0.25, 0.1, 0.25, 1) infinite 0.65s;
+}
+
+.animate-category-beam-bottom {
+  animation: photon-beam-x-rev 2.6s cubic-bezier(0.25, 0.1, 0.25, 1) infinite 1.3s;
+}
+
+.animate-category-beam-left {
+  animation: photon-beam-y-rev 2.6s cubic-bezier(0.25, 0.1, 0.25, 1) infinite 1.95s;
+}
+
+.animate-reticle-spin {
+  animation: reticle-spin 14s linear infinite;
+}
+
+.animate-reticle-pulse {
+  animation: reticle-pulse 3s ease-in-out infinite;
 }
 
 /* ==========================================================================

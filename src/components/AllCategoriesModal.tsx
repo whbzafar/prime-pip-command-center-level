@@ -46,7 +46,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'DASHBOARD',
     num: '01',
-    label: '01. DASHBOARD',
+    label: 'Dashboard',
     name: 'Dashboard Overview',
     desc: 'Tactical account metrics, session PnL, live trade equity curve, and quick performance summary.',
     section: 'Core Execution',
@@ -55,7 +55,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'JOURNAL',
     num: '02',
-    label: '02. TRADE JOURNAL',
+    label: 'Trade Journal',
     name: 'Trade Journal Vault',
     desc: 'Log and analyze trades with entry, exit, RR, pre/post psychology tags, screenshots, and mistake reasons.',
     section: 'Core Execution',
@@ -64,7 +64,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'SBT_MODELS',
     num: '03',
-    label: '03. SBT MODELS',
+    label: 'SBT Models',
     name: '10 SBT Playbook Models',
     desc: 'High-probability Structure-Based Trading models, confirmation checklists, and institutional mechanics.',
     section: 'Core Execution',
@@ -74,7 +74,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'LOT_SIZE',
     num: '04',
-    label: '04. LOT SIZE CALCULATOR',
+    label: 'Lot Size Calculator',
     name: 'Lot Size Calculator',
     desc: 'Exact mathematical position sizing based on risk percentage, stop loss pips, and account balance.',
     section: 'Core Execution',
@@ -83,7 +83,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'RISK',
     num: '05',
-    label: '05. RISK MANAGEMENT',
+    label: 'Risk Management',
     name: 'Risk Management Center',
     desc: 'Strict daily loss limits, 2-trade circuit breakers, account preservation protocols, and rules verification.',
     section: 'Core Execution',
@@ -92,7 +92,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'PRE_TRADE_PLAN',
     num: '06',
-    label: '06. PRE-TRADE PLAN',
+    label: 'Pre-Trade Plan',
     name: 'Pre-Trade Plan Gatekeeper',
     desc: '3-phase execution checklist (HTF analysis, setup verification, psychological check-in) before orders.',
     section: 'Core Execution',
@@ -102,7 +102,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'FUNDAMENTAL_CALENDAR',
     num: '07',
-    label: '07. LIVE NEWS CALENDAR',
+    label: 'Live News Calendar',
     name: 'Fundamental News Calendar',
     desc: 'High-impact macroeconomic releases (CPI, NFP, FOMC) with live countdowns and currency filters.',
     section: 'Intelligence & Setups',
@@ -112,7 +112,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'FUNDAMENTAL_INDICATORS',
     num: '08',
-    label: '08. FUNDAMENTAL INDICATORS',
+    label: 'Fundamental Indicators',
     name: 'Macro Indicators & Yields',
     desc: 'Treasury yield spreads, dollar index telemetry, and macro fundamental dashboards.',
     section: 'Intelligence & Setups',
@@ -122,7 +122,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'SIGNALS',
     num: '09',
-    label: '09. PREMIUM SIGNALS',
+    label: 'Premium Signals',
     name: 'Institutional Signals Hub',
     desc: 'Verified alpha signals, real-time setups, entry/exit notifications, and institutional confluences.',
     section: 'Intelligence & Setups',
@@ -133,7 +133,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'COMPOUNDING',
     num: '10',
-    label: '10. COMPOUNDING TOOLS',
+    label: 'Compounding Tools',
     name: 'Compounding Engine',
     desc: 'Long-term equity compounding simulator, target milestones, and risk-adjusted growth trajectories.',
     section: 'Intelligence & Setups',
@@ -142,7 +142,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'PERFORMANCE',
     num: '11',
-    label: '11. PERFORMANCE REPORT',
+    label: 'Performance Report',
     name: 'Performance Lab',
     desc: 'Win rate breakdown, profit factor, R:R analytics, payoff ratio, and drawdown analysis.',
     section: 'Mindset & Health',
@@ -151,7 +151,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'DAILY_DEV',
     num: '12',
-    label: '12. DAILY DEVELOPMENT',
+    label: 'Daily Development',
     name: 'Daily Development Plan',
     desc: 'Trader habit tracking, morning preparation, post-market review routines, and discipline streaks.',
     section: 'Mindset & Health',
@@ -160,7 +160,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'PSYCHOLOGY',
     num: '13',
-    label: '13. PSYCHOLOGICAL CENTER',
+    label: 'Psychological Center',
     name: 'Psychological Command Center',
     desc: 'Cognitive state tracking, tilt early-warning system, CBT thought records, and emotion management.',
     section: 'Mindset & Health',
@@ -170,7 +170,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'CALMING_TOOLS',
     num: '14',
-    label: '14. TRADING TOOL SUITE',
+    label: 'Trading Tool Suite',
     name: 'Calming Tools & Sound Suite',
     desc: 'Audio soundscapes, box breathing exercises, focus mode sanctuary, and post-loss resets.',
     section: 'Mindset & Health',
@@ -180,7 +180,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'RESEARCH',
     num: '15',
-    label: '15. ACADEMIC RESEARCH',
+    label: 'Academic Research',
     name: 'Academic Research Center',
     desc: 'Scientific trading papers, behavioral finance studies, and quantitative market literature.',
     section: 'Intelligence & Setups',
@@ -190,7 +190,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'FREEHAND_WORKSPACE',
     num: '16',
-    label: '16. FREEHAND CANVAS',
+    label: 'Freehand Canvas',
     name: 'Freehand Chart Canvas',
     desc: 'Interactive visual diagramming workspace for drawing market setups, liquidity pools, and ranges.',
     section: 'Tools & Systems',
@@ -199,7 +199,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'COMMUNITY',
     num: '17',
-    label: '17. TRADER COMMUNITY FEED',
+    label: 'Trader Community Feed',
     name: 'Community Dispatches',
     desc: 'Live trader chat, shared trade ideas, execution questions, and peer support.',
     section: 'Tools & Systems',
@@ -208,7 +208,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'BOOK_SESSION',
     num: '18',
-    label: '18. BOOK A SESSION',
+    label: 'Book a Session',
     name: '1-on-1 Mentorship',
     desc: 'Book personalized trade review, execution critique, and psychological coaching sessions.',
     section: 'Tools & Systems',
@@ -218,7 +218,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'SETTINGS',
     num: '19',
-    label: '19. DATA EXPORT & BACKUP',
+    label: 'Data Export & Backup',
     name: 'Data Backup & Restore',
     desc: 'Export journal data to encrypted JSON, restore previous states, and manage local cloud sync.',
     section: 'Tools & Systems',
@@ -227,7 +227,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'ADMIN',
     num: '20',
-    label: '20. ADMIN PANEL (OWNER)',
+    label: 'Admin Panel (Owner)',
     name: 'Administration Panel',
     desc: 'Customer accounts management, system permissions, license controls, and audit logs.',
     section: 'Tools & Systems',
@@ -236,7 +236,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'EVOLUTION',
     num: '21',
-    label: '21. EVALUATION ENGINE',
+    label: 'Evaluation Engine',
     name: 'Evolution Command Center',
     desc: 'Comprehensive trader progression matrix, discipline scores, and skill-tree evaluation telemetry.',
     section: 'Mindset & Health',

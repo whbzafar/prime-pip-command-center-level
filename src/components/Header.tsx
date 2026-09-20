@@ -240,8 +240,8 @@ export const Header: React.FC<HeaderProps> = ({
   const checkScrollState = () => {
     if (navScrollRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = navScrollRef.current;
-      setCanScrollLeft(scrollLeft > 10);
-      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+      setCanScrollLeft(scrollLeft > 6);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 6);
       const max = scrollWidth - clientWidth;
       setScrollProgress(max > 0 ? (scrollLeft / max) * 100 : 0);
     }
@@ -249,26 +249,38 @@ export const Header: React.FC<HeaderProps> = ({
 
   useEffect(() => {
     checkScrollState();
+    const t1 = setTimeout(checkScrollState, 80);
+    const t2 = setTimeout(checkScrollState, 400);
     const el = navScrollRef.current;
     if (el) {
       el.addEventListener('scroll', checkScrollState, { passive: true });
       window.addEventListener('resize', checkScrollState);
       return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
         el.removeEventListener('scroll', checkScrollState);
         window.removeEventListener('resize', checkScrollState);
       };
     }
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, []);
 
   const handleScrollLeft = () => {
     if (navScrollRef.current) {
-      navScrollRef.current.scrollBy({ left: -320, behavior: 'smooth' });
+      navScrollRef.current.scrollBy({ left: -360, behavior: 'smooth' });
+      setTimeout(checkScrollState, 150);
+      setTimeout(checkScrollState, 380);
     }
   };
 
   const handleScrollRight = () => {
     if (navScrollRef.current) {
-      navScrollRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+      navScrollRef.current.scrollBy({ left: 360, behavior: 'smooth' });
+      setTimeout(checkScrollState, 150);
+      setTimeout(checkScrollState, 380);
     }
   };
 
@@ -846,157 +858,152 @@ export const Header: React.FC<HeaderProps> = ({
         {!marketSessions.some((session) => session.isOpen) && <span className="shrink-0 text-[9px] font-mono-code text-slate-400">Global sessions closed</span>}
       </div>
 
-      {/* Horizontally Scrollable Full Navigation Bar (Desktop, Laptop, Tablet & Mobile) */}
-      <div id="category-navigation-bar" className="w-full border-t border-slate-800/60 py-0.5 sm:py-1 bg-[#090D15]/95 backdrop-blur overflow-hidden relative z-10 min-h-[34px] sm:min-h-[38px] flex flex-col justify-center shadow-md shadow-slate-900/50">
-        {/* Overflow Gradient Shadows for Visual Cue */}
-        {canScrollLeft && (
-          <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-10 bg-gradient-to-r from-[#090D15] via-[#090D15]/80 to-transparent pointer-events-none z-10" />
-        )}
-        {canScrollRight && (
-          <div className="absolute right-0 top-0 bottom-0 w-8 sm:w-10 bg-gradient-to-l from-[#090D15] via-[#090D15]/80 to-transparent pointer-events-none z-10" />
-        )}
-
-        {/* Dedicated Desktop / PC Quick Scroll Buttons */}
-        {canScrollLeft && (
-          <button
-            type="button"
-            onClick={handleScrollLeft}
-            className="hidden md:flex absolute left-1 top-1/2 -translate-y-1/2 z-20 w-6 h-6 rounded-full bg-slate-950/90 border border-slate-700/80 hover:border-cyan-400 text-cyan-300 items-center justify-center shadow-lg transition cursor-pointer active:scale-95"
-            title="Previous Categories (PC)"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-          </button>
-        )}
-        {canScrollRight && (
-          <button
-            type="button"
-            onClick={handleScrollRight}
-            className="hidden md:flex absolute right-1 top-1/2 -translate-y-1/2 z-20 w-6 h-6 rounded-full bg-slate-950/90 border border-slate-700/80 hover:border-cyan-400 text-cyan-300 items-center justify-center shadow-lg transition cursor-pointer active:scale-95"
-            title="Next Categories (PC)"
-          >
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        )}
-
-        <div
-          ref={navScrollRef}
-          onWheel={handleNavWheel}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUpOrLeave}
-          onMouseLeave={handleMouseUpOrLeave}
-          className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 overflow-x-auto no-scrollbar whitespace-nowrap select-none cursor-grab active:cursor-grabbing touch-pan-x"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
-        >
-          {allNavCategories.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            const isComingSoon = (item as any).comingSoon;
-            return (
-              <button
-                key={item.id}
-                id={`nav-tab-${item.id.toLowerCase()}`}
-                data-active-nav={isActive ? 'true' : 'false'}
-                onClick={(e) => {
-                  if (dragDistanceRef.current > 6) {
-                    e.preventDefault();
-                    return;
-                  }
-                  handleNavClick(item.id);
-                }}
-                className={`group flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-md text-[11px] sm:text-xs font-military tracking-wider font-semibold transition-all duration-200 select-none whitespace-nowrap active:scale-95 cursor-pointer shrink-0 ${
-                  isActive
-                    ? 'bg-blue-500/15 text-amber-300 shadow-sm shadow-blue-500/15 border border-blue-500/40'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850/70 border border-transparent'
-                } ${item.highlight && !isActive ? 'text-amber-300/80 font-bold' : ''}`}
-              >
-                {/* Animated Logo Container */}
-                <div
-                  className={`w-4 h-4 rounded flex items-center justify-center transition-all duration-200 group-hover:scale-110 ${
-                    isActive
-                      ? 'bg-blue-500/20 text-amber-300'
-                      : 'text-slate-400 group-hover:text-amber-300 group-hover:bg-slate-800'
-                  }`}
-                >
-                  <Icon className={`w-3 h-3 shrink-0 transition-transform duration-200 group-hover:rotate-6 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
-                </div>
-                <span className="truncate">{item.label}</span>
-
-                {isComingSoon && (
-                  <span className="flex items-center gap-0.5 px-1 py-0.2 rounded text-[8px] font-mono-code bg-blue-500/10 text-cyan-400/90 border border-blue-500/30">
-                    <Lock className="w-2 h-2" />
-                    <span>SOON</span>
-                  </span>
-                )}
-
-                {item.highlight && !isComingSoon && (
-                  <span className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse shrink-0"></span>
-                )}
-              </button>
-            );
-          })}
+      {/* Horizontally Scrollable Full Navigation Bar with 4-Side Animated Perimeter Beams & Prominent Scroll Markers */}
+      <div id="category-navigation-bar" className="w-full border-y border-slate-800/80 py-1 px-1 sm:px-2 bg-[#0b1122]/95 backdrop-blur relative z-10 min-h-[40px] sm:min-h-[44px] flex items-center gap-1 sm:gap-2 shadow-lg shadow-slate-950/60 select-none overflow-hidden">
+        {/* Category 4-Side Animated Perimeter Hyper-Laser Conduits with Multi-Color Quantum Orbit */}
+        {/* 1. Top beam: Electric Violet to Neon Rose with White-Hot Core */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-slate-800/40 overflow-hidden pointer-events-none z-20">
+          <div className="w-full h-full relative">
+            <div className="absolute inset-y-0 w-1/3 flex items-center animate-category-beam-top">
+              <div className="w-full h-full bg-gradient-to-r from-transparent via-violet-400 via-fuchsia-400 to-rose-400 shadow-[0_0_12px_#c084fc,0_0_24px_#f43f5e]" />
+              <div className="w-1.5 h-1.5 -ml-0.5 rounded-full bg-white shadow-[0_0_6px_#ffffff,0_0_12px_#c084fc] shrink-0" />
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* PC & Laptop Scroll Control & Discovery Indicator Strip */}
-      <div className="w-full bg-[#060A12]/95 backdrop-blur border-t border-b border-slate-800/60 px-2.5 sm:px-4 py-0.5 sm:py-1 flex items-center justify-between gap-2 sm:gap-3 text-[9px] sm:text-[10px] font-mono-code text-slate-400 select-none overflow-x-auto no-scrollbar whitespace-nowrap">
+        {/* 2. Right beam: Neon Rose to Solar Amber with White-Hot Core */}
+        <div className="absolute top-0 right-0 bottom-0 w-[2px] bg-slate-800/40 overflow-hidden pointer-events-none z-20">
+          <div className="w-full h-full relative">
+            <div className="absolute inset-x-0 h-1/3 flex flex-col items-center animate-category-beam-right">
+              <div className="w-full h-full bg-gradient-to-b from-transparent via-rose-400 via-pink-400 to-amber-300 shadow-[0_0_12px_#f43f5e,0_0_24px_#f59e0b]" />
+              <div className="w-1.5 h-1.5 -mt-0.5 rounded-full bg-white shadow-[0_0_6px_#ffffff,0_0_12px_#f43f5e] shrink-0" />
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Bottom beam: Solar Amber to Matrix Emerald with White-Hot Core */}
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-slate-800/40 overflow-hidden pointer-events-none z-20">
+          <div className="w-full h-full relative">
+            <div className="absolute inset-y-0 w-1/3 flex items-center justify-end animate-category-beam-bottom">
+              <div className="w-1.5 h-1.5 -mr-0.5 rounded-full bg-white shadow-[0_0_6px_#ffffff,0_0_12px_#10b981] shrink-0" />
+              <div className="w-full h-full bg-gradient-to-r from-emerald-400 via-amber-300 to-transparent shadow-[0_0_12px_#f59e0b,0_0_24px_#10b981]" />
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Left beam: Matrix Emerald to Electric Violet with White-Hot Core */}
+        <div className="absolute top-0 left-0 bottom-0 w-[2px] bg-slate-800/40 overflow-hidden pointer-events-none z-20">
+          <div className="w-full h-full relative">
+            <div className="absolute inset-x-0 h-1/3 flex flex-col items-center justify-end animate-category-beam-left">
+              <div className="w-1.5 h-1.5 -mb-0.5 rounded-full bg-white shadow-[0_0_6px_#ffffff,0_0_12px_#a855f7] shrink-0" />
+              <div className="w-full h-full bg-gradient-to-b from-violet-400 via-emerald-400 to-transparent shadow-[0_0_12px_#10b981,0_0_24px_#a855f7]" />
+            </div>
+          </div>
+        </div>
+
+        {/* Left Scroll Marker Button — Prominent, bidirectional indicator */}
         <button
           type="button"
+          id="category-scroll-left-marker"
           onClick={handleScrollLeft}
-          disabled={!canScrollLeft}
-          className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border transition-all cursor-pointer shrink-0 ${
+          title="Scroll Left — Reveal Previous Categories"
+          aria-label="Scroll Categories Left"
+          className={`shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer shadow-md relative z-30 ${
             canScrollLeft
-              ? 'bg-slate-950/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-blue-500/50 shadow-sm shadow-blue-500/10 active:scale-95'
-              : 'opacity-30 text-slate-600 border-transparent cursor-not-allowed'
+              ? 'bg-slate-900/90 hover:bg-cyan-500 text-cyan-300 hover:text-slate-950 border border-cyan-400/60 hover:border-cyan-300 shadow-cyan-500/20 active:scale-90 hover:scale-105'
+              : 'bg-slate-950/60 text-slate-600 border border-slate-800/80 hover:text-cyan-400 hover:border-slate-700 active:scale-95'
           }`}
-          title="Scroll Left — See previous categories"
         >
-          <ChevronLeft className="w-3 h-3 text-cyan-400" />
-          <span className="hidden sm:inline font-bold">PREV</span>
+          <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
         </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            if (onOpenAllCategories) {
-              onOpenAllCategories();
-            }
-          }}
-          className="flex-1 min-w-[200px] max-w-md mx-auto flex items-center gap-2 sm:gap-3 shrink-0 px-2 sm:px-3 py-0.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/25 border border-blue-500/30 hover:border-cyan-400/50 transition cursor-pointer active:scale-98 group shadow-sm shadow-blue-500/10"
-          title="Click to explore all 21 categories & modules"
-        >
-          <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-cyan-300 font-military font-bold tracking-wider shrink-0 uppercase">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
-            <span className="group-hover:text-amber-300 transition">EXPLORE ALL CATEGORIES (21)</span>
-          </div>
-          <div className="flex-1 h-1 sm:h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800 relative">
-            <div
-              className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-amber-300 rounded-full transition-all duration-200"
-              style={{ width: `${Math.max(12, scrollProgress)}%` }}
-            />
-          </div>
-          <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-amber-300 shrink-0 font-mono-code font-bold">
-            <span className="hidden sm:inline">OPEN</span>
-            <ChevronRight className="w-3 h-3 text-cyan-400 group-hover:translate-x-0.5 transition-transform" />
-          </div>
-        </button>
+        {/* Categories Horizontal Scroll Track with Overflow Edge Fades */}
+        <div className="relative flex-1 min-w-0 overflow-hidden z-10">
+          {canScrollLeft && (
+            <div className="absolute left-0 top-0 bottom-0 w-6 sm:w-8 bg-gradient-to-r from-[#0e162b] to-transparent pointer-events-none z-10" />
+          )}
+          {canScrollRight && (
+            <div className="absolute right-0 top-0 bottom-0 w-6 sm:w-8 bg-gradient-to-l from-[#0e162b] to-transparent pointer-events-none z-10" />
+          )}
 
+          <div
+            ref={navScrollRef}
+            onWheel={handleNavWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUpOrLeave}
+            onMouseLeave={handleMouseUpOrLeave}
+            className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar whitespace-nowrap cursor-grab active:cursor-grabbing touch-pan-x scroll-smooth py-0.5 px-0.5"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+          >
+            {allNavCategories.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              const isComingSoon = (item as any).comingSoon;
+              return (
+                <button
+                  key={item.id}
+                  id={`nav-tab-${item.id.toLowerCase()}`}
+                  data-active-nav={isActive ? 'true' : 'false'}
+                  onClick={(e) => {
+                    if (dragDistanceRef.current > 6) {
+                      e.preventDefault();
+                      return;
+                    }
+                    handleNavClick(item.id);
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all cursor-pointer shrink-0 ${
+                    isActive
+                      ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-slate-950 border-cyan-300 font-bold shadow-md shadow-cyan-500/30'
+                      : 'bg-[#131f38] hover:bg-[#1a2b4c] text-slate-200 hover:text-cyan-300 border-slate-700/80 hover:border-cyan-500/50'
+                  }`}
+                  title={item.label}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : item.highlight ? 'text-cyan-400' : 'text-slate-300'}`} />
+                  <span className="text-[11px] font-mono-code font-bold tracking-tight uppercase">{item.label}</span>
+                  {isComingSoon && (
+                    <span className="text-[8px] bg-blue-500/20 text-cyan-300 border border-blue-500/40 px-1 rounded uppercase">
+                      SOON
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Dedicated Explore All Categories button right at end of tabs */}
+            {onOpenAllCategories && (
+              <button
+                id="nav-explore-all-btn"
+                type="button"
+                onClick={onOpenAllCategories}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-cyan-500/50 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 font-mono-code text-[11px] font-bold tracking-wider transition cursor-pointer shrink-0 ml-1 shadow-sm"
+                title="Explore all 21 categories"
+              >
+                <Layers className="w-3.5 h-3.5 text-cyan-300" />
+                <span>EXPLORE ALL (21)</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Right Scroll Marker Button — Prominent, bidirectional indicator */}
         <button
           type="button"
+          id="category-scroll-right-marker"
           onClick={handleScrollRight}
-          disabled={!canScrollRight}
-          className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border transition-all cursor-pointer shrink-0 ${
+          title="Scroll Right — Reveal More Categories"
+          aria-label="Scroll Categories Right"
+          className={`shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer shadow-md relative z-30 ${
             canScrollRight
-              ? 'bg-slate-950/90 hover:bg-slate-800 text-amber-300 border-slate-700 hover:border-blue-500/50 shadow-sm shadow-blue-500/15 ring-1 ring-blue-500/40 active:scale-95 animate-pulse'
-              : 'opacity-30 text-slate-600 border-transparent cursor-not-allowed'
+              ? 'bg-slate-900/90 hover:bg-cyan-500 text-cyan-300 hover:text-slate-950 border border-cyan-400/60 hover:border-cyan-300 shadow-cyan-500/20 active:scale-90 hover:scale-105'
+              : 'bg-slate-950/60 text-slate-600 border border-slate-800/80 hover:text-cyan-400 hover:border-slate-700 active:scale-95'
           }`}
-          title="Scroll Right — More categories ahead"
         >
-          <span className="hidden sm:inline font-bold">MORE</span>
-          <ChevronRight className="w-3 h-3 text-cyan-400" />
+          <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
         </button>
       </div>
       </div>
+
       {/* Global Time & Market Session Modal */}
       <GlobalTimeSessionModal
         isOpen={isTimeModalOpen}

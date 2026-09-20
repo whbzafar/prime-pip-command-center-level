@@ -33,12 +33,32 @@ export const MASTER_ADMIN_USER: UserAccount = {
   updatedAt: new Date().toISOString(),
 };
 
+const inMemoryFallback = new Map<string, string>();
+
+function safeStorageGet(key: string): string | null {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(key);
+    }
+  } catch {}
+  return inMemoryFallback.get(key) || null;
+}
+
+function safeStorageSet(key: string, val: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, val);
+    }
+  } catch {}
+  inMemoryFallback.set(key, val);
+}
+
 /**
  * Get current admin master password
  */
 export function getLocalAdminPassword(): string {
   try {
-    const saved = localStorage.getItem(ADMIN_PASSWORD_KEY);
+    const saved = safeStorageGet(ADMIN_PASSWORD_KEY);
     if (typeof saved === 'string' && saved.trim()) return saved.trim();
   } catch {
     // fallback
@@ -52,7 +72,7 @@ export function getLocalAdminPassword(): string {
 export function setLocalAdminPassword(password: string): void {
   try {
     const clean = password.trim();
-    localStorage.setItem(ADMIN_PASSWORD_KEY, clean);
+    safeStorageSet(ADMIN_PASSWORD_KEY, clean);
     // Asynchronously push to cloud
     fetch(CLOUD_ADMIN_ENDPOINT, {
       method: 'POST',
@@ -68,7 +88,7 @@ export function setLocalAdminPassword(password: string): void {
  */
 export function getLocalStudents(): StoredStudentUser[] {
   try {
-    const raw = localStorage.getItem(STUDENTS_STORE_KEY);
+    const raw = safeStorageGet(STUDENTS_STORE_KEY);
     if (!raw) return [];
 
     const parsed = JSON.parse(raw);
@@ -133,7 +153,7 @@ export async function syncStudentsFromCloud(): Promise<StoredStudentUser[]> {
         }
 
         const mergedList = Array.from(mergedMap.values());
-        localStorage.setItem(STUDENTS_STORE_KEY, JSON.stringify(mergedList));
+        safeStorageSet(STUDENTS_STORE_KEY, JSON.stringify(mergedList));
         return mergedList;
       }
     }
@@ -157,7 +177,7 @@ export function saveLocalStudent(student: StoredStudentUser): void {
     } else {
       students.push({ ...student, createdAt: student.createdAt || new Date().toISOString() });
     }
-    localStorage.setItem(STUDENTS_STORE_KEY, JSON.stringify(students));
+    safeStorageSet(STUDENTS_STORE_KEY, JSON.stringify(students));
     // Asynchronously push to cloud KV
     syncStudentsToCloud().catch(() => {});
   } catch (e) {
@@ -173,7 +193,7 @@ export function deleteLocalStudent(idOrUsername: string): void {
     const students = getLocalStudents().filter(
       (s) => s.id !== idOrUsername && s.username.toLowerCase() !== idOrUsername.toLowerCase()
     );
-    localStorage.setItem(STUDENTS_STORE_KEY, JSON.stringify(students));
+    safeStorageSet(STUDENTS_STORE_KEY, JSON.stringify(students));
     syncStudentsToCloud().catch(() => {});
   } catch (e) {
     console.error('Failed to delete student locally:', e);

@@ -17,7 +17,11 @@ const readStored = (key: string, fallback: string) => {
 
 export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const [theme, setTheme] = useState<string>(() => readStored('primepipfx_theme', 'midnight'));
-  const [brightness, setBrightness] = useState<number>(() => Number(readStored('primepipfx_brightness', '100')));
+  const [brightness, setBrightness] = useState<number>(() => {
+    const raw = readStored('primepipfx_brightness', '104');
+    const num = Number(raw);
+    return !isNaN(num) && num >= 90 && num <= 110 ? num : 104;
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | InterfaceTemplate['category']>('ALL');
 
@@ -133,7 +137,7 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
               type="button"
               onClick={() => {
                 setTheme('midnight');
-                setBrightness(100);
+                setBrightness(106);
               }}
               className="text-[11px] font-mono-code px-2.5 py-1 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
             >

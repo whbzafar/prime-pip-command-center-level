@@ -71,6 +71,9 @@ export interface CommunityMessage {
   driveFile?: DriveAttachmentReference;
   seenBy?: MessageSeenRecord[];
   intentCard?: any;
+  category?: string;
+  reactions?: Record<string, number>;
+  tradeSetup?: any;
   timestamp: number;
   timePkt: string;
   datePkt: string;
@@ -182,10 +185,81 @@ const DEFAULT_COMMUNITY_MESSAGES: CommunityMessage[] = [
     username: 'primepipfx-admin',
     userRole: 'ADMIN',
     displayName: 'PrimePipFX Developer / Owner',
-    text: 'Welcome to the PrimePipFX Command Center Community Hub. Trade with precision, manage your risk, and keep all discussions professional.',
-    timestamp: Date.now() - 3600000,
-    timePkt: '01:30 PM',
-    datePkt: '2026-09-11',
+    text: 'Welcome to the PrimePipFX Command Center Community Feed. Live institutional dispatches, high-conviction ICT/SMC setups, and real-time execution logs are shared here. Keep risk under 1-2% per setup.',
+    timestamp: Date.now() - 3600000 * 5,
+    timePkt: '09:30 AM',
+    datePkt: '2026-09-20',
+    category: 'GENERAL',
+    reactions: { '🔥': 12, '🎯': 8, '💎': 15 },
+  },
+  {
+    id: 'msg-setup-gold-master',
+    userId: 'dev-owner-master',
+    username: 'primepipfx-admin',
+    userRole: 'ADMIN',
+    displayName: 'PrimePipFX Developer / Owner',
+    text: 'GOLD (XAUUSD) 15m Fair Value Gap retest after London liquidity raid. Asian High taken out, looking for premium-to-discount expansion into New York Open.',
+    timestamp: Date.now() - 3600000 * 3,
+    timePkt: '11:15 AM',
+    datePkt: '2026-09-20',
+    category: 'SIGNAL',
+    reactions: { '🚀': 18, '🔥': 22, '🎯': 14, '💎': 9 },
+    tradeSetup: {
+      pair: 'XAUUSD',
+      type: 'BUY',
+      entry: '2642.50',
+      stopLoss: '2635.80',
+      takeProfit: '2662.00',
+      riskReward: '1:2.9',
+      timeframe: 'M15',
+      status: 'ACTIVE',
+    },
+  },
+  {
+    id: 'msg-dispatch-luqman',
+    userId: 'student_1789485011620_61j5n',
+    username: 'mluqman',
+    userRole: 'CUSTOMER',
+    displayName: 'Mluqman',
+    text: 'EURUSD London killzone sweep confirmed! Clean Market Structure Shift on M5 with strong volume displacement above 1.0920. Stop loss placed safely below the manipulation wick.',
+    timestamp: Date.now() - 3600000 * 2,
+    timePkt: '12:40 PM',
+    datePkt: '2026-09-20',
+    category: 'SIGNAL',
+    reactions: { '🔥': 9, '📈': 11, '🎯': 7 },
+    tradeSetup: {
+      pair: 'EURUSD',
+      type: 'BUY',
+      entry: '1.0925',
+      stopLoss: '1.0908',
+      takeProfit: '1.0975',
+      riskReward: '1:2.9',
+      timeframe: 'M5 / M15',
+      status: 'ACTIVE',
+    },
+  },
+  {
+    id: 'msg-update-niazali',
+    userId: 'student_1789485149520_81vea',
+    username: 'niazali',
+    userRole: 'CUSTOMER',
+    displayName: 'Niazali',
+    text: 'GBPJPY update: Take Profit 1 and Take Profit 2 secured! +68 pips banked into the account. Remaining 20% position trailed to breakeven +10 pips. PrimePipFX risk calculator kept the lot size on point.',
+    timestamp: Date.now() - 3600000 * 1.5,
+    timePkt: '01:20 PM',
+    datePkt: '2026-09-20',
+    category: 'ANALYSIS',
+    reactions: { '💎': 16, '🎯': 12, '🚀': 14 },
+    tradeSetup: {
+      pair: 'GBPJPY',
+      type: 'SELL',
+      entry: '196.20',
+      stopLoss: '196.65',
+      takeProfit: '195.10',
+      riskReward: '1:2.4',
+      timeframe: 'H1',
+      status: 'TARGET_HIT',
+    },
   },
 ];
 

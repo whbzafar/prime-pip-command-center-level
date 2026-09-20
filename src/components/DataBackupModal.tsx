@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
@@ -33,6 +33,8 @@ import {
   Key,
   Link2,
   Copy,
+  Trash2,
+  ExternalLink,
 } from 'lucide-react';
 import { exportAllData, importAllData } from '../utils/db';
 import { BackupData, AccountSettings, Trade, UserAccount } from '../types';
@@ -49,6 +51,7 @@ import {
   googleDriveService,
   DRIVE_FOLDER_HIERARCHY,
   DriveStatusInfo,
+  DriveBackupFile,
 } from '../services/googleDriveService';
 
 interface DataBackupModalProps {
@@ -98,6 +101,12 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   const [driveSyncError, setDriveSyncError] = useState<string | null>(null);
   const [customClientId, setCustomClientId] = useState(() => googleDriveService.getClientId());
   const [showClientIdInput, setShowClientIdInput] = useState(false);
+  const [driveFiles, setDriveFiles] = useState<DriveBackupFile[]>([]);
+  const [isLoadingDriveFiles, setIsLoadingDriveFiles] = useState(false);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  const [restoringFileId, setRestoringFileId] = useState<string | null>(null);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(() => googleDriveService.isAutoSaveEnabled());
 
   useEffect(() => {
     const unsub = googleDriveService.onStatusChange((newStatus) => {
@@ -105,6 +114,25 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     });
     return () => unsub();
   }, []);
+
+  const refreshDriveFiles = useCallback(async () => {
+    if (driveStatus.state !== 'CONNECTED') return;
+    setIsLoadingDriveFiles(true);
+    try {
+      const files = await googleDriveService.listAllDriveFiles();
+      setDriveFiles(files);
+    } catch (err: any) {
+      console.warn('Failed to list drive files:', err);
+    } finally {
+      setIsLoadingDriveFiles(false);
+    }
+  }, [driveStatus.state]);
+
+  useEffect(() => {
+    if (activeTab === 'DRIVE' && driveStatus.state === 'CONNECTED') {
+      refreshDriveFiles();
+    }
+  }, [activeTab, driveStatus.state, refreshDriveFiles]);
 
   const handleBackupToDrive = async () => {
     if (driveStatus.state !== 'CONNECTED') {
@@ -122,6 +150,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
 
       if (result.success) {
         setDriveSyncSuccess('Successfully backed up all command center data into your personal Google Drive /Backups folder!');
+        refreshDriveFiles();
       } else {
         setDriveSyncError(result.error || 'Failed to complete Google Drive backup');
       }
@@ -130,6 +159,83 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     } finally {
       setIsDriveSyncing(false);
     }
+  };
+
+  const handleDownloadDriveFile = async (file: DriveBackupFile) => {
+    setDownloadingFileId(file.id);
+    setDriveSyncError(null);
+    try {
+      const success = await googleDriveService.downloadFile(file.id, file.name);
+      if (success) {
+        setDriveSyncSuccess(`Downloaded "${file.name}" to your local machine.`);
+        setTimeout(() => setDriveSyncSuccess(null), 4000);
+      } else {
+        setDriveSyncError(`Could not download "${file.name}".`);
+      }
+    } catch (err: any) {
+      setDriveSyncError(err?.message || 'Download failed');
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
+  const handleRestoreFromDrive = async (file: DriveBackupFile) => {
+    if (!window.confirm(`Restore data from "${file.name}"? This will update your accounts, trades, and configuration settings.`)) {
+      return;
+    }
+    setRestoringFileId(file.id);
+    setDriveSyncError(null);
+    setDriveSyncSuccess(null);
+    try {
+      const content = await googleDriveService.fetchFileContent(file.id);
+      if (!content) {
+        throw new Error('Could not retrieve file content from Google Drive.');
+      }
+      const parsedData: BackupData = JSON.parse(content);
+      await importAllData(parsedData, currentUser?.id);
+      const tradesCount = Array.isArray(parsedData.trades) ? parsedData.trades.length : 0;
+      const accountsCount = Array.isArray(parsedData.accounts) ? parsedData.accounts.length : 0;
+      setDriveSyncSuccess(`Successfully restored ${tradesCount} trades and ${accountsCount} accounts from Google Drive!`);
+      if (onDataRestored) {
+        onDataRestored();
+      }
+    } catch (err: any) {
+      setDriveSyncError(err?.message || 'Failed to restore file from Google Drive.');
+    } finally {
+      setRestoringFileId(null);
+    }
+  };
+
+  const handleDeleteDriveFile = async (file: DriveBackupFile) => {
+    if (!window.confirm(`Are you sure you want to delete "${file.name}" from your Google Drive?`)) {
+      return;
+    }
+    setDeletingFileId(file.id);
+    setDriveSyncError(null);
+    try {
+      const ok = await googleDriveService.deleteDriveFile(file.id);
+      if (ok) {
+        setDriveSyncSuccess(`Deleted "${file.name}" from Google Drive.`);
+        refreshDriveFiles();
+      } else {
+        setDriveSyncError(`Could not delete "${file.name}".`);
+      }
+    } catch (err: any) {
+      setDriveSyncError(err?.message || 'Delete operation failed.');
+    } finally {
+      setDeletingFileId(null);
+    }
+  };
+
+  const handleToggleAutoSave = (enabled: boolean) => {
+    googleDriveService.setAutoSaveEnabled(enabled);
+    setIsAutoSaveEnabled(enabled);
+    if (enabled) {
+      setDriveSyncSuccess('Automatic background saving to Google Drive is now enabled!');
+    } else {
+      setDriveSyncSuccess('Automatic background saving to Google Drive is paused.');
+    }
+    setTimeout(() => setDriveSyncSuccess(null), 3500);
   };
 
   const handleSaveClientId = () => {
@@ -1281,6 +1387,164 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                     </p>
                   </div>
                 </div>
+              </div>
+
+              {/* Automatic Cloud Sync Configuration */}
+              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-military font-bold text-emerald-400">
+                    <Cloud className="w-4 h-4" />
+                    <span>AUTOMATIC BACKGROUND SYNC TO GOOGLE DRIVE</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleAutoSave(!isAutoSaveEnabled)}
+                    disabled={driveStatus.state !== 'CONNECTED'}
+                    className={`px-3 py-1 rounded-full text-xs font-mono-code font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+                      isAutoSaveEnabled && driveStatus.state === 'CONNECTED'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                        : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${isAutoSaveEnabled && driveStatus.state === 'CONNECTED' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                    <span>{isAutoSaveEnabled && driveStatus.state === 'CONNECTED' ? 'AUTO-SAVE ACTIVE' : 'AUTO-SAVE OFF'}</span>
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400 font-mono-code leading-relaxed">
+                  When active, changes to trade records, risk profiles, and accounts are automatically synchronized to your personal Google Drive <code className="text-emerald-300 font-bold">PFX Command Center/Backups</code> directory without requiring manual backup.
+                </p>
+              </div>
+
+              {/* Stored Cloud Files & Direct Download Manager */}
+              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-military font-bold text-cyan-400">
+                    <Archive className="w-4 h-4" />
+                    <span>STORED GOOGLE DRIVE FILES ({driveFiles.length})</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={refreshDriveFiles}
+                      disabled={isLoadingDriveFiles || driveStatus.state !== 'CONNECTED'}
+                      className="flex items-center gap-1 text-[11px] font-mono-code text-slate-400 hover:text-cyan-400 transition cursor-pointer disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isLoadingDriveFiles ? 'animate-spin text-cyan-400' : ''}`} />
+                      <span>REFRESH LIST</span>
+                    </button>
+                  </div>
+                </div>
+
+                {driveStatus.state !== 'CONNECTED' ? (
+                  <div className="p-4 rounded-lg bg-slate-950/80 border border-slate-800 text-center text-xs font-mono-code text-slate-500">
+                    Connect your Google Account above to view, download, and restore your stored cloud data.
+                  </div>
+                ) : isLoadingDriveFiles ? (
+                  <div className="p-6 rounded-lg bg-slate-950/80 border border-slate-800 flex items-center justify-center gap-2 text-xs font-mono-code text-cyan-400">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Fetching stored files from your Google Drive...</span>
+                  </div>
+                ) : driveFiles.length === 0 ? (
+                  <div className="p-5 rounded-lg bg-slate-950/80 border border-slate-800 text-center space-y-1">
+                    <p className="text-xs font-mono-code text-slate-400">
+                      No backup files found in your Google Drive <code className="text-emerald-300">PFX Command Center</code> yet.
+                    </p>
+                    <p className="text-[11px] font-mono-code text-slate-500">
+                      Click "BACKUP TO MY GOOGLE DRIVE" above to save your first snapshot, or enable Auto-Save.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {driveFiles.map((file) => (
+                      <div
+                        key={file.id}
+                        className="p-3 rounded-xl bg-slate-950/90 border border-slate-800 hover:border-slate-700 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div className="flex items-start sm:items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+                            <FileText className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-mono-code font-bold text-slate-200 truncate flex items-center gap-2">
+                              <span className="truncate">{file.name}</span>
+                              {file.name.includes('AutoSave') && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold shrink-0">
+                                  AUTO-SAVE
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] font-mono-code text-slate-400 flex items-center gap-3 mt-0.5">
+                              <span>{file.size ? `${(file.size / 1024).toFixed(1)} KB` : 'Dynamic Size'}</span>
+                              {file.createdTime && (
+                                <span>{new Date(file.createdTime).toLocaleString()}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            disabled={downloadingFileId === file.id}
+                            onClick={() => handleDownloadDriveFile(file)}
+                            title="Download file to your local computer"
+                            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-cyan-300 border border-slate-700 text-xs font-mono-code transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                          >
+                            {downloadingFileId === file.id ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                            ) : (
+                              <Download className="w-3.5 h-3.5" />
+                            )}
+                            <span>DOWNLOAD</span>
+                          </button>
+
+                          {file.name.endsWith('.json') && (
+                            <button
+                              type="button"
+                              disabled={restoringFileId === file.id}
+                              onClick={() => handleRestoreFromDrive(file)}
+                              title="Restore this backup into the application"
+                              className="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-mono-code transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            >
+                              {restoringFileId === file.id ? (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                              ) : (
+                                <Upload className="w-3.5 h-3.5" />
+                              )}
+                              <span>RESTORE</span>
+                            </button>
+                          )}
+
+                          {file.webViewLink && (
+                            <a
+                              href={file.webViewLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Open directly in Google Drive"
+                              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 transition cursor-pointer"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+
+                          <button
+                            type="button"
+                            disabled={deletingFileId === file.id}
+                            onClick={() => handleDeleteDriveFile(file)}
+                            title="Delete from Google Drive"
+                            className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/30 transition cursor-pointer disabled:opacity-50"
+                          >
+                            {deletingFileId === file.id ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* 9 Isolated Folder Hierarchy Visualizer */}

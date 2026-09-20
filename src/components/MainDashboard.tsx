@@ -20,6 +20,7 @@ import {
   Info,
   Brain,
   User,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   DashboardMetrics,
@@ -192,145 +193,170 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
     <div className="space-y-6">
       {/* Top Header Row: Profile / Account & Psychological Center */}
       <div className="flex items-center justify-between flex-wrap gap-3 p-3.5 sm:p-4 rounded-2xl bg-[#0B0F19]/90 border border-slate-800/80 shadow-xl backdrop-blur-md">
-        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
-          {/* Profile / Account button */}
-          <button
-            id="dash-profile-account-btn"
-            onClick={onOpenAccountModal || (() => {})}
-            className="prime-btn-secondary text-xs py-1.5 px-3"
-            title="User Profile & Account"
-          >
-            <User className="w-3.5 h-3.5 text-cyan-400" />
-            <span>{currentUser?.username ? `@${currentUser.username.toUpperCase()}` : 'PROFILE / ACCOUNT'}</span>
-            <span className="text-[10px] font-mono-code text-cyan-400 px-1.5 py-0.2 rounded bg-blue-500/10 border border-blue-500/20">
-              {currentUser?.subscriptionTier || 'TRADER'}
-            </span>
-          </button>
-
-          {/* Dedicated Psychological Center button directly beside Profile/Account */}
-          <button
-            id="dash-top-psych-center-btn"
-            onClick={() => onNavigateToTab('PSYCHOLOGY')}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-500/15 via-indigo-500/15 to-blue-500/15 hover:from-blue-500/25 hover:to-indigo-500/25 border border-blue-500/40 hover:border-cyan-400 text-amber-300 hover:text-cyan-200 text-xs font-military font-bold tracking-wider transition-all duration-180 cursor-pointer shadow-md shadow-blue-500/10 active:scale-95 group"
-            title="Open Psychological Command Center (One-Click)"
-          >
-            <Brain className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform animate-pulse" />
-            <span>PSYCHOLOGICAL CENTER</span>
-          </button>
-
-          {/* Trader Experience Profile trigger */}
+        <div className="flex items-center gap-3 flex-wrap">
           {onOpenTraderProfile && (
             <button
-              id="dash-trader-profile-btn"
               onClick={onOpenTraderProfile}
-              className="prime-btn-secondary text-xs py-1.5 px-2.5 hidden sm:inline-flex"
-              title="View Adaptive Trader Experience Profile & Preferences"
+              title="View & Edit Trader Profile"
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 text-slate-200 transition cursor-pointer group"
             >
-              <Award className="w-3.5 h-3.5 text-emerald-400" />
-              <span>EXPERIENCE PROFILE</span>
+              <div className="relative">
+                {currentUser?.avatarUrl ? (
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.name}
+                    className="w-7 h-7 rounded-full object-cover border border-blue-500/50"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-cyan-400">
+                    <User className="w-4 h-4" />
+                  </div>
+                )}
+                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-slate-900" />
+              </div>
+              <div className="text-left">
+                <div className="text-xs font-bold text-slate-200 group-hover:text-amber-300 transition flex items-center gap-1">
+                  <span>{currentUser?.name || currentUser?.username || 'Trader'}</span>
+                  {currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' || currentUser?.isDeveloper ? (
+                    <ShieldCheck className="w-3 h-3 text-cyan-400 inline" />
+                  ) : null}
+                </div>
+                <div className="text-[10px] font-mono-code text-slate-400">
+                  <span>{account.accountName}</span>
+                  <span className="text-cyan-400 font-bold ml-1.5">
+                    {formatCurrency(metrics.accountBalance, account.currency)}
+                  </span>
+                </div>
+              </div>
             </button>
           )}
 
-          {/* Evolution Engine Developer Trigger */}
+          {/* Dedicated Psychological Command Center Access Button Directly Beside Profile/Account */}
+          <button
+            id="dash-psychological-center-direct-btn"
+            type="button"
+            onClick={() => onNavigateToTab('PSYCHOLOGY')}
+            title="Psychological Center — Train your mindset. Protect your discipline. Improve your execution."
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-500/20 via-amber-600/15 to-transparent hover:from-blue-500/30 hover:via-amber-600/25 border border-blue-500/40 hover:border-cyan-400 text-slate-200 hover:text-amber-300 font-military font-bold text-xs tracking-wider transition-all duration-200 cursor-pointer shadow-md group"
+          >
+            <div className="w-6 h-6 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform">
+              <Brain className="w-3.5 h-3.5 stroke-[2.2]" />
+            </div>
+            <div className="text-left">
+              <div className="flex items-center gap-1">
+                <span className="text-cyan-400 group-hover:text-amber-300 transition-colors">Psychological Center</span>
+                <span className="text-[9px] font-mono-code px-1 py-0.2 rounded bg-blue-500/30 text-amber-300 uppercase font-bold">MINDSET</span>
+              </div>
+              <span className="text-[9px] text-slate-400 font-sans block leading-none">Discipline • Tilt Defense • Focus</span>
+            </div>
+          </button>
+
+          {onOpenTraderProfile && (
+            <button
+              onClick={onOpenTraderProfile}
+              title="Open Trader Experience Profile"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-slate-100 text-xs font-mono-code transition cursor-pointer"
+            >
+              <User className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Trader Profile</span>
+            </button>
+          )}
+
           {(currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' || currentUser?.isDeveloper) && onOpenEvolution && (
             <button
-              id="dash-evolution-engine-btn"
+              id="dash-evolution-engine-developer-btn"
               onClick={onOpenEvolution}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-300 text-xs font-military font-bold tracking-wider transition-all duration-180 active:scale-95 cursor-pointer shadow-sm shadow-emerald-500/10"
-              title="Access PRIMEPIPFX Evolution Engine Console"
+              title="Open Autonomous Evolution Engine"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-300 text-xs font-mono-code transition cursor-pointer"
             >
               <Zap className="w-3.5 h-3.5 text-emerald-400" />
-              <span>EVOLUTION ENGINE</span>
+              <span className="font-military font-bold">EVOLUTION ENGINE</span>
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
-          <EvolutionStatusBadge variant="dashboard" onOpenEvolution={onOpenEvolution} />
-          <div className="flex items-center gap-2 text-[11px] font-mono-code text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+        <div className="flex items-center gap-2">
+          {/* Evolution Engine Status Badge */}
+          <EvolutionStatusBadge onOpenEvolution={onOpenEvolution} />
+
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] font-mono-code text-slate-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="hidden sm:inline">CENTRAL TRADING PROTOCOL ACTIVE</span>
+            <span className="sm:hidden">ACTIVE</span>
           </div>
         </div>
       </div>
 
-
       {/* Tactical Status Banner */}
       <div className={`border rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl transition ${
         readiness.status === 'RED'
-          ? 'bg-gradient-to-r from-rose-950/60 via-slate-900 to-[#0F172A] border-rose-500/40'
+          ? 'bg-rose-950/20 border-rose-500/40'
           : readiness.status === 'YELLOW'
-          ? 'bg-gradient-to-r from-amber-950/40 via-slate-900 to-[#0F172A] border-blue-500/40'
-          : 'bg-gradient-to-r from-slate-900 via-slate-900/90 to-[#0F172A] border-slate-800'
+          ? 'bg-amber-950/15 border-blue-500/40'
+          : 'bg-gradient-to-r from-slate-900 via-slate-900/90 to-[#0B0F19] border-slate-800'
       }`}>
-        <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shadow-lg ${
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center border shadow-inner ${
             readiness.status === 'RED'
               ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
               : readiness.status === 'YELLOW'
               ? 'bg-blue-500/10 border-blue-500/30 text-cyan-400'
               : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
           }`}>
-            <Crosshair className="w-6 h-6" />
+            <Crosshair className="w-5 h-5 stroke-[2.5]" />
           </div>
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-xs font-mono-code uppercase px-2 py-0.5 rounded font-bold border ${
+            <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-military font-bold tracking-wider text-slate-100">
+                COMMAND READINESS: {readiness.status === 'RED' ? 'DEFCON 5 (HALT)' : readiness.status === 'YELLOW' ? 'DEFCON 3 (CAUTION)' : 'DEFCON 1 (OPTIMAL)'}
+              </h2>
+              <span className={`text-[10px] font-mono-code font-bold uppercase px-2 py-0.5 rounded border ${
                 readiness.status === 'RED'
                   ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
                   : readiness.status === 'YELLOW'
                   ? 'bg-blue-500/20 text-cyan-400 border-blue-500/30'
                   : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
               }`}>
-                {readiness.status === 'RED'
-                  ? 'DEFCON 5: LOCKOUT'
-                  : readiness.status === 'YELLOW'
-                  ? 'DEFCON 3: ELEVATED VIGILANCE'
-                  : 'DEFCON 1: GREEN'}
-              </span>
-              <span className="text-xs font-mono-code text-slate-400">
-                DAILY LIMIT: {metrics.tradesToday} / {account.maxDailyTrades} TRADES
+                {readiness.headline}
               </span>
             </div>
-            <h2 className="text-lg font-military font-bold text-slate-100 tracking-wide mt-1">
-              COMMAND READINESS: {readiness.status === 'RED' ? 'TRADING HALTED' : scores.overallTradingScore >= 80 ? 'OPTIMAL' : 'ELEVATED VIGILANCE'}
-            </h2>
-            <p className="text-xs text-slate-400">
-              {readiness.reasons[0] || 'System ready for trade logging.'}
+            <p className="text-xs text-slate-400 font-mono-code mt-0.5">
+              DAILY LIMIT: {metrics.tradesToday} / {account.maxDailyTrades} TRADES TAKEN TODAY • NEXT RISK: 1% ({formatCurrency(master1PercentRiskDollars, account.currency)})
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             id="dash-psych-center-btn"
             onClick={() => onNavigateToTab('PSYCHOLOGY')}
-            className="flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-amber-300 hover:text-cyan-200 border border-slate-700 hover:border-blue-500/50 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-sm group"
-            title="Psychological Command Center"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-cyan-400 text-xs font-mono-code transition cursor-pointer"
+            title="Open Psychological Center"
           >
-            <Brain className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
-            <span className="hidden sm:inline">PSYCHOLOGICAL CENTER</span>
-            <span className="sm:hidden">PSYCHOLOGY</span>
+            <Brain className="w-3.5 h-3.5 text-cyan-400" />
+            <span>PSYCHOLOGICAL CENTER</span>
           </button>
+
           <button
-            id="dash-consult-ai-btn"
             onClick={() => onNavigateToTab('AI_COACH')}
-            className="flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-blue-500/30 text-xs font-military font-bold tracking-wider transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-cyan-400 text-xs font-mono-code transition cursor-pointer"
+            title="Consult AI Trading Coach"
           >
-            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <Brain className="w-3.5 h-3.5 text-cyan-400" />
             <span>AI TACTICAL BRIEFING</span>
           </button>
+
           <button
             id="dash-quick-log-btn"
             onClick={onOpenNewTrade}
             disabled={isLimitReached}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-military font-bold tracking-wider shadow-lg transition ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-military font-bold text-xs tracking-wider uppercase transition shadow-lg cursor-pointer ${
               isLimitReached
                 ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                : 'bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow-blue-500/20'
+                : 'bg-gradient-to-r from-blue-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 shadow-blue-500/20 active:scale-95'
             }`}
           >
-            <Zap className="w-4 h-4 fill-current" />
+            <Zap className="w-3.5 h-3.5 fill-current" />
             <span>{isLimitReached ? 'LIMIT LOCKED' : 'RECORD EXECUTION'}</span>
           </button>
         </div>
