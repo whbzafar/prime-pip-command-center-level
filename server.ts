@@ -107,6 +107,8 @@ import {
   getCallSupabase,
   getActiveCallSupabase,
   endCallSupabase,
+  uploadMediaSupabase,
+  readMediaObjectSupabase,
 } from "./server/supabaseCommunityService.js";
 
 dotenv.config();
@@ -1305,6 +1307,20 @@ app.post('/api/media/voice/upload', (req, res) => {
       return res.status(413).json({ ok: false, error: 'Voice payload exceeds 25MB maximum limit.' });
     }
 
+    const attachmentId = 'voice-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+    if (isSupabaseCommunityEnabled) {
+      const audioUrl = await uploadMediaSupabase({ id: attachmentId, data: cleanBase64, mimeType });
+      return res.json({
+        ok: true,
+        audioAttachmentId: attachmentId,
+        audioMimeType: mimeType,
+        audioDurationSeconds: Number(durationSeconds) || 0,
+        audioSize: buffer.length,
+        audioUrl,
+        backend: 'supabase',
+      });
+    }
+
     const meta = saveVoiceAttachmentFile({
       userId: user.id,
       audioData: cleanBase64,
@@ -1321,6 +1337,7 @@ app.post('/api/media/voice/upload', (req, res) => {
       audioDurationSeconds: meta.audioDurationSeconds,
       audioSize: meta.audioSize,
       audioUrl: meta.audioUrl,
+      backend: 'local-fallback',
     });
   } catch (err: any) {
     console.error('Voice upload error:', err);
@@ -1381,9 +1398,17 @@ app.get('/api/media/file/:filename', (req, res) => {
   }
 });
 
-app.get('/api/media/voice/:id', (req, res) => {
+app.get('/api/media/voice/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    if (isSupabaseCommunityEnabled) {
+      const media = await readMediaObjectSupabase(id);
+      if (!media) return res.status(404).json({ ok: false, error: 'Voice attachment not found.' });
+      res.setHeader('Content-Type', media.contentType);
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      const arrayBuffer = await media.response.arrayBuffer();
+      return res.status(200).send(Buffer.from(arrayBuffer));
+    }
     const { meta, filePath } = getVoiceAttachment(id);
 
     if (!meta || !filePath || !fs.existsSync(filePath)) {
