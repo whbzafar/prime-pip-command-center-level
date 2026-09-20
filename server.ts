@@ -1877,8 +1877,36 @@ app.get('/api/friends/search', async (req, res) => {
 
     recordUserHeartbeat(currentUser.id);
     const query = (req.query.q as string || '').toLowerCase().trim();
-    const traders = getAllRegisteredTraders(currentUser.id);
+    if (isSupabaseCommunityEnabled) {
+      const eligible = getAllRegisteredTraders(currentUser.id);
+      const eligibleIds = new Set(eligible.map((trader) => trader.id));
+      try { await syncTraderProfiles(eligible); } catch {}
+      const rows = await getCommunityTradersSupabase();
+      const now = Date.now();
+      const results = (Array.isArray(rows) ? rows : [])
+        .filter((row: any) => eligibleIds.has(String(row.user_id)))
+        .map((row: any) => {
+          const lastSeen = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0;
+          const isOnline = Boolean(lastSeen && now - lastSeen < 2 * 60 * 1000);
+          return {
+            id: row.user_id,
+            username: row.username,
+            name: row.display_name || row.username,
+            role: row.role,
+            isOnline,
+            presenceStatus: isOnline ? 'ACTIVE' : 'OFFLINE',
+            lastSeen,
+          };
+        })
+        .filter((u: any) =>
+          !query ||
+          u.username.toLowerCase().includes(query) ||
+          u.name.toLowerCase().includes(query)
+        );
+      return res.json({ ok: true, users: results, backend: 'supabase' });
+    }
 
+    const traders = getAllRegisteredTraders(currentUser.id);
     const results = traders.filter((u) => {
       if (!query) return true;
       return (
@@ -1887,7 +1915,7 @@ app.get('/api/friends/search', async (req, res) => {
       );
     });
 
-    return res.json({ ok: true, users: results });
+    return res.json({ ok: true, users: results, backend: 'local-fallback' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
