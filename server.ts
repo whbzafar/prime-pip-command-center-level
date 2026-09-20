@@ -19,6 +19,7 @@ import {
   getAdminSummary,
   sanitizeUser,
   changeDeveloperPassword,
+  changeAuthenticatedPassword,
   deleteCustomer,
   completeUserOnboarding,
   recordUserHeartbeat,
@@ -533,12 +534,18 @@ app.post('/api/auth/login', async (req, res) => {
     try {
       const durable = await authenticatePrimePipfx(username, password, localResult?.user || null);
       if (!durable) {
+        // If Supabase credentials are valid but the supplied credentials are not,
+        // never dereference a missing localResult and never turn a normal bad-login
+        // into a server error.
+        if (!localResult) {
+          return res.status(401).json({ ok: false, error: 'Invalid username or password' });
+        }
         const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
-        res.cookie('primepipfx_session', localResult!.token, {
+        res.cookie('primepipfx_session', localResult.token, {
           httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
           sameSite: 'lax', maxAge, path: '/',
         });
-        return res.json({ ok: true, user: sanitizeUser(localResult!.user), authMode: 'legacy-compatibility' });
+        return res.json({ ok: true, user: sanitizeUser(localResult.user), authMode: 'legacy-compatibility' });
       }
       const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
       res.cookie('primepipfx_session', durable.accessToken, {
@@ -700,7 +707,7 @@ app.post('/api/auth/change-password', async (req, res) => {
     return res.status(400).json({ ok: false, error: 'Password must be at least 6 characters' });
   }
 
-  const result = changeDeveloperPassword(user.id, newPassword);
+  const result = changeAuthenticatedPassword(user.id, newPassword);
   if (result.ok && isSupabaseAuthEnabled && result.user) {
     try { await updatePrimePipfxPassword(result.user, newPassword); } catch (error) {
       console.error('[AUTH] Supabase password rotation failed:', error);
