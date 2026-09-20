@@ -63,6 +63,7 @@ import { playDisciplineAlert } from './utils/audioAlerts';
 import { getKarachiDate, getKarachiTime } from './utils/time';
 import { AppearanceControls } from './components/AppearanceControls';
 import { AppFooter } from './components/AppFooter';
+import { CommandCenterAtmosphere } from './components/CommandCenterAtmosphere';
 import { AllCategoriesModal } from './components/AllCategoriesModal';
 
 export default function App() {
@@ -826,6 +827,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Cinematic pro-level command atmosphere inspired by the supplied interface references */}
+      <CommandCenterAtmosphere account={activeAccount} metrics={metrics} currentUser={currentUser} activeTab={activeTab} />
 
       {/* Main Content Area */}
       <main ref={mainContainerRef} className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-6 pt-1 sm:pt-3 pb-32 sm:pb-28 md:pb-10 overflow-x-hidden focus:outline-none">
