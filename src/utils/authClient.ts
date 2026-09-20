@@ -297,17 +297,5 @@ export async function apiCompleteOnboarding(): Promise<{ ok: boolean; user?: Use
     console.warn('[AUTH CLIENT] Server complete onboarding unavailable, saving locally:', err);
   }
 
-  // Fallback for offline or local cache
-  if (currentUser) {
-    const updated: UserAccount = {
-      ...currentUser,
-      hasCompletedOnboarding: true,
-      needsOnboarding: false,
-      updatedAt: new Date().toISOString(),
-    };
-    setStoredUser(updated);
-    return { ok: true, user: updated };
-  }
-
-  return { ok: true };
+  return { ok: false, error: 'Authentication service unavailable. Please try again.' };
 }
