@@ -677,9 +677,9 @@ export function getAllRegisteredTraders(currentUserId?: string) {
   return users
     .filter((u) => {
       if (currentUserId && u.id === currentUserId) return false;
-      if (u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER') return false;
-      if (u.subscriptionStatus !== 'ACTIVE' && u.subscriptionStatus !== 'LIFETIME') return false;
-      return !u.expiryDate || new Date(u.expiryDate).getTime() >= now;
+      if (u.subscriptionStatus !== 'ACTIVE' && u.subscriptionStatus !== 'LIFETIME' && !u.isDeveloper && u.role !== 'ADMIN' && u.role !== 'DEVELOPER') return false;
+      if (!u.isDeveloper && u.role !== 'ADMIN' && u.role !== 'DEVELOPER' && u.expiryDate && new Date(u.expiryDate).getTime() < now) return false;
+      return true;
     })
     .map((u) => {
       const lastHeartbeat = userHeartbeatMap.get(u.id) || 0;
