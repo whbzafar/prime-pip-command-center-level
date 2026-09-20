@@ -170,7 +170,7 @@ export async function readCommunityMessagesSupabase(): Promise<CommunityMessage[
     "community_messages?select=id,user_id,text_content,message_type,attachment_path,attachment_name,attachment_mime_type,attachment_size,created_at,trader_profiles(username,display_name,role)&message_type=in.(TEXT,VOICE,IMAGE,FILE)&order=created_at.asc&limit=500"
   );
 
-  return (Array.isArray(rows) ? rows : []).map((row: any) => ({
+  const messages = (Array.isArray(rows) ? rows : []).map((row: any) => ({
     id: String(row.id),
     userId: row.user_id,
     username: row.trader_profiles?.username || row.user_id,
@@ -197,6 +197,24 @@ export async function readCommunityMessagesSupabase(): Promise<CommunityMessage[
       day: "2-digit",
     }).format(new Date(row.created_at)),
   }));
+
+  const ids = messages.map((message: any) => message.id).filter(Boolean);
+  if (ids.length) {
+    const seenRows = await supabaseRequest(
+      `community_message_seen?select=message_id,user_id,seen_at&message_id=in.(${ids.join(",")})&order=seen_at.asc`
+    );
+    const seenByMessage = new Map<string, any[]>();
+    for (const row of Array.isArray(seenRows) ? seenRows : []) {
+      const list = seenByMessage.get(String(row.message_id)) || [];
+      list.push({ userId: row.user_id, seenAt: new Date(row.seen_at).getTime() });
+      seenByMessage.set(String(row.message_id), list);
+    }
+    for (const message of messages) {
+      message.seenBy = seenByMessage.get(message.id) || [];
+    }
+  }
+
+  return messages;
 }
 
 export async function postCommunityMessageSupabase(msg: {
@@ -257,6 +275,166 @@ export async function getCommunityTradersSupabase() {
   );
 }
 
+export async function listSupabaseFriends(userId: string) {
+  const friendshipRows = await supabaseRequest(
+    `friendships?or=(user_id_1.eq.${encodeURIComponent(userId)},user_id_2.eq.${encodeURIComponent(userId)})&select=user_id_1,user_id_2,created_at&order=created_at.asc`
+  );
+  const rows = Array.isArray(friendshipRows) ? friendshipRows : [];
+  const friendIds = rows.map((row: any) => row.user_id_1 === userId ? row.user_id_2 : row.user_id_1);
+  if (!friendIds.length) return [];
+  const profiles = await supabaseRequest(
+    `trader_profiles?user_id=in.(${friendIds.map((id: string) => encodeURIComponent(id)).join(",")})&select=user_id,username,display_name,role,last_seen_at,avatar_url`
+  );
+  const profileMap = new Map<string, any>((Array.isArray(profiles) ? profiles : []).map((p: any) => [String(p.user_id), p]));
+  return rows.map((row: any) => {
+    const friendId = row.user_id_1 === userId ? row.user_id_2 : row.user_id_1;
+    const profile = profileMap.get(String(friendId));
+    const lastSeen = profile?.last_seen_at ? new Date(profile.last_seen_at).getTime() : 0;
+    const online = lastSeen > Date.now() - 2 * 60 * 1000;
+    return {
+      id: `friendship:${[userId, friendId].sort().join(":")}`,
+      friendId,
+      friendUsername: profile?.username || friendId,
+      friendDisplayName: profile?.display_name || profile?.username || friendId,
+      onlineStatus: online ? "ONLINE" : "OFFLINE",
+      isOnline: online,
+      lastSeen,
+      avatarUrl: profile?.avatar_url || undefined,
+      since: row.created_at,
+    };
+  });
+}
+
+export async function getSupabaseFriendRequests(userId: string) {
+  const rows = await supabaseRequest(
+    `friend_requests?or=(sender_id.eq.${encodeURIComponent(userId)},receiver_id.eq.${encodeURIComponent(userId)})&status=eq.PENDING&select=id,sender_id,receiver_id,status,created_at,updated_at&order=created_at.desc`
+  );
+  const requests = Array.isArray(rows) ? rows : [];
+  if (!requests.length) return { incomingRequests: [], outgoingRequests: [] };
+  const ids = Array.from(new Set(requests.flatMap((r: any) => [r.sender_id, r.receiver_id])));
+  const profiles = await supabaseRequest(
+    `trader_profiles?user_id=in.(${ids.map((id: string) => encodeURIComponent(id)).join(",")})&select=user_id,username,display_name`
+  );
+  const profileMap = new Map<string, any>((Array.isArray(profiles) ? profiles : []).map((p: any) => [String(p.user_id), p]));
+  const mapRequest = (r: any) => ({
+    id: String(r.id),
+    senderId: r.sender_id,
+    senderUsername: profileMap.get(String(r.sender_id))?.username || r.sender_id,
+    senderDisplayName: profileMap.get(String(r.sender_id))?.display_name || profileMap.get(String(r.sender_id))?.username || r.sender_id,
+    receiverId: r.receiver_id,
+    receiverUsername: profileMap.get(String(r.receiver_id))?.username || r.receiver_id,
+    receiverDisplayName: profileMap.get(String(r.receiver_id))?.display_name || profileMap.get(String(r.receiver_id))?.username || r.receiver_id,
+    createdAt: r.created_at,
+  });
+  return {
+    incomingRequests: requests.filter((r: any) => r.receiver_id === userId).map(mapRequest),
+    outgoingRequests: requests.filter((r: any) => r.sender_id === userId).map(mapRequest),
+  };
+}
+
+export async function createSupabaseFriendRequest(params: { senderId: string; receiverId: string }) {
+  const existingRows = await supabaseRequest(
+    `friend_requests?or=(and(sender_id.eq.${encodeURIComponent(params.senderId)},receiver_id.eq.${encodeURIComponent(params.receiverId)}),and(sender_id.eq.${encodeURIComponent(params.receiverId)},receiver_id.eq.${encodeURIComponent(params.senderId)}))&select=id,sender_id,receiver_id,status&limit=1`
+  );
+  const existing = Array.isArray(existingRows) ? existingRows[0] : null;
+  if (existing?.status === "ACCEPTED") return { success: false, error: "Already friends" };
+  if (existing?.status === "PENDING") return { success: false, error: "Request already pending" };
+  if (existing?.status === "BLOCKED") return { success: false, error: "Unable to send request" };
+
+  if (existing) {
+    const rows = await supabaseRequest(
+      `friend_requests?id=eq.${encodeURIComponent(existing.id)}`,
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({ sender_id: params.senderId, receiver_id: params.receiverId, status: "PENDING", updated_at: new Date().toISOString() }),
+      }
+    );
+    return { success: true, record: Array.isArray(rows) ? rows[0] : rows };
+  }
+
+  const rows = await supabaseRequest("friend_requests", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ sender_id: params.senderId, receiver_id: params.receiverId, status: "PENDING" }),
+  });
+  return { success: true, record: Array.isArray(rows) ? rows[0] : rows };
+}
+
+export async function respondToSupabaseFriendRequest(params: {
+  requestId: string;
+  actingUserId: string;
+  status: "ACCEPTED" | "REJECTED" | "BLOCKED" | "REMOVED";
+  friendUserId?: string;
+}) {
+  if (params.status === "REMOVED") {
+    const friendUserId = String(params.friendUserId || "");
+    if (!friendUserId) return { success: false, error: "Friend user ID is required." };
+    const userIds = [params.actingUserId, friendUserId].sort();
+    await supabaseRequest(
+      `friendships?user_id_1.eq.${encodeURIComponent(userIds[0])}&user_id_2.eq.${encodeURIComponent(userIds[1])}`,
+      { method: "DELETE", headers: { Prefer: "return=minimal" } }
+    );
+    return { success: true };
+  }
+
+  const rows = await supabaseRequest(
+    `friend_requests?id=eq.${encodeURIComponent(params.requestId)}&select=id,sender_id,receiver_id,status&limit=1`
+  );
+  const request = Array.isArray(rows) ? rows[0] : null;
+  if (!request) return { success: false, error: "Request not found" };
+  if (request.receiver_id !== params.actingUserId) {
+    return { success: false, error: "Only the recipient can accept or reject this request." };
+  }
+  if (request.status !== "PENDING") return { success: false, error: "Request is no longer pending." };
+
+  await supabaseRequest(
+    `friend_requests?id=eq.${encodeURIComponent(params.requestId)}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ status: params.status, updated_at: new Date().toISOString() }),
+    }
+  );
+
+  if (params.status === "ACCEPTED") {
+    const ids = [request.sender_id, request.receiver_id].sort();
+    await supabaseRequest("friendships", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify({ user_id_1: ids[0], user_id_2: ids[1] }),
+    });
+  }
+  return { success: true };
+}
+
+export async function markPrivateMessagesReadSupabase(receiverId: string, senderId: string) {
+  const rows = await supabaseRequest(
+    `private_messages?sender_id.eq.${encodeURIComponent(senderId)}&receiver_id.eq.${encodeURIComponent(receiverId)}&select=id`
+  );
+  const ids = (Array.isArray(rows) ? rows : []).map((row: any) => String(row.id));
+  if (!ids.length) return 0;
+  await supabaseRequest("private_message_receipts?on_conflict=message_id,user_id", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify(ids.map((messageId: string) => ({
+      message_id: messageId,
+      user_id: receiverId,
+      read_at: new Date().toISOString(),
+    }))),
+  });
+  return ids.length;
+}
+
+export async function markPrivateMessageListenedSupabase(messageId: string, userId: string) {
+  await supabaseRequest("private_message_receipts?on_conflict=message_id,user_id", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ message_id: messageId, user_id: userId, read_at: new Date().toISOString(), listened_at: new Date().toISOString() }),
+  });
+  return true;
+}
+
 function mapPrivateMessageRow(row: any) {
   const createdAt = new Date(row.created_at).getTime();
   return {
@@ -288,7 +466,23 @@ export async function readPrivateMessagesSupabase(userId1: string, userId2: stri
   const rows = await supabaseRequest(
     `private_messages?select=id,sender_id,receiver_id,text_content,message_type,attachment_path,attachment_name,attachment_mime_type,attachment_size,created_at,sender:trader_profiles!private_messages_sender_id_fkey(username,display_name),receiver:trader_profiles!private_messages_receiver_id_fkey(username,display_name)&${filter}&order=created_at.asc&limit=1000`
   );
-  return (Array.isArray(rows) ? rows : []).map(mapPrivateMessageRow);
+  const messages = (Array.isArray(rows) ? rows : []).map(mapPrivateMessageRow);
+  const ids = messages.map((message: any) => message.id).filter(Boolean);
+  if (!ids.length) return messages;
+  const receiptRows = await supabaseRequest(
+    `private_message_receipts?select=message_id,user_id,read_at,listened_at&message_id=in.(${ids.join(",")})`
+  );
+  const receiptMap = new Map<string, any>();
+  for (const receipt of Array.isArray(receiptRows) ? receiptRows : []) receiptMap.set(String(receipt.message_id) + ":" + String(receipt.user_id), receipt);
+  return messages.map((message: any) => {
+    const receipt = receiptMap.get(String(message.id) + ":" + String(userId2)) || receiptMap.get(String(message.id) + ":" + String(userId1));
+    return {
+      ...message,
+      read: Boolean(receipt?.read_at),
+      readAt: receipt?.read_at ? new Date(receipt.read_at).getTime() : undefined,
+      listenedAt: receipt?.listened_at ? new Date(receipt.listened_at).getTime() : undefined,
+    };
+  });
 }
 
 export async function postPrivateMessageSupabase(msg: {
