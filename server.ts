@@ -531,10 +531,9 @@ Structure: ${tradeData?.structure || "N/A"}`;
 // ----------------------------------------------------
 
 function getAuthToken(req: express.Request): string {
-  const authHeader = req.headers.authorization || '';
-  if (authHeader.startsWith('Bearer ')) {
-    return authHeader.slice(7).trim();
-  }
+  // Prefer the current HttpOnly session cookie when available. A browser may
+  // still have a legacy localStorage bearer token from an older deployment;
+  // using the cookie first prevents that stale token from breaking requests.
   if (req.cookies && req.cookies.primepipfx_session) {
     return req.cookies.primepipfx_session;
   }
@@ -544,6 +543,13 @@ function getAuthToken(req: express.Request): string {
     .map((part) => part.trim())
     .find((part) => part.startsWith('primepipfx_session='));
   if (sessionCookie) return decodeURIComponent(sessionCookie.slice('primepipfx_session='.length));
+
+  // Fall back to the bearer token for legacy/local-auth sessions where no
+  // HttpOnly cookie is present.
+  const authHeader = req.headers.authorization || '';
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
   return '';
 }
 
