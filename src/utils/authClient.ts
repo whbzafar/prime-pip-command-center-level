@@ -1,13 +1,4 @@
 import { UserAccount, SubscriptionStatus } from '../types';
-import {
-  authenticateLocal,
-  authenticateLocalAsync,
-  setLocalAdminPassword,
-  saveLocalStudent,
-  getLocalStudents,
-  syncStudentsFromCloud,
-} from './localAuthStore';
-
 const USER_KEY = 'primepipfx_user_profile';
 const REFERRAL_KEY = 'primepipfx_applied_referral';
 
@@ -148,23 +139,8 @@ export async function apiLogin(
  * If found, activates the student account and logs them in immediately with zero errors!
  */
 export async function checkAndHandleActivationLink(): Promise<UserAccount | null> {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const activateUser = params.get('activate') || params.get('student_login') || params.get('user');
-    const activateKey = params.get('key') || params.get('password') || params.get('pass');
-
-    if (activateUser && activateKey) {
-      const res = await apiLogin(activateUser, activateKey);
-      if (res.ok && res.user) {
-        // Clean URL params without reloading
-        const cleanUrl = window.location.pathname;
-        window.history.replaceState({}, document.title, cleanUrl);
-        return res.user;
-      }
-    }
-  } catch (e) {
-    console.warn('Failed to handle activation link:', e);
-  }
+  // Legacy password-in-URL activation links are intentionally disabled.
+  // Use the authenticated login flow instead; credentials must never appear in URLs.
   return null;
 }
 
@@ -224,16 +200,7 @@ export const verifyCurrentSession = apiGetCurrentUser;
 export async function apiChangePassword(newPassword: string): Promise<{ ok: boolean; error?: string; token?: string; user?: UserAccount }> {
   const currentUser = getStoredUser();
 
-  // Save to local store so password updates are immediately persistent on Vercel
-  if (currentUser?.role === 'ADMIN' || currentUser?.isDeveloper || currentUser?.username === 'primepipfx-admin') {
-    setLocalAdminPassword(newPassword);
-  } else if (currentUser) {
-    saveLocalStudent({
-      ...currentUser,
-      password: newPassword,
-      mustChangePassword: false,
-    });
-  }
+
 
   try {
     const res = await fetch('/api/auth/change-password', {
