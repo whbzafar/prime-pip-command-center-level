@@ -354,7 +354,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
 
   useEffect(() => {
     fetchMessages(true);
-    const interval = setInterval(() => fetchMessages(false), 6000);
+    const interval = setInterval(() => fetchMessages(false), 1000);
     return () => clearInterval(interval);
   }, [commMode, currentUser?.id]);
 
@@ -603,6 +603,40 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
     reader.readAsDataURL(file);
     e.target.value = '';
   };
+
+  // Poll the durable call session so incoming calls ring even on Vercel/serverless,
+  // where an in-memory WebSocket session cannot be relied upon.
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    let active = true;
+    const checkIncomingCall = async () => {
+      try {
+        const res = await fetch('/api/webrtc/active', { credentials: 'include', cache: 'no-store' });
+        if (!res.ok || !active) return;
+        const data = await res.json();
+        const session = data?.session;
+        if (session && session.receiverId === currentUser.id && session.status !== 'ENDED') {
+          const caller = allTraders.find((t) => t.id === session.callerId);
+          if (!isCallModalOpen) {
+            setCallTargetUser({
+              id: session.callerId,
+              username: caller?.username || session.callerId,
+              displayName: caller?.displayName || session.callerId,
+            });
+            setIsCallModalOpen(true);
+          }
+        }
+      } catch {
+        // Call polling is intentionally silent; chat remains usable.
+      }
+    };
+    checkIncomingCall();
+    const timer = window.setInterval(checkIncomingCall, 1000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [currentUser?.id, allTraders, isCallModalOpen]);
 
   const handleStartCall = (target: { id: string; username: string; displayName: string }) => {
     setCallTargetUser(target);
@@ -1051,6 +1085,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
         <WebRTCCallModal
           currentUser={currentUser}
           targetUser={callTargetUser}
+          isIncoming={callTargetUser.id !== currentUser.id}
           onClose={() => {
             setIsCallModalOpen(false);
             setCallTargetUser(null);
