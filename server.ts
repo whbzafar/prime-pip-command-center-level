@@ -1988,3 +1988,181 @@ app.get('/api/evolution/roadmap', (req, res) => {
             confidence: 94,
           },
         ],
+        EXPERIMENT: [
+          {
+            id: 'rm-04',
+            title: 'Emotion-to-Execution Replay Synthesis',
+            evidence: 'Traders requested visual candle replay with journal emotional overlay',
+            targetRelease: 'v1.6.0-exp',
+            confidence: 88,
+          },
+        ],
+        RESEARCH: [
+          {
+            id: 'rm-05',
+            title: 'Simultaneous USD Exposure Heatmap Auto-Generator',
+            evidence: 'Over-concentration across EURUSD, GBPUSD, and USDJPY',
+            targetRelease: 'v1.7.0-res',
+            confidence: 82,
+          },
+        ],
+      },
+      phases: status.autonomousRoadmap,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+app.post('/api/evolution/rollback', (req, res) => {
+  try {
+    const { featureId, reason, author } = req.body || {};
+    if (!featureId) {
+      return res.status(400).json({ ok: false, error: 'featureId is required for rollback.' });
+    }
+    const result = executeRollback(featureId, reason || 'Operator request', author);
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+app.post('/api/evolution/events/rollback', (req, res) => {
+  try {
+    const { eventId, reason, author } = req.body || {};
+    if (!eventId) {
+      return res.status(400).json({ ok: false, error: 'eventId is required for memory event rollback.' });
+    }
+    const result = rollbackEvolutionEvent(eventId, reason || 'Admin rollback request', author || 'Admin Operator');
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+app.post('/api/evolution/telemetry', (req, res) => {
+  try {
+    const { userId, signalType, workflow, context, durationMs } = req.body || {};
+    if (signalType && workflow) {
+      recordTelemetrySignal({
+        userId: userId || 'trader_default',
+        signalType,
+        workflow,
+        context,
+        durationMs,
+        timestamp: Date.now(),
+      });
+    }
+    return res.json({ ok: true });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+app.post('/api/evolution/feedback', (req, res) => {
+  try {
+    submitUserFeedback(req.body);
+    return res.json({
+      ok: true,
+      message: 'Feedback queued into the Autonomous Evolution Engine pipeline.',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+app.get('/api/evolution/profile', (req, res) => {
+  try {
+    const userId = (req.query.userId as string) || 'default';
+    const profile = getTraderProfile(userId);
+    return res.json(profile);
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+app.put('/api/evolution/profile', (req, res) => {
+  try {
+    const { userId, ...data } = req.body || {};
+    const result = saveTraderProfile(userId || 'default', data);
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+// ----------------------------------------------------
+// NOTIFICATIONS API
+// ----------------------------------------------------
+import { getNotificationsForUser, markNotificationsRead } from "./server/notificationsService.js";
+
+app.get("/api/notifications", (req, res) => {
+  const token = getAuthToken(req);
+  if (!token) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  const user = getUserByToken(token);
+  if (!user) return res.status(401).json({ ok: false, error: "Invalid user" });
+  const notifs = getNotificationsForUser(user.id);
+  res.json({ ok: true, notifications: notifs });
+});
+
+app.post("/api/notifications/read", (req, res) => {
+  const token = getAuthToken(req);
+  if (!token) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  const user = getUserByToken(token);
+  if (!user) return res.status(401).json({ ok: false, error: "Invalid user" });
+  const { notifIds } = req.body || {};
+  markNotificationsRead(user.id, notifIds);
+  res.json({ ok: true });
+});
+
+// Vite middleware / static files (only run when launched standalone, not in Vercel serverless)
+async function startServer() {
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+    try {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.warn("Vite middleware omitted:", e);
+    }
+  } else {
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+  }
+
+  const httpServer = createServer(app);
+  try {
+    const presenceServer = new WebSocketServer({ server: httpServer, path: '/api/presence' });
+    presenceServer.on('connection', (socket, request) => {
+      const token = getAuthToken(request as express.Request);
+      const user = token ? getUserByToken(token) : null;
+      if (!isActiveCommunityMember(user)) {
+        socket.close(1008, 'Active subscription required');
+        return;
+      }
+      registerPresenceSocket(socket, user.id);
+    });
+  } catch (err) {
+    console.warn("WebSocket presence server not started:", err);
+  }
+
+  httpServer.listen(PORT, "0.0.0.0", () => {
+    console.log(`[PRIMEPIPFX COMMAND CENTER] Server active on port ${PORT}`);
+    startAutonomousEvolution();
+    console.log("[EvolutionEngine] Autonomous safe-sandbox scheduler started (5 minute interval)");
+  });
+}
+
+// Only launch standalone server if not running inside Vercel serverless function
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
+export { app };
