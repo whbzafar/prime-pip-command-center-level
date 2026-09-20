@@ -28,7 +28,7 @@ interface PrivateMessage {
   receiverId: string;
   receiverUsername: string;
   text: string;
-  type: 'TEXT' | 'VOICE' | 'IMAGE';
+  type: 'TEXT' | 'VOICE' | 'IMAGE' | 'FILE';
   photoBase64?: string;
   photoUrl?: string;
   audioBase64?: string;
@@ -132,7 +132,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
   useEffect(() => {
     fetchPrivateMessages();
     markMessagesRead();
-    const interval = setInterval(fetchPrivateMessages, 4000);
+    const interval = setInterval(fetchPrivateMessages, 1000);
     return () => clearInterval(interval);
   }, [activeContact.id, currentUser]);
 
@@ -322,7 +322,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
       receiverId: activeContact.id,
       receiverUsername: activeContact.username,
       text: inputText.trim(),
-      type: audioBase64 ? 'VOICE' : selectedPhoto ? 'IMAGE' : 'TEXT',
+      type: audioBase64 ? 'VOICE' : selectedPhoto ? 'IMAGE' : selectedLocalFile ? 'FILE' : 'TEXT',
       photoBase64: selectedPhoto || undefined,
       audioBase64: voiceMeta.audioAttachmentId ? undefined : (audioBase64 || undefined),
       audioAttachmentId: voiceMeta.audioAttachmentId,
@@ -352,16 +352,20 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
     setAudioDuration(0);
 
     try {
-      await fetch('/api/messages/private', {
+      const response = await fetch('/api/messages/private', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(payload),
       });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Message could not be delivered.');
+      }
     } catch (err) {
-      console.warn('Private message fallback: already saved in state and cache');
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticPrivateMsg.id));
+      setMicNotice(err instanceof Error ? err.message : 'Message could not be delivered.');
+      setTimeout(() => setMicNotice(null), 4000);
     } finally {
       setIsSending(false);
     }
