@@ -1,13 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import {
-  Brain, ShieldCheck, HeartPulse, Target, Zap, Activity, BookOpen,
-  Play, ChevronRight, Languages, Sparkles, RotateCcw, Search, LockKeyhole
-} from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Activity, AlertTriangle, Brain, CheckCircle2, ChevronRight, CircleStop, HeartPulse, Languages, LockKeyhole, Play, RotateCcw, ShieldCheck, Sparkles, Target, Timer, Zap } from 'lucide-react';
 import { Trade } from '../../types';
-import {
-  CATEGORY_LIST, PsychologicalCategory, InteractiveSession,
-  SessionResultLog, HabitProgressState
-} from './psychologyData';
+import { CATEGORY_LIST, PsychologicalCategory, InteractiveSession, SessionResultLog, HabitProgressState } from './psychologyData';
 
 interface Props {
   onSelectCategory: (category: PsychologicalCategory) => void;
@@ -17,211 +11,67 @@ interface Props {
   trades: Trade[];
 }
 
-type Lang = 'en' | 'ur' | 'hi' | 'ar' | 'es' | 'fr';
-
-const copy: Record<Lang, Record<string, string>> = {
-  en: {
-    title:'Trading Psychology Center', subtitle:'A simple, practical system for making better decisions under market pressure.',
-    status:'TODAY', ready:'Ready to trade', caution:'Slow down', recovery:'Recovery first',
-    check:'Quick mental check', checkDesc:'Before you trade, tell the truth about your current state.',
-    calm:'Calm', tense:'Tense', tired:'Tired', excited:'Excited', angry:'Angry', distracted:'Distracted',
-    pillars:'Your six psychology areas', pillarsDesc:'You do not need 17 confusing labels. Start with the problem you feel right now.',
-    learn:'Learn', practice:'Practice', history:'Progress', language:'Language', translate:'Translate',
-    plain:'Simple language mode', advanced:'Advanced library', recommendation:'Recommended for you',
-    start:'Start practice', open:'Open', recent:'Recent practice', noRecent:'No practice recorded yet.',
-    plan:'Follow the plan. Protect risk. Let outcomes vary.', why:'Why this matters',
-    journal:'Journal signals', planFollow:'Plan-following', sessions:'Practice sessions',
-    fear:'Fear & Loss', fearDesc:'Handle fear, stop-loss discomfort and the urge to exit too early.',
-    impulse:'Impulse & FOMO', impulseDesc:'Stop chasing candles, boredom trades and revenge trades.',
-    confidence:'Confidence & Ego', confidenceDesc:'Keep winning streaks and strong conviction from becoming oversized risk.',
-    patience:'Patience & Focus', patienceDesc:'Wait for your setup instead of forcing action when the market is slow.',
-    discipline:'Discipline & Rules', disciplineDesc:'Turn your trading plan into repeatable actions before, during and after a trade.',
-    recovery:'Recovery & Energy', recoveryDesc:'Reset after losses, stress, fatigue or a long trading session.',
-    selectLanguage:'Choose a language. The center will translate its visible content with AI when available.',
-    translating:'Translating…', translated:'Translated', translationError:'Translation service unavailable. English remains available.',
-    simpleRule:'One idea at a time. Short sentences. Clear actions.',
-    advancedDesc:'The original 17-topic library remains available for deeper study. It is now an advanced layer, not the first screen.',
-  },
-  ur: {
-    title:'ٹریڈنگ سائیکالوجی سینٹر', subtitle:'مارکیٹ کے دباؤ میں بہتر فیصلے کرنے کے لیے آسان اور عملی نظام۔',
-    status:'آج', ready:'ٹریڈ کے لیے تیار', caution:'ذرا رکیں', recovery:'پہلے ریکوری',
-    check:'فوری ذہنی چیک', checkDesc:'ٹریڈ سے پہلے اپنی موجودہ کیفیت کے بارے میں سچ بتائیں۔',
-    calm:'پرسکون', tense:'تناؤ', tired:'تھکن', excited:'جوش', angry:'غصہ', distracted:'توجہ بٹی ہوئی',
-    pillars:'آپ کے سائیکالوجی کے چھ اہم حصے', pillarsDesc:'17 مشکل نام یاد رکھنے کی ضرورت نہیں۔ جو مسئلہ ابھی محسوس ہو رہا ہے، وہ منتخب کریں۔',
-    learn:'سیکھیں', practice:'مشق', history:'پروگریس', language:'زبان', translate:'ترجمہ',
-    plain:'آسان زبان', advanced:'ایڈوانس لائبریری', recommendation:'آپ کے لیے تجویز',
-    start:'مشق شروع کریں', open:'کھولیں', recent:'حالیہ مشق', noRecent:'ابھی کوئی مشق ریکارڈ نہیں ہوئی۔',
-    plan:'پلان پر عمل کریں۔ رسک محفوظ رکھیں۔ نتائج کو بدلنے دیں۔', why:'یہ کیوں اہم ہے',
-    journal:'جرنل سگنلز', discipline:'پلان فالو کرنے کی شرح', sessions:'مشق سیشنز',
-    fear:'خوف اور نقصان', fearDesc:'خوف، اسٹاپ لاس کی بے چینی اور جلدی نکلنے کی خواہش کو سنبھالیں۔',
-    impulse:'امپلس اور FOMO', impulseDesc:'کینڈل کا پیچھا، بوریت کی ٹریڈ اور بدلہ لینے والی ٹریڈ روکیں۔',
-    confidence:'اعتماد اور انا', confidenceDesc:'جیت کے سلسلے اور زیادہ اعتماد کو اضافی رسک بننے سے روکیں۔',
-    patience:'صبر اور توجہ', patienceDesc:'مارکیٹ سست ہو تو زبردستی ٹریڈ لینے کے بجائے اپنے سیٹ اپ کا انتظار کریں۔',
-    discipline:'ڈسپلن اور رولز', disciplineDesc:'ٹریڈنگ پلان کو ہر ٹریڈ سے پہلے، دوران اور بعد میں دہرائے جانے والے عمل میں بدلیں۔',
-    recovery:'ریکوری اور توانائی', recoveryDesc:'نقصان، تناؤ، تھکن یا لمبے سیشن کے بعد خود کو ری سیٹ کریں۔',
-    selectLanguage:'زبان منتخب کریں۔ دستیاب ہونے پر یہ سینٹر AI کے ذریعے نظر آنے والا مواد ترجمہ کرے گا۔',
-    translating:'ترجمہ ہو رہا ہے…', translated:'ترجمہ مکمل', translationError:'ترجمہ سروس دستیاب نہیں۔ English دستیاب رہے گی۔',
-    simpleRule:'ایک وقت میں ایک بات۔ چھوٹے جملے۔ واضح عمل۔',
-    advancedRule:'ایڈوانس لائبریری', advancedDesc:'اصل 17 موضوعات محفوظ ہیں۔ اب یہ پہلے صفحے کے بجائے گہری سیکھنے کی تہہ ہیں۔',
-  },
-  hi: {}, ar: {}, es: {}, fr: {}
+type Lang = 'en'|'ur'|'hi'|'ar'|'es'|'fr';
+const base = {
+  en:{title:'Trader Performance & Psychology OS',sub:'Train the operator behind the strategy: regulate, decide, execute, review, improve.',start:'Start protocol',stop:'Stop',reset:'Reset',language:'Language',simple:'Plain language',today:'Today',state:'Current state',calm:'Calm',caution:'Caution',recovery:'Recovery',fear:'Fear & Loss',impulse:'Impulse & FOMO',confidence:'Confidence & Ego',patience:'Patience & Focus',discipline:'Discipline & Rules',recover:'Recovery & Energy',read:'Readiness',score:'Psychology score',disciplineScore:'Discipline',risk:'Risk control',focus:'Focus',recoveryScore:'Recovery',stability:'Emotional stability',quick:'Quick state check',choose:'Choose what you feel now.',panic:'Rapid reset',panicDesc:'A short breathing protocol to interrupt emotional momentum. This is a training tool, not medical treatment.',breathe:'Breathe with the circle',inhale:'Inhale',exhale:'Exhale',done:'Protocol complete',bias:'Behavior pattern scan',biasDesc:'Uses your journal history to surface patterns. It is not a diagnosis.',loss:'Loss aversion',revenge:'Revenge risk',over:'Overconfidence',patienceRisk:'Patience risk',hand:'Mental hand history',facts:'What happened?',signal:'What did you feel?',thought:'What did you think?',rule:'What rule should guide you?',action:'What will you do next time?',save:'Save reflection',saved:'Reflection saved locally for this session.',divisions:'Performance divisions',advanced:'Advanced library',advancedDesc:'The original detailed psychology modules remain available here.',bio:'Biofeedback',bioDesc:'No sensor connected. Connect a compatible device to replace self-report with measured signals.',noData:'Not enough journal data yet',recommended:'Recommended next step',practice:'Practice',open:'Open',recent:'Recent activity',sessions:'Sessions',trades:'Trades reviewed',plainRule:'One idea. One action. One measurable change.',scoreDesc:'A coaching index based on journal behavior and completed training—not a medical or clinical score.'},
+  ur:{title:'ٹریڈر پرفارمنس اور سائیکالوجی OS',sub:'اسٹریٹیجی کے پیچھے موجود ٹریڈر کو ٹرین کریں: پرسکون ہوں، فیصلہ کریں، عمل کریں، جائزہ لیں، بہتر ہوں۔',start:'پروٹوکول شروع کریں',stop:'روکیں',reset:'ری سیٹ',language:'زبان',simple:'آسان زبان',today:'آج',state:'موجودہ کیفیت',calm:'پرسکون',caution:'احتیاط',recovery:'ریکوری',fear:'خوف اور نقصان',impulse:'امپلس اور FOMO',confidence:'اعتماد اور انا',patience:'صبر اور توجہ',discipline:'ڈسپلن اور رولز',recover:'ریکوری اور توانائی',read:'تیاری',score:'سائیکالوجی اسکور',disciplineScore:'ڈسپلن',risk:'رسک کنٹرول',focus:'فوکس',recoveryScore:'ریکوری',stability:'جذباتی استحکام',quick:'فوری کیفیت چیک',choose:'ابھی آپ کیا محسوس کر رہے ہیں؟',panic:'فوری ری سیٹ',panicDesc:'جذباتی رفتار روکنے کے لیے مختصر سانس کی مشق۔ یہ طبی علاج نہیں ہے۔',breathe:'دائرے کے ساتھ سانس لیں',inhale:'سانس اندر',exhale:'سانس باہر',done:'پروٹوکول مکمل',bias:'رویّے کا اسکین',biasDesc:'جرنل کی تاریخ سے پیٹرن تلاش کرتا ہے۔ یہ تشخیص نہیں ہے۔',loss:'نقصان کا خوف',revenge:'بدلہ لینے کا رسک',over:'زیادہ اعتماد',patienceRisk:'صبر کا رسک',hand:'Mental Hand History',facts:'کیا ہوا؟',signal:'آپ نے کیا محسوس کیا؟',thought:'آپ نے کیا سوچا؟',rule:'کون سا رول رہنمائی کرے؟',action:'اگلی بار کیا کریں گے؟',save:'ریفلیکشن محفوظ کریں',saved:'ریفلیکشن اس سیشن کے لیے محفوظ ہو گئی۔',divisions:'پرفارمنس ڈویژنز',advanced:'ایڈوانس لائبریری',advancedDesc:'اصل تفصیلی سائیکالوجی ماڈیولز یہاں دستیاب ہیں۔',bio:'بائیو فیڈبیک',bioDesc:'کوئی سینسر منسلک نہیں۔ مطابقت رکھنے والا ڈیوائس جوڑنے پر خود رپورٹ کی جگہ حقیقی سگنلز استعمال ہوں گے۔',noData:'ابھی کافی جرنل ڈیٹا نہیں ہے',recommended:'اگلا تجویز کردہ قدم',practice:'مشق',open:'کھولیں',recent:'حالیہ سرگرمی',sessions:'سیشنز',trades:'ریویو کی گئی ٹریڈز',plainRule:'ایک بات۔ ایک عمل۔ ایک قابلِ پیمائش تبدیلی۔',scoreDesc:'جرنل رویّے اور مکمل ٹریننگ پر مبنی کوچنگ انڈیکس؛ طبی یا کلینیکل اسکور نہیں۔'}
 };
-
-const pillarDefs = [
-  { id:'FEAR', key:'fear', icon:HeartPulse, tone:'rose', ids:['FEAR','LOSS_AVERSION','HESITATION','POST_LOSS_SHAME','PRE_MARKET_ANXIETY'] },
-  { id:'IMPULSE', key:'impulse', icon:Zap, tone:'orange', ids:['FOMO','REVENGE_TRADING','BOREDOM_TRADING','IMPATIENCE'] },
-  { id:'CONFIDENCE', key:'confidence', icon:Target, tone:'emerald', ids:['GREED','OVERCONFIDENCE','POST_WIN_OVERCONFIDENCE'] },
-  { id:'PATIENCE', key:'patience', icon:Brain, tone:'cyan', ids:['ANALYSIS_PARALYSIS','PERFECTIONISM','COMPARISON_ANXIETY'] },
-  { id:'DISCIPLINE', key:'discipline', icon:ShieldCheck, tone:'indigo', ids:['DISCIPLINE_FATIGUE'] },
-  { id:'RECOVERY', key:'recovery', icon:Activity, tone:'violet', ids:['BURNOUT'] },
+const pillarDefs=[
+ {id:'FEAR',key:'fear',icon:HeartPulse,ids:['FEAR','LOSS_AVERSION','HESITATION','POST_LOSS_SHAME','PRE_MARKET_ANXIETY']},
+ {id:'IMPULSE',key:'impulse',icon:Zap,ids:['FOMO','REVENGE_TRADING','BOREDOM_TRADING','IMPATIENCE']},
+ {id:'CONFIDENCE',key:'confidence',icon:Target,ids:['GREED','OVERCONFIDENCE','POST_WIN_OVERCONFIDENCE']},
+ {id:'PATIENCE',key:'patience',icon:Brain,ids:['ANALYSIS_PARALYSIS','PERFECTIONISM','COMPARISON_ANXIETY']},
+ {id:'DISCIPLINE',key:'discipline',icon:ShieldCheck,ids:['DISCIPLINE_FATIGUE']},
+ {id:'RECOVER',key:'recover',icon:Activity,ids:['BURNOUT']}
 ] as const;
 
-function findCategory(ids: readonly string[]) {
-  return CATEGORY_LIST.find(c => ids.includes(c.id));
-}
-
-export const PsychologyProfessionalDashboard: React.FC<Props> = ({
-  onSelectCategory, onLaunchSessionDirect, resultLogs = [], trades = []
-}) => {
-  const [lang, setLang] = useState<Lang>('en');
-  const [translation, setTranslation] = useState<Record<string,string> | null>(null);
-  const [translating, setTranslating] = useState(false);
-  const [translationError, setTranslationError] = useState(false);
-  const [state, setState] = useState<'CALM'|'CAUTION'|'RECOVERY'>('CALM');
-  const [query, setQuery] = useState('');
-
-  const t = (key:string) => translation?.[key] || copy[lang]?.[key] || copy.en[key] || key;
-  const closed = useMemo(() => [...trades].filter(x=>x.status !== 'OPEN').sort((a,b)=>b.timestamp-a.timestamp), [trades]);
-  const losses = closed.slice(0,2).filter(x=>(x.profitLoss || 0) < 0).length;
-  const currentState = losses >= 2 ? 'RECOVERY' : state;
-  const planCount = trades.filter(x=>x.postPsychology?.followedPlan !== false).length;
-  const planRate = trades.length ? Math.round(planCount / trades.length * 100) : 100;
-
-  const visiblePillars = pillarDefs.filter(p => {
-    const text = (t(p.key) + ' ' + t(p.key+'Desc')).toLowerCase();
-    return text.includes(query.toLowerCase());
-  });
-
-  const translateCenter = async (target: Lang) => {
-    setLang(target); setTranslation(null); setTranslationError(false);
-    if (target === 'en' || target === 'ur') return;
-    setTranslating(true);
-    try {
-      const res = await fetch('/api/gemini/translate', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          targetLanguage: target,
-          texts: Object.values(copy.en),
-          keys: Object.keys(copy.en)
-        })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok || !data.translations) throw new Error('translation failed');
-      setTranslation(data.translations);
-    } catch {
-      setTranslationError(true);
-    } finally { setTranslating(false); }
-  };
-
-  const stateLabel = currentState === 'RECOVERY' ? t('recovery') : currentState === 'CAUTION' ? t('caution') : t('ready');
-
-  return (
-    <div className="space-y-5 animate-in fade-in duration-200" dir={lang === 'ur' || lang === 'ar' ? 'rtl' : 'ltr'}>
-      <div className="relative overflow-hidden rounded-3xl border border-amber-500/25 bg-gradient-to-br from-[#070a12] via-[#0c1220] to-[#070a12] p-5 sm:p-7 shadow-2xl">
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl" />
-        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-300">PRIMEPIPFX • PSYCHOLOGY</span>
-              <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-cyan-300">{t('simpleRule')}</span>
-            </div>
-            <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">{t('title')}</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">{t('subtitle')}</p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <label className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs text-slate-300">
-              <Languages className="h-4 w-4 text-cyan-300" />
-              <span className="sr-only">{t('language')}</span>
-              <select aria-label={t('language')} value={lang} onChange={e=>translateCenter(e.target.value as Lang)} className="bg-transparent outline-none">
-                <option value="en">English</option><option value="ur">اردو</option><option value="hi">हिन्दी</option><option value="ar">العربية</option><option value="es">Español</option><option value="fr">Français</option>
-              </select>
-            </label>
-            <button type="button" onClick={()=>translateCenter(lang)} disabled={translating || lang==='en'} className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-bold text-cyan-200 disabled:opacity-50">
-              {translating ? <RotateCcw className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4"/>}
-              {translating ? t('translating') : t('translate')}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-800 bg-[#0a0f1b] p-4">
-          <div className="flex items-center justify-between text-xs text-slate-400"><span>{t('status')}</span><Activity className="h-4 w-4 text-cyan-300"/></div>
-          <div className="mt-2 text-lg font-bold text-white">{stateLabel}</div>
-          <p className="mt-1 text-xs text-slate-500">{losses >= 2 ? 'Two recent losses detected.' : t('plan')}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-800 bg-[#0a0f1b] p-4">
-          <div className="flex items-center justify-between text-xs text-slate-400"><span>{t('planFollow')}</span><ShieldCheck className="h-4 w-4 text-emerald-300"/></div>
-          <div className="mt-2 text-lg font-bold text-emerald-300">{planRate}%</div>
-          <p className="mt-1 text-xs text-slate-500">{t('journal')}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-800 bg-[#0a0f1b] p-4">
-          <div className="flex items-center justify-between text-xs text-slate-400"><span>{t('sessions')}</span><BookOpen className="h-4 w-4 text-amber-300"/></div>
-          <div className="mt-2 text-lg font-bold text-white">{resultLogs.length}</div>
-          <p className="mt-1 text-xs text-slate-500">{t('practice')}</p>
-        </div>
-      </div>
-
-      <div className="rounded-3xl border border-cyan-500/20 bg-[#080d17] p-4 sm:p-5">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div><h3 className="text-lg font-bold text-white">{t('check')}</h3><p className="text-xs text-slate-400">{t('checkDesc')}</p></div>
-          <div className="flex flex-wrap gap-2">
-            {(['CALM','CAUTION','RECOVERY'] as const).map(s => (
-              <button key={s} type="button" onClick={()=>setState(s)} className={`rounded-full border px-3 py-1.5 text-xs font-bold ${currentState===s?'border-cyan-400/60 bg-cyan-400/10 text-cyan-200':'border-slate-700 bg-slate-950 text-slate-400'}`}>
-                {s==='CALM'?t('calm'):s==='CAUTION'?t('tense'):t('recovery')}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
-          {[['CALM','calm'],['CAUTION','tense'],['TIRED','tired'],['EXCITED','excited'],['ANGRY','angry'],['DISTRACTED','distracted']].map(([id,key])=>(
-            <button key={id} type="button" onClick={()=>setState(id==='ANGRY'||id==='TIRED'?'CAUTION':id==='EXCITED'||id==='DISTRACTED'?'CAUTION':'CALM')} className="rounded-xl border border-slate-800 bg-slate-950/70 px-2 py-3 text-xs text-slate-300 hover:border-cyan-500/40">
-              {t(key)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div><h3 className="text-xl font-bold text-white">{t('pillars')}</h3><p className="text-sm text-slate-400">{t('pillarsDesc')}</p></div>
-          <label className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-400"><Search className="h-4 w-4"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search" className="w-28 bg-transparent outline-none sm:w-40"/></label>
-        </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {visiblePillars.map(p => {
-            const cat = findCategory(p.ids);
-            if (!cat) return null;
-            const session = cat.sessions[0];
-            const Icon = p.icon;
-            return <div key={p.id} className="group rounded-2xl border border-slate-800 bg-gradient-to-br from-[#0b111d] to-[#080c15] p-4 transition hover:border-cyan-500/30">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3"><div className="rounded-xl border border-slate-700 bg-slate-950 p-2.5"><Icon className="h-5 w-5 text-cyan-300"/></div><div><h4 className="font-bold text-white">{t(p.key)}</h4><p className="mt-1 text-xs leading-5 text-slate-400">{t(p.key+'Desc')}</p></div></div>
-              </div>
-              <div className="mt-4 flex gap-2">
-                <button type="button" onClick={()=>onSelectCategory(cat)} className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-200 hover:border-cyan-500/40">{t('open')} <ChevronRight className="inline h-3.5 w-3.5"/></button>
-                <button type="button" onClick={()=>onLaunchSessionDirect(cat,session)} className="rounded-xl bg-cyan-400 px-3 py-2 text-xs font-black text-slate-950 hover:bg-cyan-300"><Play className="inline h-3.5 w-3.5 fill-current"/> {t('start')}</button>
-              </div>
-            </div>;
-          })}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-indigo-500/20 bg-indigo-950/20 p-4">
-        <div className="flex items-start gap-3"><LockKeyhole className="mt-0.5 h-5 w-5 text-indigo-300"/><div><h3 className="font-bold text-indigo-200">{t('advanced')}</h3><p className="mt-1 text-xs leading-5 text-slate-400">{t('advancedDesc')}</p><button type="button" onClick={()=>{const cat=CATEGORY_LIST[0]; if(cat) onSelectCategory(cat)}} className="mt-3 inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 px-3 py-2 text-xs font-bold text-indigo-200">{t('open')} <ChevronRight className="h-3.5 w-3.5"/></button></div></div>
-      </div>
-
-      {translationError && <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">{t('translationError')}</div>}
-      <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-500">{t('plan')}</div>
-    </div>
-  );
+export const PsychologyProfessionalDashboard:React.FC<Props>=({onSelectCategory,onLaunchSessionDirect,resultLogs=[],trades=[]})=>{
+ const [lang,setLang]=useState<Lang>('en'); const [phase,setPhase]=useState<'idle'|'inhale'|'exhale'|'done'>('idle'); const [seconds,setSeconds]=useState(0); const [state,setState]=useState<'CALM'|'CAUTION'|'RECOVERY'>('CALM'); const [feeling,setFeeling]=useState('CALM'); const [showHand,setShowHand]=useState(false); const [saved,setSaved]=useState(false); const [hand,setHand]=useState({facts:'',signal:'',thought:'',rule:'',action:''});
+ const t=(k:keyof typeof base.en)=>((base[lang]||base.en) as Record<string,string>)[k]||base.en[k];
+ const closed=useMemo(()=>trades.filter(x=>x.status!=='OPEN').sort((a,b)=>b.timestamp-a.timestamp),[trades]);
+ const losses=closed.filter(x=>(x.profitLoss||0)<0).length, recentLosses=closed.slice(0,5).filter(x=>(x.profitLoss||0)<0).length;
+ const plan=trades.length?Math.round(trades.filter(x=>x.postPsychology?.followedPlan!==false).length/trades.length*100):100;
+ const riskScore=Math.max(25,Math.min(100,100-recentLosses*12));
+ const disciplineScore=Math.max(20,Math.min(100,plan));
+ const focusScore=Math.max(30,100-Math.min(60,resultLogs.length===0?10:0));
+ const recoveryScore=Math.max(20,100-Math.min(70,recentLosses*15));
+ const psychScore=Math.round((disciplineScore+riskScore+focusScore+recoveryScore)/4);
+ const bias={loss:Math.min(100,30+recentLosses*15),revenge:Math.min(100,20+recentLosses*18),over:Math.min(100,30+(closed.slice(0,5).filter(x=>(x.profitLoss||0)>0).length*8)),patience:Math.min(100,35+(closed.length<10?20:0))};
+ useEffect(()=>{if(phase==='idle'||phase==='done')return; const id=window.setInterval(()=>setSeconds(s=>{const n=s+1;if(n>=10){setPhase('done');return 0;} setPhase(n<4?'inhale':'exhale');return n;}),1000); return()=>window.clearInterval(id)},[phase]);
+ const start=()=>{setSeconds(0);setPhase('inhale');setSaved(false)}; const stop=()=>{setPhase('idle');setSeconds(0)};
+ const saveHand=()=>{setSaved(true);setShowHand(false);setHand({facts:'',signal:'',thought:'',rule:'',action:''})};
+ const setFeelingState=(f:string)=>{setFeeling(f);setState(f==='CALM'?'CALM':f==='RECOVERY'?'RECOVERY':'CAUTION')};
+ return <div className="space-y-5" dir={lang==='ur'||lang==='ar'?'rtl':'ltr'}>
+  <section className="relative overflow-hidden rounded-3xl border border-amber-500/25 bg-gradient-to-br from-[#050812] via-[#0b1424] to-[#07090f] p-5 sm:p-7 shadow-2xl">
+   <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl"/>
+   <div className="relative flex flex-col gap-5 lg:flex-row lg:justify-between lg:items-end">
+    <div><div className="mb-2 flex flex-wrap gap-2"><span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-black tracking-widest text-amber-300">PRIMEPIPFX • PERFORMANCE OS</span><span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-bold text-cyan-200">{t('plainRule')}</span></div><h2 className="text-2xl font-black text-white sm:text-4xl">{t('title')}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">{t('sub')}</p></div>
+    <label className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs text-slate-300"><Languages className="h-4 w-4 text-cyan-300"/><span className="sr-only">{t('language')}</span><select value={lang} onChange={e=>setLang(e.target.value as Lang)} className="bg-transparent outline-none"><option value="en">English</option><option value="ur">اردو</option><option value="hi">हिन्दी</option><option value="ar">العربية</option><option value="es">Español</option><option value="fr">Français</option></select></label>
+   </div>
+  </section>
+  <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+   {[[t('score'),psychScore,'text-amber-300'],[t('disciplineScore'),disciplineScore+'%','text-emerald-300'],[t('risk'),riskScore+'%','text-cyan-300'],[t('recoveryScore'),recoveryScore+'%','text-violet-300']].map(([a,b,c])=><div key={String(a)} className="rounded-2xl border border-slate-800 bg-[#090f1a] p-4"><div className="text-[11px] uppercase tracking-widest text-slate-500">{a}</div><div className={'mt-2 text-2xl font-black '+c}>{b}</div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800"><div className="h-full rounded-full bg-current" style={{width:String(b).replace('%','')+'%'}}/></div></div>)}
+  </section>
+  <section className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
+   <div className="rounded-3xl border border-cyan-500/20 bg-[#080e18] p-5">
+    <div className="flex items-start justify-between"><div><h3 className="text-lg font-black text-white">{t('quick')}</h3><p className="mt-1 text-xs text-slate-400">{t('choose')}</p></div><HeartPulse className="h-5 w-5 text-cyan-300"/></div>
+    <div className="mt-4 grid grid-cols-3 gap-2">{[['CALM','✓'],['CAUTION','!'],['RECOVERY','↻']].map(([id,icon])=><button key={id} onClick={()=>setFeelingState(id)} className={'rounded-2xl border p-4 text-sm font-bold '+(feeling===id?'border-cyan-400/60 bg-cyan-400/10 text-cyan-200':'border-slate-800 bg-slate-950 text-slate-400')}>{icon} {t(id.toLowerCase() as keyof typeof base.en)}</button>)}</div>
+    <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4"><div className="text-xs uppercase tracking-widest text-slate-500">{t('state')}</div><div className="mt-1 text-xl font-black text-white">{t(state.toLowerCase() as keyof typeof base.en)}</div><div className="mt-1 text-xs text-slate-500">{closed.length} {t('trades')}</div></div>
+   </div>
+   <div className="rounded-3xl border border-rose-500/20 bg-rose-950/10 p-5"><div className="flex items-center gap-2 text-rose-200"><CircleStop className="h-5 w-5"/><h3 className="font-black">{t('panic')}</h3></div><p className="mt-2 text-xs leading-5 text-slate-400">{t('panicDesc')}</p><button onClick={start} className="mt-4 w-full rounded-xl bg-rose-500/15 border border-rose-400/30 px-4 py-3 text-sm font-black text-rose-200">{t('start')}</button></div>
+  </section>
+  <section className="grid gap-4 lg:grid-cols-2">
+   <div className="rounded-3xl border border-cyan-500/20 bg-[#080e18] p-5"><div className="flex justify-between"><div><h3 className="font-black text-white">{t('bias')}</h3><p className="mt-1 text-xs text-slate-400">{t('biasDesc')}</p></div><Brain className="h-5 w-5 text-cyan-300"/></div>{[['loss',bias.loss],['revenge',bias.revenge],['over',bias.over],['patienceRisk',bias.patience]].map(([k,v])=><div key={String(k)} className="mt-4"><div className="flex justify-between text-xs text-slate-400"><span>{t(k as keyof typeof base.en)}</span><span>{v}%</span></div><div className="mt-1 h-2 rounded-full bg-slate-800"><div className="h-full rounded-full bg-cyan-400" style={{width:v+'%'}}/></div></div>)}</div>
+   <div className="rounded-3xl border border-amber-500/20 bg-[#0b0e16] p-5"><div className="flex justify-between"><div><h3 className="font-black text-white">{t('hand')}</h3><p className="mt-1 text-xs text-slate-400">Turn a mistake into a repeatable response.</p></div><BookIcon/></div><button onClick={()=>setShowHand(true)} className="mt-5 w-full rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-200">{t('start')} <ChevronRight className="inline h-4 w-4"/></button></div>
+  </section>
+  <section><div className="mb-3 flex items-end justify-between"><div><h3 className="text-xl font-black text-white">{t('divisions')}</h3><p className="text-xs text-slate-500">Six simple doors into the deeper 17-topic system.</p></div><span className="text-xs text-slate-500">{t('recent')}: {resultLogs.length}</span></div><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{pillarDefs.map(p=>{const cat=CATEGORY_LIST.find(c=>p.ids.includes(c.id));if(!cat)return null;const Icon=p.icon;return <div key={p.id} className="rounded-2xl border border-slate-800 bg-[#090f19] p-4 hover:border-cyan-500/30"><div className="flex gap-3"><div className="rounded-xl bg-slate-950 p-3"><Icon className="h-5 w-5 text-cyan-300"/></div><div><h4 className="font-bold text-white">{t(p.key as keyof typeof base.en)}</h4><p className="mt-1 text-xs text-slate-400">{cat.description}</p></div></div><div className="mt-4 flex gap-2"><button onClick={()=>onSelectCategory(cat)} className="flex-1 rounded-xl border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">{t('open')}</button><button onClick={()=>onLaunchSessionDirect(cat,cat.sessions[0])} className="rounded-xl bg-cyan-400 px-3 py-2 text-xs font-black text-slate-950"><Play className="inline h-3 w-3"/> {t('practice')}</button></div></div>})}</div></section>
+  <section className="rounded-3xl border border-indigo-500/20 bg-indigo-950/10 p-5"><div className="flex gap-3"><LockKeyhole className="h-5 w-5 text-indigo-300"/><div><h3 className="font-black text-indigo-200">{t('advanced')}</h3><p className="mt-1 text-xs leading-5 text-slate-400">{t('advancedDesc')}</p><button onClick={()=>CATEGORY_LIST[0]&&onSelectCategory(CATEGORY_LIST[0])} className="mt-3 rounded-xl border border-indigo-500/30 px-3 py-2 text-xs font-bold text-indigo-200">{t('open')}</button></div></div></section>
+  {phase!=='idle'&&<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-5"><div className="w-full max-w-md rounded-3xl border border-cyan-400/30 bg-[#07101b] p-7 text-center shadow-2xl"><div className="mx-auto mb-5 h-48 w-48 rounded-full border-4 border-cyan-300/30 bg-cyan-400/5 flex items-center justify-center" style={{transform:'scale('+(phase==='inhale'?1.12:.9)+')',transition:'transform 1s ease'}}><div><HeartPulse className="mx-auto h-10 w-10 text-cyan-300"/><div className="mt-2 text-lg font-black text-white">{phase==='done'?t('done'):phase==='inhale'?t('inhale'):t('exhale')}</div><div className="text-xs text-slate-500">{phase==='done'?'':seconds+'s'}</div></div></div><button onClick={phase==='done'?stop:stop} className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300">{phase==='done'?t('reset'):t('stop')}</button></div></div>}
+  {showHand&&<div className="fixed inset-0 z-[100] overflow-auto bg-black/80 p-5"><div className="mx-auto mt-10 max-w-2xl rounded-3xl border border-amber-500/20 bg-[#080d16] p-5"><div className="flex justify-between"><h3 className="text-xl font-black text-white">{t('hand')}</h3><button onClick={()=>setShowHand(false)} className="text-slate-500">×</button></div>{(['facts','signal','thought','rule','action'] as const).map(k=><label key={k} className="mt-4 block text-xs font-bold text-slate-400">{t(k)}<textarea value={hand[k]} onChange={e=>setHand({...hand,[k]:e.target.value})} className="mt-2 min-h-20 w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-sm text-slate-200 outline-none focus:border-cyan-400/40"/></label>)}<button onClick={saveHand} className="mt-5 rounded-xl bg-amber-400 px-5 py-3 text-sm font-black text-slate-950">{t('save')}</button></div></div>}
+  {saved&&<div className="fixed bottom-5 left-1/2 z-[110] -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-emerald-950/90 px-4 py-3 text-xs font-bold text-emerald-200"><CheckCircle2 className="mr-2 inline h-4 w-4"/>{t('saved')}</div>}
+  <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4"><div className="flex items-center gap-2 text-xs font-bold text-slate-300"><Activity className="h-4 w-4 text-cyan-300"/>{t('bio')}</div><p className="mt-2 text-xs leading-5 text-slate-500">{t('bioDesc')}</p></div>
+ </div>
 };
+function BookIcon(){return <BookOpenIcon/>}
+function BookOpenIcon(){return <div className="rounded-xl border border-slate-800 bg-slate-950 p-3"><BookIconShape/></div>}
+function BookIconShape(){return <div className="h-5 w-5 text-amber-300">▣</div>}
