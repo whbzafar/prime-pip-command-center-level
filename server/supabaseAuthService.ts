@@ -169,4 +169,8 @@ export async function provisionBootstrapAdmin(username: string, password: string
   };
   const authId = await createOrFindAuthUser(user, password);
   if (authId) await upsertProfile(user, authId);
+  else {
+    const session = await signIn(user.username, password);
+    if (session?.user?.id) await upsertProfile(user, session.user.id);
+  }
 }
