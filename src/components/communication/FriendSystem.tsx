@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { UserAccount } from '../../types';
 import { GroupChat } from './GroupChat';
+import { getStoredToken } from '../../utils/authClient';
 
 interface Friend {
   id: string;
@@ -49,6 +50,11 @@ interface FriendSystemProps {
   onStartCall?: (friend: { id: string; username: string; displayName: string }) => void;
 }
 
+const authHeaders = (): Record<string, string> => {
+  const token = getStoredToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 export const FriendSystem: React.FC<FriendSystemProps> = ({
   currentUser,
   onStartPrivateChat,
@@ -78,6 +84,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
     try {
       const res = await fetch('/api/friends/list', {
         credentials: 'include',
+        headers: authHeaders(),
       });
       if (res.ok) {
         const data = await res.json();
@@ -154,6 +161,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders(),
         },
         credentials: 'include',
         body: JSON.stringify({
