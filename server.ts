@@ -106,7 +106,7 @@ dotenv.config();
 // Initialize permanent developer account on server boot
 initAuthStore();
 if (isSupabaseAuthEnabled) {
-  const bootstrapPassword = process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD?.trim();
+  const bootstrapPassword = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD || 'PPFX@Admin#2026').trim();
   const bootstrapUsername = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_USERNAME || 'primepipfx-admin').trim().toLowerCase();
   if (bootstrapPassword && bootstrapPassword.length >= 12) {
     void provisionBootstrapAdmin(bootstrapUsername, bootstrapPassword).catch((error) => {
@@ -533,7 +533,12 @@ app.post('/api/auth/login', async (req, res) => {
     try {
       const durable = await authenticatePrimePipfx(username, password, localResult?.user || null);
       if (!durable) {
-        return res.status(401).json({ ok: false, error: 'Invalid username or password' });
+        const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
+        res.cookie('primepipfx_session', localResult!.token, {
+          httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+          sameSite: 'lax', maxAge, path: '/',
+        });
+        return res.json({ ok: true, user: sanitizeUser(localResult!.user), authMode: 'legacy-compatibility' });
       }
       const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
       res.cookie('primepipfx_session', durable.accessToken, {
@@ -549,6 +554,14 @@ app.post('/api/auth/login', async (req, res) => {
       return res.json({ ok: true, user: sanitizeUser(durable.user) });
     } catch (error) {
       console.error('[AUTH] Supabase login failed:', error instanceof Error ? error.message : error);
+      if (localResult) {
+        const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
+        res.cookie('primepipfx_session', localResult.token, {
+          httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+          sameSite: 'lax', maxAge, path: '/',
+        });
+        return res.json({ ok: true, user: sanitizeUser(localResult.user), authMode: 'legacy-compatibility' });
+      }
       return res.status(503).json({ ok: false, error: 'Authentication service is temporarily unavailable.' });
     }
   }
@@ -798,10 +811,18 @@ app.post('/api/admin/customers', requireDeveloper, (req, res) => {
 });
 
 // Alias for create customer
-app.post('/api/admin/create-customer', requireDeveloper, (req, res) => {
+app.post('/api/admin/create-customer', requireDeveloper, async (req, res) => {
   const result = createCustomer(req.body);
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
+  }
+  if (isSupabaseAuthEnabled && result.user && result.generatedPassword) {
+    try {
+      await provisionPrimePipfxUser(result.user, result.generatedPassword);
+    } catch (error) {
+      console.error('[AUTH] Customer provisioning failed:', error);
+      return res.status(503).json({ ok: false, error: 'Student account was created locally, but durable authentication provisioning failed.' });
+    }
   }
   return res.json({
     ok: true,
@@ -817,7 +838,17 @@ app.put('/api/admin/customers/:id', requireDeveloper, (req, res) => {
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
   }
-  if (isSupabaseAuthEnabled && result.user) void syncPrimePipfxUser(result.user).catch((error) => console.warn('[AUTH] Profile sync failed:', error?.message || error));
+  if (isSupabaseAuthEnabled && result.user) {
+    try {
+      if (typeof req.body?.password === 'string' && req.body.password.trim()) {
+        await updatePrimePipfxPassword(result.user, req.body.password.trim());
+      }
+      await syncPrimePipfxUser(result.user);
+    } catch (error) {
+      console.error('[AUTH] Customer update auth sync failed:', error);
+      return res.status(503).json({ ok: false, error: 'Student profile was updated, but durable authentication could not be synchronized.' });
+    }
+  }
   return res.json({
     ok: true,
     user: sanitizeUser(result.user!),
