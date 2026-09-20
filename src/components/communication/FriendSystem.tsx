@@ -12,6 +12,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { UserAccount } from '../../types';
+import { GroupChat } from './GroupChat';
 
 interface Friend {
   id: string;
@@ -62,7 +63,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
   const [isLoadingFriends, setIsLoadingFriends] = useState(true);
   const [friendsError, setFriendsError] = useState<string | null>(null);
   const [statusNotice, setStatusNotice] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'FRIENDS' | 'REQUESTS' | 'FIND'>('FRIENDS');
+  const [activeTab, setActiveTab] = useState<'FRIENDS' | 'REQUESTS' | 'FIND' | 'GROUPS'>('FRIENDS');
 
   const showNotice = (msg: string) => {
     setStatusNotice(msg);
@@ -270,6 +271,17 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
             <UserPlus className="w-3.5 h-3.5" />
             <span>Add Traders</span>
           </button>
+          <button
+            onClick={() => setActiveTab('GROUPS')}
+            className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'GROUPS'
+                ? 'bg-blue-500 text-slate-950 font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Groups</span>
+          </button>
         </div>
       </div>
 
@@ -453,6 +465,17 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
             )}
           </div>
         </div>
+      )}
+
+      {activeTab === 'GROUPS' && (
+        <GroupChat
+          currentUser={currentUser}
+          friends={friends.map((friend) => ({
+            friendId: friend.friendId,
+            friendUsername: friend.friendUsername,
+            friendDisplayName: friend.friendDisplayName,
+          }))}
+        />
       )}
 
       {activeTab === 'FIND' && (
