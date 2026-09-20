@@ -103,6 +103,7 @@ import {
   readCommunityMessagesSupabase,
   postCommunityMessageSupabase,
   markCommunityMessagesSeenSupabase,
+  markCommunityMessageListenedSupabase,
   getCommunityTradersSupabase,
   listSupabaseFriends,
   getSupabaseFriendRequests,
@@ -1624,6 +1625,22 @@ app.get('/api/community/messages', async (req, res) => {
 });
 
 // Mark community messages as seen
+app.post('/api/community/messages/listened', async (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    const messageId = String(req.body?.messageId || '');
+    if (!messageId) return res.status(400).json({ ok: false, error: 'messageId is required' });
+    if (!isSupabaseCommunityEnabled) return res.json({ ok: true, backend: 'local-fallback' });
+    await markCommunityMessageListenedSupabase(messageId, user.id);
+    return res.json({ ok: true, backend: 'supabase' });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
 app.post('/api/community/messages/seen', async (req, res) => {
   try {
     const token = getAuthToken(req);
