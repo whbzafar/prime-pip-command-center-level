@@ -1,0 +1,19 @@
+/* Community Hub layout fix
+ * Keep the complete Hub flow (chat -> composer -> trader strip) inside its
+ * layout box so the app process/footer cannot render over the overflowing strip.
+ */
+body:has(#nav-tab-community[data-active-nav="true"]) .prime-command-shell main > div:first-child {
+  height: auto !important;
+  min-height: calc(100svh - 10rem) !important;
+  overflow: visible !important;
+}
+
+body:has(#nav-tab-community[data-active-nav="true"]) .prime-command-shell main > div:first-child > div.flex-1.flex.flex-col.min-h-0 {
+  min-height: 0 !important;
+}
+
+@media (max-width: 767px) {
+  body:has(#nav-tab-community[data-active-nav="true"]) .prime-command-shell main > div:first-child {
+    min-height: calc(100svh - 8rem) !important;
+  }
+}
