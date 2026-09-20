@@ -81,6 +81,7 @@ import { resolveCapability } from "./server/intelligence/capabilityRegistry.js";
 import { getClusters } from "./server/intelligence/gapLedger.js";
 import { syncLegacyStudentsToServer } from "./server/legacyStudentSync.js";
 import { getFundamentalStrengthDashboard } from "./server/fundamentalStrengthService.js";
+import { securityHeaders, validateCustomerDataPayload } from "./server/security.js";
 import {
   isSupabaseCommunityEnabled,
   upsertTraderProfile,
@@ -100,6 +101,8 @@ initAuthStore();
 const currentAppDir = process.cwd();
 
 const app = express();
+app.disable('x-powered-by');
+app.use(securityHeaders);
 
 const MAX_REQUEST_BODY_BYTES = 5 * 1024 * 1024;
 const RATE_WINDOW_MS = 60_000;
@@ -358,12 +361,51 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+app.get('/api/live-economic-news/status', requireUserSession, async (_req, res) => {
+  try {
+    const endpoint = process.env.ECONOMIC_NEWS_RADAR_URL?.trim();
+    if (!endpoint) {
+      return res.status(503).json({
+        ok: false,
+        sourceConfigured: false,
+        fetchedAt: new Date().toISOString(),
+        items: [],
+        error: 'No live economic news provider is configured.',
+      });
+    }
+    const response = await fetch(endpoint, {
+      headers: { Accept: 'application/json', 'User-Agent': 'PrimePipFX-LiveNewsRadar/1.0' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return res.status(502).json({ ok: false, sourceConfigured: true, items: [], error: 'Live news provider returned HTTP ' + response.status + '.' });
+    const payload = await response.json();
+    const rawItems = Array.isArray(payload) ? payload : payload?.events ?? payload?.items;
+    if (!Array.isArray(rawItems)) return res.status(502).json({ ok: false, sourceConfigured: true, items: [], error: 'Live provider returned an unsupported payload.' });
+    const items = rawItems.slice(0, 100).map((item: any, index: number) => ({
+      id: String(item?.id ?? item?.eventId ?? ('news-' + index)),
+      title: String(item?.title ?? item?.event ?? item?.eventName ?? item?.name ?? '').trim(),
+      currency: item?.currency ?? item?.currencyCode,
+      country: item?.country,
+      impact: String(item?.impact ?? item?.importance ?? 'UNKNOWN').toUpperCase(),
+      timestamp: item?.timestamp ?? item?.date ?? item?.datetime ?? item?.utcTimestamp,
+      source: item?.source ?? 'Configured live provider',
+      url: item?.url ?? item?.link,
+      actual: item?.actual ?? null,
+      forecast: item?.forecast ?? item?.consensus ?? null,
+      previous: item?.previous ?? item?.prior ?? null,
+    })).filter((item: any) => item.title);
+    return res.json({ ok: true, sourceConfigured: true, fetchedAt: new Date().toISOString(), items });
+  } catch (error: any) {
+    return res.status(502).json({ ok: false, sourceConfigured: true, fetchedAt: new Date().toISOString(), items: [], error: error?.message || 'Live news provider unavailable.' });
+  }
+});
+
 // AI Trading Coach endpoints (both routes supported)
-app.post("/api/gemini/trading-coach", handleTradingCoach);
-app.post("/api/gemini/coach", handleTradingCoach);
+app.post("/api/gemini/trading-coach", requireUserSession, handleTradingCoach);
+app.post("/api/gemini/coach", requireUserSession, handleTradingCoach);
 
 // Screenshot Analyzer endpoint
-app.post("/api/gemini/analyze-screenshot", async (req, res) => {
+app.post("/api/gemini/analyze-screenshot", requireUserSession, async (req, res) => {
   try {
     const { imageBase64, mimeType = "image/png", tradeData, stage } = req.body;
     const ai = getGeminiClient();
@@ -481,15 +523,6 @@ function getAuthToken(req: express.Request): string {
     .map((part) => part.trim())
     .find((part) => part.startsWith('primepipfx_session='));
   if (sessionCookie) return decodeURIComponent(sessionCookie.slice('primepipfx_session='.length));
-  const queryToken = (req.query?.token as string) || '';
-  if (queryToken) return queryToken;
-  if (req.url) {
-    try {
-      return new URL(req.url, 'http://localhost').searchParams.get('token') || '';
-    } catch {
-      return '';
-    }
-  }
   return '';
 }
 
@@ -936,27 +969,22 @@ app.get('/api/user/warnings', (req, res) => {
 });
 
 // Route: Customer Data isolation endpoints
-app.get('/api/customer/data', (req, res) => {
-  const token = getAuthToken(req);
-  if (!token) return res.status(401).json({ error: 'Auth required' });
-  const user = getUserByToken(token);
-  if (!user) return res.status(401).json({ error: 'Invalid user' });
-
+app.get('/api/customer/data', requireUserSession, (req, res) => {
+  const user = (req as any).currentUser;
   const data = getCustomerData(user.id);
   return res.json({ ok: true, data });
 });
 
-app.post('/api/customer/data', (req, res) => {
-  const token = getAuthToken(req);
-  if (!token) return res.status(401).json({ error: 'Auth required' });
-  const user = getUserByToken(token);
-  if (!user) return res.status(401).json({ error: 'Invalid user' });
-
+app.post('/api/customer/data', requireUserSession, (req, res) => {
+  const user = (req as any).currentUser;
   if (!user.isDeveloper && user.role !== 'ADMIN' && user.subscriptionStatus !== 'ACTIVE' && user.subscriptionStatus !== 'LIFETIME') {
     return res.status(403).json({ error: 'Active subscription required to save data' });
   }
 
-  const success = saveCustomerData(user.id, req.body?.data || {});
+  const validation = validateCustomerDataPayload(req.body?.data || {}, user);
+  if (!validation.ok) return res.status(validation.status).json({ ok: false, error: validation.error });
+
+  const success = saveCustomerData(user.id, validation.data);
   return res.json({ ok: success });
 });
 
