@@ -89,6 +89,7 @@ import {
   provisionBootstrapAdmin,
   provisionPrimePipfxUser,
   syncPrimePipfxUser,
+  updatePrimePipfxPassword,
 } from "./server/supabaseAuthService.js";
 import {
   isSupabaseCommunityEnabled,
@@ -671,7 +672,7 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // Route: Change Password
-app.post('/api/auth/change-password', (req, res) => {
+app.post('/api/auth/change-password', async (req, res) => {
   const token = getAuthToken(req);
   if (!token) {
     return res.status(401).json({ ok: false, error: 'No token provided' });
@@ -687,6 +688,12 @@ app.post('/api/auth/change-password', (req, res) => {
   }
 
   const result = changeDeveloperPassword(user.id, newPassword);
+  if (result.ok && isSupabaseAuthEnabled && result.user) {
+    try { await updatePrimePipfxPassword(result.user, newPassword); } catch (error) {
+      console.error('[AUTH] Supabase password rotation failed:', error);
+      return res.status(503).json({ ok: false, error: 'Password service is temporarily unavailable. Your current password remains active.' });
+    }
+  }
   if (!result.ok) {
     return res.status(400).json({ ok: false, error: result.error || 'Failed to change password' });
   }
@@ -808,11 +815,20 @@ app.put('/api/admin/customers/:id', requireDeveloper, (req, res) => {
 });
 
 // Route: Reset customer password (Developer/Admin only)
-app.post('/api/admin/customers/:id/reset-password', requireDeveloper, (req, res) => {
+app.post('/api/admin/customers/:id/reset-password', requireDeveloper, async (req, res) => {
   const id = req.params.id;
   const result = resetCustomerPassword(id, req.body?.password);
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
+  }
+  if (isSupabaseAuthEnabled && result.password) {
+    const updatedUser = getAllCustomers().find((customer) => customer.id === id);
+    if (updatedUser) {
+      try { await updatePrimePipfxPassword(updatedUser, result.password); } catch (error) {
+        console.error('[AUTH] Supabase reset-password sync failed:', error);
+        return res.status(503).json({ ok: false, error: 'Password service is temporarily unavailable.' });
+      }
+    }
   }
   return res.json({
     ok: true,
@@ -821,7 +837,7 @@ app.post('/api/admin/customers/:id/reset-password', requireDeveloper, (req, res)
 });
 
 // Alias for reset customer password
-app.post('/api/admin/reset-password', requireDeveloper, (req, res) => {
+app.post('/api/admin/reset-password', requireDeveloper, async (req, res) => {
   const id = req.body?.userId || req.body?.customerId || req.body?.id;
   if (!id) {
     return res.status(400).json({ ok: false, error: 'User ID is required' });
@@ -829,6 +845,15 @@ app.post('/api/admin/reset-password', requireDeveloper, (req, res) => {
   const result = resetCustomerPassword(id, req.body?.password);
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
+  }
+  if (isSupabaseAuthEnabled && result.password) {
+    const updatedUser = getAllCustomers().find((customer) => customer.id === id);
+    if (updatedUser) {
+      try { await updatePrimePipfxPassword(updatedUser, result.password); } catch (error) {
+        console.error('[AUTH] Supabase reset-password sync failed:', error);
+        return res.status(503).json({ ok: false, error: 'Password service is temporarily unavailable.' });
+      }
+    }
   }
   return res.json({
     ok: true,
