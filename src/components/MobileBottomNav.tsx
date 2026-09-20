@@ -50,42 +50,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onOpenBackupModal,
   onOpenAllCategories,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Canonical category directory; the bottom sheet is opened by the parent modal.
-  const allCategories = useMemo(() =>
-    ALL_CATEGORIES_DATA.map((category) => ({
-      id: category.id,
-      label: category.label,
-      desc: category.desc,
-      icon: category.icon,
-      section: category.section,
-      highlight: category.highlight,
-      comingSoon: category.comingSoon,
-    })),
-  []);
-
-  const filteredCategories = useMemo(() => {
-    if (!searchQuery.trim()) return allCategories;
-    const q = searchQuery.toLowerCase();
-    return allCategories.filter(
-      (c) => c.label.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q) || c.section.toLowerCase().includes(q)
-    );
-  }, [allCategories, searchQuery]);
-
-  const handleSelect = (id: MainNavTab) => {
-    if (id === 'SETTINGS' && onOpenBackupModal) {
-      onOpenBackupModal();
-      return;
-    }
-    if (id === 'EVOLUTION' && onOpenEvolution) {
-      onOpenEvolution();
-      return;
-    }
-    onSelectTab(id);
-  };
-
-  const isMoreTabActive = !['DASHBOARD', 'PRE_TRADE_PLAN', 'LOT_SIZE', 'JOURNAL'].includes(activeTab);
+  const isMoreTabActive = !['DASHBOARD', 'PRE_TRADE_PLAN', 'LOT_SIZE', 'JOURNAL'].includes(activeTab); = !['DASHBOARD', 'PRE_TRADE_PLAN', 'LOT_SIZE', 'JOURNAL'].includes(activeTab);
 
   return (
     <>
