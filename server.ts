@@ -50,6 +50,8 @@ import {
   updateCallSession,
   addIceCandidate,
   saveVoiceAttachmentFile,
+  saveImageAttachmentFile,
+  saveFileAttachmentFile,
   getVoiceAttachment,
   deleteVoiceAttachment,
 } from "./server/commandCenterService.js";
