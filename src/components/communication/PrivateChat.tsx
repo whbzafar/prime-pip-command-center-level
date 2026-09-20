@@ -640,6 +640,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
           <input
             type="text"
             value={inputText}
+            disabled={isBlocked}
             onChange={(e) => setInputText(e.target.value)}
             placeholder={`Message @${activeContact.username}...`}
             className="flex-1 px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono-code text-slate-100 focus:outline-none focus:border-blue-500"
@@ -647,7 +648,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
 
           <button
             type="submit"
-            disabled={isSending || (!inputText.trim() && !selectedPhoto && !audioBase64)}
+            disabled={isSending || isBlocked || (!inputText.trim() && !selectedPhoto && !audioBase64 && !selectedLocalFile)}
             className="p-2 rounded-lg bg-blue-500 hover:bg-cyan-400 disabled:opacity-40 text-slate-950 transition cursor-pointer"
           >
             <Send className="w-4 h-4" />
