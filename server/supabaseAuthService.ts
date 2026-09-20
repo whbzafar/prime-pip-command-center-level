@@ -132,6 +132,23 @@ export async function getUserFromSupabaseAccessToken(accessToken: string): Promi
   const rows = await readJson(profileResponse);
   return Array.isArray(rows) && rows[0] ? profileToStoredUser(rows[0]) : null;
 }
+export async function updatePrimePipfxPassword(user: StoredUser, password: string) {
+  if (!isSupabaseAuthEnabled || !password) return;
+  const lookup = new URL(`${SUPABASE_URL}/rest/v1/primepipfx_users`);
+  lookup.searchParams.set('legacy_user_id', `eq.${user.id}`); lookup.searchParams.set('limit', '1');
+  const lookupResponse = await supaFetch(lookup.pathname + lookup.search, {}, true);
+  const rows = lookupResponse.ok ? await readJson(lookupResponse) : [];
+  const authUserId = Array.isArray(rows) && rows[0]?.auth_user_id;
+  if (!authUserId) return;
+  const response = await supaFetch(`/auth/v1/admin/users/${authUserId}`, {
+    method: 'PUT', body: JSON.stringify({ password }),
+  }, true);
+  if (!response.ok) {
+    const body = await readJson(response);
+    throw new Error(body?.message || body?.msg || `Supabase password update failed (${response.status}).`);
+  }
+}
+
 export async function syncPrimePipfxUser(user: StoredUser) {
   if (!isSupabaseAuthEnabled) return;
   const lookup = new URL(`${SUPABASE_URL}/rest/v1/primepipfx_users`);
