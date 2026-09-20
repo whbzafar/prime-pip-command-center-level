@@ -117,6 +117,7 @@ export const FreehandWorkspace: React.FC = () => {
   // Pan & Zoom Infinite Canvas state (Master Prompt Requirement 17)
   const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState<number>(1.0);
+  const [canvasSizeVersion, setCanvasSizeVersion] = useState(0);
   const [isPanning, setIsPanning] = useState<boolean>(false);
   const [panStartCoord, setPanStartCoord] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -282,7 +283,9 @@ export const FreehandWorkspace: React.FC = () => {
     const syncCanvasSize = () => {
       resizeCanvas();
       window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => redrawAll());
+      frame = window.requestAnimationFrame(() => {
+        setCanvasSizeVersion((version) => version + 1);
+      });
     };
 
     syncCanvasSize();
@@ -302,7 +305,7 @@ export const FreehandWorkspace: React.FC = () => {
       window.cancelAnimationFrame(frame);
       observer?.disconnect();
     };
-  }, [isFullscreen, resizeCanvas, redrawAll]);
+  }, [isFullscreen, resizeCanvas]);
 
   // Drawing rendering routines
   const drawGrid = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
@@ -783,7 +786,7 @@ export const FreehandWorkspace: React.FC = () => {
 
   useEffect(() => {
     redrawAll();
-  }, [redrawAll]);
+  }, [redrawAll, canvasSizeVersion]);
 
   // Mouse Handlers
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1555,7 +1558,6 @@ export const FreehandWorkspace: React.FC = () => {
             handleMouseUp();
           }}
           onPointerCancel={() => handleMouseUp()}
-          onMouseDown={(e) => e.preventDefault()}
           onContextMenu={(e) => e.preventDefault()}
           onWheel={(e) => {
             if (e.ctrlKey || tool === 'PAN') {
