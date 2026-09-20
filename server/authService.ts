@@ -211,24 +211,7 @@ export function loginUser(
   const users = readUsers();
   const cleanInput = (usernameInput || '').trim().toLowerCase();
 
-  const user = users.find((u) => {
-    const uName = (u.username || '').toLowerCase();
-    const phone = (u.phone || '').replace(/[^0-9]/g, '');
-    const inputPhone = cleanInput.replace(/[^0-9]/g, '');
-    
-    // Developer can log in via "primepipfx-admin", "developer", "admin" or phone number "03406671495"
-    if (u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER') {
-      if (
-        cleanInput === 'primepipfx-admin' ||
-        cleanInput === 'developer' ||
-        cleanInput === 'admin' ||
-        (inputPhone && inputPhone === '03406671495')
-      ) {
-        return true;
-      }
-    }
-    return uName === cleanInput;
-  });
+  const user = users.find((u) => (u.username || '').toLowerCase() === cleanInput);
 
   if (!user) return null;
 
