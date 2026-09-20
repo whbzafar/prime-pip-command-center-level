@@ -133,14 +133,6 @@ export async function apiLogin(
         return { ok: true, user: data.user, token: data.token };
       }
       
-      // If server returned an authentication error, also check local store before failing
-      // (in case the student account was created locally or on Vercel cloud KV)
-      const localResult = await authenticateLocalAsync(cleanUsername, cleanPassword);
-      if (localResult.ok && localResult.user) {
-        if (localResult.token) setStoredToken(localResult.token);
-        setStoredUser(localResult.user);
-        return localResult;
-      }
 
       return { ok: false, error: data.error || 'Login failed' };
     }
@@ -148,14 +140,7 @@ export async function apiLogin(
     console.warn('[AUTH CLIENT] Server endpoint unavailable or network error, attempting local authentication:', err);
   }
 
-  // If server response is not JSON (e.g. 404 HTML on Vercel deployment) or server is unreachable:
-  const localAuth = await authenticateLocalAsync(cleanUsername, cleanPassword);
-  if (localAuth.ok && localAuth.user) {
-    if (localAuth.token) setStoredToken(localAuth.token);
-    setStoredUser(localAuth.user);
-    return localAuth;
-  }
-  return { ok: false, error: localAuth.error || 'Invalid credentials.' };
+  return { ok: false, error: 'Authentication service unavailable. Please try again.' };
 }
 
 /**
