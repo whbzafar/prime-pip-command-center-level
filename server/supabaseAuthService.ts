@@ -70,6 +70,16 @@ async function upsertProfile(user: StoredUser, authUserId: string) {
   }, true);
   if (!response.ok) throw new Error(`Profile upsert failed (${response.status}).`);
 }
+async function findAuthUserIdByUsername(username: string): Promise<string> {
+  const email = authEmail(username);
+  const response = await supaFetch('/auth/v1/admin/users?page=1&per_page=1000', {}, true);
+  if (!response.ok) return '';
+  const body = await readJson(response);
+  const users = Array.isArray(body?.users) ? body.users : [];
+  const match = users.find((candidate: any) => String(candidate?.email || '').toLowerCase() === email);
+  return match?.id || '';
+}
+
 async function createOrFindAuthUser(user: StoredUser, password: string): Promise<string> {
   const response = await supaFetch('/auth/v1/admin/users', {
     method: 'POST',
@@ -81,7 +91,9 @@ async function createOrFindAuthUser(user: StoredUser, password: string): Promise
   }, true);
   if (response.ok) { const body = await readJson(response); return body?.user?.id || ''; }
   const body = await readJson(response);
-  if (body?.msg === 'A user with this email address has already been registered' || body?.code === 'email_exists') return '';
+  if (body?.msg === 'A user with this email address has already been registered' || body?.code === 'email_exists') {
+    return findAuthUserIdByUsername(user.username);
+  }
   throw new Error(body?.message || body?.msg || 'Unable to create Supabase Auth user.');
 }
 async function signIn(username: string, password: string) {
@@ -168,10 +180,17 @@ export async function syncPrimePipfxUser(user: StoredUser) {
 export async function provisionPrimePipfxUser(user: StoredUser, password: string) {
   if (!isSupabaseAuthEnabled || !password) return;
   const authId = await createOrFindAuthUser(user, password);
-  if (authId) await upsertProfile(user, authId);
-  else {
-    const session = await signIn(user.username, password);
-    if (session?.user?.id) await upsertProfile(user, session.user.id);
+  if (!authId) throw new Error('Unable to resolve the Supabase Auth user.');
+  await upsertProfile(user, authId);
+  // Always synchronize the password. This repairs accounts created before the
+  // durable-auth migration and makes every newly generated/reset password work.
+  const passwordResponse = await supaFetch(`/auth/v1/admin/users/${authId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ password }),
+  }, true);
+  if (!passwordResponse.ok) {
+    const body = await readJson(passwordResponse);
+    throw new Error(body?.message || body?.msg || `Supabase password update failed (${passwordResponse.status}).`);
   }
 }
 
