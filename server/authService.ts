@@ -190,15 +190,18 @@ export function changeDeveloperPassword(userId: string, newPassword: string): { 
   writeUsers(users);
 
   // Issue a bounded session after password rotation.
+  const newToken = crypto.randomBytes(32).toString('hex');
+  const sessions = readSessions().filter((s) => s.expiresAt > Date.now());
+  const sessionTtlMs = 30 * 24 * 60 * 60 * 1000;
   sessions.push({
     token: newToken,
     userId: dev.id,
     createdAt: Date.now(),
-    expiresAt: Date.now() + oneYearMs,
+    expiresAt: Date.now() + sessionTtlMs,
   });
   writeSessions(sessions);
 
-  console.log('[AUTH] Developer password changed successfully and fresh persistent session issued');
+  console.log('[AUTH] Developer password changed successfully and bounded session issued');
   return { ok: true, token: newToken, user: dev };
 }
 
