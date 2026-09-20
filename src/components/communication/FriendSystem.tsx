@@ -12,7 +12,6 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { UserAccount } from '../../types';
-import { getStoredToken } from '../../utils/authClient';
 
 interface Friend {
   id: string;
@@ -154,8 +153,8 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({
           targetUserId: targetUser.id,
           targetUsername: targetUser.username,
@@ -180,8 +179,8 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({ requestId, status }),
       });
       if (res.ok) {
@@ -202,8 +201,8 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({ requestId: friendshipId, status: 'REMOVED' }),
       });
       if (res.ok) {
