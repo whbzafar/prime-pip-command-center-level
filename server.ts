@@ -674,6 +674,19 @@ app.get('/api/referral/check/:code', (req, res) => {
 });
 
 // Admin Middleware: Developer / Admin check
+function requireUserSession(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const token = getAuthToken(req);
+  if (!token) {
+    return res.status(401).json({ ok: false, error: '401 UNAUTHORIZED: Authentication token required' });
+  }
+  const user = getUserByToken(token);
+  if (!user) {
+    return res.status(401).json({ ok: false, error: '401 UNAUTHORIZED: Invalid or expired session' });
+  }
+  (req as any).currentUser = user;
+  next();
+}
+
 function requireDeveloper(req: express.Request, res: express.Response, next: express.NextFunction) {
   const token = getAuthToken(req);
   if (!token) {
@@ -1958,7 +1971,7 @@ app.get('/api/evolution/status', (req, res) => {
   }
 });
 
-app.post('/api/evolution/cycle', (req, res) => {
+app.post('/api/evolution/cycle', requireDeveloper, (req, res) => {
   try {
     const result = runEvolutionCycle(req.body?.triggerContext);
     return res.json(result);
@@ -2024,7 +2037,7 @@ app.get('/api/evolution/roadmap', (req, res) => {
   }
 });
 
-app.post('/api/evolution/rollback', (req, res) => {
+app.post('/api/evolution/rollback', requireDeveloper, (req, res) => {
   try {
     const { featureId, reason, author } = req.body || {};
     if (!featureId) {
@@ -2037,7 +2050,7 @@ app.post('/api/evolution/rollback', (req, res) => {
   }
 });
 
-app.post('/api/evolution/events/rollback', (req, res) => {
+app.post('/api/evolution/events/rollback', requireDeveloper, (req, res) => {
   try {
     const { eventId, reason, author } = req.body || {};
     if (!eventId) {
@@ -2050,12 +2063,13 @@ app.post('/api/evolution/events/rollback', (req, res) => {
   }
 });
 
-app.post('/api/evolution/telemetry', (req, res) => {
+app.post('/api/evolution/telemetry', requireUserSession, (req, res) => {
   try {
-    const { userId, signalType, workflow, context, durationMs } = req.body || {};
+    const user = (req as any).currentUser;
+    const { signalType, workflow, context, durationMs } = req.body || {};
     if (signalType && workflow) {
       recordTelemetrySignal({
-        userId: userId || 'trader_default',
+        userId: user.id,
         signalType,
         workflow,
         context,
@@ -2069,9 +2083,10 @@ app.post('/api/evolution/telemetry', (req, res) => {
   }
 });
 
-app.post('/api/evolution/feedback', (req, res) => {
+app.post('/api/evolution/feedback', requireUserSession, (req, res) => {
   try {
-    submitUserFeedback(req.body);
+    const user = (req as any).currentUser;
+    submitUserFeedback({ ...req.body, userId: user.id });
     return res.json({
       ok: true,
       message: 'Feedback queued into the Autonomous Evolution Engine pipeline.',
@@ -2081,9 +2096,12 @@ app.post('/api/evolution/feedback', (req, res) => {
   }
 });
 
-app.get('/api/evolution/profile', (req, res) => {
+app.get('/api/evolution/profile', requireUserSession, (req, res) => {
   try {
-    const userId = (req.query.userId as string) || 'default';
+    const user = (req as any).currentUser;
+    const requestedUserId = (req.query.userId as string) || user.id;
+    const isAdmin = user.role === 'ADMIN' || user.role === 'DEVELOPER' || user.isDeveloper;
+    const userId = isAdmin ? requestedUserId : user.id;
     const profile = getTraderProfile(userId);
     return res.json(profile);
   } catch (err: any) {
@@ -2091,10 +2109,13 @@ app.get('/api/evolution/profile', (req, res) => {
   }
 });
 
-app.put('/api/evolution/profile', (req, res) => {
+app.put('/api/evolution/profile', requireUserSession, (req, res) => {
   try {
-    const { userId, ...data } = req.body || {};
-    const result = saveTraderProfile(userId || 'default', data);
+    const user = (req as any).currentUser;
+    const { userId: requestedUserId, ...data } = req.body || {};
+    const isAdmin = user.role === 'ADMIN' || user.role === 'DEVELOPER' || user.isDeveloper;
+    const userId = isAdmin && requestedUserId ? requestedUserId : user.id;
+    const result = saveTraderProfile(userId, data);
     return res.json(result);
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
