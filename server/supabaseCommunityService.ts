@@ -323,6 +323,41 @@ export async function markCommunityMessageListenedSupabase(messageId: string, us
   return true;
 }
 
+export async function getSupabaseTraderById(userId: string) {
+  const cleanId = String(userId || "").trim();
+  if (!cleanId) return null;
+
+  const profileRows = await supabaseRequest(
+    `trader_profiles?user_id=eq.${encodeURIComponent(cleanId)}&select=user_id,username,display_name,role,last_seen_at,created_at,avatar_url&limit=1`
+  );
+  if (Array.isArray(profileRows) && profileRows[0]) return profileRows[0];
+
+  // The community profile can lag behind the durable PrimePipFX identity store.
+  // Recover it directly from the durable user registry instead of relying on a
+  // serverless instance's local JSON files.
+  const userRows = await supabaseRequest(
+    `primepipfx_users?legacy_user_id=eq.${encodeURIComponent(cleanId)}&select=legacy_user_id,username,name,role,show_active_status,created_at&limit=1`
+  );
+  const user = Array.isArray(userRows) ? userRows[0] : null;
+  if (!user) return null;
+
+  await upsertTraderProfile({
+    id: user.legacy_user_id,
+    username: user.username,
+    displayName: user.name || user.username,
+    role: user.role || "CUSTOMER",
+  });
+
+  return {
+    user_id: user.legacy_user_id,
+    username: user.username,
+    display_name: user.name || user.username,
+    role: user.role === "ADMIN" ? "ADMIN" : "CUSTOMER",
+    last_seen_at: null,
+    created_at: user.created_at,
+  };
+}
+
 export async function getCommunityTradersSupabase() {
   return supabaseRequest(
     "trader_profiles?select=user_id,username,display_name,role,last_seen_at,created_at&order=created_at.asc&limit=1000"
