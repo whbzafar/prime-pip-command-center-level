@@ -32,6 +32,10 @@ import {
   QrCode,
 } from 'lucide-react';
 
+const SBT_SOURCE_TIMEFRAMES: Record<number, string> = {
+  6: 'Daily / Weekly HTF → H1 execution',
+};
+
 const SBT_KEY_CONCEPTS: Record<number, string> = {
   1: 'Area 2 Structure',
   2: 'Mitigation Block',
@@ -539,6 +543,16 @@ export const SbtModelsHub: React.FC = () => {
                   <p className="text-xs font-mono-code text-slate-400 mt-0.5">
                     {activeModel.subtitle}
                   </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[9px] font-mono-code">
+                    <span className="px-2 py-0.5 rounded border border-teal-500/20 bg-teal-500/5 text-teal-300">
+                      SOURCE: PDF PAGE {activeModel.sourcePage}
+                    </span>
+                    {SBT_SOURCE_TIMEFRAMES[activeModel.modelNumber] && (
+                      <span className="px-2 py-0.5 rounded border border-cyan-500/20 bg-cyan-500/5 text-cyan-300">
+                        TF: {SBT_SOURCE_TIMEFRAMES[activeModel.modelNumber]}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Mark as Studied Button */}
