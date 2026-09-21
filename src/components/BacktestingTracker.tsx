@@ -102,6 +102,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
   const [formPair, setFormPair] = useState<string>('XAUUSD');
   const [formCustomPair, setFormCustomPair] = useState<string>('');
   const [formTimeframe, setFormTimeframe] = useState<string>('M15');
+  const [formTestType, setFormTestType] = useState<'BACKTEST' | 'FORWARD_TEST'>('BACKTEST');
   const [formHistoricalPeriod, setFormHistoricalPeriod] = useState<string>('Jan 2024 - Mar 2024');
   const [formTradesTested, setFormTradesTested] = useState<number>(20);
   const [formWins, setFormWins] = useState<number>(13);
@@ -142,6 +143,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
     setFormPair('XAUUSD');
     setFormCustomPair('');
     setFormTimeframe('M15');
+    setFormTestType('BACKTEST');
     setFormHistoricalPeriod('Last 3 Months');
     setFormTradesTested(20);
     setFormWins(13);
@@ -170,6 +172,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
     }
 
     setFormTimeframe(session.timeframe);
+    setFormTestType(session.testType || 'BACKTEST');
     setFormHistoricalPeriod(session.historicalPeriod);
     setFormTradesTested(session.tradesTested);
     setFormWins(session.wins);
@@ -197,6 +200,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
                 strategy: effectiveStrategy,
                 pair: effectivePair,
                 timeframe: formTimeframe,
+                testType: formTestType,
                 historicalPeriod: formHistoricalPeriod.trim() || 'Historical',
                 tradesTested: totalTested,
                 wins: winsCount,
@@ -216,6 +220,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
         strategy: effectiveStrategy,
         pair: effectivePair,
         timeframe: formTimeframe,
+        testType: formTestType,
         historicalPeriod: formHistoricalPeriod.trim() || 'Historical',
         tradesTested: totalTested,
         wins: winsCount,
@@ -399,6 +404,9 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
                     <span className="px-2 py-0.5 rounded bg-slate-800 text-cyan-400 text-xs font-mono-code font-bold">
                       {session.pair}
                     </span>
+                    <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px] font-mono-code font-bold">
+                      {session.testType === 'FORWARD_TEST' ? 'FORWARD TEST' : 'BACKTEST'}
+                    </span>
                     <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-xs font-mono-code">
                       TF: {session.timeframe}
                     </span>
@@ -503,6 +511,17 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
               </div>
 
               <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-mono-code text-slate-400 block mb-1">Test Type</label>
+                  <select
+                    value={formTestType}
+                    onChange={(e) => setFormTestType(e.target.value as 'BACKTEST' | 'FORWARD_TEST')}
+                    className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-sky-400 font-mono-code"
+                  >
+                    <option value="BACKTEST">Backtesting</option>
+                    <option value="FORWARD_TEST">Forward Testing</option>
+                  </select>
+                </div>
                 <div>
                   <label className="text-xs font-mono-code text-slate-400 block mb-1">Instrument / Pair</label>
                   <select
