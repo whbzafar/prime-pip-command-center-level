@@ -1,342 +1,140 @@
-/*
- * PRIMEPIPFX — Institutional Fundamentals Data Layer
- *
- * Truth-first rules:
- * 1. Never fabricate a market/fundamental observation.
- * 2. Every observation carries source + asOf + freshness + status.
- * 3. Missing/stale data stays unavailable; it is never replaced by a default score.
- * 4. COT is explicitly delayed (weekly) and never presented as real-time.
- *
- * Free/public sources used:
- * - FRED public CSV graph endpoint for Federal Reserve/H.10 and internationally
- *   sourced series already published by FRED.
- * - CFTC Financial Traders in Futures report for COT.
- * - Optional Alpha Vantage only when the owner supplies a free API key; the
- *   core system does not require it.
- */
+/* PrimePipFX institutional fundamentals — truth-first, Vercel-safe data layer. */
+type Code='USD'|'EUR'|'GBP'|'JPY'|'CHF'|'CAD'|'AUD'|'NZD'|'XAU'|'XAG';
+type Status='LIVE'|'DELAYED'|'STALE'|'UNAVAILABLE'|'ERROR';
+interface Observation{value:number;asOf:string;source:string;url:string;status:Status;note?:string}
+interface Factor{key:string;label:string;score:number|null;weight:number;status:Status;asOf:string|null;source:string;url:string;reason:string;raw?:number|null}
+interface Instrument{code:Code;name:string;assetClass:'FOREX'|'METAL';score:number|null;bias:'BULLISH'|'BEARISH'|'NEUTRAL'|'INSUFFICIENT_DATA';confidence:number;freshness:'LIVE'|'PARTIAL'|'DELAYED'|'UNAVAILABLE';factors:Factor[];reasons:string[]}
 
-type Code = 'USD' | 'EUR' | 'GBP' | 'JPY' | 'CHF' | 'CAD' | 'AUD' | 'NZD' | 'XAU' | 'XAG';
-type Status = 'LIVE' | 'DELAYED' | 'STALE' | 'UNAVAILABLE' | 'ERROR';
+const SOURCE_FRED='FRED / Federal Reserve Bank of St. Louis';
+const FRED_BASE='https://fred.stlouisfed.org/graph/fredgraph.csv?id=';
+const CFTC_URL='https://www.cftc.gov/dea/futures/financial_lf.htm';
+const CODES:Code[]=['USD','EUR','GBP','JPY','CHF','CAD','AUD','NZD','XAU','XAG'];
+const NAMES:Record<Code,string>={USD:'US Dollar',EUR:'Euro',GBP:'British Pound',JPY:'Japanese Yen',CHF:'Swiss Franc',CAD:'Canadian Dollar',AUD:'Australian Dollar',NZD:'New Zealand Dollar',XAU:'Gold',XAG:'Silver'};
+const POLICY:Partial<Record<Code,string>>={USD:'FEDFUNDS',EUR:'ECBDFR',GBP:'IUDSOIA',JPY:'IRSTCI01JPM156N',CHF:'IRSTCI01CHM156N',CAD:'IRSTCI01CAM156N',AUD:'IRSTCI01AUM156N',NZD:'IRSTCI01NZM156N'};
+const FX:Partial<Record<Code,{series:string;invert?:boolean}>>={USD:{series:'DTWEXBGS'},EUR:{series:'DEXUSEU'},GBP:{series:'DEXUSUK'},JPY:{series:'DEXJPUS',invert:true},CHF:{series:'DEXSZUS',invert:true},CAD:{series:'DEXCAUS',invert:true},AUD:{series:'DEXUSAL'},NZD:{series:'DEXUSNZ'}};
+const COT_NAMES:Partial<Record<Code,string>>={EUR:'EURO FX',GBP:'BRITISH POUND',JPY:'JAPANESE YEN',CHF:'SWISS FRANC',CAD:'CANADIAN DOLLAR',AUD:'AUSTRALIAN DOLLAR',NZD:'NEW ZEALAND DOLLAR',USD:'USD INDEX',XAU:'GOLD',XAG:'SILVER'};
+const cache=new Map<string,{rows:Observation[];at:number}>();
+let cotCache:{html:string;at:number}|null=null;
+const sentimentCache=new Map<string,{score:number;asOf:string;headlines:string[];at:number}>();
 
-interface Observation {
-  value: number;
-  asOf: string;
-  source: string;
-  url: string;
-  status: Status;
-  note?: string;
+const clamp=(n:number,min=0,max=100)=>Math.max(min,Math.min(max,n));
+async function fetchText(url:string,ms=9000){
+  const r=await fetch(url,{headers:{Accept:'text/plain,text/csv,text/html,application/xhtml+xml','User-Agent':'PrimePipFX-Fundamental-Terminal/2.1'},signal:AbortSignal.timeout(ms)});
+  if(!r.ok) throw new Error(`HTTP ${r.status} from ${new URL(url).hostname}`);
+  return r.text();
 }
-
-interface Factor {
-  key: string;
-  label: string;
-  score: number | null;
-  weight: number;
-  status: Status;
-  asOf: string | null;
-  source: string;
-  url: string;
-  reason: string;
-  raw?: number | null;
-}
-
-interface Instrument {
-  code: Code;
-  name: string;
-  assetClass: 'FOREX' | 'METAL';
-  score: number | null;
-  bias: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'INSUFFICIENT_DATA';
-  confidence: number;
-  freshness: 'LIVE' | 'PARTIAL' | 'DELAYED' | 'UNAVAILABLE';
-  factors: Factor[];
-  reasons: string[];
-}
-
-const SOURCE_FRED = 'FRED / Federal Reserve Bank of St. Louis';
-const FRED_BASE = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=';
-const CFTC_URL = 'https://www.cftc.gov/dea/futures/financial_lf.htm';
-
-const CODES: Code[] = ['USD','EUR','GBP','JPY','CHF','CAD','AUD','NZD','XAU','XAG'];
-
-const NAMES: Record<Code,string> = {
-  USD:'US Dollar', EUR:'Euro', GBP:'British Pound', JPY:'Japanese Yen',
-  CHF:'Swiss Franc', CAD:'Canadian Dollar', AUD:'Australian Dollar',
-  NZD:'New Zealand Dollar', XAU:'Gold', XAG:'Silver'
-};
-
-// FRED series already used by the application plus verified H.10 daily FX series.
-// FX sign is normalized so a positive return means the currency strengthened.
-const POLICY: Partial<Record<Code,string>> = {
-  USD:'FEDFUNDS', EUR:'ECBDFR', GBP:'IUDSOIA', JPY:'IRSTCI01JPM156N',
-  CHF:'IRSTCI01CHM156N', CAD:'IRSTCI01CAM156N', AUD:'IRSTCI01AUM156N', NZD:'IRSTCI01NZM156N'
-};
-const FX: Partial<Record<Code,{series:string; invert?:boolean}>> = {
-  USD:{series:'DTWEXBGS', invert:false},
-  EUR:{series:'DEXUSEU', invert:false},
-  GBP:{series:'DEXUSUK', invert:false},
-  JPY:{series:'DEXJPUS', invert:true},
-  CHF:{series:'DEXSZUS', invert:true},
-  CAD:{series:'DEXCAUS', invert:true},
-  AUD:{series:'DEXUSAL', invert:false},
-  NZD:{series:'DEXUSNZ', invert:false}
-};
-
-const COT_NAMES: Partial<Record<Code,string>> = {
-  EUR:'EURO FX', GBP:'BRITISH POUND', JPY:'JAPANESE YEN', CHF:'SWISS FRANC',
-  CAD:'CANADIAN DOLLAR', AUD:'AUSTRALIAN DOLLAR', NZD:'NEW ZEALAND DOLLAR',
-  USD:'USD INDEX', XAU:'GOLD', XAG:'SILVER'
-};
-
-const cache = new Map<string,{obs:Observation[]; fetchedAt:number}>();
-
-function clamp(n:number,min=0,max=100){ return Math.max(min,Math.min(max,n)); }
-
-async function fetchText(url:string, timeout=12000):Promise<string> {
-  const res = await fetch(url,{
-    headers:{Accept:'text/plain,text/csv,text/html,application/xhtml+xml','User-Agent':'PrimePipFX-Fundamental-Terminal/2.0'},
-    signal:AbortSignal.timeout(timeout)
-  });
-  if(!res.ok) throw new Error(`HTTP ${res.status} from ${new URL(url).hostname}`);
-  return res.text();
-}
-
-function parseCsv(text:string):Observation[] {
-  const lines=text.trim().split(/\\r?\\n/).slice(1);
+function parseCsv(text:string):Observation[]{
   const out:Observation[]=[];
-  for(const line of lines){
-    const parts=line.split(',');
-    const date=(parts[0]||'').trim();
-    const value=Number((parts[1]||'').trim());
-    if(!date || !Number.isFinite(value)) continue;
-    out.push({value,asOf:new Date(`${date}T00:00:00Z`).toISOString(),source:SOURCE_FRED,url:'',status:'DELAYED'});
+  for(const line of text.trim().split(/\r?\n/).slice(1)){
+    const [date,raw]=line.split(',');
+    const value=Number(raw?.trim());
+    if(date&&Number.isFinite(value)) out.push({value,asOf:new Date(date.trim()+'T00:00:00Z').toISOString(),source:SOURCE_FRED,url:'',status:'DELAYED'});
   }
   return out.reverse();
 }
-
-async function fredSeries(series:string, maxAge=10*60*1000):Promise<Observation[]> {
+async function fredSeries(series:string):Promise<Observation[]>{
   const hit=cache.get(series);
-  if(hit && Date.now()-hit.fetchedAt<maxAge) return hit.obs;
-  const url=`${FRED_BASE}${encodeURIComponent(series)}`;
-  try{
-    const text=await fetchText(url);
-    const rows=parseCsv(text).map(o=>({...o,url:`https://fred.stlouisfed.org/series/${encodeURIComponent(series)}`}));
-    if(rows.length) cache.set(series,{obs:rows,fetchedAt:Date.now()});
-    return rows;
-  }catch(error){
-    if(hit) return hit.obs;
-    throw error;
-  }
+  if(hit&&Date.now()-hit.at<10*60*1000) return hit.rows;
+  const url=FRED_BASE+encodeURIComponent(series);
+  const rows=parseCsv(await fetchText(url)).map(x=>({...x,url:'https://fred.stlouisfed.org/series/'+encodeURIComponent(series)}));
+  if(rows.length) cache.set(series,{rows,at:Date.now()});
+  return rows;
 }
-
-function latest(rows:Observation[]):Observation|null { return rows[0]||null; }
-
-function returnScore(rows:Observation[], invert=false):{score:number; raw:number; asOf:string}|null {
-  if(rows.length<22) return null;
-  const now=rows[0], prior=rows[Math.min(20,rows.length-1)];
-  let pct=((now.value/prior.value)-1)*100;
-  if(invert) pct=-pct;
+function latest(rows:Observation[]){return rows[0]||null}
+function momentum(rows:Observation[],invert=false){
+  if(rows.length<2)return null;
+  const now=rows[0],prior=rows[Math.min(20,rows.length-1)];
+  let pct=(now.value/prior.value-1)*100;if(invert)pct=-pct;
   return {score:clamp(50+pct*18),raw:pct,asOf:now.asOf};
 }
-
-function policyScore(rows:Observation[]):{score:number; raw:number; asOf:string}|null {
-  const x=latest(rows); if(!x) return null;
-  // Relative policy score is calculated against the eight-currency cross-section
-  // later; here we retain the verified raw observation.
-  return {score:x.value,raw:x.value,asOf:x.asOf};
+function normalize(v:Record<string,number>){
+  const a=Object.values(v);if(!a.length)return {};
+  const lo=Math.min(...a),hi=Math.max(...a);
+  return Object.fromEntries(Object.entries(v).map(([k,x])=>[k,hi===lo?50:clamp(20+(x-lo)/(hi-lo)*60)]));
 }
-
-function normalizeRelative(values:Record<string,number>):Record<string,number>{
-  const nums=Object.values(values);
-  if(!nums.length) return {};
-  const min=Math.min(...nums), max=Math.max(...nums);
-  if(max===min) return Object.fromEntries(Object.keys(values).map(k=>[k,50]));
-  return Object.fromEntries(Object.entries(values).map(([k,v])=>[k,clamp(20+((v-min)/(max-min))*60)]));
+function parseCot(html:string,contract:string):Observation|null{
+  const i=html.toUpperCase().indexOf(contract.toUpperCase());if(i<0)return null;
+  const chunk=html.slice(i,i+10000);
+  const m=chunk.match(/Positions\s+([\d,]+(?:\s+[\d,]+){13})/i);if(!m)return null;
+  const n=m[1].trim().split(/\s+/).map(x=>Number(x.replace(/,/g,'')));if(n.length<14||n.some(x=>!Number.isFinite(x)))return null;
+  const net=n[6]-n[7];
+  const d=chunk.match(/Positions as of ([A-Za-z]+\s+\d{1,2},\s+\d{4})/i);
+  return {value:net,asOf:d?new Date(d[1]+' UTC').toISOString():new Date().toISOString(),source:'CFTC Traders in Financial Futures — Futures Only',url:CFTC_URL,status:'DELAYED',note:'Weekly COT; positions are delayed.'};
 }
-
-function parseCot(html:string, contract:string):Observation|null {
-  const idx=html.indexOf(contract);
-  if(idx<0) return null;
-  const chunk=html.slice(idx,Math.min(html.length,idx+9000));
-  const m=chunk.match(/\\bPositions\\s+([\\d,]+(?:\\s+[\\d,]+){13})/i);
-  if(!m) return null;
-  const nums=m[1].trim().split(/\\s+/).map(v=>Number(v.replace(/,/g,'')));
-  if(nums.length<14 || nums.some(v=>!Number.isFinite(v))) return null;
-  // TFF Futures Only order:
-  // dealer L/S/spread, asset-manager L/S/spread, leveraged-fund L/S/spread,
-  // other-reportable L/S/spread, non-reportable L/S.
-  const leveragedNet=nums[6]-nums[7];
-  const asOfMatch=chunk.match(/Positions as of ([A-Za-z]+\\s+\\d{1,2},\\s+\\d{4})/i);
-  const asOf=asOfMatch ? new Date(asOfMatch[1]+' UTC').toISOString() : new Date().toISOString();
-  return {
-    value:leveragedNet, asOf, source:'CFTC Traders in Financial Futures — Futures Only',
-    url:CFTC_URL, status:'DELAYED', note:'Weekly COT positioning; report date is earlier than publication date.'
-  };
+async function getCotMap(){
+  if(cotCache&&Date.now()-cotCache.at<30*60*1000)return cotCache.html;
+  const html=await fetchText(CFTC_URL,12000);cotCache={html,at:Date.now()};return html;
 }
-
-let cotCache:{fetchedAt:number; html:string}|null=null;
-async function cotHtml():Promise<string>{
-  if(cotCache && Date.now()-cotCache.fetchedAt<30*60*1000) return cotCache.html;
-  const html=await fetchText(CFTC_URL,15000);
-  cotCache={fetchedAt:Date.now(),html};
-  return html;
-}
-
-async function cotFor(code:Code):Promise<Observation|null>{
-  const name=COT_NAMES[code]; if(!name) return null;
+function tone(t:string){const x=t.toLowerCase();const p=['beat','strong','growth','hawkish','surge','rises','bullish','support','improves','expands','upgrade'];const n=['miss','weak','recession','dovish','falls','bearish','cuts','downgrade','risk','slows','contraction','crisis'];return p.filter(w=>x.includes(w)).length-n.filter(w=>x.includes(w)).length}
+function strip(s:string){return s.replace(/<!\[CDATA\[|\]\]>/g,'').replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/\s+/g,' ').trim()}
+async function headlineSentiment(code:Code){
+  const h=sentimentCache.get(code);if(h&&Date.now()-h.at<10*60*1000)return h;
+  const url='https://news.google.com/rss/search?q='+encodeURIComponent(`${code} currency forex economy central bank`)+'&hl=en-US&gl=US&ceid=US:en';
   try{
-    const html=await cotHtml();
-    return parseCot(html,name);
-  }catch{return null;}
+    const xml=await fetchText(url,8000);
+    const items=[...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].slice(0,12);
+    const headlines=items.map(m=>strip(m[1].match(/<title>([\s\S]*?)<\/title>/i)?.[1]||'')).filter(Boolean);
+    if(!headlines.length)return null;
+    const result={score:clamp(50+headlines.reduce((s,x)=>s+tone(x),0)*7),asOf:new Date().toISOString(),headlines,at:Date.now()};
+    sentimentCache.set(code,result);return result;
+  }catch{return null}
 }
-
-function freshness(asOf:string|null,status:Status):Instrument['freshness']{
-  if(!asOf) return 'UNAVAILABLE';
-  const age=Date.now()-Date.parse(asOf);
-  if(status==='LIVE' && age<15*60*1000) return 'LIVE';
-  if(age<7*24*60*60*1000) return 'DELAYED';
-  return 'STALE';
-}
-
-const SENTIMENT_CACHE = new Map<string,{score:number;asOf:string;headlines:string[];fetchedAt:number}>();
-
-function stripXml(s:string){
-  return s.replace(/<!\\[CDATA\\[|\\]\\]>/g,'').replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&apos;/g,"'").replace(/\\s+/g,' ').trim();
-}
-function headlineTone(title:string){
-  const t=title.toLowerCase();
-  const positive=['beat','beats','strong','stronger','growth','hawkish','surge','rises','rise','bullish','support','improves','improved','optimistic','expands','expansion','upgrade','upbeat'];
-  const negative=['miss','misses','weak','weaker','recession','dovish','falls','fall','bearish','cuts','downgrade','risk','slows','slowdown','contraction','crisis','pessimistic','disappoint'];
-  const p=positive.reduce((n,w)=>n+(t.includes(w)?1:0),0);
-  const n=negative.reduce((n,w)=>n+(t.includes(w)?1:0),0);
-  return p-n;
-}
-async function headlineSentiment(code:Code):Promise<{score:number;asOf:string;headlines:string[]}|null>{
-  const hit=SENTIMENT_CACHE.get(code);
-  if(hit && Date.now()-hit.fetchedAt<10*60*1000) return hit;
-  const query=encodeURIComponent(`${code} currency forex economy central bank`);
-  const url=`https://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`;
-  try{
-    const xml=await fetchText(url,10000);
-    const items=[...xml.matchAll(/<item>([\\s\\S]*?)<\\/item>/gi)].slice(0,12);
-    if(!items.length) return null;
-    const headlines=items.map(m=>stripXml(m[1].match(/<title>([\\s\\S]*?)<\\/title>/i)?.[1]||'')).filter(Boolean);
-    const tones=headlines.map(headlineTone);
-    const total=tones.reduce((a,b)=>a+b,0);
-    const score=clamp(50+total*7);
-    const result={score,asOf:new Date().toISOString(),headlines};
-    SENTIMENT_CACHE.set(code,{...result,fetchedAt:Date.now()});
-    return result;
-  }catch{return null;}
-}
-
-async function buildInstrument(code:Code, policyRelative:Record<string,number>, cotScale:Record<string,number>):Promise<Instrument>{
-  const factors:Factor[]=[];
-  const p=POLICY[code];
-  if(p){
-    try{
-      const rows=await fredSeries(p);
-      const x=policyScore(rows);
-      if(x){
-        const score=policyRelative[code] ?? null;
-        factors.push({key:'monetary-policy',label:'Central-bank policy rate',score,weight:25,status:'DELAYED',asOf:x.asOf,source:SOURCE_FRED,url:rows[0]?.url||'',raw:x.raw,
-          reason:`Latest verified policy-rate proxy: ${x.raw.toFixed(2)}%. Relative score is computed only from observed major-currency rates.`});
-      }
-    }catch{}
-  }
-
-  const fx=FX[code];
-  if(fx){
-    try{
-      const rows=await fredSeries(fx.series);
-      const x=returnScore(rows,fx.invert);
-      if(x) factors.push({key:'market-momentum',label:'20-session currency momentum',score:x.score,weight:25,status:'DELAYED',asOf:x.asOf,source:SOURCE_FRED,url:rows[0]?.url||'',raw:x.raw,
-        reason:`Verified H.10/FRED daily FX series changed ${x.raw.toFixed(2)}% over roughly 20 observations.`});
-    }catch{}
-  }
-
-  const cot=await cotFor(code);
-  if(cot){
-    const score=cotScale[code];
-    factors.push({key:'cot-positioning',label:'CFTC leveraged-money positioning',score,weight:20,status:'DELAYED',asOf:cot.asOf,source:cot.source,url:cot.url,raw:cot.value,
-      reason:`Latest CFTC TFF leveraged-money net position: ${cot.value.toLocaleString()} contracts. COT is weekly and delayed.`});
-  }
-
-  const sentiment=await headlineSentiment(code);
-  if(sentiment){
-    factors.push({key:'news-sentiment',label:'Google News headline sentiment',score:sentiment.score,weight:10,status:'LIVE',asOf:sentiment.asOf,source:'Google News RSS',url:'https://news.google.com/',raw:sentiment.score,
-      reason:`Transparent headline-tone proxy from ${sentiment.headlines.length} current public headlines. It is a context signal, not a fact about the economy.`});
-  }else{
-    factors.push({key:'news-sentiment',label:'Google News headline sentiment',score:null,weight:10,status:'UNAVAILABLE',asOf:null,source:'Google News RSS unavailable',url:'https://news.google.com/',reason:'No headline sentiment is scored when the live feed cannot be verified.'});
-  }
-  factors.push({key:'growth-inflation',label:'Growth / inflation surprise',score:null,weight:20,status:'UNAVAILABLE',asOf:null,source:'No complete cross-currency surprise adapter configured',url:'',reason:'Not scored rather than inferred from stale or missing observations.'});
-
-  const usable=factors.filter(f=>f.score!==null);
-  const weightSum=usable.reduce((s,f)=>s+f.weight,0);
-  const score=weightSum>=50 ? Math.round(usable.reduce((s,f)=>s+(f.score as number)*f.weight,0)/weightSum) : null;
-  const confidence=Math.round((weightSum/100)*100);
-  const bias=score===null?'INSUFFICIENT_DATA':score>=65?'BULLISH':score<=35?'BEARISH':'NEUTRAL';
-  const allDates=usable.map(f=>f.asOf).filter(Boolean) as string[];
-  const newest=allDates.sort((a,b)=>Date.parse(b)-Date.parse(a))[0]||null;
-  const fr=freshness(newest, usable.some(f=>f.status==='LIVE')?'LIVE':'DELAYED');
-  const reasons=usable.map(f=>f.reason);
-
-  return {code,name:NAMES[code],assetClass:code.startsWith('X')?'METAL':'FOREX',score,bias,confidence,freshness:fr,factors,reasons};
+function freshness(d:string|null):Instrument['freshness']{
+  if(!d)return 'UNAVAILABLE';const age=Date.now()-Date.parse(d);
+  return age<15*60*1000?'LIVE':age<7*24*60*60*1000?'DELAYED':'STALE';
 }
 
 export async function getFundamentalStrengthDashboard(){
-  const policyValues:Record<string,number>={};
-  for(const code of Object.keys(POLICY) as Code[]){
-    try{ const rows=await fredSeries(POLICY[code] as string); const x=policyScore(rows); if(x) policyValues[code]=x.raw; }catch{}
+  // All external feeds are fetched concurrently. This prevents the previous sequential
+  // 20+ network calls from exceeding Vercel's serverless execution window.
+  const policyEntries=await Promise.all(Object.entries(POLICY).map(async([code,series])=>{
+    try{const rows=await fredSeries(series!);const x=latest(rows);return [code,x?.value??null,x?.asOf??null,rows[0]?.url??''] as const}catch{return [code,null,null,''] as const}
+  }));
+  const policyRaw=Object.fromEntries(policyEntries.filter(x=>x[1]!==null).map(x=>[x[0],x[1] as number]));
+  const policyRel=normalize(policyRaw);
+
+  let cotHtml='';
+  try{cotHtml=await getCotMap()}catch{}
+  const cotEntries=await Promise.all(CODES.map(async code=>{
+    const name=COT_NAMES[code];const obs=name&&cotHtml?parseCot(cotHtml,name):null;return [code,obs] as const;
+  }));
+  const cotObs=Object.fromEntries(cotEntries.filter(x=>x[1]).map(x=>[x[0],x[1]!])) as Record<string,Observation>;
+  const cotScale=normalize(Object.fromEntries(Object.entries(cotObs).map(([k,v])=>[k,v.value])));
+
+  const fxEntries=await Promise.all(Object.entries(FX).map(async([code,meta])=>{
+    try{return [code,momentum(await fredSeries(meta!.series),meta!.invert)] as const}catch{return [code,null] as const}
+  }));
+  const fxMap=Object.fromEntries(fxEntries);
+
+  const sentimentEntries=await Promise.all(CODES.map(async code=>[code,await headlineSentiment(code)] as const));
+  const sentMap=Object.fromEntries(sentimentEntries);
+
+  const instruments:Instrument[]=CODES.map(code=>{
+    const factors:Factor[]=[];
+    const pr=policyEntries.find(x=>x[0]===code);
+    if(pr?.[1]!==null) factors.push({key:'monetary-policy',label:'Central-bank policy rate',score:policyRel[code]??null,weight:25,status:'DELAYED',asOf:pr[2],source:SOURCE_FRED,url:pr[3],raw:pr[1],reason:`Latest verified policy-rate observation: ${Number(pr[1]).toFixed(2)}. Relative score uses the observed major-currency cross-section.`});
+    const fm=fxMap[code] as ReturnType<typeof momentum>;
+    if(fm) factors.push({key:'market-momentum',label:'20-session currency momentum',score:fm.score,weight:25,status:'DELAYED',asOf:fm.asOf,source:SOURCE_FRED,url:FX[code]?.series?'https://fred.stlouisfed.org/series/'+FX[code]!.series:'',raw:fm.raw,reason:`Verified daily FX series changed ${fm.raw.toFixed(2)}% over roughly 20 observations.`});
+    const co=cotObs[code];
+    if(co) factors.push({key:'cot-positioning',label:'CFTC leveraged-money positioning',score:cotScale[code]??null,weight:20,status:'DELAYED',asOf:co.asOf,source:co.source,url:co.url,raw:co.value,reason:`CFTC leveraged-money net position: ${co.value.toLocaleString()} contracts. Weekly/delayed.`});
+    const se=sentMap[code];
+    if(se) factors.push({key:'news-sentiment',label:'Google News headline sentiment',score:se.score,weight:10,status:'LIVE',asOf:se.asOf,source:'Google News RSS',url:'https://news.google.com/',raw:se.score,reason:`Transparent headline-tone proxy from ${se.headlines.length} public headlines; contextual only.`});
+    else factors.push({key:'news-sentiment',label:'Google News headline sentiment',score:null,weight:10,status:'UNAVAILABLE',asOf:null,source:'Google News RSS unavailable',url:'https://news.google.com/',reason:'Not scored when the feed cannot be verified.'});
+    factors.push({key:'growth-inflation',label:'Growth / inflation surprise',score:null,weight:20,status:'UNAVAILABLE',asOf:null,source:'Adapter unavailable',url:'',reason:'Not scored rather than inferred from missing data.'});
+    const usable=factors.filter(f=>f.score!==null);const ws=usable.reduce((s,f)=>s+f.weight,0);
+    const score=ws>=50?Math.round(usable.reduce((s,f)=>s+(f.score as number)*f.weight,0)/ws):null;
+    const confidence=Math.round(ws);const bias=score===null?'INSUFFICIENT_DATA':score>=65?'BULLISH':score<=35?'BEARISH':'NEUTRAL';
+    const dates=usable.map(f=>f.asOf).filter(Boolean) as string[];const newest=dates.sort((a,b)=>Date.parse(b)-Date.parse(a))[0]||null;
+    return {code,name:NAMES[code],assetClass:code.startsWith('X')?'METAL':'FOREX',score,bias,confidence,freshness:freshness(newest),factors,reasons:usable.map(f=>f.reason)};
+  });
+
+  const currencyOnly=instruments.filter(i=>i.assetClass==='FOREX'&&i.score!==null);
+  const pairData:any[]=[];
+  for(const b of currencyOnly)for(const q of currencyOnly)if(b.code!==q.code){
+    const diff=(b.score as number)-(q.score as number);
+    pairData.push({pair:b.code+'/'+q.code,score:Math.round(clamp(50+diff/2)),bias:diff>=15?'BULLISH':diff<=-15?'BEARISH':'NEUTRAL',baseScore:b.score,quoteScore:q.score,horizon:Math.abs(diff)>=20?'SHORT_TERM':'SWING_POSITIONAL'});
   }
-  const policyRelative=normalizeRelative(policyValues);
-
-  const cotValues:Record<string,number>={};
-  for(const code of CODES){
-    const x=await cotFor(code);
-    if(x) cotValues[code]=x.value;
-  }
-  const cotScale=normalizeRelative(cotValues);
-
-  const instruments=await Promise.all(CODES.map(code=>buildInstrument(code,policyRelative,cotScale)));
-  const available=instruments.flatMap(i=>i.factors).filter(f=>f.score!==null).length;
-  const total=instruments.flatMap(i=>i.factors).length;
-
-  const currencyOnly=instruments.filter(i=>i.assetClass==='FOREX' && i.score!==null);
-  const pairs:string[]=[];
-  for(const base of currencyOnly){
-    for(const quote of currencyOnly){
-      if(base.code===quote.code) continue;
-      pairs.push(base.code+'/'+quote.code);
-    }
-  }
-  const pairData=pairs.map(pair=>{
-    const [b,q]=pair.split('/');
-    const bs=instruments.find(i=>i.code===b)?.score as number;
-    const qs=instruments.find(i=>i.code===q)?.score as number;
-    const diff=bs-qs;
-    return {pair,score:Math.round(clamp(50+diff/2)),bias:diff>=15?'BULLISH':diff<=-15?'BEARISH':'NEUTRAL',baseScore:bs,quoteScore:qs,
-      horizon:Math.abs(diff)>=20?'SHORT_TERM':'SWING_POSITIONAL'};
-  }).sort((a,b)=>b.score-a.score);
-
-  const topBullish=pairData.filter(p=>p.bias==='BULLISH').slice(0,8);
-  const topBearish=pairData.filter(p=>p.bias==='BEARISH').slice(-8).reverse();
-
-  return {
-    generatedAt:new Date().toISOString(),
-    methodology:{
-      weights:{monetaryPolicy:25,marketMomentum:25,cotPositioning:20,growthInflation:20,newsSentiment:10},
-      thresholds:{bullish:65,bearish:35},
-      rule:'Only verified observations are scored; missing factors reduce coverage/confidence. No synthetic defaults.'
-    },
-    coverage:{liveFactors:available,totalFactors:total,note:'COT is weekly/delayed. FRED H.10 is daily/delayed relative to spot markets. Optional intraday feed can be enabled with a free Alpha Vantage key.'},
-    instruments,
-    pairs:pairData,
-    topBullish,
-    topBearish,
-    sources:[
-      {name:'FRED / Federal Reserve Bank of St. Louis',url:'https://fred.stlouisfed.org/'},
-      {name:'CFTC Commitments of Traders',url:'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm'},
-      {name:'Federal Reserve H.10 Foreign Exchange Rates',url:'https://www.federalreserve.gov/releases/h10/'}
-    ]
-  };
+  pairData.sort((a,b)=>b.score-a.score);
+  const coverage={liveFactors:instruments.flatMap(i=>i.factors).filter(f=>f.score!==null).length,totalFactors:instruments.flatMap(i=>i.factors).length,note:'COT is weekly/delayed. FRED H.10 FX observations are daily/delayed relative to spot. Missing feeds remain unavailable.'};
+  return {generatedAt:new Date().toISOString(),methodology:{weights:{monetaryPolicy:25,marketMomentum:25,cotPositioning:20,growthInflation:20,newsSentiment:10},thresholds:{bullish:65,bearish:35},rule:'Only verified observations are scored; missing factors reduce coverage/confidence. No synthetic defaults.'},coverage,instruments,pairs:pairData,topBullish:pairData.filter(p=>p.bias==='BULLISH').slice(0,8),topBearish:pairData.filter(p=>p.bias==='BEARISH').slice(-8).reverse(),sources:[{name:'FRED / Federal Reserve Bank of St. Louis',url:'https://fred.stlouisfed.org/'},{name:'CFTC Commitments of Traders',url:'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm'},{name:'Federal Reserve H.10 Foreign Exchange Rates',url:'https://www.federalreserve.gov/releases/h10/'}]};
 }
