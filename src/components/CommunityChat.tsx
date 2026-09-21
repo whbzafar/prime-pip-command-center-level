@@ -402,9 +402,12 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       }));
       const contentType = res.headers.get('content-type') || '';
       if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setFeedError(body?.error || `Community service error (${res.status})`);
         return;
       }
       if (!contentType.includes('application/json')) {
+        setFeedError('Community service returned an invalid response.');
         return;
       }
       const data = await res.json();
@@ -506,7 +509,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
 
   useEffect(() => {
     fetchMessages(true);
-    const interval = setInterval(() => fetchMessages(false), 3500);
+    const interval = setInterval(() => fetchMessages(false), 1000);
     return () => clearInterval(interval);
   }, [commMode, currentUser?.id]);
 
