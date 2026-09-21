@@ -106,6 +106,7 @@ import {
   markCommunityMessagesSeenSupabase,
   markCommunityMessageListenedSupabase,
   getCommunityTradersSupabase,
+  getSupabaseTraderById,
   listSupabaseFriends,
   getSupabaseFriendRequests,
   createSupabaseFriendRequest,
@@ -1608,12 +1609,17 @@ app.get('/api/community/messages', async (req, res) => {
 
     if (isSupabaseCommunityEnabled) {
       try {
+        // Supabase is the production source of truth. Never replace an empty
+        // durable feed with stale local/default data on Vercel.
         const messages = await readCommunityMessagesSupabase();
-        if (Array.isArray(messages) && messages.length > 0) {
-          return res.json({ ok: true, messages, backend: 'supabase' });
-        }
+        return res.json({ ok: true, messages: Array.isArray(messages) ? messages : [], backend: 'supabase' });
       } catch (sbErr: any) {
-        console.warn('[COMMUNITY GET] Supabase read failed, falling back to local storage:', sbErr?.message);
+        console.error('[COMMUNITY GET] Supabase read failed:', sbErr?.message || sbErr);
+        return res.status(503).json({
+          ok: false,
+          error: 'Community messaging service is temporarily unavailable.',
+          backend: 'supabase',
+        });
       }
     }
 
@@ -1733,18 +1739,14 @@ app.post('/api/community/messages', async (req, res) => {
           attachmentMimeType: body.audioMimeType || body.driveFile?.mimeType,
           attachmentSize: body.attachmentSize || body.audioSize,
         });
-        try {
-          postCommunityMessage({
-            ...req.body,
-            userId: user.id,
-            username: user.username,
-            displayName: user.name || user.username,
-            avatarBadge: user.role === 'ADMIN' || user.username === 'primepipfx-admin' ? 'DEV / OWNER' : undefined,
-          });
-        } catch {}
         return res.json({ ok: true, message, backend: 'supabase' });
       } catch (sbErr: any) {
-        console.warn('[COMMUNITY POST] Supabase failed, falling back to local:', sbErr?.message);
+        console.error('[COMMUNITY POST] Supabase write failed:', sbErr?.message || sbErr);
+        return res.status(503).json({
+          ok: false,
+          error: 'Message could not be saved. Please retry; no local-only message was created.',
+          backend: 'supabase',
+        });
       }
     }
 
@@ -1954,11 +1956,6 @@ app.post('/api/friends/request', async (req, res) => {
     if (!targetUserId || !targetUsername) {
       return res.status(400).json({ ok: false, error: 'Target user ID and username required' });
     }
-    const eligibleTarget = getAllRegisteredTraders(user.id).find((trader) => trader.id === targetUserId);
-    if (!eligibleTarget) {
-      return res.status(404).json({ ok: false, error: 'That trader is not currently eligible for community friends.' });
-    }
-
     let result: any;
     if (isSupabaseCommunityEnabled) {
       await upsertTraderProfile({
@@ -1967,19 +1964,19 @@ app.post('/api/friends/request', async (req, res) => {
         displayName: user.name || user.username,
         role: user.role,
       });
-      const targetProfile = getAllRegisteredTraders(user.id).find((trader) => trader.id === targetUserId);
-      if (targetProfile) {
-        try {
-          await upsertTraderProfile({
-            id: targetProfile.id,
-            username: targetProfile.username,
-            displayName: targetProfile.displayName,
-            role: targetProfile.role || 'CUSTOMER',
-          });
-        } catch {}
+
+      // Resolve the target from durable Supabase identity/profile data. Do not
+      // depend on a Vercel instance's local users.json for friend requests.
+      const targetProfile = await getSupabaseTraderById(targetUserId);
+      if (!targetProfile || !targetProfile.username) {
+        return res.status(404).json({ ok: false, error: 'That trader is not currently eligible for community friends.' });
       }
       result = await createSupabaseFriendRequest({ senderId: user.id, receiverId: targetUserId });
     } else {
+      const eligibleTarget = getAllRegisteredTraders(user.id).find((trader) => trader.id === targetUserId);
+      if (!eligibleTarget) {
+        return res.status(404).json({ ok: false, error: 'That trader is not currently eligible for community friends.' });
+      }
       result = sendFriendRequest(
         { id: user.id, username: user.username, displayName: user.name || user.username },
         { id: targetUserId, username: targetUsername, displayName: targetDisplayName || targetUsername }
