@@ -66,6 +66,12 @@ const NEWS_SOURCES = [
     url: 'https://www.fxstreet.com/economic-calendar',
     tag: 'FAST EXECUTION',
   },
+  {
+    name: 'Tradingster COT Report',
+    desc: 'Weekly Commitment of Traders positioning and historical COT charts',
+    url: 'https://www.tradingster.com/',
+    tag: 'FUNDAMENTAL • COT',
+  },
 ];
 
 export const PreTradePlan: React.FC<PreTradePlanProps> = ({
@@ -93,7 +99,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
 
   // 2. Time Frame Analysis Check
   const [timeframeChecked, setTimeframeChecked] = useState(false);
-  const [htfTimeframe, setHtfTimeframe] = useState<'Daily' | 'H4' | 'H1'>('H4');
+  const [htfTimeframe, setHtfTimeframe] = useState<'Weekly' | 'Daily' | 'H4' | 'H1'>('H4');
   const [analysisTimeframe, setAnalysisTimeframe] = useState<'H4' | 'H1' | 'M15'>('H1');
   const [entryTimeframe, setEntryTimeframe] = useState<'M15' | 'M5' | 'M1'>('M15');
   const [timeframeNotes, setTimeframeNotes] = useState('');
@@ -303,8 +309,10 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
         {/* Phase 2 Stepper */}
         <button
           type="button"
-          onClick={() => setCurrentPhase(2)}
-          className={`p-4 rounded-xl border text-left transition relative cursor-pointer ${
+          onClick={() => allPhase1Complete && setCurrentPhase(2)}
+          disabled={!allPhase1Complete}
+          aria-disabled={!allPhase1Complete}
+          className={`p-4 rounded-xl border text-left transition relative ${allPhase1Complete ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${
             currentPhase === 2
               ? 'bg-blue-500/15 border-blue-500/50 shadow-md shadow-blue-500/10'
               : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
@@ -332,8 +340,10 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
         {/* Phase 3 Stepper */}
         <button
           type="button"
-          onClick={() => setCurrentPhase(3)}
-          className={`p-4 rounded-xl border text-left transition relative cursor-pointer ${
+          onClick={() => allPhase2Complete && setCurrentPhase(3)}
+          disabled={!allPhase2Complete}
+          aria-disabled={!allPhase2Complete}
+          className={`p-4 rounded-xl border text-left transition relative ${allPhase2Complete ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${
             currentPhase === 3
               ? 'bg-blue-500/15 border-blue-500/50 shadow-md shadow-blue-500/10'
               : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
@@ -479,7 +489,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   HIGHER TIME FRAME (HTF)
                 </label>
                 <div className="flex items-center gap-1.5">
-                  {(['Daily', 'H4', 'H1'] as const).map((tf) => (
+                  {(['Weekly', 'Daily', 'H4', 'H1'] as const).map((tf) => (
                     <button
                       key={tf}
                       type="button"
