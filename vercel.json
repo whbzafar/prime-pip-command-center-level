@@ -6,14 +6,18 @@
       "includeFiles": "data/**"
     }
   },
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/:path*",
-      "destination": "/api?__route=/:path*"
+      "src": "/api/(.*)",
+      "dest": "/api/index?__route=/$1"
     },
     {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
+      "src": "/api",
+      "dest": "/api/index?__route=/"
+    },
+    {
+      "src": "/((?!api/).*)",
+      "dest": "/index.html"
     }
   ]
 }
