@@ -197,6 +197,38 @@ function freshness(asOf:string|null,status:Status):Instrument['freshness']{
   return 'STALE';
 }
 
+const SENTIMENT_CACHE = new Map<string,{score:number;asOf:string;headlines:string[];fetchedAt:number}>();
+
+function stripXml(s:string){
+  return s.replace(/<!\\[CDATA\\[|\\]\\]>/g,'').replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&apos;/g,"'").replace(/\\s+/g,' ').trim();
+}
+function headlineTone(title:string){
+  const t=title.toLowerCase();
+  const positive=['beat','beats','strong','stronger','growth','hawkish','surge','rises','rise','bullish','support','improves','improved','optimistic','expands','expansion','upgrade','upbeat'];
+  const negative=['miss','misses','weak','weaker','recession','dovish','falls','fall','bearish','cuts','downgrade','risk','slows','slowdown','contraction','crisis','pessimistic','disappoint'];
+  const p=positive.reduce((n,w)=>n+(t.includes(w)?1:0),0);
+  const n=negative.reduce((n,w)=>n+(t.includes(w)?1:0),0);
+  return p-n;
+}
+async function headlineSentiment(code:Code):Promise<{score:number;asOf:string;headlines:string[]}|null>{
+  const hit=SENTIMENT_CACHE.get(code);
+  if(hit && Date.now()-hit.fetchedAt<10*60*1000) return hit;
+  const query=encodeURIComponent(`${code} currency forex economy central bank`);
+  const url=`https://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`;
+  try{
+    const xml=await fetchText(url,10000);
+    const items=[...xml.matchAll(/<item>([\\s\\S]*?)<\\/item>/gi)].slice(0,12);
+    if(!items.length) return null;
+    const headlines=items.map(m=>stripXml(m[1].match(/<title>([\\s\\S]*?)<\\/title>/i)?.[1]||'')).filter(Boolean);
+    const tones=headlines.map(headlineTone);
+    const total=tones.reduce((a,b)=>a+b,0);
+    const score=clamp(50+total*7);
+    const result={score,asOf:new Date().toISOString(),headlines};
+    SENTIMENT_CACHE.set(code,{...result,fetchedAt:Date.now()});
+    return result;
+  }catch{return null;}
+}
+
 async function buildInstrument(code:Code, policyRelative:Record<string,number>, cotScale:Record<string,number>):Promise<Instrument>{
   const factors:Factor[]=[];
   const p=POLICY[code];
@@ -229,9 +261,13 @@ async function buildInstrument(code:Code, policyRelative:Record<string,number>, 
       reason:`Latest CFTC TFF leveraged-money net position: ${cot.value.toLocaleString()} contracts. COT is weekly and delayed.`});
   }
 
-  // Sentiment is deliberately separated from the score until a verified feed exists.
-  // This prevents a guessed news sentiment value from contaminating the institutional score.
-  factors.push({key:'news-sentiment',label:'News/headline sentiment',score:null,weight:10,status:'UNAVAILABLE',asOf:null,source:'No verified free sentiment feed configured',url:'',reason:'Not scored until a source can be verified and attributed.'});
+  const sentiment=await headlineSentiment(code);
+  if(sentiment){
+    factors.push({key:'news-sentiment',label:'Google News headline sentiment',score:sentiment.score,weight:10,status:'LIVE',asOf:sentiment.asOf,source:'Google News RSS',url:'https://news.google.com/',raw:sentiment.score,
+      reason:`Transparent headline-tone proxy from ${sentiment.headlines.length} current public headlines. It is a context signal, not a fact about the economy.`});
+  }else{
+    factors.push({key:'news-sentiment',label:'Google News headline sentiment',score:null,weight:10,status:'UNAVAILABLE',asOf:null,source:'Google News RSS unavailable',url:'https://news.google.com/',reason:'No headline sentiment is scored when the live feed cannot be verified.'});
+  }
   factors.push({key:'growth-inflation',label:'Growth / inflation surprise',score:null,weight:20,status:'UNAVAILABLE',asOf:null,source:'No complete cross-currency surprise adapter configured',url:'',reason:'Not scored rather than inferred from stale or missing observations.'});
 
   const usable=factors.filter(f=>f.score!==null);
