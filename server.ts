@@ -31,6 +31,7 @@ import {
   updatePresencePrivacy,
 } from "./server/authService.js";
 import { getCustomerData, saveCustomerData } from "./server/customerDataService.js";
+import type { StoredUser } from "./server/authService.js";
 import {
   readCommunityMessages,
   postCommunityMessage,
@@ -106,6 +107,7 @@ import {
   markCommunityMessagesSeenSupabase,
   markCommunityMessageListenedSupabase,
   getCommunityTradersSupabase,
+  getSupabaseTraderDirectory,
   getSupabaseTraderById,
   listSupabaseFriends,
   getSupabaseFriendRequests,
@@ -561,6 +563,22 @@ function getAuthToken(req: express.Request): string {
   }
   return '';
 }
+async function getCommunityUser(req: express.Request): Promise<StoredUser | null> {
+  const token = getAuthToken(req);
+  if (!token) return null;
+
+  // For the Community only, validate the durable Supabase session first.
+  // This avoids stale local/Vercel tokens preventing messaging and friends.
+  if (isSupabaseAuthEnabled) {
+    try {
+      const durableUser = await getUserFromSupabaseAccessToken(token);
+      if (durableUser) return durableUser;
+    } catch {}
+  }
+
+  return getUserByToken(token) || null;
+}
+
 
 // Route: Login
 app.post('/api/auth/login', async (req, res) => {
@@ -1598,10 +1616,9 @@ app.patch('/api/user/presence-privacy', (req, res) => {
 // ----------------------------------------------------
 app.get('/api/community/messages', async (req, res) => {
   try {
-    try { await syncLegacyStudentsToServer(); } catch {}
     const token = getAuthToken(req);
     if (token) {
-      const user = getUserByToken(token);
+      const user = await getCommunityUser(req);
       if (user) {
         recordUserHeartbeat(user.id);
       }
@@ -1691,10 +1708,9 @@ const userLastCardTime = new Map<string, number>();
 
 app.post('/api/community/messages', async (req, res) => {
   try {
-    try { await syncLegacyStudentsToServer(); } catch {}
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized. Please login to participate in the community.' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user session' });
     if (!isActiveCommunityMember(user)) {
       return res.status(403).json({ ok: false, error: 'An active subscription is required for the community.' });
@@ -1785,10 +1801,9 @@ app.get('/api/admin/gaps', (req, res) => {
 // ----------------------------------------------------
 app.get('/api/friends/list', async (req, res) => {
   try {
-    await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isActiveCommunityMember(user)) {
       return res.status(403).json({ ok: false, error: 'An active subscription is required for friends.' });
@@ -1849,13 +1864,10 @@ app.get('/api/friends/all-traders', async (req, res) => {
     }
 
     if (isSupabaseCommunityEnabled) {
-      const localTraders = getAllRegisteredTraders(currentUserId);
-      if (localTraders.length) {
-        try { await syncTraderProfiles(localTraders); } catch (syncError) {
-          console.warn('[FRIENDS ALL] Supabase trader sync failed:', syncError instanceof Error ? syncError.message : syncError);
-        }
+      let rows = await getCommunityTradersSupabase();
+      if (!Array.isArray(rows) || rows.length === 0) {
+        rows = await getSupabaseTraderDirectory(currentUserId);
       }
-      const rows = await getCommunityTradersSupabase();
       const now = Date.now();
       const traders = (Array.isArray(rows) ? rows : [])
         .filter((row: any) => !currentUserId || String(row.user_id) !== String(currentUserId))
@@ -1886,10 +1898,9 @@ app.get('/api/friends/all-traders', async (req, res) => {
 
 app.get('/api/friends/search', async (req, res) => {
   try {
-    await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const currentUser = getUserByToken(token);
+    const currentUser = await getCommunityUser(req);
     if (!currentUser) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isActiveCommunityMember(currentUser)) {
       return res.status(403).json({ ok: false, error: 'An active subscription is required for trader search.' });
@@ -1898,13 +1909,13 @@ app.get('/api/friends/search', async (req, res) => {
     recordUserHeartbeat(currentUser.id);
     const query = (req.query.q as string || '').toLowerCase().trim();
     if (isSupabaseCommunityEnabled) {
-      const eligible = getAllRegisteredTraders(currentUser.id);
-      const eligibleIds = new Set(eligible.map((trader) => trader.id));
-      try { await syncTraderProfiles(eligible); } catch {}
-      const rows = await getCommunityTradersSupabase();
+      let rows = await getCommunityTradersSupabase();
+      if (!Array.isArray(rows) || rows.length === 0) {
+        rows = await getSupabaseTraderDirectory(currentUser.id);
+      }
       const now = Date.now();
       const results = (Array.isArray(rows) ? rows : [])
-        .filter((row: any) => eligibleIds.has(String(row.user_id)))
+        
         .map((row: any) => {
           const lastSeen = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0;
           const isOnline = Boolean(lastSeen && now - lastSeen < 2 * 60 * 1000);
@@ -1943,10 +1954,9 @@ app.get('/api/friends/search', async (req, res) => {
 
 app.post('/api/friends/request', async (req, res) => {
   try {
-    await syncLegacyStudentsToServer();
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isActiveCommunityMember(user)) {
       return res.status(403).json({ ok: false, error: 'An active subscription is required to add friends.' });
