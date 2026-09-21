@@ -16,10 +16,14 @@ import {
   Layers,
   Sparkles,
   Zap,
+  BookOpen,
+  ExternalLink,
 } from 'lucide-react';
 import { BacktestSession, AccountSettings } from '../types';
 import { getKarachiDate, getKarachiTime, getKarachiTime12 } from '../utils/time';
 import { formatCurrency } from '../utils/currencyFormatter';
+import { SBT_MODELS, SbtModel } from '../data/sbtModelsData';
+import { SbtModelDetailModal } from './sbt/SbtModelDetailModal';
 
 interface BacktestingTrackerProps {
   account: AccountSettings | null;
@@ -27,33 +31,82 @@ interface BacktestingTrackerProps {
   onAutoSaveNotify?: (timeStr: string) => void;
 }
 
+export const SPT_MODEL_CONCEPTS = [
+  { number: 1, name: 'SPT Model 1 (Lowest Bearish OB)', concept: 'Lowest Bearish OB', category: 'CONTINUATION' },
+  { number: 2, name: 'SPT Model 2 (Mitigation Block / Demand)', concept: 'Mitigation Block / Demand', category: 'CONTINUATION' },
+  { number: 3, name: 'SPT Model 3 (FVG)', concept: 'FVG', category: 'CONTINUATION' },
+  { number: 4, name: 'SPT Model 4 (Order Block)', concept: 'Order Block', category: 'CONTINUATION' },
+  { number: 5, name: 'SPT Model 5 (Order Block at Level 1)', concept: 'Order Block at Level 1', category: 'CONTINUATION' },
+  { number: 6, name: 'SPT Model 6 (Reversal Model)', concept: 'Reversal Model', category: 'REVERSAL' },
+  { number: 7, name: 'SPT Model 7 (Engineered Liquidity / IDM)', concept: 'Engineered Liquidity / IDM', category: 'LIQUIDITY_ENGINEERING' },
+  { number: 8, name: 'SPT Model 8 (IDM Sweep to BOS)', concept: 'IDM Sweep to BOS', category: 'LIQUIDITY_ENGINEERING' },
+  { number: 9, name: 'SPT Model 9 (Turtle Soup - No IDM)', concept: 'Turtle Soup - No IDM', category: 'TURTLE_SOUP' },
+  { number: 10, name: 'SPT Model 10 (PD Array Sweep & Close Back)', concept: 'PD Array Sweep & Close Back', category: 'TURTLE_SOUP' },
+];
+
 const DEFAULT_STRATEGIES = [
-  'SBT Model 1 (Liquidity Sweep + MSS)',
-  'SBT Model 2 (FVG Displacement)',
-  'SBT Model 3 (Order Block Mitigation)',
-  'SBT Model 4 (Session Open Judas Swing)',
-  'SBT Model 5 (HTF Breaker Block)',
-  'SBT Model 6 (Silver Bullet 10AM/3PM)',
-  'SBT Model 7 (London Session Reversal)',
-  'SBT Model 8 (NY PM Expansion)',
-  'SBT Model 9 (Daily Bias Continuation)',
-  'SBT Model 10 (Asian Range Expansion)',
+  ...SPT_MODEL_CONCEPTS.map((m) => m.name),
   'Break & Retest Momentum',
   'Supply & Demand Imbalance',
 ];
 
 const DEFAULT_PAIRS = ['XAUUSD', 'EURUSD', 'GBPUSD', 'NAS100', 'US30', 'BTCUSD', 'USOIL'];
+
 const TIMEFRAMES = [
-  'M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1',
-  'W1', 'MN1', '3M', '6M', '12M',
+  'M1',
+  'M5',
+  'M15',
+  'M30',
+  'H1',
+  'H4',
+  'Daily',
+  'Weekly',
+  'Monthly',
+  '3-Month',
+  '6-Month',
+  '12-Month',
 ];
+
 const TIMEFRAME_LABELS: Record<string, string> = {
+  M1: '1-Minute (M1)',
+  M5: '5-Minute (M5)',
+  M15: '15-Minute (M15)',
+  M30: '30-Minute (M30)',
+  H1: '1-Hour (H1)',
+  H4: '4-Hour (H4)',
+  D1: 'Daily',
+  Daily: 'Daily (D1)',
   W1: 'Weekly',
+  Weekly: 'Weekly',
   MN1: 'Monthly',
+  Monthly: 'Monthly',
   '3M': '3-Month',
+  '3-Month': '3-Month',
   '6M': '6-Month',
+  '6-Month': '6-Month',
   '12M': '12-Month',
+  '12-Month': '12-Month',
 };
+
+function getModelNumberFromStrategy(strategy: string): number | null {
+  const match = strategy.match(/(?:S[PB]T\s*Model\s*\(?|Model\s+)(\d+)/i);
+  if (match && match[1]) {
+    const num = parseInt(match[1], 10);
+    if (num >= 1 && num <= 10) return num;
+  }
+  return null;
+}
+
+function findSbtModel(strategyOrNumber: string | number): SbtModel | undefined {
+  if (typeof strategyOrNumber === 'number') {
+    return SBT_MODELS.find((m) => m.number === strategyOrNumber);
+  }
+  const num = getModelNumberFromStrategy(strategyOrNumber);
+  if (num !== null) {
+    return SBT_MODELS.find((m) => m.number === num);
+  }
+  return undefined;
+}
 
 export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
   account,
@@ -95,6 +148,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
   const [selectedStrategyFilter, setSelectedStrategyFilter] = useState<string>('ALL');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [inspectingModel, setInspectingModel] = useState<SbtModel | null>(null);
 
   // Form states
   const [formStrategy, setFormStrategy] = useState<string>(DEFAULT_STRATEGIES[0]);
@@ -314,6 +368,48 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
         </div>
       </div>
 
+      {/* SPT Models Direct Reference Bar (Models 1–10 from Uploaded PDF) */}
+      <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-cyan-400" />
+            <h3 className="text-xs font-military font-bold text-slate-100 tracking-wider">
+              SPT TRADING MODELS PLAYBOOK (MODELS 1–10) • SOURCED FROM PDF
+            </h3>
+          </div>
+          <span className="text-[11px] font-mono-code text-slate-400">
+            Click any model below to open its specific PDF rules, candle diagrams & key concepts
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {SPT_MODEL_CONCEPTS.map((item) => {
+            const modelData = findSbtModel(item.number);
+            return (
+              <button
+                key={item.number}
+                type="button"
+                onClick={() => modelData && setInspectingModel(modelData)}
+                className="p-2.5 rounded-lg bg-slate-900/80 hover:bg-slate-850 border border-slate-800 hover:border-cyan-500/50 text-left transition group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono-code font-bold text-cyan-400">
+                    MODEL {item.number}
+                  </span>
+                  <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-cyan-400 transition" />
+                </div>
+                <div className="text-xs font-bold text-slate-200 mt-1 truncate group-hover:text-white" title={item.concept}>
+                  {item.concept}
+                </div>
+                <div className="text-[10px] font-mono-code text-slate-400 truncate mt-0.5">
+                  {item.category.replace('_', ' ')}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
@@ -398,9 +494,24 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/30 text-xs font-bold font-mono-code">
-                      {session.strategy}
-                    </span>
+                    {(() => {
+                      const model = findSbtModel(session.strategy);
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => model && setInspectingModel(model)}
+                          className={`px-2.5 py-0.5 rounded text-xs font-bold font-mono-code flex items-center gap-1.5 transition ${
+                            model
+                              ? 'bg-sky-500/15 text-sky-300 border border-sky-500/40 hover:bg-sky-500/25 cursor-pointer shadow-sm'
+                              : 'bg-slate-800 text-slate-300'
+                          }`}
+                          title={model ? 'Click to inspect model specification and chart directly from PDF' : undefined}
+                        >
+                          {model && <BookOpen className="w-3 h-3 text-cyan-400 shrink-0" />}
+                          <span>{session.strategy}</span>
+                        </button>
+                      );
+                    })()}
                     <span className="px-2 py-0.5 rounded bg-slate-800 text-cyan-400 text-xs font-mono-code font-bold">
                       {session.pair}
                     </span>
@@ -408,7 +519,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
                       {session.testType === 'FORWARD_TEST' ? 'FORWARD TEST' : 'BACKTEST'}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-xs font-mono-code">
-                      TF: {session.timeframe}
+                      TF: {TIMEFRAME_LABELS[session.timeframe] || session.timeframe}
                     </span>
                     <span className="text-xs font-mono-code text-slate-400 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
@@ -498,6 +609,28 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
                   ))}
                   <option value="CUSTOM">+ Enter Custom Strategy</option>
                 </select>
+                {(() => {
+                  const currentModel = findSbtModel(formStrategy);
+                  if (!currentModel) return null;
+                  return (
+                    <div className="mt-2 flex items-center justify-between p-2.5 rounded-lg bg-sky-950/40 border border-sky-500/30">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                        <span className="text-[11px] font-mono-code text-cyan-200">
+                          SPT Model {currentModel.number}: {currentModel.title}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setInspectingModel(currentModel)}
+                        className="flex items-center gap-1 px-2 py-1 rounded bg-sky-500/20 hover:bg-sky-500/30 text-cyan-300 border border-sky-500/40 text-[10px] font-military font-bold tracking-wider transition cursor-pointer"
+                      >
+                        <span>VIEW MODEL RULES (PDF)</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })()}
                 {formStrategy === 'CUSTOM' && (
                   <input
                     type="text"
@@ -684,6 +817,12 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
             </form>
           </div>
         </div>
+      )}
+      {inspectingModel && (
+        <SbtModelDetailModal
+          model={inspectingModel}
+          onClose={() => setInspectingModel(null)}
+        />
       )}
     </div>
   );

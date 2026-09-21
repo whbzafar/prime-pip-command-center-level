@@ -67,10 +67,10 @@ const NEWS_SOURCES = [
     tag: 'FAST EXECUTION',
   },
   {
-    name: 'Tradingster COT Report',
-    desc: 'Weekly Commitment of Traders positioning and historical COT charts',
-    url: 'https://www.tradingster.com/',
-    tag: 'FUNDAMENTAL • COT',
+    name: 'Tradingster COT Report (Commitment of Traders)',
+    desc: 'Weekly CFTC Commitment of Traders positioning for smart money institutional flow',
+    url: 'https://www.tradingster.com/cot',
+    tag: 'CHECK NEWS / COT • PRIMARY',
   },
 ];
 
@@ -99,9 +99,9 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
 
   // 2. Time Frame Analysis Check
   const [timeframeChecked, setTimeframeChecked] = useState(false);
-  const [htfTimeframe, setHtfTimeframe] = useState<'Weekly' | 'Daily' | 'H4' | 'H1'>('H4');
-  const [analysisTimeframe, setAnalysisTimeframe] = useState<'H4' | 'H1' | 'M15'>('H1');
-  const [entryTimeframe, setEntryTimeframe] = useState<'M15' | 'M5' | 'M1'>('M15');
+  const [htfTimeframe, setHtfTimeframe] = useState<'Monthly' | 'Weekly' | 'Daily' | 'H4' | 'H1'>('H4');
+  const [analysisTimeframe, setAnalysisTimeframe] = useState<'Weekly' | 'Daily' | 'H4' | 'H1' | 'M15'>('H1');
+  const [entryTimeframe, setEntryTimeframe] = useState<'H1' | 'M15' | 'M5' | 'M1'>('M15');
   const [timeframeNotes, setTimeframeNotes] = useState('');
 
   // 3. Five Conditions Check
@@ -110,6 +110,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
   const [condition3AlreadyMitigated, setCondition3AlreadyMitigated] = useState(false); // Already Mitigated
   const [condition4MarketRetest, setCondition4MarketRetest] = useState(false); // Market Retest of Unmitigated Demand/Supply Order Block
   const [condition5FailureOfSwing, setCondition5FailureOfSwing] = useState(false); // Failure of Swing
+  const [phase1ValidationError, setPhase1ValidationError] = useState<string>('');
 
   // PHASE 2 STATE
   // 1. Risk Management (Lot Size Calculation)
@@ -128,14 +129,61 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
   const [entryTaken, setEntryTaken] = useState(false);
 
   // Validation Checkers
-  const allPhase1Complete =
-    newsChecked &&
-    timeframeChecked &&
+  const allFiveConditionsChecked =
     condition1DoubleStructure &&
     condition2NoPdArray &&
     condition3AlreadyMitigated &&
     condition4MarketRetest &&
     condition5FailureOfSwing;
+
+  const allPhase1Complete =
+    newsChecked &&
+    timeframeChecked &&
+    allFiveConditionsChecked;
+
+  const handleToggleAllFiveConditions = (targetValue: boolean) => {
+    setCondition1DoubleStructure(targetValue);
+    setCondition2NoPdArray(targetValue);
+    setCondition3AlreadyMitigated(targetValue);
+    setCondition4MarketRetest(targetValue);
+    setCondition5FailureOfSwing(targetValue);
+    if (targetValue) {
+      setPhase1ValidationError('');
+    }
+  };
+
+  const handleProceedToPhase2 = () => {
+    const missing: string[] = [];
+    if (!condition1DoubleStructure) missing.push('1. Double Structure Level');
+    if (!condition2NoPdArray) missing.push('2. No Opposing PD Array');
+    if (!condition3AlreadyMitigated) missing.push('3. Already Mitigated');
+    if (!condition4MarketRetest) missing.push('4. Market Retest of Demand/Supply OB');
+    if (!condition5FailureOfSwing) missing.push('5. Failure of Swing');
+
+    if (missing.length > 0) {
+      setPhase1ValidationError(
+        `Five Condition Check Incomplete (${5 - missing.length}/5 verified). You CANNOT proceed to Phase 2 until all 5 conditions are checked: ${missing.join(', ')}`
+      );
+      const section = document.getElementById('five-conditions-section');
+      if (section) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
+    if (!newsChecked) {
+      setPhase1ValidationError('Please mark "CHECK NEWS / COT" verified before proceeding.');
+      return;
+    }
+
+    if (!timeframeChecked) {
+      setPhase1ValidationError('Please mark "TIME FRAME ANALYSIS CHECK" verified before proceeding.');
+      return;
+    }
+
+    setPhase1ValidationError('');
+    setCurrentPhase(2);
+  };
 
   const allPhase2Complete =
     riskManagementChecked &&
@@ -309,13 +357,20 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
         {/* Phase 2 Stepper */}
         <button
           type="button"
-          onClick={() => allPhase1Complete && setCurrentPhase(2)}
-          disabled={!allPhase1Complete}
-          aria-disabled={!allPhase1Complete}
-          className={`p-4 rounded-xl border text-left transition relative ${allPhase1Complete ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${
+          onClick={() => {
+            if (allPhase1Complete) {
+              setPhase1ValidationError('');
+              setCurrentPhase(2);
+            } else {
+              handleProceedToPhase2();
+            }
+          }}
+          className={`p-4 rounded-xl border text-left transition relative cursor-pointer ${
             currentPhase === 2
               ? 'bg-blue-500/15 border-blue-500/50 shadow-md shadow-blue-500/10'
-              : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
+              : allPhase1Complete
+              ? 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
+              : 'bg-slate-950/40 border-slate-800/80 hover:border-amber-500/40 opacity-80'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -378,7 +433,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
           ====================================================================== */}
       {currentPhase === 1 && (
         <div className="space-y-6">
-          {/* Phase 1, Point 1: Check News */}
+          {/* Phase 1, Point 1: Check News / COT */}
           <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
@@ -386,7 +441,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   1
                 </span>
                 <h3 className="text-base font-military font-bold text-slate-100 tracking-wider">
-                  CHECK NEWS
+                  CHECK NEWS / COT
                 </h3>
               </div>
 
@@ -402,19 +457,46 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                 {newsChecked ? (
                   <>
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>NEWS CHECKED & VERIFIED</span>
+                    <span>NEWS / COT VERIFIED</span>
                   </>
                 ) : (
                   <>
                     <Circle className="w-4 h-4 text-slate-400" />
-                    <span>MARK NEWS AS CHECKED</span>
+                    <span>MARK NEWS & COT AS CHECKED</span>
                   </>
                 )}
               </button>
             </div>
 
+            {/* Direct Tradingster COT Callout Card */}
+            <div className="p-3.5 rounded-xl bg-gradient-to-r from-blue-950/70 via-slate-900/90 to-cyan-950/50 border border-blue-500/40 flex flex-wrap items-center justify-between gap-3 shadow-md shadow-blue-500/10">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono-code font-bold bg-blue-500/20 text-cyan-300 border border-blue-500/30 uppercase tracking-wider">
+                    PRIMARY INSTITUTIONAL POSITIONING
+                  </span>
+                  <span className="text-xs font-military font-bold text-slate-100">
+                    Tradingster COT Report
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                  Inspect the latest CFTC Commitment of Traders (COT) report on Tradingster for institutional asset managers and commercial hedger positioning before committing trade risk.
+                </p>
+              </div>
+
+              <a
+                href="https://www.tradingster.com/cot"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-lg shadow-cyan-400/20"
+              >
+                <span>OPEN TRADINGSTER COT</span>
+                <ExternalLink className="w-3.5 h-3.5 stroke-[2.5]" />
+              </a>
+            </div>
+
             <p className="text-xs font-mono-code text-slate-400">
-              Click the provided institutional links below to inspect upcoming high-impact RED news events and central bank speeches before marking this step as complete:
+              Click the institutional feeds below to inspect upcoming high-impact RED news events, central bank speeches, and COT data before marking this step as complete:
             </p>
 
             {/* Links Grid */}
@@ -488,15 +570,15 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                 <label className="text-[10px] font-mono-code text-slate-400 block font-bold">
                   HIGHER TIME FRAME (HTF)
                 </label>
-                <div className="flex items-center gap-1.5">
-                  {(['Weekly', 'Daily', 'H4', 'H1'] as const).map((tf) => (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {(['Monthly', 'Weekly', 'Daily', 'H4', 'H1'] as const).map((tf) => (
                     <button
                       key={tf}
                       type="button"
                       onClick={() => setHtfTimeframe(tf)}
-                      className={`flex-1 py-1 rounded text-xs font-mono-code font-bold border transition ${
+                      className={`flex-1 min-w-[50px] py-1 rounded text-xs font-mono-code font-bold border transition ${
                         htfTimeframe === tf
-                          ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
+                          ? 'bg-blue-500/20 text-cyan-300 border-blue-500/40'
                           : 'bg-slate-950 text-slate-400 border-slate-800'
                       }`}
                     >
@@ -510,15 +592,15 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                 <label className="text-[10px] font-mono-code text-slate-400 block font-bold">
                   ANALYSIS / STRUCTURE FRAME
                 </label>
-                <div className="flex items-center gap-1.5">
-                  {(['H4', 'H1', 'M15'] as const).map((tf) => (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {(['Weekly', 'Daily', 'H4', 'H1', 'M15'] as const).map((tf) => (
                     <button
                       key={tf}
                       type="button"
                       onClick={() => setAnalysisTimeframe(tf)}
-                      className={`flex-1 py-1 rounded text-xs font-mono-code font-bold border transition ${
+                      className={`flex-1 min-w-[45px] py-1 rounded text-xs font-mono-code font-bold border transition ${
                         analysisTimeframe === tf
-                          ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
+                          ? 'bg-blue-500/20 text-cyan-300 border-blue-500/40'
                           : 'bg-slate-950 text-slate-400 border-slate-800'
                       }`}
                     >
@@ -532,15 +614,15 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                 <label className="text-[10px] font-mono-code text-slate-400 block font-bold">
                   ENTRY / TRIGGER FRAME
                 </label>
-                <div className="flex items-center gap-1.5">
-                  {(['M15', 'M5', 'M1'] as const).map((tf) => (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {(['H1', 'M15', 'M5', 'M1'] as const).map((tf) => (
                     <button
                       key={tf}
                       type="button"
                       onClick={() => setEntryTimeframe(tf)}
-                      className={`flex-1 py-1 rounded text-xs font-mono-code font-bold border transition ${
+                      className={`flex-1 min-w-[45px] py-1 rounded text-xs font-mono-code font-bold border transition ${
                         entryTimeframe === tf
-                          ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
+                          ? 'bg-blue-500/20 text-cyan-300 border-blue-500/40'
                           : 'bg-slate-950 text-slate-400 border-slate-800'
                       }`}
                     >
@@ -553,33 +635,75 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
           </div>
 
           {/* Phase 1, Point 3: Five Conditions Check */}
-          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div
+            id="five-conditions-section"
+            className={`bg-slate-950/80 border rounded-2xl p-5 shadow-lg space-y-4 transition-all ${
+              phase1ValidationError
+                ? 'border-rose-500/60 ring-1 ring-rose-500/40'
+                : allFiveConditionsChecked
+                ? 'border-emerald-500/40'
+                : 'border-slate-800'
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between border-b border-slate-800 pb-3 gap-3">
               <div className="flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-xs font-mono-code font-bold text-cyan-400">
                   3
                 </span>
                 <div>
                   <h3 className="text-base font-military font-bold text-slate-100 tracking-wider">
-                    FIVE CONDITIONS CHECK
+                    FIVE CONDITIONS CHECK (MANDATORY FOR PHASE 2)
                   </h3>
                   <p className="text-[11px] font-mono-code text-slate-400">
-                    Verify all 5 structural criteria before advancing to Phase 2
+                    System strictly requires all 5 structural criteria to be checked before unlocking Phase 2
                   </p>
                 </div>
               </div>
 
-              <div className="text-xs font-mono-code font-bold text-cyan-400">
-                {[
-                  condition1DoubleStructure,
-                  condition2NoPdArray,
-                  condition3AlreadyMitigated,
-                  condition4MarketRetest,
-                  condition5FailureOfSwing,
-                ].filter(Boolean).length}{' '}
-                / 5 CONDITIONS VERIFIED
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleToggleAllFiveConditions(!allFiveConditionsChecked)}
+                  className={`px-3 py-1 rounded-lg text-xs font-mono-code font-bold border transition cursor-pointer ${
+                    allFiveConditionsChecked
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      : 'bg-slate-800 hover:bg-slate-750 text-cyan-300 border-slate-700'
+                  }`}
+                >
+                  {allFiveConditionsChecked ? 'UNCHECK ALL' : 'CHECK ALL 5 CONDITIONS'}
+                </button>
+
+                <div
+                  className={`text-xs font-mono-code font-bold px-2.5 py-1 rounded-lg border ${
+                    allFiveConditionsChecked
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      : 'bg-slate-900 text-amber-400 border-amber-500/30'
+                  }`}
+                >
+                  {[
+                    condition1DoubleStructure,
+                    condition2NoPdArray,
+                    condition3AlreadyMitigated,
+                    condition4MarketRetest,
+                    condition5FailureOfSwing,
+                  ].filter(Boolean).length}{' '}
+                  / 5 CONDITIONS CHECKED
+                </div>
               </div>
             </div>
+
+            {/* Validation Error Banner */}
+            {phase1ValidationError && (
+              <div className="p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/50 text-rose-200 text-xs font-mono-code flex items-start gap-3 shadow-lg shadow-rose-950/30">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="font-bold text-rose-300 uppercase tracking-wider flex items-center gap-2">
+                    <span>PHASE 2 PROGRESSION RESTRICTED</span>
+                  </div>
+                  <p className="text-slate-200 leading-relaxed">{phase1ValidationError}</p>
+                </div>
+              </div>
+            )}
 
             {/* 5 Conditions List */}
             <div className="space-y-3">
@@ -594,8 +718,11 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                 <input
                   type="checkbox"
                   checked={condition1DoubleStructure}
-                  onChange={(e) => setCondition1DoubleStructure(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20"
+                  onChange={(e) => {
+                    setCondition1DoubleStructure(e.target.checked);
+                    if (e.target.checked && phase1ValidationError) setPhase1ValidationError('');
+                  }}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
                 />
                 <div className="space-y-0.5">
                   <div className="text-xs font-military font-bold tracking-wide flex items-center gap-2">
@@ -619,8 +746,11 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                 <input
                   type="checkbox"
                   checked={condition2NoPdArray}
-                  onChange={(e) => setCondition2NoPdArray(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20"
+                  onChange={(e) => {
+                    setCondition2NoPdArray(e.target.checked);
+                    if (e.target.checked && phase1ValidationError) setPhase1ValidationError('');
+                  }}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
                 />
                 <div className="space-y-0.5">
                   <div className="text-xs font-military font-bold tracking-wide flex items-center gap-2">
@@ -644,8 +774,11 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                 <input
                   type="checkbox"
                   checked={condition3AlreadyMitigated}
-                  onChange={(e) => setCondition3AlreadyMitigated(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20"
+                  onChange={(e) => {
+                    setCondition3AlreadyMitigated(e.target.checked);
+                    if (e.target.checked && phase1ValidationError) setPhase1ValidationError('');
+                  }}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
                 />
                 <div className="space-y-0.5">
                   <div className="text-xs font-military font-bold tracking-wide flex items-center gap-2">
@@ -669,8 +802,11 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                 <input
                   type="checkbox"
                   checked={condition4MarketRetest}
-                  onChange={(e) => setCondition4MarketRetest(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20"
+                  onChange={(e) => {
+                    setCondition4MarketRetest(e.target.checked);
+                    if (e.target.checked && phase1ValidationError) setPhase1ValidationError('');
+                  }}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
                 />
                 <div className="space-y-0.5">
                   <div className="text-xs font-military font-bold tracking-wide flex items-center gap-2">
@@ -694,8 +830,11 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                 <input
                   type="checkbox"
                   checked={condition5FailureOfSwing}
-                  onChange={(e) => setCondition5FailureOfSwing(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20"
+                  onChange={(e) => {
+                    setCondition5FailureOfSwing(e.target.checked);
+                    if (e.target.checked && phase1ValidationError) setPhase1ValidationError('');
+                  }}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
                 />
                 <div className="space-y-0.5">
                   <div className="text-xs font-military font-bold tracking-wide flex items-center gap-2">
@@ -709,22 +848,29 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
               </label>
             </div>
 
-            {/* Advance to Phase 2 Button */}
-            <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+            {/* Advance to Phase 2 Button with Strict Enforcement */}
+            <div className="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
               <span className="text-xs font-mono-code text-slate-400">
                 {allPhase1Complete
-                  ? '✓ Phase 1 complete. Proceed to Phase 2 Risk & Execution.'
-                  : 'Check all Phase 1 requirements to unlock Phase 2.'}
+                  ? '✓ All 5 Conditions & Pre-trade checks complete. Ready for Phase 2.'
+                  : `5 Conditions Check: ${
+                      [
+                        condition1DoubleStructure,
+                        condition2NoPdArray,
+                        condition3AlreadyMitigated,
+                        condition4MarketRetest,
+                        condition5FailureOfSwing,
+                      ].filter(Boolean).length
+                    }/5 verified. All 5 required to proceed.`}
               </span>
 
               <button
                 type="button"
-                disabled={!allPhase1Complete}
-                onClick={() => setCurrentPhase(2)}
-                className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-military font-bold tracking-wider transition ${
+                onClick={handleProceedToPhase2}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-military font-bold tracking-wider transition cursor-pointer ${
                   allPhase1Complete
-                    ? 'bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-blue-500/20 cursor-pointer'
-                    : 'bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed'
+                    ? 'bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow-lg shadow-blue-500/25'
+                    : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700'
                 }`}
               >
                 <span>PROCEED TO PHASE 2</span>

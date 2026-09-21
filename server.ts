@@ -1903,7 +1903,9 @@ app.get('/api/friends/all-traders', async (req, res) => {
     const traders = getAllRegisteredTraders(currentUserId);
     return res.json({ ok: true, traders, backend: 'local-fallback' });
   } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err?.message });
+    console.warn('[FRIENDS ALL] Error fetching traders, returning resilient local fallback:', err?.message);
+    const traders = getAllRegisteredTraders();
+    return res.json({ ok: true, traders, backend: 'resilient-fallback' });
   }
 });
 
