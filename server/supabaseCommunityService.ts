@@ -174,8 +174,10 @@ export async function syncTraderProfiles(
 }
 
 export async function readCommunityMessagesSupabase(): Promise<CommunityMessage[]> {
+  // Keep the primary feed query independent from optional read/listen receipts.
+  // A receipt/profile problem must never make the whole Community feed fail.
   const rows = await supabaseRequest(
-    "community_messages?select=id,user_id,text_content,message_type,attachment_path,attachment_name,attachment_mime_type,attachment_size,created_at,trader_profiles(username,display_name,role)&message_type=in.(TEXT,VOICE,IMAGE,FILE)&order=created_at.asc&limit=500"
+    "community_messages?select=id,user_id,text_content,message_type,attachment_path,attachment_name,attachment_mime_type,attachment_size,created_at,trader_profiles!community_messages_user_id_fkey(username,display_name,role)&message_type=in.(TEXT,VOICE,IMAGE,FILE)&order=created_at.asc&limit=500"
   );
 
   const messages: CommunityMessage[] = (Array.isArray(rows) ? rows : []).map((row: any) => ({
@@ -207,7 +209,11 @@ export async function readCommunityMessagesSupabase(): Promise<CommunityMessage[
   }));
 
   const ids = messages.map((message: any) => message.id).filter(Boolean);
-  if (ids.length) {
+  if (!ids.length) return messages;
+
+  // Receipts are enrichment only. If this secondary query is unavailable
+  // because of a schema/RLS/cache issue, return the messages without receipts.
+  try {
     const seenRows = await supabaseRequest(
       `community_message_seen?select=message_id,user_id,seen_at,listened_at&message_id=in.(${ids.join(",")})&order=seen_at.asc`
     );
@@ -241,6 +247,12 @@ export async function readCommunityMessagesSupabase(): Promise<CommunityMessage[
     for (const message of messages) {
       message.seenBy = seenByMessage.get(message.id) || [];
       (message as any).listenedBy = listenedByMessage.get(message.id) || [];
+    }
+  } catch (receiptError: any) {
+    console.warn("[COMMUNITY READ] Receipt enrichment skipped:", receiptError?.message || receiptError);
+    for (const message of messages) {
+      message.seenBy = [];
+      (message as any).listenedBy = [];
     }
   }
 
