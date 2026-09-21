@@ -1,12 +1,16 @@
 {
   "version": 2,
   "functions": {
-    "api/[...path].ts": {
+    "api/index.ts": {
       "maxDuration": 60,
       "includeFiles": "data/**"
     }
   },
   "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api?__route=/$1"
+    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
