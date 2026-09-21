@@ -564,19 +564,30 @@ function getAuthToken(req: express.Request): string {
   return '';
 }
 async function getCommunityUser(req: express.Request): Promise<StoredUser | null> {
-  const token = getAuthToken(req);
-  if (!token) return null;
+  const candidates = [
+    req.cookies?.primepipfx_session,
+    req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7).trim() : '',
+  ].filter(Boolean) as string[];
+
+  if (!candidates.length) return null;
 
   // For the Community only, validate the durable Supabase session first.
-  // This avoids stale local/Vercel tokens preventing messaging and friends.
+  // If an old cookie is stale but localStorage still has the current bearer,
+  // try both rather than allowing the stale cookie to break Community access.
   if (isSupabaseAuthEnabled) {
-    try {
-      const durableUser = await getUserFromSupabaseAccessToken(token);
-      if (durableUser) return durableUser;
-    } catch {}
+    for (const token of candidates) {
+      try {
+        const durableUser = await getUserFromSupabaseAccessToken(token);
+        if (durableUser) return durableUser;
+      } catch {}
+    }
   }
 
-  return getUserByToken(token) || null;
+  for (const token of candidates) {
+    const localUser = getUserByToken(token);
+    if (localUser) return localUser;
+  }
+  return null;
 }
 
 
