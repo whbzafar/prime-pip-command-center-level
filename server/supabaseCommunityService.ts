@@ -389,9 +389,14 @@ export async function listSupabaseFriends(userId: string) {
   const rows = Array.isArray(friendshipRows) ? friendshipRows : [];
   const friendIds = rows.map((row: any) => row.user_id_1 === userId ? row.user_id_2 : row.user_id_1);
   if (!friendIds.length) return [];
-  const profiles = await supabaseRequest(
+  let profiles = await supabaseRequest(
     `trader_profiles?user_id=in.(${friendIds.map((id: string) => encodeURIComponent(id)).join(",")})&select=user_id,username,display_name,role,last_seen_at,avatar_url`
   );
+  if (!Array.isArray(profiles) || profiles.length < friendIds.length) {
+    const directory = await getSupabaseTraderDirectory();
+    const byId = new Map(directory.map((p: any) => [String(p.user_id), p]));
+    profiles = friendIds.map((id: string) => byId.get(String(id))).filter(Boolean);
+  }
   const profileMap = new Map<string, any>((Array.isArray(profiles) ? profiles : []).map((p: any) => [String(p.user_id), p]));
   return rows.map((row: any) => {
     const friendId = row.user_id_1 === userId ? row.user_id_2 : row.user_id_1;
@@ -419,9 +424,14 @@ export async function getSupabaseFriendRequests(userId: string) {
   const requests = Array.isArray(rows) ? rows : [];
   if (!requests.length) return { incomingRequests: [], outgoingRequests: [] };
   const ids = Array.from(new Set(requests.flatMap((r: any) => [r.sender_id, r.receiver_id])));
-  const profiles = await supabaseRequest(
+  let profiles = await supabaseRequest(
     `trader_profiles?user_id=in.(${ids.map((id: string) => encodeURIComponent(id)).join(",")})&select=user_id,username,display_name`
   );
+  if (!Array.isArray(profiles) || profiles.length < ids.length) {
+    const directory = await getSupabaseTraderDirectory();
+    const byId = new Map(directory.map((p: any) => [String(p.user_id), p]));
+    profiles = ids.map((id: string) => byId.get(String(id))).filter(Boolean);
+  }
   const profileMap = new Map<string, any>((Array.isArray(profiles) ? profiles : []).map((p: any) => [String(p.user_id), p]));
   const mapRequest = (r: any) => ({
     id: String(r.id),
