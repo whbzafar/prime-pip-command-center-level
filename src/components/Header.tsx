@@ -322,7 +322,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'RISK' as MainNavTab, label: '05. RISK MANAGEMENT', icon: Crosshair },
     { id: 'PRE_TRADE_PLAN' as MainNavTab, label: '06. PRE-TRADE PLAN', icon: ShieldAlert, highlight: true },
     { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: '07. LIVE NEWS CALENDAR', icon: Calendar, highlight: true },
-    { id: 'FUNDAMENTAL_INDICATORS' as MainNavTab, label: '08. FUNDAMENTAL INDICATORS', icon: Globe, highlight: true },
+    { id: 'FUNDAMENTAL_INDICATORS' as MainNavTab, label: '08. FUNDAMENTAL INDICATOR', icon: Globe, highlight: true },
     { id: 'SIGNALS' as MainNavTab, label: '09. PREMIUM SIGNALS', icon: Radio, highlight: true, comingSoon: true, locked: true },
     { id: 'COMPOUNDING' as MainNavTab, label: '10. COMPOUNDING TOOLS', icon: Calculator },
     { id: 'PERFORMANCE' as MainNavTab, label: '11. PERFORMANCE REPORT', icon: BarChart3 },
