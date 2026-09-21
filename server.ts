@@ -1822,23 +1822,23 @@ app.get('/api/friends/list', async (req, res) => {
 
     recordUserHeartbeat(user.id);
     if (isSupabaseCommunityEnabled) {
-      await upsertTraderProfile({
-        id: user.id,
-        username: user.username,
-        displayName: user.name || user.username,
-        role: user.role,
-      });
-      const [friends, requests] = await Promise.all([
-        listSupabaseFriends(user.id),
-        getSupabaseFriendRequests(user.id),
-      ]);
-      return res.json({
-        ok: true,
-        friends,
-        incomingRequests: requests.incomingRequests,
-        outgoingRequests: requests.outgoingRequests,
-        backend: 'supabase',
-      });
+      try { await getSupabaseTraderById(user.id); } catch (error: any) {
+        console.warn('[FRIENDS] profile refresh skipped:', error?.message || error);
+      }
+      let friends: any[] = [];
+      let incomingRequests: any[] = [];
+      let outgoingRequests: any[] = [];
+      try { friends = await listSupabaseFriends(user.id); } catch (error: any) {
+        console.error('[FRIENDS] friendship lookup failed:', error?.message || error);
+      }
+      try {
+        const requests = await getSupabaseFriendRequests(user.id);
+        incomingRequests = requests.incomingRequests || [];
+        outgoingRequests = requests.outgoingRequests || [];
+      } catch (error: any) {
+        console.error('[FRIENDS] request lookup failed:', error?.message || error);
+      }
+      return res.json({ ok: true, friends, incomingRequests, outgoingRequests, backend: 'supabase' });
     }
 
     const data = getUserFriends(user.id);
@@ -1920,14 +1920,30 @@ app.get('/api/friends/search', async (req, res) => {
     recordUserHeartbeat(currentUser.id);
     const query = (req.query.q as string || '').toLowerCase().trim();
     if (isSupabaseCommunityEnabled) {
-      let rows = await getCommunityTradersSupabase();
-      if (!Array.isArray(rows) || rows.length === 0) {
-        rows = await getSupabaseTraderDirectory(currentUser.id);
+      let rows: any[] = [];
+      try {
+        const profileRows = await getCommunityTradersSupabase();
+        rows = Array.isArray(profileRows) ? profileRows : [];
+      } catch (error: any) {
+        console.warn('[FRIENDS SEARCH] profile directory unavailable:', error?.message || error);
+      }
+      if (!rows.length) {
+        try {
+          const directoryRows = await getSupabaseTraderDirectory(currentUser.id);
+          rows = Array.isArray(directoryRows) ? directoryRows : [];
+        } catch (error: any) {
+          console.warn('[FRIENDS SEARCH] durable directory unavailable:', error?.message || error);
+        }
+      }
+      if (!rows.length) {
+        rows = getAllRegisteredTraders(currentUser.id).map((trader: any) => ({
+          user_id: trader.id, username: trader.username,
+          display_name: trader.displayName || trader.username,
+          role: trader.role, last_seen_at: null, created_at: null,
+        }));
       }
       const now = Date.now();
-      const results = (Array.isArray(rows) ? rows : [])
-        
-        .map((row: any) => {
+      const results = rows.map((row: any) => {
           const lastSeen = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0;
           const isOnline = Boolean(lastSeen && now - lastSeen < 2 * 60 * 1000);
           return {
@@ -2047,7 +2063,7 @@ app.get('/api/messages/private/:otherUserId', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isActiveCommunityMember(user)) {
       return res.status(403).json({ ok: false, error: 'An active subscription is required for private messaging.' });
@@ -2185,8 +2201,10 @@ app.post('/api/messages/private', async (req, res) => {
       if (photoBase64 && !attachmentPath) attachmentPath = saveImageAttachmentFile(photoBase64);
       if (fileBase64 && !attachmentPath && attachmentName) attachmentPath = saveFileAttachmentFile(fileBase64, attachmentName).url;
       await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: user.role });
-      const receiverProfile = getAllRegisteredTraders(user.id).find((trader) => trader.id === receiverId);
-      if (receiverProfile) await upsertTraderProfile({ id: receiverProfile.id, username: receiverProfile.username, displayName: receiverProfile.displayName, role: receiverProfile.role || 'CUSTOMER' });
+      const receiverProfile = await getSupabaseTraderById(receiverId);
+      if (!receiverProfile?.username) {
+        return res.status(404).json({ ok: false, error: 'Recipient trader could not be resolved.' });
+      }
       const durable = await postPrivateMessageSupabase({
         senderId: user.id,
         receiverId,
@@ -2379,18 +2397,26 @@ app.post('/api/webrtc/call', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'An active subscription is required for calls.' });
     const { receiverId, receiverUsername, offer, isScreenSharing, callType = 'video' } = req.body || {};
-    if (!receiverId || !getUserFriends(user.id).friends.some((friend) => friend.friendId === receiverId)) return res.status(403).json({ ok: false, error: 'Calling is available only between accepted friends.' });
+    if (!receiverId) return res.status(400).json({ ok: false, error: 'Receiver is required.' });
+    if (isSupabaseCommunityEnabled) {
+      const friends = await listSupabaseFriends(user.id);
+      if (!friends.some((friend: any) => friend.friendId === receiverId)) {
+        return res.status(403).json({ ok: false, error: 'Calling is available only between accepted friends.' });
+      }
+    } else if (!getUserFriends(user.id).friends.some((friend) => friend.friendId === receiverId)) {
+      return res.status(403).json({ ok: false, error: 'Calling is available only between accepted friends.' });
+    }
     if (isSupabaseCommunityEnabled && await isUserBlocked(user.id, receiverId)) return res.status(403).json({ ok: false, error: 'Calling is unavailable because one of you has blocked the other.' });
     if (isSupabaseCommunityEnabled) {
       const callId = randomUUID();
       const type = callType === 'voice' ? 'voice' : isScreenSharing ? 'screenshare' : 'video';
       await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: user.role });
-      const receiverProfile = getAllRegisteredTraders(user.id).find((trader) => trader.id === receiverId);
-      if (receiverProfile) await upsertTraderProfile({ id: receiverProfile.id, username: receiverProfile.username, displayName: receiverProfile.displayName, role: receiverProfile.role || 'CUSTOMER' });
+      const receiverProfile = await getSupabaseTraderById(receiverId);
+      if (!receiverProfile?.username) return res.status(404).json({ ok: false, error: 'Recipient trader could not be resolved.' });
       const session = await createCallSupabase({ callId, callerId: user.id, receiverId, type, offer });
       try { await createAppNotification({ userId: receiverId, type: 'CALL', title: 'Incoming ' + type + ' call', body: '@' + user.username + ' is calling you.', data: { callId, callerId: user.id, callerUsername: user.username, callType: type } }); } catch {}
       return res.json({ ok: true, session, backend: 'supabase' });
@@ -2402,7 +2428,7 @@ app.post('/api/webrtc/call', async (req, res) => {
 
 app.get('/api/webrtc/status/:callId', async (req, res) => {
   try {
-    const token = getAuthToken(req); const user = token ? getUserByToken(token) : null;
+    const token = getAuthToken(req); const user = await getCommunityUser(req);
     if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Active subscription required.' });
     if (isSupabaseCommunityEnabled) {
       const session = await getCallSupabase(req.params.callId, user.id);
@@ -2419,7 +2445,7 @@ app.get('/api/webrtc/status/:callId', async (req, res) => {
 app.get('/api/webrtc/active', async (req, res) => {
   try {
     const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    const user = await getCommunityUser(req); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Active subscription required.' });
     if (isSupabaseCommunityEnabled) return res.json({ ok: true, session: await getActiveCallSupabase(user.id), backend: 'supabase' });
     return res.json({ ok: true, session: getActiveCallForUser(user.id), backend: 'local-fallback' });
@@ -2428,7 +2454,7 @@ app.get('/api/webrtc/active', async (req, res) => {
 
 app.post('/api/webrtc/answer', async (req, res) => {
   try {
-    const { callId, answer } = req.body || {}; const token = getAuthToken(req); const user = token ? getUserByToken(token) : null;
+    const { callId, answer } = req.body || {}; const token = getAuthToken(req); const user = await getCommunityUser(req);
     if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Call authorization failed.' });
     if (isSupabaseCommunityEnabled) {
       const existing = await getCallSupabase(callId, user.id);
@@ -2445,7 +2471,7 @@ app.post('/api/webrtc/answer', async (req, res) => {
 
 app.post('/api/webrtc/candidate', async (req, res) => {
   try {
-    const { callId, isCaller, candidate } = req.body || {}; const token = getAuthToken(req); const user = token ? getUserByToken(token) : null;
+    const { callId, isCaller, candidate } = req.body || {}; const token = getAuthToken(req); const user = await getCommunityUser(req);
     if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Call authorization failed.' });
     if (isSupabaseCommunityEnabled) {
       const existing = await getCallSupabase(callId, user.id);
@@ -2466,7 +2492,7 @@ app.post('/api/webrtc/candidate', async (req, res) => {
 
 app.post('/api/webrtc/end', async (req, res) => {
   try {
-    const { callId } = req.body || {}; const token = getAuthToken(req); const user = token ? getUserByToken(token) : null;
+    const { callId } = req.body || {}; const token = getAuthToken(req); const user = await getCommunityUser(req);
     if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'Call authorization failed.' });
     if (isSupabaseCommunityEnabled) {
       const result = await endCallSupabase(callId, user.id);
@@ -2708,7 +2734,7 @@ async function startServer() {
     const presenceServer = new WebSocketServer({ server: httpServer, path: '/api/presence' });
     presenceServer.on('connection', (socket, request) => {
       const token = getAuthToken(request as express.Request);
-      const user = token ? getUserByToken(token) : null;
+      const user = await getCommunityUser(req);
       if (!isActiveCommunityMember(user)) {
         socket.close(1008, 'Active subscription required');
         return;
