@@ -43,7 +43,10 @@ const DEFAULT_STRATEGIES = [
 ];
 
 const DEFAULT_PAIRS = ['XAUUSD', 'EURUSD', 'GBPUSD', 'NAS100', 'US30', 'BTCUSD', 'USOIL'];
-const TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'];
+const TIMEFRAMES = [
+  'M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1',
+  'W1', 'MN1', '3M', '6M', '12M',
+];
 
 export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
   account,
@@ -528,7 +531,13 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
                   >
                     {TIMEFRAMES.map((tf) => (
                       <option key={tf} value={tf}>
-                        {tf}
+                        {{
+                          W1: 'Weekly',
+                          MN1: 'Monthly',
+                          '3M': '3-Month',
+                          '6M': '6-Month',
+                          '12M': '12-Month',
+                        }[tf] || tf}
                       </option>
                     ))}
                   </select>
