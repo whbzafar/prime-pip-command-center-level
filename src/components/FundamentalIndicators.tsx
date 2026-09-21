@@ -172,7 +172,21 @@ const INDICATORS: FundamentalIndicator[] = [
       { label: 'CFTC Commitments of Traders', url: 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm' },
       { label: 'BIS statistics', url: 'https://www.bis.org/statistics/index.htm' },
     ],
+  },  {
+    id: 'cot',
+    name: 'Commitments of Traders (COT)',
+    category: 'Positioning',
+    whatItMeasures: 'Weekly futures positioning across major trader groups, including commercial, institutional/asset-manager, leveraged-fund, and other reportable positions depending on the report family.',
+    whyItMovesCurrency: 'COT provides a delayed positioning view of futures markets. It can add context to positioning, crowding, and changes in exposure, but it is not a real-time directional trigger.',
+    bullishSignal: 'Use as contextual evidence when positioning changes are consistent with the broader fundamental and price picture.',
+    bearishSignal: 'Use as contextual evidence when positioning becomes crowded or changes sharply against the prevailing thesis.',
+    timing: 'Weekly. COT data generally reflects positions as of Tuesday and is released by the CFTC on Friday.',
+    sources: [
+      { label: 'Tradingster COT Reports', url: 'https://www.tradingster.com/' },
+      { label: 'CFTC COT Reports', url: 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm' },
+    ],
   },
+
 ];
 
 const BIAS_OPTIONS: { value: Bias; label: string }[] = [
