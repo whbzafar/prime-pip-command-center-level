@@ -28,6 +28,32 @@ type Dashboard = {
   sources:{name:string;url:string}[];
 };
 
+const INSTITUTIONAL_MODULES = [
+  ['Currency Strength Intelligence','8 major currencies: USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD. Individual strength, weakness, bias, freshness and factor coverage.'],
+  ['Relative Forex Pair Engine','Major pairs and cross pairs. Base-vs-quote comparison with relative fundamental bias and selectable pair analysis.'],
+  ['Monetary Policy','Central-bank policy rates, policy direction, meeting context and rate-path interpretation.'],
+  ['Inflation','CPI, core CPI, PPI, inflation trend, target distance and expectations/surprises when verified data is available.'],
+  ['Employment & Wages','Employment, unemployment, payrolls, participation and wage-growth conditions.'],
+  ['GDP & Economic Growth','GDP, growth trend, revisions and faster growth proxies such as PMI/new orders where available.'],
+  ['PMI & Business Activity','Manufacturing, services, composite PMI and new-orders conditions.'],
+  ['Consumer & Retail Demand','Retail sales, consumption and consumer-confidence conditions.'],
+  ['Trade & Current Account','Trade balance, exports, imports, current account and terms-of-trade context.'],
+  ['Bond Yields & Yield Differentials','2Y/5Y/10Y/30Y yields, curves and relative yield differentials where verified.'],
+  ['COT Positioning','Official CFTC positioning, long/short/net changes and historical context. Weekly/delayed by design.'],
+  ['Risk Regime & Volatility','Risk-on, risk-off or mixed conditions using available verified cross-asset evidence.'],
+  ['News & Headline Sentiment','Headline context separated from hard macro facts; source and timestamp must remain visible.'],
+  ['USD / DXY Intelligence','USD macro chain including Fed, inflation, labor, yields, DXY and positioning.'],
+  ['Gold XAU/USD Intelligence','USD, rates, real yields, inflation expectations, risk conditions, positioning and other verified macro drivers.'],
+  ['Silver XAG/USD Intelligence','USD, yields, industrial-cycle context, gold/silver ratio and CFTC positioning where available.'],
+  ['Commodity-Currency Relationships','Oil/CAD, iron ore/AUD, dairy/NZD and other verified commodity transmission channels.'],
+  ['Economic Calendar','Actual, forecast, previous, release time, importance, surprise and source; unavailable fields remain N/A.'],
+  ['Economic Surprise Engine','Actual-versus-forecast calculations only when comparable verified observations exist.'],
+  ['Fundamental vs Price Divergence','Separates fundamental pressure from observed price direction; never treats divergence as a guaranteed reversal.'],
+  ['Short / Swing / Medium / Long Term','Each view is explicitly labeled by horizon and never presented as a guaranteed prediction.'],
+  ['Data Health & Source Audit','Source status, freshness, timestamps, coverage and unavailable/error states.'],
+  ['Calculation Transparency','Factor weights, available-data coverage, normalization and score contribution must be inspectable.'],
+];
+
 const LIBRARY = [
   ['Central-bank policy / rate path','Monetary policy','Policy rate, guidance and expected path; compare the relative policy stance rather than the absolute rate.'],
   ['CPI / core inflation','Prices','Inflation pressure and the surprise versus expectations. The policy reaction is normally more important than the number alone.'],
@@ -203,6 +229,18 @@ export const FundamentalIndicators:React.FC=()=>{
         <div className="rounded-xl border border-slate-800 p-3 max-h-[520px] overflow-y-auto">
           {(filteredPairs.length?filteredPairs:data?.pairs||[]).map(p=><button key={p.pair} onClick={()=>setSelectedPair(p.pair)} className={`w-full flex items-center justify-between p-2 rounded-lg mb-1 text-left border ${p.pair===selectedPair?'border-cyan-500/50 bg-cyan-500/10':'border-transparent hover:border-slate-800'}`}><span className="text-xs text-slate-200">{p.pair}</span><span className={`text-[10px] font-bold ${biasClass(p.bias)}`}>{p.score}</span></button>)}
         </div>
+      </div>
+    </section>}
+
+    {tab==='OVERVIEW'&&<section className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-4">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div><div className="text-xs text-cyan-300 font-mono-code">INSTITUTIONAL MODULE MAP</div><h2 className="text-lg font-military font-bold text-slate-100 tracking-wider">FUNDAMENTAL INDICATOR INTELLIGENCE STACK</h2></div>
+        <span className="text-[9px] font-mono-code text-amber-300 border border-amber-500/20 rounded px-2 py-1">VERIFIED DATA ONLY</span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+        {INSTITUTIONAL_MODULES.map(([name,desc],i)=><article key={name} className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+          <div className="flex gap-2"><span className="text-[9px] text-cyan-400 font-mono-code mt-0.5">{String(i+1).padStart(2,'0')}</span><div><h3 className="text-[11px] font-bold text-slate-100">{name}</h3><p className="text-[9px] leading-relaxed text-slate-500 mt-1">{desc}</p></div></div>
+        </article>)}
       </div>
     </section>}
 
