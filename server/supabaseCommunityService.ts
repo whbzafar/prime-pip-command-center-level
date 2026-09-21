@@ -364,6 +364,24 @@ export async function getCommunityTradersSupabase() {
   );
 }
 
+export async function getSupabaseTraderDirectory(excludeUserId?: string) {
+  const rows = await supabaseRequest(
+    "primepipfx_users?select=legacy_user_id,username,name,role,created_at,show_active_status&order=created_at.asc&limit=1000"
+  );
+  const excluded = String(excludeUserId || "");
+  return (Array.isArray(rows) ? rows : [])
+    .filter((row: any) => String(row.legacy_user_id || "") !== excluded)
+    .map((row: any) => ({
+      user_id: row.legacy_user_id,
+      username: row.username,
+      display_name: row.name || row.username,
+      role: row.role === "ADMIN" ? "ADMIN" : "CUSTOMER",
+      last_seen_at: null,
+      created_at: row.created_at,
+      show_active_status: row.show_active_status !== false,
+    }));
+}
+
 export async function listSupabaseFriends(userId: string) {
   const friendshipRows = await supabaseRequest(
     `friendships?or=(user_id_1.eq.${encodeURIComponent(userId)},user_id_2.eq.${encodeURIComponent(userId)})&select=user_id_1,user_id_2,created_at&order=created_at.asc`
