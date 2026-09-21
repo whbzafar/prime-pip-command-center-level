@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { googleDriveService, DriveBackupFile } from '../services/googleDriveService';
 import { DEFAULT_TRADERS, DEFAULT_COMMUNITY_MESSAGES } from '../data/defaultTraders';
+import { IntentCard } from './chat/IntentCard';
 
 interface SeenReceipt {
   userId: string;
@@ -58,6 +59,9 @@ interface ChatMessage {
   attachmentName?: string;
   attachmentSize?: number;
   reactions?: Record<string, number>;
+  intentCard?: any;
+  category?: string;
+  tradeSetup?: any;
 }
 
 const isConversationMessage = (message: any): boolean => {

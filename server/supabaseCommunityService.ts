@@ -178,11 +178,11 @@ export async function readCommunityMessagesSupabase(): Promise<CommunityMessage[
     "community_messages?select=id,user_id,text_content,message_type,attachment_path,attachment_name,attachment_mime_type,attachment_size,created_at,trader_profiles(username,display_name,role)&message_type=in.(TEXT,VOICE,IMAGE,FILE)&order=created_at.asc&limit=500"
   );
 
-  const messages = (Array.isArray(rows) ? rows : []).map((row: any) => ({
+  const messages: CommunityMessage[] = (Array.isArray(rows) ? rows : []).map((row: any) => ({
     id: String(row.id),
     userId: row.user_id,
     username: row.trader_profiles?.username || row.user_id,
-    userRole: row.trader_profiles?.role === "ADMIN" ? "ADMIN" : "CUSTOMER",
+    userRole: (row.trader_profiles?.role === "ADMIN" ? "ADMIN" : "CUSTOMER") as 'ADMIN' | 'CUSTOMER',
     displayName:
       row.trader_profiles?.display_name ||
       row.trader_profiles?.username ||

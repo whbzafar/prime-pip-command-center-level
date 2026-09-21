@@ -7,21 +7,23 @@ import { CrisisCard } from './CrisisCard';
 import { AlertCircle } from 'lucide-react';
 
 interface IntentCardProps {
-  payload: IntentCardPayload;
+  payload?: IntentCardPayload;
+  card?: IntentCardPayload;
 }
 
-export const IntentCard: React.FC<IntentCardProps> = ({ payload }) => {
-  if (!payload || !payload.kind) return null;
+export const IntentCard: React.FC<IntentCardProps> = ({ payload, card }) => {
+  const activePayload = payload || card;
+  if (!activePayload || !activePayload.kind) return null;
 
-  switch (payload.kind) {
+  switch (activePayload.kind) {
     case 'ECONOMIC_CALENDAR':
-      return <CalendarCard payload={payload} />;
+      return <CalendarCard payload={activePayload} />;
     case 'SESSION_CLOCK':
-      return <SessionClockCard payload={payload} />;
+      return <SessionClockCard payload={activePayload} />;
     case 'LOT_SIZE':
-      return <LotSizeCard payload={payload} />;
+      return <LotSizeCard payload={activePayload} />;
     case 'CRISIS_RESOURCE':
-      return <CrisisCard payload={payload} />;
+      return <CrisisCard payload={activePayload} />;
     case 'UNKNOWN':
     default:
       return (

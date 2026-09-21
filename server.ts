@@ -45,6 +45,7 @@ import {
   updateFriendshipStatus,
   getPrivateConversation,
   postPrivateMessage,
+  markPrivateMessagesRead,
   initiateWebRTCCall,
   getCallSession,
   getActiveCallForUser,
@@ -1548,7 +1549,7 @@ app.get(['/SBT/Official_Yearly_SBT_Models_Reference.pdf', '/api/sbt/pdf'], (req,
 // ----------------------------------------------------
 // REAL USER PRESENCE & HEARTBEAT ENDPOINTS
 // ----------------------------------------------------
-app.post('/api/user/heartbeat', (req, res) => {
+app.post('/api/user/heartbeat', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
