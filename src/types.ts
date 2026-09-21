@@ -416,7 +416,8 @@ export interface BacktestSession {
   date: string; // YYYY-MM-DD (PKT)
   strategy: string; // e.g. 'SBT Model 1'
   pair: string; // e.g. 'XAUUSD'
-  timeframe: string; // e.g. 'M15'
+  timeframe: string; // e.g. 'M15', 'W1', 'MN1'
+  testType?: 'BACKTEST' | 'FORWARD_TEST';
   historicalPeriod: string; // e.g. 'Jan 2024 - Mar 2024'
   tradesTested: number;
   wins: number;
