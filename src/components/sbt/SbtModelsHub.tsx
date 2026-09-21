@@ -32,6 +32,19 @@ import {
   QrCode,
 } from 'lucide-react';
 
+const SBT_KEY_CONCEPTS: Record<number, string> = {
+  1: 'Area 2 Structure',
+  2: 'Mitigation Block',
+  3: 'FVG',
+  4: 'Order Block',
+  5: 'Order Block at Level 1',
+  6: 'Reversal Model',
+  7: 'Liquidity Engineering',
+  8: 'BOS Level Inducement',
+  9: 'Turtle Soup',
+  10: 'Close Back',
+};
+
 export const getSbtAssetPath = (modelNumber: number, variationId?: string): string => {
   switch (modelNumber) {
     case 1:
@@ -365,9 +378,14 @@ export const SbtModelsHub: React.FC = () => {
 
                     {/* Title */}
                     <div>
-                      <h3 className="text-base font-military font-bold text-slate-100 group-hover:text-teal-300 transition leading-snug">
-                        {m.title}
-                      </h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-base font-military font-bold text-slate-100 group-hover:text-teal-300 transition leading-snug">
+                          {m.title}
+                        </h3>
+                        <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/25 text-[9px] font-mono-code font-bold uppercase tracking-wide">
+                          {SBT_KEY_CONCEPTS[m.modelNumber]}
+                        </span>
+                      </div>
                       <p className="text-xs font-mono-code text-slate-400 line-clamp-2 mt-1">
                         {m.subtitle}
                       </p>
@@ -510,9 +528,14 @@ export const SbtModelsHub: React.FC = () => {
                       PDF Page {activeModel.sourcePage}
                     </span>
                   </div>
-                  <h2 className="text-lg font-military font-bold text-slate-100 mt-1">
-                    {activeModel.title}
-                  </h2>
+                  <div className="flex items-center gap-2 flex-wrap mt-1">
+                    <h2 className="text-lg font-military font-bold text-slate-100">
+                      {activeModel.title}
+                    </h2>
+                    <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/25 text-[9px] font-mono-code font-bold uppercase tracking-wide">
+                      {SBT_KEY_CONCEPTS[activeModel.modelNumber]}
+                    </span>
+                  </div>
                   <p className="text-xs font-mono-code text-slate-400 mt-0.5">
                     {activeModel.subtitle}
                   </p>
