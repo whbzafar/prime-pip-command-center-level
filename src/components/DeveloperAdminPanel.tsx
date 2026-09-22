@@ -86,6 +86,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
   // Edit modal
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<{ id: string; username: string } | null>(null);
+  const [adminDataExpanded, setAdminDataExpanded] = useState(false);
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -356,6 +357,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       expiryDate?: string;
       subscriptionPrice?: number;
       adminNotes?: string;
+      adminData?: UserAccount['adminData'];
     }
   ) => {
     const token = getStoredToken();
@@ -1068,6 +1070,140 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                 </div>
               </div>
 
+              <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setAdminDataExpanded((v) => !v)}
+                  className="w-full px-3 py-2.5 flex items-center justify-between text-left hover:bg-blue-500/10 transition"
+                >
+                  <div>
+                    <div className="text-cyan-300 font-bold uppercase tracking-wide">Admin Data</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">Funds • Allocation • Reward • Editor assignment</div>
+                  </div>
+                  <span className="text-[10px] text-slate-400">{adminDataExpanded ? 'HIDE' : 'OPEN'}</span>
+                </button>
+
+                {adminDataExpanded && (
+                  <div className="p-3 border-t border-blue-500/20 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="flex items-center gap-2 text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={editingUser.adminData?.editorAssigned === true}
+                          onChange={(e) => setEditingUser({
+                            ...editingUser,
+                            adminData: {
+                              ...(editingUser.adminData || { mode: 'ADMIN_REWARD' }),
+                              editorAssigned: e.target.checked,
+                              editorName: e.target.checked
+                                ? (editingUser.adminData?.editorName || currentUser?.name || 'Assigned Editor')
+                                : undefined,
+                              updatedAt: new Date().toISOString(),
+                            },
+                          })}
+                          className="accent-cyan-400"
+                        />
+                        <span className="text-xs font-bold">Editor Assigned</span>
+                      </label>
+                      <select
+                        value={editingUser.adminData?.mode || 'ADMIN_REWARD'}
+                        onChange={(e) => setEditingUser({
+                          ...editingUser,
+                          adminData: {
+                            ...(editingUser.adminData || { editorAssigned: false }),
+                            mode: e.target.value as 'ADMIN_REWARD' | 'OPTIONAL',
+                            updatedAt: new Date().toISOString(),
+                          },
+                        })}
+                        className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
+                      >
+                        <option value="ADMIN_REWARD">ADMIN REWARD</option>
+                        <option value="OPTIONAL">OPTIONAL</option>
+                      </select>
+                    </div>
+
+                    {editingUser.adminData?.editorAssigned && (
+                      <>
+                        <input
+                          type="text"
+                          value={editingUser.adminData?.editorName || ''}
+                          onChange={(e) => setEditingUser({
+                            ...editingUser,
+                            adminData: {
+                              ...(editingUser.adminData || { mode: 'ADMIN_REWARD', editorAssigned: true }),
+                              editorAssigned: true,
+                              editorName: e.target.value,
+                              updatedAt: new Date().toISOString(),
+                            },
+                          })}
+                          placeholder="Assigned editor name"
+                          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
+                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="text-slate-400 block mb-1">Funds</label>
+                            <input
+                              type="number"
+                              step="any"
+                              value={editingUser.adminData?.funds ?? ''}
+                              onChange={(e) => setEditingUser({
+                                ...editingUser,
+                                adminData: {
+                                  ...(editingUser.adminData || { mode: 'ADMIN_REWARD', editorAssigned: true }),
+                                  editorAssigned: true,
+                                  funds: e.target.value === '' ? undefined : Number(e.target.value),
+                                  updatedAt: new Date().toISOString(),
+                                },
+                              })}
+                              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-slate-400 block mb-1">Allocation</label>
+                            <input
+                              type="number"
+                              step="any"
+                              value={editingUser.adminData?.allocation ?? ''}
+                              onChange={(e) => setEditingUser({
+                                ...editingUser,
+                                adminData: {
+                                  ...(editingUser.adminData || { mode: 'ADMIN_REWARD', editorAssigned: true }),
+                                  editorAssigned: true,
+                                  allocation: e.target.value === '' ? undefined : Number(e.target.value),
+                                  updatedAt: new Date().toISOString(),
+                                },
+                              })}
+                              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-slate-400 block mb-1">Reward</label>
+                            <input
+                              type="number"
+                              step="any"
+                              value={editingUser.adminData?.reward ?? ''}
+                              onChange={(e) => setEditingUser({
+                                ...editingUser,
+                                adminData: {
+                                  ...(editingUser.adminData || { mode: 'ADMIN_REWARD', editorAssigned: true }),
+                                  editorAssigned: true,
+                                  reward: e.target.value === '' ? undefined : Number(e.target.value),
+                                  updatedAt: new Date().toISOString(),
+                                },
+                              })}
+                              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-slate-500">
+                          Admin values remain hidden from the student until the Admin option is opened. Optional mode lets the student enter their own values.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="text-slate-300 font-bold block mb-1">Admin Notes (Private)</label>
                 <textarea
@@ -1099,6 +1235,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                     expiryDate: editingUser.expiryDate,
                     subscriptionPrice: editingUser.subscriptionPrice,
                     adminNotes: editingUser.adminNotes,
+                    adminData: editingUser.adminData,
                   });
                   setEditingUser(null);
                 }}
