@@ -6,6 +6,7 @@ import {
 import { DEFAULT_COT_RECORDS } from '../../data/defaultFundamentalObservations';
 import { CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
 import { calculateCotMetrics } from '../../utils/fundamentalCalculationEngine';
+import { generateCot } from '../../services/fundamentalLiveResearchService';
 import {
   Activity,
   ExternalLink,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 
 interface CotTradingViewProps {
+  activeCurrency?: CurrencyCode;
   cotData?: CotPositioningRecord[];
   cotRecords?: CotPositioningRecord[];
   onUpdateCotRecord?: (record: CotPositioningRecord) => void;
@@ -25,6 +27,7 @@ interface CotTradingViewProps {
 }
 
 export const CotTradingView: React.FC<CotTradingViewProps> = ({
+  activeCurrency,
   cotData,
   cotRecords = DEFAULT_COT_RECORDS,
   onUpdateCotRecord,
@@ -35,6 +38,8 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
   const [records, setRecords] = useState<CotPositioningRecord[]>(initialRecords);
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('USD');
   const [editingRecord, setEditingRecord] = useState<CotPositioningRecord | null>(null);
+  const [isLiveGenerating, setIsLiveGenerating] = useState(false);
+  const [liveMessage, setLiveMessage] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     nonCommercialLong: 0,
     nonCommercialShort: 0,
@@ -53,6 +58,10 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
       setRecords(cotRecords);
     }
   }, [cotData, cotRecords]);
+
+  React.useEffect(() => {
+    if (activeCurrency) setSelectedCurrency(activeCurrency);
+  }, [activeCurrency]);
 
   const currencies: CurrencyCode[] = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
 
@@ -77,6 +86,47 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
     nonReportableShort: currentRecord.nonReportableShort,
     openInterest: currentRecord.openInterest,
   });
+
+  const handleGenerateLiveCot = async (mode: 'GENERATE' | 'REGENERATE' = 'GENERATE') => {
+    if (!currentRecord || isLiveGenerating) return;
+    setIsLiveGenerating(true);
+    setLiveMessage(null);
+    try {
+      const result = await generateCot(selectedCurrency, currentRecord, mode);
+      if (result.status !== 'VERIFIED') {
+        setLiveMessage(result.notes || 'COT evidence could not be verified; existing record was preserved.');
+        return;
+      }
+      const updated: CotPositioningRecord = {
+        ...currentRecord,
+        contractName: result.contractName || currentRecord.contractName,
+        reportDate: result.reportDate || currentRecord.reportDate,
+        releaseDate: result.releaseDate || currentRecord.releaseDate,
+        openInterest: result.openInterest,
+        nonCommercialLong: result.nonCommercialLong,
+        nonCommercialShort: result.nonCommercialShort,
+        commercialLong: result.commercialLong,
+        commercialShort: result.commercialShort,
+        previousNetPosition: result.previousNetPosition ?? currentRecord.previousNetPosition,
+        previousOpenInterest: result.previousOpenInterest ?? currentRecord.previousOpenInterest,
+        sourceUrl: result.sourceUrl || currentRecord.sourceUrl,
+        notes: result.notes || currentRecord.notes,
+        updatedAt: result.retrievedAt || new Date().toISOString(),
+        verificationStatus: 'VERIFIED',
+        confidence: result.confidence,
+        researchRetrievedAt: result.retrievedAt,
+      };
+      const nextRecords = records.map((record) => record.currency === selectedCurrency ? updated : record);
+      setRecords(nextRecords);
+      onUpdateCotRecord?.(updated);
+      onUpdateCotRecords?.(nextRecords);
+      setLiveMessage(`${selectedCurrency} COT verified and refreshed from grounded web research.`);
+    } catch (error) {
+      setLiveMessage(error instanceof Error ? error.message : 'Live COT research failed; existing data was preserved.');
+    } finally {
+      setIsLiveGenerating(false);
+    }
+  };
 
   const handleStartEdit = (rec: CotPositioningRecord) => {
     setEditingRecord(rec);
@@ -150,16 +200,40 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
           </div>
 
           {/* Prominent COT source button */}
-          <a
-            href={cotSourceUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-military font-bold transition shadow-lg shadow-blue-600/25 cursor-pointer"
-          >
-            <span>Open COT Report ↗</span>
-            <ExternalLink className="w-4 h-4" />
-          </a>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => handleGenerateLiveCot('GENERATE')}
+              disabled={isLiveGenerating}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 text-xs font-military font-bold transition cursor-pointer"
+            >
+              {isLiveGenerating ? 'RESEARCHING…' : 'GENERATE LIVE COT'}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleGenerateLiveCot('REGENERATE')}
+              disabled={isLiveGenerating}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-cyan-300 border border-cyan-500/30 text-xs font-military font-bold transition cursor-pointer"
+            >
+              REGENERATE
+            </button>
+            <a
+              href={cotSourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-military font-bold transition shadow-lg shadow-blue-600/25 cursor-pointer"
+            >
+              <span>Open COT Report ↗</span>
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
         </div>
+
+        {liveMessage && (
+          <div className="px-3 py-2 rounded-xl bg-slate-900/70 border border-cyan-500/20 text-[11px] font-mono-code text-slate-300">
+            <strong className="text-cyan-300">COT LIVE RESEARCH:</strong> {liveMessage}
+          </div>
+        )}
 
         {/* Currency Switcher */}
         <div className="flex flex-wrap items-center gap-2">
@@ -213,6 +287,9 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
                 </span>
                 <span className="text-xs font-mono-code text-slate-400">
                   Report Date: {currentRecord.reportDate}
+                </span>
+                <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-cyan-300">
+                  {currentRecord.verificationStatus || 'MANUAL'}
                 </span>
               </div>
               <p className="text-xs font-mono-code text-slate-400 mt-0.5">
