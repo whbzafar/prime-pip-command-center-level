@@ -652,39 +652,138 @@ function finiteOrNull(value: unknown): number | null {
   return Number.isFinite(number) ? number : null;
 }
 
-async function groundedJsonResearch(prompt: string): Promise<{ parsed: any; sources: GroundedResearchSource[] }> {
+async function groundedJsonResearch(prompt: string): Promise<{ parsed: any; sources: GroundedResearchSource[]; searchQueries: string[] }> {
   const ai = getGeminiClient();
   if (!ai) throw new Error('Live research requires GEMINI_API_KEY.');
+
+  // IMPORTANT: Keep the Google Search grounding call separate from JSON extraction.
+  // Google can omit groundingChunks when structured JSON output is requested. If we
+  // combine both operations, the app can falsely classify valid research as unverified.
   const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest'];
   let lastError: any = null;
 
   for (const model of candidateModels) {
     try {
-      const response = await withTimeout(ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          systemInstruction: 'You are a strict economic-data extraction engine. Use Google Search grounding for current information. Never guess. Return JSON only. Use null for any field that is not directly supported by the grounded web evidence. Prefer official primary sources. Treat revised values as revisions, not new releases. Forecast means the published consensus/market forecast for the same release; do not substitute a model forecast unless the source explicitly labels it as the forecast.',
-          tools: [{ googleSearch: {} }],
-          responseMimeType: 'application/json',
-        },
-      }), 24000);
+      const groundedResponse = await withTimeout(
+        ai.models.generateContent({
+          model,
+          contents: prompt + '\\n\\nReturn a concise research brief in plain text. Include the exact values, release/reference period, release date, units, and the source titles/URLs you relied on. Do not invent missing values.',
+          config: {
+            systemInstruction:
+              'You are the PrimePipFX live economic-data research engine. You MUST use Google Search grounding for current data. Search first, then answer only from the retrieved evidence. Prefer official primary sources and established economic-calendar sources. Never guess. If a requested field is unavailable, explicitly say it is unavailable.',
+            tools: [{ googleSearch: {} }],
+            temperature: 0.1,
+          },
+        }),
+        14000,
+      );
 
-      let parsed: any;
-      try {
-        parsed = JSON.parse(response.text || '{}');
-      } catch {
-        lastError = new Error('Grounded research returned invalid JSON.');
+      const researchText = (groundedResponse.text || '').trim();
+      const groundingMetadata = (groundedResponse as any)?.candidates?.[0]?.groundingMetadata;
+      const rawChunks = Array.isArray(groundingMetadata?.groundingChunks)
+        ? groundingMetadata.groundingChunks
+        : [];
+      const sources: GroundedResearchSource[] = [];
+      for (const chunk of rawChunks) {
+        const web = chunk?.web;
+        if (!web?.uri || typeof web.uri !== 'string') continue;
+        if (!sources.some((source) => source.uri === web.uri)) {
+          sources.push({
+            title: typeof web.title === 'string' ? web.title : undefined,
+            uri: web.uri,
+          });
+        }
+      }
+      const searchQueries = Array.isArray(groundingMetadata?.webSearchQueries)
+        ? groundingMetadata.webSearchQueries.filter((item: unknown): item is string => typeof item === 'string')
+        : [];
+
+      if (!researchText) {
+        lastError = new Error('Google Search grounding returned no research text.');
         continue;
       }
 
-      return { parsed, sources: uniqueGroundedSources(response) };
+      // A second, non-grounded call performs deterministic JSON extraction from the
+      // already-grounded evidence. This avoids the grounding-metadata/JSON-output
+      // incompatibility and keeps the source evidence available for validation.
+      const extractionPrompt = [
+        'Convert the following grounded research brief into JSON.',
+        'Return JSON only with no markdown fences.',
+        'Never add a value that is not explicitly supported by the research brief.',
+        'Use null for missing numeric fields.',
+        'Preserve exact dates, periods, units and source information.',
+        '',
+        'GROUNDED RESEARCH BRIEF:',
+        researchText,
+        '',
+        'GROUNDING SOURCES:',
+        JSON.stringify(sources),
+        '',
+        'SEARCH QUERIES:',
+        JSON.stringify(searchQueries),
+        '',
+        'REQUIRED OUTPUT SHAPE:',
+        '{ "actual": number|null, "forecast": number|null, "previous": number|null, "revisedPrevious": number|null, "referencePeriod": string, "releaseDate": string, "unit": string, "sourceName": string, "sourceUrl": string, "confidence": number, "notes": string }',
+      ].join('\\n');
+
+      const extractionResponse = await withTimeout(
+        ai.models.generateContent({
+          model,
+          contents: extractionPrompt,
+          config: {
+            responseMimeType: 'application/json',
+            temperature: 0,
+          },
+        }),
+        8000,
+      );
+
+      let parsed: any;
+      try {
+        parsed = JSON.parse(extractionResponse.text || '{}');
+      } catch {
+        // Be tolerant of a model returning a fenced JSON object despite the JSON mode.
+        const raw = extractionResponse.text || '';
+        const first = raw.indexOf('{');
+        const last = raw.lastIndexOf('}');
+        if (first >= 0 && last > first) {
+          parsed = JSON.parse(raw.slice(first, last + 1));
+        } else {
+          throw new Error('Grounded research extraction returned invalid JSON.');
+        }
+      }
+
+      return { parsed, sources, searchQueries };
     } catch (error: any) {
       lastError = error;
+      console.warn('[FUNDAMENTAL GROUNDED RESEARCH] model failed:', model, error?.message || error);
     }
   }
 
   throw lastError || new Error('Grounded research failed.');
+}
+
+function normalizeUnit(value: unknown): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\\s+/g, '')
+    .replace(/%/g, 'percent');
+}
+
+function isGroundedSourceUrl(sourceUrl: string, sources: GroundedResearchSource[]): boolean {
+  if (!sourceUrl || sources.length === 0) return false;
+  const target = safeHostname(sourceUrl);
+  if (!target) return false;
+
+  // Grounding URIs may be Google redirect/proxy URLs. In that case the source
+  // title still proves that a web source was returned, so accept any HTTPS URL
+  // selected from the grounded evidence and keep the grounding sources alongside it.
+  return sourceUrl.startsWith('https://') && (
+    sourceMatchesGrounding(sourceUrl, sources) ||
+    sources.some((source) => safeHostname(source.uri) === target) ||
+    sources.some((source) => /vertexaisearch\\.cloud\\.google\\.com$/i.test(safeHostname(source.uri)))
+  );
 }
 
 function indicatorResearchPrompt(definition: any, existingObservation: any, mode: string): string {
