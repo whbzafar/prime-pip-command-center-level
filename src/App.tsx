@@ -1132,6 +1132,11 @@ export default function App() {
           existingTrades={trades}
           initialInstrument={selectedInstrument}
           onInstrumentChange={setSelectedInstrument}
+          onOpenPreTradePlan={() => {
+            setIsEntryModalOpen(false);
+            setPrefilledTradeData(null);
+            setActiveTab('PRE_TRADE_PLAN');
+          }}
         />
       )}
 
