@@ -8,7 +8,6 @@ import {
   Shield,
   Eye,
   EyeOff,
-  Sparkles,
   AlertCircle,
   CheckCircle2,
   MessageCircle,
@@ -501,10 +500,8 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   <span>{error}</span>
                 </div>
                 <div className="text-[11px] text-slate-300 bg-slate-900/80 p-2.5 rounded-lg border border-slate-700/60 leading-relaxed">
-                  <span className="text-amber-400 font-bold block mb-1">🔑 Login Credentials Guide:</span>
-                  <div>• <strong className="text-cyan-300">Admin:</strong> Use <code className="text-cyan-200">primepipfx-admin</code> with password <code className="text-cyan-200">PPFX@Admin#2026</code> or <code className="text-cyan-200">admin123</code></div>
-                  <div>• <strong className="text-emerald-300">Students:</strong> Use your username with password <code className="text-emerald-200">&lt;username&gt;12345</code> (e.g. <code className="text-emerald-200">zartab12345</code> or <code className="text-emerald-200">wahab12345</code>)</div>
-                  <div className="mt-1 text-slate-400 text-[10px]">Or simply click one of the quick fill buttons below to log in instantly.</div>
+                  <span className="text-amber-400 font-bold block mb-1">🔑 Login Credentials:</span>
+                  <div>Enter your authorized username and password manually to initialize the terminal.</div>
                 </div>
               </motion.div>
             )}
@@ -563,61 +560,6 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                       aria-label="Toggle password visibility"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Quick Fill Credentials Chips */}
-                <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-700/60 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-mono-code">
-                    <span className="text-slate-300 font-bold flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                      Quick Fill Authorized Account
-                    </span>
-                    <span className="text-[10px] text-cyan-400/80 font-mono-code">1-Click Fill</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUsername('primepipfx-admin');
-                        setPassword('PPFX@Admin#2026');
-                        setError(null);
-                      }}
-                      className="p-2 bg-slate-800/80 hover:bg-cyan-950/60 hover:border-cyan-500/50 border border-slate-700/60 rounded-lg text-left transition-all group cursor-pointer"
-                    >
-                      <div className="text-[10px] font-bold text-cyan-400 group-hover:text-cyan-300 font-mono-code truncate">
-                        Admin / Dev
-                      </div>
-                      <div className="text-[9px] text-slate-400 truncate">Master Pass</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUsername('zartab');
-                        setPassword('zartab12345');
-                        setError(null);
-                      }}
-                      className="p-2 bg-slate-800/80 hover:bg-emerald-950/60 hover:border-emerald-500/50 border border-slate-700/60 rounded-lg text-left transition-all group cursor-pointer"
-                    >
-                      <div className="text-[10px] font-bold text-emerald-400 group-hover:text-emerald-300 font-mono-code truncate">
-                        Zartab
-                      </div>
-                      <div className="text-[9px] text-slate-400 truncate">zartab12345</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUsername('wahab');
-                        setPassword('wahab12345');
-                        setError(null);
-                      }}
-                      className="p-2 bg-slate-800/80 hover:bg-amber-950/60 hover:border-amber-500/50 border border-slate-700/60 rounded-lg text-left transition-all group cursor-pointer"
-                    >
-                      <div className="text-[10px] font-bold text-amber-400 group-hover:text-amber-300 font-mono-code truncate">
-                        Wahab
-                      </div>
-                      <div className="text-[9px] text-slate-400 truncate">wahab12345</div>
                     </button>
                   </div>
                 </div>
