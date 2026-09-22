@@ -61,6 +61,7 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [batchState, setBatchState] = useState({ running: false, completed: 0, total: 0 });
   const [liveMessage, setLiveMessage] = useState<string | null>(null);
+  const [customCategoryName, setCustomCategoryName] = useState('');
   const [customForm, setCustomForm] = useState({
     currency: 'USD' as CurrencyCode,
     name: '',
@@ -78,6 +79,15 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
     releaseDate: '',
     notes: '',
   });
+
+  useEffect(() => {
+    if (!isAddingCustom) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsAddingCustom(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isAddingCustom]);
 
   useEffect(() => {
     try {
@@ -263,6 +273,7 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
       name: '',
       shortLabel: '',
       category: 'INFLATION',
+      
       frequency: 'Monthly',
       measurementPeriod: 'Percentage (%)',
       unit: '%',
@@ -297,8 +308,10 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
         releaseDate: item.releaseDate || '',
         notes: item.notes || '',
       });
+      setCustomCategoryName(item.category === 'CUSTOM' ? (item.notes?.match(/Custom category:\s*(.+?)(?:\n|$)/i)?.[1] || '') : '');
     } else {
       resetCustomForm();
+      setCustomCategoryName('');
       setEditingCustom(null);
     }
     setIsAddingCustom(true);
@@ -317,12 +330,13 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
       return;
     }
 
+    const effectiveCategory = customForm.category === 'CUSTOM' ? 'CUSTOM' : customForm.category;
     const item: CustomFundamentalIndicator = {
       id: editingCustom?.id || `CUSTOM_${customForm.currency}_${Date.now()}`,
       currency: customForm.currency,
       name: customForm.name.trim(),
       shortLabel: customForm.shortLabel.trim(),
-      category: customForm.category,
+      category: effectiveCategory,
       frequency: customForm.frequency,
       measurementPeriod: customForm.measurementPeriod,
       unit: customForm.unit.trim() || '%',
@@ -333,7 +347,7 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
       previous,
       referencePeriod: customForm.referencePeriod.trim() || undefined,
       releaseDate: customForm.releaseDate.trim() || undefined,
-      notes: customForm.notes.trim() || undefined,
+      notes: [customForm.notes.trim(), customForm.category === 'CUSTOM' && customCategoryName.trim() ? `Custom category: ${customCategoryName.trim()}` : ''].filter(Boolean).join('\n') || undefined,
       updatedAt: new Date().toISOString(),
       verificationStatus: 'MANUAL',
     };
@@ -815,14 +829,14 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
 
       {/* Add / Edit Custom Indicator Modal */}
       {isAddingCustom && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="relative w-full max-w-2xl bg-[#0a0f1d] border border-amber-500/30 rounded-2xl shadow-2xl p-6 text-slate-100 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsAddingCustom(false); }}>
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0a0f1d] border border-amber-500/30 rounded-2xl shadow-2xl p-6 text-slate-100 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
                 <h3 className="font-military font-bold text-base">Add / Edit Custom Indicator</h3>
                 <p className="text-[10px] text-slate-500 mt-1">Custom items do not change the official 81-indicator registry count.</p>
               </div>
-              <button type="button" onClick={() => setIsAddingCustom(false)} className="p-1 rounded-lg bg-slate-900 text-slate-400"><X className="w-4 h-4" /></button>
+              <button type="button" aria-label="Close custom indicator window" onClick={() => setIsAddingCustom(false)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700"><X className="w-4 h-4" />Close</button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono-code">
               <label className="space-y-1"><span className="text-slate-400">Currency</span><select value={customForm.currency} onChange={(e) => setCustomForm({ ...customForm, currency: e.target.value as CurrencyCode })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5"><option>USD</option><option>EUR</option><option>GBP</option><option>JPY</option><option>CHF</option><option>CAD</option><option>AUD</option><option>NZD</option></select></label>
@@ -838,9 +852,9 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
               <label className="space-y-1 sm:col-span-2"><span className="text-slate-400">Source URL (optional)</span><input value={customForm.sourceUrl} onChange={(e) => setCustomForm({ ...customForm, sourceUrl: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
               <label className="space-y-1 sm:col-span-2"><span className="text-slate-400">Notes</span><textarea rows={2} value={customForm.notes} onChange={(e) => setCustomForm({ ...customForm, notes: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setIsAddingCustom(false)} className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">Cancel</button>
-              <button type="button" onClick={saveCustomIndicator} className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold">Save Custom Indicator</button>
+            <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-800 sticky bottom-0 bg-[#0a0f1d]">
+              <button type="button" onClick={() => setIsAddingCustom(false)} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold">Cancel / Close</button>
+              <div className="flex gap-2"><button type="button" onClick={() => setIsAddingCustom(false)} className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-bold">Done</button><button type="button" onClick={saveCustomIndicator} className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold">Save Custom Indicator</button></div>
             </div>
           </div>
         </div>
