@@ -13,8 +13,7 @@ export type IndicatorCategory =
   | 'RATES_YIELDS'
   | 'COT_POSITIONING'
   | 'SENTIMENT'
-  | 'COMMODITY_DRIVER'
-  | 'CUSTOM';
+  | 'COMMODITY_DRIVER';
 
 export type MeasurementFrequency =
   | 'Monthly'
