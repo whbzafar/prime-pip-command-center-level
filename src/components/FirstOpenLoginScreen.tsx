@@ -21,6 +21,7 @@ import {
   Cloud,
   Database,
   ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 import {
   apiLogin,
