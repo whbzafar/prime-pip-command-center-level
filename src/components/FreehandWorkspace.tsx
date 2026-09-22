@@ -1700,7 +1700,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({ userKey = 
             </button>
 
             {isExportMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-slate-950 border border-slate-700 rounded-xl shadow-2xl p-1.5 z-50 space-y-1 text-xs">
+              <div className="absolute right-0 bottom-full mb-2 w-48 bg-slate-950 border border-slate-700 rounded-xl shadow-2xl p-1.5 z-[80] space-y-1 text-xs">
                 <button
                   onClick={handleExportPNG}
                   className="w-full px-3 py-2 text-left rounded-lg text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
