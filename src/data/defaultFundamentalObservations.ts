@@ -1743,7 +1743,7 @@ export const DEFAULT_COMMODITY_OBSERVATIONS: CommodityObservation[] = [
     referenceDate: '2026-09-20',
     price: 31.4,
     usRealYield10Y: 1.62,
-    centralBankDemandTone: 'STEADY',
+    industrialDemandTone: 'STRONG',
     geopoliticalRiskLevel: 'HIGH',
     cotNetPosition: 46200,
     notes: 'Outperforming gold on industrial demand for photovoltaic solar cells and monetary easing tailwinds.',
