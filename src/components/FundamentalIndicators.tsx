@@ -807,6 +807,7 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
 
       {activeTab === 'COT_REPORT' && (
         <CotTradingView
+          activeCurrency={activeCurrency}
           cotData={cotRecords}
           onUpdateCotRecord={(updated) => {
             setCotRecords((prev) => prev.map((r) => (r.currency === updated.currency ? updated : r)));
