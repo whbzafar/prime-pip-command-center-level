@@ -1145,7 +1145,7 @@ export const FreehandWorkspace: React.FC = () => {
     setIsLoadModalOpen(false);
   };
 
-  // Professional trading palette
+  // Professional trading palette — 48 curated colors for technical analysis.
   const professionalColors = [
     { hex: '#10B981', label: 'Bullish / TP Green' },
     { hex: '#EF4444', label: 'Bearish / SL Red' },
@@ -1155,6 +1155,45 @@ export const FreehandWorkspace: React.FC = () => {
     { hex: '#8B5CF6', label: 'Liquidity / Purple' },
     { hex: '#F97316', label: 'Momentum / Orange' },
     { hex: '#EC4899', label: 'Accent / Pink' },
+    { hex: '#22C55E', label: 'Emerald' },
+    { hex: '#16A34A', label: 'Deep Green' },
+    { hex: '#15803D', label: 'Forest Green' },
+    { hex: '#84CC16', label: 'Lime' },
+    { hex: '#A3E635', label: 'Chartreuse' },
+    { hex: '#EAB308', label: 'Signal Yellow' },
+    { hex: '#FACC15', label: 'Bright Yellow' },
+    { hex: '#FBBF24', label: 'Amber' },
+    { hex: '#D97706', label: 'Deep Amber' },
+    { hex: '#EA580C', label: 'Burnt Orange' },
+    { hex: '#DC2626', label: 'Crimson' },
+    { hex: '#B91C1C', label: 'Deep Red' },
+    { hex: '#FB7185', label: 'Rose' },
+    { hex: '#F43F5E', label: 'Rose Red' },
+    { hex: '#DB2777', label: 'Magenta' },
+    { hex: '#C026D3', label: 'Fuchsia' },
+    { hex: '#A855F7', label: 'Violet' },
+    { hex: '#7C3AED', label: 'Deep Violet' },
+    { hex: '#6366F1', label: 'Indigo' },
+    { hex: '#4F46E5', label: 'Deep Indigo' },
+    { hex: '#3B82F6', label: 'Royal Blue' },
+    { hex: '#2563EB', label: 'Trading Blue' },
+    { hex: '#1D4ED8', label: 'Deep Blue' },
+    { hex: '#60A5FA', label: 'Sky Blue' },
+    { hex: '#38BDF8', label: 'Light Blue' },
+    { hex: '#0EA5E9', label: 'Ocean Blue' },
+    { hex: '#0284C7', label: 'Deep Cyan' },
+    { hex: '#14B8A6', label: 'Teal' },
+    { hex: '#0D9488', label: 'Deep Teal' },
+    { hex: '#2DD4BF', label: 'Mint Teal' },
+    { hex: '#34D399', label: 'Fresh Green' },
+    { hex: '#F8FAFC', label: 'Pure White' },
+    { hex: '#CBD5E1', label: 'Cool Silver' },
+    { hex: '#94A3B8', label: 'Slate Gray' },
+    { hex: '#64748B', label: 'Steel Gray' },
+    { hex: '#475569', label: 'Dark Slate' },
+    { hex: '#334155', label: 'Graphite' },
+    { hex: '#1E293B', label: 'Midnight Slate' },
+    { hex: '#111827', label: 'Near Black' },
   ];
 
   const toolsList: Array<{ id: Tool; label: string; icon: any }> = [
