@@ -639,11 +639,6 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                   <p className="text-[11px] text-slate-400 font-mono-code">
                     Verify high-probability confluence before pulling the trigger.
                   </p>
-                  {onOpenPreTradePlan && (
-                    <button type="button" onClick={onOpenPreTradePlan} className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-mono-code font-bold text-cyan-400 hover:text-cyan-300 underline underline-offset-2 cursor-pointer">
-                      OPEN PRE-TRADE PLAN ↗
-                    </button>
-                  )}
                 </div>
               </div>
 
@@ -684,6 +679,13 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
 
             {checklistOpen && (
               <div className="pt-2 border-t border-slate-800/80 space-y-3">
+                {onOpenPreTradePlan && (
+                  <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-cyan-950/20 border border-cyan-500/30">
+                    <span className="text-[10px] text-slate-400 font-mono-code">Need the full planning framework?</span>
+                    <button type="button" onClick={onOpenPreTradePlan} className="inline-flex items-center gap-1.5 text-[10px] font-mono-code font-bold text-cyan-300 hover:text-white underline underline-offset-2 cursor-pointer">
+                      OPEN PRE-TRADE PLAN ↗
+                    </button>
+                  </div>
                 <div className="flex items-center justify-between text-[11px] font-mono-code text-slate-400">
                   <span>Confluence Checklist Items:</span>
                   <div className="flex items-center gap-2">
