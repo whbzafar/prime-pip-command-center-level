@@ -27,6 +27,7 @@ import {
   Compass,
   Activity,
   Users,
+  RotateCcw,
 } from 'lucide-react';
 import { OFFICIAL_INDICATOR_REGISTRY, CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
 import { DEFAULT_INTEREST_RATES, DEFAULT_COT_RECORDS } from '../../data/defaultFundamentalObservations';
