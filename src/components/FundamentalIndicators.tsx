@@ -46,6 +46,7 @@ import { HistoricalSnapshotsView } from './fundamental/HistoricalSnapshotsView';
 import { DataQualityAuditView } from './fundamental/DataQualityAuditView';
 import { ModelWeightsRegistryView } from './fundamental/ModelWeightsRegistryView';
 import { FundamentalMethodologyView } from './fundamental/FundamentalMethodologyView';
+import { FundamentalLiveSearch } from './fundamental/FundamentalLiveSearch';
 
 // Modals
 import { ModelAuditModal } from './fundamental/ModelAuditModal';
@@ -579,6 +580,9 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
             </button>
           </div>
         </div>
+
+        {/* Integrated live search — results stay inside Fundamental Intelligence */}
+        <FundamentalLiveSearch />
 
         {/* Architecture Navigation Tabs */}
         <div className="flex items-center gap-2 pb-1 text-xs font-military font-bold tracking-wider">
