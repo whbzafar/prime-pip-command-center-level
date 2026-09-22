@@ -54,9 +54,7 @@ const CATEGORIES_NAV: { key: IndicatorCategory; label: string }[] = [
   { key: 'MONETARY_POLICY', label: 'Monetary Policy' },
   { key: 'RATES_YIELDS', label: 'Yields' },
   { key: 'CONSUMER', label: 'Consumer' },
-  { key: 'HOUSING', label: 'Housing' },
   { key: 'TRADE_EXTERNAL', label: 'Trade' },
-  { key: 'FISCAL', label: 'Fiscal' },
 ];
 
 export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
