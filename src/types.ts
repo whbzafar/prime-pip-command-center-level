@@ -506,6 +506,16 @@ export type SubscriptionStatus =
 
 export type PaymentStatus = 'UNPAID' | 'PENDING' | 'VERIFIED' | 'REJECTED';
 
+export interface AdminDataWorkspace {
+  mode: 'ADMIN_REWARD' | 'OPTIONAL';
+  editorAssigned: boolean;
+  editorName?: string;
+  funds?: number;
+  allocation?: number;
+  reward?: number;
+  updatedAt?: string;
+}
+
 export interface UserAccount {
   id: string;
   name: string;
@@ -536,6 +546,7 @@ export interface UserAccount {
   googleDriveConnected?: boolean;
   googleDriveEmail?: string;
   googleDriveLastBackup?: string;
+  adminData?: AdminDataWorkspace;
 }
 
 export interface ReferralRecord {
