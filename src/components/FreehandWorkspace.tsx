@@ -83,11 +83,12 @@ const FIB_LEVELS = [
   { level: 1.0, label: '100.0% (0.000)', color: '#94A3B8' },
 ];
 
-export const FreehandWorkspace: React.FC = () => {
+interface FreehandWorkspaceProps { userKey?: string; }
+
+export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({ userKey = 'guest' }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const textInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [tool, setTool] = useState<Tool>('LINE');
   const [color, setColor] = useState<string>('#F59E0B'); // Key-level gold default
@@ -165,19 +166,21 @@ export const FreehandWorkspace: React.FC = () => {
   } | null>(null);
 
   type ShortcutAction = Tool | 'BULLISH_CANDLE' | 'BEARISH_CANDLE' | 'SAVE_WORKSPACE' | 'EXPORT_WORKSPACE';
-  const DEFAULT_SHORTCUTS: Record<ShortcutAction, string> = {
-    SELECT: 'S', PAN: 'H', CANDLE: 'C', PEN: 'P', HIGHLIGHTER: 'M', LINE: 'L',
-    HORIZONTAL_LINE: 'V', RAY: 'Y', ARROW: 'A', RECTANGLE: 'O', CIRCLE: 'I',
-    FIBONACCI: 'F', TEXT: 'T', ERASER: 'E', SMART_PENCIL: 'D',
-    BULLISH_CANDLE: 'B', BEARISH_CANDLE: 'R', SAVE_WORKSPACE: 'CTRL+S', EXPORT_WORKSPACE: 'CTRL+X',
-  };
+  const shortcutActions = [
+    'SELECT','PAN','CANDLE','PEN','HIGHLIGHTER','LINE','HORIZONTAL_LINE','RAY','ARROW',
+    'RECTANGLE','CIRCLE','FIBONACCI','TEXT','ERASER','SMART_PENCIL',
+    'BULLISH_CANDLE','BEARISH_CANDLE','SAVE_WORKSPACE','EXPORT_WORKSPACE',
+  ] as ShortcutAction[];
+  const emptyShortcuts = (): Record<ShortcutAction, string> =>
+    shortcutActions.reduce((acc, action) => ({ ...acc, [action]: '' }), {} as Record<ShortcutAction, string>);
+  const shortcutStorageKey = `primepipfx_freehand_shortcuts_v2_${userKey}`;
   const [shortcuts, setShortcuts] = useState<Record<ShortcutAction, string>>(() => {
     try {
-      const raw = localStorage.getItem('primepipfx_freehand_shortcuts');
+      const raw = localStorage.getItem(shortcutStorageKey);
       const parsed = raw ? JSON.parse(raw) : {};
-      return { ...DEFAULT_SHORTCUTS, ...(parsed && typeof parsed === 'object' ? parsed : {}) };
+      return { ...emptyShortcuts(), ...(parsed && typeof parsed === 'object' ? parsed : {}) };
     } catch {
-      return DEFAULT_SHORTCUTS;
+      return emptyShortcuts();
     }
   });
 
@@ -282,17 +285,45 @@ export const FreehandWorkspace: React.FC = () => {
         const next = comboForEvent(e);
         setShortcuts((prev) => {
           const updated = { ...prev, [recordingShortcut]: next };
-          try { localStorage.setItem('primepipfx_freehand_shortcuts', JSON.stringify(updated)); } catch {}
+          try { localStorage.setItem(shortcutStorageKey, JSON.stringify(updated)); } catch {}
           return updated;
         });
         setRecordingShortcut(null);
         return;
       }
 
-      if (editingField) {
-        if (e.key === 'Escape' && inlineTextInput) setInlineTextInput(null);
-        return;
+      // Direct canvas typing: while TEXT mode is active, keystrokes are captured
+      // by the workspace itself so there is no visible input box.
+      if (tool === 'TEXT' && inlineTextInput && !recordingShortcut) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setInlineTextInput(null);
+          return;
+        }
+        if (editingField && target?.tagName !== 'TEXTAREA') return;
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleCommitInlineText();
+          return;
+        }
+        if (e.key === 'Backspace') {
+          e.preventDefault();
+          setInlineTextInput((prev) => (prev ? { ...prev, text: prev.text.slice(0, -1) } : null));
+          return;
+        }
+        if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
+          e.preventDefault();
+          setInlineTextInput((prev) => (prev ? { ...prev, text: prev.text + e.key } : null));
+          return;
+        }
+        if (e.key === ' ') {
+          e.preventDefault();
+          setInlineTextInput((prev) => (prev ? { ...prev, text: prev.text + ' ' } : null));
+          return;
+        }
       }
+
+      if (editingField) return;
 
       const combo = comboForEvent(e);
       const action = (Object.keys(shortcuts) as ShortcutAction[]).find((key) => shortcuts[key] === combo);
@@ -317,7 +348,7 @@ export const FreehandWorkspace: React.FC = () => {
       if (action === 'BEARISH_CANDLE') {
         e.preventDefault(); setTool('CANDLE'); setCandleType('BEARISH'); setColor('#EF4444'); return;
       }
-      if (action && action in DEFAULT_SHORTCUTS) {
+      if (action) {
         e.preventDefault();
         setTool(action as Tool);
         setSelectedItemId(null);
@@ -335,7 +366,7 @@ export const FreehandWorkspace: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedItemId, inlineTextInput, recordingShortcut, shortcuts, handleDeleteSelected, handleUndo, handleRedo]);
+  }, [selectedItemId, inlineTextInput, recordingShortcut, shortcuts, tool, handleDeleteSelected, handleUndo, handleRedo, color, strokeWidth]);
 
   // Coordinate transforms with pan & zoom support
   const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -378,14 +409,7 @@ export const FreehandWorkspace: React.FC = () => {
     syncCanvasSize();
     window.addEventListener('resize', syncCanvasSize);
 
-    const observer =
-      typeof ResizeObserver !== 'undefined' && containerRef.current
-        ? new ResizeObserver(syncCanvasSize)
-        : null;
 
-    if (observer && containerRef.current) {
-      observer.observe(containerRef.current);
-    }
 
     return () => {
       window.removeEventListener('resize', syncCanvasSize);
@@ -1332,7 +1356,7 @@ export const FreehandWorkspace: React.FC = () => {
     setIsLoadModalOpen(false);
   };
 
-  // Professional trading palette — 48 curated colors for technical analysis.
+  // Professional trading palette — opened on demand from the COLOR button.
   const professionalColors = [
     { hex: '#10B981', label: 'Bullish / TP Green' },
     { hex: '#EF4444', label: 'Bearish / SL Red' },
@@ -1444,14 +1468,14 @@ export const FreehandWorkspace: React.FC = () => {
               type="button"
               onClick={() => setColorPaletteOpen((open) => !open)}
               title="Choose Drawing Color"
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-300 hover:text-white transition cursor-pointer"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-300 hover:text-white transition cursor-pointer relative z-10"
             >
               <span className="w-5 h-5 rounded-full border border-white/30 shadow-inner" style={{ backgroundColor: color }} />
               <span>COLOR</span>
               <span className="text-slate-500">▾</span>
             </button>
             {colorPaletteOpen && (
-              <div className="absolute left-0 top-full mt-2 z-50 w-[310px] p-3 rounded-xl border border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur-xl">
+              <div className="absolute left-0 bottom-full mb-2 z-50 w-[310px] p-3 rounded-xl border border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur-xl">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-bold text-slate-300 uppercase">Professional Palette</span>
                   <span className="text-[9px] text-slate-500">{professionalColors.length} colors</span>
@@ -1717,7 +1741,7 @@ export const FreehandWorkspace: React.FC = () => {
 
       {/* Candlestick Tool Dedicated Properties Panel */}
       {tool === 'CANDLE' && (
-        <div className="bg-slate-950/95 border border-blue-500/40 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-lg text-xs animate-in fade-in">
+        <div className="bg-slate-950/95 border border-blue-500/40 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-lg text-xs">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-military font-bold text-cyan-400 tracking-wider flex items-center gap-1.5">
               <CandlestickChart className="w-4 h-4 text-cyan-400" />
@@ -1858,20 +1882,7 @@ export const FreehandWorkspace: React.FC = () => {
           }`}
         />
 
-        {/* Invisible keyboard capture: text is rendered directly on the canvas while typing. */}
-        {inlineTextInput && (
-          <textarea
-            ref={textInputRef}
-            autoFocus
-            value={inlineTextInput.text}
-            onChange={(e) => setInlineTextInput((prev) => (prev ? { ...prev, text: e.target.value } : null))}
-            onBlur={handleCommitInlineText}
-            onKeyDown={(e) => { if (e.key === 'Escape') setInlineTextInput(null); }}
-            aria-label="Direct canvas text input"
-            style={{ position: 'absolute', left: '-9999px', top: '0', width: '1px', height: '1px', opacity: 0 }}
-            tabIndex={0}
-          />
-        )}
+
 
 
         {/* Tooltip hint bar at bottom of canvas */}
@@ -1904,17 +1915,17 @@ export const FreehandWorkspace: React.FC = () => {
         <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div><h4 className="font-military font-bold text-slate-100 tracking-wider">SHORTCUT KEY SETTINGS</h4><p className="text-[10px] text-slate-500 mt-1">Click a shortcut to record a new key. Changes are saved locally.</p></div>
+              <div><h4 className="font-military font-bold text-slate-100 tracking-wider">SHORTCUT KEY SETTINGS</h4><p className="text-[10px] text-slate-500 mt-1">Click a shortcut to record a new key. Changes are saved separately for this account on this device.</p></div>
               <button onClick={() => setShortcutSettingsOpen(false)} className="text-slate-400 hover:text-white text-lg">×</button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {(Object.keys(shortcuts) as ShortcutAction[]).map((action) => {
                 const label = action === 'BULLISH_CANDLE' ? 'Bullish Candle' : action === 'BEARISH_CANDLE' ? 'Bearish Candle' : action === 'SAVE_WORKSPACE' ? 'Save Workspace' : action === 'EXPORT_WORKSPACE' ? 'Export Workspace' : action.replace(/_/g, ' ');
                 const active = recordingShortcut === action;
-                return <button key={action} onClick={() => setRecordingShortcut(action)} className={`flex items-center justify-between gap-3 p-3 rounded-xl border text-left ${active ? 'border-cyan-400 bg-cyan-500/10' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'}`}><span className="text-[11px] text-slate-300">{label}</span><kbd className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-[10px] text-cyan-300 font-mono-code">{active ? 'PRESS KEY…' : shortcuts[action]}</kbd></button>;
+                return <button key={action} onClick={() => setRecordingShortcut(action)} className={`flex items-center justify-between gap-3 p-3 rounded-xl border text-left ${active ? 'border-cyan-400 bg-cyan-500/10' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'}`}><span className="text-[11px] text-slate-300">{label}</span><kbd className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-[10px] text-cyan-300 font-mono-code">{active ? 'PRESS KEY…' : (shortcuts[action] || '—')}</kbd></button>;
               })}
             </div>
-            <div className="flex items-center justify-between pt-2 border-t border-slate-800"><span className="text-[10px] text-slate-500">Defaults: S Move • H Hand • B Bullish • R Bearish • T Text • E Eraser • Ctrl+S Save • Ctrl+X Export</span><button onClick={() => { setShortcuts(DEFAULT_SHORTCUTS); try { localStorage.setItem('primepipfx_freehand_shortcuts', JSON.stringify(DEFAULT_SHORTCUTS)); } catch {} }} className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-[10px] font-bold">RESET DEFAULTS</button></div>
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800"><span className="text-[10px] text-slate-500">No shortcuts are assigned by default. Each account has its own independent shortcut set.</span><button onClick={() => { setShortcuts(emptyShortcuts()); try { localStorage.setItem(shortcutStorageKey, JSON.stringify(emptyShortcuts())); } catch {} }} className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-[10px] font-bold">RESET DEFAULTS</button></div>
           </div>
         </div>
       )}
