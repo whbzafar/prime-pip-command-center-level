@@ -558,30 +558,36 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
       {/* Main Command Center Header */}
       <div className="bg-slate-950/90 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-5 backdrop-blur-xl">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
-          <div className="flex items-center gap-3.5">
-            <button
-              type="button"
-              onClick={() => setActiveTab('OVERVIEW')}
-              aria-label="Open Fundamental Intelligence Overview"
-              title="Open Overview"
-              className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/25 to-amber-500/15 border border-blue-500/40 flex items-center justify-center text-cyan-400 shadow-lg shadow-blue-500/10 hover:border-cyan-400/70 hover:bg-blue-500/20 transition cursor-pointer"
+          {/* Header Branding - Click anywhere on logo or name to navigate to Overview with interactive button-like hover state */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('OVERVIEW')}
+            aria-label="Fundamental Intelligence Dashboard - Click to go to Overview"
+            title="Fundamental Intelligence Dashboard — Click to go directly to Overview"
+            className="group flex items-center gap-3.5 text-left p-2 -m-2 rounded-2xl border border-transparent hover:border-cyan-500/50 hover:bg-slate-900/80 hover:shadow-lg hover:shadow-cyan-500/10 active:scale-[0.99] transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+          >
+            <div
+              className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/25 to-amber-500/15 border border-blue-500/40 flex items-center justify-center text-cyan-400 shadow-lg shadow-blue-500/10 group-hover:border-cyan-400 group-hover:bg-blue-500/30 group-hover:text-cyan-300 group-hover:scale-105 group-hover:shadow-cyan-500/25 transition-all duration-200 shrink-0"
             >
-              <Landmark className="w-6 h-6" />
-            </button>
+              <Landmark className="w-6 h-6 transition-transform group-hover:scale-110" />
+            </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/40 tracking-wider uppercase">
+                <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/40 tracking-wider uppercase group-hover:border-cyan-400/60 transition-colors">
                   DETERMINISTIC MACRO ENGINE
                 </span>
-                <span className="text-xs font-mono-code text-slate-400">
+                <span className="text-xs font-mono-code text-slate-400 group-hover:text-slate-300 transition-colors">
                   100% REPRODUCIBLE • ZERO MOCK DATA
                 </span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-military font-bold text-slate-100 tracking-wide mt-1">
-                FUNDAMENTAL INTELLIGENCE DASHBOARD
+              <h1 className="text-xl sm:text-2xl font-military font-bold text-slate-100 tracking-wide mt-1 group-hover:text-cyan-300 transition-colors flex items-center gap-2">
+                <span>FUNDAMENTAL INTELLIGENCE DASHBOARD</span>
+                <span className="text-[11px] font-mono-code text-cyan-400/80 opacity-0 group-hover:opacity-100 transition-opacity font-normal hidden sm:inline-block">
+                  → Overview
+                </span>
               </h1>
             </div>
-          </div>
+          </button>
 
           {/* Quick Engine Actions (Strict PDF-only export) */}
           <div className="flex items-center gap-2 flex-wrap">

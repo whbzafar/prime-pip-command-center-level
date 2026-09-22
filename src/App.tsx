@@ -65,6 +65,7 @@ import { Loader2, Shield, AlertTriangle, X } from 'lucide-react';
 import { playDisciplineAlert } from './utils/audioAlerts';
 import { getKarachiDate, getKarachiTime } from './utils/time';
 import { AppearanceControls } from './components/AppearanceControls';
+import { AmbientThemeRibbon } from './components/AmbientThemeRibbon';
 import { AppFooter } from './components/AppFooter';
 import { CommandCenterAtmosphere } from './components/CommandCenterAtmosphere';
 import { AllCategoriesModal } from './components/AllCategoriesModal';
@@ -725,6 +726,9 @@ export default function App() {
 
       {/* 4-Side Animated Laser Perimeter Frame */}
       <AppPerimeterGlow />
+
+      {/* Top Prismatic Ambient Theme Optical Ribbon */}
+      <AmbientThemeRibbon />
 
       {/* Global Animated Background Elements with Calibrated Clean Cyber Atmosphere */}
       <div className="fixed inset-0 pointer-events-none z-0" style={{ background: 'radial-gradient(circle at 18% 30%, rgba(14, 165, 233, 0.05), transparent 45%), radial-gradient(circle at 82% 25%, rgba(168, 85, 247, 0.04), transparent 45%), radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.03), transparent 55%)' }}></div>

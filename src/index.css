@@ -11,40 +11,844 @@
   --accent-secondary: #38bdf8;
   --accent-violet: #a855f7;
   --accent-rose: #f43f5e;
+  --border-color: #1e3052;
   --success: #10b981;
   --danger: #ef4444;
   --radius-card: 16px;
   --radius-btn: 12px;
   --radius-pill: 9999px;
   --prime-brightness: 104%;
+  --shadow-surface: none;
+  --glass-blur: none;
+  --glass-blur-sm: none;
+  --bg-input: #0e1628;
 }
 
-html,
-body,
-#root {
-  max-width: 100%;
-  overflow-x: hidden;
+/* ──────────────────────────────────────────────────────────────────────────
+   GLOBAL CSS VARIABLE DEFINITIONS FOR ALL 23 INTERFACE TEMPLATES
+   Allows instant zero-lag theme switching via documentElement.dataset.theme
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* 1. Liquid Glass (Ref: Image 1) */
+html[data-theme='liquid-glass'] {
+  --bg: #eef2f6;
+  --bg-surface: rgba(255, 255, 255, 0.72);
+  --bg-elevated: rgba(255, 255, 255, 0.90);
+  --accent: #06b6d4;
+  --accent-secondary: #8b5cf6;
+  --ink: #0f172a;
+  --ink-muted: #334155;
+  --border-color: rgba(203, 213, 225, 0.85);
+  --shadow-surface: 0 8px 32px 0 rgba(31, 38, 135, 0.07), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
+  --glass-blur: blur(16px) saturate(180%);
+  --glass-blur-sm: blur(14px);
+  --bg-input: rgba(255, 255, 255, 0.92);
 }
 
+/* 2. Liquid Glass Neon (Ref: Image 2) */
+html[data-theme='liquid-glass-neon'] {
+  --bg: #070a13;
+  --bg-surface: rgba(13, 19, 36, 0.74);
+  --bg-elevated: rgba(23, 34, 58, 0.85);
+  --accent: #00f0ff;
+  --accent-secondary: #d946ef;
+  --ink: #f8fafc;
+  --ink-muted: #94a3b8;
+  --border-color: rgba(56, 189, 248, 0.35);
+  --shadow-surface: 0 10px 40px 0 rgba(0, 0, 0, 0.6), inset 0 1px 1px 0 rgba(255, 255, 255, 0.20), 0 0 16px -2px rgba(0, 240, 255, 0.15);
+  --glass-blur: blur(16px) saturate(180%);
+  --glass-blur-sm: blur(14px);
+  --bg-input: rgba(11, 16, 30, 0.85);
+}
+
+/* 3. Solar Daylight (Bright Mode) */
+html[data-theme='daylight'] {
+  --bg: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f1f5f9;
+  --accent: #0284c7;
+  --accent-secondary: #0d9488;
+  --ink: #0f172a;
+  --ink-muted: #334155;
+  --border-color: #cbd5e1;
+  --shadow-surface: 0 4px 16px 0 rgba(0, 0, 0, 0.05);
+  --glass-blur: none;
+  --glass-blur-sm: none;
+  --bg-input: #ffffff;
+}
+
+/* 4. Midnight Command (Default) */
+html[data-theme='midnight'] {
+  --bg: #080d1a;
+  --bg-surface: #0e1628;
+  --bg-elevated: #152238;
+  --accent: #00f0ff;
+  --accent-secondary: #38bdf8;
+  --ink: #f8fafc;
+  --ink-muted: #cbd5e1;
+  --border-color: #1e3052;
+  --bg-input: #0e1628;
+}
+
+/* 5. Bloomberg Terminal */
+html[data-theme='bloomberg'] {
+  --bg: #080808;
+  --bg-surface: #121212;
+  --bg-elevated: #1c1c1c;
+  --accent: #f59e0b;
+  --accent-secondary: #fb923c;
+  --ink: #f3f4f6;
+  --ink-muted: #9ca3af;
+  --border-color: #2e2e2e;
+  --bg-input: #121212;
+}
+
+/* 6. Forest Citadel */
 html[data-theme='forest'] {
-  --bg: #071512;
+  --bg: #05110e;
   --bg-surface: #0a1c18;
+  --bg-elevated: #102a24;
   --accent: #10b981;
-  --accent-secondary: #2dd4bf;
+  --accent-secondary: #34d399;
+  --ink: #f0fdf4;
+  --ink-muted: #86efac;
+  --border-color: #153e35;
+  --bg-input: #0a1c18;
 }
 
+/* 7. Violet Focus */
 html[data-theme='violet'] {
-  --bg: #100d1d;
-  --bg-surface: #171126;
-  --accent: #8b5cf6;
+  --bg: #0d0a18;
+  --bg-surface: #151126;
+  --bg-elevated: #1f1938;
+  --accent: #a855f7;
   --accent-secondary: #c084fc;
+  --ink: #faf5ff;
+  --ink-muted: #d8b4fe;
+  --border-color: #33275a;
+  --bg-input: #151126;
 }
 
+/* 8. Warm Sandstone */
 html[data-theme='sand'] {
-  --bg: #17120b;
-  --bg-surface: #21190d;
+  --bg: #120f0c;
+  --bg-surface: #1c1713;
+  --bg-elevated: #28211b;
   --accent: #f59e0b;
   --accent-secondary: #fbbf24;
+  --ink: #fef3c7;
+  --ink-muted: #d97706;
+  --border-color: #3d3229;
+  --bg-input: #1c1713;
+}
+
+/* 9. Tokyo Neon Cyber */
+html[data-theme='tokyo'] {
+  --bg: #0b0914;
+  --bg-surface: #131024;
+  --bg-elevated: #1d1936;
+  --accent: #ec4899;
+  --accent-secondary: #06b6d4;
+  --ink: #fdf2f8;
+  --ink-muted: #f472b6;
+  --border-color: #382e60;
+  --bg-input: #131024;
+}
+
+/* 10. Obsidian Prestige */
+html[data-theme='obsidian'] {
+  --bg: #08090a;
+  --bg-surface: #101317;
+  --bg-elevated: #191d24;
+  --accent: #eab308;
+  --accent-secondary: #ca8a04;
+  --ink: #fef08a;
+  --ink-muted: #a1a1aa;
+  --border-color: #2c333f;
+  --bg-input: #101317;
+}
+
+/* 11. Matrix Terminal */
+html[data-theme='matrix'] {
+  --bg: #020d06;
+  --bg-surface: #06170b;
+  --bg-elevated: #0b2412;
+  --accent: #22c55e;
+  --accent-secondary: #4ade80;
+  --ink: #dcfce7;
+  --ink-muted: #86efac;
+  --border-color: #154120;
+  --bg-input: #06170b;
+}
+
+/* 12. Dracula Dark */
+html[data-theme='dracula'] {
+  --bg: #181926;
+  --bg-surface: #212234;
+  --bg-elevated: #282a36;
+  --accent: #bd93f9;
+  --accent-secondary: #ff79c6;
+  --ink: #f8f8f2;
+  --ink-muted: #6272a4;
+  --border-color: #44475a;
+  --bg-input: #212234;
+}
+
+/* 13. Nordic Glacier */
+html[data-theme='nord'] {
+  --bg: #1a1d24;
+  --bg-surface: #242933;
+  --bg-elevated: #2e3440;
+  --accent: #88c0d0;
+  --accent-secondary: #81a1c1;
+  --ink: #eceff4;
+  --ink-muted: #d8dee9;
+  --border-color: #434c5e;
+  --bg-input: #242933;
+}
+
+/* 14. Monokai Pro */
+html[data-theme='monokai'] {
+  --bg: #19181a;
+  --bg-surface: #221f22;
+  --bg-elevated: #2d2a2e;
+  --accent: #ffd866;
+  --accent-secondary: #fc9867;
+  --ink: #fcfcfa;
+  --ink-muted: #939293;
+  --border-color: #403e41;
+  --bg-input: #221f22;
+}
+
+/* 15. Carbon Tactical */
+html[data-theme='carbon'] {
+  --bg: #0f1115;
+  --bg-surface: #171a21;
+  --bg-elevated: #212630;
+  --accent: #e2e8f0;
+  --accent-secondary: #94a3b8;
+  --ink: #ffffff;
+  --ink-muted: #94a3b8;
+  --border-color: #333b4b;
+  --bg-input: #171a21;
+}
+
+/* 16. Solarized Deep */
+html[data-theme='solarized'] {
+  --bg: #001e26;
+  --bg-surface: #002b36;
+  --bg-elevated: #073642;
+  --accent: #2aa198;
+  --accent-secondary: #268bd2;
+  --ink: #93a1a1;
+  --ink-muted: #657b83;
+  --border-color: #1b4e5b;
+  --bg-input: #002b36;
+}
+
+/* 17. Rose Gold VIP */
+html[data-theme='rose'] {
+  --bg: #130a0e;
+  --bg-surface: #1d1117;
+  --bg-elevated: #2a1822;
+  --accent: #fb7185;
+  --accent-secondary: #f43f5e;
+  --ink: #ffe4e6;
+  --ink-muted: #fda4af;
+  --border-color: #482537;
+  --bg-input: #1d1117;
+}
+
+/* 18. Swiss Minimalist */
+html[data-theme='swiss'] {
+  --bg: #0a0a0a;
+  --bg-surface: #141414;
+  --bg-elevated: #1f1f1f;
+  --accent: #f8fafc;
+  --accent-secondary: #cbd5e1;
+  --ink: #ffffff;
+  --ink-muted: #a3a3a3;
+  --border-color: #333333;
+  --bg-input: #141414;
+}
+
+/* 19. Abyssal Ocean */
+html[data-theme='ocean'] {
+  --bg: #040e17;
+  --bg-surface: #081827;
+  --bg-elevated: #0e2337;
+  --accent: #06b6d4;
+  --accent-secondary: #0ea5e9;
+  --ink: #e0f2fe;
+  --ink-muted: #7dd3fc;
+  --border-color: #153857;
+  --bg-input: #081827;
+}
+
+/* 20. Sunset Horizon */
+html[data-theme='sunset'] {
+  --bg: #140a0c;
+  --bg-surface: #1f1014;
+  --bg-elevated: #2d171e;
+  --accent: #f97316;
+  --accent-secondary: #ef4444;
+  --ink: #ffedd5;
+  --ink-muted: #fca5a5;
+  --border-color: #4b222e;
+  --bg-input: #1f1014;
+}
+
+/* 21. Stealth Ghost */
+html[data-theme='stealth'] {
+  --bg: #09090b;
+  --bg-surface: #121215;
+  --bg-elevated: #18181b;
+  --accent: #a1a1aa;
+  --accent-secondary: #71717a;
+  --ink: #fafafa;
+  --ink-muted: #71717a;
+  --border-color: #27272a;
+  --bg-input: #121215;
+}
+
+/* 22. Vaporwave 80s */
+html[data-theme='vapor'] {
+  --bg: #0e0720;
+  --bg-surface: #180e34;
+  --bg-elevated: #24154e;
+  --accent: #00f0ff;
+  --accent-secondary: #ff007f;
+  --ink: #f5eeff;
+  --ink-muted: #d4b8ff;
+  --border-color: #46247f;
+  --bg-input: #180e34;
+}
+
+/* 23. Citadel Quant */
+html[data-theme='citadel'] {
+  --bg: #080c14;
+  --bg-surface: #0f1626;
+  --bg-elevated: #16223b;
+  --accent: #3b82f6;
+  --accent-secondary: #60a5fa;
+  --ink: #eff6ff;
+  --ink-muted: #93c5fd;
+  --border-color: #22355c;
+  --bg-input: #0f1626;
+}
+
+/* 24. Frosted Opal Glass */
+html[data-theme='frosted-opal'] {
+  --bg: #f1f5f9;
+  --bg-surface: rgba(255, 255, 255, 0.78);
+  --bg-elevated: rgba(255, 255, 255, 0.92);
+  --accent: #8b5cf6;
+  --accent-secondary: #06b6d4;
+  --ink: #0f172a;
+  --ink-muted: #334155;
+  --border-color: rgba(226, 232, 240, 0.85);
+  --shadow-surface: 0 8px 32px 0 rgba(139, 92, 246, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
+  --glass-blur: blur(16px) saturate(180%);
+  --glass-blur-sm: blur(14px);
+  --bg-input: rgba(255, 255, 255, 0.92);
+}
+
+/* 25. Arctic Quartz Glass */
+html[data-theme='arctic-quartz'] {
+  --bg: #0a121e;
+  --bg-surface: rgba(16, 28, 48, 0.75);
+  --bg-elevated: rgba(24, 42, 70, 0.85);
+  --accent: #38bdf8;
+  --accent-secondary: #818cf8;
+  --ink: #f0f9ff;
+  --ink-muted: #94a3b8;
+  --border-color: rgba(56, 189, 248, 0.38);
+  --shadow-surface: 0 10px 36px 0 rgba(0, 0, 0, 0.55), inset 0 1px 1px 0 rgba(255, 255, 255, 0.18);
+  --glass-blur: blur(16px) saturate(180%);
+  --glass-blur-sm: blur(14px);
+  --bg-input: rgba(16, 28, 48, 0.85);
+}
+
+/* 26. Rose Quartz Glass */
+html[data-theme='rose-quartz-glass'] {
+  --bg: #fff5f7;
+  --bg-surface: rgba(255, 255, 255, 0.80);
+  --bg-elevated: rgba(255, 255, 255, 0.94);
+  --accent: #f43f5e;
+  --accent-secondary: #fb7185;
+  --ink: #1f1e24;
+  --ink-muted: #4b5563;
+  --border-color: rgba(254, 205, 211, 0.85);
+  --shadow-surface: 0 8px 30px 0 rgba(244, 63, 94, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
+  --glass-blur: blur(16px) saturate(180%);
+  --glass-blur-sm: blur(14px);
+  --bg-input: rgba(255, 255, 255, 0.94);
+}
+
+/* 27. Google Material You */
+html[data-theme='google-material-blue'] {
+  --bg: #0f141c;
+  --bg-surface: #171e2a;
+  --bg-elevated: #212a3a;
+  --accent: #1a73e8;
+  --accent-secondary: #4285f4;
+  --ink: #e8eaed;
+  --ink-muted: #9aa0a6;
+  --border-color: #2e3b52;
+  --bg-input: #171e2a;
+}
+
+/* 28. Google Paper White */
+html[data-theme='google-paper'] {
+  --bg: #ffffff;
+  --bg-surface: #f8f9fa;
+  --bg-elevated: #f1f3f4;
+  --accent: #1a73e8;
+  --accent-secondary: #34a853;
+  --ink: #202124;
+  --ink-muted: #5f6368;
+  --border-color: #dadce0;
+  --shadow-surface: 0 2px 10px 0 rgba(60, 64, 67, 0.08);
+  --bg-input: #ffffff;
+}
+
+/* 29. Google Coral Energy */
+html[data-theme='google-coral'] {
+  --bg: #fff8f6;
+  --bg-surface: #ffffff;
+  --bg-elevated: #feebe6;
+  --accent: #ea4335;
+  --accent-secondary: #fbbc04;
+  --ink: #202124;
+  --ink-muted: #5f6368;
+  --border-color: #fcdad3;
+  --shadow-surface: 0 4px 14px 0 rgba(234, 67, 53, 0.08);
+  --bg-input: #ffffff;
+}
+
+/* 30. Google Emerald Tech */
+html[data-theme='google-emerald'] {
+  --bg: #0d1f18;
+  --bg-surface: #142921;
+  --bg-elevated: #1c382e;
+  --accent: #34a853;
+  --accent-secondary: #1a73e8;
+  --ink: #e8f5e9;
+  --ink-muted: #a3d9a5;
+  --border-color: #285344;
+  --bg-input: #142921;
+}
+
+/* 31. Google Deep Slate */
+html[data-theme='google-slate'] {
+  --bg: #12151c;
+  --bg-surface: #1b202c;
+  --bg-elevated: #252b3b;
+  --accent: #8ab4f8;
+  --accent-secondary: #c58af9;
+  --ink: #e3e3e3;
+  --ink-muted: #9aa0a6;
+  --border-color: #353e54;
+  --bg-input: #1b202c;
+}
+
+/* 32. Google Amber Sunshine */
+html[data-theme='google-amber'] {
+  --bg: #fffdf5;
+  --bg-surface: #ffffff;
+  --bg-elevated: #fff8e1;
+  --accent: #fbbc04;
+  --accent-secondary: #ea4335;
+  --ink: #202124;
+  --ink-muted: #5f6368;
+  --border-color: #ffe082;
+  --shadow-surface: 0 4px 14px 0 rgba(251, 188, 4, 0.08);
+  --bg-input: #ffffff;
+}
+
+/* 33. Swiss Precision Light */
+html[data-theme='swiss-light'] {
+  --bg: #f4f4f6;
+  --bg-surface: #ffffff;
+  --bg-elevated: #eaecef;
+  --accent: #dc2626;
+  --accent-secondary: #0284c7;
+  --ink: #111827;
+  --ink-muted: #374151;
+  --border-color: #d1d5db;
+  --shadow-surface: 0 4px 12px 0 rgba(0, 0, 0, 0.05);
+  --bg-input: #ffffff;
+}
+
+/* 34. Nordic Glacier Light */
+html[data-theme='nordic-light'] {
+  --bg: #f0f7fa;
+  --bg-surface: #ffffff;
+  --bg-elevated: #e1eff5;
+  --accent: #0284c7;
+  --accent-secondary: #06b6d4;
+  --ink: #0f2937;
+  --ink-muted: #334e68;
+  --border-color: #bcdbe8;
+  --shadow-surface: 0 4px 14px 0 rgba(2, 132, 199, 0.06);
+  --bg-input: #ffffff;
+}
+
+/* 35. Tokyo Sakura Bright */
+html[data-theme='tokyo-sakura-light'] {
+  --bg: #fffbfa;
+  --bg-surface: #ffffff;
+  --bg-elevated: #fdf2f4;
+  --accent: #db2777;
+  --accent-secondary: #f43f5e;
+  --ink: #1f1e24;
+  --ink-muted: #4b5563;
+  --border-color: #fbcfe8;
+  --shadow-surface: 0 4px 14px 0 rgba(219, 39, 119, 0.06);
+  --bg-input: #ffffff;
+}
+
+/* 36. Cyber Mint Daylight */
+html[data-theme='cyber-mint-light'] {
+  --bg: #f0fdf9;
+  --bg-surface: #ffffff;
+  --bg-elevated: #e6f9f3;
+  --accent: #059669;
+  --accent-secondary: #0284c7;
+  --ink: #064e3b;
+  --ink-muted: #065f46;
+  --border-color: #bbf7d0;
+  --shadow-surface: 0 4px 14px 0 rgba(5, 150, 105, 0.06);
+  --bg-input: #ffffff;
+}
+
+/* 37. Gold Bullion Reserve */
+html[data-theme='gold-prestige'] {
+  --bg: #0a0907;
+  --bg-surface: #14120e;
+  --bg-elevated: #1f1c16;
+  --accent: #fbbf24;
+  --accent-secondary: #f59e0b;
+  --ink: #fffbeb;
+  --ink-muted: #d4af37;
+  --border-color: #3d3728;
+  --bg-input: #14120e;
+}
+
+/* 38. Linear Titanium Obsidian */
+html[data-theme='linear-obsidian'] {
+  --bg: #08090a;
+  --bg-surface: #111215;
+  --bg-elevated: #18191d;
+  --accent: #5e6ad2;
+  --accent-secondary: #828fff;
+  --ink: #f7f8f8;
+  --ink-muted: #8a8f98;
+  --border-color: #222326;
+  --bg-input: #111215;
+  --shadow-surface: 0 8px 30px 0 rgba(0, 0, 0, 0.7);
+}
+
+/* 39. Vercel High-Contrast Pure */
+html[data-theme='vercel-pure'] {
+  --bg: #000000;
+  --bg-surface: #0a0a0a;
+  --bg-elevated: #141414;
+  --accent: #00dfd8;
+  --accent-secondary: #0070f3;
+  --ink: #ffffff;
+  --ink-muted: #a1a1aa;
+  --border-color: #262626;
+  --bg-input: #0a0a0a;
+  --shadow-surface: 0 8px 30px 0 rgba(0, 0, 0, 0.9);
+}
+
+/* 40. Stripe Financial Sapphire */
+html[data-theme='stripe-indigo'] {
+  --bg: #0a0e27;
+  --bg-surface: #13193a;
+  --bg-elevated: #1e2652;
+  --accent: #635bff;
+  --accent-secondary: #00d4ff;
+  --ink: #f8fafc;
+  --ink-muted: #94a3b8;
+  --border-color: #2b3668;
+  --bg-input: #13193a;
+  --shadow-surface: 0 10px 32px 0 rgba(10, 14, 39, 0.7);
+}
+
+/* 41. Apple Cupertino Daylight */
+html[data-theme='apple-cupertino'] {
+  --bg: #ffffff;
+  --bg-surface: #f5f5f7;
+  --bg-elevated: #ffffff;
+  --accent: #0071e3;
+  --accent-secondary: #34c759;
+  --ink: #1d1d1f;
+  --ink-muted: #6e6e73;
+  --border-color: #d2d2d7;
+  --bg-input: #ffffff;
+  --shadow-surface: 0 4px 16px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* 42. Nordic Glacier Precision */
+html[data-theme='nordic-glacier-pro'] {
+  --bg: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f1f5f9;
+  --accent: #0284c7;
+  --accent-secondary: #0d9488;
+  --ink: #0f172a;
+  --ink-muted: #334155;
+  --border-color: #cbd5e1;
+  --bg-input: #ffffff;
+  --shadow-surface: 0 4px 14px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* 43. Bloomberg Institutional Terminal */
+html[data-theme='bloomberg-terminal-pro'] {
+  --bg: #030712;
+  --bg-surface: #0b1120;
+  --bg-elevated: #111827;
+  --accent: #f59e0b;
+  --accent-secondary: #38bdf8;
+  --ink: #f9fafb;
+  --ink-muted: #9ca3af;
+  --border-color: #1f2937;
+  --bg-input: #0b1120;
+  --shadow-surface: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+}
+
+/* 44. Tokyo Ghost Shinjuku */
+html[data-theme='tokyo-ghost'] {
+  --bg: #13141f;
+  --bg-surface: #1a1b26;
+  --bg-elevated: #24283b;
+  --accent: #f7768e;
+  --accent-secondary: #7dcfff;
+  --ink: #c0caf5;
+  --ink-muted: #7a88cf;
+  --border-color: #2f3549;
+  --bg-input: #1a1b26;
+  --shadow-surface: 0 10px 36px 0 rgba(19, 20, 31, 0.8);
+}
+
+/* 45. Emerald Capital */
+html[data-theme='emerald-capital-pro'] {
+  --bg: #030f0a;
+  --bg-surface: #061a12;
+  --bg-elevated: #0b281d;
+  --accent: #10b981;
+  --accent-secondary: #fbbf24;
+  --ink: #ecfdf5;
+  --ink-muted: #6ee7b7;
+  --border-color: #133829;
+  --bg-input: #061a12;
+  --shadow-surface: 0 8px 32px 0 rgba(3, 15, 10, 0.8);
+}
+
+/* 46. Cyberpunk 2077 Night City */
+html[data-theme='cyberpunk-night'] {
+  --bg: #0d0d12;
+  --bg-surface: #15151c;
+  --bg-elevated: #1d1e27;
+  --accent: #fcee0a;
+  --accent-secondary: #00f0ff;
+  --ink: #ffffff;
+  --ink-muted: #a6a8b6;
+  --border-color: #2d2f3d;
+  --bg-input: #15151c;
+  --shadow-surface: 0 8px 30px 0 rgba(0, 0, 0, 0.7);
+}
+
+/* 47. Swiss Architectural Light */
+html[data-theme='swiss-arch-light'] {
+  --bg: #fcfbf9;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f5f4f0;
+  --accent: #ea580c;
+  --accent-secondary: #2563eb;
+  --ink: #0c0a09;
+  --ink-muted: #44403c;
+  --border-color: #292524;
+  --bg-input: #ffffff;
+  --shadow-surface: 0 4px 12px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* 48. Monaco Grand Prix Gold */
+html[data-theme='monaco-gold-luxe'] {
+  --bg: #040814;
+  --bg-surface: #0a1124;
+  --bg-elevated: #101c38;
+  --accent: #f59e0b;
+  --accent-secondary: #38bdf8;
+  --ink: #f8fafc;
+  --ink-muted: #94a3b8;
+  --border-color: #1d2c52;
+  --bg-input: #0a1124;
+  --shadow-surface: 0 8px 32px 0 rgba(4, 8, 20, 0.8);
+}
+
+/* 49. Arc Neon Dream */
+html[data-theme='arc-neon'] {
+  --bg: #0d0e17;
+  --bg-surface: #151624;
+  --bg-elevated: #1f2136;
+  --accent: #ff6b6b;
+  --accent-secondary: #a855f7;
+  --ink: #f8fafc;
+  --ink-muted: #a5a9c5;
+  --border-color: #2c2e47;
+  --bg-input: #151624;
+  --shadow-surface: 0 10px 36px 0 rgba(13, 14, 23, 0.8);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   UNIVERSAL THEME-DRIVEN UTILITY SYSTEM
+   Provides instant zero-lag mapping without stylesheet re-parsing
+   ────────────────────────────────────────────────────────────────────────── */
+
+html, body {
+  background-color: var(--bg) !important;
+  color: var(--ink) !important;
+  transition: background-color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bg-\[\#070A11\], .bg-\[\#070a11\], .bg-\[\#080C14\], .bg-\[\#020617\],
+.bg-slate-950, .bg-slate-950\/90, .bg-slate-950\/80, .bg-slate-950\/60, .bg-slate-950\/40 {
+  background-color: var(--bg-surface) !important;
+  box-shadow: var(--shadow-surface, none);
+  backdrop-filter: var(--glass-blur, none);
+  -webkit-backdrop-filter: var(--glass-blur, none);
+  transition: background-color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bg-slate-900, .bg-slate-900\/80, .bg-slate-900\/90, .bg-slate-900\/60, .bg-slate-900\/50,
+.bg-\[\#0B0F19\], .bg-\[\#090D15\], .bg-\[\#0c1222\] {
+  background-color: var(--bg-elevated) !important;
+  backdrop-filter: var(--glass-blur-sm, none);
+  -webkit-backdrop-filter: var(--glass-blur-sm, none);
+  transition: background-color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.border-slate-800, .border-slate-800\/80, .border-slate-800\/60, .border-slate-850, .border-slate-700 {
+  border-color: var(--border-color) !important;
+  transition: border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.text-cyan-400, .text-cyan-300 {
+  color: var(--accent) !important;
+  transition: color 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.border-cyan-500, .border-cyan-400, .border-cyan-500\/40, .border-cyan-500\/30 {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent) !important;
+  transition: border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.prime-card-elevated {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color) !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent) !important;
+}
+
+/* Background atmosphere styling for Liquid Glass themes */
+html[data-theme='liquid-glass'] body {
+  background: radial-gradient(circle at 10% 15%, rgba(139, 92, 246, 0.12) 0%, transparent 40%),
+              radial-gradient(circle at 90% 15%, rgba(6, 182, 212, 0.12) 0%, transparent 40%),
+              radial-gradient(circle at 50% 85%, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
+              #eef2f6 !important;
+  background-attachment: fixed !important;
+}
+
+html[data-theme='liquid-glass-neon'] body {
+  background: radial-gradient(circle at 15% 15%, rgba(0, 240, 255, 0.14) 0%, transparent 45%),
+              radial-gradient(circle at 85% 20%, rgba(217, 70, 239, 0.12) 0%, transparent 45%),
+              radial-gradient(circle at 50% 85%, rgba(59, 130, 246, 0.10) 0%, transparent 50%),
+              #070a13 !important;
+  background-attachment: fixed !important;
+}
+
+html[data-theme='liquid-glass'] .bg-blue-500,
+html[data-theme='liquid-glass'] .bg-cyan-500 {
+  background: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px 0 rgba(6, 182, 212, 0.28), inset 0 1px 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+
+html[data-theme='liquid-glass-neon'] .bg-blue-500,
+html[data-theme='liquid-glass-neon'] .bg-cyan-500 {
+  background: linear-gradient(135deg, #00f0ff 0%, #3b82f6 50%, #d946ef 100%) !important;
+  color: #070a13 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.5) !important;
+}
+
+/* High contrast typography adjustments for bright modes */
+html[data-brightness-mode='bright'] .text-slate-100,
+html[data-brightness-mode='bright'] .text-slate-200,
+html[data-brightness-mode='bright'] .text-slate-50,
+html[data-brightness-mode='bright'] .text-white,
+html[data-theme='liquid-glass'] .text-slate-100,
+html[data-theme='liquid-glass'] .text-slate-200,
+html[data-theme='liquid-glass'] .text-slate-50,
+html[data-theme='liquid-glass'] .text-white,
+html[data-theme='daylight'] .text-slate-100,
+html[data-theme='daylight'] .text-slate-200,
+html[data-theme='daylight'] .text-slate-50,
+html[data-theme='daylight'] .text-white {
+  color: #0f172a !important;
+}
+
+html[data-brightness-mode='bright'] .text-slate-300,
+html[data-theme='liquid-glass'] .text-slate-300,
+html[data-theme='daylight'] .text-slate-300 {
+  color: #1e293b !important;
+}
+
+html[data-brightness-mode='bright'] .text-slate-400,
+html[data-theme='liquid-glass'] .text-slate-400,
+html[data-theme='daylight'] .text-slate-400 {
+  color: #334155 !important;
+}
+
+html[data-brightness-mode='bright'] .text-slate-500,
+html[data-theme='liquid-glass'] .text-slate-500,
+html[data-theme='daylight'] .text-slate-500 {
+  color: #64748b !important;
+}
+
+html[data-brightness-mode='bright'] input,
+html[data-brightness-mode='bright'] select,
+html[data-brightness-mode='bright'] textarea,
+html[data-theme='liquid-glass'] input,
+html[data-theme='liquid-glass'] select,
+html[data-theme='liquid-glass'] textarea,
+html[data-theme='daylight'] input,
+html[data-theme='daylight'] select,
+html[data-theme='daylight'] textarea {
+  background-color: var(--bg-input, #ffffff) !important;
+  color: #0f172a !important;
+  border-color: var(--border-color) !important;
+}
+
+html[data-brightness-mode='bright'] input::placeholder,
+html[data-brightness-mode='bright'] textarea::placeholder,
+html[data-theme='liquid-glass'] input::placeholder,
+html[data-theme='liquid-glass'] textarea::placeholder,
+html[data-theme='daylight'] input::placeholder,
+html[data-theme='daylight'] textarea::placeholder {
+  color: #94a3b8 !important;
 }
 
 @layer base {
@@ -1214,3 +2018,192 @@ html[data-theme='sand'] {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   LIQUID GLASS BUTTON & MOBILE FOOTER ENGINE
+   Directly matched to the "Liquid Glass UI Kit Showcase" specification:
+   - 3D hyper-glossy curved glass capsule with specular top rim
+   - Refractive caustic color blooms (Cyan, Magenta/Sunset, Emerald, Cyber, Ice)
+   - Dynamic fluid sheen sweep & tactile spring interactions
+   ────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --lgb-primary-glow: #00f0ff;
+  --lgb-secondary-glow: #8b5cf6;
+  --lgb-specular-opacity: 0.85;
+  --lgb-caustic-spread: 24px;
+}
+
+@keyframes liquid-sheen-sweep {
+  0% {
+    transform: translateX(-140%) skewX(-25deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  60% {
+    transform: translateX(240%) skewX(-25deg);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateX(240%) skewX(-25deg);
+    opacity: 0;
+  }
+}
+
+@keyframes liquid-caustic-breathe {
+  0%, 100% {
+    box-shadow:
+      inset 0 1.5px 1.5px 0 rgba(255, 255, 255, var(--lgb-specular-opacity, 0.85)),
+      inset 0 3px 6px 0 rgba(255, 255, 255, 0.20),
+      inset 0 -2px 4px 0 rgba(0, 0, 0, 0.50),
+      0 6px 18px -3px var(--lgb-primary-glow);
+  }
+  50% {
+    box-shadow:
+      inset 0 1.5px 1.5px 0 rgba(255, 255, 255, var(--lgb-specular-opacity, 0.85)),
+      inset 0 3px 6px 0 rgba(255, 255, 255, 0.28),
+      inset 0 -2px 4px 0 rgba(0, 0, 0, 0.50),
+      0 10px 28px -2px var(--lgb-secondary-glow);
+  }
+}
+
+@keyframes liquid-cascade-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.90) translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Core Liquid Glass Capsule (Standalone Pill) */
+.liquid-glass-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.06) 25%,
+    rgba(10, 16, 30, 0.65) 60%,
+    rgba(3, 7, 18, 0.92) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  box-shadow:
+    inset 0 1.5px 1.5px 0 rgba(255, 255, 255, var(--lgb-specular-opacity, 0.85)),
+    inset 0 3px 6px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 4px 0 rgba(0, 0, 0, 0.50),
+    0 8px var(--lgb-caustic-spread, 22px) -4px var(--lgb-primary-glow);
+  color: #ffffff;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  user-select: none;
+}
+
+.liquid-glass-pill:hover {
+  transform: translateY(-1.5px) scale(1.02);
+  border-color: rgba(255, 255, 255, 0.50);
+  box-shadow:
+    inset 0 2px 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 4px 8px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -2px 4px 0 rgba(0, 0, 0, 0.50),
+    0 12px 30px -4px var(--lgb-primary-glow);
+}
+
+.liquid-glass-pill:active {
+  transform: translateY(1px) scale(0.96);
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -1px 2px 0 rgba(0, 0, 0, 0.7),
+    0 4px 14px -2px var(--lgb-primary-glow);
+}
+
+/* Dynamic Light Sweep Sheen on hover or active animation mode */
+.liquid-glass-sheen::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 35%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0.15) 65%,
+    transparent 100%
+  );
+  pointer-events: none;
+  animation: liquid-sheen-sweep 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Dynamic Caustic Breathing Animation */
+.liquid-glass-pulse {
+  animation: liquid-caustic-breathe 2.8s ease-in-out infinite;
+}
+
+/* Dynamic Cascade Entry */
+.liquid-glass-enter {
+  animation: liquid-cascade-enter 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Liquid Glass Active Tab / Button State */
+.liquid-glass-active {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.30) 0%,
+    rgba(255, 255, 255, 0.12) 25%,
+    rgba(10, 20, 42, 0.75) 55%,
+    rgba(3, 7, 18, 0.95) 100%
+  ) !important;
+  border-color: rgba(255, 255, 255, 0.65) !important;
+  box-shadow:
+    inset 0 2px 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 4px 8px 0 rgba(255, 255, 255, 0.30),
+    inset 0 -2px 4px 0 rgba(0, 0, 0, 0.50),
+    0 8px 24px -2px var(--lgb-primary-glow) !important;
+}
+
+/* Liquid Glass Mobile Footer Capsule Item */
+.liquid-glass-mobile-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 4px 8px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.05) 30%,
+    rgba(12, 18, 32, 0.72) 65%,
+    rgba(4, 8, 18, 0.94) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow:
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, var(--lgb-specular-opacity, 0.85)),
+    inset 0 2px 4px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1.5px 3px 0 rgba(0, 0, 0, 0.55),
+    0 4px 14px -3px var(--lgb-primary-glow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+}
+
+.liquid-glass-mobile-btn:active {
+  transform: scale(0.94) translateY(1px);
+}
+

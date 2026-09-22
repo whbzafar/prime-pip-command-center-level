@@ -44,7 +44,13 @@ import {
   Globe,
   Palette,
   GraduationCap,
+  Sun,
+  Moon,
+  Plus,
+  Minus,
 } from 'lucide-react';
+import { BrightnessController } from './BrightnessController';
+import { applyInterfaceTemplate, getTemplateById } from '../data/interfaceTemplates';
 import { AccountSettings, TraderPerformanceScores, UserAccount } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
 import { getAppLiveClock, getMarketSessions, getTimezoneLabel, getUserTimezone, MarketSession } from '../utils/time';
@@ -157,6 +163,73 @@ export const Header: React.FC<HeaderProps> = ({
   const [marketSessions, setMarketSessions] = React.useState<MarketSession[]>([]);
   const [soundTested, setSoundTested] = React.useState<boolean>(false);
   const [alertSettings, setAlertSettings] = React.useState<AlertSettings>(() => getAlertSettings());
+  const [currentThemeId, setCurrentThemeId] = React.useState<string>(() => {
+    try {
+      return localStorage.getItem('primepipfx_theme') || 'midnight';
+    } catch {
+      return 'midnight';
+    }
+  });
+  const [currentBrightness, setCurrentBrightness] = React.useState<number>(() => {
+    try {
+      const b = localStorage.getItem('primepipfx_brightness');
+      const num = b ? parseInt(b, 10) : 104;
+      return !isNaN(num) && num >= 60 && num <= 160 ? num : 104;
+    } catch {
+      return 104;
+    }
+  });
+  const [showBrightnessPopover, setShowBrightnessPopover] = React.useState<boolean>(false);
+  const brightnessRef = React.useRef<HTMLDivElement>(null);
+
+  const isCurrentBright = React.useMemo(() => {
+    const tpl = getTemplateById(currentThemeId);
+    return Boolean(tpl?.isBright);
+  }, [currentThemeId]);
+
+  // Sync theme changes if modified by AppearanceControls or other components
+  React.useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const activeTheme = document.documentElement.dataset.theme || 'midnight';
+      setCurrentThemeId(activeTheme);
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+
+  // Listen for brightness or theme changes
+  React.useEffect(() => {
+    const handleBrightnessEvt = (e: Event) => {
+      const ce = e as CustomEvent<{ brightness?: number; themeId?: string }>;
+      if (ce.detail && typeof ce.detail.brightness === 'number') {
+        setCurrentBrightness(ce.detail.brightness);
+      }
+      if (ce.detail?.themeId) {
+        setCurrentThemeId(ce.detail.themeId);
+      }
+    };
+    window.addEventListener('primepipfx_brightness_changed', handleBrightnessEvt);
+    return () => window.removeEventListener('primepipfx_brightness_changed', handleBrightnessEvt);
+  }, []);
+
+  // Close brightness popover when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (brightnessRef.current && !brightnessRef.current.contains(e.target as Node)) {
+        setShowBrightnessPopover(false);
+      }
+    };
+    if (showBrightnessPopover) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showBrightnessPopover]);
+
+  const handleToggleDaylightNight = () => {
+    const nextTheme = isCurrentBright ? 'linear-obsidian' : 'nordic-glacier-pro';
+    applyInterfaceTemplate(nextTheme, currentBrightness);
+    setCurrentThemeId(nextTheme);
+  };
 
   React.useEffect(() => {
     const handleSettingsChanged = (e: Event) => {
@@ -572,18 +645,94 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {onOpenAppearance && (
-            <button
-              type="button"
-              onClick={onOpenAppearance}
-              title="Brightness and theme"
-              aria-label="Open appearance controls"
-              className="flex items-center gap-1 rounded border border-slate-800 bg-slate-950/90 px-1.5 py-0.5 text-[10px] text-slate-300 transition hover:border-cyan-400/50 hover:text-cyan-300"
-            >
-              <Palette className="h-3 w-3" />
-              <span className="hidden sm:inline">THEME</span>
-            </button>
-          )}
+          {/* Quick Brightness & Luminance Intensity Controller Pill & Popover */}
+          <div ref={brightnessRef} className="relative">
+            <div className="flex items-center gap-0.5 bg-slate-950/90 border border-slate-800 rounded-md p-0.5 shadow-xs">
+              {/* Quick Step Down (-) */}
+              <button
+                id="header-brightness-decrease-btn"
+                type="button"
+                onClick={() => {
+                  const nextB = Math.max(60, currentBrightness - 5);
+                  setCurrentBrightness(nextB);
+                  applyInterfaceTemplate(currentThemeId, nextB);
+                }}
+                title="Decrease Brightness (-5%)"
+                className="p-1 hover:bg-slate-850 text-slate-400 hover:text-cyan-300 rounded cursor-pointer transition active:scale-90"
+              >
+                <Minus className="w-2.5 h-2.5" />
+              </button>
+
+              {/* Main Brightness Button (Reveals Level & Intensity Controls) */}
+              <button
+                id="header-quick-brightness-btn"
+                type="button"
+                onClick={() => setShowBrightnessPopover((prev) => !prev)}
+                title="Click to reveal Brightness & Luminance Intensity Controls (+/-)"
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono-code font-bold transition cursor-pointer select-none ${
+                  showBrightnessPopover
+                    ? 'bg-amber-400/25 text-amber-300 border border-amber-400/50 shadow-xs'
+                    : isCurrentBright
+                    ? 'bg-amber-400/15 text-amber-300 border border-amber-400/30 hover:bg-amber-400/25'
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-amber-300'
+                }`}
+              >
+                {isCurrentBright ? (
+                  <Sun className="w-3 h-3 text-amber-400 animate-pulse" />
+                ) : (
+                  <Moon className="w-3 h-3 text-cyan-400" />
+                )}
+                <span>{currentBrightness}%</span>
+              </button>
+
+              {/* Quick Step Up (+) */}
+              <button
+                id="header-brightness-increase-btn"
+                type="button"
+                onClick={() => {
+                  const nextB = Math.min(160, currentBrightness + 5);
+                  setCurrentBrightness(nextB);
+                  applyInterfaceTemplate(currentThemeId, nextB);
+                }}
+                title="Increase Brightness (+5%)"
+                className="p-1 hover:bg-slate-850 text-slate-400 hover:text-amber-300 rounded cursor-pointer transition active:scale-90"
+              >
+                <Plus className="w-2.5 h-2.5" />
+              </button>
+
+              {onOpenAppearance && (
+                <button
+                  id="header-theme-studio-btn"
+                  type="button"
+                  onClick={onOpenAppearance}
+                  title="Open Theme & Google Palette Studio"
+                  aria-label="Open appearance controls"
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-slate-300 hover:text-cyan-300 hover:bg-slate-900 transition cursor-pointer border-l border-slate-800/80 ml-0.5 pl-1.5"
+                >
+                  <div
+                    className="w-2 h-2 rounded-full shadow-xs"
+                    style={{ backgroundColor: 'var(--accent, #00f0ff)' }}
+                  />
+                  <Palette className="h-3 w-3 text-cyan-400" />
+                  <span className="hidden md:inline font-mono-code font-semibold">THEMES</span>
+                </button>
+              )}
+            </div>
+
+            {/* Revealed Floating Brightness & Intensity Controls Popover */}
+            {showBrightnessPopover && (
+              <div className="absolute top-full right-0 mt-2 z-[200]">
+                <BrightnessController
+                  variant="popover"
+                  currentBrightness={currentBrightness}
+                  onBrightnessChange={(b) => setCurrentBrightness(b)}
+                  currentThemeId={currentThemeId}
+                  onThemeChange={(newTheme) => setCurrentThemeId(newTheme)}
+                  onClose={() => setShowBrightnessPopover(false)}
+                />
+              </div>
+            )}
+          </div>
 
           <div className="hidden sm:flex items-center gap-1">
             {onExportData && (

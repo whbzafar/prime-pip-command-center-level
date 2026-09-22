@@ -20,6 +20,22 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('primepipfx_theme') || 'midnight';
+          document.documentElement.dataset.theme = t;
+          var isBright = localStorage.getItem('primepipfx_is_bright');
+          if (isBright === 'true' || t === 'daylight' || t === 'liquid-glass' || t === 'google-paper' || t === 'swiss-light' || t === 'nordic-light' || t === 'tokyo-sakura-light' || t === 'cyber-mint-light' || t === 'google-coral' || t === 'google-amber' || t === 'frosted-opal' || t === 'rose-quartz-glass') {
+            document.documentElement.dataset.brightnessMode = 'bright';
+          } else {
+            document.documentElement.dataset.brightnessMode = 'dark';
+          }
+          var b = localStorage.getItem('primepipfx_brightness') || '104';
+          document.documentElement.style.setProperty('--prime-brightness', b + '%');
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body class="bg-[#090D14] text-slate-100 antialiased selection:bg-amber-500/30 selection:text-amber-300">
     <div id="root"></div>
