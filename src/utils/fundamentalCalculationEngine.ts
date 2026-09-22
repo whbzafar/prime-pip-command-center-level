@@ -647,27 +647,10 @@ export function calculateAllPairDifferentials(
 export function calculateCommodityFundamentalScore(obs: CommodityObservation): {
   score: number;
   bias: 'STRONGLY_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONGLY_BEARISH';
-  dataStatus: 'COMPLETE' | 'INSUFFICIENT_DATA';
   drivers: { label: string; score: number; impact: string }[];
 } {
   let score = 0;
   const drivers: { label: string; score: number; impact: string }[] = [];
-
-  const requiredDriversPresent =
-    obs.symbol === 'GOLD'
-      ? obs.usRealYield10Y !== undefined && obs.inflationBreakeven5Y !== undefined && obs.centralBankDemandTone !== undefined && obs.geopoliticalRiskLevel !== undefined
-      : obs.symbol === 'SILVER'
-      ? obs.usRealYield10Y !== undefined && obs.industrialDemandTone !== undefined && obs.geopoliticalRiskLevel !== undefined
-      : obs.supplyDemandBalance !== undefined && obs.inventoriesWeeklySurpriseMb !== undefined && obs.opecPolicyTone !== undefined;
-
-  if (!requiredDriversPresent) {
-    return {
-      score: 0,
-      bias: 'NEUTRAL',
-      dataStatus: 'INSUFFICIENT_DATA',
-      drivers: [],
-    };
-  }
 
   if (obs.symbol === 'GOLD') {
     // Real yields (inverted: lower real yields = positive gold)
@@ -774,7 +757,7 @@ export function calculateCommodityFundamentalScore(obs: CommodityObservation): {
   else if (finalScore <= -60) bias = 'STRONGLY_BEARISH';
   else if (finalScore <= -20) bias = 'BEARISH';
 
-  return { score: finalScore, bias, dataStatus: 'COMPLETE', drivers };
+  return { score: finalScore, bias, drivers };
 }
 
 export const calculateCommodityScores = calculateCommodityFundamentalScore;
