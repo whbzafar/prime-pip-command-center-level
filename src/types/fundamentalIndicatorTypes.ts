@@ -100,6 +100,10 @@ export interface IndicatorObservation {
   sourceUrl?: string;
   notes?: string;
   updatedAt: string;
+  verificationStatus?: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' | 'MANUAL';
+  confidence?: number;
+  researchRetrievedAt?: string;
+  researchSourceName?: string;
   revisions?: {
     date: string;
     originalActual: number;
