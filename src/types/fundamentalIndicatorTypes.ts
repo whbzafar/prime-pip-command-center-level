@@ -135,6 +135,8 @@ export interface CotPositioningRecord {
   nonReportableShort: number;
   notes?: string;
   sourceUrl: string;
+  previousNetPosition?: number;
+  previousOpenInterest?: number;
   updatedAt: string;
 }
 
@@ -185,6 +187,7 @@ export interface CommodityObservation {
   fedExpectedRate?: number;
   inflationBreakeven5Y?: number;
   centralBankDemandTone?: 'AGGRESSIVE_BUYING' | 'STEADY' | 'SLOW';
+  industrialDemandTone?: 'STRONG' | 'NEUTRAL' | 'WEAK';
   geopoliticalRiskLevel?: 'HIGH' | 'MODERATE' | 'LOW';
   // Oil specific drivers:
   supplyDemandBalance?: 'SURPLUS' | 'BALANCED' | 'DEFICIT';
