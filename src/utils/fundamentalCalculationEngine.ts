@@ -16,7 +16,7 @@ import {
 } from '../types/fundamentalIndicatorTypes';
 import { CURRENCIES, OFFICIAL_INDICATOR_REGISTRY, DEFAULT_CATEGORY_WEIGHTS } from '../data/fundamentalRegistryData';
 
-const CURRENT_TIMESTAMP_MS = new Date('2026-09-21T06:30:00Z').getTime();
+const CURRENT_TIMESTAMP_MS = Date.now();
 
 export function calculateIndicatorScore(
   definition: IndicatorDefinition,
@@ -325,33 +325,19 @@ export function calculateCategoryScores(
 }
 
 export function calculateCotScore(record: CotPositioningRecord): number {
-  let netPosition = 0;
   if (
-    record.nonCommercialLong !== undefined &&
-    record.nonCommercialShort !== undefined &&
-    (record.nonCommercialLong > 0 || record.nonCommercialShort > 0)
-  ) {
-    netPosition = record.nonCommercialLong - record.nonCommercialShort;
-  } else {
-    netPosition =
-      (record.leveragedFundsLong || 0) +
-      (record.assetManagerLong || 0) -
-      ((record.leveragedFundsShort || 0) + (record.assetManagerShort || 0));
-  }
-  const totalOpen = record.openInterest || 1;
-  const netRatio = netPosition / totalOpen;
+    typeof record.nonCommercialLong !== 'number' ||
+    typeof record.nonCommercialShort !== 'number' ||
+    typeof record.openInterest !== 'number' ||
+    !Number.isFinite(record.nonCommercialLong) ||
+    !Number.isFinite(record.nonCommercialShort) ||
+    !Number.isFinite(record.openInterest) ||
+    record.openInterest <= 0
+  ) return 0;
 
-  // Normalization: -0.30 to +0.30 of open interest maps to -90 to +90
-  let score = Math.round(Math.max(-100, Math.min(100, netRatio * 300)));
-
-  // Crowding penalty: if extreme long (> +85) and past historic reversal limit, temper the score to reflect liquidation risk
-  if (score > 85) {
-    score = 75; // Reflects crowded long vulnerability
-  } else if (score < -85) {
-    score = -75; // Extreme short squeeze risk
-  }
-
-  return score;
+  const netPosition = record.nonCommercialLong - record.nonCommercialShort;
+  const netRatio = netPosition / record.openInterest;
+  return Math.round(Math.max(-100, Math.min(100, netRatio * 500)));
 }
 
 export function calculateSentimentScore(record: MarketSentimentRecord): number {
@@ -434,7 +420,7 @@ export function calculateCurrencyScore(
       if (ind.status === 'STALE') staleCount++;
     }
 
-    if (cat.activeCount > 0 || cat.category === 'COT_POSITIONING' || cat.category === 'SENTIMENT' || cat.category === 'RATES_YIELDS') {
+    if (cat.activeCount > 0) {
       weightedScoreSum += cat.score * cat.weight;
       totalApplicableWeight += cat.weight;
     }
