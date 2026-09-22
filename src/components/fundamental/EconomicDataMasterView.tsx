@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   CurrencyCode,
   IndicatorCategory,
   IndicatorObservation,
   IndicatorDefinition,
+  CustomFundamentalIndicator,
 } from '../../types/fundamentalIndicatorTypes';
 import { OFFICIAL_INDICATOR_REGISTRY, CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
+import { generateIndicator } from '../../services/fundamentalLiveResearchService';
 import {
   Search,
   Filter,
@@ -46,6 +48,42 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
     referencePeriod: '',
     notes: '',
   });
+  const [customIndicators, setCustomIndicators] = useState<CustomFundamentalIndicator[]>(() => {
+    try {
+      const saved = localStorage.getItem('primepip_fundamental_custom_indicators_v1');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isAddingCustom, setIsAddingCustom] = useState(false);
+  const [editingCustom, setEditingCustom] = useState<CustomFundamentalIndicator | null>(null);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [batchState, setBatchState] = useState({ running: false, completed: 0, total: 0 });
+  const [liveMessage, setLiveMessage] = useState<string | null>(null);
+  const [customForm, setCustomForm] = useState({
+    currency: 'USD' as CurrencyCode,
+    name: '',
+    shortLabel: '',
+    category: 'INFLATION' as IndicatorCategory,
+    frequency: 'Monthly' as any,
+    measurementPeriod: 'Percentage (%)' as any,
+    unit: '%',
+    actual: '',
+    forecast: '',
+    previous: '',
+    sourceName: '',
+    sourceUrl: '',
+    referencePeriod: '',
+    releaseDate: '',
+    notes: '',
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('primepip_fundamental_custom_indicators_v1', JSON.stringify(customIndicators));
+    } catch {}
+  }, [customIndicators]);
 
   // Map definitions to observations
   const obsMap = new Map<string, IndicatorObservation>();
@@ -140,6 +178,220 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
     setEditingDef(null);
   };
 
+  const handleGenerateOfficial = async (def: IndicatorDefinition, mode: 'GENERATE' | 'REGENERATE' = 'GENERATE') => {
+    if (generatingId || batchState.running) return;
+    setGeneratingId(def.id);
+    setLiveMessage(null);
+    try {
+      const existing = obsMap.get(def.id);
+      const result = await generateIndicator(def, existing, mode);
+      if (result.status !== 'VERIFIED' || result.actual === null) {
+        setLiveMessage(result.notes || `${def.shortLabel}: verified data was not available; existing values were preserved.`);
+        return;
+      }
+      onUpdateObservation({
+        id: existing?.id || `obs_${def.id}_${Date.now()}`,
+        indicatorId: def.id,
+        currency: def.currency,
+        referencePeriod: result.referencePeriod || existing?.referencePeriod || 'Latest',
+        releaseDate: result.releaseDate || existing?.releaseDate || new Date().toISOString().split('T')[0],
+        actual: result.actual,
+        forecast: result.forecast,
+        previous: result.previous,
+        revisedPrevious: result.revisedPrevious ?? existing?.revisedPrevious ?? null,
+        unit: def.unit,
+        sourceUrl: result.sourceUrl || def.officialSourceUrl,
+        notes: result.notes || existing?.notes,
+        updatedAt: result.retrievedAt || new Date().toISOString(),
+        verificationStatus: 'VERIFIED',
+        confidence: result.confidence,
+        researchRetrievedAt: result.retrievedAt,
+        researchSourceName: result.sourceName,
+      });
+      setLiveMessage(`${def.shortLabel}: verified and updated.`);
+    } catch (error) {
+      setLiveMessage(error instanceof Error ? error.message : 'Live research failed; existing values were preserved.');
+    } finally {
+      setGeneratingId(null);
+    }
+  };
+
+  const handleGenerateFiltered = async (mode: 'GENERATE' | 'REGENERATE' = 'GENERATE') => {
+    if (generatingId || batchState.running) return;
+    const scoped = filtered.map((item) => item.def);
+    setBatchState({ running: true, completed: 0, total: scoped.length });
+    setLiveMessage(null);
+    try {
+      for (let index = 0; index < scoped.length; index += 1) {
+        const def = scoped[index];
+        try {
+          const existing = obsMap.get(def.id);
+          const result = await generateIndicator(def, existing, mode);
+          if (result.status === 'VERIFIED' && result.actual !== null) {
+            onUpdateObservation({
+              id: existing?.id || `obs_${def.id}_${Date.now()}`,
+              indicatorId: def.id,
+              currency: def.currency,
+              referencePeriod: result.referencePeriod || existing?.referencePeriod || 'Latest',
+              releaseDate: result.releaseDate || existing?.releaseDate || new Date().toISOString().split('T')[0],
+              actual: result.actual,
+              forecast: result.forecast,
+              previous: result.previous,
+              revisedPrevious: result.revisedPrevious ?? existing?.revisedPrevious ?? null,
+              unit: def.unit,
+              sourceUrl: result.sourceUrl || def.officialSourceUrl,
+              notes: result.notes || existing?.notes,
+              updatedAt: result.retrievedAt || new Date().toISOString(),
+              verificationStatus: 'VERIFIED',
+              confidence: result.confidence,
+              researchRetrievedAt: result.retrievedAt,
+              researchSourceName: result.sourceName,
+            });
+          }
+        } catch {}
+        setBatchState((prev) => ({ ...prev, completed: index + 1 }));
+      }
+      setLiveMessage(`Grounded research completed for ${scoped.length} listed indicators. Unverified items were left unchanged.`);
+    } finally {
+      setBatchState((prev) => ({ ...prev, running: false }));
+    }
+  };
+
+  const resetCustomForm = () => {
+    setCustomForm({
+      currency: (selectedCurrency !== 'ALL' ? selectedCurrency : 'USD') as CurrencyCode,
+      name: '',
+      shortLabel: '',
+      category: 'INFLATION',
+      frequency: 'Monthly',
+      measurementPeriod: 'Percentage (%)',
+      unit: '%',
+      actual: '',
+      forecast: '',
+      previous: '',
+      sourceName: '',
+      sourceUrl: '',
+      referencePeriod: '',
+      releaseDate: '',
+      notes: '',
+    });
+  };
+
+  const openCustomEditor = (item?: CustomFundamentalIndicator) => {
+    if (item) {
+      setEditingCustom(item);
+      setCustomForm({
+        currency: item.currency,
+        name: item.name,
+        shortLabel: item.shortLabel,
+        category: item.category,
+        frequency: item.frequency,
+        measurementPeriod: item.measurementPeriod,
+        unit: item.unit,
+        actual: item.actual === null ? '' : String(item.actual),
+        forecast: item.forecast === null ? '' : String(item.forecast),
+        previous: item.previous === null ? '' : String(item.previous),
+        sourceName: item.officialSourceName || '',
+        sourceUrl: item.officialSourceUrl || '',
+        referencePeriod: item.referencePeriod || '',
+        releaseDate: item.releaseDate || '',
+        notes: item.notes || '',
+      });
+    } else {
+      resetCustomForm();
+      setEditingCustom(null);
+    }
+    setIsAddingCustom(true);
+  };
+
+  const saveCustomIndicator = () => {
+    if (!customForm.name.trim() || !customForm.shortLabel.trim()) {
+      setLiveMessage('Custom indicator name and short label are required.');
+      return;
+    }
+    const actual = customForm.actual.trim() === '' ? null : Number(customForm.actual);
+    const forecast = customForm.forecast.trim() === '' ? null : Number(customForm.forecast);
+    const previous = customForm.previous.trim() === '' ? null : Number(customForm.previous);
+    if ([actual, forecast, previous].some((value) => value !== null && !Number.isFinite(value))) {
+      setLiveMessage('Custom indicator numeric fields must contain valid numbers.');
+      return;
+    }
+
+    const item: CustomFundamentalIndicator = {
+      id: editingCustom?.id || `CUSTOM_${customForm.currency}_${Date.now()}`,
+      currency: customForm.currency,
+      name: customForm.name.trim(),
+      shortLabel: customForm.shortLabel.trim(),
+      category: customForm.category,
+      frequency: customForm.frequency,
+      measurementPeriod: customForm.measurementPeriod,
+      unit: customForm.unit.trim() || '%',
+      officialSourceName: customForm.sourceName.trim() || undefined,
+      officialSourceUrl: customForm.sourceUrl.trim() || undefined,
+      actual,
+      forecast,
+      previous,
+      referencePeriod: customForm.referencePeriod.trim() || undefined,
+      releaseDate: customForm.releaseDate.trim() || undefined,
+      notes: customForm.notes.trim() || undefined,
+      updatedAt: new Date().toISOString(),
+      verificationStatus: 'MANUAL',
+    };
+    setCustomIndicators((prev) => {
+      const exists = prev.some((entry) => entry.id === item.id);
+      return exists ? prev.map((entry) => entry.id === item.id ? item : entry) : [...prev, item];
+    });
+    setIsAddingCustom(false);
+    setEditingCustom(null);
+    setLiveMessage(`${item.shortLabel}: custom indicator saved.`);
+  };
+
+  const handleGenerateCustom = async (item: CustomFundamentalIndicator, mode: 'GENERATE' | 'REGENERATE' = 'GENERATE') => {
+    if (generatingId || batchState.running) return;
+    setGeneratingId(item.id);
+    setLiveMessage(null);
+    try {
+      const existing: IndicatorObservation = {
+        id: item.id,
+        indicatorId: item.id,
+        currency: item.currency,
+        referencePeriod: item.referencePeriod || 'Latest',
+        releaseDate: item.releaseDate || '',
+        actual: item.actual ?? 0,
+        forecast: item.forecast,
+        previous: item.previous,
+        unit: item.unit,
+        sourceUrl: item.officialSourceUrl,
+        notes: item.notes,
+        updatedAt: item.updatedAt || new Date().toISOString(),
+      };
+      const result = await generateIndicator(item, existing, mode);
+      if (result.status !== 'VERIFIED' || result.actual === null) {
+        setLiveMessage(result.notes || `${item.shortLabel}: no verified release was returned.`);
+        return;
+      }
+      setCustomIndicators((prev) => prev.map((entry) => entry.id === item.id ? {
+        ...entry,
+        actual: result.actual,
+        forecast: result.forecast,
+        previous: result.previous,
+        revisedPrevious: result.revisedPrevious,
+        referencePeriod: result.referencePeriod,
+        releaseDate: result.releaseDate,
+        sourceUrl: result.sourceUrl,
+        notes: result.notes,
+        updatedAt: result.retrievedAt,
+        verificationStatus: 'VERIFIED',
+        confidence: result.confidence,
+      } : entry));
+      setLiveMessage(`${item.shortLabel}: verified and updated.`);
+    } catch (error) {
+      setLiveMessage(error instanceof Error ? error.message : 'Custom indicator research failed.');
+    } finally {
+      setGeneratingId(null);
+    }
+  };
+
   const currencies: CurrencyCode[] = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
 
   return (
@@ -159,10 +411,34 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-mono-code text-slate-400">
-            <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 font-bold text-slate-200">
-              {filtered.length} of {OFFICIAL_INDICATOR_REGISTRY.length} Indicators Listed
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 font-bold text-slate-200 text-xs">
+              {filtered.length} of {OFFICIAL_INDICATOR_REGISTRY.length} Official Indicators
             </span>
+            <button
+              type="button"
+              onClick={() => openCustomEditor()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-military font-bold transition cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              ADD CUSTOM
+            </button>
+            <button
+              type="button"
+              disabled={batchState.running || generatingId === null && filtered.length === 0}
+              onClick={() => handleGenerateFiltered('GENERATE')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 text-xs font-military font-bold transition cursor-pointer"
+            >
+              {batchState.running ? `${batchState.completed}/${batchState.total}` : 'GENERATE LIST'}
+            </button>
+            <button
+              type="button"
+              disabled={batchState.running || filtered.length === 0}
+              onClick={() => handleGenerateFiltered('REGENERATE')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-cyan-300 border border-cyan-500/30 text-xs font-military font-bold transition cursor-pointer"
+            >
+              REGENERATE
+            </button>
           </div>
         </div>
 
@@ -350,13 +626,34 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
                     </td>
 
                     <td className="p-3 text-center">
-                      <button
-                        onClick={() => handleStartEdit(def, obs)}
-                        className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 hover:border-slate-700 transition cursor-pointer"
-                        title="Edit Release Values"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleGenerateOfficial(def, 'GENERATE')}
+                          disabled={generatingId === def.id || batchState.running}
+                          className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 disabled:opacity-40 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold transition cursor-pointer"
+                          title="Generate latest verified release"
+                        >
+                          {generatingId === def.id ? '...' : 'Generate'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleGenerateOfficial(def, 'REGENERATE')}
+                          disabled={generatingId === def.id || batchState.running}
+                          className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-cyan-300 border border-slate-700 text-[10px] font-bold transition cursor-pointer"
+                          title="Force fresh web verification"
+                        >
+                          Regenerate
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(def, obs)}
+                          className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 hover:border-slate-700 transition cursor-pointer"
+                          title="Edit Release Values"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -464,6 +761,90 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
           })}
         </div>
       </div>
+
+      {/* CUSTOM FUNDAMENTAL INDICATORS */}
+      <div className="bg-slate-950/80 border border-amber-500/20 rounded-2xl overflow-hidden shadow-2xl">
+        <div className="p-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800">
+          <div>
+            <h3 className="text-sm font-military font-bold text-slate-100 uppercase">Custom Fundamental Indicators</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">Your own items stay separate from the official 81-indicator registry and can also use Generate/Regenerate.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => openCustomEditor()}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-military font-bold transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> ADD CUSTOM ITEM
+          </button>
+        </div>
+        {customIndicators.length === 0 ? (
+          <div className="p-5 text-xs text-slate-500 font-mono-code">No custom indicators yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs font-mono-code">
+              <thead className="bg-[#0c1222] text-slate-400 uppercase text-[10px]">
+                <tr>
+                  <th className="p-3">Currency / Indicator</th><th className="p-3 text-right">Actual</th><th className="p-3 text-right">Forecast</th><th className="p-3 text-right">Previous</th><th className="p-3 text-center">Status</th><th className="p-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {customIndicators.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-900/40">
+                    <td className="p-3">
+                      <div className="flex items-center gap-2"><span>{CURRENCY_METADATA[item.currency]?.flag}</span><button type="button" onClick={() => onSelectCurrency(item.currency)} className="text-cyan-300 font-bold">{item.currency}</button><span className="text-slate-100 font-bold">{item.shortLabel}</span></div>
+                      <span className="text-[10px] text-slate-400">{item.name}</span>
+                    </td>
+                    <td className="p-3 text-right text-slate-100">{item.actual ?? '—'} {item.actual !== null ? item.unit : ''}</td>
+                    <td className="p-3 text-right text-slate-400">{item.forecast ?? '—'}</td>
+                    <td className="p-3 text-right text-slate-400">{item.previous ?? '—'}</td>
+                    <td className="p-3 text-center"><span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-cyan-300">{item.verificationStatus || 'MANUAL'}</span></td>
+                    <td className="p-3 text-center">
+                      <div className="flex justify-center gap-1.5">
+                        <button type="button" onClick={() => handleGenerateCustom(item, 'GENERATE')} disabled={generatingId === item.id || batchState.running} className="px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold disabled:opacity-40">Generate</button>
+                        <button type="button" onClick={() => handleGenerateCustom(item, 'REGENERATE')} disabled={generatingId === item.id || batchState.running} className="px-2 py-1 rounded-lg bg-slate-900 text-cyan-300 border border-slate-700 text-[10px] font-bold disabled:opacity-40">Regenerate</button>
+                        <button type="button" onClick={() => openCustomEditor(item)} className="p-1.5 rounded-lg bg-slate-900 text-cyan-400 border border-slate-800"><Edit3 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Add / Edit Custom Indicator Modal */}
+      {isAddingCustom && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-2xl bg-[#0a0f1d] border border-amber-500/30 rounded-2xl shadow-2xl p-6 text-slate-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="font-military font-bold text-base">Add / Edit Custom Indicator</h3>
+                <p className="text-[10px] text-slate-500 mt-1">Custom items do not change the official 81-indicator registry count.</p>
+              </div>
+              <button type="button" onClick={() => setIsAddingCustom(false)} className="p-1 rounded-lg bg-slate-900 text-slate-400"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono-code">
+              <label className="space-y-1"><span className="text-slate-400">Currency</span><select value={customForm.currency} onChange={(e) => setCustomForm({ ...customForm, currency: e.target.value as CurrencyCode })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5"><option>USD</option><option>EUR</option><option>GBP</option><option>JPY</option><option>CHF</option><option>CAD</option><option>AUD</option><option>NZD</option></select></label>
+              <label className="space-y-1"><span className="text-slate-400">Short Label</span><input value={customForm.shortLabel} onChange={(e) => setCustomForm({ ...customForm, shortLabel: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
+              <label className="space-y-1 sm:col-span-2"><span className="text-slate-400">Indicator Name</span><input value={customForm.name} onChange={(e) => setCustomForm({ ...customForm, name: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
+              <label className="space-y-1"><span className="text-slate-400">Category</span><select value={customForm.category} onChange={(e) => setCustomForm({ ...customForm, category: e.target.value as IndicatorCategory })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5">{['INFLATION','EMPLOYMENT','GROWTH','BUSINESS_ACTIVITY','MONETARY_POLICY','RATES_YIELDS','CONSUMER','TRADE_EXTERNAL','HOUSING','FISCAL'].map((v) => <option key={v}>{v}</option>)}</select></label>
+              <label className="space-y-1"><span className="text-slate-400">Unit</span><input value={customForm.unit} onChange={(e) => setCustomForm({ ...customForm, unit: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
+              <label className="space-y-1"><span className="text-slate-400">Actual</span><input type="number" step="any" value={customForm.actual} onChange={(e) => setCustomForm({ ...customForm, actual: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
+              <label className="space-y-1"><span className="text-slate-400">Forecast</span><input type="number" step="any" value={customForm.forecast} onChange={(e) => setCustomForm({ ...customForm, forecast: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
+              <label className="space-y-1"><span className="text-slate-400">Previous</span><input type="number" step="any" value={customForm.previous} onChange={(e) => setCustomForm({ ...customForm, previous: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
+              <label className="space-y-1"><span className="text-slate-400">Reference Period</span><input value={customForm.referencePeriod} onChange={(e) => setCustomForm({ ...customForm, referencePeriod: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
+              <label className="space-y-1"><span className="text-slate-400">Release Date</span><input type="date" value={customForm.releaseDate} onChange={(e) => setCustomForm({ ...customForm, releaseDate: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
+              <label className="space-y-1 sm:col-span-2"><span className="text-slate-400">Source URL (optional)</span><input value={customForm.sourceUrl} onChange={(e) => setCustomForm({ ...customForm, sourceUrl: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
+              <label className="space-y-1 sm:col-span-2"><span className="text-slate-400">Notes</span><textarea rows={2} value={customForm.notes} onChange={(e) => setCustomForm({ ...customForm, notes: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setIsAddingCustom(false)} className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">Cancel</button>
+              <button type="button" onClick={saveCustomIndicator} className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold">Save Custom Indicator</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Release Modal */}
       {editingDef && (
