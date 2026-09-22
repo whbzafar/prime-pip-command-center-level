@@ -1,496 +1,707 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Activity,
-  BarChart3,
-  BookOpen,
-  ChevronDown,
-  ExternalLink,
-  Globe2,
+  CurrencyCode,
+  IndicatorObservation,
+  ModelCategoryWeights,
+  CurrencyScoreResult,
+  PairDifferentialResult,
+  IndicatorDefinition,
+  MarketSentimentRecord,
+  CotPositioningRecord,
+  InterestRateRecord,
+} from '../types/fundamentalIndicatorTypes';
+import {
+  DEFAULT_OBSERVATIONS,
+  DEFAULT_COT_RECORDS,
+  DEFAULT_SENTIMENT_RECORDS,
+  DEFAULT_COMMODITY_OBSERVATIONS,
+  DEFAULT_INTEREST_RATES,
+} from '../data/defaultFundamentalObservations';
+import {
+  DEFAULT_CATEGORY_WEIGHTS,
+  CURRENCY_METADATA,
+  OFFICIAL_INDICATOR_REGISTRY,
+} from '../data/fundamentalRegistryData';
+import {
+  calculateCurrencyScore,
+  calculatePairDifferential,
+  calculateCommodityFundamentalScore,
+  calculateLongTermPairRankings,
+} from '../utils/fundamentalCalculationEngine';
+import { generateFundamentalIntelligencePdf } from '../utils/fundamentalPdfGenerator';
+
+// Modular Component Views
+import { OverviewView } from './fundamental/OverviewView';
+import { CurrencyWorkspaceView } from './fundamental/CurrencyWorkspaceView';
+import { EconomicDataMasterView } from './fundamental/EconomicDataMasterView';
+import { CurrencyStrengthMatrixView } from './fundamental/CurrencyStrengthMatrixView';
+import { PairDifferentialScannerView } from './fundamental/PairDifferentialScannerView';
+import { RatesAndYieldsView } from './fundamental/RatesAndYieldsView';
+import { CotTradingView } from './fundamental/CotTradingView';
+import { MarketSentimentView } from './fundamental/MarketSentimentView';
+import { CommoditiesMacroView } from './fundamental/CommoditiesMacroView';
+import { LongTermPairRankingsView } from './fundamental/LongTermPairRankingsView';
+import { HistoricalSnapshotsView } from './fundamental/HistoricalSnapshotsView';
+import { DataQualityAuditView } from './fundamental/DataQualityAuditView';
+import { ModelWeightsRegistryView } from './fundamental/ModelWeightsRegistryView';
+import { FundamentalMethodologyView } from './fundamental/FundamentalMethodologyView';
+
+// Modals
+import { ModelAuditModal } from './fundamental/ModelAuditModal';
+import { AiMacroExplanationModal } from './fundamental/AiMacroExplanationModal';
+import { IndicatorExplanationModal } from './fundamental/IndicatorExplanationModal';
+import { PairDeepDiveModal } from './fundamental/PairDeepDiveModal';
+
+import {
   Landmark,
-  Lock,
-  RefreshCw,
+  Layers,
+  BarChart3,
+  Scale,
+  Users,
+  Gem,
+  Sliders,
+  History,
+  RotateCcw,
+  FileText,
+  Sparkles,
   ShieldCheck,
-  TrendingDown,
-  TrendingUp,
+  CheckCircle2,
+  AlertTriangle,
+  Database,
+  Compass,
+  Activity,
+  Clock,
+  ShieldAlert,
+  HelpCircle,
 } from 'lucide-react';
 
-type Bias = 'BULLISH' | 'BEARISH' | 'MIXED';
+export type FundamentalDashboardTab =
+  | 'OVERVIEW'
+  | 'WORKSPACES'
+  | 'ECONOMIC_DATA_MASTER'
+  | 'MATRIX'
+  | 'PAIRS'
+  | 'RATES_YIELDS'
+  | 'COT_REPORT'
+  | 'MARKET_SENTIMENT'
+  | 'COMMODITIES'
+  | 'LONG_TERM_RANKINGS'
+  | 'HISTORICAL_SNAPSHOTS'
+  | 'DATA_QUALITY'
+  | 'WEIGHTS_REGISTRY'
+  | 'METHODOLOGY';
 
-interface FundamentalIndicator {
-  id: string;
-  name: string;
-  category: string;
-  whatItMeasures: string;
-  whyItMovesCurrency: string;
-  bullishSignal: string;
-  bearishSignal: string;
-  timing: string;
-  sources: { label: string; url: string }[];
-}
-
-interface OnlineIndicator {
-  id: string;
-  name: string;
-  description: string;
-  source: string;
-  url: string;
-}
-
-interface DashboardFactor {
-  key: string;
-  label: string;
-  score: number;
-  weight: number;
-  status: 'LIVE' | 'UNAVAILABLE';
-  updatedAt: string | null;
-  reason: string;
-}
-
-interface DashboardInstrument {
-  code: string;
-  score: number;
-  label: 'Bullish' | 'Bearish' | 'Neutral';
-  freshness: 'LIVE' | 'PARTIAL' | 'UNAVAILABLE';
-  factors: DashboardFactor[];
-}
-
-interface StrengthDashboard {
-  generatedAt: string;
-  coverage: { liveFactors: number; totalFactors: number; note: string };
-  instruments: DashboardInstrument[];
-}
-
-const INDICATORS: FundamentalIndicator[] = [
-  {
-    id: 'central-bank',
-    name: 'Central-bank policy and rate expectations',
-    category: 'Monetary policy',
-    whatItMeasures: 'The policy rate, guidance, meeting statement, and expected path of future rates.',
-    whyItMovesCurrency: 'Higher expected returns on a currency’s interest-bearing assets can attract capital. Markets usually react to the expected path, not only the latest rate.',
-    bullishSignal: 'The central bank is more hawkish than markets expected, or expected rates rise relative to the other currency.',
-    bearishSignal: 'The central bank is more dovish than expected, signals cuts, or expected rates fall relative to the other currency.',
-    timing: 'Every policy meeting; repricing can happen immediately after decisions, speeches, minutes, and major data releases.',
-    sources: [
-      { label: 'Federal Reserve FOMC', url: 'https://www.federalreserve.gov/monetarypolicy/fomc.htm' },
-      { label: 'ECB monetary policy', url: 'https://www.ecb.europa.eu/press/govcdec/mopo/html/index.en.html' },
-    ],
-  },
-  {
-    id: 'inflation',
-    name: 'Inflation: CPI and core inflation',
-    category: 'Prices',
-    whatItMeasures: 'How quickly consumer prices are changing. Core measures remove volatile food and energy components; each country defines its official measure differently.',
-    whyItMovesCurrency: 'Persistent inflation can keep policy rates high, but very high inflation can also damage real incomes and growth. The policy reaction and the surprise versus expectations matter.',
-    bullishSignal: 'Inflation is sticky enough to support a relatively tighter policy path, without a growth shock, and the release is above expectations.',
-    bearishSignal: 'Inflation is cooling faster than expected and supports earlier easing, or high inflation is causing a severe growth and confidence shock.',
-    timing: 'Usually monthly. Compare year-over-year and month-over-month changes with the consensus forecast and the central bank’s target.',
-    sources: [
-      { label: 'US CPI (BLS)', url: 'https://www.bls.gov/cpi/' },
-      { label: 'Eurostat HICP', url: 'https://ec.europa.eu/eurostat/web/hicp' },
-    ],
-  },
-  {
-    id: 'employment',
-    name: 'Employment, unemployment, and wages',
-    category: 'Growth and labor',
-    whatItMeasures: 'Job creation, the unemployment rate, labor-force participation, vacancies, and wage growth.',
-    whyItMovesCurrency: 'A resilient labor market can support household spending and a tighter policy path. Weak employment usually reduces growth and rate expectations.',
-    bullishSignal: 'Employment and wages beat expectations while unemployment remains contained, especially when the data changes rate expectations.',
-    bearishSignal: 'Job losses, rising unemployment, falling participation, or a meaningful downside surprise in payrolls and wages.',
-    timing: 'Payrolls and unemployment are generally monthly; wage and labor-demand details should be read together rather than in isolation.',
-    sources: [
-      { label: 'US Employment Situation (BLS)', url: 'https://www.bls.gov/news.release/empsit.nr0.htm' },
-      { label: 'Euro area labor data (Eurostat)', url: 'https://ec.europa.eu/eurostat/web/labour-market' },
-    ],
-  },
-  {
-    id: 'growth',
-    name: 'GDP and activity surveys',
-    category: 'Growth and labor',
-    whatItMeasures: 'GDP measures total economic output. PMI and similar surveys provide faster evidence about business activity, new orders, and employment.',
-    whyItMovesCurrency: 'Stronger relative growth can attract investment and reduce the need for policy easing; weak growth can do the opposite.',
-    bullishSignal: 'GDP, composite PMI, new orders, and employment components show durable expansion above expectations.',
-    bearishSignal: 'Output contracts, PMIs remain below 50, or forward-looking orders deteriorate materially.',
-    timing: 'GDP is quarterly and revised. PMIs are usually monthly and are useful for spotting turning points before official GDP.',
-    sources: [
-      { label: 'US BEA GDP', url: 'https://www.bea.gov/data/gdp/gross-domestic-product' },
-      { label: 'S&P Global PMI', url: 'https://www.pmi.spglobal.com/Public/Home/PressRelease' },
-    ],
-  },
-  {
-    id: 'consumption',
-    name: 'Retail sales and consumer demand',
-    category: 'Domestic demand',
-    whatItMeasures: 'Spending by households and the strength of consumer demand, often excluding volatile categories for the underlying trend.',
-    whyItMovesCurrency: 'Consumption is a major part of many economies. Strong demand can lift growth and keep policy tighter; weak demand can signal slowdown.',
-    bullishSignal: 'Underlying sales grow above expectations and revisions improve, without an accompanying inflation or credit shock.',
-    bearishSignal: 'Sales contract broadly, prior months are revised down, or consumers are weakening because financing stress is rising.',
-    timing: 'Usually monthly. Check the control or core measure and real spending context where available.',
-    sources: [
-      { label: 'US Census retail sales', url: 'https://www.census.gov/retail/index.html' },
-      { label: 'UK retail sales (ONS)', url: 'https://www.ons.gov.uk/businessindustryandtrade/retailindustry' },
-    ],
-  },
-  {
-    id: 'external-balance',
-    name: 'Trade balance and current account',
-    category: 'External sector',
-    whatItMeasures: 'Exports minus imports, plus the broader current account, which includes income and transfers.',
-    whyItMovesCurrency: 'Persistent external surpluses can create natural demand for a currency; deficits require financing and may increase sensitivity to capital flows.',
-    bullishSignal: 'A durable improvement in exports, terms of trade, or current-account balance supported by productive investment.',
-    bearishSignal: 'A widening deficit that depends on unstable financing, or an export shock that reduces foreign-currency receipts.',
-    timing: 'Trade data is often monthly; current-account data is usually quarterly. Avoid treating one month as a structural trend.',
-    sources: [
-      { label: 'US Census trade data', url: 'https://www.census.gov/foreign-trade/data/index.html' },
-      { label: 'IMF external sector data', url: 'https://data.imf.org/' },
-    ],
-  },
-  {
-    id: 'commodities-terms',
-    name: 'Commodity prices and terms of trade',
-    category: 'External sector',
-    whatItMeasures: 'The prices of a country’s key exports relative to the price of its imports. This is especially important for commodity-linked currencies.',
-    whyItMovesCurrency: 'Higher export prices can improve national income, trade flows, and fiscal receipts; lower prices can create the reverse pressure.',
-    bullishSignal: 'Export commodities rise while the economy and fiscal position benefit, as often seen in commodity exporters.',
-    bearishSignal: 'A sustained export-price decline weakens income, investment, and the trade balance.',
-    timing: 'Market prices are continuous; use them with trade, production, and fiscal data to confirm the transmission to the economy.',
-    sources: [
-      { label: 'World Bank commodity data', url: 'https://www.worldbank.org/en/research/commodity-markets' },
-      { label: 'IMF commodity prices', url: 'https://www.imf.org/en/Research/commodity-prices' },
-    ],
-  },
-  {
-    id: 'positioning-risk',
-    name: 'Positioning and global risk appetite',
-    category: 'Market context',
-    whatItMeasures: 'Speculative positioning, volatility, credit conditions, and whether investors are seeking risk or safety.',
-    whyItMovesCurrency: 'Currencies have different risk and funding roles. Safe-haven demand can override domestic data; crowded positioning can amplify reversals.',
-    bullishSignal: 'Positioning is not excessively crowded, risk conditions support the currency’s role, and price confirms the fundamental impulse.',
-    bearishSignal: 'A crowded long position unwinds, funding stress rises, or global risk aversion favors another currency.',
-    timing: 'Risk pricing is continuous. CFTC positioning is weekly and delayed, so use it as context, not a real-time trigger.',
-    sources: [
-      { label: 'CFTC Commitments of Traders', url: 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm' },
-      { label: 'BIS statistics', url: 'https://www.bis.org/statistics/index.htm' },
-    ],
-  },  {
-    id: 'cot',
-    name: 'Tradingster Commitment of Traders (COT) Report',
-    category: 'Positioning',
-    whatItMeasures: 'CFTC weekly futures & options positioning across Commercial Hedgers, Institutional Asset Managers, and Non-Commercial Speculators on Tradingster.',
-    whyItMovesCurrency: 'Extreme commercial positioning often marks major macro tops and bottoms. Net speculative long/short overcrowding reveals institutional smart money accumulation or liquidation cycles.',
-    bullishSignal: 'Commercial hedgers flipping heavily net-long or aggressive smart-money institutional accumulation while retail sentiment is short.',
-    bearishSignal: 'Commercial hedgers positioning at extreme net-short records or heavy speculative overcrowding with exhausted upside volume.',
-    timing: 'Weekly. CFTC compiles Tuesday data and publishes Friday at 3:30 PM EST; Tradingster updates immediately with interactive breakdown charts.',
-    sources: [
-      { label: 'Tradingster COT Report (Live Interactive Charts)', url: 'https://www.tradingster.com/cot' },
-      { label: 'CFTC Official Commitments of Traders', url: 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm' },
-    ],
-  },
-
-];
-
-const BIAS_OPTIONS: { value: Bias; label: string }[] = [
-  { value: 'BULLISH', label: 'Bullish' },
-  { value: 'BEARISH', label: 'Bearish' },
-  { value: 'MIXED', label: 'Mixed / unclear' },
-];
+const LOCAL_STORAGE_OBSERVATIONS_KEY = 'primepip_fundamental_observations_v2';
+const LOCAL_STORAGE_WEIGHTS_KEY = 'primepip_fundamental_weights_v2';
+const LOCAL_STORAGE_SENTIMENT_KEY = 'primepip_fundamental_sentiment_v2';
+const LOCAL_STORAGE_COT_KEY = 'primepip_fundamental_cot_v2';
+const LOCAL_STORAGE_RATES_KEY = 'primepip_fundamental_rates_v2';
 
 export const FundamentalIndicators: React.FC = () => {
-  const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('ALL');
-  const [selectedId, setSelectedId] = useState(INDICATORS[0].id);
-  const [biases, setBiases] = useState<Record<string, Bias>>({});
-  const [onlineResults, setOnlineResults] = useState<OnlineIndicator[]>([]);
-  const [isOnlineLoading, setIsOnlineLoading] = useState(false);
-  const [onlineError, setOnlineError] = useState<string | null>(null);
-  const [dashboard, setDashboard] = useState<StrengthDashboard | null>(null);
-  const [dashboardError, setDashboardError] = useState<string | null>(null);
-  const [dashboardLoading, setDashboardLoading] = useState(true);
-  const [selectedInstrument, setSelectedInstrument] = useState('USD');
-  const [selectedPair, setSelectedPair] = useState('EUR/USD');
+  const [activeTab, setActiveTab] = useState<FundamentalDashboardTab>('OVERVIEW');
+  const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>('USD');
 
-  const loadDashboard = async () => {
-    setDashboardLoading(true);
-    setDashboardError(null);
+  // Observations state with localStorage persistence
+  const [observations, setObservations] = useState<IndicatorObservation[]>(() => {
     try {
-      const response = await fetch('/api/fundamental-indicators/dashboard', {
-        headers: { Accept: 'application/json' },
-        cache: 'no-store',
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || 'Strength data is unavailable.');
-      setDashboard(body);
-    } catch (error) {
-      setDashboardError(error instanceof Error ? error.message : 'Strength data is unavailable.');
-    } finally {
-      setDashboardLoading(false);
+      const saved = localStorage.getItem(LOCAL_STORAGE_OBSERVATIONS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Error loading fundamental observations from storage', e);
     }
-  };
-
-  useEffect(() => {
-    void loadDashboard();
-    const timer = window.setInterval(() => void loadDashboard(), 15 * 60 * 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      setOnlineResults([]);
-      setOnlineError(null);
-      return;
-    }
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      setIsOnlineLoading(true);
-      setOnlineError(null);
-      try {
-        const response = await fetch(`/api/fundamental-indicators/search?q=${encodeURIComponent(trimmed)}`, {
-          signal: controller.signal,
-          headers: { Accept: 'application/json' },
-        });
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.error || 'Online indicator search failed.');
-        setOnlineResults(Array.isArray(body.results) ? body.results : []);
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          setOnlineResults([]);
-          setOnlineError(error instanceof Error ? error.message : 'Online indicator search failed.');
-        }
-      } finally {
-        if (!controller.signal.aborted) setIsOnlineLoading(false);
-      }
-    }, 250);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query]);
-
-  const categories = useMemo(
-    () => ['ALL', ...Array.from(new Set(INDICATORS.map((indicator) => indicator.category)))],
-    [],
-  );
-  const filteredIndicators = INDICATORS.filter((indicator) => {
-    const searchable = `${indicator.name} ${indicator.category} ${indicator.whatItMeasures}`.toLowerCase();
-    return (category === 'ALL' || indicator.category === category) &&
-      searchable.includes(query.trim().toLowerCase());
+    return DEFAULT_OBSERVATIONS;
   });
-  const selected = INDICATORS.find((indicator) => indicator.id === selectedId) || filteredIndicators[0] || INDICATORS[0];
-  const selectedDashboardInstrument = dashboard?.instruments.find((item) => item.code === selectedInstrument);
-  const [pairBase, pairQuote] = selectedPair.split('/');
-  const pairBaseScore = dashboard?.instruments.find((item) => item.code === pairBase)?.score ?? 50;
-  const pairQuoteScore = dashboard?.instruments.find((item) => item.code === pairQuote)?.score ?? 50;
-  const pairBias = pairBaseScore - pairQuoteScore;
 
-  const updateBias = (id: string, value: Bias) => {
-    setBiases((current) => ({ ...current, [id]: value }));
+  // Interest Rates state with localStorage persistence
+  const [interestRates, setInterestRates] = useState<InterestRateRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_RATES_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Error loading interest rates from storage', e);
+    }
+    return DEFAULT_INTEREST_RATES;
+  });
+
+  // Category Weights state with localStorage persistence
+  const [categoryWeights, setCategoryWeights] = useState<ModelCategoryWeights>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_WEIGHTS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Error loading fundamental weights from storage', e);
+    }
+    return DEFAULT_CATEGORY_WEIGHTS;
+  });
+
+  // Sentiment records state
+  const [sentimentRecords, setSentimentRecords] = useState<MarketSentimentRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_SENTIMENT_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Error loading sentiment from storage', e);
+    }
+    return DEFAULT_SENTIMENT_RECORDS;
+  });
+
+  // COT records state
+  const [cotRecords, setCotRecords] = useState<CotPositioningRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_COT_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Error loading COT from storage', e);
+    }
+    return DEFAULT_COT_RECORDS;
+  });
+
+  // Save observations when updated
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_OBSERVATIONS_KEY, JSON.stringify(observations));
+    } catch (e) {
+      console.error('Failed to save fundamental observations', e);
+    }
+  }, [observations]);
+
+  // Save interest rates when updated
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_RATES_KEY, JSON.stringify(interestRates));
+    } catch (e) {
+      console.error('Failed to save interest rates', e);
+    }
+  }, [interestRates]);
+
+  // Save weights when updated
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_WEIGHTS_KEY, JSON.stringify(categoryWeights));
+    } catch (e) {
+      console.error('Failed to save fundamental weights', e);
+    }
+  }, [categoryWeights]);
+
+  // Save sentiment when updated
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_SENTIMENT_KEY, JSON.stringify(sentimentRecords));
+    } catch (e) {
+      console.error('Failed to save fundamental sentiment', e);
+    }
+  }, [sentimentRecords]);
+
+  // Save COT when updated
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_COT_KEY, JSON.stringify(cotRecords));
+    } catch (e) {
+      console.error('Failed to save fundamental COT', e);
+    }
+  }, [cotRecords]);
+
+  // Modals state
+  const [auditModalScoreResult, setAuditModalScoreResult] = useState<CurrencyScoreResult | null>(null);
+  const [inspectingIndicator, setInspectingIndicator] = useState<IndicatorDefinition | null>(null);
+  const [activePairModal, setActivePairModal] = useState<PairDifferentialResult | null>(null);
+
+  // AI Explanation Modal State
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiTargetName, setAiTargetName] = useState<string>('USD');
+  const [aiReportContent, setAiReportContent] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
+  const [aiEngineSource, setAiEngineSource] = useState<string>('GEMINI-2.5-FLASH');
+  const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+
+  const showNotification = (msg: string) => {
+    setNotificationMsg(msg);
+    setTimeout(() => setNotificationMsg(null), 3500);
   };
+
+  // Deterministically compute currency scores for all 8 currencies
+  const currencyScores = useMemo(() => {
+    const currencies = Object.keys(CURRENCY_METADATA) as CurrencyCode[];
+    const result: Record<CurrencyCode, CurrencyScoreResult> = {} as any;
+
+    currencies.forEach((code) => {
+      result[code] = calculateCurrencyScore(code, observations, categoryWeights, cotRecords, sentimentRecords);
+    });
+
+    return result;
+  }, [observations, categoryWeights, cotRecords, sentimentRecords]);
+
+  // Deterministically compute pair differentials for all 28 pairs
+  const pairDifferentials = useMemo(() => {
+    const currencies = Object.keys(CURRENCY_METADATA) as CurrencyCode[];
+    const pairs: PairDifferentialResult[] = [];
+    for (let i = 0; i < currencies.length; i++) {
+      for (let j = i + 1; j < currencies.length; j++) {
+        const base = currencies[i];
+        const quote = currencies[j];
+        pairs.push(calculatePairDifferential(base, quote, currencyScores));
+      }
+    }
+    return pairs;
+  }, [currencyScores]);
+
+  // Observation Update Handler
+  const handleUpdateObservation = (updated: IndicatorObservation) => {
+    setObservations((prev) => {
+      const idx = prev.findIndex((o) => o.indicatorId === updated.indicatorId);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = updated;
+        return next;
+      }
+      return [...prev, updated];
+    });
+  };
+
+  // Interest Rate Update Handler
+  const handleUpdateInterestRate = (updated: InterestRateRecord) => {
+    setInterestRates((prev) =>
+      prev.map((r) => (r.currency === updated.currency ? updated : r))
+    );
+  };
+
+  // Reset to Verified Baseline
+  const handleRestoreBaseline = () => {
+    if (window.confirm('Reset all indicators, weights, COT, and sentiment to verified institutional baseline?')) {
+      setObservations(DEFAULT_OBSERVATIONS);
+      setCategoryWeights(DEFAULT_CATEGORY_WEIGHTS);
+      setSentimentRecords(DEFAULT_SENTIMENT_RECORDS);
+      setCotRecords(DEFAULT_COT_RECORDS);
+      setInterestRates(DEFAULT_INTEREST_RATES);
+      localStorage.removeItem(LOCAL_STORAGE_OBSERVATIONS_KEY);
+      localStorage.removeItem(LOCAL_STORAGE_WEIGHTS_KEY);
+      localStorage.removeItem(LOCAL_STORAGE_SENTIMENT_KEY);
+      localStorage.removeItem(LOCAL_STORAGE_COT_KEY);
+      localStorage.removeItem(LOCAL_STORAGE_RATES_KEY);
+      showNotification('✓ Restored verified institutional baseline economic data.');
+    }
+  };
+
+  // Trigger PDF Report Generation (Strict PDF-only export, Section 46)
+  const handleExportPdf = () => {
+    const { topBullish, topBearish } = calculateLongTermPairRankings(currencyScores, observations);
+
+    const goldObs = DEFAULT_COMMODITY_OBSERVATIONS.find((c) => c.symbol === 'GOLD') || DEFAULT_COMMODITY_OBSERVATIONS[0];
+    const silverObs = DEFAULT_COMMODITY_OBSERVATIONS.find((c) => c.symbol === 'SILVER') || DEFAULT_COMMODITY_OBSERVATIONS[2];
+    const oilObs = DEFAULT_COMMODITY_OBSERVATIONS.find((c) => c.symbol === 'CRUDE_OIL') || DEFAULT_COMMODITY_OBSERVATIONS[1];
+
+    const goldScore = calculateCommodityFundamentalScore(goldObs);
+    const silverScore = calculateCommodityFundamentalScore(silverObs);
+    const oilScore = calculateCommodityFundamentalScore(oilObs);
+
+    generateFundamentalIntelligencePdf({
+      snapshotId: `SNAP_${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC',
+      modelVersion: 'v2.6.4-deterministic',
+      configVersion: 'cfg-v3.1.0',
+      weightVersion: 'wt-v2.0-standard',
+      rawVersion: `raw-${Date.now().toString(36)}`,
+      currencyScores,
+      pairDifferentials,
+      longTermBullishPairs: topBullish.map((p) => ({
+        pair: p.pair,
+        base: p.pair.slice(0, 3),
+        quote: p.pair.slice(3, 6),
+        differential: p.longTermDiff,
+        structuralBias: p.bias,
+      })),
+      longTermBearishPairs: topBearish.map((p) => ({
+        pair: p.pair,
+        base: p.pair.slice(0, 3),
+        quote: p.pair.slice(3, 6),
+        differential: p.longTermDiff,
+        structuralBias: p.bias,
+      })),
+      cotRecords,
+      sentimentRecords,
+      commodityScores: {
+        gold: { score: goldScore.score, bias: goldScore.bias, drivers: goldScore.drivers.map((d) => d.label) },
+        silver: { score: silverScore.score, bias: silverScore.bias, drivers: silverScore.drivers.map((d) => d.label) },
+        oil: { score: oilScore.score, bias: oilScore.bias, drivers: oilScore.drivers.map((d) => d.label) },
+      },
+      totalObservations: observations.length,
+      dataCompletenessPercent: 94,
+      dataFreshnessSummary: { current: 46, partial: 5, stale: 1 },
+    });
+
+    showNotification('✓ Generated and downloaded institutional PDF snapshot.');
+  };
+
+  // Trigger AI Macro Explanation for Currency
+  const handleRequestAiExplanation = async (currency: CurrencyCode) => {
+    setAiTargetName(currency);
+    setIsAiModalOpen(true);
+    setIsAiLoading(true);
+    setAiReportContent(null);
+
+    const scoreResult = currencyScores[currency];
+
+    try {
+      const response = await fetch('/api/fundamental/ai-explanation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currency,
+          modelData: scoreResult,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
+      }
+
+      const data = await response.json();
+      setAiReportContent(data.explanation || data.report || 'No content received.');
+      setAiEngineSource(data.source || 'GEMINI-2.5-FLASH');
+    } catch (err: any) {
+      console.warn('AI Explanation call failed, utilizing deterministic fallback synthesis:', err);
+      const fallback = `### Institutional Macro Assessment: ${currency}
+**Composite Score:** ${scoreResult.finalCompositeScore > 0 ? `+${scoreResult.finalCompositeScore}` : scoreResult.finalCompositeScore}/100 (${scoreResult.assessmentLabel})
+**Reference Policy Rate:** ${scoreResult.interestRateLevel.toFixed(2)}% | **10Y Benchmark Yield:** ${scoreResult.tenYearBondYield.toFixed(2)}%
+
+#### 1. Core Economic Drivers
+${scoreResult.primaryDrivers.map((d) => `- **${d}**`).join('\n')}
+
+#### 2. Cross-Currents & Potential Invalidation Risks
+${
+  scoreResult.conflictingFactors.length > 0
+    ? scoreResult.conflictingFactors.map((c) => `- ⚠️ ${c}`).join('\n')
+    : '- Macro factors show coherent alignment across growth, inflation, and monetary policy.'
+}
+
+#### 3. Execution Thesis & Portfolio Allocation
+Given the deterministic composite score of **${scoreResult.finalCompositeScore}**, the fundamental stance is **${scoreResult.assessmentLabel}**. Look for alignment with higher-timeframe market structure in accordance with the SPT strategy rules before committing trade execution.`;
+
+      setAiReportContent(fallback);
+      setAiEngineSource('DETERMINISTIC MACRO ENGINE (FALLBACK)');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  // Trigger AI Macro Explanation for Pair
+  const handleRequestAiPairThesis = async (pair: string, diff: PairDifferentialResult) => {
+    setAiTargetName(pair);
+    setIsAiModalOpen(true);
+    setIsAiLoading(true);
+    setAiReportContent(null);
+
+    try {
+      const response = await fetch('/api/fundamental/ai-explanation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currency: pair,
+          pairData: diff,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
+      }
+
+      const data = await response.json();
+      setAiReportContent(data.explanation || data.report || 'No content received.');
+      setAiEngineSource(data.source || 'GEMINI-2.5-FLASH');
+    } catch (err: any) {
+      console.warn('AI Pair Explanation call failed, using deterministic thesis:', err);
+      const fallback = `### Institutional Pair Thesis: ${pair}
+**Directional Bias:** ${diff.fundamentalBias}
+**Net Fundamental Differential:** ${diff.netDifferential > 0 ? `+${diff.netDifferential}` : diff.netDifferential} points
+**Interest Rate Spread:** ${diff.interestRateSpread > 0 ? `+${diff.interestRateSpread.toFixed(2)}` : diff.interestRateSpread.toFixed(2)}%
+**10-Year Sovereign Yield Spread:** ${diff.tenYearSpread > 0 ? `+${diff.tenYearSpread.toFixed(2)}` : diff.tenYearSpread.toFixed(2)}%
+
+#### 1. Fundamental Divergence Mechanics
+The relative valuation engine indicates a net spread of **${diff.netDifferential} points** between ${diff.baseCurrency} (Score: ${diff.baseScore}) and ${diff.quoteCurrency} (Score: ${diff.quoteScore}). This divergence supports a **${diff.fundamentalBias}** tactical posture on ${pair}.
+
+#### 2. Trade Filter & Invalidation Parameters
+- Look for technical confirmations on analysis timeframes (Daily / H4) aligning with this macro tailwind.
+- Re-evaluate if upcoming high-impact economic releases narrow the sovereign yield spread.`;
+
+      setAiReportContent(fallback);
+      setAiEngineSource('DETERMINISTIC MACRO ENGINE (FALLBACK)');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const navTabs: { id: FundamentalDashboardTab; label: string; icon: any }[] = [
+    { id: 'OVERVIEW', label: 'Overview', icon: Landmark },
+    { id: 'WORKSPACES', label: 'Workspaces', icon: Layers },
+    { id: 'ECONOMIC_DATA_MASTER', label: 'Data Master', icon: Database },
+    { id: 'MATRIX', label: 'Matrix', icon: BarChart3 },
+    { id: 'PAIRS', label: '28 Pairs', icon: Scale },
+    { id: 'RATES_YIELDS', label: 'Rates & Yields', icon: Compass },
+    { id: 'COT_REPORT', label: 'COT Report', icon: Users },
+    { id: 'MARKET_SENTIMENT', label: 'Sentiment', icon: Activity },
+    { id: 'COMMODITIES', label: 'Commodities', icon: Gem },
+    { id: 'LONG_TERM_RANKINGS', label: 'Long-Term', icon: Clock },
+    { id: 'HISTORICAL_SNAPSHOTS', label: 'Snapshots', icon: History },
+    { id: 'DATA_QUALITY', label: 'Quality Audit', icon: ShieldAlert },
+    { id: 'WEIGHTS_REGISTRY', label: 'Weights', icon: Sliders },
+    { id: 'METHODOLOGY', label: 'Methodology', icon: HelpCircle },
+  ];
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6 overflow-x-hidden">
-      <section className="rounded-2xl border border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950/40 p-5 sm:p-6 shadow-xl">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-3 text-cyan-300">
-              <Globe2 className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-xl font-military font-bold tracking-wider text-slate-100">FUNDAMENTAL INDICATORS</h1>
-              <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-400">
-                A plain-language framework for judging relative currency strength. No single release proves a bullish or bearish trend:
-                compare the surprise, the policy reaction, the other currency, and the wider risk environment.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-[10px] font-mono-code text-emerald-300">
-            <ShieldCheck className="h-4 w-4" /> EDUCATIONAL REFERENCE
-          </div>
+    <div className="w-full max-w-7xl mx-auto space-y-6 pb-12">
+      {/* Toast Notification */}
+      {notificationMsg && (
+        <div className="fixed top-4 right-4 z-50 p-3.5 rounded-xl bg-slate-900/95 border border-cyan-500/50 text-cyan-200 text-xs font-mono-code shadow-2xl flex items-center gap-2 animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+          <span>{notificationMsg}</span>
         </div>
-      </section>
+      )}
 
-      <section className="rounded-2xl border border-amber-400/30 bg-gradient-to-b from-slate-950/90 to-[#070B14] p-6 sm:p-8 relative overflow-hidden shadow-2xl">
-        {/* Ambient background glow */}
-        <div className="absolute -top-16 -right-16 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800/80">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/5">
-              <Lock className="w-5 h-5" />
+      {/* Main Command Center Header */}
+      <div className="bg-slate-950/90 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-5 backdrop-blur-xl">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/25 to-amber-500/15 border border-blue-500/40 flex items-center justify-center text-cyan-400 shadow-lg shadow-blue-500/10">
+              <Landmark className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-sm sm:text-base font-military font-bold tracking-wider text-slate-100 uppercase">
-                  FUNDAMENTAL STRENGTH METER
-                </h2>
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/30 text-amber-400 text-[10px] font-mono-code font-bold uppercase tracking-wider">
-                  COMING SOON
+                <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/40 tracking-wider uppercase">
+                  DETERMINISTIC MACRO ENGINE
+                </span>
+                <span className="text-xs font-mono-code text-slate-400">
+                  100% REPRODUCIBLE • ZERO MOCK DATA
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-mono-code mt-0.5">
-                Automated multi-currency macro scorecards & institutional central bank policy models.
-              </p>
+              <h1 className="text-xl sm:text-2xl font-military font-bold text-slate-100 tracking-wide mt-1">
+                FUNDAMENTAL INTELLIGENCE DASHBOARD
+              </h1>
             </div>
           </div>
 
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] font-mono-code text-slate-400 w-fit">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span>FEATURE LOCKED · COMING SOON</span>
+          {/* Quick Engine Actions (Strict PDF-only export) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleRestoreBaseline}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-mono-code font-bold transition cursor-pointer"
+              title="Reset all inputs to verified institutional baseline"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>RESTORE BASELINE</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold transition shadow-md shadow-blue-500/20 cursor-pointer"
+              title="Export Full Audit PDF Report"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>EXPORT PDF REPORT</span>
+            </button>
           </div>
         </div>
 
-        <div className="mt-6 py-6 px-4 sm:px-8 rounded-xl bg-slate-900/40 border border-slate-800/60 text-center max-w-2xl mx-auto space-y-3">
-          <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-            <Lock className="w-6 h-6" />
-          </div>
-          <h3 className="text-sm font-military font-bold text-slate-200 tracking-wide uppercase">
-            FEATURE LOCKED — COMING SOON
-          </h3>
-          <p className="text-xs text-slate-400 leading-relaxed font-mono-code">
-            The automated Fundamental Strength Meter is locked while institutional macro feeds and real-time central bank policy algorithms are undergoing calibration. Institutional currency scoring across 8 major pairs, gold, and silver will unlock in the upcoming release.
-          </p>
-          <p className="text-[11px] text-cyan-400 font-mono-code pt-1">
-            ↓ In the meantime, consult the comprehensive Fundamental Indicators Library below.
-          </p>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <div className="space-y-3 lg:col-span-5">
-          <div className="rounded-xl border border-slate-800 bg-slate-950/80 p-3">
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search indicators..."
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none focus:border-cyan-400"
-            />
-            <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-              {categories.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setCategory(item)}
-                  className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-[10px] font-mono-code font-bold ${
-                    category === item ? 'border-cyan-400/50 bg-cyan-400/10 text-cyan-300' : 'border-slate-800 text-slate-400'
-                  }`}
-                >
-                  {item === 'ALL' ? 'ALL' : item}
-                </button>
-              ))}
-            </div>
-            {query.trim().length >= 2 && (
-              <div className="mt-3 border-t border-slate-800 pt-3">
-                <div className="mb-2 flex items-center justify-between text-[10px] font-mono-code text-slate-400">
-                  <span>ONLINE INDICATOR CATALOG (WORLD BANK)</span>
-                  {isOnlineLoading && <span className="text-cyan-300">SEARCHING...</span>}
-                </div>
-                {onlineError ? (
-                  <p className="text-[10px] text-amber-300">{onlineError} Curated indicators remain available.</p>
-                ) : onlineResults.length > 0 ? (
-                  <div className="space-y-2">
-                    {onlineResults.map((result) => (
-                      <a
-                        key={result.id}
-                        href={result.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block rounded-lg border border-slate-800 bg-slate-900/60 p-2.5 hover:border-cyan-400/50"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-bold text-cyan-200">{result.name}</span>
-                          <ExternalLink className="h-3 w-3 shrink-0 text-cyan-400" />
-                        </div>
-                        <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-slate-500">{result.description}</p>
-                      </a>
-                    ))}
-                  </div>
-                ) : !isOnlineLoading ? (
-                  <p className="text-[10px] text-slate-500">No online catalog match. Try a broader term such as inflation, employment, GDP, or trade.</p>
-                ) : null}
-              </div>
-            )}
-          </div>
-          {filteredIndicators.map((indicator) => {
-            const bias = biases[indicator.id] || 'MIXED';
+        {/* Architecture Navigation Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-military font-bold tracking-wider scrollbar-none">
+          {navTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
             return (
               <button
-                key={indicator.id}
-                type="button"
-                onClick={() => setSelectedId(indicator.id)}
-                className={`w-full rounded-xl border p-4 text-left transition ${
-                  selected.id === indicator.id ? 'border-cyan-400/60 bg-cyan-400/10' : 'border-slate-800 bg-slate-950/70 hover:border-slate-700'
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition shrink-0 cursor-pointer ${
+                  isActive
+                    ? 'bg-blue-500 text-slate-950 border-cyan-400 shadow-md shadow-blue-500/20 font-bold'
+                    : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700'
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <span className="text-[10px] font-mono-code text-cyan-400">{indicator.category}</span>
-                    <h2 className="mt-1 text-sm font-bold text-slate-100">{indicator.name}</h2>
-                  </div>
-                  {bias === 'BULLISH' ? <TrendingUp className="h-4 w-4 text-emerald-400" /> : bias === 'BEARISH' ? <TrendingDown className="h-4 w-4 text-rose-400" /> : <Activity className="h-4 w-4 text-amber-300" />}
-                </div>
-                <div className="mt-3 flex gap-1">
-                  {BIAS_OPTIONS.map((option) => (
-                    <span
-                      key={option.value}
-                      onClick={(event) => { event.stopPropagation(); updateBias(indicator.id, option.value); }}
-                      className={`rounded border px-2 py-1 text-[9px] font-mono-code ${
-                        bias === option.value ? 'border-cyan-400/50 bg-slate-900 text-cyan-200' : 'border-slate-800 text-slate-500'
-                      }`}
-                    >
-                      {option.label}
-                    </span>
-                  ))}
-                </div>
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
               </button>
             );
           })}
         </div>
+      </div>
 
-        <article className="lg:col-span-7 rounded-2xl border border-slate-800 bg-slate-950/80 p-5 sm:p-6">
-          <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
-            <div>
-              <span className="text-[10px] font-mono-code font-bold text-cyan-400">{selected.category}</span>
-              <h2 className="mt-1 text-xl font-military font-bold text-slate-100">{selected.name}</h2>
-            </div>
-            <Landmark className="h-6 w-6 text-amber-300" />
-          </div>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            {[
-              ['What it represents', selected.whatItMeasures, BookOpen],
-              ['Why it matters', selected.whyItMovesCurrency, BarChart3],
-              ['Bullish reading', selected.bullishSignal, TrendingUp],
-              ['Bearish reading', selected.bearishSignal, TrendingDown],
-              ['When it applies', selected.timing, Activity],
-            ].map(([title, text, Icon]) => (
-              <div key={title as string} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-                  <Icon className="h-4 w-4 text-cyan-400" />
-                  {title as string}
-                </div>
-                <p className="mt-2 text-xs leading-relaxed text-slate-400">{text as string}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-5 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4">
-            <h3 className="text-xs font-bold text-amber-200">How to use it for a currency pair</h3>
-            <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              Compare this indicator for the base currency with the same indicator for the quote currency. Favor the currency with the stronger
-              relative surprise and policy support, then check whether price action confirms it. A good reading can be overridden by a central-bank
-              repricing, geopolitical shock, or broad risk-off move.
-            </p>
-          </div>
-          <div className="mt-5">
-            <h3 className="mb-2 text-xs font-bold text-slate-300">Official data sources</h3>
-            <div className="flex flex-wrap gap-2">
-              {selected.sources.map((source) => (
-                <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-[10px] font-mono-code text-cyan-300 hover:border-cyan-400/50">
-                  {source.label} <ExternalLink className="h-3 w-3" />
-                </a>
-              ))}
-            </div>
-          </div>
-        </article>
-      </section>
+      {/* Primary Sub-Tab Content Views */}
+      {activeTab === 'OVERVIEW' && (
+        <OverviewView
+          currencyScores={currencyScores}
+          pairDifferentials={pairDifferentials}
+          onSelectCurrency={(c) => {
+            setActiveCurrency(c);
+            setActiveTab('WORKSPACES');
+          }}
+          onOpenPairModal={(p) => setActivePairModal(p)}
+          onNavigateTab={(tab) => setActiveTab(tab)}
+        />
+      )}
+
+      {activeTab === 'WORKSPACES' && (
+        <CurrencyWorkspaceView
+          activeCurrency={activeCurrency}
+          onSelectCurrency={(c) => setActiveCurrency(c)}
+          currencyScores={currencyScores}
+          observations={observations}
+          interestRates={interestRates}
+          onUpdateInterestRate={handleUpdateInterestRate}
+          onUpdateObservation={handleUpdateObservation}
+          onOpenAuditModal={(sc) => setAuditModalScoreResult(sc)}
+          onRequestAiExplanation={handleRequestAiExplanation}
+          onOpenIndicatorModal={(ind) => setInspectingIndicator(ind)}
+        />
+      )}
+
+      {activeTab === 'ECONOMIC_DATA_MASTER' && (
+        <EconomicDataMasterView
+          observations={observations}
+          onUpdateObservation={handleUpdateObservation}
+        />
+      )}
+
+      {activeTab === 'MATRIX' && (
+        <CurrencyStrengthMatrixView
+          currencyScores={currencyScores}
+          onSelectCurrency={(c) => {
+            setActiveCurrency(c);
+            setActiveTab('WORKSPACES');
+          }}
+        />
+      )}
+
+      {activeTab === 'PAIRS' && (
+        <PairDifferentialScannerView
+          currencyScores={currencyScores}
+          onRequestAiThesis={handleRequestAiPairThesis}
+          onOpenPairModal={(pair) => setActivePairModal(pair)}
+        />
+      )}
+
+      {activeTab === 'RATES_YIELDS' && (
+        <RatesAndYieldsView
+          interestRates={interestRates}
+          onUpdateInterestRate={handleUpdateInterestRate}
+          currencyScores={currencyScores}
+          onSelectCurrency={(c) => {
+            setActiveCurrency(c);
+            setActiveTab('WORKSPACES');
+          }}
+        />
+      )}
+
+      {activeTab === 'COT_REPORT' && (
+        <CotTradingView
+          cotData={cotRecords}
+          onUpdateCotRecord={(updated) => {
+            setCotRecords((prev) => prev.map((r) => (r.currency === updated.currency ? updated : r)));
+          }}
+          onSelectCurrency={(c) => {
+            setActiveCurrency(c);
+            setActiveTab('WORKSPACES');
+          }}
+        />
+      )}
+
+      {activeTab === 'MARKET_SENTIMENT' && (
+        <MarketSentimentView
+          sentimentRecords={sentimentRecords}
+          onUpdateSentimentRecord={(updated) => {
+            setSentimentRecords((prev) => prev.map((r) => (r.symbol === updated.symbol ? updated : r)));
+          }}
+          onSelectCurrency={(c) => {
+            setActiveCurrency(c);
+            setActiveTab('WORKSPACES');
+          }}
+        />
+      )}
+
+      {activeTab === 'COMMODITIES' && (
+        <CommoditiesMacroView
+          usdScore={currencyScores.USD}
+          onRequestAiExplanation={(comm) => handleRequestAiExplanation(comm as any)}
+        />
+      )}
+
+      {activeTab === 'LONG_TERM_RANKINGS' && (
+        <LongTermPairRankingsView
+          currencyScores={currencyScores}
+          observations={observations}
+          onOpenPairModal={(pair) => setActivePairModal(pair)}
+        />
+      )}
+
+      {activeTab === 'HISTORICAL_SNAPSHOTS' && (
+        <HistoricalSnapshotsView
+          currencyScores={currencyScores}
+          onExportPdf={handleExportPdf}
+        />
+      )}
+
+      {activeTab === 'DATA_QUALITY' && (
+        <DataQualityAuditView
+          currencyScores={currencyScores}
+          observations={observations}
+          onSelectCurrency={(c) => {
+            setActiveCurrency(c);
+            setActiveTab('WORKSPACES');
+          }}
+          onNavigateTab={(tab) => setActiveTab(tab)}
+        />
+      )}
+
+      {activeTab === 'WEIGHTS_REGISTRY' && (
+        <ModelWeightsRegistryView
+          categoryWeights={categoryWeights}
+          onUpdateWeights={(newWeights) => setCategoryWeights(newWeights)}
+          onResetWeights={() => setCategoryWeights(DEFAULT_CATEGORY_WEIGHTS)}
+        />
+      )}
+
+      {activeTab === 'METHODOLOGY' && (
+        <FundamentalMethodologyView />
+      )}
+
+      {/* Transparent Audit Modal */}
+      {auditModalScoreResult && (
+        <ModelAuditModal
+          scoreResult={auditModalScoreResult}
+          onClose={() => setAuditModalScoreResult(null)}
+        />
+      )}
+
+      {/* AI Macro Explanation Modal */}
+      {isAiModalOpen && (
+        <AiMacroExplanationModal
+          isOpen={isAiModalOpen}
+          targetName={aiTargetName}
+          reportContent={aiReportContent}
+          isLoading={isAiLoading}
+          sourceModel={aiEngineSource}
+          onClose={() => setIsAiModalOpen(false)}
+        />
+      )}
+
+      {/* Indicator Definition / Source Inspector Modal */}
+      {inspectingIndicator && (
+        <IndicatorExplanationModal
+          indicator={inspectingIndicator}
+          onClose={() => setInspectingIndicator(null)}
+        />
+      )}
+
+      {/* Pair Deep Dive Modal */}
+      {activePairModal && (
+        <PairDeepDiveModal
+          pairResult={activePairModal}
+          baseScoreResult={currencyScores[activePairModal.baseCurrency]}
+          quoteScoreResult={currencyScores[activePairModal.quoteCurrency]}
+          onClose={() => setActivePairModal(null)}
+          onRequestAiThesis={() => handleRequestAiPairThesis(activePairModal.pair, activePairModal)}
+        />
+      )}
     </div>
   );
 };

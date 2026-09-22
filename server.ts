@@ -538,6 +538,113 @@ Structure: ${tradeData?.structure || "N/A"}`;
 });
 
 // ----------------------------------------------------
+// FUNDAMENTAL INTELLIGENCE — AI MACRO EXPLANATION API
+// ----------------------------------------------------
+app.post("/api/fundamental/ai-explanation", async (req, res) => {
+  try {
+    const { currency, pair, score, assessmentLabel, categoryBreakdown, conflicts, primaryDrivers, pairDifferential } = req.body || {};
+
+    const targetLabel = pair ? `FX Pair: ${pair}` : `Currency: ${currency}`;
+    const fallbackReport = `### 🏛️ INSTITUTIONAL MACRO INTELLIGENCE REPORT
+**Target:** ${targetLabel} | **Calculated Score:** ${score !== undefined ? (score > 0 ? `+${score}` : score) : 'N/A'}/100
+**Model Assessment:** ${assessmentLabel || 'DETERMINISTIC EVALUATION COMPLETE'}
+
+#### 1. Executive Summary & Macro Regime
+The quantitative calculation engine evaluated the active economic drivers, yield spreads, central bank rate curves, and CFTC positioning metrics. With a composite reading of ${score !== undefined ? score : 'N/A'}, the baseline stance reflects a **${assessmentLabel || 'BALANCED'}** posture.
+
+#### 2. Key Deterministic Drivers
+${Array.isArray(primaryDrivers) && primaryDrivers.length > 0 
+  ? primaryDrivers.map((d: string) => `• **${d}**`).join('\n') 
+  : '• Policy and growth differentials remain within historical target bands.'}
+
+#### 3. Conflicting Evidence & Vulnerabilities
+${Array.isArray(conflicts) && conflicts.length > 0 
+  ? conflicts.map((c: string) => `• ⚠️ **${c}**`).join('\n') 
+  : '• No severe divergence detected between headline macro momentum and institutional positioning.'}
+
+#### 4. Forward Execution & Invalidation Risk
+• **Invalidation Threshold:** Monitor upcoming high-impact central bank speeches and inflation releases.
+• **Execution Note:** Confirm macro bias with Smart Money Concepts (SMC/SBT liquidity sweeps) on the H4/H1 timeframes prior to order routing.`;
+
+    const ai = getGeminiClient();
+    if (!ai) {
+      return res.json({ ok: true, report: fallbackReport, source: 'institutional_rule_engine' });
+    }
+
+    const systemInstruction = `You are the Senior Chief FX Macro Strategist at Prime Pip FX Command Center.
+Your role is strictly to EXPLAIN the deterministic economic calculations and scores calculated by the fundamental model.
+CRITICAL RULES:
+- You must NEVER invent fake economic data or override calculated scores.
+- Rely on verified macroeconomic causality (interest rate differentials, inflation persistence, terms of trade, COT crowding).
+- Present your explanation with elite institutional caliber (clean Markdown, clear sections, bulleted insights).
+Format your output with:
+1. Executive Summary & Macro Regime
+2. Key Economic Drivers (Central Bank, Inflation, Labor, Growth)
+3. Yield Spreads & Institutional COT Positioning
+4. Conflicting Factors & Divergence Analysis
+5. Actionable Pair Implications & Event Invalidation Triggers`;
+
+    const promptText = `Please provide an institutional macroeconomic explanation for the following calculated fundamental model results:
+Target: ${pair ? `FX Pair ${pair}` : `Currency ${currency}`}
+Composite Fundamental Score: ${score}
+Assessment: ${assessmentLabel}
+Primary Drivers: ${JSON.stringify(primaryDrivers || [])}
+Conflicting Evidence: ${JSON.stringify(conflicts || [])}
+Pair Differential Context: ${JSON.stringify(pairDifferential || null)}
+Category Scores: ${JSON.stringify(categoryBreakdown || null)}`;
+
+    const candidateModels = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+    let aiReport = "";
+    let usedModel = "";
+
+    for (const candidate of candidateModels) {
+      try {
+        const response = await ai.models.generateContent({
+          model: candidate,
+          contents: promptText,
+          config: {
+            systemInstruction,
+          },
+        });
+
+        if (response.text) {
+          aiReport = response.text;
+          usedModel = candidate;
+          break;
+        }
+      } catch (err: any) {
+        console.warn(`[FUNDAMENTAL AI] Model ${candidate} failed:`, err?.message || err);
+      }
+    }
+
+    if (aiReport) {
+      return res.json({
+        ok: true,
+        report: aiReport,
+        source: usedModel,
+      });
+    }
+
+    // If candidate models did not return text, fall back to institutional report
+    return res.json({
+      ok: true,
+      report: fallbackReport,
+      source: "institutional_rule_engine",
+    });
+  } catch (error: any) {
+    console.warn("[FUNDAMENTAL AI] Error generating macro analysis:", error?.message || error);
+    return res.json({
+      ok: true,
+      report: `### 🏛️ MACRO INTELLIGENCE BRIEFING
+**Score:** ${req.body?.score || 0} | **Assessment:** ${req.body?.assessmentLabel || 'CALCULATED'}
+• Macro score reflects underlying monetary policy, growth trajectory, and market positioning.
+• Corroborate high-timeframe order flow with upcoming economic calendar event releases.`,
+      source: 'fallback_engine',
+    });
+  }
+});
+
+// ----------------------------------------------------
 // AUTH, DEVELOPER ACCESS, SUBSCRIPTIONS & CUSTOMERS
 // ----------------------------------------------------
 
@@ -2734,9 +2841,8 @@ async function startServer() {
   const httpServer = createServer(app);
   try {
     const presenceServer = new WebSocketServer({ server: httpServer, path: '/api/presence' });
-    presenceServer.on('connection', (socket, request) => {
-      const token = getAuthToken(request as express.Request);
-      const user = await getCommunityUser(req);
+    presenceServer.on('connection', async (socket, request) => {
+      const user = await getCommunityUser(request as express.Request);
       if (!isActiveCommunityMember(user)) {
         socket.close(1008, 'Active subscription required');
         return;

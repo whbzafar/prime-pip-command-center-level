@@ -101,7 +101,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
   const [timeframeChecked, setTimeframeChecked] = useState(false);
   const [htfTimeframe, setHtfTimeframe] = useState<'Monthly' | 'Weekly' | 'Daily' | 'H4' | 'H1'>('H4');
   const [analysisTimeframe, setAnalysisTimeframe] = useState<'Weekly' | 'Daily' | 'H4' | 'H1' | 'M15'>('H1');
-  const [entryTimeframe, setEntryTimeframe] = useState<'H1' | 'M15' | 'M5' | 'M1'>('M15');
+  const [entryTimeframe, setEntryTimeframe] = useState<string>('M15');
   const [timeframeNotes, setTimeframeNotes] = useState('');
 
   // 3. Five Conditions Check
@@ -357,7 +357,13 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
         {/* Phase 2 Stepper */}
         <button
           type="button"
+          disabled={!allFiveConditionsChecked}
+          aria-disabled={!allFiveConditionsChecked}
           onClick={() => {
+            if (!allFiveConditionsChecked) {
+              handleProceedToPhase2();
+              return;
+            }
             if (allPhase1Complete) {
               setPhase1ValidationError('');
               setCurrentPhase(2);
@@ -365,12 +371,14 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
               handleProceedToPhase2();
             }
           }}
-          className={`p-4 rounded-xl border text-left transition relative cursor-pointer ${
-            currentPhase === 2
-              ? 'bg-blue-500/15 border-blue-500/50 shadow-md shadow-blue-500/10'
+          className={`p-4 rounded-xl border text-left transition relative ${
+            !allFiveConditionsChecked
+              ? 'cursor-not-allowed opacity-60 bg-slate-950/40 border-slate-800/80'
+              : currentPhase === 2
+              ? 'bg-blue-500/15 border-blue-500/50 shadow-md shadow-blue-500/10 cursor-pointer'
               : allPhase1Complete
-              ? 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
-              : 'bg-slate-950/40 border-slate-800/80 hover:border-amber-500/40 opacity-80'
+              ? 'bg-slate-950/70 border-slate-800 hover:border-slate-700 cursor-pointer'
+              : 'bg-slate-950/40 border-slate-800/80 hover:border-amber-500/40 opacity-80 cursor-pointer'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -615,7 +623,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   ENTRY / TRIGGER FRAME
                 </label>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  {(['H1', 'M15', 'M5', 'M1'] as const).map((tf) => (
+                  {(['Weekly', 'Daily', 'H4', 'H1', 'M15', 'M5', 'M1'] as const).map((tf) => (
                     <button
                       key={tf}
                       type="button"
@@ -866,11 +874,15 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
 
               <button
                 type="button"
+                disabled={!allFiveConditionsChecked}
+                aria-disabled={!allFiveConditionsChecked}
                 onClick={handleProceedToPhase2}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-military font-bold tracking-wider transition cursor-pointer ${
-                  allPhase1Complete
-                    ? 'bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow-lg shadow-blue-500/25'
-                    : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700'
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-military font-bold tracking-wider transition ${
+                  allFiveConditionsChecked && allPhase1Complete
+                    ? 'bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow-lg shadow-blue-500/25 cursor-pointer'
+                    : allFiveConditionsChecked
+                    ? 'bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 cursor-pointer'
+                    : 'bg-slate-900/60 text-slate-500 border border-slate-800 cursor-not-allowed opacity-50'
                 }`}
               >
                 <span>PROCEED TO PHASE 2</span>
