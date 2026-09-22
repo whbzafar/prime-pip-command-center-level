@@ -202,6 +202,35 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({ userKey = 
   const [saveName, setSaveName] = useState('');
   const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [exportMenuPosition, setExportMenuPosition] = useState<{ top: number; left: number } | null>(null);
+
+  // Keep the export menu anchored to the button and above the drawing canvas.
+  // A fixed-position menu avoids clipping/stacking issues around the canvas.
+  useEffect(() => {
+    if (!isExportMenuOpen) {
+      setExportMenuPosition(null);
+      return;
+    }
+
+    const updateExportMenuPosition = () => {
+      const rect = exportButtonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const menuWidth = 192;
+      const gap = 8;
+      const left = Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8));
+      const top = Math.min(rect.bottom + gap, window.innerHeight - 170);
+      setExportMenuPosition({ top: Math.max(8, top), left });
+    };
+
+    updateExportMenuPosition();
+    window.addEventListener('resize', updateExportMenuPosition);
+    window.addEventListener('scroll', updateExportMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateExportMenuPosition);
+      window.removeEventListener('scroll', updateExportMenuPosition, true);
+    };
+  }, [isExportMenuOpen]);
 
   // Push to history before modifying items
   const pushHistory = useCallback(() => {
@@ -1691,6 +1720,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({ userKey = 
           {/* Export Dropdown Trigger */}
           <div className="relative">
             <button
+              ref={exportButtonRef}
               onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
               title="Export Drawing"
               className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs flex items-center gap-1.5 transition shadow-md shadow-blue-500/20 cursor-pointer"
@@ -1699,8 +1729,11 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({ userKey = 
               <span>EXPORT</span>
             </button>
 
-            {isExportMenuOpen && (
-              <div className="absolute right-0 bottom-full mb-2 w-48 bg-slate-950 border border-slate-700 rounded-xl shadow-2xl p-1.5 z-[80] space-y-1 text-xs">
+            {isExportMenuOpen && exportMenuPosition && (
+              <div
+                className="fixed w-48 bg-slate-950 border border-slate-700 rounded-xl shadow-2xl p-1.5 z-[10000] space-y-1 text-xs"
+                style={{ top: exportMenuPosition.top, left: exportMenuPosition.left }}
+              >
                 <button
                   onClick={handleExportPNG}
                   className="w-full px-3 py-2 text-left rounded-lg text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
