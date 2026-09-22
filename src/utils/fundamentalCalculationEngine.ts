@@ -656,17 +656,6 @@ export function calculateCommodityFundamentalScore(obs: CommodityObservation): {
       });
     }
 
-    // DXY Dollar index (inverted: weaker dollar makes gold cheaper globally)
-    if (obs.dxyIndex !== undefined) {
-      const dxyScore = Math.round(Math.max(-30, Math.min(30, (103.0 - obs.dxyIndex) * 10)));
-      score += dxyScore;
-      drivers.push({
-        label: 'US Dollar Index (DXY)',
-        score: dxyScore,
-        impact: obs.dxyIndex < 102 ? 'Bullish (Weaker USD lowers acquisition cost for foreign reserve buyers)' : 'Bearish (Strong USD exerts headwind)',
-      });
-    }
-
     // Inflation hedging expectations (5Y Breakeven)
     if (obs.inflationBreakeven5Y !== undefined) {
       const infScore = Math.round(Math.max(-20, Math.min(20, (obs.inflationBreakeven5Y - 2.15) * 25)));
@@ -715,17 +704,6 @@ export function calculateCommodityFundamentalScore(obs: CommodityObservation): {
         label: 'US 10Y Real Yield (TIPS)',
         score: realYieldScore,
         impact: obs.usRealYield10Y < 1.8 ? 'Bullish (Monetary easing tailwind)' : 'Bearish (High real yields)',
-      });
-    }
-
-    // DXY (inverted)
-    if (obs.dxyIndex !== undefined) {
-      const dxyScore = Math.round(Math.max(-25, Math.min(25, (103.0 - obs.dxyIndex) * 8)));
-      score += dxyScore;
-      drivers.push({
-        label: 'US Dollar Index (DXY)',
-        score: dxyScore,
-        impact: obs.dxyIndex < 102 ? 'Bullish (Dollar softening)' : 'Bearish',
       });
     }
 
