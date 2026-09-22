@@ -780,7 +780,7 @@ function isGroundedSourceUrl(sourceUrl: string, sources: GroundedResearchSource[
   // title still proves that a web source was returned, so accept any HTTPS URL
   // selected from the grounded evidence and keep the grounding sources alongside it.
   return sourceUrl.startsWith('https://') && (
-    isGroundedSourceUrl(sourceUrl, sources) ||
+    sourceMatchesGrounding(sourceUrl, sources) ||
     sources.some((source) => safeHostname(source.uri) === target) ||
     sources.some((source) => /vertexaisearch\\.cloud\\.google\\.com$/i.test(safeHostname(source.uri)))
   );
@@ -888,6 +888,7 @@ app.post('/api/fundamental/generate-indicator', async (req, res) => {
       confidence,
       notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
       sources,
+      searchQueries,
     });
   } catch (error: any) {
     console.warn('[FUNDAMENTAL GENERATE INDICATOR] failed:', error?.message || error);
@@ -959,6 +960,7 @@ app.post('/api/fundamental/generate-cot', async (req, res) => {
       confidence: Math.max(0, Math.min(100, finiteOrNull(parsed.confidence) ?? 0)),
       notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
       sources,
+      searchQueries,
     });
   } catch (error: any) {
     console.warn('[FUNDAMENTAL GENERATE COT] failed:', error?.message || error);
@@ -1012,6 +1014,7 @@ app.post('/api/fundamental/generate-commodity', async (req, res) => {
       notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
       drivers: Array.isArray(parsed.drivers) ? parsed.drivers.filter((item: any) => typeof item === 'string').slice(0, 8) : [],
       sources,
+      searchQueries,
     });
   } catch (error: any) {
     console.warn('[FUNDAMENTAL GENERATE COMMODITY] failed:', error?.message || error);
