@@ -71,6 +71,7 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
   // Filter pairs
   const filtered = pairResults.filter((item) => {
     if (filterCategory !== 'ALL' && item.category !== filterCategory) return false;
+    if (item.diff.biasLabel === 'INSUFFICIENT DATA') return false;
     if (Math.abs(item.diff.differential) < minDifferential) return false;
     return true;
   });
