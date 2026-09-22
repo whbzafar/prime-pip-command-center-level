@@ -45,10 +45,16 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
 
   const currentObs = commodityData.find((c) => c.symbol === activeCommodity) || commodityData[0];
   const calculated = calculateCommodityFundamentalScore(currentObs);
+  const commodityDataComplete =
+    currentObs.symbol === 'GOLD'
+      ? currentObs.usRealYield10Y !== undefined && currentObs.inflationBreakeven5Y !== undefined && currentObs.centralBankDemandTone !== undefined && currentObs.geopoliticalRiskLevel !== undefined
+      : currentObs.symbol === 'SILVER'
+      ? currentObs.usRealYield10Y !== undefined && currentObs.industrialDemandTone !== undefined && currentObs.geopoliticalRiskLevel !== undefined
+      : currentObs.supplyDemandBalance !== undefined && currentObs.inventoriesWeeklySurpriseMb !== undefined && currentObs.opecPolicyTone !== undefined;
 
   // Relative Valuation vs USD (Section 32)
   const usdScoreVal = usdScore?.score;
-  const relativeSpread = calculated.dataStatus === 'COMPLETE' && usdScoreVal !== undefined ? calculated.score - usdScoreVal : null;
+  const relativeSpread = commodityDataComplete && usdScoreVal !== undefined ? calculated.score - usdScoreVal : null;
 
   const handleStartEdit = (obs: CommodityObservation) => {
     setEditingObs(obs);
@@ -158,7 +164,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                 </span>
                 <span
                   className={`px-2.5 py-1 rounded-lg text-xs font-mono-code font-bold inline-flex items-center gap-1 ${
-                    calculated.dataStatus === 'INSUFFICIENT_DATA'
+                    !commodityDataComplete
                       ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                       : calculated.score > 20
                       ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
