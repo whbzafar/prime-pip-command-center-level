@@ -137,6 +137,9 @@ export interface CotPositioningRecord {
   sourceUrl: string;
   previousNetPosition?: number;
   previousOpenInterest?: number;
+  verificationStatus?: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' | 'MANUAL';
+  confidence?: number;
+  researchRetrievedAt?: string;
   updatedAt: string;
 }
 
