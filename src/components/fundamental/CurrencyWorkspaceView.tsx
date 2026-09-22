@@ -32,6 +32,7 @@ import { OFFICIAL_INDICATOR_REGISTRY, CURRENCY_METADATA } from '../../data/funda
 import { DEFAULT_INTEREST_RATES, DEFAULT_COT_RECORDS } from '../../data/defaultFundamentalObservations';
 import { calculateCotMetrics } from '../../utils/fundamentalCalculationEngine';
 import { InterestRateRecord } from '../../types/fundamentalIndicatorTypes';
+import { generateIndicator } from '../../services/fundamentalLiveResearchService';
 
 interface CurrencyWorkspaceViewProps {
   activeCurrency: CurrencyCode;
@@ -72,6 +73,14 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
   const [activeCategory, setActiveCategory] = useState<IndicatorCategory>('INFLATION');
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [editingObsId, setEditingObsId] = useState<string | null>(null);
+  const [generatingIndicatorId, setGeneratingIndicatorId] = useState<string | null>(null);
+  const [generateAllState, setGenerateAllState] = useState<{ running: boolean; completed: number; total: number; mode: 'GENERATE' | 'REGENERATE' }>({
+    running: false,
+    completed: 0,
+    total: 0,
+    mode: 'GENERATE',
+  });
+  const [liveResearchMessage, setLiveResearchMessage] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{
     actual: string;
@@ -303,6 +312,89 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
     setEditingObsId(null);
   };
 
+  const handleGenerateIndicator = async (def: IndicatorDefinition, mode: 'GENERATE' | 'REGENERATE' = 'GENERATE') => {
+    if (generatingIndicatorId || generateAllState.running) return;
+    setGeneratingIndicatorId(def.id);
+    setLiveResearchMessage(null);
+    try {
+      const existing = observations.find((observation) => observation.indicatorId === def.id);
+      const result = await generateIndicator(def, existing, mode);
+      if (result.status !== 'VERIFIED' || result.actual === null) {
+        setLiveResearchMessage(result.notes || `${def.shortLabel}: no verified release was returned; existing data was preserved.`);
+        return;
+      }
+
+      const updated: IndicatorObservation = {
+        id: existing?.id || `obs_${def.id}_${Date.now()}`,
+        indicatorId: def.id,
+        currency: activeCurrency,
+        referencePeriod: result.referencePeriod || existing?.referencePeriod || 'Latest',
+        releaseDate: result.releaseDate || existing?.releaseDate || new Date().toISOString().split('T')[0],
+        actual: result.actual,
+        forecast: result.forecast,
+        previous: result.previous,
+        revisedPrevious: result.revisedPrevious ?? existing?.revisedPrevious ?? null,
+        unit: def.unit,
+        sourceUrl: result.sourceUrl || def.officialSourceUrl,
+        notes: result.notes || existing?.notes,
+        updatedAt: result.retrievedAt || new Date().toISOString(),
+        verificationStatus: 'VERIFIED',
+        confidence: result.confidence,
+        researchRetrievedAt: result.retrievedAt,
+        researchSourceName: result.sourceName,
+      };
+      onUpdateObservation(updated);
+      setLiveResearchMessage(`${def.shortLabel}: verified and updated from grounded web research.`);
+    } catch (error) {
+      setLiveResearchMessage(error instanceof Error ? error.message : 'Live research failed; existing data was preserved.');
+    } finally {
+      setGeneratingIndicatorId(null);
+    }
+  };
+
+  const handleGenerateAllCurrentCurrency = async (mode: 'GENERATE' | 'REGENERATE' = 'GENERATE') => {
+    if (generatingIndicatorId || generateAllState.running) return;
+    const scoped = indicatorsForCurrency;
+    setGenerateAllState({ running: true, completed: 0, total: scoped.length, mode });
+    setLiveResearchMessage(null);
+    try {
+      for (let index = 0; index < scoped.length; index += 1) {
+        const def = scoped[index];
+        try {
+          const existing = observations.find((observation) => observation.indicatorId === def.id);
+          const result = await generateIndicator(def, existing, mode);
+          if (result.status === 'VERIFIED' && result.actual !== null) {
+            onUpdateObservation({
+              id: existing?.id || `obs_${def.id}_${Date.now()}`,
+              indicatorId: def.id,
+              currency: activeCurrency,
+              referencePeriod: result.referencePeriod || existing?.referencePeriod || 'Latest',
+              releaseDate: result.releaseDate || existing?.releaseDate || new Date().toISOString().split('T')[0],
+              actual: result.actual,
+              forecast: result.forecast,
+              previous: result.previous,
+              revisedPrevious: result.revisedPrevious ?? existing?.revisedPrevious ?? null,
+              unit: def.unit,
+              sourceUrl: result.sourceUrl || def.officialSourceUrl,
+              notes: result.notes || existing?.notes,
+              updatedAt: result.retrievedAt || new Date().toISOString(),
+              verificationStatus: 'VERIFIED',
+              confidence: result.confidence,
+              researchRetrievedAt: result.retrievedAt,
+              researchSourceName: result.sourceName,
+            });
+          }
+        } catch {
+          // One failed research item must not stop the remaining indicators.
+        }
+        setGenerateAllState((prev) => ({ ...prev, completed: index + 1 }));
+      }
+      setLiveResearchMessage(`${activeCurrency}: completed grounded research for ${scoped.length} indicators. Unverified items were left unchanged.`);
+    } finally {
+      setGenerateAllState((prev) => ({ ...prev, running: false }));
+    }
+  };
+
   const scrollToCategory = (cat: IndicatorCategory) => {
     setActiveCategory(cat);
     const element = document.getElementById(`category-section-${cat}`);
@@ -391,14 +483,35 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
             </button>
 
             {/* AI Explanation Button */}
-            <button
-              type="button"
-              onClick={() => onRequestAiExplanation(activeCurrency)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold transition shadow-md shadow-blue-500/20 cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>AI MACRO EXPLANATION</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                disabled={generateAllState.running}
+                onClick={() => handleGenerateAllCurrentCurrency('GENERATE')}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 text-xs font-military font-bold transition shadow-md shadow-emerald-500/20 cursor-pointer"
+                title="Sequentially research every indicator belonging to the selected currency"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>{generateAllState.running ? `${generateAllState.completed}/${generateAllState.total}` : `GENERATE ${activeCurrency}`}</span>
+              </button>
+              <button
+                type="button"
+                disabled={generateAllState.running}
+                onClick={() => handleGenerateAllCurrentCurrency('REGENERATE')}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-cyan-300 border border-cyan-500/30 text-xs font-military font-bold transition cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>REGENERATE</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onRequestAiExplanation(activeCurrency)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold transition shadow-md shadow-blue-500/20 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>AI MACRO EXPLANATION</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -441,6 +554,13 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
             </div>
           </div>
         </div>
+
+        {liveResearchMessage && (
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-slate-900/70 border border-cyan-500/20 text-[11px] font-mono-code text-slate-300">
+            <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+            <span><strong className="text-cyan-300">GROUND-VERIFIED RESEARCH:</strong> {liveResearchMessage}</span>
+          </div>
+        )}
 
         {/* Central Bank Policy Card (Mandatory Section 13) */}
         {interestRateRec && (
@@ -871,13 +991,34 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                               </td>
 
                               <td className="p-3 text-center">
-                                <button
-                                  onClick={() => handleStartEdit(def, obs)}
-                                  className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 transition cursor-pointer"
-                                  title="Edit observation values"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleGenerateIndicator(def, 'GENERATE')}
+                                    disabled={generatingIndicatorId === def.id || generateAllState.running}
+                                    className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 disabled:opacity-40 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold transition cursor-pointer"
+                                    title="Generate latest verified release"
+                                  >
+                                    {generatingIndicatorId === def.id ? '...' : 'Generate'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleGenerateIndicator(def, 'REGENERATE')}
+                                    disabled={generatingIndicatorId === def.id || generateAllState.running}
+                                    className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-cyan-300 border border-slate-700 text-[10px] font-bold transition cursor-pointer"
+                                    title="Force a fresh web search and verification"
+                                  >
+                                    Regenerate
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEdit(def, obs)}
+                                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 transition cursor-pointer"
+                                    title="Edit observation values"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
 
