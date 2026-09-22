@@ -1137,6 +1137,10 @@ export default function App() {
             setPrefilledTradeData(null);
             setActiveTab('PRE_TRADE_PLAN');
           }}
+          onOpenAiScanner={() => {
+            setIsChartScannerOpen(true);
+          }}
+          prefilledTradeData={prefilledTradeData}
         />
       )}
 
