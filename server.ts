@@ -88,6 +88,7 @@ import { resolveCapability } from "./server/intelligence/capabilityRegistry.js";
 import { getClusters } from "./server/intelligence/gapLedger.js";
 import { syncLegacyStudentsToServer } from "./server/legacyStudentSync.js";
 import { getFundamentalStrengthDashboard } from "./server/fundamentalStrengthService.js";
+import { OFFICIAL_INDICATOR_REGISTRY } from "./src/data/fundamentalRegistryData.js";
 import {
   isSupabaseAuthEnabled,
   authenticatePrimePipfx,
@@ -609,6 +610,313 @@ Structure: ${tradeData?.structure || "N/A"}`;
           "Market structure shift and liquidity sweep parameters verified. Ensure stop loss is placed beyond structural invalidation point.",
       },
     });
+  }
+});
+
+// ----------------------------------------------------
+// FUNDAMENTAL INTELLIGENCE — VERIFIED GROUNDED RESEARCH ENGINE
+// ----------------------------------------------------
+type GroundedResearchSource = { title?: string; uri: string };
+
+function uniqueGroundedSources(response: any): GroundedResearchSource[] {
+  const chunks = Array.isArray(response?.candidates?.[0]?.groundingMetadata?.groundingChunks)
+    ? response.candidates[0].groundingMetadata.groundingChunks
+    : [];
+  const sources: GroundedResearchSource[] = [];
+  for (const chunk of chunks) {
+    const web = chunk?.web;
+    if (!web?.uri || typeof web.uri !== 'string') continue;
+    if (!sources.some((source) => source.uri === web.uri)) {
+      sources.push({ title: typeof web.title === 'string' ? web.title : undefined, uri: web.uri });
+    }
+  }
+  return sources.slice(0, 12);
+}
+
+function safeHostname(value: string): string {
+  try { return new URL(value).hostname.toLowerCase().replace(/^www\./, ''); } catch { return ''; }
+}
+
+function sourceMatchesGrounding(sourceUrl: string, sources: GroundedResearchSource[]): boolean {
+  const target = safeHostname(sourceUrl);
+  if (!target) return false;
+  return sources.some((source) => {
+    const host = safeHostname(source.uri);
+    return host && (host === target || host.endsWith('.' + target) || target.endsWith('.' + host));
+  });
+}
+
+function finiteOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const number = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+async function groundedJsonResearch(prompt: string): Promise<{ parsed: any; sources: GroundedResearchSource[] }> {
+  const ai = getGeminiClient();
+  if (!ai) throw new Error('Live research requires GEMINI_API_KEY.');
+  const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest'];
+  let lastError: any = null;
+
+  for (const model of candidateModels) {
+    try {
+      const response = await withTimeout(ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          systemInstruction: 'You are a strict economic-data extraction engine. Use Google Search grounding for current information. Never guess. Return JSON only. Use null for any field that is not directly supported by the grounded web evidence. Prefer official primary sources. Treat revised values as revisions, not new releases. Forecast means the published consensus/market forecast for the same release; do not substitute a model forecast unless the source explicitly labels it as the forecast.',
+          tools: [{ googleSearch: {} }],
+          responseMimeType: 'application/json',
+        },
+      }), 45000);
+
+      let parsed: any;
+      try {
+        parsed = JSON.parse(response.text || '{}');
+      } catch {
+        lastError = new Error('Grounded research returned invalid JSON.');
+        continue;
+      }
+
+      return { parsed, sources: uniqueGroundedSources(response) };
+    } catch (error: any) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error('Grounded research failed.');
+}
+
+function indicatorResearchPrompt(definition: any, existingObservation: any, mode: string): string {
+  const currentDate = new Date().toISOString().slice(0, 10);
+  return [
+    'PrimePipFX Fundamental Intelligence — latest economic release extraction.',
+    'Today: ' + currentDate,
+    'Mode: ' + mode,
+    'Currency: ' + definition.currency,
+    'Indicator ID: ' + definition.id,
+    'Indicator: ' + definition.name,
+    'Short label: ' + definition.shortLabel,
+    'Frequency: ' + definition.frequency,
+    'Measurement period: ' + definition.measurementPeriod,
+    'Expected unit: ' + definition.unit,
+    'Official source: ' + (definition.officialSourceName || 'Primary agency') + ' — ' + (definition.officialSourceUrl || 'not specified'),
+    existingObservation ? 'Previously stored observation (use only for comparison/revision detection): ' + JSON.stringify(existingObservation) : 'No stored observation exists.',
+    '',
+    'Find the latest PUBLISHED release for this exact indicator and currency. Do not use a different country, a different frequency, or a similarly named indicator.',
+    'Return exactly this JSON shape:',
+    '{',
+    '  "actual": number|null,',
+    '  "forecast": number|null,',
+    '  "previous": number|null,',
+    '  "revisedPrevious": number|null,',
+    '  "referencePeriod": string,',
+    '  "releaseDate": string,',
+    '  "unit": string,',
+    '  "sourceName": string,',
+    '  "sourceUrl": string,',
+    '  "confidence": number,',
+    '  "notes": string',
+    '}',
+    'Rules:',
+    '- actual must be the latest published actual value for the identified release.',
+    '- previous must be the previous-period value associated with that release. If the source explicitly says the previous value was revised, put the revised number in revisedPrevious and use the revised number in previous.',
+    '- forecast must be the published consensus/forecast for that same release if available; otherwise null.',
+    '- Never calculate or invent a missing value.',
+    '- The release/reference period and unit must be explicit or unambiguously supported by the source.',
+    '- sourceUrl must be a URL actually supporting the values.',
+    '- If evidence is insufficient or sources conflict materially, set actual to null and explain why in notes.',
+  ].join('\n');
+}
+
+app.post('/api/fundamental/generate-indicator', async (req, res) => {
+  try {
+    const definition = req.body?.definition || {};
+    const mode = req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE';
+    const currency = String(definition.currency || '').toUpperCase();
+    const id = String(definition.id || '');
+
+    if (!/^(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD)$/.test(currency)) {
+      return res.status(400).json({ error: 'A valid workspace currency is required.' });
+    }
+    if (!id) return res.status(400).json({ error: 'Indicator ID is required.' });
+
+    const official = OFFICIAL_INDICATOR_REGISTRY.find((item: any) => item.id === id && item.currency === currency);
+    const resolved = official || definition;
+    if (!resolved.name || !resolved.unit) {
+      return res.status(400).json({ error: 'Indicator definition is incomplete.' });
+    }
+
+    const { parsed, sources } = await groundedJsonResearch(
+      indicatorResearchPrompt(resolved, req.body?.existingObservation || null, mode),
+    );
+
+    const actual = finiteOrNull(parsed.actual);
+    const forecast = finiteOrNull(parsed.forecast);
+    const previous = finiteOrNull(parsed.previous);
+    const revisedPrevious = finiteOrNull(parsed.revisedPrevious);
+    const sourceUrl = typeof parsed.sourceUrl === 'string' ? parsed.sourceUrl.trim() : '';
+    const referencePeriod = typeof parsed.referencePeriod === 'string' ? parsed.referencePeriod.trim() : '';
+    const releaseDate = typeof parsed.releaseDate === 'string' ? parsed.releaseDate.trim() : '';
+    const unit = typeof parsed.unit === 'string' ? parsed.unit.trim() : '';
+    const confidenceRaw = finiteOrNull(parsed.confidence);
+    const confidence = confidenceRaw === null ? 0 : Math.max(0, Math.min(100, confidenceRaw));
+    const sourceGrounded = sourceMatchesGrounding(sourceUrl, sources);
+    const unitMatches = unit === String(resolved.unit);
+    const dateLooksValid = /^\d{4}-\d{2}-\d{2}$/.test(releaseDate) || /^\d{4}-\d{2}$/.test(releaseDate) || /^\d{4}$/.test(releaseDate);
+
+    let status: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' = 'VERIFIED';
+    if (actual === null || !referencePeriod || !dateLooksValid || !sourceUrl || !sourceGrounded) {
+      status = actual === null ? 'NOT_FOUND' : 'REVIEW_REQUIRED';
+    } else if (!unitMatches) {
+      status = 'REVIEW_REQUIRED';
+    }
+
+    return res.json({
+      status,
+      indicatorId: id,
+      currency,
+      actual,
+      forecast,
+      previous,
+      revisedPrevious,
+      referencePeriod,
+      releaseDate,
+      unit: unit || resolved.unit,
+      sourceName: typeof parsed.sourceName === 'string' ? parsed.sourceName : undefined,
+      sourceUrl: sourceUrl || undefined,
+      retrievedAt: new Date().toISOString(),
+      confidence,
+      notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
+      sources,
+    });
+  } catch (error: any) {
+    console.warn('[FUNDAMENTAL GENERATE INDICATOR] failed:', error?.message || error);
+    return res.status(502).json({ error: error?.message || 'Live indicator research failed.' });
+  }
+});
+
+const COT_CONTRACTS: Record<string, string> = {
+  USD: 'U.S. Dollar Index',
+  EUR: 'Euro FX',
+  GBP: 'British Pound',
+  JPY: 'Japanese Yen',
+  CHF: 'Swiss Franc',
+  CAD: 'Canadian Dollar',
+  AUD: 'Australian Dollar',
+  NZD: 'New Zealand Dollar',
+};
+
+app.post('/api/fundamental/generate-cot', async (req, res) => {
+  try {
+    const currency = String(req.body?.currency || '').toUpperCase();
+    if (!COT_CONTRACTS[currency]) return res.status(400).json({ error: 'Valid COT currency is required.' });
+
+    const mode = req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE';
+    const existing = req.body?.existingRecord || null;
+    const prompt = [
+      'PrimePipFX COT Intelligence — current Commitment of Traders positioning.',
+      'Today: ' + new Date().toISOString().slice(0, 10),
+      'Currency: ' + currency,
+      'Relevant futures contract: ' + COT_CONTRACTS[currency],
+      'Mode: ' + mode,
+      existing ? 'Existing record for revision comparison: ' + JSON.stringify(existing) : 'No existing record.',
+      'Use the latest official CFTC COT report available. Cross-check against a reputable COT data presentation when possible.',
+      'Return JSON only:',
+      '{ "contractName": string, "reportDate": string, "releaseDate": string, "openInterest": number|null, "nonCommercialLong": number|null, "nonCommercialShort": number|null, "commercialLong": number|null, "commercialShort": number|null, "previousNetPosition": number|null, "previousOpenInterest": number|null, "sourceName": string, "sourceUrl": string, "confidence": number, "notes": string }',
+      'Never invent numbers. If a field is not supported, return null. Dates should be YYYY-MM-DD.',
+    ].join('\n');
+
+    const { parsed, sources } = await groundedJsonResearch(prompt);
+    const openInterest = finiteOrNull(parsed.openInterest);
+    const nonCommercialLong = finiteOrNull(parsed.nonCommercialLong);
+    const nonCommercialShort = finiteOrNull(parsed.nonCommercialShort);
+    const commercialLong = finiteOrNull(parsed.commercialLong);
+    const commercialShort = finiteOrNull(parsed.commercialShort);
+    const sourceUrl = typeof parsed.sourceUrl === 'string' ? parsed.sourceUrl.trim() : '';
+    const reportDate = typeof parsed.reportDate === 'string' ? parsed.reportDate.trim() : '';
+    const releaseDate = typeof parsed.releaseDate === 'string' ? parsed.releaseDate.trim() : '';
+    const sourceGrounded = sourceMatchesGrounding(sourceUrl, sources);
+    const complete = [openInterest, nonCommercialLong, nonCommercialShort, commercialLong, commercialShort].every((value) => value !== null);
+    const datesValid = /^\d{4}-\d{2}-\d{2}$/.test(reportDate) && /^\d{4}-\d{2}-\d{2}$/.test(releaseDate);
+    const status: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' =
+      !complete ? 'NOT_FOUND' : (!sourceGrounded || !datesValid ? 'REVIEW_REQUIRED' : 'VERIFIED');
+
+    return res.json({
+      status,
+      currency,
+      contractName: typeof parsed.contractName === 'string' && parsed.contractName.trim() ? parsed.contractName.trim() : COT_CONTRACTS[currency],
+      reportDate,
+      releaseDate,
+      openInterest: openInterest || 0,
+      nonCommercialLong: nonCommercialLong || 0,
+      nonCommercialShort: nonCommercialShort || 0,
+      commercialLong: commercialLong || 0,
+      commercialShort: commercialShort || 0,
+      previousNetPosition: finiteOrNull(parsed.previousNetPosition) ?? undefined,
+      previousOpenInterest: finiteOrNull(parsed.previousOpenInterest) ?? undefined,
+      sourceUrl: sourceUrl || undefined,
+      retrievedAt: new Date().toISOString(),
+      confidence: Math.max(0, Math.min(100, finiteOrNull(parsed.confidence) ?? 0)),
+      notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
+      sources,
+    });
+  } catch (error: any) {
+    console.warn('[FUNDAMENTAL GENERATE COT] failed:', error?.message || error);
+    return res.status(502).json({ error: error?.message || 'Live COT research failed.' });
+  }
+});
+
+const COMMODITY_NAMES: Record<string, string> = {
+  GOLD: 'Gold (XAU/USD)',
+  SILVER: 'Silver (XAG/USD)',
+  CRUDE_OIL: 'Crude Oil WTI',
+};
+
+app.post('/api/fundamental/generate-commodity', async (req, res) => {
+  try {
+    const symbol = String(req.body?.symbol || '').toUpperCase();
+    if (!COMMODITY_NAMES[symbol]) return res.status(400).json({ error: 'Valid commodity symbol is required.' });
+
+    const existing = req.body?.existingObservation || null;
+    const mode = req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE';
+    const prompt = [
+      'PrimePipFX Commodity Intelligence — current market sentiment monitor.',
+      'Today: ' + new Date().toISOString().slice(0, 10),
+      'Commodity: ' + COMMODITY_NAMES[symbol],
+      'Mode: ' + mode,
+      existing ? 'Existing observation for comparison: ' + JSON.stringify(existing) : 'No existing observation.',
+      'Research the latest reliable evidence for current price and directional sentiment.',
+      'For Gold consider real yields, inflation expectations, central-bank demand and COT positioning. For Silver consider industrial demand, gold/silver relationship and COT. For WTI consider supply/demand, inventories, OPEC policy and COT.',
+      'Use current web-grounded information. Prefer official sources such as EIA, CFTC, government agencies and established commodity institutions. Do not invent values.',
+      'Return JSON only:',
+      '{ "price": number|null, "sentiment": "BULLISH"|"NEUTRAL"|"BEARISH", "sentimentConfidence": number, "sourceName": string, "sourceUrl": string, "drivers": string[], "notes": string }',
+    ].join('\n');
+
+    const { parsed, sources } = await groundedJsonResearch(prompt);
+    const price = finiteOrNull(parsed.price);
+    const sourceUrl = typeof parsed.sourceUrl === 'string' ? parsed.sourceUrl.trim() : '';
+    const sentiment = ['BULLISH', 'NEUTRAL', 'BEARISH'].includes(parsed.sentiment) ? parsed.sentiment : 'NEUTRAL';
+    const sourceGrounded = sourceMatchesGrounding(sourceUrl, sources);
+    const status: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' =
+      !sourceGrounded && price === null ? 'NOT_FOUND' : (!sourceGrounded ? 'REVIEW_REQUIRED' : 'VERIFIED');
+
+    return res.json({
+      status,
+      symbol,
+      price: price === null ? undefined : price,
+      sentiment,
+      sentimentConfidence: Math.max(0, Math.min(100, finiteOrNull(parsed.sentimentConfidence) ?? 0)),
+      sentimentSourceUrl: sourceUrl || undefined,
+      retrievedAt: new Date().toISOString(),
+      confidence: Math.max(0, Math.min(100, finiteOrNull(parsed.confidence) ?? finiteOrNull(parsed.sentimentConfidence) ?? 0)),
+      notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
+      drivers: Array.isArray(parsed.drivers) ? parsed.drivers.filter((item: any) => typeof item === 'string').slice(0, 8) : [],
+      sources,
+    });
+  } catch (error: any) {
+    console.warn('[FUNDAMENTAL GENERATE COMMODITY] failed:', error?.message || error);
+    return res.status(502).json({ error: error?.message || 'Live commodity research failed.' });
   }
 });
 
