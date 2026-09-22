@@ -66,43 +66,40 @@ export const AiChartScannerModal: React.FC<AiChartScannerModalProps> = ({
     setValidationWarning(null);
 
     try {
-      // Call backend AI endpoint if available or compute heuristic extraction
-      const res = await fetch('/api/ai/scan-chart', {
+      try {
+      const res = await fetch('/api/gemini/scan-trade-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64Img, fileName }),
+        body: JSON.stringify({ imageBase64: base64Img }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.analysis) {
-          validateAndSetDraft(data.analysis);
-          return;
-        }
+      const data = await res.json();
+      if (!res.ok || !data.analysis) {
+        throw new Error(data.error || 'AI scanner could not analyze this image.');
       }
-    } catch {}
 
-    // Robust heuristic / demo fallback for chart screenshot detection
-    setTimeout(() => {
-      const isGold = fileName.toLowerCase().includes('gold') || fileName.toLowerCase().includes('xau');
-      const isEuro = fileName.toLowerCase().includes('eur') || fileName.toLowerCase().includes('fiber');
-
-      const mockDraft = {
-        instrument: isGold ? 'XAUUSD' : isEuro ? 'EURUSD' : 'XAUUSD',
-        direction: 'BUY' as const,
-        entryPrice: isGold ? 2648.5 : isEuro ? 1.085 : 2648.5,
-        stopLoss: isGold ? 2641.0 : isEuro ? 1.082 : 2641.0,
-        takeProfit: isGold ? 2671.0 : isEuro ? 1.094 : 2671.0,
-        timeframe: '15m',
-        setupName: 'SBT Liquidity Sweep & MSS',
-        rationale: 'Liquidity swept below previous London session low followed by a bullish displacement candle.',
-        riskRewardRatio: 3.0,
-      };
-
-      validateAndSetDraft(mockDraft);
+      const analysis = data.analysis;
+      validateAndSetDraft({
+        instrument: analysis.instrument,
+        direction: analysis.direction,
+        entryPrice: analysis.entryPrice,
+        stopLoss: analysis.stopLoss,
+        takeProfit: analysis.takeProfit,
+        timeframe: analysis.timeframe,
+        setupName: 'AI Screenshot Extraction',
+        rationale: analysis.notes || 'Values extracted from visible chart annotations.',
+        riskRewardRatio:
+          typeof analysis.entryPrice === 'number' &&
+          typeof analysis.stopLoss === 'number' &&
+          typeof analysis.takeProfit === 'number' &&
+          Math.abs(analysis.entryPrice - analysis.stopLoss) > 0
+            ? Math.abs((analysis.takeProfit - analysis.entryPrice) / (analysis.entryPrice - analysis.stopLoss))
+            : 0,
+      });
+    } catch (error) {
+      setValidationWarning(error instanceof Error ? error.message : 'AI scanner failed. No values were fabricated.');
       setIsScanning(false);
-    }, 1500);
-  };
+    }
 
   const validateAndSetDraft = (draft: any) => {
     // Check validation errors (e.g. SL higher than entry for BUY, or inverted prices)
@@ -135,7 +132,7 @@ export const AiChartScannerModal: React.FC<AiChartScannerModalProps> = ({
       takeProfit: draftDetected.takeProfit,
       timeframe: draftDetected.timeframe,
       notes: `AI DETECTED SETUP: ${draftDetected.setupName}\n${draftDetected.rationale}`,
-      screenshotUrl: imagePreview || undefined,
+      screenshots: { entry: imagePreview || undefined },
     });
     onClose();
   };
