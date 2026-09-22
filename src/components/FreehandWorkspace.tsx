@@ -167,7 +167,7 @@ export const FreehandWorkspace: React.FC = () => {
   type ShortcutAction = Tool | 'BULLISH_CANDLE' | 'BEARISH_CANDLE' | 'SAVE_WORKSPACE' | 'EXPORT_WORKSPACE';
   const DEFAULT_SHORTCUTS: Record<ShortcutAction, string> = {
     SELECT: 'S', PAN: 'H', CANDLE: 'C', PEN: 'P', HIGHLIGHTER: 'M', LINE: 'L',
-    HORIZONTAL_LINE: 'V', RAY: 'Y', ARROW: 'A', RECTANGLE: 'O', CIRCLE: 'O',
+    HORIZONTAL_LINE: 'V', RAY: 'Y', ARROW: 'A', RECTANGLE: 'O', CIRCLE: 'I',
     FIBONACCI: 'F', TEXT: 'T', ERASER: 'E', SMART_PENCIL: 'D',
     BULLISH_CANDLE: 'B', BEARISH_CANDLE: 'R', SAVE_WORKSPACE: 'CTRL+S', EXPORT_WORKSPACE: 'CTRL+X',
   };
