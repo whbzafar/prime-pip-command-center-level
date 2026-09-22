@@ -102,8 +102,39 @@ const LOCAL_STORAGE_COT_KEY = 'primepip_fundamental_cot_v2';
 const LOCAL_STORAGE_RATES_KEY = 'primepip_fundamental_rates_v2';
 
 export const FundamentalIndicators: React.FC = () => {
+  const [fundamentalUser, setFundamentalUser] = useState<any>(null);
+  const [adminRewardOpen, setAdminRewardOpen] = useState(false);
+  const [fundamentalWorkspaceMode, setFundamentalWorkspaceMode] = useState<'ADMIN_REWARD' | 'OPTIONAL'>('ADMIN_REWARD');
+  const [appliedAdminReward, setAppliedAdminReward] = useState<{ funds?: number; allocation?: number; reward?: number } | null>(null);
   const [activeTab, setActiveTab] = useState<FundamentalDashboardTab>('OVERVIEW');
   const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>('USD');
+
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.user) {
+          setFundamentalUser(data.user);
+          if (data.user.adminData?.mode) setFundamentalWorkspaceMode(data.user.adminData.mode);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const adminRewardData = fundamentalUser?.adminData;
+  const isStudentWithAssignedAdmin = fundamentalUser?.role === 'CUSTOMER' && adminRewardData?.editorAssigned;
+
+  const applyAdminRewardToFundamentalWorkspace = () => {
+    if (!adminRewardData) return;
+    setAppliedAdminReward({
+      funds: adminRewardData.funds,
+      allocation: adminRewardData.allocation,
+      reward: adminRewardData.reward,
+    });
+    setFundamentalWorkspaceMode('ADMIN_REWARD');
+    setAdminRewardOpen(true);
+    showNotification('✓ Admin Reward data is now active in your Fundamental workspace.');
+  };
   const [navStart, setNavStart] = useState(0);
   const NAV_VISIBLE_COUNT = 7;
 
@@ -597,6 +628,54 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
       </div>
 
       {/* Primary Sub-Tab Content Views */}
+      {isStudentWithAssignedAdmin && (
+        <div className="rounded-2xl border border-cyan-500/30 bg-slate-950/90 shadow-xl overflow-hidden">
+          <div className="p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                <span className="text-xs font-military font-bold tracking-wider text-cyan-300 uppercase">Admin Reward</span>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Admin-entered Fundamental workspace values are available for this student. Editor: {adminRewardData.editorName || 'Assigned Editor'}.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => { setFundamentalWorkspaceMode('ADMIN_REWARD'); setAdminRewardOpen(true); }}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-military font-bold border transition ${fundamentalWorkspaceMode === 'ADMIN_REWARD' ? 'bg-cyan-400 text-slate-950 border-cyan-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-cyan-400'}`}>
+                ADMIN REWARD
+              </button>
+              <button type="button" onClick={() => { setFundamentalWorkspaceMode('OPTIONAL'); setAdminRewardOpen(true); }}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-military font-bold border transition ${fundamentalWorkspaceMode === 'OPTIONAL' ? 'bg-amber-400 text-slate-950 border-amber-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-amber-400'}`}>
+                OPTIONAL
+              </button>
+            </div>
+          </div>
+          {adminRewardOpen && (
+            <div className="border-t border-slate-800 p-4">
+              {fundamentalWorkspaceMode === 'ADMIN_REWARD' ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800"><div className="text-[10px] text-slate-500 uppercase">Funds</div><div className="text-lg font-bold text-slate-100 mt-1">{adminRewardData.funds ?? '—'}</div></div>
+                    <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800"><div className="text-[10px] text-slate-500 uppercase">Allocation</div><div className="text-lg font-bold text-slate-100 mt-1">{adminRewardData.allocation ?? '—'}</div></div>
+                    <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800"><div className="text-[10px] text-slate-500 uppercase">Reward</div><div className="text-lg font-bold text-slate-100 mt-1">{adminRewardData.reward ?? '—'}</div></div>
+                  </div>
+                  <button type="button" onClick={applyAdminRewardToFundamentalWorkspace}
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-military font-bold transition">
+                    ADD ADMIN DATA TO MY FUNDAMENTAL WORKSPACE
+                  </button>
+                  {appliedAdminReward && <div className="text-[10px] text-emerald-300 font-mono-code">Admin Reward data applied. Funds / Allocation / Reward above are the active admin-provided values.</div>}
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-slate-900/70 border border-amber-500/20 text-[11px] text-slate-300">
+                  Optional mode selected. The student may manage their own Fundamental workspace values independently; Admin Reward data remains unchanged.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {activeTab === 'OVERVIEW' && (
         <OverviewView
           currencyScores={currencyScores}
