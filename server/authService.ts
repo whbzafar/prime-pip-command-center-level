@@ -527,6 +527,7 @@ export function updateCustomer(
   if (updates.subscriptionPrice !== undefined) user.subscriptionPrice = updates.subscriptionPrice;
   if (updates.hasCompletedOnboarding !== undefined) user.hasCompletedOnboarding = updates.hasCompletedOnboarding;
   if (updates.needsOnboarding !== undefined) user.needsOnboarding = updates.needsOnboarding;
+  if (updates.adminData !== undefined) user.adminData = updates.adminData;
 
   user.updatedAt = new Date().toISOString();
   users[index] = user;
