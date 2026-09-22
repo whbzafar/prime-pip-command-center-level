@@ -351,13 +351,13 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
     setGeneratingId(item.id);
     setLiveMessage(null);
     try {
-      const existing: IndicatorObservation = {
+      const existing: IndicatorObservation | undefined = item.actual === null ? undefined : {
         id: item.id,
         indicatorId: item.id,
         currency: item.currency,
         referencePeriod: item.referencePeriod || 'Latest',
         releaseDate: item.releaseDate || '',
-        actual: item.actual ?? 0,
+        actual: item.actual,
         forecast: item.forecast,
         previous: item.previous,
         unit: item.unit,
