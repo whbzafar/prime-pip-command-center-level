@@ -780,7 +780,7 @@ function isGroundedSourceUrl(sourceUrl: string, sources: GroundedResearchSource[
   // title still proves that a web source was returned, so accept any HTTPS URL
   // selected from the grounded evidence and keep the grounding sources alongside it.
   return sourceUrl.startsWith('https://') && (
-    sourceMatchesGrounding(sourceUrl, sources) ||
+    isGroundedSourceUrl(sourceUrl, sources) ||
     sources.some((source) => safeHostname(source.uri) === target) ||
     sources.some((source) => /vertexaisearch\\.cloud\\.google\\.com$/i.test(safeHostname(source.uri)))
   );
@@ -846,7 +846,7 @@ app.post('/api/fundamental/generate-indicator', async (req, res) => {
       return res.status(400).json({ error: 'Indicator definition is incomplete.' });
     }
 
-    const { parsed, sources } = await groundedJsonResearch(
+    const { parsed, sources, searchQueries } = await groundedJsonResearch(
       indicatorResearchPrompt(resolved, req.body?.existingObservation || null, mode),
     );
 
@@ -860,8 +860,8 @@ app.post('/api/fundamental/generate-indicator', async (req, res) => {
     const unit = typeof parsed.unit === 'string' ? parsed.unit.trim() : '';
     const confidenceRaw = finiteOrNull(parsed.confidence);
     const confidence = confidenceRaw === null ? 0 : Math.max(0, Math.min(100, confidenceRaw));
-    const sourceGrounded = sourceMatchesGrounding(sourceUrl, sources);
-    const unitMatches = unit === String(resolved.unit);
+    const sourceGrounded = isGroundedSourceUrl(sourceUrl, sources);
+    const unitMatches = normalizeUnit(unit) === normalizeUnit(resolved.unit);
     const dateLooksValid = /^\d{4}-\d{2}-\d{2}$/.test(releaseDate) || /^\d{4}-\d{2}$/.test(releaseDate) || /^\d{4}$/.test(releaseDate);
 
     let status: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' = 'VERIFIED';
@@ -883,7 +883,7 @@ app.post('/api/fundamental/generate-indicator', async (req, res) => {
       releaseDate,
       unit: unit || resolved.unit,
       sourceName: typeof parsed.sourceName === 'string' ? parsed.sourceName : undefined,
-      sourceUrl: sourceUrl || undefined,
+      sourceUrl: sourceUrl || sources[0]?.uri || undefined,
       retrievedAt: new Date().toISOString(),
       confidence,
       notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
@@ -926,7 +926,7 @@ app.post('/api/fundamental/generate-cot', async (req, res) => {
       'Never invent numbers. If a field is not supported, return null. Dates should be YYYY-MM-DD.',
     ].join('\n');
 
-    const { parsed, sources } = await groundedJsonResearch(prompt);
+    const { parsed, sources, searchQueries } = await groundedJsonResearch(prompt);
     const openInterest = finiteOrNull(parsed.openInterest);
     const nonCommercialLong = finiteOrNull(parsed.nonCommercialLong);
     const nonCommercialShort = finiteOrNull(parsed.nonCommercialShort);
@@ -935,7 +935,7 @@ app.post('/api/fundamental/generate-cot', async (req, res) => {
     const sourceUrl = typeof parsed.sourceUrl === 'string' ? parsed.sourceUrl.trim() : '';
     const reportDate = typeof parsed.reportDate === 'string' ? parsed.reportDate.trim() : '';
     const releaseDate = typeof parsed.releaseDate === 'string' ? parsed.releaseDate.trim() : '';
-    const sourceGrounded = sourceMatchesGrounding(sourceUrl, sources);
+    const sourceGrounded = isGroundedSourceUrl(sourceUrl, sources);
     const complete = [openInterest, nonCommercialLong, nonCommercialShort, commercialLong, commercialShort].every((value) => value !== null);
     const datesValid = /^\d{4}-\d{2}-\d{2}$/.test(reportDate) && /^\d{4}-\d{2}-\d{2}$/.test(releaseDate);
     const status: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' =
@@ -954,7 +954,7 @@ app.post('/api/fundamental/generate-cot', async (req, res) => {
       commercialShort: commercialShort || 0,
       previousNetPosition: finiteOrNull(parsed.previousNetPosition) ?? undefined,
       previousOpenInterest: finiteOrNull(parsed.previousOpenInterest) ?? undefined,
-      sourceUrl: sourceUrl || undefined,
+      sourceUrl: sourceUrl || sources[0]?.uri || undefined,
       retrievedAt: new Date().toISOString(),
       confidence: Math.max(0, Math.min(100, finiteOrNull(parsed.confidence) ?? 0)),
       notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
@@ -992,11 +992,11 @@ app.post('/api/fundamental/generate-commodity', async (req, res) => {
       '{ "price": number|null, "sentiment": "BULLISH"|"NEUTRAL"|"BEARISH", "sentimentConfidence": number, "sourceName": string, "sourceUrl": string, "drivers": string[], "notes": string }',
     ].join('\n');
 
-    const { parsed, sources } = await groundedJsonResearch(prompt);
+    const { parsed, sources, searchQueries } = await groundedJsonResearch(prompt);
     const price = finiteOrNull(parsed.price);
     const sourceUrl = typeof parsed.sourceUrl === 'string' ? parsed.sourceUrl.trim() : '';
     const sentiment = ['BULLISH', 'NEUTRAL', 'BEARISH'].includes(parsed.sentiment) ? parsed.sentiment : 'NEUTRAL';
-    const sourceGrounded = sourceMatchesGrounding(sourceUrl, sources);
+    const sourceGrounded = isGroundedSourceUrl(sourceUrl, sources);
     const status: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' =
       !sourceGrounded && price === null ? 'NOT_FOUND' : (!sourceGrounded ? 'REVIEW_REQUIRED' : 'VERIFIED');
 
