@@ -942,7 +942,7 @@ export function calculateLongTermPairRankings(
     ['NZD', 'USD'],
     ['EUR', 'GBP'],
     ['EUR', 'JPY'],
-    ['GBPJPY', 'JPY'] as any === true ? ['GBP', 'JPY'] : ['GBP', 'JPY'],
+    ['GBP', 'JPY'],
     ['AUD', 'JPY'],
     ['CAD', 'JPY'],
     ['CHF', 'JPY'],
@@ -950,11 +950,11 @@ export function calculateLongTermPairRankings(
     ['EUR', 'AUD'],
     ['EUR', 'CAD'],
     ['EUR', 'CHF'],
-    ['EURNZD', 'NZD'] as any === true ? ['EUR', 'NZD'] : ['EUR', 'NZD'],
+    ['EUR', 'NZD'],
     ['GBP', 'AUD'],
     ['GBP', 'CAD'],
     ['GBP', 'CHF'],
-    ['GBPNZD', 'NZD'] as any === true ? ['GBP', 'NZD'] : ['GBP', 'NZD'],
+    ['GBP', 'NZD'],
     ['AUD', 'CAD'],
     ['AUD', 'NZD'],
     ['AUD', 'CHF'],
@@ -963,7 +963,12 @@ export function calculateLongTermPairRankings(
     ['NZD', 'CHF'],
   ];
 
-  const results = pairs.map(([base, quote]) => {
+  const eligiblePairs = pairs.filter(([base, quote]) =>
+    (currencyScores[base]?.dataCoveragePercent ?? 0) >= 75 &&
+    (currencyScores[quote]?.dataCoveragePercent ?? 0) >= 75
+  );
+
+  const results = eligiblePairs.map(([base, quote]) => {
     const baseScore = currencyScores[base]?.score ?? 0;
     const quoteScore = currencyScores[quote]?.score ?? 0;
     const shortTermDiff = baseScore - quoteScore;
@@ -1029,7 +1034,7 @@ export function calculateLongTermPairRankings(
         termsOfTrade: Math.round(externalBalance * 0.9),
         realRateDifferential,
         longTermCot: (currencyScores[base]?.categoryScores?.COT_POSITIONING?.score ?? 0) - (currencyScores[quote]?.categoryScores?.COT_POSITIONING?.score ?? 0),
-        structuralCommodityExposure: base === 'AUD' || base === 'CAD' || base === 'NZD' ? 20 : quote === 'AUD' || quote === 'CAD' || quote === 'NZD' ? -20 : 0,
+        structuralCommodityExposure: 0,
       },
       bias,
       structuralRationale,
