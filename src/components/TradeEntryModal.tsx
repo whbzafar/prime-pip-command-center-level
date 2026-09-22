@@ -59,6 +59,8 @@ interface TradeEntryModalProps {
   initialInstrument?: string;
   onInstrumentChange?: (instrument: string) => void;
   onOpenPreTradePlan?: () => void;
+  onOpenAiScanner?: () => void;
+  prefilledTradeData?: Partial<Trade> | null;
 }
 
 export const SBT_STRATEGY_MODELS: SBTStrategyModel[] = [
@@ -112,6 +114,8 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
   initialInstrument,
   onInstrumentChange,
   onOpenPreTradePlan,
+  onOpenAiScanner,
+  prefilledTradeData,
 }) => {
   const nextTradeNumber = tradeCount + 1;
   const defaultId = `TRD-${110 + tradeCount}`;
@@ -133,6 +137,23 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
       setInstrument(initialInstrument);
     }
   }, [initialInstrument]);
+
+  React.useEffect(() => {
+    if (!prefilledTradeData) return;
+    if (prefilledTradeData.instrument) {
+      setInstrument(prefilledTradeData.instrument);
+      onInstrumentChange?.(prefilledTradeData.instrument);
+    }
+    if (prefilledTradeData.direction) setDirection(prefilledTradeData.direction);
+    if (typeof prefilledTradeData.entryPrice === 'number') setEntryPrice(prefilledTradeData.entryPrice);
+    if (typeof prefilledTradeData.stopLoss === 'number') setStopLoss(prefilledTradeData.stopLoss);
+    if (typeof prefilledTradeData.takeProfit === 'number') setTakeProfit(prefilledTradeData.takeProfit);
+    if (prefilledTradeData.timeframe && ['M1','M5','M15','M30','H1','H4','D1'].includes(prefilledTradeData.timeframe)) {
+      setTimeframe(prefilledTradeData.timeframe as Timeframe);
+    }
+    if (prefilledTradeData.notes) setNotes(prefilledTradeData.notes);
+    if (prefilledTradeData.screenshots?.entry) setEntryUrl(prefilledTradeData.screenshots.entry);
+  }, [prefilledTradeData, onInstrumentChange]);
 
   // Execution
   const [entryPrice, setEntryPrice] = useState<number>(2485.5);
@@ -183,6 +204,19 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
     verdict: string;
     critique: string;
   } | null>(null);
+
+  const [aiTradeScan, setAiTradeScan] = useState<{
+    instrument?: string;
+    direction?: TradeDirection;
+    entryPrice?: number;
+    stopLoss?: number;
+    takeProfit?: number;
+    timeframe?: Timeframe;
+    confidence?: number;
+    notes?: string;
+  } | null>(null);
+  const [aiTradeScanning, setAiTradeScanning] = useState(false);
+  const [aiTradeScanError, setAiTradeScanError] = useState<string | null>(null);
 
   // Optional Pre-Trade Checklist State
   const [checklistOpen, setChecklistOpen] = useState(false);
@@ -270,6 +304,52 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  // Optional AI trade extraction from the uploaded screenshot.
+  // The AI returns detected values only; the trader must verify before saving.
+  const runAiTradeScanner = async (imageUrl: string) => {
+    if (!imageUrl) return;
+    setAiTradeScanning(true);
+    setAiTradeScanError(null);
+    try {
+      const res = await fetch('/api/gemini/scan-trade-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: imageUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.analysis) {
+        throw new Error(data.error || 'AI scanner could not analyze this image.');
+      }
+      const a = data.analysis;
+      const detected: typeof aiTradeScan = {
+        instrument: typeof a.instrument === 'string' ? a.instrument.toUpperCase().replace(/\//g, '') : undefined,
+        direction: a.direction === 'BUY' || a.direction === 'SELL' ? a.direction : undefined,
+        entryPrice: typeof a.entryPrice === 'number' ? a.entryPrice : undefined,
+        stopLoss: typeof a.stopLoss === 'number' ? a.stopLoss : undefined,
+        takeProfit: typeof a.takeProfit === 'number' ? a.takeProfit : undefined,
+        timeframe: ['M1','M5','M15','M30','H1','H4','D1'].includes(a.timeframe) ? a.timeframe : undefined,
+        confidence: typeof a.confidence === 'number' ? a.confidence : undefined,
+        notes: typeof a.notes === 'string' ? a.notes : undefined,
+      };
+      setAiTradeScan(detected);
+      if (detected.instrument) {
+        setInstrument(detected.instrument);
+        onInstrumentChange?.(detected.instrument);
+      }
+      if (detected.direction) setDirection(detected.direction);
+      if (detected.entryPrice !== undefined) setEntryPrice(detected.entryPrice);
+      if (detected.stopLoss !== undefined) setStopLoss(detected.stopLoss);
+      if (detected.takeProfit !== undefined) setTakeProfit(detected.takeProfit);
+      if (detected.timeframe) setTimeframe(detected.timeframe);
+      if (detected.notes) setNotes((prev) => prev ? `${prev}\n\n[AI SCANNER] ${detected.notes}` : `[AI SCANNER] ${detected.notes}`);
+    } catch (err) {
+      setAiTradeScan(null);
+      setAiTradeScanError(err instanceof Error ? err.message : 'AI scanner failed. Please try again.');
+    } finally {
+      setAiTradeScanning(false);
     }
   };
 
@@ -1017,34 +1097,6 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-slate-400 block mb-1 font-mono-code">Higher Timeframe</label>
-                  <select
-                    value={htfTrend}
-                    onChange={(e) => setHtfTrend(e.target.value as TrendDirection)}
-                    className="w-full px-2.5 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-xs text-slate-100"
-                  >
-                    <option value="BULLISH">Bullish (H4/H1)</option>
-                    <option value="BEARISH">Bearish (H4/H1)</option>
-                    <option value="RANGING">Ranging</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-slate-400 block mb-1 font-mono-code">Lower Timeframe</label>
-                  <select
-                    value={ltfTrend}
-                    onChange={(e) => setLtfTrend(e.target.value as TrendDirection)}
-                    className="w-full px-2.5 py-1.5 rounded bg-slate-950 border border-slate-800 font-mono-code text-xs text-slate-100"
-                  >
-                    <option value="BULLISH">Bullish (M15/M5)</option>
-                    <option value="BEARISH">Bearish (M15/M5)</option>
-                    <option value="RANGING">Ranging</option>
-                  </select>
-                </div>
-              </div>
-
               <div>
                 <label className="text-slate-400 block mb-1 font-mono-code">Market Structure</label>
                 <select
@@ -1061,90 +1113,82 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
               </div>
             </div>
 
-            {/* Trade Alignment Score Matrix */}
+            {/* Section 4: Optional AI Screenshot Scanner */}
             <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
               <div className="flex items-center justify-between text-xs font-military font-bold text-cyan-400">
-                <span>4. TRADE ALIGNMENT SCORE</span>
-                <span
-                  className={`font-mono-code font-bold text-sm ${
-                    totalQualityScore >= 85
-                      ? 'text-emerald-400'
-                      : totalQualityScore >= 70
-                      ? 'text-cyan-400'
-                      : 'text-rose-400'
-                  }`}
-                >
-                  QUALITY: {totalQualityScore}/100
-                </span>
+                <span>4. OPTIONAL AI TRADE SCANNER</span>
+                <span className="text-slate-500 font-mono-code text-[10px]">IMAGE → PAIR • ENTRY • SL</span>
+              </div>
+              <p className="text-[11px] text-slate-400 font-mono-code">
+                Upload the trade screenshot and optionally run AI extraction. Detected values are suggestions only and should be verified before saving.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-500/50 text-slate-200 text-[11px] font-bold cursor-pointer transition">
+                  UPLOAD TRADE SCREENSHOT
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, setEntryUrl)}
+                    className="hidden"
+                  />
+                </label>
+                {onOpenAiScanner && (
+                  <button
+                    type="button"
+                    onClick={onOpenAiScanner}
+                    className="px-3 py-2 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-[11px] font-bold font-military flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    OPEN AI SCANNER
+                  </button>
+                )}
+                {entryUrl && (
+                  <button
+                    type="button"
+                    disabled={aiTradeScanning}
+                    onClick={() => runAiTradeScanner(entryUrl)}
+                    className="px-3 py-2 rounded-lg bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Brain className="w-3.5 h-3.5" />
+                    {aiTradeScanning ? 'SCANNING IMAGE…' : 'AI SCAN THIS IMAGE'}
+                  </button>
+                )}
               </div>
 
-              <div className="space-y-2 font-mono-code">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">HTF Direction (max 25):</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="25"
-                    value={scoreHtf}
-                    onChange={(e) => setScoreHtf(parseInt(e.target.value))}
-                    className="w-24 accent-cyan-400"
-                  />
-                  <span className="text-cyan-400 font-bold w-6 text-right">{scoreHtf}</span>
+              {entryUrl && (
+                <div className="grid grid-cols-[96px_1fr] gap-3 items-start">
+                  <img src={entryUrl} alt="Trade screenshot" className="w-24 h-16 object-cover rounded-lg border border-slate-800" referrerPolicy="no-referrer" />
+                  <div className="text-[10px] text-slate-500 font-mono-code">
+                    Screenshot attached to Entry Execution and available for the journal audit.
+                  </div>
                 </div>
+              )}
 
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Market Structure (max 20):</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="20"
-                    value={scoreMs}
-                    onChange={(e) => setScoreMs(parseInt(e.target.value))}
-                    className="w-24 accent-cyan-400"
-                  />
-                  <span className="text-cyan-400 font-bold w-6 text-right">{scoreMs}</span>
+              {aiTradeScanError && (
+                <div className="p-2.5 rounded-lg bg-rose-950/30 border border-rose-500/40 text-rose-300 text-[10px] font-mono-code">
+                  {aiTradeScanError}
                 </div>
+              )}
 
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Entry Model (max 20):</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="20"
-                    value={scoreEm}
-                    onChange={(e) => setScoreEm(parseInt(e.target.value))}
-                    className="w-24 accent-cyan-400"
-                  />
-                  <span className="text-cyan-400 font-bold w-6 text-right">{scoreEm}</span>
+              {aiTradeScan && (
+                <div className="p-3 rounded-xl bg-cyan-950/20 border border-cyan-500/40 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-cyan-300">AI DETECTED — VERIFY BEFORE SAVE</span>
+                    {aiTradeScan.confidence !== undefined && <span className="text-[10px] text-slate-400">{Math.round(aiTradeScan.confidence)}% confidence</span>}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono-code">
+                    <div><span className="text-slate-500">Pair:</span> <strong>{aiTradeScan.instrument || 'Not detected'}</strong></div>
+                    <div><span className="text-slate-500">Direction:</span> <strong>{aiTradeScan.direction || 'Not detected'}</strong></div>
+                    <div><span className="text-slate-500">Entry:</span> <strong>{aiTradeScan.entryPrice ?? 'Not detected'}</strong></div>
+                    <div><span className="text-slate-500">Stop Loss:</span> <strong className="text-rose-300">{aiTradeScan.stopLoss ?? 'Not detected'}</strong></div>
+                    <div><span className="text-slate-500">Take Profit:</span> <strong className="text-emerald-300">{aiTradeScan.takeProfit ?? 'Not detected'}</strong></div>
+                    <div><span className="text-slate-500">Timeframe:</span> <strong>{aiTradeScan.timeframe || 'Not detected'}</strong></div>
+                  </div>
+                  <p className="text-[10px] text-slate-400">AI is optional. Nothing is saved automatically; the detected values have only been loaded into the editable trade fields.</p>
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Risk Management (max 20):</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="20"
-                    value={scoreRm}
-                    onChange={(e) => setScoreRm(parseInt(e.target.value))}
-                    className="w-24 accent-cyan-400"
-                  />
-                  <span className="text-cyan-400 font-bold w-6 text-right">{scoreRm}</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">News Condition (max 15):</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="15"
-                    value={scoreNews}
-                    onChange={(e) => setScoreNews(parseInt(e.target.value))}
-                    className="w-24 accent-cyan-400"
-                  />
-                  <span className="text-cyan-400 font-bold w-6 text-right">{scoreNews}</span>
-                </div>
-              </div>
+              )}
             </div>
+
           </div>
 
           {/* Section 5: Screenshot System */}
