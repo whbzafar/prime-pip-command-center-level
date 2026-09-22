@@ -656,8 +656,8 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
       {activeTab === 'MARKET_SENTIMENT' && (
         <MarketSentimentView
           sentimentRecords={sentimentRecords}
-          onUpdateSentimentRecord={(updated) => {
-            setSentimentRecords((prev) => prev.map((r) => (r.symbol === updated.symbol ? updated : r)));
+          onUpdateSentimentRecords={(records) => {
+            setSentimentRecords(records as any);
           }}
           onSelectCurrency={(c) => {
             setActiveCurrency(c);
