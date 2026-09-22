@@ -48,7 +48,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
 
   // Relative Valuation vs USD (Section 32)
   const usdScoreVal = usdScore?.score;
-  const relativeSpread = usdScoreVal !== undefined ? calculated.score - usdScoreVal : null;
+  const relativeSpread = calculated.dataStatus === 'COMPLETE' && usdScoreVal !== undefined ? calculated.score - usdScoreVal : null;
 
   const handleStartEdit = (obs: CommodityObservation) => {
     setEditingObs(obs);
@@ -158,19 +158,21 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                 </span>
                 <span
                   className={`px-2.5 py-1 rounded-lg text-xs font-mono-code font-bold inline-flex items-center gap-1 ${
-                    calculated.score > 20
+                    calculated.dataStatus === 'INSUFFICIENT_DATA'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                      : calculated.score > 20
                       ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                       : calculated.score < -20
                       ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
                       : 'bg-slate-800 text-slate-300'
                   }`}
                 >
-                  {calculated.bias.replace('_', ' ')}
+                  {calculated.dataStatus === 'INSUFFICIENT_DATA' ? 'INSUFFICIENT DATA' : calculated.bias.replace('_', ' ')}
                 </span>
               </div>
               <div className="mt-2 flex items-baseline gap-2">
                 <span className="text-3xl font-military font-bold text-slate-100">
-                  ${currentObs.price.toLocaleString()}
+                  ${currentObs.price > 0 ? currentObs.price.toLocaleString() : 'Not entered'}
                 </span>
                 <span className="text-xs font-mono-code text-slate-400">USD Spot</span>
               </div>
@@ -220,7 +222,9 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
               </div>
               <span className="text-[10px] text-slate-400 block">
                 {relativeSpread === null
-                  ? 'Enter the USD fundamental score before classifying the USD-relative commodity bias.'
+                  ? calculated.dataStatus === 'INSUFFICIENT_DATA'
+                    ? 'Enter the required commodity drivers before classifying the commodity or its USD-relative bias.'
+                    : 'Enter the USD fundamental score before classifying the USD-relative commodity bias.'
                   : relativeSpread > 15
                   ? `${currentObs.symbol} fundamental drivers outpacing USD headwinds`
                   : relativeSpread < -15
