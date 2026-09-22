@@ -81,8 +81,8 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
   const handleStartEdit = (rec: CotPositioningRecord) => {
     setEditingRecord(rec);
     setEditForm({
-      nonCommercialLong: ncLong,
-      nonCommercialShort: ncShort,
+      nonCommercialLong: rec.nonCommercialLong || 0,
+      nonCommercialShort: rec.nonCommercialShort || 0,
       commercialLong: rec.commercialLong || 0,
       commercialShort: rec.commercialShort || 0,
       openInterest: rec.openInterest || 0,
@@ -105,16 +105,8 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
       nonCommercialShort: ncShort,
       commercialLong: cLong,
       commercialShort: cShort,
-      dealerLong: Number(editForm.dealerLong) || cLong,
-      dealerShort: Number(editForm.dealerShort) || cShort,
-      assetManagerLong: Number(editForm.assetManagerLong),
-      assetManagerShort: Number(editForm.assetManagerShort),
-      leveragedFundsLong: Number(editForm.leveragedFundsLong),
-      leveragedFundsShort: Number(editForm.leveragedFundsShort),
-      otherReportablesLong: Number(editForm.otherReportablesLong),
-      otherReportablesShort: Number(editForm.otherReportablesShort),
-      nonReportableLong: Number(editForm.nonReportableLong),
-      nonReportableShort: Number(editForm.nonReportableShort),
+      // Preserve any existing disaggregated fields; they are not used by the Legacy score.
+
       openInterest: Number(editForm.openInterest),
       reportDate: editForm.reportDate,
       notes: editForm.notes,
@@ -224,7 +216,7 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
                 </span>
               </div>
               <p className="text-xs font-mono-code text-slate-400 mt-0.5">
-                {currentRecord.notes || 'Institutional positioning data entered manually from TradingView CFTC series.'}
+                {currentRecord.notes || 'Legacy COT positioning entered manually from the selected report.'}
               </p>
             </div>
           </div>
