@@ -668,7 +668,7 @@ async function groundedJsonResearch(prompt: string): Promise<{ parsed: any; sour
           tools: [{ googleSearch: {} }],
           responseMimeType: 'application/json',
         },
-      }), 45000);
+      }), 24000);
 
       let parsed: any;
       try {
