@@ -782,7 +782,7 @@ function isGroundedSourceUrl(sourceUrl: string, sources: GroundedResearchSource[
   return sourceUrl.startsWith('https://') && (
     sourceMatchesGrounding(sourceUrl, sources) ||
     sources.some((source) => safeHostname(source.uri) === target) ||
-    sources.some((source) => /vertexaisearch\\.cloud\\.google\\.com$/i.test(safeHostname(source.uri)))
+    sources.some((source) => /vertexaisearch\.cloud\.google\.com$/i.test(safeHostname(source.uri)))
   );
 }
 
