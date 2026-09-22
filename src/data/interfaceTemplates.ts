@@ -11,6 +11,8 @@ export interface InterfaceTemplate {
   border: string;
   ink: string;
   inkMuted: string;
+  visualStyle?: 'standard' | 'liquid-glass' | 'frosted-glass';
+  glassTint?: string;
 }
 
 export const INTERFACE_TEMPLATES: InterfaceTemplate[] = [
@@ -294,6 +296,30 @@ export const INTERFACE_TEMPLATES: InterfaceTemplate[] = [
     ink: '#EFF6FF',
     inkMuted: '#93C5FD',
   },
+  {
+    id: 'liquid-aurora', label: 'Liquid Aurora Glass', category: 'VIBRANT',
+    description: 'Premium dark liquid glass with cyan, violet and rose refractions inspired by the supplied glass UI references.',
+    accent: '#67E8F9', accentSecondary: '#F0ABFC', bg: '#050711', surface: '#0B1020', elevated: '#141A31', border: '#5B5CE2', ink: '#F8FAFC', inkMuted: '#CBD5E1',
+    visualStyle: 'liquid-glass', glassTint: 'rgba(70, 80, 150, 0.24)',
+  },
+  {
+    id: 'liquid-prism', label: 'Liquid Prism Pro', category: 'VIBRANT',
+    description: 'Glossy black glass with electric blue, magenta and violet prism highlights for a high-end command-center feel.',
+    accent: '#60A5FA', accentSecondary: '#F472B6', bg: '#03050B', surface: '#0A0E19', elevated: '#151426', border: '#6D5AE8', ink: '#FFFFFF', inkMuted: '#CBD5E1',
+    visualStyle: 'liquid-glass', glassTint: 'rgba(55, 45, 115, 0.26)',
+  },
+  {
+    id: 'frosted-arctic', label: 'Frosted Arctic Glass', category: 'MINIMAL',
+    description: 'Bright translucent frosted glass with cool blue highlights, soft depth and clean premium controls.',
+    accent: '#2563EB', accentSecondary: '#06B6D4', bg: '#DCE8F4', surface: '#EAF2F8', elevated: '#F7FAFC', border: '#A9C6DD', ink: '#0F172A', inkMuted: '#475569',
+    visualStyle: 'frosted-glass', glassTint: 'rgba(255, 255, 255, 0.52)',
+  },
+  {
+    id: 'neon-glass', label: 'Neon Glass Studio', category: 'VIBRANT',
+    description: 'Ultra-modern translucent glass with cyan, blue and hot-pink luminous edges inspired by the UI kit showcase.',
+    accent: '#22D3EE', accentSecondary: '#F472B6', bg: '#050816', surface: '#0B1224', elevated: '#121A34', border: '#3B82F6', ink: '#F8FAFC', inkMuted: '#CBD5E1',
+    visualStyle: 'liquid-glass', glassTint: 'rgba(30, 55, 110, 0.28)',
+  },
 ];
 
 export const getTemplateById = (id: string): InterfaceTemplate => {
@@ -374,6 +400,44 @@ export const applyInterfaceTemplate = (templateId: string, brightness = 104): vo
     .text-cyan-400, .text-cyan-300 {
       color: ${template.accent} !important;
     }
+
+    /* Pro-level Liquid Glass / Frosted Glass visual system. */
+    ${template.visualStyle === 'liquid-glass' ? `
+    body, #root {
+      background: radial-gradient(circle at 12% 8%, ${template.accent}22 0%, transparent 28%), radial-gradient(circle at 88% 18%, ${template.accentSecondary}1f 0%, transparent 30%), linear-gradient(135deg, ${activeBg} 0%, ${activeSurface} 52%, ${activeBg} 100%) !important;
+      color: ${template.ink} !important;
+    }
+    button, input, select, textarea, .prime-card, .prime-card-elevated, .prime-glass-card, .prime-glass-surface, [class*="bg-slate-"], [class*="bg-["] {
+      background-image: linear-gradient(135deg, rgba(255,255,255,0.105), rgba(255,255,255,0.025)) !important;
+      background-color: ${template.glassTint || 'rgba(20,30,55,0.28)'} !important;
+      backdrop-filter: blur(20px) saturate(165%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(165%) !important;
+      border-color: ${template.accent}35 !important;
+      box-shadow: 0 14px 38px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.20) !important;
+    }
+    button:hover { border-color: ${template.accent}88 !important; box-shadow: 0 12px 34px ${template.accent}22, inset 0 1px 0 rgba(255,255,255,0.28) !important; }
+    input:focus, select:focus, textarea:focus { border-color: ${template.accent}bb !important; box-shadow: 0 0 0 2px ${template.accent}22, 0 12px 30px rgba(0,0,0,0.22) !important; }
+    ` : template.visualStyle === 'frosted-glass' ? `
+    body, #root {
+      background: radial-gradient(circle at 15% 10%, ${template.accent}1a 0%, transparent 28%), radial-gradient(circle at 85% 80%, ${template.accentSecondary}18 0%, transparent 30%), linear-gradient(135deg, ${activeBg} 0%, ${activeSurface} 100%) !important;
+      color: ${template.ink} !important;
+    }
+    button, input, select, textarea, .prime-card, .prime-card-elevated, .prime-glass-card, .prime-glass-surface, [class*="bg-slate-"], [class*="bg-["] {
+      background-image: linear-gradient(145deg, rgba(255,255,255,0.72), rgba(255,255,255,0.34)) !important;
+      background-color: ${template.glassTint || 'rgba(255,255,255,0.52)'} !important;
+      backdrop-filter: blur(24px) saturate(125%) !important;
+      -webkit-backdrop-filter: blur(24px) saturate(125%) !important;
+      border-color: ${template.accent}35 !important;
+      color: ${template.ink} !important;
+      box-shadow: 0 16px 40px rgba(51,65,85,0.16), inset 0 1px 0 rgba(255,255,255,0.85) !important;
+    }
+    button:hover { border-color: ${template.accent}80 !important; transform: translateY(-1px); }
+    ` : ''}
+
+    ${template.visualStyle ? `
+    .prime-gradient-box::before { background: linear-gradient(var(--angle,135deg), ${template.accent}, ${template.accentSecondary}, #8B5CF6, ${template.accent}) !important; }
+    ::selection { background: ${template.accent}55 !important; color: ${template.ink} !important; }
+    ` : ''}
     .border-cyan-500, .border-cyan-400, .border-cyan-500\\/40, .border-cyan-500\\/30 {
       border-color: ${template.accent}66 !important;
     }
