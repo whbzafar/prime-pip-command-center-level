@@ -15,11 +15,9 @@ export const CurrencyStrengthMatrixView: React.FC<CurrencyStrengthMatrixViewProp
   const currencies = Object.keys(CURRENCY_METADATA) as CurrencyCode[];
 
   // Sort currencies by composite score descending
-  const ranked = [...currencies].sort((a, b) => {
-    const sA = currencyScores[a]?.score ?? 0;
-    const sB = currencyScores[b]?.score ?? 0;
-    return sB - sA;
-  });
+  const ranked = currencies
+    .filter((code) => (currencyScores[code]?.dataCoveragePercent ?? 0) >= 75)
+    .sort((a, b) => (currencyScores[b]?.score ?? 0) - (currencyScores[a]?.score ?? 0));
 
   const categories: { key: IndicatorCategory; label: string }[] = [
     { key: 'INFLATION', label: 'Inflation' },
@@ -48,6 +46,11 @@ export const CurrencyStrengthMatrixView: React.FC<CurrencyStrengthMatrixViewProp
           </span>
         </div>
 
+        {ranked.length === 0 ? (
+          <div className="p-5 rounded-xl bg-slate-900/60 border border-amber-500/20 text-sm text-amber-300">
+            No currency ranking is shown until sufficient verified data is entered for the currencies.
+          </div>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {ranked.map((code, index) => {
             const sc = currencyScores[code];
