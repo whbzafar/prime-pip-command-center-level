@@ -74,6 +74,38 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   ];
   type ScoreKey = (typeof scoreCategories)[number]['key'];
   const [selectedScoreKey, setSelectedScoreKey] = useState<ScoreKey | null>(null);
+  const [adminWorkspaceOpen, setAdminWorkspaceOpen] = useState(false);
+  const [adminWorkspace, setAdminWorkspace] = useState(currentUser?.adminData);
+  const [studentWorkspace, setStudentWorkspace] = useState<{ funds?: number; allocation?: number; reward?: number }>(() => {
+    try {
+      const raw = localStorage.getItem(`primepipfx_optional_workspace_${currentUser?.id || 'student'}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+  const [workspaceMode, setWorkspaceMode] = useState<'ADMIN_REWARD' | 'OPTIONAL'>('ADMIN_REWARD');
+
+  useEffect(() => {
+    setAdminWorkspace(currentUser?.adminData);
+    if (currentUser?.adminData?.mode) setWorkspaceMode(currentUser.adminData.mode);
+  }, [currentUser?.id, currentUser?.adminData]);
+
+  useEffect(() => {
+    if (!adminWorkspaceOpen || !currentUser?.id) return;
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.user?.adminData) {
+          setAdminWorkspace(data.user.adminData);
+          setWorkspaceMode(data.user.adminData.mode || 'ADMIN_REWARD');
+        }
+      })
+      .catch(() => {});
+  }, [adminWorkspaceOpen, currentUser?.id]);
+
+  const saveOptionalWorkspace = (next: typeof studentWorkspace) => {
+    setStudentWorkspace(next);
+    try { localStorage.setItem(`primepipfx_optional_workspace_${currentUser?.id || 'student'}`, JSON.stringify(next)); } catch {}
+  };
 
   const scoreEvidence = selectedScoreKey
     ? (() => {
@@ -286,6 +318,80 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {adminWorkspace?.editorAssigned && (
+        <div className="rounded-2xl border border-cyan-500/25 bg-slate-950/80 shadow-xl overflow-hidden">
+          <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-military font-bold tracking-wider text-cyan-300 uppercase">Assigned Admin Workspace</div>
+              <div className="text-[10px] text-slate-500 mt-0.5">
+                Editor: {adminWorkspace.editorName || 'Assigned Editor'} • Admin data is available when selected.
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => { setWorkspaceMode('ADMIN_REWARD'); setAdminWorkspaceOpen(true); }}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-military font-bold border transition ${workspaceMode === 'ADMIN_REWARD' ? 'bg-cyan-400 text-slate-950 border-cyan-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-cyan-400'}`}
+              >
+                ADMIN
+              </button>
+              <button
+                type="button"
+                onClick={() => { setWorkspaceMode('OPTIONAL'); setAdminWorkspaceOpen(true); }}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-military font-bold border transition ${workspaceMode === 'OPTIONAL' ? 'bg-amber-400 text-slate-950 border-amber-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-amber-400'}`}
+              >
+                OPTIONAL
+              </button>
+            </div>
+          </div>
+
+          {adminWorkspaceOpen && (
+            <div className="border-t border-slate-800 p-4">
+              {workspaceMode === 'ADMIN_REWARD' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
+                    <div className="text-[10px] text-slate-500 uppercase">Funds</div>
+                    <div className="text-lg font-bold text-slate-100 mt-1">{adminWorkspace.funds ?? '—'}</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
+                    <div className="text-[10px] text-slate-500 uppercase">Allocation</div>
+                    <div className="text-lg font-bold text-slate-100 mt-1">{adminWorkspace.allocation ?? '—'}</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800">
+                    <div className="text-[10px] text-slate-500 uppercase">Reward</div>
+                    <div className="text-lg font-bold text-slate-100 mt-1">{adminWorkspace.reward ?? '—'}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {(['funds', 'allocation', 'reward'] as const).map((field) => (
+                    <label key={field} className="block">
+                      <span className="text-[10px] text-slate-500 uppercase">{field}</span>
+                      <input
+                        type="number"
+                        step="any"
+                        value={studentWorkspace[field] ?? ''}
+                        onChange={(e) => saveOptionalWorkspace({
+                          ...studentWorkspace,
+                          [field]: e.target.value === '' ? undefined : Number(e.target.value),
+                        })}
+                        className="mt-1 w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 focus:outline-none focus:border-amber-400"
+                        placeholder="Enter value"
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+              <div className="mt-3 text-[10px] text-slate-500">
+                {workspaceMode === 'ADMIN_REWARD'
+                  ? 'Admin Reward is selected, so the values above are the active admin-provided values.'
+                  : 'Optional is selected, so these values are managed independently by the student.'}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tactical Status Banner */}
       <div className={`border rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl transition ${
