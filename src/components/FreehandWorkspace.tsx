@@ -409,12 +409,9 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({ userKey = 
     syncCanvasSize();
     window.addEventListener('resize', syncCanvasSize);
 
-
-
     return () => {
       window.removeEventListener('resize', syncCanvasSize);
       window.cancelAnimationFrame(frame);
-      observer?.disconnect();
     };
   }, [isFullscreen, resizeCanvas]);
 
