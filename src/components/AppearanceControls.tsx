@@ -79,11 +79,11 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
               <h2 className="font-military text-sm font-bold tracking-wider text-slate-100 flex items-center gap-2">
                 <span>INTERFACE TEMPLATES</span>
                 <span className="text-[10px] font-mono-code px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                  20 ACTIVE TEMPLATES
+                  {INTERFACE_TEMPLATES.length} ACTIVE TEMPLATES
                 </span>
               </h2>
               <p className="text-[11px] text-slate-400 font-sans mt-0.5">
-                Instant theme switching across all terminals, charts, feeds, and analytics.
+                Pro-level theme switching across the entire application — including liquid glass and frosted glass visual systems.
               </p>
             </div>
           </div>
@@ -174,7 +174,7 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
                 <input
                   type="text"
-                  placeholder="Search 20 templates (e.g. Bloomberg, Cyber, Gold, Tokyo, Nord)..."
+                  placeholder="Search themes (e.g. Liquid Glass, Bloomberg, Cyber, Gold, Tokyo, Nord)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
