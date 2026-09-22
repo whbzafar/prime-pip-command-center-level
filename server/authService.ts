@@ -43,6 +43,15 @@ export interface StoredUser {
   tradingFocus?: string;
   experienceLevel?: string;
   traderStatus?: string;
+  adminData?: {
+    mode: 'ADMIN_REWARD' | 'OPTIONAL';
+    editorAssigned: boolean;
+    editorName?: string;
+    funds?: number;
+    allocation?: number;
+    reward?: number;
+    updatedAt?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
