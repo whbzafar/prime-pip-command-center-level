@@ -58,6 +58,7 @@ interface TradeEntryModalProps {
   existingTrades?: Trade[];
   initialInstrument?: string;
   onInstrumentChange?: (instrument: string) => void;
+  onOpenPreTradePlan?: () => void;
 }
 
 export const SBT_STRATEGY_MODELS: SBTStrategyModel[] = [
@@ -110,6 +111,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
   existingTrades,
   initialInstrument,
   onInstrumentChange,
+  onOpenPreTradePlan,
 }) => {
   const nextTradeNumber = tradeCount + 1;
   const defaultId = `TRD-${110 + tradeCount}`;
@@ -557,6 +559,11 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                   <p className="text-[11px] text-slate-400 font-mono-code">
                     Verify high-probability confluence before pulling the trigger.
                   </p>
+                  {onOpenPreTradePlan && (
+                    <button type="button" onClick={onOpenPreTradePlan} className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-mono-code font-bold text-cyan-400 hover:text-cyan-300 underline underline-offset-2 cursor-pointer">
+                      OPEN PRE-TRADE PLAN ↗
+                    </button>
+                  )}
                 </div>
               </div>
 
