@@ -63,17 +63,33 @@ export interface LiveCommodityResult {
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(body),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data?.error || 'Request failed (' + response.status + ')');
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 55000);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const raw = await response.text();
+    let data: any = {};
+    try { data = raw ? JSON.parse(raw) : {}; } catch {
+      data = { error: raw || 'Server returned an invalid response.' };
+    }
+    if (!response.ok) {
+      throw new Error(data?.error || 'Request failed (' + response.status + ')');
+    }
+    return data as T;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Live research timed out after 55 seconds. Check the deployed API/GEMINI_API_KEY configuration.');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
   }
-  return data as T;
 }
 
 export async function generateIndicator(
