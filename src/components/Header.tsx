@@ -43,6 +43,7 @@ import {
   Layers,
   Globe,
   Palette,
+  GraduationCap,
 } from 'lucide-react';
 import { AccountSettings, TraderPerformanceScores, UserAccount } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
@@ -78,7 +79,8 @@ export type MainNavTab =
   | 'ACCOUNTS'
   | 'SETTINGS'
   | 'ADMIN'
-  | 'EVOLUTION';
+  | 'EVOLUTION'
+  | 'PRO_LEARNING';
 
 interface HeaderProps {
   activeTab: MainNavTab;
@@ -336,6 +338,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'SETTINGS' as MainNavTab, label: '19. DATA EXPORT & BACKUP', icon: Settings2 },
     { id: 'ADMIN' as MainNavTab, label: '20. ADMIN PANEL (OWNER)', icon: ShieldCheck, highlight: currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' },
     { id: 'EVOLUTION' as MainNavTab, label: '21. EVALUATION ENGINE', icon: Cpu, highlight: true },
+    { id: 'PRO_LEARNING' as MainNavTab, label: '22. PRO LEARNING TRADING', icon: GraduationCap, highlight: true, comingSoon: true, locked: false },
   ];
 
   const handleNavClick = (id: MainNavTab) => {
@@ -379,7 +382,7 @@ export const Header: React.FC<HeaderProps> = ({
             if (onOpenAllCategories) onOpenAllCategories();
           }}
           className="flex items-center gap-1.5 sm:gap-2 min-w-0 hover:opacity-85 transition cursor-pointer text-left group"
-          title="Click to explore all 21 categories & modules"
+          title="Click to explore all 22 categories & modules"
         >
           <div className="w-5 h-5 rounded bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 shrink-0 group-hover:border-cyan-400/50">
             {React.createElement(
