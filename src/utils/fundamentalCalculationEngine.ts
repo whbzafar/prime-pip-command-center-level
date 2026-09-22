@@ -828,7 +828,6 @@ export function calculateCotMetrics(raw: {
   const commShort = raw.commercialShort !== undefined ? raw.commercialShort : (raw.dealerShort || 0);
   const commercialNet = commLong - commShort;
 
-  const totalPositions = specLong + specShort || 1;
   const openInterest = raw.openInterest > 0 ? raw.openInterest : 0;
   const longPercent = openInterest > 0 ? Number(((specLong / openInterest) * 100).toFixed(1)) : 0;
   const shortPercent = openInterest > 0 ? Number(((specShort / openInterest) * 100).toFixed(1)) : 0;
