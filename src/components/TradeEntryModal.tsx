@@ -1025,7 +1025,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
             {/* Strategy & HTF/LTF */}
             <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
               <div className="text-xs font-military font-bold text-cyan-400">
-                3. STRATEGY & MARKET STRUCTURE
+                3. STRATEGY & STRUCTURE
               </div>
 
               <div>
