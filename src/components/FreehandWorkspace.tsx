@@ -85,6 +85,16 @@ export const FreehandWorkspace: React.FC = () => {
 
   const [tool, setTool] = useState<Tool>('LINE');
   const [color, setColor] = useState<string>('#F59E0B'); // Key-level gold default
+  // Custom palette/background controls: every drawing can use any native color,
+  // while the canvas background is independently configurable and persisted.
+  const [customColor, setCustomColor] = useState<string>('#F59E0B');
+  const [backgroundColor, setBackgroundColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem('primepipfx_freehand_background') || '#080C15';
+    } catch {
+      return '#080C15';
+    }
+  });
   const [strokeWidth, setStrokeWidth] = useState<number>(2);
   const [isFilled, setIsFilled] = useState<boolean>(true);
   const [gridMode, setGridMode] = useState<'GRID' | 'DOTS' | 'NONE'>('GRID');
@@ -751,6 +761,8 @@ export const FreehandWorkspace: React.FC = () => {
   };
 
   // Full Canvas Redraw
+  // The background is intentionally separate from drawing colors so traders can
+  // change the canvas backdrop without recoloring existing annotations.
   const redrawAll = useCallback(() => {
     if (!canvasRef.current) return;
     const canvas = canvasRef.current;
@@ -758,8 +770,8 @@ export const FreehandWorkspace: React.FC = () => {
     if (!ctx) return;
     const dpr = window.devicePixelRatio || 1;
 
-    // Dark sleek background
-    ctx.fillStyle = '#080C15';
+    // User-selectable canvas background.
+    ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
@@ -782,7 +794,7 @@ export const FreehandWorkspace: React.FC = () => {
       renderSingleItem(ctx, currentDraft, false);
     }
     ctx.restore();
-  }, [items, currentDraft, selectedItemId, gridMode, panOffset, zoom]);
+  }, [items, currentDraft, selectedItemId, gridMode, panOffset, zoom, backgroundColor]);
 
   useEffect(() => {
     redrawAll();
@@ -1023,7 +1035,7 @@ export const FreehandWorkspace: React.FC = () => {
     const width = canvasRef.current.width;
     const height = canvasRef.current.height;
 
-    let svgElements = `<rect width="${width}" height="${height}" fill="#080C15" />\n`;
+    let svgElements = `<rect width="${width}" height="${height}" fill="${backgroundColor}" />\n`;
 
     items.forEach((it) => {
       if (
@@ -1141,6 +1153,8 @@ export const FreehandWorkspace: React.FC = () => {
     { hex: '#06B6D4', label: 'Neutral Structure / Cyan' },
     { hex: '#E2E8F0', label: 'Clean White / Slate' },
     { hex: '#8B5CF6', label: 'Liquidity / Purple' },
+    { hex: '#F97316', label: 'Momentum / Orange' },
+    { hex: '#EC4899', label: 'Accent / Pink' },
   ];
 
   const toolsList: Array<{ id: Tool; label: string; icon: any }> = [
@@ -1207,6 +1221,7 @@ export const FreehandWorkspace: React.FC = () => {
                 key={c.hex}
                 onClick={() => {
                   setColor(c.hex);
+                  setCustomColor(c.hex);
                   if (selectedItemId) {
                     setItems((prev) =>
                       prev.map((it) =>
@@ -1224,7 +1239,59 @@ export const FreehandWorkspace: React.FC = () => {
                 }`}
               />
             ))}
+
+            {/* Any Color: native picker lets the user choose an arbitrary color. */}
+            <label
+              title="Choose Any Drawing Color"
+              className="relative w-5 h-5 rounded-full overflow-hidden border border-slate-600 cursor-pointer shadow-inner"
+            >
+              <input
+                type="color"
+                value={customColor}
+                onChange={(e) => {
+                  const nextColor = e.target.value;
+                  setCustomColor(nextColor);
+                  setColor(nextColor);
+                  if (selectedItemId) {
+                    setItems((prev) =>
+                      prev.map((it) =>
+                        it.id === selectedItemId ? { ...it, color: nextColor } : it
+                      )
+                    );
+                  }
+                }}
+                className="absolute inset-[-6px] w-8 h-8 cursor-pointer"
+                aria-label="Choose any drawing color"
+              />
+            </label>
           </div>
+
+          {/* Background Color: independent from drawing color and persisted across sessions. */}
+          <label
+            title="Change Canvas Background Color"
+            className="flex items-center gap-1.5 px-2 py-1 rounded-xl border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-400 cursor-pointer hover:text-slate-200"
+          >
+            <span>BG</span>
+            <span
+              className="w-5 h-5 rounded border border-slate-600 shadow-inner"
+              style={{ backgroundColor }}
+            />
+            <input
+              type="color"
+              value={backgroundColor}
+              onChange={(e) => {
+                const nextBackground = e.target.value;
+                setBackgroundColor(nextBackground);
+                try {
+                  localStorage.setItem('primepipfx_freehand_background', nextBackground);
+                } catch {
+                  // Ignore storage failures; the current canvas still updates.
+                }
+              }}
+              className="sr-only"
+              aria-label="Choose canvas background color"
+            />
+          </label>
 
           {/* Stroke Width Toggle */}
           <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800">
