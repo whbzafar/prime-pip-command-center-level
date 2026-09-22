@@ -226,7 +226,8 @@ export function calculateCategoryScores(
     // Handle special modules: COT and Sentiment
     if (cat === 'COT_POSITIONING') {
       const cot = cotRecords.find((c) => c.currency === currency);
-      const cotScore = cot ? calculateCotScore(cot) : 0;
+      const cotValid = !!cot && Number.isFinite(cot.nonCommercialLong) && Number.isFinite(cot.nonCommercialShort) && Number.isFinite(cot.openInterest) && (cot.openInterest as number) > 0;
+      const cotScore = cotValid ? calculateCotScore(cot!) : 0;
       const weight = customWeights.COT_POSITIONING || 5;
       results[cat] = {
         category: cat,
@@ -235,7 +236,7 @@ export function calculateCategoryScores(
         weight,
         weightedContribution: Number(((cotScore * weight) / 100).toFixed(2)),
         indicatorCount: 1,
-        activeCount: cot ? 1 : 0,
+        activeCount: cotValid ? 1 : 0,
         indicators: [],
       };
       continue;
@@ -243,7 +244,8 @@ export function calculateCategoryScores(
 
     if (cat === 'SENTIMENT') {
       const sent = sentimentRecords.find((s) => s.currency === currency);
-      const sentScore = sent ? calculateSentimentScore(sent) : 0;
+      const sentValid = !!sent && Number.isFinite(sent.sentimentConfidence) && sent.sentimentConfidence >= 0 && sent.sentimentConfidence <= 100;
+      const sentScore = sentValid ? calculateSentimentScore(sent!) : 0;
       const weight = customWeights.SENTIMENT || 5;
       results[cat] = {
         category: cat,
@@ -252,7 +254,7 @@ export function calculateCategoryScores(
         weight,
         weightedContribution: Number(((sentScore * weight) / 100).toFixed(2)),
         indicatorCount: 1,
-        activeCount: sent ? 1 : 0,
+        activeCount: sentValid ? 1 : 0,
         indicators: [],
       };
       continue;
@@ -260,7 +262,8 @@ export function calculateCategoryScores(
 
     if (cat === 'RATES_YIELDS') {
       const ir = interestRateRecords.find((r) => r.currency === currency);
-      const yieldScore = ir ? calculateInterestRateScore(ir) : 0;
+      const rateValid = !!ir && Number.isFinite(ir.currentPolicyRate) && Number.isFinite(ir.expectedNextRate) && Number.isFinite(ir.yield2Y) && Number.isFinite(ir.yield10Y);
+      const yieldScore = rateValid ? calculateInterestRateScore(ir!) : 0;
       const weight = customWeights.RATES_YIELDS || 10;
       results[cat] = {
         category: cat,
@@ -269,7 +272,7 @@ export function calculateCategoryScores(
         weight,
         weightedContribution: Number(((yieldScore * weight) / 100).toFixed(2)),
         indicatorCount: 1,
-        activeCount: ir ? 1 : 0,
+        activeCount: rateValid ? 1 : 0,
         indicators: [],
       };
       continue;
@@ -365,7 +368,8 @@ export function calculateSentimentScore(record: MarketSentimentRecord): number {
   else if (record.centralBankTone === 'DOVISH') score -= 25;
 
   // Confidence scaling (0.5 to 1.0 multiplier)
-  const confidenceMult = 0.5 + (record.sentimentConfidence / 200);
+  const confidence = Math.max(0, Math.min(100, record.sentimentConfidence));
+  const confidenceMult = 0.5 + (confidence / 200);
   return Math.round(Math.max(-100, Math.min(100, score * confidenceMult)));
 }
 
@@ -461,13 +465,16 @@ export function calculateCurrencyScore(
   }
 
   let assessmentLabel = 'NEUTRAL / MIXED FACTORS';
-  if (compositeScore >= 60) {
+  if (totalApplicableWeight === 0 || dataCoveragePercent < 75) {
+    assessmentLabel = 'INSUFFICIENT DATA';
+  }
+  if (assessmentLabel !== 'INSUFFICIENT DATA' && compositeScore >= 60) {
     assessmentLabel = conflictingFactors.length > 0 ? 'STRONG POSITIVE WITH CONFLICTING FACTORS' : 'STRONG FUNDAMENTAL BULLISH';
-  } else if (compositeScore >= 25) {
+  } else if (assessmentLabel !== 'INSUFFICIENT DATA' && compositeScore >= 25) {
     assessmentLabel = conflictingFactors.length > 0 ? 'POSITIVE WITH CONFLICTING POSITIONING' : 'MODERATELY BULLISH';
-  } else if (compositeScore <= -60) {
+  } else if (assessmentLabel !== 'INSUFFICIENT DATA' && compositeScore <= -60) {
     assessmentLabel = conflictingFactors.length > 0 ? 'STRONG NEGATIVE WITH CONFLICTING FACTORS' : 'STRONG FUNDAMENTAL BEARISH';
-  } else if (compositeScore <= -25) {
+  } else if (assessmentLabel !== 'INSUFFICIENT DATA' && compositeScore <= -25) {
     assessmentLabel = conflictingFactors.length > 0 ? 'NEGATIVE WITH CONFLICTING POSITIONING' : 'MODERATELY BEARISH';
   }
 
@@ -477,8 +484,8 @@ export function calculateCurrencyScore(
     score: compositeScore,
     finalCompositeScore: compositeScore,
     primaryDrivers: primarySupport,
-    interestRateLevel: observations.find((o) => o.currency === currency && o.indicatorId.includes('POLICY'))?.actual ?? 3.5,
-    tenYearBondYield: observations.find((o) => o.currency === currency && o.indicatorId.includes('10Y'))?.actual ?? 3.0,
+    interestRateLevel: observations.find((o) => o.currency === currency && o.indicatorId.includes('POLICY'))?.actual,
+    tenYearBondYield: observations.find((o) => o.currency === currency && o.indicatorId.includes('10Y'))?.actual,
     categoryScores,
     dataCoveragePercent,
     completedIndicators,
@@ -524,7 +531,8 @@ export function calculatePairDifferential(
 
   const baseScore = base?.score ?? 0;
   const quoteScore = quote?.score ?? 0;
-  const differential = baseScore - quoteScore;
+  const pairDataComplete = !!base && !!quote && base.freshnessStatus !== 'INCOMPLETE' && quote.freshnessStatus !== 'INCOMPLETE';
+  const differential = base && quote ? baseScore - quoteScore : 0;
 
   const cotBase = base?.categoryScores?.COT_POSITIONING?.score ?? 0;
   const cotQuote = quote?.categoryScores?.COT_POSITIONING?.score ?? 0;
@@ -541,18 +549,18 @@ export function calculatePairDifferential(
   const avgCoverage = Math.round(((base?.dataCoveragePercent ?? 100) + (quote?.dataCoveragePercent ?? 100)) / 2);
 
   let bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL_MIXED' | 'BEARISH' | 'STRONG_BEARISH' = 'NEUTRAL_MIXED';
-  let biasLabel = 'NEUTRAL / BALANCED SPREAD';
+  let biasLabel = pairDataComplete ? 'NEUTRAL / BALANCED SPREAD' : 'INSUFFICIENT DATA';
 
-  if (differential >= ruleConfig.strongBullishThreshold) {
+  if (pairDataComplete && differential >= ruleConfig.strongBullishThreshold) {
     bias = 'STRONG_BULLISH';
     biasLabel = 'STRONG RELATIVE BULLISH BIAS';
-  } else if (differential >= ruleConfig.bullishThreshold) {
+  } else if (pairDataComplete && differential >= ruleConfig.bullishThreshold) {
     bias = 'BULLISH';
     biasLabel = 'BULLISH RELATIVE BIAS';
-  } else if (differential <= ruleConfig.strongBearishThreshold) {
+  } else if (pairDataComplete && differential <= ruleConfig.strongBearishThreshold) {
     bias = 'STRONG_BEARISH';
     biasLabel = 'STRONG RELATIVE BEARISH BIAS';
-  } else if (differential <= ruleConfig.bearishThreshold) {
+  } else if (pairDataComplete && differential <= ruleConfig.bearishThreshold) {
     bias = 'BEARISH';
     biasLabel = 'BEARISH RELATIVE BIAS';
   }
@@ -685,16 +693,6 @@ export function calculateCommodityFundamentalScore(obs: CommodityObservation): {
       drivers.push({ label: 'Geopolitical Risk Premium', score: -10, impact: 'Mild Drag (Low flight-to-safety urgency)' });
     }
 
-    // Non-Commercial COT Positioning
-    if (obs.cotNetPosition !== undefined && obs.cotNetPosition > 0) {
-      const cotScore = Math.round(Math.max(-25, Math.min(25, ((obs.cotNetPosition - 200000) / 100000) * 20)));
-      score += cotScore;
-      drivers.push({
-        label: 'CFTC Gold Speculative COT Positioning',
-        score: cotScore,
-        impact: obs.cotNetPosition > 220000 ? 'Bullish (Institutional trend-followers accumulating longs)' : 'Neutral / Liquidating',
-      });
-    }
   } else if (obs.symbol === 'SILVER') {
     // Real yields (inverted)
     if (obs.usRealYield10Y !== undefined) {
