@@ -409,7 +409,7 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
                     {currentRecord.openInterest.toLocaleString()} Contracts
                   </td>
                   <td className="p-3 text-center text-slate-400">
-                    OI Change: {cotMetrics.openInterestChange >= 0 ? `+${cotMetrics.openInterestChange.toLocaleString()}` : cotMetrics.openInterestChange.toLocaleString()}
+                    OI Change: {cotMetrics.openInterestChange === null ? '—' : cotMetrics.openInterestChange >= 0 ? `+${cotMetrics.openInterestChange.toLocaleString()}` : cotMetrics.openInterestChange.toLocaleString()}
                   </td>
                 </tr>
               </tbody>
