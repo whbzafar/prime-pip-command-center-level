@@ -115,9 +115,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {sortedCurrencies.map((c, idx) => {
             const res = currencyScores[c.code];
+            const eligible = (res?.dataCoveragePercent ?? 0) >= 75;
             const score = res?.score ?? 0;
-            const isTop = idx === 0;
-            const isBottom = idx === sortedCurrencies.length - 1;
+            const eligibleCurrencies = sortedCurrencies.filter((code) => (currencyScores[code.code]?.dataCoveragePercent ?? 0) >= 75);
+            const isTop = eligible && eligibleCurrencies.length > 0 && c.code === eligibleCurrencies[0].code;
+            const isBottom = eligible && eligibleCurrencies.length > 0 && c.code === eligibleCurrencies[eligibleCurrencies.length - 1].code;
 
             return (
               <div
@@ -169,7 +171,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                           : 'text-slate-300'
                       }`}
                     >
-                      {score > 0 ? `+${score}` : score}
+                      {eligible ? (score > 0 ? `+${score}` : score) : '—'}
                     </span>
                   </div>
                 </div>
@@ -177,11 +179,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 <div className="mt-2.5 space-y-1 text-[11px] font-mono-code">
                   <div className="flex justify-between text-slate-400">
                     <span>Policy Rate:</span>
-                    <span className="text-slate-200 font-semibold">{res?.interestRateLevel?.toFixed(2) ?? '3.50'}%</span>
+                    <span className="text-slate-200 font-semibold">{eligible && res?.interestRateLevel !== undefined ? `${res.interestRateLevel.toFixed(2)}%` : '—'}</span>
                   </div>
                   <div className="flex justify-between text-slate-400">
                     <span>10Y Bond Yield:</span>
-                    <span className="text-slate-200 font-semibold">{res?.tenYearBondYield?.toFixed(2) ?? '3.20'}%</span>
+                    <span className="text-slate-200 font-semibold">{eligible && res?.tenYearBondYield !== undefined ? `${res.tenYearBondYield.toFixed(2)}%` : '—'}</span>
                   </div>
                   <div className="flex justify-between text-slate-400">
                     <span>Assessment:</span>
@@ -194,7 +196,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                           : 'text-slate-300'
                       }`}
                     >
-                      {res?.assessmentLabel || 'NEUTRAL'}
+                      {eligible ? (res?.assessmentLabel || 'NEUTRAL') : 'INSUFFICIENT DATA'}
                     </span>
                   </div>
                 </div>
