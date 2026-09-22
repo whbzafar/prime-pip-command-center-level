@@ -209,7 +209,7 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-base font-military font-bold text-slate-100">
-                  {selectedCurrency} Institutional Positioning ({currentRecord.contractName})
+                  {selectedCurrency} Speculative Positioning ({currentRecord.contractName})
                 </span>
                 <span className="text-xs font-mono-code text-slate-400">
                   Report Date: {currentRecord.reportDate}
