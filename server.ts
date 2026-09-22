@@ -436,6 +436,81 @@ app.get("/api/health", (req, res) => {
 app.post("/api/gemini/trading-coach", handleTradingCoach);
 app.post("/api/gemini/coach", handleTradingCoach);
 
+// Optional AI trade screenshot extraction endpoint.
+// Returns only values that Gemini can identify from the uploaded chart.
+// It never fabricates a pair/entry/SL when vision data is unavailable.
+app.post("/api/gemini/scan-trade-image", async (req, res) => {
+  try {
+    const { imageBase64, mimeType = "image/png" } = req.body || {};
+    if (!imageBase64 || typeof imageBase64 !== "string") {
+      return res.status(400).json({ error: "imageBase64 is required." });
+    }
+
+    const ai = getGeminiClient();
+    if (!ai) {
+      return res.status(503).json({
+        error: "AI scanner is unavailable because GEMINI_API_KEY is not configured.",
+      });
+    }
+
+    const systemInstruction = `You are the PRIMEPIPFX TRADE SCREENSHOT EXTRACTOR.
+Inspect the supplied trading-platform screenshot and extract only values that are visibly supported by the image.
+Do NOT invent, estimate, or assume missing values.
+Return strict JSON:
+{
+  "instrument": string | null,
+  "direction": "BUY" | "SELL" | null,
+  "entryPrice": number | null,
+  "stopLoss": number | null,
+  "takeProfit": number | null,
+  "timeframe": "M1" | "M5" | "M15" | "M30" | "H1" | "H4" | "D1" | null,
+  "confidence": number,
+  "notes": string
+}
+Rules:
+- Normalize pairs such as EUR/USD to EURUSD.
+- Entry must be the clearly marked/labelled entry price, not a nearby candle price.
+- Stop loss must be the clearly marked SL/stop level.
+- Take profit is optional; return null if it is not clearly visible.
+- If a field is not readable or not explicitly marked, return null.
+- confidence is 0-100 and reflects how clearly the screenshot supports the extracted fields.
+- notes should briefly state what was detected and which requested fields were not visible.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.8-flash",
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: imageBase64.replace(/^data:image\/\w+;base64,/, ""),
+              mimeType,
+            },
+          },
+          {
+            text: "Extract the trade parameters from this screenshot. Focus on pair, direction, entry, and stop loss.",
+          },
+        ],
+      },
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+      },
+    });
+
+    let analysis: any = {};
+    try {
+      analysis = JSON.parse(response.text || "{}");
+    } catch {
+      return res.status(422).json({ error: "AI returned an unreadable extraction response." });
+    }
+
+    res.json({ analysis });
+  } catch (error: any) {
+    console.warn("[AI TRADE SCANNER] extraction failed:", error?.message || error);
+    res.status(500).json({ error: "AI trade screenshot analysis failed. Please try again." });
+  }
+});
+
 // Screenshot Analyzer endpoint
 app.post("/api/gemini/analyze-screenshot", async (req, res) => {
   try {
