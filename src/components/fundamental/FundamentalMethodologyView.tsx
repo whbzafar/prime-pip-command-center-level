@@ -33,20 +33,20 @@ export const FundamentalMethodologyView: React.FC = () => {
     {
       num: 4,
       title: 'Standardized Surprise Z-Score',
-      formula: 'z = (Actual - Forecast) / σ_historical',
-      desc: 'Normalizes the economic surprise by dividing by the 3-year historical standard deviation of surprises for that specific release.',
+      formula: 'z = (Actual - Forecast) / σ_configured',
+      desc: 'Normalizes the surprise using the configured historical surprise standard deviation for that specific indicator.',
     },
     {
       num: 5,
       title: 'Directional Sign Alignment & Regime Adjustment',
-      formula: 'Directional Surprise = z * DirectionMultiplier',
-      desc: 'Aligns the sign based on economic impact: Higher GDP/PMI is positive (+1), while Higher Unemployment is negative (-1) for currency strength.',
+      formula: 'Score direction = indicator-specific rule',
+      desc: 'Applies the registry rule for the indicator: higher-is-bullish, lower-is-bullish, inflation/policy-path, or external-balance. No universal higher-is-bullish assumption.',
     },
     {
       num: 6,
       title: 'Normalized Indicator Score',
-      formula: 'Score_i = clamp(-100, +100, tanh(z / 1.5) * 100)',
-      desc: 'Compresses large macro deviations into a bounded, standardized -100 to +100 scale using continuous hyperbolic saturation.',
+      formula: 'Score_i = clamp(-100, +100, indicator-specific z/change mapping)',
+      desc: 'Maps the configured surprise and change signals to the bounded -100 to +100 scale using the deterministic rule implemented for that indicator.',
     },
     {
       num: 7,
@@ -62,9 +62,9 @@ export const FundamentalMethodologyView: React.FC = () => {
     },
     {
       num: 9,
-      title: 'Data Completeness Adjustment',
-      formula: 'AdjustedCurrencyScore = CurrencyComposite * (CoveragePercent / 100)',
-      desc: 'Penalizes currency scores if core required economic indicators are missing from the manual registry.',
+      title: 'Data Completeness & Renormalization',
+      formula: 'Composite = Σ(active CategoryScore × CategoryWeight) / Σ(active CategoryWeight)',
+      desc: 'Missing categories are excluded from the numerator and denominator. Coverage is reported separately; incomplete data is not converted into a fabricated negative score.',
     },
     {
       num: 10,
