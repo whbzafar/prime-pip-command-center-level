@@ -33,8 +33,6 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   const [editForm, setEditForm] = useState({
     price: 0,
     usRealYield10Y: 0,
-    nominal10YYield: 0,
-    dxyIndex: 0,
     inflationBreakeven5Y: 0,
     centralBankDemandTone: 'AGGRESSIVE_BUYING',
     industrialDemandTone: 'NEUTRAL',
@@ -57,8 +55,6 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
     setEditForm({
       price: obs.price,
       usRealYield10Y: obs.usRealYield10Y ?? 1.85,
-      nominal10YYield: obs.nominal10YYield ?? 4.25,
-      dxyIndex: obs.dxyIndex ?? 103.5,
       inflationBreakeven5Y: obs.inflationBreakeven5Y ?? 2.35,
       centralBankDemandTone: obs.centralBankDemandTone ?? 'AGGRESSIVE_BUYING',
       industrialDemandTone: obs.industrialDemandTone ?? 'NEUTRAL',
@@ -76,8 +72,6 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
       ...editingObs,
       price: Number(editForm.price),
       usRealYield10Y: Number(editForm.usRealYield10Y),
-      nominal10YYield: Number(editForm.nominal10YYield),
-      dxyIndex: Number(editForm.dxyIndex),
       inflationBreakeven5Y: Number(editForm.inflationBreakeven5Y),
       centralBankDemandTone: editForm.centralBankDemandTone as any,
       industrialDemandTone: editForm.industrialDemandTone as any,
@@ -114,7 +108,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                 Commodities Macro Valuation Engine
               </h3>
               <p className="text-xs font-mono-code text-slate-400 mt-0.5">
-                Valuation Models Driven by Real Yields, Dollar Strength, OPEC Discipline, and Industrial Demand
+                Valuation Models Driven by Real Yields, Physical Supply/Demand, and Industrial Demand
               </p>
             </div>
           </div>
@@ -360,17 +354,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                         className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-slate-100"
                       />
                     </div>
-                    <div>
-                      <label className="text-slate-400 block mb-1">US 10Y Nominal Yield (%)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={editForm.nominal10YYield}
-                        onChange={(e) => setEditForm({ ...editForm, nominal10YYield: Number(e.target.value) })}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-slate-100"
-                      />
                     </div>
-                  </div>
 
                   {editingObs.symbol === 'SILVER' && (
                     <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
@@ -388,16 +372,6 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                   )}
 
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-slate-400 block mb-1">US Dollar Index (DXY)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={editForm.dxyIndex}
-                        onChange={(e) => setEditForm({ ...editForm, dxyIndex: Number(e.target.value) })}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-slate-100"
-                      />
-                    </div>
                     <div>
                       <label className="text-slate-400 block mb-1">Central Bank Buying Tone</label>
                       <select
