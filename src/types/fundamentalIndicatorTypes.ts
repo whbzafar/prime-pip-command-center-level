@@ -182,9 +182,6 @@ export interface CommodityObservation {
   price: number;
   // Specific drivers:
   usRealYield10Y?: number;
-  nominal10YYield?: number;
-  dxyIndex?: number;
-  fedExpectedRate?: number;
   inflationBreakeven5Y?: number;
   centralBankDemandTone?: 'AGGRESSIVE_BUYING' | 'STEADY' | 'SLOW';
   industrialDemandTone?: 'STRONG' | 'NEUTRAL' | 'WEAK';
@@ -193,7 +190,6 @@ export interface CommodityObservation {
   supplyDemandBalance?: 'SURPLUS' | 'BALANCED' | 'DEFICIT';
   inventoriesWeeklySurpriseMb?: number;
   opecPolicyTone?: 'DEFENDING_FLOOR' | 'STEADY_PRODUCTION' | 'EXPANDING_SUPPLY';
-  cotNetPosition?: number;
   notes?: string;
   updatedAt: string;
 }
@@ -204,7 +200,7 @@ export interface ModelCategoryWeights {
   GROWTH: number;              // e.g. 15
   EMPLOYMENT: number;          // e.g. 10
   RATES_YIELDS: number;        // e.g. 10
-  BUSINESS_ACTIVITY: number;   // e.g. 8
+  BUSINESS_ACTIVITY: number;   // e.g. 10
   CONSUMER: number;            // e.g. 5
   TRADE_EXTERNAL: number;      // e.g. 5
   COT_POSITIONING: number;     // e.g. 5
