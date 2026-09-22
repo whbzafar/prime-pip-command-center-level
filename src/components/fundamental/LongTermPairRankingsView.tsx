@@ -198,7 +198,7 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
       <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
         <div className="p-4 border-b border-slate-800 bg-[#0c1222] flex items-center justify-between">
           <h4 className="font-military font-bold text-xs text-slate-100 uppercase tracking-wider">
-            All 28 Pairs Structural Factor Matrix
+            Eligible Pair Structural Factor Matrix
           </h4>
           <span className="text-[10px] font-mono-code text-slate-400">
             Sorted by {horizon} Fundamental Score
