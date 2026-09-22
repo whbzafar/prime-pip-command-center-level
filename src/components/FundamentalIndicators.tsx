@@ -7,6 +7,7 @@ import {
   PairDifferentialResult,
   IndicatorDefinition,
   MarketSentimentRecord,
+  PairSentimentRecord,
   CotPositioningRecord,
   InterestRateRecord,
 } from '../types/fundamentalIndicatorTypes';
@@ -96,6 +97,7 @@ export type FundamentalDashboardTab =
 const LOCAL_STORAGE_OBSERVATIONS_KEY = 'primepip_fundamental_observations_v2';
 const LOCAL_STORAGE_WEIGHTS_KEY = 'primepip_fundamental_weights_v2';
 const LOCAL_STORAGE_SENTIMENT_KEY = 'primepip_fundamental_sentiment_v2';
+const LOCAL_STORAGE_PAIR_SENTIMENT_KEY = 'primepip_fundamental_pair_sentiment_v1';
 const LOCAL_STORAGE_COT_KEY = 'primepip_fundamental_cot_v2';
 const LOCAL_STORAGE_RATES_KEY = 'primepip_fundamental_rates_v2';
 
@@ -149,6 +151,17 @@ export const FundamentalIndicators: React.FC = () => {
     return DEFAULT_SENTIMENT_RECORDS;
   });
 
+  // Pair sentiment is contextual Myfxbook data and remains separate from currency fundamentals.
+  const [pairSentimentRecords, setPairSentimentRecords] = useState<PairSentimentRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_PAIR_SENTIMENT_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Error loading pair sentiment from storage', e);
+    }
+    return [];
+  });
+
   // COT records state
   const [cotRecords, setCotRecords] = useState<CotPositioningRecord[]>(() => {
     try {
@@ -195,6 +208,15 @@ export const FundamentalIndicators: React.FC = () => {
       console.error('Failed to save fundamental sentiment', e);
     }
   }, [sentimentRecords]);
+
+  // Save pair sentiment when updated
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_PAIR_SENTIMENT_KEY, JSON.stringify(pairSentimentRecords));
+    } catch (e) {
+      console.error('Failed to save pair sentiment', e);
+    }
+  }, [pairSentimentRecords]);
 
   // Save COT when updated
   useEffect(() => {
@@ -655,14 +677,8 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
 
       {activeTab === 'MARKET_SENTIMENT' && (
         <MarketSentimentView
-          sentimentRecords={sentimentRecords}
-          onUpdateSentimentRecords={(records) => {
-            setSentimentRecords(records as any);
-          }}
-          onSelectCurrency={(c) => {
-            setActiveCurrency(c);
-            setActiveTab('WORKSPACES');
-          }}
+          sentimentRecords={pairSentimentRecords}
+          onUpdateSentimentRecords={setPairSentimentRecords}
         />
       )}
 
