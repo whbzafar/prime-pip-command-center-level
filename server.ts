@@ -854,13 +854,13 @@ app.post('/api/fundamental/generate-indicator', async (req, res) => {
     const forecast = finiteOrNull(parsed.forecast);
     const previous = finiteOrNull(parsed.previous);
     const revisedPrevious = finiteOrNull(parsed.revisedPrevious);
-    const sourceUrl = typeof parsed.sourceUrl === 'string' ? parsed.sourceUrl.trim() : '';
+    const sourceUrl = typeof parsed.sourceUrl === 'string' && parsed.sourceUrl.trim() ? parsed.sourceUrl.trim() : (sources[0]?.uri || '');
     const referencePeriod = typeof parsed.referencePeriod === 'string' ? parsed.referencePeriod.trim() : '';
     const releaseDate = typeof parsed.releaseDate === 'string' ? parsed.releaseDate.trim() : '';
     const unit = typeof parsed.unit === 'string' ? parsed.unit.trim() : '';
     const confidenceRaw = finiteOrNull(parsed.confidence);
     const confidence = confidenceRaw === null ? 0 : Math.max(0, Math.min(100, confidenceRaw));
-    const sourceGrounded = isGroundedSourceUrl(sourceUrl, sources);
+    const sourceGrounded = sources.length > 0 && isGroundedSourceUrl(sourceUrl, sources);
     const unitMatches = normalizeUnit(unit) === normalizeUnit(resolved.unit);
     const dateLooksValid = /^\d{4}-\d{2}-\d{2}$/.test(releaseDate) || /^\d{4}-\d{2}$/.test(releaseDate) || /^\d{4}$/.test(releaseDate);
 
