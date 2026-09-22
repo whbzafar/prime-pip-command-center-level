@@ -203,18 +203,6 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
     critique: string;
   } | null>(null);
 
-  const [aiTradeScan, setAiTradeScan] = useState<{
-    instrument?: string;
-    direction?: TradeDirection;
-    entryPrice?: number;
-    stopLoss?: number;
-    takeProfit?: number;
-    timeframe?: Timeframe;
-    confidence?: number;
-    notes?: string;
-  } | null>(null);
-  const [aiTradeScanning, setAiTradeScanning] = useState(false);
-  const [aiTradeScanError, setAiTradeScanError] = useState<string | null>(null);
 
   // Optional Pre-Trade Checklist State
   const [checklistOpen, setChecklistOpen] = useState(false);
