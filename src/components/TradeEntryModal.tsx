@@ -241,7 +241,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
 
   const calculatedRiskPercent = account.initialBalance > 0
     ? Number(((riskAmount / account.initialBalance) * 100).toFixed(2))
-    : account.maxRiskPerTrade;
+    : 1;
 
   const tradeEntryDate = date || getKarachiDate();
   const todayTradesCount = (existingTrades || []).filter((t) => t.date === tradeEntryDate).length;
@@ -253,7 +253,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
     entryModel: strategy,
     riskRewardRatio: Math.max(0, rMultiple),
     riskPercent: calculatedRiskPercent,
-    maxAllowedRiskPercent: account.maxRiskPerTrade || 1,
+    maxAllowedRiskPercent: 1,
     preEmotion,
     followedPlan,
   });
