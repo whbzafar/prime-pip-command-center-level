@@ -73,6 +73,8 @@ import {
   Clock,
   ShieldAlert,
   HelpCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 export type FundamentalDashboardTab =
@@ -100,6 +102,8 @@ const LOCAL_STORAGE_RATES_KEY = 'primepip_fundamental_rates_v2';
 export const FundamentalIndicators: React.FC = () => {
   const [activeTab, setActiveTab] = useState<FundamentalDashboardTab>('OVERVIEW');
   const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>('USD');
+  const [navStart, setNavStart] = useState(0);
+  const NAV_VISIBLE_COUNT = 7;
 
   // Observations state with localStorage persistence
   const [observations, setObservations] = useState<IndicatorObservation[]>(() => {
@@ -447,6 +451,20 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
     { id: 'METHODOLOGY', label: 'Methodology', icon: HelpCircle },
   ];
 
+  useEffect(() => {
+    const activeIndex = navTabs.findIndex((tab) => tab.id === activeTab);
+    if (activeIndex < 0) return;
+    if (activeIndex < navStart) {
+      setNavStart(activeIndex);
+    } else if (activeIndex >= navStart + NAV_VISIBLE_COUNT) {
+      setNavStart(Math.min(activeIndex - NAV_VISIBLE_COUNT + 1, Math.max(0, navTabs.length - NAV_VISIBLE_COUNT)));
+    }
+  }, [activeTab, navStart, navTabs.length]);
+
+  const visibleNavTabs = navTabs.slice(navStart, navStart + NAV_VISIBLE_COUNT);
+  const canGoPrevious = navStart > 0;
+  const canGoNext = navStart + NAV_VISIBLE_COUNT < navTabs.length;
+
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6 pb-12">
       {/* Toast Notification */}
@@ -461,9 +479,15 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
       <div className="bg-slate-950/90 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-5 backdrop-blur-xl">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/25 to-amber-500/15 border border-blue-500/40 flex items-center justify-center text-cyan-400 shadow-lg shadow-blue-500/10">
+            <button
+              type="button"
+              onClick={() => setActiveTab('OVERVIEW')}
+              aria-label="Open Fundamental Intelligence Overview"
+              title="Open Overview"
+              className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/25 to-amber-500/15 border border-blue-500/40 flex items-center justify-center text-cyan-400 shadow-lg shadow-blue-500/10 hover:border-cyan-400/70 hover:bg-blue-500/20 transition cursor-pointer"
+            >
               <Landmark className="w-6 h-6" />
-            </div>
+            </button>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/40 tracking-wider uppercase">
@@ -504,25 +528,49 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
         </div>
 
         {/* Architecture Navigation Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-military font-bold tracking-wider scrollbar-none">
-          {navTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition shrink-0 cursor-pointer ${
-                  isActive
-                    ? 'bg-blue-500 text-slate-950 border-cyan-400 shadow-md shadow-blue-500/20 font-bold'
-                    : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+        <div className="flex items-center gap-2 pb-1 text-xs font-military font-bold tracking-wider">
+          <button
+            type="button"
+            onClick={() => setNavStart((current) => Math.max(0, current - NAV_VISIBLE_COUNT))}
+            disabled={!canGoPrevious}
+            aria-label="Show previous Fundamental Intelligence categories"
+            title="Previous categories"
+            className="w-9 h-9 rounded-xl border border-slate-800 bg-slate-900/70 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/40 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shrink-0 flex items-center justify-center"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5">
+            {visibleNavTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl border transition min-w-0 cursor-pointer ${
+                    isActive
+                      ? 'bg-blue-500 text-slate-950 border-cyan-400 shadow-md shadow-blue-500/20 font-bold'
+                      : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setNavStart((current) => Math.min(navTabs.length - NAV_VISIBLE_COUNT, current + NAV_VISIBLE_COUNT))}
+            disabled={!canGoNext}
+            aria-label="Show next Fundamental Intelligence categories"
+            title="Next categories"
+            className="w-9 h-9 rounded-xl border border-slate-800 bg-slate-900/70 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/40 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shrink-0 flex items-center justify-center"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
