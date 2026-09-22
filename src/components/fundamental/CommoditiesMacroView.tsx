@@ -37,6 +37,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
     dxyIndex: 0,
     inflationBreakeven5Y: 0,
     centralBankDemandTone: 'AGGRESSIVE_BUYING',
+    industrialDemandTone: 'NEUTRAL',
     geopoliticalRiskLevel: 'HIGH',
     supplyDemandBalance: 'DEFICIT',
     inventoriesWeeklySurpriseMb: 0,
@@ -60,6 +61,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
       dxyIndex: obs.dxyIndex ?? 103.5,
       inflationBreakeven5Y: obs.inflationBreakeven5Y ?? 2.35,
       centralBankDemandTone: obs.centralBankDemandTone ?? 'AGGRESSIVE_BUYING',
+      industrialDemandTone: obs.industrialDemandTone ?? 'NEUTRAL',
       geopoliticalRiskLevel: obs.geopoliticalRiskLevel ?? 'HIGH',
       supplyDemandBalance: obs.supplyDemandBalance ?? 'DEFICIT',
       inventoriesWeeklySurpriseMb: obs.inventoriesWeeklySurpriseMb ?? -1.8,
@@ -78,6 +80,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
       dxyIndex: Number(editForm.dxyIndex),
       inflationBreakeven5Y: Number(editForm.inflationBreakeven5Y),
       centralBankDemandTone: editForm.centralBankDemandTone as any,
+      industrialDemandTone: editForm.industrialDemandTone as any,
       geopoliticalRiskLevel: editForm.geopoliticalRiskLevel as any,
       supplyDemandBalance: editForm.supplyDemandBalance as any,
       inventoriesWeeklySurpriseMb: Number(editForm.inventoriesWeeklySurpriseMb),
@@ -366,6 +369,21 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                       />
                     </div>
                   </div>
+
+                  {editingObs.symbol === 'SILVER' && (
+                    <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                      <label className="text-slate-400 block mb-1">Industrial Demand Tone</label>
+                      <select
+                        value={editForm.industrialDemandTone}
+                        onChange={(e) => setEditForm({ ...editForm, industrialDemandTone: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-slate-100"
+                      >
+                        <option value="STRONG">Strong / Expanding</option>
+                        <option value="NEUTRAL">Neutral / Stable</option>
+                        <option value="WEAK">Weak / Contracting</option>
+                      </select>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
