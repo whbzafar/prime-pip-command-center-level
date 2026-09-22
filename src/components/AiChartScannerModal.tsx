@@ -60,13 +60,12 @@ export const AiChartScannerModal: React.FC<AiChartScannerModalProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const runChartAnalysis = async (base64Img: string, fileName: string) => {
+  const runChartAnalysis = async (base64Img: string, _fileName: string) => {
     setIsScanning(true);
     setDraftDetected(null);
     setValidationWarning(null);
 
     try {
-      try {
       const res = await fetch('/api/gemini/scan-trade-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -80,12 +79,12 @@ export const AiChartScannerModal: React.FC<AiChartScannerModalProps> = ({
 
       const analysis = data.analysis;
       validateAndSetDraft({
-        instrument: analysis.instrument,
-        direction: analysis.direction,
-        entryPrice: analysis.entryPrice,
-        stopLoss: analysis.stopLoss,
-        takeProfit: analysis.takeProfit,
-        timeframe: analysis.timeframe,
+        instrument: typeof analysis.instrument === 'string' ? analysis.instrument : '',
+        direction: analysis.direction === 'BUY' || analysis.direction === 'SELL' ? analysis.direction : 'BUY',
+        entryPrice: typeof analysis.entryPrice === 'number' ? analysis.entryPrice : 0,
+        stopLoss: typeof analysis.stopLoss === 'number' ? analysis.stopLoss : 0,
+        takeProfit: typeof analysis.takeProfit === 'number' ? analysis.takeProfit : 0,
+        timeframe: typeof analysis.timeframe === 'string' ? analysis.timeframe : 'M15',
         setupName: 'AI Screenshot Extraction',
         rationale: analysis.notes || 'Values extracted from visible chart annotations.',
         riskRewardRatio:
@@ -100,6 +99,7 @@ export const AiChartScannerModal: React.FC<AiChartScannerModalProps> = ({
       setValidationWarning(error instanceof Error ? error.message : 'AI scanner failed. No values were fabricated.');
       setIsScanning(false);
     }
+  };
 
   const validateAndSetDraft = (draft: any) => {
     // Check validation errors (e.g. SL higher than entry for BUY, or inverted prices)
