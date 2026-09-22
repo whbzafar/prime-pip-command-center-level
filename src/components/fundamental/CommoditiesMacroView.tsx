@@ -49,8 +49,8 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   const calculated = calculateCommodityFundamentalScore(currentObs);
 
   // Relative Valuation vs USD (Section 32)
-  const usdScoreVal = usdScore?.score ?? 68;
-  const relativeSpread = calculated.score - usdScoreVal;
+  const usdScoreVal = usdScore?.score;
+  const relativeSpread = usdScoreVal !== undefined ? calculated.score - usdScoreVal : null;
 
   const handleStartEdit = (obs: CommodityObservation) => {
     setEditingObs(obs);
@@ -210,7 +210,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
             {/* Relative Valuation vs USD (Section 32) */}
             <div className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 text-xs font-mono-code space-y-1">
               <span className="text-slate-400 text-[10px] uppercase block">
-                Relative Valuation vs USD ({usdScoreVal > 0 ? `+${usdScoreVal}` : usdScoreVal} pts)
+                Relative Valuation vs USD ({usdScoreVal === undefined ? '—' : usdScoreVal > 0 ? `+${usdScoreVal}` : usdScoreVal} pts)
               </span>
               <div className="flex justify-between items-center">
                 <span className="text-slate-200 font-bold">
@@ -221,11 +221,13 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                     relativeSpread > 0 ? 'text-emerald-400' : relativeSpread < 0 ? 'text-rose-400' : 'text-slate-300'
                   }`}
                 >
-                  {relativeSpread > 0 ? `+${relativeSpread}` : relativeSpread} pts
+                  {relativeSpread === null ? 'INSUFFICIENT DATA' : relativeSpread > 0 ? `+${relativeSpread}` : relativeSpread} pts
                 </span>
               </div>
               <span className="text-[10px] text-slate-400 block">
-                {relativeSpread > 15
+                {relativeSpread === null
+                  ? 'Enter the USD fundamental score before classifying the USD-relative commodity bias.'
+                  : relativeSpread > 15
                   ? `${currentObs.symbol} fundamental drivers outpacing USD headwinds`
                   : relativeSpread < -15
                   ? `Strong USD environment exerting downward valuation pressure`
