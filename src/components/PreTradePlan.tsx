@@ -110,6 +110,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
   const [condition3AlreadyMitigated, setCondition3AlreadyMitigated] = useState(false); // Already Mitigated
   const [condition4MarketRetest, setCondition4MarketRetest] = useState(false); // Market Retest of Unmitigated Demand/Supply Order Block
   const [condition5FailureOfSwing, setCondition5FailureOfSwing] = useState(false); // Failure of Swing
+  const [condition6EverythingGood, setCondition6EverythingGood] = useState(false); // Optional acknowledgement
   const [phase1ValidationError, setPhase1ValidationError] = useState<string>('');
 
   // PHASE 2 STATE
@@ -153,34 +154,8 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
   };
 
   const handleProceedToPhase2 = () => {
-    const missing: string[] = [];
-    if (!condition1DoubleStructure) missing.push('1. Double Structure Level');
-    if (!condition2NoPdArray) missing.push('2. No Opposing PD Array');
-    if (!condition3AlreadyMitigated) missing.push('3. Already Mitigated');
-    if (!condition4MarketRetest) missing.push('4. Market Retest of Demand/Supply OB');
-    if (!condition5FailureOfSwing) missing.push('5. Failure of Swing');
-
-    if (missing.length > 0) {
-      setPhase1ValidationError(
-        `Five Condition Check Incomplete (${5 - missing.length}/5 verified). You CANNOT proceed to Phase 2 until all 5 conditions are checked: ${missing.join(', ')}`
-      );
-      const section = document.getElementById('five-conditions-section');
-      if (section) {
-        section.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      return;
-    }
-
-    if (!newsChecked) {
-      setPhase1ValidationError('Please mark "CHECK NEWS / COT" verified before proceeding.');
-      return;
-    }
-
-    if (!timeframeChecked) {
-      setPhase1ValidationError('Please mark "TIME FRAME ANALYSIS CHECK" verified before proceeding.');
-      return;
-    }
-
+    // Phase 2 navigation is intentionally not gated by Phase 1 checkboxes.
+    // The checkboxes record the trader's review state but never block progression.
     setPhase1ValidationError('');
     setCurrentPhase(2);
   };
@@ -357,28 +332,11 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
         {/* Phase 2 Stepper */}
         <button
           type="button"
-          disabled={!allFiveConditionsChecked}
-          aria-disabled={!allFiveConditionsChecked}
-          onClick={() => {
-            if (!allFiveConditionsChecked) {
-              handleProceedToPhase2();
-              return;
-            }
-            if (allPhase1Complete) {
-              setPhase1ValidationError('');
-              setCurrentPhase(2);
-            } else {
-              handleProceedToPhase2();
-            }
-          }}
+          onClick={() => setCurrentPhase(2)}
           className={`p-4 rounded-xl border text-left transition relative ${
-            !allFiveConditionsChecked
-              ? 'cursor-not-allowed opacity-60 bg-slate-950/40 border-slate-800/80'
-              : currentPhase === 2
+            currentPhase === 2
               ? 'bg-blue-500/15 border-blue-500/50 shadow-md shadow-blue-500/10 cursor-pointer'
-              : allPhase1Complete
-              ? 'bg-slate-950/70 border-slate-800 hover:border-slate-700 cursor-pointer'
-              : 'bg-slate-950/40 border-slate-800/80 hover:border-amber-500/40 opacity-80 cursor-pointer'
+              : 'bg-slate-950/70 border-slate-800 hover:border-slate-700 cursor-pointer'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -660,10 +618,10 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                 </span>
                 <div>
                   <h3 className="text-base font-military font-bold text-slate-100 tracking-wider">
-                    FIVE CONDITIONS CHECK (MANDATORY FOR PHASE 2)
+                    FIVE CONDITIONS CHECK (OPTIONAL FOR PHASE 2)
                   </h3>
                   <p className="text-[11px] font-mono-code text-slate-400">
-                    System strictly requires all 5 structural criteria to be checked before unlocking Phase 2
+                    These five checks are optional confirmations; they never block access to Phase 2.
                   </p>
                 </div>
               </div>
@@ -854,36 +812,52 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
                   </p>
                 </div>
               </label>
+
+              {/* Condition 6: Optional acknowledgement */}
+              <label
+                className={`flex items-start gap-3 p-3.5 rounded-xl border transition cursor-pointer ${
+                  condition6EverythingGood
+                    ? 'bg-emerald-500/10 border-emerald-500/40 text-slate-200'
+                    : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-300'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={condition6EverythingGood}
+                  onChange={(e) => setCondition6EverythingGood(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
+                />
+                <div className="space-y-0.5">
+                  <div className="text-xs font-military font-bold tracking-wide flex items-center gap-2">
+                    <span className="text-cyan-400 font-mono-code">6.</span>
+                    <span>EVERYTHING IS GOOD</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">OPTIONAL</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-sans">
+                    Optional final acknowledgement that the overall Phase 1 context looks good before moving forward.
+                  </p>
+                </div>
+              </label>
             </div>
 
-            {/* Advance to Phase 2 Button with Strict Enforcement */}
+            {/* Advance to Phase 2 Button — always available */}
             <div className="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
               <span className="text-xs font-mono-code text-slate-400">
-                {allPhase1Complete
-                  ? '✓ All 5 Conditions & Pre-trade checks complete. Ready for Phase 2.'
-                  : `5 Conditions Check: ${
-                      [
-                        condition1DoubleStructure,
-                        condition2NoPdArray,
-                        condition3AlreadyMitigated,
-                        condition4MarketRetest,
-                        condition5FailureOfSwing,
-                      ].filter(Boolean).length
-                    }/5 verified. All 5 required to proceed.`}
+                {
+                  [
+                    condition1DoubleStructure,
+                    condition2NoPdArray,
+                    condition3AlreadyMitigated,
+                    condition4MarketRetest,
+                    condition5FailureOfSwing,
+                  ].filter(Boolean).length
+                }/5 conditions checked • Condition 6 is optional • Phase 2 is always accessible.
               </span>
 
               <button
                 type="button"
-                disabled={!allFiveConditionsChecked}
-                aria-disabled={!allFiveConditionsChecked}
                 onClick={handleProceedToPhase2}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-military font-bold tracking-wider transition ${
-                  allFiveConditionsChecked && allPhase1Complete
-                    ? 'bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow-lg shadow-blue-500/25 cursor-pointer'
-                    : allFiveConditionsChecked
-                    ? 'bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 cursor-pointer'
-                    : 'bg-slate-900/60 text-slate-500 border border-slate-800 cursor-not-allowed opacity-50'
-                }`}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-military font-bold tracking-wider transition bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow-lg shadow-blue-500/25 cursor-pointer"
               >
                 <span>PROCEED TO PHASE 2</span>
                 <ArrowRight className="w-4 h-4" />
