@@ -813,13 +813,9 @@ export function calculateCotMetrics(raw: {
     (raw.nonCommercialLong > 0 || raw.nonCommercialShort > 0);
 
   // Non-commercial / Speculative core: Explicit Non-Commercial or Asset Manager + Leveraged Funds
-  const specLong = hasExplicitNonCommercial
-    ? (raw.nonCommercialLong || 0)
-    : (raw.assetManagerLong || 0) + (raw.leveragedFundsLong || 0);
+  const specLong = hasExplicitNonCommercial ? (raw.nonCommercialLong || 0) : 0;
 
-  const specShort = hasExplicitNonCommercial
-    ? (raw.nonCommercialShort || 0)
-    : (raw.assetManagerShort || 0) + (raw.leveragedFundsShort || 0);
+  const specShort = hasExplicitNonCommercial ? (raw.nonCommercialShort || 0) : 0;
 
   const netPosition = specLong - specShort;
   const nonCommercialNet = netPosition;
@@ -830,44 +826,45 @@ export function calculateCotMetrics(raw: {
   const commercialNet = commLong - commShort;
 
   const totalPositions = specLong + specShort || 1;
-  const longPercent = Number(((specLong / totalPositions) * 100).toFixed(1));
-  const shortPercent = Number(((specShort / totalPositions) * 100).toFixed(1));
+  const openInterest = raw.openInterest > 0 ? raw.openInterest : 0;
+  const longPercent = openInterest > 0 ? Number(((specLong / openInterest) * 100).toFixed(1)) : 0;
+  const shortPercent = openInterest > 0 ? Number(((specShort / openInterest) * 100).toFixed(1)) : 0;
+  const netOpenInterestPercent = openInterest > 0 ? Number((((specLong - specShort) / openInterest) * 100).toFixed(2)) : 0;
 
-  const prevNet = raw.previousNetPosition !== undefined ? raw.previousNetPosition : Math.round(netPosition * 0.92);
-  const weeklyChange = netPosition - prevNet;
-
-  const prevOi = raw.previousOpenInterest !== undefined ? raw.previousOpenInterest : Math.round((raw.openInterest || 100000) * 0.98);
-  const openInterestChange = (raw.openInterest || 0) - prevOi;
+  const weeklyChange = raw.previousNetPosition !== undefined ? netPosition - raw.previousNetPosition : null;
+  const openInterestChange = raw.previousOpenInterest !== undefined ? (raw.openInterest || 0) - raw.previousOpenInterest : null;
 
   // Normalized positioning score (-100 to +100)
   // Mapping based on net/total ratio
-  const ratio = (specLong - specShort) / totalPositions;
-  const positioningScore = Math.round(Math.max(-100, Math.min(100, ratio * 150)));
+  const ratio = openInterest > 0 ? (specLong - specShort) / openInterest : 0;
+  const positioningScore = Math.round(Math.max(-100, Math.min(100, ratio * 500)));
 
   // Historical percentile estimation based on ratio
   // 0% = maximum net short, 50% = balanced, 100% = maximum net long
-  const historicalPercentile = Math.round(Math.max(1, Math.min(99, 50 + ratio * 80)));
+  const historicalPercentile = null;
 
   let cotDirection: 'BULLISH' | 'NEUTRAL' | 'BEARISH' = 'NEUTRAL';
   if (positioningScore >= 20) cotDirection = 'BULLISH';
   else if (positioningScore <= -20) cotDirection = 'BEARISH';
 
   let positioningExtreme: 'HIGH_CROWDED_LONG' | 'NORMAL' | 'HIGH_CROWDED_SHORT' = 'NORMAL';
-  if (historicalPercentile >= 85) positioningExtreme = 'HIGH_CROWDED_LONG';
-  else if (historicalPercentile <= 15) positioningExtreme = 'HIGH_CROWDED_SHORT';
+  if (netOpenInterestPercent >= 10) positioningExtreme = 'HIGH_CROWDED_LONG';
+  else if (netOpenInterestPercent <= -10) positioningExtreme = 'HIGH_CROWDED_SHORT';
 
   let positioningMomentum: 'INCREASING_LONG' | 'STABLE' | 'INCREASING_SHORT' = 'STABLE';
-  if (weeklyChange > 2500) positioningMomentum = 'INCREASING_LONG';
-  else if (weeklyChange < -2500) positioningMomentum = 'INCREASING_SHORT';
+  if (weeklyChange !== null && weeklyChange > 0) positioningMomentum = 'INCREASING_LONG';
+  else if (weeklyChange !== null && weeklyChange < 0) positioningMomentum = 'INCREASING_SHORT';
 
   let interpretation = '';
-  if (positioningExtreme === 'HIGH_CROWDED_LONG') {
+  if (!hasExplicitNonCommercial || openInterest <= 0) {
+    interpretation = 'Non-Commercial long/short and Open Interest must be entered before COT is scored.';
+  } else if (positioningExtreme === 'HIGH_CROWDED_LONG') {
     interpretation = 'Bullish institutional positioning but highly crowded (vulnerable to long squeeze).';
   } else if (positioningExtreme === 'HIGH_CROWDED_SHORT') {
     interpretation = 'Heavy net short crowding (elevated short-squeeze risk if bullish catalyst appears).';
-  } else if (cotDirection === 'BULLISH' && weeklyChange > 0) {
+  } else if (cotDirection === 'BULLISH' && weeklyChange !== null && weeklyChange > 0) {
     interpretation = 'Institutional accumulation with positive weekly momentum.';
-  } else if (cotDirection === 'BEARISH' && weeklyChange < 0) {
+  } else if (cotDirection === 'BEARISH' && weeklyChange !== null && weeklyChange < 0) {
     interpretation = 'Institutional distribution with negative weekly momentum.';
   } else {
     interpretation = 'Balanced institutional positioning within standard historical ranges.';
@@ -890,6 +887,7 @@ export function calculateCotMetrics(raw: {
     cotDirection,
     positioningExtreme,
     positioningMomentum,
+    netOpenInterestPercent,
     interpretation,
   };
 }
