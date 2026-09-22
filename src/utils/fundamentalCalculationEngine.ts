@@ -196,7 +196,7 @@ export function calculateCategoryScores(
     BUSINESS_ACTIVITY: 'Business Activity & PMIs',
     CONSUMER: 'Consumer Spending & Sentiment',
     TRADE_EXTERNAL: 'Trade & External Balance',
-    COT_POSITIONING: 'CFTC COT Market Positioning',
+    COT_POSITIONING: 'COT Market Positioning',
     SENTIMENT: 'Market Sentiment & Risk Regime',
     HOUSING: 'Housing & Real Estate',
     FISCAL: 'Fiscal & Government Policy',
@@ -564,7 +564,7 @@ export function calculatePairDifferential(
     primaryDrivers.push(`Monetary policy & rate spread favors ${rateBase > rateQuote ? baseCurrency : quoteCurrency}`);
   }
   if (Math.abs(cotBase - cotQuote) > 25) {
-    primaryDrivers.push(`CFTC COT speculative positioning favors ${cotBase > cotQuote ? baseCurrency : quoteCurrency}`);
+    primaryDrivers.push(`COT speculative positioning favors ${cotBase > cotQuote ? baseCurrency : quoteCurrency}`);
   }
   if (Math.abs(sentBase - sentQuote) > 25) {
     primaryDrivers.push(`Market risk regime favors ${sentBase > sentQuote ? baseCurrency : quoteCurrency}`);
