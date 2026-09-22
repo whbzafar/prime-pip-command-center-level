@@ -33,8 +33,8 @@ export const DEFAULT_CATEGORY_WEIGHTS: ModelCategoryWeights = {
   TRADE_EXTERNAL: 5,
   COT_POSITIONING: 5,
   SENTIMENT: 5,
-  HOUSING: 1,
-  FISCAL: 1,
+  HOUSING: 0,
+  FISCAL: 0,
 };
 
 export const OFFICIAL_INDICATOR_REGISTRY: IndicatorDefinition[] = [
