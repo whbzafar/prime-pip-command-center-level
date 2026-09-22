@@ -729,10 +729,13 @@ export function calculateCommodityFundamentalScore(obs: CommodityObservation): {
       });
     }
 
-    // Industrial & Photovoltaic Solar Demand
-    if (obs.centralBankDemandTone === 'AGGRESSIVE_BUYING' || obs.centralBankDemandTone === 'STEADY') {
+    // Industrial demand is a core silver driver; do not reuse gold's central-bank field.
+    if (obs.industrialDemandTone === 'STRONG') {
       score += 25;
-      drivers.push({ label: 'Industrial & Solar Cell Demand', score: 25, impact: 'Bullish (Structural deficit from green electrification)' });
+      drivers.push({ label: 'Industrial Demand', score: 25, impact: 'Bullish (Strong industrial/technology demand)' });
+    } else if (obs.industrialDemandTone === 'WEAK') {
+      score -= 25;
+      drivers.push({ label: 'Industrial Demand', score: -25, impact: 'Bearish (Weak industrial demand)' });
     }
 
     // Geopolitical Risk
