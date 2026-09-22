@@ -23,6 +23,7 @@ import {
   Settings2,
   ShieldCheck,
   Cpu,
+  GraduationCap,
   ChevronRight,
   Sparkles,
   Lock,
@@ -243,6 +244,17 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
     icon: Cpu,
     highlight: true,
   },
+  {
+    id: 'PRO_LEARNING',
+    num: '22',
+    label: 'Pro Learning Trading',
+    name: 'Pro Learning Trading',
+    desc: 'Coming Soon — complete trading strategies, courses, learning paths, and future trading bots in one professional learning command center.',
+    section: 'Intelligence & Setups',
+    icon: GraduationCap,
+    comingSoon: true,
+    highlight: true,
+  },
 ];
 
 interface AllCategoriesModalProps {
@@ -343,7 +355,7 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
                 <span className="text-[10px] font-mono-code px-1.5 py-0.2 rounded bg-blue-500/20 text-cyan-300 font-bold">
                   DIRECT ACCESS
                 </span>
-                <span className="text-[10px] text-slate-400 font-mono-code">21 Modules</span>
+                <span className="text-[10px] text-slate-400 font-mono-code">22 Modules</span>
               </div>
               <h2 id="all-categories-title" className="text-base sm:text-xl font-military font-bold text-slate-100 tracking-wider">
                 Explore All Categories & Modules
@@ -370,7 +382,7 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
               autoFocus
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search 21 categories by name, tool, or keyword (e.g. 'Lot Size', 'Psychology', 'News')..."
+              placeholder="Search 22 categories by name, tool, or keyword (e.g. 'Lot Size', 'Psychology', 'News')..."
               className="w-full bg-slate-950/90 border border-slate-800 focus:border-cyan-400 rounded-xl pl-9 pr-8 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 font-sans focus:outline-none transition"
             />
             {searchQuery && (
