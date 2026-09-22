@@ -21,6 +21,7 @@ import {
   Layers,
   X,
   Plus,
+  Loader2,
 } from 'lucide-react';
 
 interface EconomicDataMasterViewProps {
@@ -456,7 +457,25 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
           </div>
         </div>
 
-        {/* Filters and Search Bar */}
+        {(liveMessage || batchState.running) && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-xs font-mono-code">
+          <div className="flex items-center gap-2 min-w-0">
+            {batchState.running && <Loader2 className="w-4 h-4 text-cyan-300 animate-spin shrink-0" />}
+            <span className="text-cyan-200 break-words">
+              {batchState.running
+                ? `Live Google research in progress: ${batchState.completed}/${batchState.total}`
+                : liveMessage}
+            </span>
+          </div>
+          {!batchState.running && (
+            <button type="button" onClick={() => setLiveMessage(null)} className="shrink-0 px-2 py-1 rounded-lg bg-slate-900/70 hover:bg-slate-800 text-slate-300 border border-slate-700">
+              Dismiss
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Filters and Search Bar */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono-code">
           {/* Search */}
           <div className="relative">
