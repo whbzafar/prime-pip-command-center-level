@@ -39,6 +39,7 @@ function profileToStoredUser(row: any): StoredUser {
     showActiveStatus: row.show_active_status !== false, tradingFocus: row.trading_focus || undefined,
     experienceLevel: row.experience_level || undefined, traderStatus: row.trader_status || undefined,
     createdAt: row.created_at || new Date().toISOString(), updatedAt: row.updated_at || new Date().toISOString(),
+    adminData: row.admin_data && typeof row.admin_data === 'object' ? row.admin_data : undefined,
   };
 }
 function storedUserToProfile(user: StoredUser, authUserId: string) {
@@ -51,7 +52,7 @@ function storedUserToProfile(user: StoredUser, authUserId: string) {
     warnings_count: Number(user.warningsCount || 0), has_completed_onboarding: Boolean(user.hasCompletedOnboarding),
     needs_onboarding: Boolean(user.needsOnboarding), show_active_status: user.showActiveStatus !== false,
     trading_focus: user.tradingFocus || null, experience_level: user.experienceLevel || null,
-    trader_status: user.traderStatus || null, updated_at: user.updatedAt,
+    trader_status: user.traderStatus || null, admin_data: user.adminData || {}, updated_at: user.updatedAt,
   };
 }
 export async function getProfileByUsername(username: string): Promise<StoredUser | null> {
