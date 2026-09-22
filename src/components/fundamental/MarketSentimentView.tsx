@@ -237,8 +237,9 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
     setEditingItem(null);
   };
 
-  const getMyfxbookUrl = (pair: string) => {
-    return `https://www.myfxbook.com/community/outlook/${pair}`;
+  const getMyfxbookUrl = () => {
+    // Open the neutral Myfxbook Community Outlook landing page so the user chooses the pair there.
+    return 'https://www.myfxbook.com/community/outlook';
   };
 
   return (
@@ -265,7 +266,7 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
 
           {/* Prominent Myfxbook External Link Button (Mandatory Section 27) */}
           <a
-            href={getMyfxbookUrl(selectedPair)}
+            href={getMyfxbookUrl()}
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-military font-bold transition shadow-lg shadow-amber-600/25 cursor-pointer"
@@ -477,7 +478,7 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
               </div>
 
               <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300">
-                Official Source: <a href={getMyfxbookUrl(editingItem.pair)} target="_blank" rel="noreferrer" className="underline font-bold">Myfxbook Community Outlook ↗</a>
+                Official Source: <a href={getMyfxbookUrl()} target="_blank" rel="noreferrer" className="underline font-bold">Myfxbook Community Outlook ↗</a>
               </div>
             </div>
 
