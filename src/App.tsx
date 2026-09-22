@@ -895,7 +895,7 @@ export default function App() {
         )}
 
         {activeTab === 'FREEHAND_WORKSPACE' && (
-          <FreehandWorkspace />
+          <FreehandWorkspace userKey={currentUser?.id || currentUser?.email || 'guest'} />
         )}
 
         {activeTab === 'COMMUNITY' && (
