@@ -26,7 +26,10 @@ export async function syncLegacyStudentsToServer(force = false): Promise<number>
 
   syncPromise = (async () => {
     try {
-      const response = await fetch(LEGACY_STUDENTS_URL, { cache: "no-store" });
+      const response = await fetch(LEGACY_STUDENTS_URL, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(3000),
+      });
       if (!response.ok) throw new Error(`Legacy student registry returned HTTP ${response.status}`);
       const payload = await response.json();
       if (!Array.isArray(payload)) return 0;

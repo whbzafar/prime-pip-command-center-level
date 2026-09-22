@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   CurrencyCode,
   IndicatorObservation,
@@ -77,6 +77,8 @@ import {
   HelpCircle,
   ChevronLeft,
   ChevronRight,
+  Calendar,
+  ExternalLink,
 } from 'lucide-react';
 
 export type FundamentalDashboardTab =
@@ -136,8 +138,38 @@ export const FundamentalIndicators: React.FC = () => {
     setAdminRewardOpen(true);
     showNotification('✓ Admin Reward data is now active in your Fundamental workspace.');
   };
-  const [navStart, setNavStart] = useState(0);
-  const NAV_VISIBLE_COUNT = 7;
+  // Scrollable navigation track for Viewer Space categories
+  const navScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+  const tabButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  const checkNavScrollability = useCallback(() => {
+    const el = navScrollRef.current;
+    if (el) {
+      setCanScrollLeft(el.scrollLeft > 4);
+      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkNavScrollability();
+    const handleResize = () => checkNavScrollability();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [checkNavScrollability]);
+
+  const handleNavScroll = (direction: 'left' | 'right') => {
+    const el = navScrollRef.current;
+    if (el) {
+      const scrollDistance = Math.max(220, Math.floor(el.clientWidth * 0.7));
+      el.scrollBy({
+        left: direction === 'left' ? -scrollDistance : scrollDistance,
+        behavior: 'smooth',
+      });
+      setTimeout(checkNavScrollability, 300);
+    }
+  };
 
   // Observations state with localStorage persistence
   const [observations, setObservations] = useState<IndicatorObservation[]>(() => {
@@ -433,7 +465,7 @@ ${
 }
 
 #### 3. Execution Thesis & Portfolio Allocation
-Given the deterministic composite score of **${scoreResult.finalCompositeScore}**, the fundamental stance is **${scoreResult.assessmentLabel}**. Look for alignment with higher-timeframe market structure in accordance with the SPT strategy rules before committing trade execution.`;
+Given the deterministic composite score of **${scoreResult.finalCompositeScore}**, the fundamental stance is **${scoreResult.assessmentLabel}**. Look for alignment with higher-timeframe market structure in accordance with the SBT strategy rules before committing trade execution.`;
 
       setAiReportContent(fallback);
       setAiEngineSource('DETERMINISTIC MACRO ENGINE (FALLBACK)');
@@ -506,18 +538,12 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
   ];
 
   useEffect(() => {
-    const activeIndex = navTabs.findIndex((tab) => tab.id === activeTab);
-    if (activeIndex < 0) return;
-    if (activeIndex < navStart) {
-      setNavStart(activeIndex);
-    } else if (activeIndex >= navStart + NAV_VISIBLE_COUNT) {
-      setNavStart(Math.min(activeIndex - NAV_VISIBLE_COUNT + 1, Math.max(0, navTabs.length - NAV_VISIBLE_COUNT)));
+    const activeEl = tabButtonRefs.current[activeTab];
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     }
-  }, [activeTab, navStart, navTabs.length]);
-
-  const visibleNavTabs = navTabs.slice(navStart, navStart + NAV_VISIBLE_COUNT);
-  const canGoPrevious = navStart > 0;
-  const canGoNext = navStart + NAV_VISIBLE_COUNT < navTabs.length;
+    setTimeout(checkNavScrollability, 250);
+  }, [activeTab, checkNavScrollability]);
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6 pb-12">
@@ -559,6 +585,18 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
 
           {/* Quick Engine Actions (Strict PDF-only export) */}
           <div className="flex items-center gap-2 flex-wrap">
+            <a
+              href="https://www.forexfactory.com/calendar"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-mono-code font-bold transition cursor-pointer"
+              title="Open Forex Factory Economic Calendar in a new tab"
+            >
+              <Calendar className="w-3.5 h-3.5 text-amber-400" />
+              <span>FOREX FACTORY CALENDAR</span>
+              <ExternalLink className="w-3 h-3 text-amber-400" />
+            </a>
+
             <button
               type="button"
               onClick={handleRestoreBaseline}
@@ -584,49 +622,61 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
         {/* Integrated live search — results stay inside Fundamental Intelligence */}
         <FundamentalLiveSearch />
 
-        {/* Architecture Navigation Tabs */}
-        <div className="flex items-center gap-2 pb-1 text-xs font-military font-bold tracking-wider">
+        {/* Architecture Navigation Tabs with Manual Scrolling & Enhanced Navigation Arrows */}
+        <div className="relative flex items-center gap-2 pb-1 text-xs font-military font-bold tracking-wider">
+          {/* Enhanced Left Arrow Button */}
           <button
             type="button"
-            onClick={() => setNavStart((current) => Math.max(0, current - NAV_VISIBLE_COUNT))}
-            disabled={!canGoPrevious}
-            aria-label="Show previous Fundamental Intelligence categories"
-            title="Previous categories"
-            className="w-9 h-9 rounded-xl border border-slate-800 bg-slate-900/70 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/40 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shrink-0 flex items-center justify-center"
+            onClick={() => handleNavScroll('left')}
+            disabled={!canScrollLeft}
+            aria-label="Scroll left to previous Fundamental Intelligence categories"
+            title="Scroll left"
+            className="w-10 h-10 rounded-xl border border-slate-700/80 bg-slate-900/90 text-cyan-400 hover:text-cyan-300 hover:bg-slate-800 hover:border-cyan-400 hover:shadow-md hover:shadow-cyan-500/20 active:scale-95 disabled:opacity-25 disabled:pointer-events-none transition cursor-pointer shrink-0 flex items-center justify-center shadow-lg shadow-black/50 z-10"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
           </button>
 
-          <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5">
-            {visibleNavTabs.map((tab) => {
+          {/* Manually Scrollable Horizontal Categories Bar */}
+          <div
+            ref={navScrollRef}
+            onScroll={checkNavScrollability}
+            className="flex-1 min-w-0 flex items-center gap-2 overflow-x-auto scrollbar-none py-1.5 scroll-smooth touch-pan-x select-none"
+            style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {navTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
+                  ref={(el) => {
+                    tabButtonRefs.current[tab.id] = el;
+                  }}
+                  type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl border transition min-w-0 cursor-pointer ${
+                  className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border transition shrink-0 whitespace-nowrap cursor-pointer text-xs ${
                     isActive
-                      ? 'bg-blue-500 text-slate-950 border-cyan-400 shadow-md shadow-blue-500/20 font-bold'
-                      : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700'
+                      ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-slate-950 border-cyan-300 shadow-md shadow-cyan-500/25 font-bold scale-[1.02]'
+                      : 'bg-slate-900/80 text-slate-400 border-slate-800 hover:text-slate-100 hover:border-slate-700 hover:bg-slate-850'
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{tab.label}</span>
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-slate-950 stroke-[2.5]' : 'text-slate-400'}`} />
+                  <span>{tab.label}</span>
                 </button>
               );
             })}
           </div>
 
+          {/* Enhanced Right Arrow Button */}
           <button
             type="button"
-            onClick={() => setNavStart((current) => Math.min(navTabs.length - NAV_VISIBLE_COUNT, current + NAV_VISIBLE_COUNT))}
-            disabled={!canGoNext}
-            aria-label="Show next Fundamental Intelligence categories"
-            title="Next categories"
-            className="w-9 h-9 rounded-xl border border-slate-800 bg-slate-900/70 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/40 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shrink-0 flex items-center justify-center"
+            onClick={() => handleNavScroll('right')}
+            disabled={!canScrollRight}
+            aria-label="Scroll right to next Fundamental Intelligence categories"
+            title="Scroll right"
+            className="w-10 h-10 rounded-xl border border-slate-700/80 bg-slate-900/90 text-cyan-400 hover:text-cyan-300 hover:bg-slate-800 hover:border-cyan-400 hover:shadow-md hover:shadow-cyan-500/20 active:scale-95 disabled:opacity-25 disabled:pointer-events-none transition cursor-pointer shrink-0 flex items-center justify-center shadow-lg shadow-black/50 z-10"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-5 h-5 stroke-[2.5]" />
           </button>
         </div>
       </div>
@@ -712,6 +762,10 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
         <EconomicDataMasterView
           observations={observations}
           onUpdateObservation={handleUpdateObservation}
+          onSelectCurrency={(c) => {
+            setActiveCurrency(c);
+            setActiveTab('WORKSPACES');
+          }}
         />
       )}
 

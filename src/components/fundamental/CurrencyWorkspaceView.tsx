@@ -72,6 +72,7 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
   const [activeCategory, setActiveCategory] = useState<IndicatorCategory>('INFLATION');
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [editingObsId, setEditingObsId] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{
     actual: string;
     forecast: string;
@@ -233,6 +234,7 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
 
   const handleStartEdit = (def: IndicatorDefinition, obs?: IndicatorObservation) => {
     setEditingObsId(def.id);
+    setEditError(null);
     const isPolicy = def.category === 'MONETARY_POLICY' || def.id.includes('POLICY_RATE') || def.id.includes('FED_FUNDS');
     setEditForm({
       actual: obs?.actual !== undefined && obs?.actual !== null ? String(obs.actual) : '',
@@ -247,9 +249,10 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
   const handleSaveEdit = (def: IndicatorDefinition, existingObs?: IndicatorObservation) => {
     const act = parseFloat(editForm.actual);
     if (isNaN(act)) {
-      alert('Please enter a valid numeric Actual value');
+      setEditError('Please enter a valid numeric Actual value');
       return;
     }
+    setEditError(null);
 
     const fcast = editForm.forecast ? parseFloat(editForm.forecast) : null;
     const prev = editForm.previous ? parseFloat(editForm.previous) : null;
@@ -736,7 +739,8 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
 
               {/* Indicators Table */}
               {!isCollapsed && (
-                <div className="overflow-x-auto">
+                <>
+                  <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-left text-xs font-mono-code">
                     <thead className="bg-[#0b1120] text-slate-400 border-b border-slate-800 text-[10px] uppercase">
                       <tr>
@@ -937,31 +941,6 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                                     </div>
 
                                     <div>
-                                      <label className="text-slate-400 block mb-1">
-                                        {def.category === 'MONETARY_POLICY' || def.id.includes('POLICY_RATE') || def.id.includes('FED_FUNDS')
-                                          ? 'Next Meeting Date'
-                                          : 'Release Date'}
-                                      </label>
-                                      <input
-                                        type="date"
-                                        value={editForm.releaseDate}
-                                        onChange={(e) => setEditForm({ ...editForm, releaseDate: e.target.value })}
-                                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-cyan-300 font-bold focus:outline-none focus:border-cyan-500"
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <label className="text-slate-400 block mb-1">Reference Period</label>
-                                      <input
-                                        type="text"
-                                        value={editForm.referencePeriod}
-                                        onChange={(e) => setEditForm({ ...editForm, referencePeriod: e.target.value })}
-                                        placeholder="e.g. Q3 2026 or Sept 2026"
-                                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-cyan-500"
-                                      />
-                                    </div>
-
-                                    <div>
                                       <label className="text-slate-400 block mb-1">Notes / Guidance</label>
                                       <input
                                         type="text"
@@ -972,6 +951,12 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                                       />
                                     </div>
                                   </div>
+
+                                  {editError && (
+                                    <div className="p-2 rounded bg-rose-500/20 border border-rose-500/50 text-rose-300 text-xs">
+                                      {editError}
+                                    </div>
+                                  )}
 
                                   <div className="flex items-center justify-end gap-2 pt-2">
                                     <button
@@ -998,8 +983,214 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                     </tbody>
                   </table>
                 </div>
-              )}
-            </div>
+
+                {/* Mobile Touch-Optimized Cards View (Visible on small screens) */}
+                <div className="block md:hidden divide-y divide-slate-800/60 bg-slate-950/40">
+                  {categoryIndicators.map((def) => {
+                    const obs = observations.find((o) => o.indicatorId === def.id);
+                    const isEditing = editingObsId === def.id;
+
+                    const actualVal = obs?.actual !== undefined ? obs.actual : null;
+                    const forecastVal = obs?.forecast !== undefined ? obs.forecast : null;
+                    const previousVal = obs?.previous !== undefined ? obs.previous : null;
+
+                    const surprise =
+                      actualVal !== null && forecastVal !== null ? Number((actualVal - forecastVal).toFixed(3)) : null;
+                    const change =
+                      actualVal !== null && previousVal !== null ? Number((actualVal - previousVal).toFixed(3)) : null;
+
+                    const indScore = catScoreResult?.indicatorScores?.find((s) => s.indicatorId === def.id);
+
+                    return (
+                      <div key={def.id} className="p-3.5 space-y-3">
+                        {/* Mobile Card Header */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-military font-bold text-sm text-slate-100">{def.shortLabel}</span>
+                              <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-cyan-300 font-mono-code">
+                                {def.measurementPeriod}
+                              </span>
+                              {def.required ? (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold">
+                                  Required
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[9px]">
+                                  Optional
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-slate-400 block mt-0.5">{def.name}</span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => (isEditing ? setEditingObsId(null) : handleStartEdit(def, obs))}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 border border-blue-500/30 text-xs font-military font-bold transition shrink-0 cursor-pointer min-h-[36px]"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>{isEditing ? 'Close' : 'Edit'}</span>
+                          </button>
+                        </div>
+
+                        {/* Mobile Metrics Grid */}
+                        <div className="grid grid-cols-3 gap-2 text-xs font-mono-code bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/80">
+                          <div>
+                            <span className="text-[10px] text-slate-500 block uppercase">Actual</span>
+                            {actualVal !== null ? (
+                              <span className="font-bold text-slate-100 text-sm">
+                                {actualVal} <span className="text-slate-500 text-[10px] font-normal">{def.unit}</span>
+                              </span>
+                            ) : (
+                              <span className="text-amber-400/80 italic text-xs">Unrecorded</span>
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-500 block uppercase">Forecast</span>
+                            <span className="text-slate-300 font-semibold">{forecastVal !== null ? `${forecastVal}${def.unit}` : '—'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-500 block uppercase">Previous</span>
+                            <span className="text-slate-300 font-semibold">{previousVal !== null ? `${previousVal}${def.unit}` : '—'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-500 block uppercase">Surprise</span>
+                            {surprise !== null ? (
+                              <span className={`font-bold inline-flex items-center gap-0.5 ${surprise > 0 ? 'text-emerald-400' : surprise < 0 ? 'text-rose-400' : 'text-slate-300'}`}>
+                                {surprise > 0 ? <TrendingUp className="w-3 h-3" /> : surprise < 0 ? <TrendingDown className="w-3 h-3" /> : null}
+                                <span>{surprise > 0 ? `+${surprise}` : surprise}</span>
+                              </span>
+                            ) : (
+                              <span className="text-slate-600">—</span>
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-500 block uppercase">Change</span>
+                            <span className="text-slate-300">{change !== null ? (change > 0 ? `+${change}` : change) : '—'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-500 block uppercase">Score</span>
+                            {indScore ? (
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${indScore.normalizedScore > 15 ? 'bg-emerald-500/20 text-emerald-300' : indScore.normalizedScore < -15 ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-slate-300'}`}>
+                                {indScore.normalizedScore > 0 ? `+${indScore.normalizedScore}` : indScore.normalizedScore}
+                              </span>
+                            ) : (
+                              <span className="text-slate-600">—</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Official Agency Source */}
+                        <div className="flex items-center justify-between text-[11px] font-mono-code pt-0.5">
+                          <a
+                            href={def.officialSourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-cyan-400 hover:text-cyan-300 inline-flex items-center gap-1 underline font-semibold"
+                          >
+                            <span>Official: {def.officialSourceName}</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+
+                        {/* Mobile Direct Edit Form */}
+                        {isEditing && (
+                          <div className="p-3.5 bg-slate-900 border border-cyan-500/40 rounded-xl space-y-3 mt-2 font-mono-code text-xs">
+                            <div className="text-cyan-300 font-military font-bold text-xs uppercase tracking-wide">
+                              EDIT VALUE: {def.shortLabel} ({def.measurementPeriod})
+                            </div>
+
+                            {editError && (
+                              <div className="p-2 rounded bg-rose-500/20 border border-rose-500/50 text-rose-300 text-xs">
+                                {editError}
+                              </div>
+                            )}
+
+                            <div className="space-y-2.5">
+                              <div>
+                                <label className="text-slate-300 block mb-1 font-semibold">
+                                  {def.category === 'MONETARY_POLICY' || def.id.includes('POLICY_RATE') || def.id.includes('FED_FUNDS')
+                                    ? 'Current Rate (%)'
+                                    : 'Actual'}{' '}
+                                  <span className="text-rose-400">*</span>
+                                </label>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  value={editForm.actual}
+                                  onChange={(e) => setEditForm({ ...editForm, actual: e.target.value })}
+                                  placeholder={`e.g. 2.4 (${def.unit})`}
+                                  className="w-full min-h-[44px] bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-slate-100 font-bold focus:outline-none focus:border-cyan-500 text-sm"
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-slate-300 block mb-1">
+                                    {def.category === 'MONETARY_POLICY' || def.id.includes('POLICY_RATE') || def.id.includes('FED_FUNDS')
+                                      ? 'Expected Next Rate (%)'
+                                      : 'Forecast'}
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    value={editForm.forecast}
+                                    onChange={(e) => setEditForm({ ...editForm, forecast: e.target.value })}
+                                    placeholder={`e.g. 2.2`}
+                                    className="w-full min-h-[44px] bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-cyan-500 text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-slate-300 block mb-1">Previous</label>
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    value={editForm.previous}
+                                    onChange={(e) => setEditForm({ ...editForm, previous: e.target.value })}
+                                    placeholder={`e.g. 2.1`}
+                                    className="w-full min-h-[44px] bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-cyan-500 text-sm"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-slate-300 block mb-1">Notes / Guidance</label>
+                                <input
+                                  type="text"
+                                  value={editForm.notes}
+                                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                                  placeholder="Headline beat, core sticky..."
+                                  className="w-full min-h-[44px] bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-cyan-500 text-sm"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2 pt-2">
+                              <button
+                                type="button"
+                                onClick={() => setEditingObsId(null)}
+                                className="min-h-[44px] px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 font-military font-bold text-xs hover:bg-slate-700 cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEdit(def, obs)}
+                                className="min-h-[44px] px-4 py-2 rounded-lg bg-blue-500 text-slate-950 font-military font-bold text-xs hover:bg-cyan-400 cursor-pointer shadow-md"
+                              >
+                                Save & Recalculate
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
           );
         })}
       </div>

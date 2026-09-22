@@ -37,6 +37,7 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [surpriseFilter, setSurpriseFilter] = useState<'ALL' | 'BEATS' | 'MISSES' | 'INLINE'>('ALL');
   const [editingDef, setEditingDef] = useState<IndicatorDefinition | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     actual: '',
     forecast: '',
@@ -96,6 +97,7 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
 
   const handleStartEdit = (def: IndicatorDefinition, obs?: IndicatorObservation) => {
     setEditingDef(def);
+    setModalError(null);
     setEditForm({
       actual: obs?.actual !== undefined && obs?.actual !== null ? String(obs.actual) : '',
       forecast: obs?.forecast !== undefined && obs?.forecast !== null ? String(obs.forecast) : '',
@@ -110,9 +112,10 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
     if (!editingDef) return;
     const act = parseFloat(editForm.actual);
     if (isNaN(act)) {
-      alert('Please enter a valid numeric Actual value');
+      setModalError('Please enter a valid numeric Actual value');
       return;
     }
+    setModalError(null);
 
     const fcast = editForm.forecast ? parseFloat(editForm.forecast) : null;
     const prev = editForm.previous ? parseFloat(editForm.previous) : null;
@@ -226,7 +229,8 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
 
       {/* Economic Releases Master Table */}
       <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs font-mono-code border-collapse">
             <thead>
               <tr className="bg-[#0c1222] border-b border-slate-800 text-slate-400 uppercase text-[10px]">
@@ -256,9 +260,14 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
                             <span className="font-military font-bold text-xs text-slate-100">
                               {def.shortLabel}
                             </span>
-                            <span className="text-[10px] text-slate-500 px-1 py-0.2 rounded bg-slate-900 border border-slate-800">
+                            <button
+                              type="button"
+                              onClick={() => onSelectCurrency(def.currency)}
+                              className="text-[10px] text-cyan-400 hover:text-cyan-300 px-1 py-0.2 rounded bg-slate-900 border border-slate-800 cursor-pointer"
+                              title="Switch to currency workspace"
+                            >
                               {def.currency}
-                            </span>
+                            </button>
                           </div>
                           <span className="text-[11px] text-slate-400 block truncate max-w-[260px]">
                             {def.name}
@@ -355,6 +364,105 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Touch-Optimized Cards View */}
+        <div className="block md:hidden divide-y divide-slate-800/60 bg-slate-950/40">
+          {filtered.map(({ def, obs, actual, forecast, previous, surprise, change, zScore }) => {
+            const meta = CURRENCY_METADATA[def.currency];
+            const hasActual = actual !== null;
+
+            return (
+              <div key={def.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-base">{meta?.flag}</span>
+                      <button
+                        type="button"
+                        onClick={() => onSelectCurrency(def.currency)}
+                        className="text-[10px] text-cyan-300 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 font-bold"
+                      >
+                        {def.currency}
+                      </button>
+                      <span className="font-military font-bold text-sm text-slate-100">{def.shortLabel}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-cyan-400 font-mono-code">
+                        {def.measurementPeriod}
+                      </span>
+                    </div>
+                    <span className="text-xs text-slate-400 block mt-1">{def.name}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleStartEdit(def, obs)}
+                    className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 border border-blue-500/30 text-xs font-military font-bold transition shrink-0 cursor-pointer min-h-[44px]"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    <span>Edit</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-xs font-mono-code bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/80">
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Actual</span>
+                    {hasActual ? (
+                      <span className="font-bold text-slate-100 text-sm">
+                        {actual} <span className="text-slate-500 text-[10px] font-normal">{def.unit}</span>
+                      </span>
+                    ) : (
+                      <span className="text-amber-400/80 italic text-xs">Unrecorded</span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Forecast</span>
+                    <span className="text-slate-300 font-semibold">{forecast !== null ? `${forecast}${def.unit}` : '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Previous</span>
+                    <span className="text-slate-300 font-semibold">{previous !== null ? `${previous}${def.unit}` : '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Surprise</span>
+                    {surprise !== null ? (
+                      <span className={`font-bold inline-flex items-center gap-0.5 ${surprise > 0 ? 'text-emerald-400' : surprise < 0 ? 'text-rose-400' : 'text-slate-300'}`}>
+                        {surprise > 0 ? <TrendingUp className="w-3 h-3" /> : surprise < 0 ? <TrendingDown className="w-3 h-3" /> : null}
+                        <span>{surprise > 0 ? `+${surprise}` : surprise}</span>
+                      </span>
+                    ) : (
+                      <span className="text-slate-600">—</span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Z-Score</span>
+                    {zScore !== null ? (
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${zScore > 1 ? 'bg-emerald-500/20 text-emerald-300' : zScore < -1 ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-slate-300'}`}>
+                        {zScore > 0 ? `+${zScore}σ` : `${zScore}σ`}
+                      </span>
+                    ) : (
+                      <span className="text-slate-600">—</span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Change</span>
+                    <span className="text-slate-300">{change !== null ? (change > 0 ? `+${change}` : change) : '—'}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] font-mono-code pt-0.5">
+                  <a
+                    href={def.officialSourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-cyan-400 hover:text-cyan-300 inline-flex items-center gap-1 underline font-semibold"
+                  >
+                    <span>Source: {def.officialSourceName}</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Edit Release Modal */}
@@ -419,29 +527,6 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-400 block mb-1">Reference Period</label>
-                  <input
-                    type="text"
-                    value={editForm.referencePeriod}
-                    onChange={(e) => setEditForm({ ...editForm, referencePeriod: e.target.value })}
-                    placeholder="e.g. August 2026 / Q2 2026"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-cyan-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-slate-400 block mb-1">Release Date</label>
-                  <input
-                    type="date"
-                    value={editForm.releaseDate}
-                    onChange={(e) => setEditForm({ ...editForm, releaseDate: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-cyan-500"
-                  />
-                </div>
-              </div>
-
               <div>
                 <label className="text-slate-400 block mb-1">Audit Notes / Source Citation</label>
                 <textarea
@@ -452,6 +537,12 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-cyan-500"
                 />
               </div>
+
+              {modalError && (
+                <div className="p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-300 text-xs">
+                  {modalError}
+                </div>
+              )}
 
               <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-[11px] text-cyan-300">
                 Official Agency: <a href={editingDef.officialSourceUrl} target="_blank" rel="noreferrer" className="underline font-bold">{editingDef.officialSourceName} ↗</a>

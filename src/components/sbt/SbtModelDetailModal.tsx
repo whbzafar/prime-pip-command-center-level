@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { SbtModel } from '../../data/sbtModelsData';
-import { SbtModelChart } from './SbtModelChart';
+import { SbtDeterministicChart } from './SbtDeterministicChart';
 import {
   X,
   CheckCircle2,
@@ -92,8 +92,11 @@ export const SbtModelDetailModal: React.FC<SbtModelDetailModalProps> = ({
             </div>
           )}
 
-          {/* Graphical Candlestick Chart */}
-          <SbtModelChart variation={activeVariation} />
+          {/* Graphical Candlestick Chart (Authoritative PDF Source Exact Asset) */}
+          <SbtDeterministicChart
+            model={model}
+            selectedVariationId={activeVariation.id}
+          />
 
           {/* Two-Column Grid: Authoritative PDF Rules & Execution Parameters */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

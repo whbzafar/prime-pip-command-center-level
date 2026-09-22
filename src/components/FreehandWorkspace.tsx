@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   MousePointer,
   Hand,
@@ -1717,45 +1718,72 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({ userKey = 
 
           <button onClick={() => setShortcutSettingsOpen(true)} title="Shortcut Settings" className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-cyan-400 transition cursor-pointer"><Keyboard className="w-3.5 h-3.5" /></button>
 
+          {/* Direct Download Action Button Above Drawing Area */}
+          <button
+            type="button"
+            onClick={handleExportPNG}
+            title="Download Canvas Image (High-Res PNG)"
+            className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-military font-bold text-xs flex items-center gap-1.5 transition shadow-md shadow-emerald-500/20 cursor-pointer shrink-0"
+          >
+            <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>DOWNLOAD</span>
+          </button>
+
           {/* Export Dropdown Trigger */}
           <div className="relative">
             <button
               ref={exportButtonRef}
               onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-              title="Export Drawing"
+              title="Export Formats (PNG, SVG, JSON)"
               className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs flex items-center gap-1.5 transition shadow-md shadow-blue-500/20 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>EXPORT</span>
             </button>
 
-            {isExportMenuOpen && exportMenuPosition && (
+            {isExportMenuOpen && exportMenuPosition && createPortal(
               <div
-                className="fixed w-48 bg-slate-950 border border-slate-700 rounded-xl shadow-2xl p-1.5 z-[10000] space-y-1 text-xs"
+                className="fixed w-52 bg-slate-950 border border-slate-700/90 rounded-xl shadow-2xl p-2 z-[99999] space-y-1 text-xs backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
                 style={{ top: exportMenuPosition.top, left: exportMenuPosition.left }}
               >
+                <div className="px-2 py-1 text-[10px] font-mono-code font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 mb-1">
+                  Export Options
+                </div>
                 <button
-                  onClick={handleExportPNG}
-                  className="w-full px-3 py-2 text-left rounded-lg text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                  type="button"
+                  onClick={() => {
+                    handleExportPNG();
+                    setIsExportMenuOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left rounded-lg text-slate-200 hover:bg-slate-800 hover:text-emerald-400 flex items-center gap-2 cursor-pointer transition font-mono-code"
                 >
-                  <Download className="w-4 h-4 text-cyan-400" />
-                  <span>High-Res PNG</span>
+                  <Download className="w-4 h-4 text-emerald-400" />
+                  <span>Download High-Res PNG</span>
                 </button>
                 <button
-                  onClick={handleExportSVG}
-                  className="w-full px-3 py-2 text-left rounded-lg text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                  type="button"
+                  onClick={() => {
+                    handleExportSVG();
+                    setIsExportMenuOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left rounded-lg text-slate-200 hover:bg-slate-800 hover:text-cyan-400 flex items-center gap-2 cursor-pointer transition font-mono-code"
                 >
-                  <FileCode className="w-4 h-4 text-emerald-400" />
-                  <span>Vector SVG</span>
+                  <FileCode className="w-4 h-4 text-cyan-400" />
+                  <span>Download Vector SVG</span>
                 </button>
                 <button
-                  onClick={handleExportJSON}
-                  className="w-full px-3 py-2 text-left rounded-lg text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                  type="button"
+                  onClick={() => {
+                    handleExportJSON();
+                    setIsExportMenuOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left rounded-lg text-slate-200 hover:bg-slate-800 hover:text-sky-400 flex items-center gap-2 cursor-pointer transition font-mono-code"
                 >
                   <FileJson className="w-4 h-4 text-sky-400" />
-                  <span>Workspace JSON</span>
+                  <span>Save Workspace JSON</span>
                 </button>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>

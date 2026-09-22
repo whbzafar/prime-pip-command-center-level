@@ -333,12 +333,12 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'CALMING_TOOLS' as MainNavTab, label: '14. TRADING TOOL SUITE', icon: Wind, highlight: true },
     { id: 'RESEARCH' as MainNavTab, label: '15. ACADEMIC RESEARCH', icon: Compass, highlight: true },
     { id: 'FREEHAND_WORKSPACE' as MainNavTab, label: '16. FREEHAND CANVAS', icon: PenTool },
-    { id: 'COMMUNITY' as MainNavTab, label: '17. TRADER COMMUNITY FEED', icon: Users },
-    { id: 'BOOK_SESSION' as MainNavTab, label: '18. BOOK A SESSION', icon: MessageSquare, highlight: true },
-    { id: 'SETTINGS' as MainNavTab, label: '19. DATA EXPORT & BACKUP', icon: Settings2 },
-    { id: 'ADMIN' as MainNavTab, label: '20. ADMIN PANEL (OWNER)', icon: ShieldCheck, highlight: currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' },
-    { id: 'EVOLUTION' as MainNavTab, label: '21. EVALUATION ENGINE', icon: Cpu, highlight: true },
-    { id: 'PRO_LEARNING' as MainNavTab, label: '22. PRO LEARNING TRADING', icon: GraduationCap, highlight: true, comingSoon: true, locked: false },
+    { id: 'PRO_LEARNING' as MainNavTab, label: '17. PRO LEARNING / TRADING', icon: GraduationCap, highlight: true, comingSoon: true, locked: false },
+    { id: 'COMMUNITY' as MainNavTab, label: '18. TRADER COMMUNITY FEED', icon: Users },
+    { id: 'BOOK_SESSION' as MainNavTab, label: '19. BOOK A SESSION', icon: MessageSquare, highlight: true },
+    { id: 'SETTINGS' as MainNavTab, label: '20. DATA EXPORT & BACKUP', icon: Settings2 },
+    { id: 'ADMIN' as MainNavTab, label: '21. ADMIN PANEL (OWNER)', icon: ShieldCheck, highlight: currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' },
+    { id: 'EVOLUTION' as MainNavTab, label: '22. EVALUATION ENGINE', icon: Cpu, highlight: true },
   ];
 
   const handleNavClick = (id: MainNavTab) => {
@@ -980,10 +980,10 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onOpenAllCategories}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-cyan-500/50 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 font-mono-code text-[11px] font-bold tracking-wider transition cursor-pointer shrink-0 ml-1 shadow-sm"
-                title="Explore all 21 categories"
+                title="Explore all 22 categories"
               >
                 <Layers className="w-3.5 h-3.5 text-cyan-300" />
-                <span>EXPLORE ALL (21)</span>
+                <span>EXPLORE ALL (22)</span>
               </button>
             )}
           </div>

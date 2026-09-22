@@ -24,6 +24,7 @@ import { getKarachiDate, getKarachiTime, getKarachiTime12 } from '../utils/time'
 import { formatCurrency } from '../utils/currencyFormatter';
 import { SBT_MODELS, SbtModel } from '../data/sbtModelsData';
 import { SbtModelDetailModal } from './sbt/SbtModelDetailModal';
+import { getSbtAssetPath } from './sbt/SbtModelsHub';
 
 interface BacktestingTrackerProps {
   account: AccountSettings | null;
@@ -31,21 +32,23 @@ interface BacktestingTrackerProps {
   onAutoSaveNotify?: (timeStr: string) => void;
 }
 
-export const SPT_MODEL_CONCEPTS = [
-  { number: 1, name: 'SPT Model 1 (Lowest Bearish OB)', concept: 'Lowest Bearish OB', category: 'CONTINUATION' },
-  { number: 2, name: 'SPT Model 2 (Mitigation Block / Demand)', concept: 'Mitigation Block / Demand', category: 'CONTINUATION' },
-  { number: 3, name: 'SPT Model 3 (FVG)', concept: 'FVG', category: 'CONTINUATION' },
-  { number: 4, name: 'SPT Model 4 (Order Block)', concept: 'Order Block', category: 'CONTINUATION' },
-  { number: 5, name: 'SPT Model 5 (Order Block at Level 1)', concept: 'Order Block at Level 1', category: 'CONTINUATION' },
-  { number: 6, name: 'SPT Model 6 (Reversal Model)', concept: 'Reversal Model', category: 'REVERSAL' },
-  { number: 7, name: 'SPT Model 7 (Engineered Liquidity / IDM)', concept: 'Engineered Liquidity / IDM', category: 'LIQUIDITY_ENGINEERING' },
-  { number: 8, name: 'SPT Model 8 (IDM Sweep to BOS)', concept: 'IDM Sweep to BOS', category: 'LIQUIDITY_ENGINEERING' },
-  { number: 9, name: 'SPT Model 9 (Turtle Soup - No IDM)', concept: 'Turtle Soup - No IDM', category: 'TURTLE_SOUP' },
-  { number: 10, name: 'SPT Model 10 (PD Array Sweep & Close Back)', concept: 'PD Array Sweep & Close Back', category: 'TURTLE_SOUP' },
+export const SBT_MODEL_CONCEPTS = [
+  { number: 1, name: 'SBT Model 1 (Lowest Bearish OB)', concept: 'Lowest Bearish OB', category: 'CONTINUATION' },
+  { number: 2, name: 'SBT Model 2 (Mitigation Block / Demand)', concept: 'Mitigation Block / Demand', category: 'CONTINUATION' },
+  { number: 3, name: 'SBT Model 3 (FVG)', concept: 'FVG', category: 'CONTINUATION' },
+  { number: 4, name: 'SBT Model 4 (Order Block)', concept: 'Order Block', category: 'CONTINUATION' },
+  { number: 5, name: 'SBT Model 5 (Order Block at Level 1)', concept: 'Order Block at Level 1', category: 'CONTINUATION' },
+  { number: 6, name: 'SBT Model 6 (Reversal Model)', concept: 'Reversal Model', category: 'REVERSAL' },
+  { number: 7, name: 'SBT Model 7 (Engineered Liquidity / IDM)', concept: 'Engineered Liquidity / IDM', category: 'LIQUIDITY_ENGINEERING' },
+  { number: 8, name: 'SBT Model 8 (IDM Sweep to BOS)', concept: 'IDM Sweep to BOS', category: 'LIQUIDITY_ENGINEERING' },
+  { number: 9, name: 'SBT Model 9 (Turtle Soup - No IDM)', concept: 'Turtle Soup - No IDM', category: 'TURTLE_SOUP' },
+  { number: 10, name: 'SBT Model 10 (PD Array Sweep & Close Back)', concept: 'PD Array Sweep & Close Back', category: 'TURTLE_SOUP' },
 ];
 
+export const SPT_MODEL_CONCEPTS = SBT_MODEL_CONCEPTS;
+
 const DEFAULT_STRATEGIES = [
-  ...SPT_MODEL_CONCEPTS.map((m) => m.name),
+  ...SBT_MODEL_CONCEPTS.map((m) => m.name),
   'Break & Retest Momentum',
   'Supply & Demand Imbalance',
 ];
@@ -149,6 +152,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [inspectingModel, setInspectingModel] = useState<SbtModel | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Form states
   const [formStrategy, setFormStrategy] = useState<string>(DEFAULT_STRATEGIES[0]);
@@ -294,9 +298,9 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
   };
 
   const handleDeleteSession = (id: string) => {
-    if (window.confirm('Delete this backtest session record?')) {
-      setSessions((prev) => prev.filter((s) => s.id !== id));
-    }
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    setConfirmDeleteId(null);
+    onAutoSaveNotify?.('Session deleted');
   };
 
   // Quick action: log today's 10 backtesting trades
@@ -368,40 +372,54 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
         </div>
       </div>
 
-      {/* SPT Models Direct Reference Bar (Models 1–10 from Uploaded PDF) */}
+      {/* SBT Models Direct Reference Bar (Models 1–10 from Uploaded PDF) */}
       <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-xs font-military font-bold text-slate-100 tracking-wider">
-              SPT TRADING MODELS PLAYBOOK (MODELS 1–10) • SOURCED FROM PDF
+            <h3 className="text-xs font-military font-bold text-slate-100 tracking-wider uppercase">
+              SBT MODEL PLAYBOOK (MODELS 1–10) • SOURCE-EXACT CANDLE ASSETS
             </h3>
           </div>
           <span className="text-[11px] font-mono-code text-slate-400">
-            Click any model below to open its specific PDF rules, candle diagrams & key concepts
+            Click any SBT model below to inspect the identical official PDF diagrams and verified setup rules
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-          {SPT_MODEL_CONCEPTS.map((item) => {
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+          {SBT_MODEL_CONCEPTS.map((item) => {
             const modelData = findSbtModel(item.number);
             return (
               <button
                 key={item.number}
                 type="button"
                 onClick={() => modelData && setInspectingModel(modelData)}
-                className="p-2.5 rounded-lg bg-slate-900/80 hover:bg-slate-850 border border-slate-800 hover:border-cyan-500/50 text-left transition group cursor-pointer"
+                className="p-2.5 rounded-lg bg-slate-900/80 hover:bg-slate-850 border border-slate-800 hover:border-cyan-500/50 text-left transition group cursor-pointer flex flex-col justify-between"
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono-code font-bold text-cyan-400">
-                    MODEL {item.number}
-                  </span>
-                  <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-cyan-400 transition" />
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono-code font-bold text-cyan-400">
+                      SBT MODEL {item.number}
+                    </span>
+                    <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-cyan-400 transition" />
+                  </div>
+
+                  {/* Thumbnail of official PDF model diagram */}
+                  <div className="w-full h-14 bg-white rounded my-1.5 overflow-hidden flex items-center justify-center p-0.5 border border-slate-700/60 group-hover:border-cyan-500/50 transition">
+                    <img
+                      src={getSbtAssetPath(item.number)}
+                      alt={`SBT Model ${item.number} PDF graphic`}
+                      className="max-h-full max-w-full object-contain select-none pointer-events-none"
+                      loading="lazy"
+                    />
+                  </div>
+
+                  <div className="text-xs font-bold text-slate-200 truncate group-hover:text-white" title={item.concept}>
+                    {item.concept}
+                  </div>
                 </div>
-                <div className="text-xs font-bold text-slate-200 mt-1 truncate group-hover:text-white" title={item.concept}>
-                  {item.concept}
-                </div>
-                <div className="text-[10px] font-mono-code text-slate-400 truncate mt-0.5">
+
+                <div className="text-[10px] font-mono-code text-slate-400 truncate mt-1">
                   {item.category.replace('_', ' ')}
                 </div>
               </button>
@@ -560,13 +578,33 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
-                    <button
-                      onClick={() => handleDeleteSession(session.id)}
-                      className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {confirmDeleteId === session.id ? (
+                      <div className="flex items-center gap-1 bg-slate-900 border border-rose-500/40 rounded-lg p-1">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSession(session.id)}
+                          className="px-2 py-0.5 rounded bg-rose-600 hover:bg-rose-500 text-white font-military font-bold text-[10px] tracking-wider transition cursor-pointer"
+                        >
+                          DELETE
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono-code text-[10px] transition cursor-pointer"
+                        >
+                          CANCEL
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(session.id)}
+                        className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition cursor-pointer"
+                        title="Delete Session"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -617,7 +655,7 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
                       <div className="flex items-center gap-2">
                         <BookOpen className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                         <span className="text-[11px] font-mono-code text-cyan-200">
-                          SPT Model {currentModel.number}: {currentModel.title}
+                          SBT Model {currentModel.number}: {currentModel.title}
                         </span>
                       </div>
                       <button

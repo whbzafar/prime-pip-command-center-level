@@ -16,6 +16,8 @@ import {
   ListChecks,
   ChevronDown,
   ChevronUp,
+  ExternalLink,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   Trade,
@@ -561,199 +563,46 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
             </div>
           </div>
 
-          {/* Optional Pre-Trade Discipline Checklist */}
-          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-                  <ListChecks className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-military font-bold text-cyan-400">
-                      PRE-TRADE EXECUTION CHECKLIST
-                    </span>
-                    <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                      OPTIONAL PROTOCOL
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 font-mono-code">
-                    Verify high-probability confluence before pulling the trigger.
-                  </p>
-                </div>
+          {/* Pre-Trade Execution Plan Direct Link */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-950/40 via-slate-950/80 to-blue-950/30 border border-cyan-500/40 flex items-center justify-between flex-wrap gap-3 shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 shrink-0">
+                <ShieldAlert className="w-5 h-5" />
               </div>
-
-              <div className="flex items-center gap-2">
-                <span
-                  className={`text-[11px] font-mono-code font-bold px-2.5 py-1 rounded border ${
-                    completedChecklistCount === totalChecklistItems
-                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                      : completedChecklistCount >= 5
-                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                      : completedChecklistCount > 0
-                      ? 'bg-blue-500/20 text-amber-300 border-blue-500/40'
-                      : 'bg-slate-800 text-slate-400 border-slate-700'
-                  }`}
-                >
-                  {completedChecklistCount}/{totalChecklistItems} VERIFIED
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() => setChecklistOpen(!checklistOpen)}
-                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 text-xs font-mono-code flex items-center gap-1 transition"
-                >
-                  {checklistOpen ? (
-                    <>
-                      <span>Collapse</span>
-                      <ChevronUp className="w-3.5 h-3.5" />
-                    </>
-                  ) : (
-                    <>
-                      <span>{completedChecklistCount > 0 ? 'Edit' : 'Open Checklist'}</span>
-                      <ChevronDown className="w-3.5 h-3.5" />
-                    </>
-                  )}
-                </button>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-military font-bold text-cyan-300 uppercase tracking-wider">
+                    PRE-TRADE EXECUTION CHECKLIST & PLAN
+                  </span>
+                  <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-400 border border-cyan-500/30">
+                    CATEGORY 06
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 font-mono-code mt-0.5">
+                  Review complete higher-timeframe confluence, liquidity targets, and invalidation rules before executing this trade.
+                </p>
               </div>
             </div>
 
-            {checklistOpen && (
-              <div className="pt-2 border-t border-slate-800/80 space-y-3">
-                {onOpenPreTradePlan && (
-                  <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-cyan-950/20 border border-cyan-500/30">
-                    <span className="text-[10px] text-slate-400 font-mono-code">Need the full planning framework?</span>
-                    <button type="button" onClick={onOpenPreTradePlan} className="inline-flex items-center gap-1.5 text-[10px] font-mono-code font-bold text-cyan-300 hover:text-white underline underline-offset-2 cursor-pointer">
-                      OPEN PRE-TRADE PLAN ↗
-                    </button>
-                  </div>
-                <div className="flex items-center justify-between text-[11px] font-mono-code text-slate-400">
-                  <span>Confluence Checklist Items:</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setChecklist({
-                          htfTrendAligned: true,
-                          marketStructureBreak: true,
-                          liquiditySwept: true,
-                          properRiskReward: true,
-                          noHighImpactNews: true,
-                          calmPsychology: true,
-                          positionSizeCalculated: true,
-                          stopLossAtLogicalLevel: true,
-                        })
-                      }
-                      className="text-cyan-400 hover:text-cyan-300 text-[10px] underline"
-                    >
-                      Check All
-                    </button>
-                    <span>•</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setChecklist({
-                          htfTrendAligned: false,
-                          marketStructureBreak: false,
-                          liquiditySwept: false,
-                          properRiskReward: false,
-                          noHighImpactNews: false,
-                          calmPsychology: false,
-                          positionSizeCalculated: false,
-                          stopLossAtLogicalLevel: false,
-                        })
-                      }
-                      className="text-slate-400 hover:text-slate-200 text-[10px] underline"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {[
-                    {
-                      key: 'htfTrendAligned' as const,
-                      label: 'HTF Trend Alignment',
-                      desc: 'Execution aligns with higher timeframe market bias (Daily/H4)',
-                    },
-                    {
-                      key: 'marketStructureBreak' as const,
-                      label: 'Structure Shift / BOS',
-                      desc: 'Clear Market Structure Shift or Break confirmed on entry timeframe',
-                    },
-                    {
-                      key: 'liquiditySwept' as const,
-                      label: 'Liquidity Purged / Swept',
-                      desc: 'Key swing high/low or session liquidity was grabbed before entry',
-                    },
-                    {
-                      key: 'properRiskReward' as const,
-                      label: 'Risk:Reward Ratio >= 1:2',
-                      desc: 'Clear target offering minimum 2R mathematically favorable expectancy',
-                    },
-                    {
-                      key: 'noHighImpactNews' as const,
-                      label: 'No High-Impact News',
-                      desc: 'No major red-folder events scheduled within the execution window',
-                    },
-                    {
-                      key: 'calmPsychology' as const,
-                      label: 'Composed Psychological State',
-                      desc: 'Free of emotional FOMO, revenge urge, or hesitation',
-                    },
-                    {
-                      key: 'positionSizeCalculated' as const,
-                      label: 'Exact Position Sizing',
-                      desc: 'Lot size calculated precisely to prevent exceeding max risk %',
-                    },
-                    {
-                      key: 'stopLossAtLogicalLevel' as const,
-                      label: 'Structural Invalidation Stop',
-                      desc: 'Stop loss anchored behind invalidation point, not arbitrary pips',
-                    },
-                  ].map((item) => (
-                    <label
-                      key={item.key}
-                      className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition ${
-                        checklist[item.key]
-                          ? 'bg-cyan-950/30 border-cyan-500/50 text-slate-100'
-                          : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checklist[item.key]}
-                        onChange={(e) =>
-                          setChecklist((prev) => ({
-                            ...prev,
-                            [item.key]: e.target.checked,
-                          }))
-                        }
-                        className="mt-0.5 rounded border-slate-700 bg-slate-950 text-cyan-500 focus:ring-cyan-500"
-                      />
-                      <div className="flex-1">
-                        <div className="font-mono-code font-bold text-xs flex items-center justify-between">
-                          <span>{item.label}</span>
-                          {checklist[item.key] && (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 inline ml-1" />
-                          )}
-                        </div>
-                        <p className="text-[10px] text-slate-400 font-mono-code mt-0.5 leading-snug">
-                          {item.desc}
-                        </p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenPreTradePlan) {
+                  onOpenPreTradePlan();
+                }
+              }}
+              className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 rounded-xl font-military font-bold text-xs tracking-wider flex items-center gap-2 transition shadow-md shadow-cyan-500/25 cursor-pointer shrink-0"
+              title="Open the Pre-Trade Plan Category"
+            >
+              <span>OPEN PRE-TRADE PLAN</span>
+              <ExternalLink className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
           </div>
 
           {/* Section 1: Basic Information */}
           <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
             <div className="flex items-center justify-between text-xs font-military font-bold text-cyan-400">
-              <span>1. BASIC MISSION PARAMETERS</span>
+              <span>1. GENERAL: INTRADAY TRADE SETUP</span>
               <span className="text-slate-500 font-mono-code">{APP_TIMEZONE_FULL_LABEL} ENFORCED</span>
             </div>
 
@@ -898,7 +747,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
           {/* Section 2: Execution & Risk-to-Reward Calculator */}
           <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
             <div className="flex items-center justify-between text-xs font-military font-bold text-cyan-400">
-              <span>2. EXECUTION & R-MULTIPLE AUDIT</span>
+              <span>2. EXIT / ADDITIONAL / MULTIPLE ENTRIES & EXECUTION</span>
               <span className="text-slate-400 font-mono-code">
                 RISK: ${Math.round(riskAmount).toLocaleString()} | P&L: ${Math.round(profitLoss).toLocaleString()} ({rMultiple > 0 ? '+' : ''}{rMultiple}R)
               </span>
@@ -1025,7 +874,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
             {/* Strategy & HTF/LTF */}
             <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
               <div className="text-xs font-military font-bold text-cyan-400">
-                3. STRATEGY & STRUCTURE
+                3. STRATEGY: MARKET STRUCTURE
               </div>
 
               <div>

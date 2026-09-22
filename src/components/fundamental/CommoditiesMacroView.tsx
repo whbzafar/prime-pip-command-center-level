@@ -173,7 +173,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                       : 'bg-slate-800 text-slate-300'
                   }`}
                 >
-                  {calculated.dataStatus === 'INSUFFICIENT_DATA' ? 'INSUFFICIENT DATA' : calculated.bias.replace('_', ' ')}
+                  {!commodityDataComplete ? 'INSUFFICIENT DATA' : calculated.bias.replace('_', ' ')}
                 </span>
               </div>
               <div className="mt-2 flex items-baseline gap-2">
@@ -228,7 +228,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
               </div>
               <span className="text-[10px] text-slate-400 block">
                 {relativeSpread === null
-                  ? calculated.dataStatus === 'INSUFFICIENT_DATA'
+                  ? !commodityDataComplete
                     ? 'Enter the required commodity drivers before classifying the commodity or its USD-relative bias.'
                     : 'Enter the USD fundamental score before classifying the USD-relative commodity bias.'
                   : relativeSpread > 15

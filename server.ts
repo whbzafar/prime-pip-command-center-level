@@ -857,7 +857,7 @@ app.post('/api/auth/login', async (req, res) => {
           httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
           sameSite: 'lax', maxAge, path: '/',
         });
-        return res.json({ ok: true, user: sanitizeUser(localResult.user), authMode: 'legacy-compatibility' });
+        return res.json({ ok: true, user: sanitizeUser(localResult.user), token: localResult.token, authMode: 'legacy-compatibility' });
       }
       const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
       res.cookie('primepipfx_session', durable.accessToken, {
@@ -870,7 +870,7 @@ app.post('/api/auth/login', async (req, res) => {
       });
       const { cacheAuthenticatedUser } = await import('./server/authService.js');
       cacheAuthenticatedUser(durable.accessToken, durable.user, Math.min(durable.expiresIn * 1000 - 30_000, 55 * 60 * 1000));
-      return res.json({ ok: true, user: sanitizeUser(durable.user) });
+      return res.json({ ok: true, user: sanitizeUser(durable.user), token: durable.accessToken });
     } catch (error) {
       console.error('[AUTH] Supabase login failed:', error instanceof Error ? error.message : error);
       if (localResult) {
@@ -879,7 +879,7 @@ app.post('/api/auth/login', async (req, res) => {
           httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
           sameSite: 'lax', maxAge, path: '/',
         });
-        return res.json({ ok: true, user: sanitizeUser(localResult.user), authMode: 'legacy-compatibility' });
+        return res.json({ ok: true, user: sanitizeUser(localResult.user), token: localResult.token, authMode: 'legacy-compatibility' });
       }
       return res.status(503).json({ ok: false, error: 'Authentication service is temporarily unavailable.' });
     }
@@ -894,7 +894,7 @@ app.post('/api/auth/login', async (req, res) => {
     httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
     sameSite: 'lax', maxAge, path: '/',
   });
-  return res.json({ ok: true, user: sanitizeUser(localResult.user) });
+  return res.json({ ok: true, user: sanitizeUser(localResult.user), token: localResult.token });
 });
 
 app.get('/api/research/openalex', async (req, res) => {

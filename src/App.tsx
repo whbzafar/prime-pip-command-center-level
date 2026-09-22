@@ -39,7 +39,6 @@ import { CommunityChat } from './components/CommunityChat';
 import { BookSessionView } from './components/BookSessionView';
 import { TradingResearchCenter } from './components/TradingResearchCenter';
 import { PremiumSignalsHub } from './components/PremiumSignalsHub';
-import { AiChartScannerModal } from './components/AiChartScannerModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { TraderExperienceProfileModal } from './components/evolution/TraderExperienceProfileModal';
 import { EvolutionCommandCenter } from './components/evolution/EvolutionCommandCenter';
@@ -93,7 +92,6 @@ export default function App() {
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
-  const [isChartScannerOpen, setIsChartScannerOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
@@ -1143,20 +1141,6 @@ export default function App() {
             setActiveTab('PRE_TRADE_PLAN');
           }}
           prefilledTradeData={prefilledTradeData}
-        />
-      )}
-
-      {/* AI Chart Scanner Modal */}
-      {isChartScannerOpen && (
-        <AiChartScannerModal
-          isOpen={isChartScannerOpen}
-          onClose={() => setIsChartScannerOpen(false)}
-          account={activeAccount}
-          onTradeScanned={(scannedData) => {
-            setPrefilledTradeData(scannedData);
-            setIsChartScannerOpen(false);
-            setIsEntryModalOpen(true);
-          }}
         />
       )}
 

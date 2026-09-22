@@ -3,8 +3,8 @@
     "id": "dev-owner-master",
     "name": "PrimePipFX Developer / Owner",
     "username": "primepipfx-admin",
-    "passwordHash": "2d3b8bf7b91e20c59fb069cdade7da7708f1d5b1aa70c67b23da7d1e290c0860c10c4b8841176487f05767814a43871a827c68f890fdd5f517a1a14386bc5621",
-    "salt": "0a8ed36c97b81c59c007c63cacfcfe01",
+    "passwordHash": "c4b5627009ae5084834d43cc9bbc5fda87073b6fd4c645f1a523ca156f6443ccd2205e4b9bb2fc9b0c6f9d152ec2045f20300c5b4ebe036c02b75e587e32931f",
+    "salt": "9552eac8bce5b3eb86cc834188b97538",
     "role": "ADMIN",
     "subscriptionStatus": "LIFETIME",
     "subscriptionPrice": 0,
@@ -16,8 +16,9 @@
     "referralCode": "PPFX-MASTER",
     "adminNotes": "Permanent Developer Master Account.",
     "createdAt": "2026-09-10T08:58:20.711Z",
-    "updatedAt": "2026-09-20T12:17:04.389Z",
-    "mustChangePassword": false
+    "updatedAt": "2026-09-22T07:17:26.420Z",
+    "mustChangePassword": false,
+    "email": "admin@primepipfx.com"
   },
   {
     "id": "student_1789485011620_61j5n",
@@ -248,7 +249,8 @@
     "mustChangePassword": false,
     "showActiveStatus": true,
     "createdAt": "2026-09-15T11:13:46.649Z",
-    "updatedAt": "2026-09-20T13:19:05.875Z"
+    "updatedAt": "2026-09-20T13:19:05.875Z",
+    "email": "zartabzafar3@gmail.com"
   },
   {
     "id": "student_1789471145662_wua9j",
@@ -521,6 +523,28 @@
     "mustChangePassword": false,
     "showActiveStatus": true,
     "createdAt": "2026-09-20T05:32:05.642Z",
-    "updatedAt": "2026-09-20T13:19:05.957Z"
+    "updatedAt": "2026-09-20T13:19:05.957Z",
+    "email": "whbzafar@gmail.com"
+  },
+  {
+    "id": "student_1789969265561_omq5t",
+    "name": "inam",
+    "username": "inam",
+    "passwordHash": "707eae8113f7f147ee520e3d34c84229ca2eab9458211362271ef2cc992805dd835e3792e7399d111c559ac9c9f1394a34e32941e7b0e8cedf0caad251eae1c9",
+    "salt": "448d522e0a62ba793ead1f6ee3f665a0",
+    "role": "CUSTOMER",
+    "subscriptionStatus": "ACTIVE",
+    "subscriptionPrice": 50,
+    "startDate": "2026-09-21",
+    "expiryDate": "2026-10-21",
+    "isLifetime": false,
+    "paymentStatus": "VERIFIED",
+    "referralCode": "PPFX-INAM",
+    "adminNotes": "",
+    "isDeveloper": false,
+    "mustChangePassword": false,
+    "showActiveStatus": true,
+    "createdAt": "2026-09-21T05:41:05.561Z",
+    "updatedAt": "2026-09-22T07:08:54.554Z"
   }
 ]
