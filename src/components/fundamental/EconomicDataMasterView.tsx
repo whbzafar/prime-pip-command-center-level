@@ -233,8 +233,12 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
     setBatchState({ running: true, completed: 0, total: scoped.length });
     setLiveMessage(null);
     try {
+      let failed = 0;
+      let updated = 0;
+      const errors: string[] = [];
       for (let index = 0; index < scoped.length; index += 1) {
         const def = scoped[index];
+        setLiveMessage(`Live Google research: ${index + 1}/${scoped.length} — ${def.shortLabel}`);
         try {
           const existing = obsMap.get(def.id);
           const result = await generateIndicator(def, existing, mode);
@@ -258,11 +262,23 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
               researchRetrievedAt: result.retrievedAt,
               researchSourceName: result.sourceName,
             });
+            updated += 1;
+          } else {
+            failed += 1;
+            errors.push(`${def.shortLabel}: ${result.notes || 'no verified data returned'}`);
           }
-        } catch {}
+        } catch (error) {
+          failed += 1;
+          errors.push(`${def.shortLabel}: ${error instanceof Error ? error.message : 'request failed'}`);
+        }
         setBatchState((prev) => ({ ...prev, completed: index + 1 }));
       }
-      setLiveMessage(`Grounded research completed for ${scoped.length} listed indicators. Unverified items were left unchanged.`);
+      if (failed === 0) {
+        setLiveMessage(`Live research completed: ${updated}/${scoped.length} indicators updated and verified.`);
+      } else {
+        const detail = errors.slice(0, 3).join(' • ');
+        setLiveMessage(`Live research finished: ${updated} updated, ${failed} failed/unverified. ${detail}`);
+      }
     } finally {
       setBatchState((prev) => ({ ...prev, running: false }));
     }
