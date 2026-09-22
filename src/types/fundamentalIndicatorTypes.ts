@@ -178,6 +178,10 @@ export interface CommodityObservation {
   id: string;
   symbol: 'GOLD' | 'CRUDE_OIL' | 'SILVER';
   name: string;
+  sentiment?: 'BULLISH' | 'NEUTRAL' | 'BEARISH';
+  sentimentConfidence?: number;
+  sentimentSourceUrl?: string;
+  sentimentUpdatedAt?: string;
   referenceDate: string;
   price: number;
   // Specific drivers:
@@ -192,6 +196,30 @@ export interface CommodityObservation {
   opecPolicyTone?: 'DEFENDING_FLOOR' | 'STEADY_PRODUCTION' | 'EXPANDING_SUPPLY';
   notes?: string;
   updatedAt: string;
+}
+
+export interface CustomFundamentalIndicator {
+  id: string;
+  currency: CurrencyCode;
+  name: string;
+  shortLabel: string;
+  category: IndicatorCategory;
+  frequency: MeasurementFrequency;
+  measurementPeriod: MeasurementPeriodType;
+  unit: string;
+  officialSourceName?: string;
+  officialSourceUrl?: string;
+  actual: number | null;
+  forecast: number | null;
+  previous: number | null;
+  revisedPrevious?: number | null;
+  referencePeriod?: string;
+  releaseDate?: string;
+  notes?: string;
+  updatedAt?: string;
+  verificationStatus?: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' | 'MANUAL';
+  confidence?: number;
+  sourceUrl?: string;
 }
 
 export interface ModelCategoryWeights {
