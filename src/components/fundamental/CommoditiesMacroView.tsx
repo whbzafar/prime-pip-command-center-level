@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CommodityObservation, CurrencyScoreResult } from '../../types/fundamentalIndicatorTypes';
 import { DEFAULT_COMMODITY_OBSERVATIONS } from '../../data/defaultFundamentalObservations';
 import { calculateCommodityFundamentalScore } from '../../utils/fundamentalCalculationEngine';
+import { generateCommodity } from '../../services/fundamentalLiveResearchService';
 import {
   Gem,
   Flame,
@@ -28,8 +29,17 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   onRequestAiExplanation,
 }) => {
   const [activeCommodity, setActiveCommodity] = useState<'GOLD' | 'CRUDE_OIL' | 'SILVER'>('GOLD');
-  const [commodityData, setCommodityData] = useState<CommodityObservation[]>(DEFAULT_COMMODITY_OBSERVATIONS);
+  const [commodityData, setCommodityData] = useState<CommodityObservation[]>(() => {
+    try {
+      const saved = localStorage.getItem('primepip_fundamental_commodity_observations_v1');
+      return saved ? JSON.parse(saved) : DEFAULT_COMMODITY_OBSERVATIONS;
+    } catch {
+      return DEFAULT_COMMODITY_OBSERVATIONS;
+    }
+  });
   const [editingObs, setEditingObs] = useState<CommodityObservation | null>(null);
+  const [commodityLiveLoading, setCommodityLiveLoading] = useState(false);
+  const [commodityLiveMessage, setCommodityLiveMessage] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     price: 0,
     usRealYield10Y: 0,
@@ -43,6 +53,12 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
     notes: '',
   });
 
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('primepip_fundamental_commodity_observations_v1', JSON.stringify(commodityData));
+    } catch {}
+  }, [commodityData]);
+
   const currentObs = commodityData.find((c) => c.symbol === activeCommodity) || commodityData[0];
   const calculated = calculateCommodityFundamentalScore(currentObs);
   const commodityDataComplete =
@@ -55,6 +71,34 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   // Relative Valuation vs USD (Section 32)
   const usdScoreVal = usdScore?.score;
   const relativeSpread = commodityDataComplete && usdScoreVal !== undefined ? calculated.score - usdScoreVal : null;
+
+  const handleGenerateLiveCommodity = async (mode: 'GENERATE' | 'REGENERATE' = 'GENERATE') => {
+    if (!currentObs || commodityLiveLoading) return;
+    setCommodityLiveLoading(true);
+    setCommodityLiveMessage(null);
+    try {
+      const result = await generateCommodity(currentObs.symbol, currentObs, mode);
+      if (result.status !== 'VERIFIED') {
+        setCommodityLiveMessage(result.notes || 'Commodity evidence could not be verified; existing data was preserved.');
+        return;
+      }
+      setCommodityData((prev) => prev.map((item) => item.symbol === currentObs.symbol ? {
+        ...item,
+        price: result.price ?? item.price,
+        sentiment: result.sentiment,
+        sentimentConfidence: result.sentimentConfidence,
+        sentimentSourceUrl: result.sentimentSourceUrl || item.sentimentSourceUrl,
+        sentimentUpdatedAt: result.retrievedAt,
+        notes: result.notes || item.notes,
+        updatedAt: result.retrievedAt,
+      } : item));
+      setCommodityLiveMessage(`${currentObs.name}: sentiment and current evidence verified.`);
+    } catch (error) {
+      setCommodityLiveMessage(error instanceof Error ? error.message : 'Live commodity research failed; existing data was preserved.');
+    } finally {
+      setCommodityLiveLoading(false);
+    }
+  };
 
   const handleStartEdit = (obs: CommodityObservation) => {
     setEditingObs(obs);
@@ -151,7 +195,31 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
               CRUDE OIL (WTI)
             </button>
           </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => handleGenerateLiveCommodity('GENERATE')}
+              disabled={commodityLiveLoading}
+              className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 text-xs font-military font-bold transition cursor-pointer"
+            >
+              {commodityLiveLoading ? 'RESEARCHING…' : 'GENERATE LIVE SENTIMENT'}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleGenerateLiveCommodity('REGENERATE')}
+              disabled={commodityLiveLoading}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-cyan-300 border border-cyan-500/30 text-xs font-military font-bold transition cursor-pointer"
+            >
+              REGENERATE
+            </button>
+          </div>
         </div>
+
+        {commodityLiveMessage && (
+          <div className="px-3 py-2 rounded-xl bg-slate-900/70 border border-cyan-500/20 text-[11px] font-mono-code text-slate-300">
+            <strong className="text-cyan-300">COMMODITY LIVE RESEARCH:</strong> {commodityLiveMessage}
+          </div>
+        )}
 
         {/* Selected Commodity Dashboard */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -209,7 +277,20 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
               </div>
             </div>
 
-            {/* Relative Valuation vs USD (Section 32) */}
+            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 text-xs font-mono-code space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 text-[10px] uppercase">Live Sentiment Monitor</span>
+                <span className={`font-bold ${currentObs.sentiment === 'BULLISH' ? 'text-emerald-400' : currentObs.sentiment === 'BEARISH' ? 'text-rose-400' : 'text-slate-300'}`}>
+                  {currentObs.sentiment || 'NOT YET VERIFIED'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-slate-500">
+                <span>Confidence</span><span>{currentObs.sentimentConfidence ?? 0}%</span>
+              </div>
+              {currentObs.sentimentUpdatedAt && <span className="text-[10px] text-slate-500 block">Updated {new Date(currentObs.sentimentUpdatedAt).toLocaleString()}</span>}
+            </div>
+
+                        {/* Relative Valuation vs USD (Section 32) */}
             <div className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 text-xs font-mono-code space-y-1">
               <span className="text-slate-400 text-[10px] uppercase block">
                 Relative Valuation vs USD ({usdScoreVal === undefined ? '—' : usdScoreVal > 0 ? `+${usdScoreVal}` : usdScoreVal} pts)
