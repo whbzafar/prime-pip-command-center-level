@@ -187,16 +187,16 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
                   COT Report
                 </h3>
                 <span className="px-2 py-0.5 rounded bg-blue-500/20 text-cyan-300 text-[10px] font-mono-code font-bold">
-                  FINANCIAL & DISAGGREGATED FUTURES
+                  LEGACY / NON-COMMERCIAL
                 </span>
               </div>
               <p className="text-xs font-mono-code text-slate-400 mt-0.5">
-                Institutional Asset Managers • Leveraged Hedge Funds • Commercial Dealers • Contrarian Crowding Detection
+                Non-Commercial Speculators • Commercial Hedgers • Open Interest • Weekly Positioning
               </p>
             </div>
           </div>
 
-          {/* Prominent COT source button */
+          {/* Prominent COT source button */}
           <a
             href={cotSourceUrl}
             target="_blank"
