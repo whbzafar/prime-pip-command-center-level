@@ -309,6 +309,7 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
         releaseDate: item.releaseDate || '',
         notes: item.notes || '',
       });
+      setCustomCategoryName(item.notes?.match(/Custom category:\s*(.+?)(?:\n|$)/i)?.[1] || '');
     } else {
       resetCustomForm();
       setCustomCategoryName('');
@@ -348,7 +349,7 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
       previous,
       referencePeriod: customForm.referencePeriod.trim() || undefined,
       releaseDate: customForm.releaseDate.trim() || undefined,
-      notes: [customForm.notes.trim(), ''].filter(Boolean).join('\n') || undefined,
+      notes: [customForm.notes.trim(), customCategorySelected && customCategoryName.trim() ? `Custom category: ${customCategoryName.trim()}` : ''].filter(Boolean).join('\n') || undefined,
       updatedAt: new Date().toISOString(),
       verificationStatus: 'MANUAL',
     };
