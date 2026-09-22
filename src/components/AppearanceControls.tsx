@@ -184,7 +184,7 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
 
             {/* Category Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] font-mono-code">
-              {(['ALL', 'FINANCIAL', 'CYBER', 'TACTICAL', 'MINIMAL', 'VIBRANT'] as const).map((cat) => (
+              {(['ALL', 'FINANCIAL', 'CYBER', 'TACTICAL', 'MINIMAL', 'VIBRANT', 'GLASS'] as const).map((cat) => (
                 <button
                   key={cat}
                   type="button"
