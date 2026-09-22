@@ -32,6 +32,8 @@ import {
   ZoomOut,
   Compass,
   CandlestickChart,
+  Settings,
+  Keyboard,
 } from 'lucide-react';
 
 export type Tool =
@@ -48,7 +50,8 @@ export type Tool =
   | 'CIRCLE'
   | 'FIBONACCI'
   | 'TEXT'
-  | 'ERASER';
+  | 'ERASER'
+  | 'SMART_PENCIL';
 
 export interface CanvasItem {
   id: string;
@@ -65,6 +68,9 @@ export interface CanvasItem {
   candleType?: 'BULLISH' | 'BEARISH';
   candleOpacity?: number;
   candleWidth?: number;
+  fillOpacity?: number;
+  outlineOpacity?: number;
+  smartShape?: 'RECTANGLE' | 'POLYGON';
 }
 
 const FIB_LEVELS = [
@@ -97,6 +103,14 @@ export const FreehandWorkspace: React.FC = () => {
   });
   const [strokeWidth, setStrokeWidth] = useState<number>(2);
   const [isFilled, setIsFilled] = useState<boolean>(true);
+  const [colorPaletteOpen, setColorPaletteOpen] = useState(false);
+  const [smartFillEnabled, setSmartFillEnabled] = useState(true);
+  const [smartFillOpacity, setSmartFillOpacity] = useState(0.22);
+  const [smartOutlineOpacity, setSmartOutlineOpacity] = useState(1);
+  const [smartIntensity, setSmartIntensity] = useState(1);
+  const [smartShapeMode, setSmartShapeMode] = useState<'AUTO' | 'BOX' | 'PATH'>('AUTO');
+  const [shortcutSettingsOpen, setShortcutSettingsOpen] = useState(false);
+  const [recordingShortcut, setRecordingShortcut] = useState<string | null>(null);
   const [gridMode, setGridMode] = useState<'GRID' | 'DOTS' | 'NONE'>('GRID');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
@@ -137,6 +151,8 @@ export const FreehandWorkspace: React.FC = () => {
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [currentDraft, setCurrentDraft] = useState<CanvasItem | null>(null);
   const [autoSavedNotice, setAutoSavedNotice] = useState<boolean>(false);
+  const [isErasing, setIsErasing] = useState(false);
+  const erasedIdsRef = useRef<Set<string>>(new Set());
 
   // Direct on-canvas inline typing state (display coords in CSS pixels)
   const [inlineTextInput, setInlineTextInput] = useState<{
@@ -147,6 +163,23 @@ export const FreehandWorkspace: React.FC = () => {
     text: string;
     existingId?: string;
   } | null>(null);
+
+  type ShortcutAction = Tool | 'BULLISH_CANDLE' | 'BEARISH_CANDLE' | 'SAVE_WORKSPACE' | 'EXPORT_WORKSPACE';
+  const DEFAULT_SHORTCUTS: Record<ShortcutAction, string> = {
+    SELECT: 'S', PAN: 'H', CANDLE: 'C', PEN: 'P', HIGHLIGHTER: 'M', LINE: 'L',
+    HORIZONTAL_LINE: 'V', RAY: 'Y', ARROW: 'A', RECTANGLE: 'O', CIRCLE: 'O',
+    FIBONACCI: 'F', TEXT: 'T', ERASER: 'E', SMART_PENCIL: 'D',
+    BULLISH_CANDLE: 'B', BEARISH_CANDLE: 'R', SAVE_WORKSPACE: 'CTRL+S', EXPORT_WORKSPACE: 'CTRL+X',
+  };
+  const [shortcuts, setShortcuts] = useState<Record<ShortcutAction, string>>(() => {
+    try {
+      const raw = localStorage.getItem('primepipfx_freehand_shortcuts');
+      const parsed = raw ? JSON.parse(raw) : {};
+      return { ...DEFAULT_SHORTCUTS, ...(parsed && typeof parsed === 'object' ? parsed : {}) };
+    } catch {
+      return DEFAULT_SHORTCUTS;
+    }
+  });
 
   // Clear confirmation modal
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
@@ -224,41 +257,85 @@ export const FreehandWorkspace: React.FC = () => {
     setSelectedItemId(null);
   }, [selectedItemId, pushHistory]);
 
-  // Global keyboard shortcuts: Delete, Ctrl+Z, Ctrl+Y, Escape
+  // Global keyboard shortcuts: configurable tool keys + save/export + undo/redo.
   useEffect(() => {
+    const comboForEvent = (e: KeyboardEvent) => {
+      const parts: string[] = [];
+      if (e.ctrlKey || e.metaKey) parts.push('CTRL');
+      if (e.altKey) parts.push('ALT');
+      if (e.shiftKey) parts.push('SHIFT');
+      const key = e.key.length === 1 ? e.key.toUpperCase() : e.key.toUpperCase();
+      parts.push(key === ' ' ? 'SPACE' : key);
+      return parts.join('+');
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (inlineTextInput) {
+      const target = e.target as HTMLElement | null;
+      const editingField = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+      if (recordingShortcut) {
+        e.preventDefault();
         if (e.key === 'Escape') {
-          setInlineTextInput(null);
+          setRecordingShortcut(null);
+          return;
         }
+        const next = comboForEvent(e);
+        setShortcuts((prev) => {
+          const updated = { ...prev, [recordingShortcut]: next };
+          try { localStorage.setItem('primepipfx_freehand_shortcuts', JSON.stringify(updated)); } catch {}
+          return updated;
+        });
+        setRecordingShortcut(null);
+        return;
+      }
+
+      if (editingField) {
+        if (e.key === 'Escape' && inlineTextInput) setInlineTextInput(null);
+        return;
+      }
+
+      const combo = comboForEvent(e);
+      const action = (Object.keys(shortcuts) as ShortcutAction[]).find((key) => shortcuts[key] === combo);
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) handleRedo(); else handleUndo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault(); handleRedo(); return;
+      }
+      if (action === 'SAVE_WORKSPACE') {
+        e.preventDefault(); setIsSaveModalOpen(true); return;
+      }
+      if (action === 'EXPORT_WORKSPACE') {
+        e.preventDefault(); setIsExportMenuOpen(true); return;
+      }
+      if (action === 'BULLISH_CANDLE') {
+        e.preventDefault(); setTool('CANDLE'); setCandleType('BULLISH'); setColor('#10B981'); return;
+      }
+      if (action === 'BEARISH_CANDLE') {
+        e.preventDefault(); setTool('CANDLE'); setCandleType('BEARISH'); setColor('#EF4444'); return;
+      }
+      if (action && action in DEFAULT_SHORTCUTS) {
+        e.preventDefault();
+        setTool(action as Tool);
+        setSelectedItemId(null);
         return;
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const target = e.target as HTMLElement;
-        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-        if (selectedItemId) {
-          e.preventDefault();
-          handleDeleteSelected();
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          handleRedo();
-        } else {
-          handleUndo();
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        handleRedo();
+        if (selectedItemId) { e.preventDefault(); handleDeleteSelected(); }
       } else if (e.key === 'Escape') {
         setSelectedItemId(null);
+        setColorPaletteOpen(false);
+        setShortcutSettingsOpen(false);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedItemId, inlineTextInput, handleDeleteSelected, handleUndo, handleRedo]);
+  }, [selectedItemId, inlineTextInput, recordingShortcut, shortcuts, handleDeleteSelected, handleUndo, handleRedo]);
 
   // Coordinate transforms with pan & zoom support
   const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -316,6 +393,32 @@ export const FreehandWorkspace: React.FC = () => {
       observer?.disconnect();
     };
   }, [isFullscreen, resizeCanvas]);
+
+  const adjustHexBrightness = (hex: string, factor: number) => {
+    const clean = hex.replace('#', '');
+    if (clean.length !== 6) return hex;
+    const values = [0, 2, 4].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(clean.slice(i, i + 2), 16) * factor))));
+    return '#' + values.map((v) => v.toString(16).padStart(2, '0')).join('');
+  };
+
+  const getSmartShape = (points: Array<{ x: number; y: number }>) => {
+    if (points.length < 3) return { type: 'POLYGON' as const, points };
+    const minX = Math.min(...points.map((p) => p.x));
+    const maxX = Math.max(...points.map((p) => p.x));
+    const minY = Math.min(...points.map((p) => p.y));
+    const maxY = Math.max(...points.map((p) => p.y));
+    const tolerance = Math.max(12, Math.min(maxX - minX, maxY - minY) * 0.14);
+    const first = points[0];
+    const last = points[points.length - 1];
+    const closed = Math.hypot(last.x - first.x, last.y - first.y) <= tolerance * 2.2;
+    const nearEdgeCount = points.filter((p) =>
+      Math.min(Math.abs(p.x - minX), Math.abs(p.x - maxX), Math.abs(p.y - minY), Math.abs(p.y - maxY)) <= tolerance
+    ).length;
+    const rectangleLike = closed && nearEdgeCount / points.length >= 0.72;
+    return rectangleLike
+      ? { type: 'RECTANGLE' as const, minX, minY, maxX, maxY }
+      : { type: 'POLYGON' as const, points };
+  };
 
   // Drawing rendering routines
   const drawGrid = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
@@ -564,6 +667,35 @@ export const FreehandWorkspace: React.FC = () => {
       });
     }
 
+    // 9. SMART PENCIL: automatically closes a hand-drawn path into a clean box or shape.
+    else if (item.tool === 'SMART_PENCIL') {
+      const outlineColor = adjustHexBrightness(item.color, item.outlineOpacity === undefined ? 1 : 1);
+      ctx.strokeStyle = outlineColor;
+      ctx.fillStyle = adjustHexBrightness(item.color, 1);
+      ctx.globalAlpha = item.outlineOpacity ?? 1;
+      if (item.smartShape === 'RECTANGLE' && item.x1 !== undefined && item.y1 !== undefined && item.x2 !== undefined && item.y2 !== undefined) {
+        const x = Math.min(item.x1, item.x2);
+        const y = Math.min(item.y1, item.y2);
+        const w = Math.abs(item.x2 - item.x1);
+        const h = Math.abs(item.y2 - item.y1);
+        if (item.isFilled) {
+          ctx.save(); ctx.globalAlpha = item.fillOpacity ?? 0.22; ctx.fillStyle = adjustHexBrightness(item.color, 1); ctx.fillRect(x, y, w, h); ctx.restore();
+        }
+        ctx.globalAlpha = item.outlineOpacity ?? 1;
+        ctx.strokeRect(x, y, w, h);
+      } else if (item.points && item.points.length >= 3) {
+        ctx.beginPath();
+        ctx.moveTo(item.points[0].x, item.points[0].y);
+        item.points.slice(1).forEach((p) => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        if (item.isFilled) {
+          ctx.save(); ctx.globalAlpha = item.fillOpacity ?? 0.22; ctx.fillStyle = adjustHexBrightness(item.color, 1); ctx.fill(); ctx.restore();
+        }
+        ctx.globalAlpha = item.outlineOpacity ?? 1;
+        ctx.stroke();
+      }
+    }
+
     // 9. TEXT ANNOTATION
     else if (
       item.tool === 'TEXT' &&
@@ -700,6 +832,9 @@ export const FreehandWorkspace: React.FC = () => {
           maxY: item.y1 + 10,
         };
       }
+      if (item.tool === 'SMART_PENCIL' && item.smartShape === 'RECTANGLE' && item.x2 !== undefined && item.y2 !== undefined) {
+        return { minX: Math.min(item.x1, item.x2), maxX: Math.max(item.x1, item.x2), minY: Math.min(item.y1, item.y2), maxY: Math.max(item.y1, item.y2) };
+      }
       if (item.tool === 'CANDLE' && item.x2 !== undefined && item.y2 !== undefined) {
         const topY = Math.min(item.y1, item.y2);
         const botY = Math.max(item.y1, item.y2);
@@ -793,8 +928,14 @@ export const FreehandWorkspace: React.FC = () => {
     if (currentDraft) {
       renderSingleItem(ctx, currentDraft, false);
     }
+    if (inlineTextInput?.text) {
+      renderSingleItem(ctx, {
+        id: 'inline-text-preview', tool: 'TEXT', color, strokeWidth,
+        x1: inlineTextInput.canvasX, y1: inlineTextInput.canvasY, text: inlineTextInput.text,
+      }, false);
+    }
     ctx.restore();
-  }, [items, currentDraft, selectedItemId, gridMode, panOffset, zoom, backgroundColor]);
+  }, [items, currentDraft, selectedItemId, gridMode, panOffset, zoom, backgroundColor, inlineTextInput, color, strokeWidth]);
 
   useEffect(() => {
     redrawAll();
@@ -811,23 +952,21 @@ export const FreehandWorkspace: React.FC = () => {
 
     const coords = getCanvasCoords(e);
 
-    // 1. TEXT TOOL: Click directly to place inline text note
+    // 1. TEXT TOOL: click once, then type directly onto the canvas. No visible input box.
     if (tool === 'TEXT') {
-      setInlineTextInput({
-        canvasX: coords.x,
-        canvasY: coords.y,
-        screenX: coords.screenX,
-        screenY: coords.screenY,
-        text: '',
-      });
+      if (inlineTextInput?.text.trim()) handleCommitInlineText();
+      setInlineTextInput({ canvasX: coords.x, canvasY: coords.y, screenX: coords.screenX, screenY: coords.screenY, text: '' });
       return;
     }
 
-    // 2. ERASER TOOL: Click on any item to delete it immediately
+    // 2. ERASER TOOL: press and hold to erase continuously as the pointer moves.
     if (tool === 'ERASER') {
+      setIsErasing(true);
+      erasedIdsRef.current = new Set();
       const hit = findItemAtCoord(coords.x, coords.y);
       if (hit) {
         pushHistory();
+        erasedIdsRef.current.add(hit.id);
         setItems((prev) => prev.filter((it) => it.id !== hit.id));
       }
       return;
@@ -861,7 +1000,7 @@ export const FreehandWorkspace: React.FC = () => {
       candleWidth: tool === 'CANDLE' ? candleWidth : undefined,
     };
 
-    if (tool === 'PEN' || tool === 'HIGHLIGHTER') {
+    if (tool === 'PEN' || tool === 'HIGHLIGHTER' || tool === 'SMART_PENCIL') {
       setCurrentDraft({
         ...baseDraft,
         points: [{ x: coords.x, y: coords.y }],
@@ -900,6 +1039,16 @@ export const FreehandWorkspace: React.FC = () => {
 
     const coords = getCanvasCoords(e);
 
+    if (tool === 'ERASER' && isErasing) {
+      const hit = findItemAtCoord(coords.x, coords.y);
+      if (hit && !erasedIdsRef.current.has(hit.id)) {
+        if (erasedIdsRef.current.size === 0) pushHistory();
+        erasedIdsRef.current.add(hit.id);
+        setItems((prev) => prev.filter((it) => it.id !== hit.id));
+      }
+      return;
+    }
+
     // If dragging selected item in SELECT mode
     if (tool === 'SELECT' && isDraggingSelected && selectedItemId && dragStartCoord) {
       const dx = coords.x - dragStartCoord.x;
@@ -931,7 +1080,7 @@ export const FreehandWorkspace: React.FC = () => {
     // Normal drawing
     if (!isDrawing || !currentDraft) return;
 
-    if (tool === 'PEN' || tool === 'HIGHLIGHTER') {
+    if (tool === 'PEN' || tool === 'HIGHLIGHTER' || tool === 'SMART_PENCIL') {
       setCurrentDraft((prev) =>
         prev
           ? {
@@ -954,6 +1103,11 @@ export const FreehandWorkspace: React.FC = () => {
   };
 
   const handleMouseUp = () => {
+    if (tool === 'ERASER') {
+      setIsErasing(false);
+      erasedIdsRef.current.clear();
+      return;
+    }
     if (isPanning) {
       setIsPanning(false);
       return;
@@ -968,7 +1122,33 @@ export const FreehandWorkspace: React.FC = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
     if (currentDraft) {
-      setItems((prev) => [...prev, currentDraft]);
+      if (currentDraft.tool === 'SMART_PENCIL' && currentDraft.points && currentDraft.points.length >= 3) {
+        const shape = getSmartShape(currentDraft.points);
+        const smartItem: CanvasItem = {
+          ...currentDraft,
+          points: shape.type === 'POLYGON' ? shape.points : undefined,
+          x1: shape.type === 'RECTANGLE' ? shape.minX : currentDraft.x1,
+          y1: shape.type === 'RECTANGLE' ? shape.minY : currentDraft.y1,
+          x2: shape.type === 'RECTANGLE' ? shape.maxX : currentDraft.x2,
+          y2: shape.type === 'RECTANGLE' ? shape.maxY : currentDraft.y2,
+          smartShape: shape.type,
+          isFilled: smartFillEnabled,
+          fillOpacity: smartFillOpacity,
+          outlineOpacity: smartOutlineOpacity,
+          color: adjustHexBrightness(color, smartIntensity),
+        };
+        if (smartShapeMode === 'BOX') {
+          const points = currentDraft.points;
+          const minX = Math.min(...points.map((p) => p.x)); const maxX = Math.max(...points.map((p) => p.x));
+          const minY = Math.min(...points.map((p) => p.y)); const maxY = Math.max(...points.map((p) => p.y));
+          smartItem.points = undefined; smartItem.smartShape = 'RECTANGLE'; smartItem.x1 = minX; smartItem.y1 = minY; smartItem.x2 = maxX; smartItem.y2 = maxY;
+        } else if (smartShapeMode === 'PATH') {
+          smartItem.points = currentDraft.points; smartItem.smartShape = 'POLYGON';
+        }
+        setItems((prev) => [...prev, smartItem]);
+      } else {
+        setItems((prev) => [...prev, currentDraft]);
+      }
       setCurrentDraft(null);
     }
   };
@@ -993,6 +1173,13 @@ export const FreehandWorkspace: React.FC = () => {
       ]);
     }
     setInlineTextInput(null);
+  };
+
+  const handleToolSelect = (nextTool: Tool) => {
+    if (inlineTextInput?.text.trim()) handleCommitInlineText();
+    setTool(nextTool);
+    setSelectedItemId(null);
+    if (nextTool !== 'ERASER') setIsErasing(false);
   };
 
   // Clear canvas action
@@ -1211,6 +1398,7 @@ export const FreehandWorkspace: React.FC = () => {
     { id: 'HIGHLIGHTER', label: 'Marker', icon: Highlighter },
     { id: 'TEXT', label: 'Type Text', icon: Type },
     { id: 'ERASER', label: 'Eraser', icon: Eraser },
+    { id: 'SMART_PENCIL', label: 'Smart Shape Pencil', icon: Square },
   ];
 
   return (
@@ -1232,10 +1420,7 @@ export const FreehandWorkspace: React.FC = () => {
             return (
               <button
                 key={t.id}
-                onClick={() => {
-                  setTool(t.id);
-                  if (t.id !== 'SELECT') setSelectedItemId(null);
-                }}
+                onClick={() => handleToolSelect(t.id)}
                 title={t.label}
                 className={`px-2.5 py-1.5 rounded-lg border text-xs flex items-center gap-1.5 transition cursor-pointer ${
                   isActive
@@ -1254,55 +1439,35 @@ export const FreehandWorkspace: React.FC = () => {
 
         {/* Professional Color Controls & Options */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800">
-            {professionalColors.map((c) => (
-              <button
-                key={c.hex}
-                onClick={() => {
-                  setColor(c.hex);
-                  setCustomColor(c.hex);
-                  if (selectedItemId) {
-                    setItems((prev) =>
-                      prev.map((it) =>
-                        it.id === selectedItemId ? { ...it, color: c.hex } : it
-                      )
-                    );
-                  }
-                }}
-                title={c.label}
-                style={{ backgroundColor: c.hex }}
-                className={`w-5 h-5 rounded-full transition transform cursor-pointer ${
-                  color === c.hex
-                    ? 'ring-2 ring-white scale-110 shadow-md'
-                    : 'opacity-70 hover:opacity-100'
-                }`}
-              />
-            ))}
-
-            {/* Any Color: native picker lets the user choose an arbitrary color. */}
-            <label
-              title="Choose Any Drawing Color"
-              className="relative w-5 h-5 rounded-full overflow-hidden border border-slate-600 cursor-pointer shadow-inner"
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setColorPaletteOpen((open) => !open)}
+              title="Choose Drawing Color"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-300 hover:text-white transition cursor-pointer"
             >
-              <input
-                type="color"
-                value={customColor}
-                onChange={(e) => {
-                  const nextColor = e.target.value;
-                  setCustomColor(nextColor);
-                  setColor(nextColor);
-                  if (selectedItemId) {
-                    setItems((prev) =>
-                      prev.map((it) =>
-                        it.id === selectedItemId ? { ...it, color: nextColor } : it
-                      )
-                    );
-                  }
-                }}
-                className="absolute inset-[-6px] w-8 h-8 cursor-pointer"
-                aria-label="Choose any drawing color"
-              />
-            </label>
+              <span className="w-5 h-5 rounded-full border border-white/30 shadow-inner" style={{ backgroundColor: color }} />
+              <span>COLOR</span>
+              <span className="text-slate-500">▾</span>
+            </button>
+            {colorPaletteOpen && (
+              <div className="absolute left-0 top-full mt-2 z-50 w-[310px] p-3 rounded-xl border border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur-xl">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-slate-300 uppercase">Professional Palette</span>
+                  <span className="text-[9px] text-slate-500">{professionalColors.length} colors</span>
+                </div>
+                <div className="grid grid-cols-10 gap-1.5 max-h-52 overflow-y-auto pr-1">
+                  {professionalColors.map((c) => (
+                    <button key={c.hex} onClick={() => { setColor(c.hex); setCustomColor(c.hex); if (selectedItemId) setItems((prev) => prev.map((it) => it.id === selectedItemId ? { ...it, color: c.hex } : it)); setColorPaletteOpen(false); }} title={c.label} style={{ backgroundColor: c.hex }} className={`w-5 h-5 rounded-full border border-white/10 transition hover:scale-110 cursor-pointer ${color === c.hex ? 'ring-2 ring-white scale-110' : ''}`} />
+                  ))}
+                </div>
+                <label title="Choose Any Drawing Color" className="mt-2 flex items-center gap-2 px-2 py-1.5 rounded-lg border border-slate-800 bg-slate-900 text-[10px] text-slate-300 cursor-pointer">
+                  <span className="w-5 h-5 rounded border border-slate-600" style={{ backgroundColor: customColor }} />
+                  <span>ANY COLOR</span>
+                  <input type="color" value={customColor} onChange={(e) => { const nextColor=e.target.value; setCustomColor(nextColor); setColor(nextColor); setColorPaletteOpen(false); }} className="sr-only" aria-label="Choose any drawing color" />
+                </label>
+              </div>
+            )}
           </div>
 
           {/* Background Color: independent from drawing color and persisted across sessions. */}
@@ -1311,25 +1476,8 @@ export const FreehandWorkspace: React.FC = () => {
             className="flex items-center gap-1.5 px-2 py-1 rounded-xl border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-400 cursor-pointer hover:text-slate-200"
           >
             <span>BG</span>
-            <span
-              className="w-5 h-5 rounded border border-slate-600 shadow-inner"
-              style={{ backgroundColor }}
-            />
-            <input
-              type="color"
-              value={backgroundColor}
-              onChange={(e) => {
-                const nextBackground = e.target.value;
-                setBackgroundColor(nextBackground);
-                try {
-                  localStorage.setItem('primepipfx_freehand_background', nextBackground);
-                } catch {
-                  // Ignore storage failures; the current canvas still updates.
-                }
-              }}
-              className="sr-only"
-              aria-label="Choose canvas background color"
-            />
+            <span className="w-5 h-5 rounded border border-slate-600 shadow-inner" style={{ backgroundColor }} />
+            <input type="color" value={backgroundColor} onChange={(e) => { const nextBackground=e.target.value; setBackgroundColor(nextBackground); try { localStorage.setItem('primepipfx_freehand_background', nextBackground); } catch {} }} className="sr-only" aria-label="Choose canvas background color" />
           </label>
 
           {/* Stroke Width Toggle */}
@@ -1511,6 +1659,8 @@ export const FreehandWorkspace: React.FC = () => {
             )}
           </button>
 
+          <button onClick={() => setShortcutSettingsOpen(true)} title="Shortcut Settings" className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-cyan-400 transition cursor-pointer"><Keyboard className="w-3.5 h-3.5" /></button>
+
           {/* Export Dropdown Trigger */}
           <div className="relative">
             <button
@@ -1550,6 +1700,20 @@ export const FreehandWorkspace: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Smart Shape Pencil properties */}
+      {tool === 'SMART_PENCIL' && (
+        <div className="bg-slate-950/95 border border-cyan-500/40 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-4 shadow-lg text-xs">
+          <span className="text-[11px] font-bold text-cyan-400 flex items-center gap-1.5"><Square className="w-4 h-4" /> SMART SHAPE PENCIL</span>
+          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+            {(['AUTO','BOX','PATH'] as const).map((mode) => <button key={mode} onClick={() => setSmartShapeMode(mode)} className={`px-2 py-1 rounded text-[10px] font-bold ${smartShapeMode===mode ? 'bg-blue-500/20 text-cyan-300 border border-blue-500/50' : 'text-slate-400'}`}>{mode}</button>)}
+          </div>
+          <button onClick={() => setSmartFillEnabled((v) => !v)} className={`px-2.5 py-1 rounded border text-[10px] font-bold ${smartFillEnabled ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-slate-900 text-slate-500 border-slate-800'}`}>{smartFillEnabled ? 'FILL: ON' : 'FILL: OFF'}</button>
+          <label className="flex items-center gap-2 text-[10px] text-slate-400">FILL <input type="range" min="0.05" max="0.8" step="0.05" value={smartFillOpacity} onChange={(e)=>setSmartFillOpacity(Number(e.target.value))} className="w-20 accent-cyan-400" /></label>
+          <label className="flex items-center gap-2 text-[10px] text-slate-400">OUTLINE <input type="range" min="0.2" max="1" step="0.05" value={smartOutlineOpacity} onChange={(e)=>setSmartOutlineOpacity(Number(e.target.value))} className="w-20 accent-cyan-400" /></label>
+          <label className="flex items-center gap-2 text-[10px] text-slate-400">INTENSITY <input type="range" min="0.55" max="1.45" step="0.05" value={smartIntensity} onChange={(e)=>setSmartIntensity(Number(e.target.value))} className="w-20 accent-cyan-400" /><span>{Math.round(smartIntensity*100)}%</span></label>
+        </div>
+      )}
 
       {/* Candlestick Tool Dedicated Properties Panel */}
       {tool === 'CANDLE' && (
@@ -1694,49 +1858,21 @@ export const FreehandWorkspace: React.FC = () => {
           }`}
         />
 
-        {/* Direct on-canvas inline typing textarea */}
+        {/* Invisible keyboard capture: text is rendered directly on the canvas while typing. */}
         {inlineTextInput && (
-          <div
-            style={{
-              position: 'absolute',
-              left: `${inlineTextInput.screenX}px`,
-              top: `${inlineTextInput.screenY}px`,
-              transform: 'translate(0, -6px)',
-              zIndex: 40,
-            }}
-            className="flex flex-col gap-1"
-          >
-            <textarea
-              ref={textInputRef}
-              autoFocus
-              value={inlineTextInput.text}
-              onChange={(e) =>
-                setInlineTextInput((prev) => (prev ? { ...prev, text: e.target.value } : null))
-              }
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleCommitInlineText();
-                } else if (e.key === 'Escape') {
-                  setInlineTextInput(null);
-                }
-              }}
-              placeholder="Type note & press Enter..."
-              style={{ color }}
-              rows={2}
-              className="px-2 py-1 bg-slate-950/90 border border-blue-500/80 rounded-lg text-xs font-mono-code shadow-2xl focus:outline-none min-w-[220px] resize-both backdrop-blur-sm"
-            />
-            <div className="flex items-center gap-1.5 text-[9px] text-slate-400 bg-slate-950/90 px-2 py-0.5 rounded border border-slate-800 w-fit">
-              <span>Press <strong className="text-amber-300">Enter</strong> to place • <strong className="text-slate-300">Esc</strong> to cancel</span>
-              <button
-                onClick={handleCommitInlineText}
-                className="ml-1 text-emerald-400 hover:text-emerald-300 font-bold"
-              >
-                Done
-              </button>
-            </div>
-          </div>
+          <textarea
+            ref={textInputRef}
+            autoFocus
+            value={inlineTextInput.text}
+            onChange={(e) => setInlineTextInput((prev) => (prev ? { ...prev, text: e.target.value } : null))}
+            onBlur={handleCommitInlineText}
+            onKeyDown={(e) => { if (e.key === 'Escape') setInlineTextInput(null); }}
+            aria-label="Direct canvas text input"
+            style={{ position: 'absolute', left: '-9999px', top: '0', width: '1px', height: '1px', opacity: 0 }}
+            tabIndex={0}
+          />
         )}
+
 
         {/* Tooltip hint bar at bottom of canvas */}
         <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-[11px] text-slate-500 font-mono-code pointer-events-none">
@@ -1752,6 +1888,8 @@ export const FreehandWorkspace: React.FC = () => {
                 ? 'Drag from swing high to swing low to plot retracement levels & golden pocket.'
                 : tool === 'HORIZONTAL_LINE'
                 ? 'Click at target price level to draw an infinite horizontal reference.'
+                : tool === 'SMART_PENCIL'
+                ? 'Draw a closed path and the pencil automatically converts it into a clean box or shape.'
                 : 'Click and drag to draw on canvas.'}
             </span>
           </div>
@@ -1760,6 +1898,26 @@ export const FreehandWorkspace: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Configurable shortcut settings */}
+      {shortcutSettingsOpen && (
+        <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-950 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div><h4 className="font-military font-bold text-slate-100 tracking-wider">SHORTCUT KEY SETTINGS</h4><p className="text-[10px] text-slate-500 mt-1">Click a shortcut to record a new key. Changes are saved locally.</p></div>
+              <button onClick={() => setShortcutSettingsOpen(false)} className="text-slate-400 hover:text-white text-lg">×</button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {(Object.keys(shortcuts) as ShortcutAction[]).map((action) => {
+                const label = action === 'BULLISH_CANDLE' ? 'Bullish Candle' : action === 'BEARISH_CANDLE' ? 'Bearish Candle' : action === 'SAVE_WORKSPACE' ? 'Save Workspace' : action === 'EXPORT_WORKSPACE' ? 'Export Workspace' : action.replace(/_/g, ' ');
+                const active = recordingShortcut === action;
+                return <button key={action} onClick={() => setRecordingShortcut(action)} className={`flex items-center justify-between gap-3 p-3 rounded-xl border text-left ${active ? 'border-cyan-400 bg-cyan-500/10' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'}`}><span className="text-[11px] text-slate-300">{label}</span><kbd className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-[10px] text-cyan-300 font-mono-code">{active ? 'PRESS KEY…' : shortcuts[action]}</kbd></button>;
+              })}
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800"><span className="text-[10px] text-slate-500">Defaults: S Move • H Hand • B Bullish • R Bearish • T Text • E Eraser • Ctrl+S Save • Ctrl+X Export</span><button onClick={() => { setShortcuts(DEFAULT_SHORTCUTS); try { localStorage.setItem('primepipfx_freehand_shortcuts', JSON.stringify(DEFAULT_SHORTCUTS)); } catch {} }} className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-[10px] font-bold">RESET DEFAULTS</button></div>
+          </div>
+        </div>
+      )}
 
       {/* CLEAR CANVAS CONFIRMATION MODAL */}
       {isClearModalOpen && (
