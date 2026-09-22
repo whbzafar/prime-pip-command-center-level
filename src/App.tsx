@@ -34,6 +34,7 @@ import { FundamentalCalendar } from './components/FundamentalCalendar';
 import { FundamentalIndicators } from './components/FundamentalIndicators';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { FreehandWorkspace } from './components/FreehandWorkspace';
+import { ProLearningTrading } from './components/ProLearningTrading';
 import { CommunityChat } from './components/CommunityChat';
 import { BookSessionView } from './components/BookSessionView';
 import { TradingResearchCenter } from './components/TradingResearchCenter';
@@ -896,6 +897,10 @@ export default function App() {
 
         {activeTab === 'FREEHAND_WORKSPACE' && (
           <FreehandWorkspace userKey={currentUser?.id || currentUser?.email || 'guest'} />
+        )}
+
+        {activeTab === 'PRO_LEARNING' && (
+          <ProLearningTrading />
         )}
 
         {activeTab === 'COMMUNITY' && (
