@@ -62,11 +62,12 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [batchState, setBatchState] = useState({ running: false, completed: 0, total: 0 });
   const [liveMessage, setLiveMessage] = useState<string | null>(null);
+  const [customCategoryName, setCustomCategoryName] = useState('');
   const [customForm, setCustomForm] = useState({
     currency: 'USD' as CurrencyCode,
     name: '',
     shortLabel: '',
-    category: 'INFLATION' as IndicatorCategory,
+    category: 'INFLATION' as IndicatorCategory | 'CUSTOM',
     frequency: 'Monthly' as any,
     measurementPeriod: 'Percentage (%)' as any,
     unit: '%',
@@ -310,6 +311,7 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
       });
     } else {
       resetCustomForm();
+      setCustomCategoryName('');
       setEditingCustom(null);
     }
     setIsAddingCustom(true);
@@ -328,7 +330,8 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
       return;
     }
 
-    const effectiveCategory = customForm.category;
+    const customCategorySelected = customForm.category === 'CUSTOM';
+    const effectiveCategory: IndicatorCategory = customCategorySelected ? 'INFLATION' : customForm.category;
     const item: CustomFundamentalIndicator = {
       id: editingCustom?.id || `CUSTOM_${customForm.currency}_${Date.now()}`,
       currency: customForm.currency,
@@ -858,7 +861,7 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
               <label className="space-y-1"><span className="text-slate-400">Currency</span><select value={customForm.currency} onChange={(e) => setCustomForm({ ...customForm, currency: e.target.value as CurrencyCode })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5"><option>USD</option><option>EUR</option><option>GBP</option><option>JPY</option><option>CHF</option><option>CAD</option><option>AUD</option><option>NZD</option></select></label>
               <label className="space-y-1"><span className="text-slate-400">Short Label</span><input value={customForm.shortLabel} onChange={(e) => setCustomForm({ ...customForm, shortLabel: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
               <label className="space-y-1 sm:col-span-2"><span className="text-slate-400">Indicator Name</span><input value={customForm.name} onChange={(e) => setCustomForm({ ...customForm, name: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
-              <label className="space-y-1"><span className="text-slate-400">Category</span><select value={customForm.category} onChange={(e) => setCustomForm({ ...customForm, category: e.target.value as IndicatorCategory })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5">{['INFLATION','EMPLOYMENT','GROWTH','BUSINESS_ACTIVITY','MONETARY_POLICY','RATES_YIELDS','CONSUMER','TRADE_EXTERNAL','HOUSING','FISCAL'].map((v) => <option key={v}>{v}</option>)}</select></label><label className="space-y-1"><span className="text-slate-400">Unit</span><input value={customForm.unit} onChange={(e) => setCustomForm({ ...customForm, unit: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
+              <label className="space-y-1"><span className="text-slate-400">Category</span><select value={customForm.category} onChange={(e) => setCustomForm({ ...customForm, category: e.target.value as IndicatorCategory | 'CUSTOM' })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5"><option value="INFLATION">Inflation</option><option value="EMPLOYMENT">Employment</option><option value="GROWTH">Growth</option><option value="BUSINESS_ACTIVITY">Business Activity</option><option value="MONETARY_POLICY">Monetary Policy</option><option value="RATES_YIELDS">Rates / Yields</option><option value="CONSUMER">Consumer</option><option value="TRADE_EXTERNAL">Trade / External</option><option value="HOUSING">Housing</option><option value="FISCAL">Fiscal</option><option value="CUSTOM">Custom</option></select></label>{customForm.category === 'CUSTOM' && <label className="space-y-1"><span className="text-slate-400">Custom Category Name</span><input value={customCategoryName} onChange={(e) => setCustomCategoryName(e.target.value)} placeholder="Type your category name" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>}<label className="space-y-1"><span className="text-slate-400">Unit</span><input value={customForm.unit} onChange={(e) => setCustomForm({ ...customForm, unit: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
               <label className="space-y-1"><span className="text-slate-400">Actual</span><input type="number" step="any" value={customForm.actual} onChange={(e) => setCustomForm({ ...customForm, actual: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
               <label className="space-y-1"><span className="text-slate-400">Forecast</span><input type="number" step="any" value={customForm.forecast} onChange={(e) => setCustomForm({ ...customForm, forecast: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
               <label className="space-y-1"><span className="text-slate-400">Previous</span><input type="number" step="any" value={customForm.previous} onChange={(e) => setCustomForm({ ...customForm, previous: e.target.value })} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5" /></label>
