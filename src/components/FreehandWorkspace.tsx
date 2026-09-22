@@ -284,7 +284,13 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({ userKey = 
         }
         const next = comboForEvent(e);
         setShortcuts((prev) => {
-          const updated = { ...prev, [recordingShortcut]: next };
+          const updated = { ...prev };
+          // One key/combo maps to one action. Reassigning a shortcut clears it
+          // from the previous action so users never get ambiguous tool selection.
+          (Object.keys(updated) as ShortcutAction[]).forEach((action) => {
+            if (action !== recordingShortcut && updated[action] === next) updated[action] = '';
+          });
+          updated[recordingShortcut] = next;
           try { localStorage.setItem(shortcutStorageKey, JSON.stringify(updated)); } catch {}
           return updated;
         });
