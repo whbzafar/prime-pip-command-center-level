@@ -329,7 +329,6 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
           </a>
         </div>
       ) : (
-      {/* Selected Pair Detail Card */}
       <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
           <div>
