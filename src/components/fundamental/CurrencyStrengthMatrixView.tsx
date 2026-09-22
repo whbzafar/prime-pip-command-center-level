@@ -127,6 +127,7 @@ export const CurrencyStrengthMatrixView: React.FC<CurrencyStrengthMatrixViewProp
             );
           })}
         </div>
+        )}
       </div>
 
       {/* Cross-Category Heatmap Matrix */}
