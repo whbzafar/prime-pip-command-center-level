@@ -146,10 +146,10 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
       commercialShort: cShort,
       dealerLong: Number(editForm.dealerLong) || cLong,
       dealerShort: Number(editForm.dealerShort) || cShort,
-      assetManagerLong: Number(editForm.assetManagerLong) || Math.round(ncLong * 0.55),
-      assetManagerShort: Number(editForm.assetManagerShort) || Math.round(ncShort * 0.5),
-      leveragedFundsLong: Number(editForm.leveragedFundsLong) || Math.round(ncLong * 0.45),
-      leveragedFundsShort: Number(editForm.leveragedFundsShort) || Math.round(ncShort * 0.5),
+      assetManagerLong: Number(editForm.assetManagerLong),
+      assetManagerShort: Number(editForm.assetManagerShort),
+      leveragedFundsLong: Number(editForm.leveragedFundsLong),
+      leveragedFundsShort: Number(editForm.leveragedFundsShort),
       otherReportablesLong: Number(editForm.otherReportablesLong),
       otherReportablesShort: Number(editForm.otherReportablesShort),
       nonReportableLong: Number(editForm.nonReportableLong),
@@ -171,24 +171,8 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
     setEditingRecord(null);
   };
 
-  // TradingView COT direct link
-  const getTradingViewCotUrl = (currency: CurrencyCode) => {
-    const symbolMap: Record<CurrencyCode, string> = {
-      USD: 'ICE:DX1!',
-      EUR: 'CME:6E1!',
-      GBP: 'CME:6B1!',
-      JPY: 'CME:6J1!',
-      CHF: 'CME:6S1!',
-      CAD: 'CME:6C1!',
-      AUD: 'CME:6A1!',
-      NZD: 'CME:6N1!',
-    };
-    const sym = symbolMap[currency] || 'CME:6E1!';
-    return `https://www.tradingview.com/symbols/${sym.replace(':', '-')}/`;
-  };
-
-  // Tradingster COT portal link provided by user
-  const tradingsterCotUrl = 'https://www.tradingster.com/cot';
+  // User-provided COT source link. Keep this exact URL; do not replace it with another provider.
+  const cotSourceUrl = 'https://www.tradingster.com/cot';
 
   return (
     <div className="space-y-6">
@@ -200,7 +184,7 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-military font-bold text-slate-100 uppercase tracking-wider">
-                  COT Report — TradingView
+                  COT Report
                 </h3>
                 <span className="px-2 py-0.5 rounded bg-blue-500/20 text-cyan-300 text-[10px] font-mono-code font-bold">
                   FINANCIAL & DISAGGREGATED FUTURES
@@ -212,14 +196,14 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
             </div>
           </div>
 
-          {/* Prominent TradingView External Button (Mandatory Section 24) */}
+          {/* Prominent COT source button */
           <a
-            href={getTradingViewCotUrl(selectedCurrency)}
+            href={cotSourceUrl}
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-military font-bold transition shadow-lg shadow-blue-600/25 cursor-pointer"
           >
-            <span>Open COT Report on TradingView ↗</span>
+            <span>Open COT Report ↗</span>
             <ExternalLink className="w-4 h-4" />
           </a>
         </div>
@@ -296,75 +280,29 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
         </div>
 
         {/* Section 26 Interpretation Cards: Direction, Weekly Change, Extreme, Percentile, Momentum */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs font-mono-code">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono-code">
           <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
             <span className="text-slate-400 text-[10px] uppercase block">COT Direction</span>
-            <span
-              className={`text-sm font-military font-bold block ${
-                cotMetrics.cotDirection === 'BULLISH'
-                  ? 'text-emerald-400'
-                  : cotMetrics.cotDirection === 'BEARISH'
-                  ? 'text-rose-400'
-                  : 'text-slate-300'
-              }`}
-            >
+            <span className={`text-sm font-military font-bold block ${cotMetrics.cotDirection === 'BULLISH' ? 'text-emerald-400' : cotMetrics.cotDirection === 'BEARISH' ? 'text-rose-400' : 'text-slate-300'}`}>
               {cotMetrics.cotDirection}
             </span>
           </div>
-
           <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
-            <span className="text-slate-400 text-[10px] uppercase block">Positioning Extreme</span>
-            <span
-              className={`text-xs font-military font-bold block ${
-                cotMetrics.positioningExtreme === 'HIGH_CROWDED_LONG'
-                  ? 'text-rose-400'
-                  : cotMetrics.positioningExtreme === 'HIGH_CROWDED_SHORT'
-                  ? 'text-emerald-400'
-                  : 'text-slate-300'
-              }`}
-            >
-              {cotMetrics.positioningExtreme === 'HIGH_CROWDED_LONG'
-                ? 'HIGH CROWD (LONG)'
-                : cotMetrics.positioningExtreme === 'HIGH_CROWDED_SHORT'
-                ? 'HIGH CROWD (SHORT)'
-                : 'NORMAL RANGE'}
+            <span className="text-slate-400 text-[10px] uppercase block">Net Position</span>
+            <span className={`text-sm font-military font-bold block ${cotMetrics.netPosition > 0 ? 'text-emerald-400' : cotMetrics.netPosition < 0 ? 'text-rose-400' : 'text-slate-400'}`}>
+              {cotMetrics.netPosition > 0 ? '+' : ''}{cotMetrics.netPosition.toLocaleString()}
             </span>
           </div>
-
           <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
-            <span className="text-slate-400 text-[10px] uppercase block">Weekly Net Change</span>
-            <span
-              className={`text-sm font-military font-bold block ${
-                cotMetrics.weeklyChange > 0
-                  ? 'text-emerald-400'
-                  : cotMetrics.weeklyChange < 0
-                  ? 'text-rose-400'
-                  : 'text-slate-400'
-              }`}
-            >
-              {cotMetrics.weeklyChange > 0 ? `+${cotMetrics.weeklyChange.toLocaleString()}` : cotMetrics.weeklyChange.toLocaleString()}
-            </span>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
-            <span className="text-slate-400 text-[10px] uppercase block">Historical Percentile</span>
+            <span className="text-slate-400 text-[10px] uppercase block">Net / Open Interest</span>
             <span className="text-sm font-military font-bold text-cyan-300 block">
-              {cotMetrics.historicalPercentile}th Percentile
+              {cotMetrics.netOpenInterestPercent > 0 ? '+' : ''}{cotMetrics.netOpenInterestPercent.toFixed(2)}%
             </span>
           </div>
-
           <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
-            <span className="text-slate-400 text-[10px] uppercase block">Positioning Score</span>
-            <span
-              className={`text-sm font-military font-bold block ${
-                cotMetrics.positioningScore > 15
-                  ? 'text-emerald-400'
-                  : cotMetrics.positioningScore < -15
-                  ? 'text-rose-400'
-                  : 'text-slate-400'
-              }`}
-            >
-              {cotMetrics.positioningScore > 0 ? `+${cotMetrics.positioningScore}` : cotMetrics.positioningScore} / 100
+            <span className="text-slate-400 text-[10px] uppercase block">COT Score</span>
+            <span className={`text-sm font-military font-bold block ${cotMetrics.positioningScore > 0 ? 'text-emerald-400' : cotMetrics.positioningScore < 0 ? 'text-rose-400' : 'text-slate-400'}`}>
+              {cotMetrics.positioningScore > 0 ? '+' : ''}{cotMetrics.positioningScore} / 100
             </span>
           </div>
         </div>
@@ -400,6 +338,17 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 bg-slate-950/40">
+                <tr className="bg-cyan-500/5 border-b border-cyan-500/20">
+                  <td className="p-3 font-semibold text-cyan-300">Non-Commercial</td>
+                  <td className="p-3 text-right text-emerald-400 font-bold">{(currentRecord.nonCommercialLong ?? 0).toLocaleString()}</td>
+                  <td className="p-3 text-right text-rose-400 font-bold">{(currentRecord.nonCommercialShort ?? 0).toLocaleString()}</td>
+                  <td className="p-3 text-right font-military font-bold">
+                    {((currentRecord.nonCommercialLong ?? 0) - (currentRecord.nonCommercialShort ?? 0)).toLocaleString()}
+                  </td>
+                  <td className="p-3 text-center text-slate-400">
+                    {cotMetrics.longPercent.toFixed(1)}% L / {cotMetrics.shortPercent.toFixed(1)}% S
+                  </td>
+                </tr>
                 <tr>
                   <td className="p-3 font-semibold text-slate-200">Asset Manager / Institutional</td>
                   <td className="p-3 text-right text-emerald-400 font-bold">{currentRecord.assetManagerLong.toLocaleString()}</td>
@@ -491,6 +440,21 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
             </div>
 
             <div className="space-y-3 text-xs font-mono-code">
+              {/* Non-Commercial Inputs */}
+              <div className="p-3 rounded-xl bg-slate-900/60 border border-cyan-500/20 space-y-2">
+                <span className="font-military font-bold text-cyan-300 uppercase">Non-Commercial (Speculative)</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-400 block mb-1">Long Contracts</label>
+                    <input type="number" min="0" value={editForm.nonCommercialLong} onChange={(e) => setEditForm({ ...editForm, nonCommercialLong: Number(e.target.value) })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-slate-100" />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-1">Short Contracts</label>
+                    <input type="number" min="0" value={editForm.nonCommercialShort} onChange={(e) => setEditForm({ ...editForm, nonCommercialShort: Number(e.target.value) })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-slate-100" />
+                  </div>
+                </div>
+              </div>
+
               {/* Asset Manager Inputs */}
               <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
                 <span className="font-military font-bold text-slate-200 uppercase">
