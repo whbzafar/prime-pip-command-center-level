@@ -186,7 +186,7 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
     source: 'Myfxbook Community Outlook',
   });
 
-  const currentItem = records.find((r) => r.pair === selectedPair) || records[0];
+  const currentItem = records.find((r) => r.pair === selectedPair) || records[0] || null;
 
   const handleStartEdit = (item: PairSentimentRecord) => {
     setEditingItem(item);
@@ -307,6 +307,28 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
         </div>
       </div>
 
+      {!currentItem ? (
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-2xl text-center space-y-3">
+          <Users className="w-8 h-8 text-amber-400 mx-auto" />
+          <div>
+            <h4 className="text-sm font-military font-bold text-slate-100 uppercase tracking-wider">
+              No Pair Sentiment Data Entered
+            </h4>
+            <p className="text-xs font-mono-code text-slate-400 mt-1">
+              Open the neutral Myfxbook Community Outlook page and select any currency pair there. No synthetic sentiment data is shown in this dashboard.
+            </p>
+          </div>
+          <a
+            href={getMyfxbookUrl()}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-military font-bold transition cursor-pointer"
+          >
+            Open Myfxbook Sentiment ↗
+            <ExternalLink className="w-4 h-4" />
+          </a>
+        </div>
+      ) : (
       {/* Selected Pair Detail Card */}
       <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
@@ -404,6 +426,8 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
           </div>
         </div>
       </div>
+
+      )}
 
       {/* Edit Sentiment Modal */}
       {editingItem && (
