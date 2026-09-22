@@ -1,7 +1,7 @@
 export interface InterfaceTemplate {
   id: string;
   label: string;
-  category: 'FINANCIAL' | 'CYBER' | 'TACTICAL' | 'MINIMAL' | 'VIBRANT';
+  category: 'FINANCIAL' | 'CYBER' | 'TACTICAL' | 'MINIMAL' | 'VIBRANT' | 'GLASS';
   description: string;
   accent: string;
   accentSecondary: string;
@@ -297,25 +297,25 @@ export const INTERFACE_TEMPLATES: InterfaceTemplate[] = [
     inkMuted: '#93C5FD',
   },
   {
-    id: 'liquid-aurora', label: 'Liquid Aurora Glass', category: 'VIBRANT',
+    id: 'liquid-aurora', label: 'Liquid Aurora Glass', category: 'GLASS',
     description: 'Premium dark liquid glass with cyan, violet and rose refractions inspired by the supplied glass UI references.',
     accent: '#67E8F9', accentSecondary: '#F0ABFC', bg: '#050711', surface: '#0B1020', elevated: '#141A31', border: '#5B5CE2', ink: '#F8FAFC', inkMuted: '#CBD5E1',
     visualStyle: 'liquid-glass', glassTint: 'rgba(70, 80, 150, 0.24)',
   },
   {
-    id: 'liquid-prism', label: 'Liquid Prism Pro', category: 'VIBRANT',
+    id: 'liquid-prism', label: 'Liquid Prism Pro', category: 'GLASS',
     description: 'Glossy black glass with electric blue, magenta and violet prism highlights for a high-end command-center feel.',
     accent: '#60A5FA', accentSecondary: '#F472B6', bg: '#03050B', surface: '#0A0E19', elevated: '#151426', border: '#6D5AE8', ink: '#FFFFFF', inkMuted: '#CBD5E1',
     visualStyle: 'liquid-glass', glassTint: 'rgba(55, 45, 115, 0.26)',
   },
   {
-    id: 'frosted-arctic', label: 'Frosted Arctic Glass', category: 'MINIMAL',
+    id: 'frosted-arctic', label: 'Frosted Arctic Glass', category: 'GLASS',
     description: 'Bright translucent frosted glass with cool blue highlights, soft depth and clean premium controls.',
     accent: '#2563EB', accentSecondary: '#06B6D4', bg: '#DCE8F4', surface: '#EAF2F8', elevated: '#F7FAFC', border: '#A9C6DD', ink: '#0F172A', inkMuted: '#475569',
     visualStyle: 'frosted-glass', glassTint: 'rgba(255, 255, 255, 0.52)',
   },
   {
-    id: 'neon-glass', label: 'Neon Glass Studio', category: 'VIBRANT',
+    id: 'neon-glass', label: 'Neon Glass Studio', category: 'GLASS',
     description: 'Ultra-modern translucent glass with cyan, blue and hot-pink luminous edges inspired by the UI kit showcase.',
     accent: '#22D3EE', accentSecondary: '#F472B6', bg: '#050816', surface: '#0B1224', elevated: '#121A34', border: '#3B82F6', ink: '#F8FAFC', inkMuted: '#CBD5E1',
     visualStyle: 'liquid-glass', glassTint: 'rgba(30, 55, 110, 0.28)',
