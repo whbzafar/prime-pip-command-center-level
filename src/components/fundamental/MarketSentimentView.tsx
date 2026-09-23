@@ -88,7 +88,7 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
             </div>
             <div>
               <h2 className="text-sm font-military font-bold text-slate-100 uppercase tracking-wider">Retail Sentiment — 11 Assets</h2>
-              <p className="text-[10px] font-mono-code text-slate-500 mt-1">Enter only the Long % and Short %. The system normalizes their ratio to 100%, derives retail sentiment, and feeds the weighted sentiment indicator into all downstream scoring.</p>
+              <p className="text-[10px] font-mono-code text-slate-500 mt-1">Enter only the Long % and Short %. The higher percentage shows what retail is thinking. The model then reads that retail positioning contrarianly: retail Long-heavy produces bearish model sentiment, while retail Short-heavy produces bullish model sentiment. The percentage gap is fed into the weighted sentiment indicator and downstream scoring.</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -151,7 +151,7 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
 
       <section className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4">
         <div className="text-[10px] font-mono-code text-slate-400">
-          <span className="text-slate-200 font-bold">Calculation:</span> The entered Long/Short values are treated as relative percentages and normalized internally to 100%. Retail long-heavy is contrarian bearish; retail short-heavy is contrarian bullish. The resulting score is used by the Retail Sentiment category and pair/asset calculations. This is a configurable model rule, not a guarantee of future price direction.
+          <span className="text-slate-200 font-bold">Calculation:</span> The higher Long/Short percentage is the observed retail side. The model does not copy that view: it uses the opposite direction as the contrarian model signal, with the raw percentage gap as the score. That score is used by the weighted Retail Sentiment category and pair/asset calculations. This is a configurable model rule, not a guarantee of future price direction.
         </div>
       </section>
     </div>
