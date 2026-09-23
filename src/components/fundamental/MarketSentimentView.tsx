@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import {
   PairSentimentRecord,
+  MarketSentimentRecord,
 } from '../../types/fundamentalIndicatorTypes';
+import { CURRENCIES } from '../../data/fundamentalRegistryData';
 import { calculateSentimentMetrics } from '../../utils/fundamentalCalculationEngine';
 import {
   Users,
@@ -18,15 +20,34 @@ import {
 } from 'lucide-react';
 
 interface MarketSentimentViewProps {
+  /** Fundamental currency sentiment that feeds the deterministic currency score. */
+  currencySentimentRecords?: MarketSentimentRecord[];
+  onUpdateCurrencySentimentRecord?: (record: MarketSentimentRecord) => void;
+  /** Retail pair sentiment remains contextual and separate from fundamentals. */
   sentimentRecords?: PairSentimentRecord[];
   onUpdateSentimentRecords?: (records: PairSentimentRecord[]) => void;
 }
 
 export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
+  currencySentimentRecords = [],
+  onUpdateCurrencySentimentRecord,
   sentimentRecords = [],
   onUpdateSentimentRecords,
 }) => {
+  const [currencyRecords, setCurrencyRecords] = useState<MarketSentimentRecord[]>(currencySentimentRecords);
   const [records, setRecords] = useState<PairSentimentRecord[]>(sentimentRecords);
+  const [editingCurrency, setEditingCurrency] = useState<string | null>(null);
+  const [currencyForm, setCurrencyForm] = useState({
+    globalRiskRegime: 'NEUTRAL' as MarketSentimentRecord['globalRiskRegime'],
+    currencySentiment: 'NEUTRAL' as MarketSentimentRecord['currencySentiment'],
+    newsSentiment: 'NEUTRAL' as MarketSentimentRecord['newsSentiment'],
+    centralBankTone: 'NEUTRAL' as MarketSentimentRecord['centralBankTone'],
+    sentimentConfidence: '0',
+    source: '',
+    date: '',
+    time: '',
+    notes: '',
+  });
   const [selectedPair, setSelectedPair] = useState<string>('EURUSD');
   const [editingItem, setEditingItem] = useState<PairSentimentRecord | null>(null);
   const [editForm, setEditForm] = useState({
@@ -37,6 +58,57 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
     shortPositions: 0,
     reportTimestamp: '',
     source: 'Myfxbook Community Outlook',
+  });
+
+  React.useEffect(() => setCurrencyRecords(currencySentimentRecords), [currencySentimentRecords]);
+
+  const startCurrencyEdit = (record: MarketSentimentRecord) => {
+    setEditingCurrency(record.currency);
+    setCurrencyForm({
+      globalRiskRegime: record.globalRiskRegime,
+      currencySentiment: record.currencySentiment,
+      newsSentiment: record.newsSentiment,
+      centralBankTone: record.centralBankTone,
+      sentimentConfidence: String(record.sentimentConfidence || 0),
+      source: record.source || '',
+      date: record.date || '',
+      time: record.time || '',
+      notes: record.notes || '',
+    });
+  };
+
+  const saveCurrencySentiment = (record: MarketSentimentRecord) => {
+    const confidence = Number(currencyForm.sentimentConfidence);
+    if (!Number.isFinite(confidence) || confidence <= 0 || confidence > 100) return;
+    const updated: MarketSentimentRecord = {
+      ...record,
+      ...currencyForm,
+      sentimentConfidence: confidence,
+      isEntered: true,
+      updatedAt: new Date().toISOString(),
+    };
+    const next = currencyRecords.some((r) => r.currency === updated.currency)
+      ? currencyRecords.map((r) => r.currency === updated.currency ? updated : r)
+      : [...currencyRecords, updated];
+    setCurrencyRecords(next);
+    onUpdateCurrencySentimentRecord?.(updated);
+    setEditingCurrency(null);
+  };
+
+  const blankCurrencyRecord = (currency: MarketSentimentRecord['currency']): MarketSentimentRecord => ({
+    id: 'sent_' + currency.toLowerCase(),
+    currency,
+    globalRiskRegime: 'NEUTRAL',
+    currencySentiment: 'NEUTRAL',
+    newsSentiment: 'NEUTRAL',
+    centralBankTone: 'NEUTRAL',
+    sentimentConfidence: 0,
+    source: '',
+    date: '',
+    time: '',
+    notes: '',
+    updatedAt: '',
+    isEntered: false,
   });
 
   const currentItem = records.find((r) => r.pair === selectedPair) || records[0] || null;
@@ -159,6 +231,47 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
           })}
         </div>
       </div>
+
+      {/* Currency Fundamental Sentiment — this is the sentiment input that feeds currency scoring. */}
+      <section className="bg-slate-950/80 border border-cyan-500/20 rounded-2xl p-5 shadow-2xl space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+          <div>
+            <h3 className="text-sm font-military font-bold text-slate-100 uppercase tracking-wider">Currency Fundamental Sentiment Input</h3>
+            <p className="text-xs font-mono-code text-slate-400 mt-1">These eight currency records feed the deterministic SENTIMENT category. Retail pair sentiment below remains separate contextual data.</p>
+          </div>
+          <span className="px-2.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-[10px] font-mono-code text-cyan-300">8 CURRENCIES</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          {CURRENCIES.map((meta) => {
+            const record = currencyRecords.find((r) => r.currency === meta.code) || blankCurrencyRecord(meta.code);
+            const editing = editingCurrency === meta.code;
+            return <div key={meta.code} className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2"><span>{meta.flag}</span><span className="font-military font-bold text-slate-100">{meta.code}</span></div>
+                <button type="button" onClick={() => editing ? setEditingCurrency(null) : startCurrencyEdit(record)} className="px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-[10px] font-military font-bold text-cyan-300 hover:border-cyan-400">{editing ? 'CLOSE' : 'INPUT / EDIT'}</button>
+              </div>
+              {!editing ? <div className="grid grid-cols-2 gap-2 text-[10px] font-mono-code">
+                <div><span className="text-slate-500 block">STATUS</span><span className={record.isEntered === false ? 'text-amber-300' : 'text-emerald-300'}>{record.isEntered === false ? 'INPUT REQUIRED' : 'ACTIVE'}</span></div>
+                <div><span className="text-slate-500 block">CONFIDENCE</span><span className="text-slate-300">{record.isEntered === false ? '—' : record.sentimentConfidence + '%'}</span></div>
+                <div><span className="text-slate-500 block">CURRENCY</span><span className="text-slate-300">{record.currencySentiment}</span></div>
+                <div><span className="text-slate-500 block">RISK</span><span className="text-slate-300">{record.globalRiskRegime.replace('_', ' ')}</span></div>
+              </div> : <div className="space-y-2 text-[10px] font-mono-code">
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-slate-400">Global Risk<select value={currencyForm.globalRiskRegime} onChange={(e) => setCurrencyForm({...currencyForm, globalRiskRegime: e.target.value as MarketSentimentRecord['globalRiskRegime']})} className="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100"><option>RISK_ON</option><option>NEUTRAL</option><option>RISK_OFF</option></select></label>
+                  <label className="text-slate-400">Currency<select value={currencyForm.currencySentiment} onChange={(e) => setCurrencyForm({...currencyForm, currencySentiment: e.target.value as MarketSentimentRecord['currencySentiment']})} className="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100"><option>BULLISH</option><option>NEUTRAL</option><option>BEARISH</option></select></label>
+                  <label className="text-slate-400">News<select value={currencyForm.newsSentiment} onChange={(e) => setCurrencyForm({...currencyForm, newsSentiment: e.target.value as MarketSentimentRecord['newsSentiment']})} className="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100"><option>BULLISH</option><option>NEUTRAL</option><option>BEARISH</option></select></label>
+                  <label className="text-slate-400">Central Bank<select value={currencyForm.centralBankTone} onChange={(e) => setCurrencyForm({...currencyForm, centralBankTone: e.target.value as MarketSentimentRecord['centralBankTone']})} className="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100"><option>HAWKISH</option><option>NEUTRAL</option><option>DOVISH</option></select></label>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-slate-400">Confidence %<input type="number" min="1" max="100" step="1" value={currencyForm.sentimentConfidence} onChange={(e) => setCurrencyForm({...currencyForm, sentimentConfidence: e.target.value})} className="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100" /></label>
+                  <label className="text-slate-400">Source<input value={currencyForm.source} onChange={(e) => setCurrencyForm({...currencyForm, source: e.target.value})} placeholder="Verified source" className="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100" /></label>
+                </div>
+                <div className="flex justify-end"><button type="button" onClick={() => saveCurrencySentiment(record)} className="px-3 py-2 rounded-lg bg-cyan-400 text-slate-950 font-military font-bold">SAVE SENTIMENT</button></div>
+              </div>}
+            </div>;
+          })}
+        </div>
+      </section>
 
       {!currentItem ? (
         <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-2xl text-center space-y-3">
