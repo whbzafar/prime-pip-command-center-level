@@ -430,15 +430,15 @@ export const FundamentalIndicators: React.FC = () => {
 
   // Trigger PDF Report Generation (Strict PDF-only export, Section 46)
   const handleExportPdf = () => {
-    const { topBullish, topBearish } = calculateLongTermPairRankings(currencyScores, observations);
+    const { topBullish, topBearish } = calculateLongTermPairRankings(currencyScores, observations, retailPositioning);
 
     const goldObs = DEFAULT_COMMODITY_OBSERVATIONS.find((c) => c.symbol === 'GOLD') || DEFAULT_COMMODITY_OBSERVATIONS[0];
     const silverObs = DEFAULT_COMMODITY_OBSERVATIONS.find((c) => c.symbol === 'SILVER') || DEFAULT_COMMODITY_OBSERVATIONS[2];
     const oilObs = DEFAULT_COMMODITY_OBSERVATIONS.find((c) => c.symbol === 'CRUDE_OIL') || DEFAULT_COMMODITY_OBSERVATIONS[1];
 
-    const goldScore = calculateCommodityFundamentalScore(goldObs);
-    const silverScore = calculateCommodityFundamentalScore(silverObs);
-    const oilScore = calculateCommodityFundamentalScore(oilObs);
+    const goldScore = calculateCommodityFundamentalScore(goldObs, retailPositioning.find((r) => r.asset === 'GOLD'));
+    const silverScore = calculateCommodityFundamentalScore(silverObs, retailPositioning.find((r) => r.asset === 'SILVER'));
+    const oilScore = calculateCommodityFundamentalScore(oilObs, retailPositioning.find((r) => r.asset === 'CRUDE_OIL'));
 
     generateFundamentalIntelligencePdf({
       snapshotId: `SNAP_${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}`,
