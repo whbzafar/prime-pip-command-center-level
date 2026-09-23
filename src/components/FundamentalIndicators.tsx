@@ -47,6 +47,7 @@ import { DataQualityAuditView } from './fundamental/DataQualityAuditView';
 import { ModelWeightsRegistryView } from './fundamental/ModelWeightsRegistryView';
 import { FundamentalMethodologyView } from './fundamental/FundamentalMethodologyView';
 import { FundamentalLiveSearch } from './fundamental/FundamentalLiveSearch';
+import { FundamentalAssetCommandCenter } from './fundamental/FundamentalAssetCommandCenter';
 
 // Modals
 import { ModelAuditModal } from './fundamental/ModelAuditModal';
@@ -183,6 +184,8 @@ export const FundamentalIndicators: React.FC = () => {
   });
 
   // Interest Rates state with localStorage persistence
+  const [commodityObservations, setCommodityObservations] = useState(DEFAULT_COMMODITY_OBSERVATIONS);
+
   const [interestRates, setInterestRates] = useState<InterestRateRecord[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_RATES_KEY);
@@ -245,6 +248,11 @@ export const FundamentalIndicators: React.FC = () => {
       console.error('Failed to save fundamental observations', e);
     }
   }, [observations]);
+
+  // Save commodity observations when updated
+  useEffect(() => {
+    try { localStorage.setItem('primepip_fundamental_commodities_v2', JSON.stringify(commodityObservations)); } catch (e) { console.error('Failed to save commodity observations', e); }
+  }, [commodityObservations]);
 
   // Save interest rates when updated
   useEffect(() => {
@@ -349,6 +357,10 @@ export const FundamentalIndicators: React.FC = () => {
   };
 
   // Interest Rate Update Handler
+  const handleUpdateCommodity = (updated: (typeof DEFAULT_COMMODITY_OBSERVATIONS)[number]) => {
+    setCommodityObservations((prev) => prev.map((item) => item.symbol === updated.symbol ? updated : item));
+  };
+
   const handleUpdateInterestRate = (updated: InterestRateRecord) => {
     setInterestRates((prev) =>
       prev.map((r) => (r.currency === updated.currency ? updated : r))
@@ -359,11 +371,13 @@ export const FundamentalIndicators: React.FC = () => {
   const handleRestoreBaseline = () => {
     if (window.confirm('Reset all indicators, weights, COT, and sentiment to verified institutional baseline?')) {
       setObservations(DEFAULT_OBSERVATIONS);
+      setCommodityObservations(DEFAULT_COMMODITY_OBSERVATIONS);
       setCategoryWeights(DEFAULT_CATEGORY_WEIGHTS);
       setSentimentRecords(DEFAULT_SENTIMENT_RECORDS);
       setCotRecords(DEFAULT_COT_RECORDS);
       setInterestRates(DEFAULT_INTEREST_RATES);
       localStorage.removeItem(LOCAL_STORAGE_OBSERVATIONS_KEY);
+      localStorage.removeItem('primepip_fundamental_commodities_v2');
       localStorage.removeItem(LOCAL_STORAGE_WEIGHTS_KEY);
       localStorage.removeItem(LOCAL_STORAGE_SENTIMENT_KEY);
       localStorage.removeItem(LOCAL_STORAGE_COT_KEY);
@@ -521,7 +535,7 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
   };
 
   const navTabs: { id: FundamentalDashboardTab; label: string; icon: any }[] = [
-    { id: 'OVERVIEW', label: 'Overview', icon: Landmark },
+    { id: 'OVERVIEW', label: '11 Assets', icon: Landmark },
     { id: 'WORKSPACES', label: 'Workspaces', icon: Layers },
     { id: 'ECONOMIC_DATA_MASTER', label: 'Data Master', icon: Database },
     { id: 'MATRIX', label: 'Matrix', icon: BarChart3 },
@@ -737,15 +751,10 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
       )}
 
       {activeTab === 'OVERVIEW' && (
-        <OverviewView
+        <FundamentalAssetCommandCenter
           currencyScores={currencyScores}
-          pairDifferentials={pairDifferentials}
-          onSelectCurrency={(c) => {
-            setActiveCurrency(c);
-            setActiveTab('WORKSPACES');
-          }}
-          onOpenPairModal={(p) => setActivePairModal(p)}
-          onNavigateTab={(tab) => setActiveTab(tab)}
+          commodityObservations={commodityObservations}
+          onCommodityUpdate={handleUpdateCommodity}
         />
       )}
 
