@@ -4,6 +4,7 @@ import {
   CommodityObservation,
   CurrencyCode,
   CurrencyScoreResult,
+  RetailPositioningRecord,
 } from '../../types/fundamentalIndicatorTypes';
 import { CURRENCIES } from '../../data/fundamentalRegistryData';
 import { calculateCommodityFundamentalScore } from '../../utils/fundamentalCalculationEngine';
