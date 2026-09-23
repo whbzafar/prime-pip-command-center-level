@@ -987,11 +987,11 @@ app.post('/api/fundamental/generate-commodity', async (req, res) => {
       'Commodity: ' + COMMODITY_NAMES[symbol],
       'Mode: ' + mode,
       existing ? 'Existing observation for comparison: ' + JSON.stringify(existing) : 'No existing observation.',
-      'Research the latest reliable evidence for current price and directional sentiment.',
-      'For Gold consider real yields, inflation expectations, central-bank demand and COT positioning. For Silver consider industrial demand, gold/silver relationship and COT. For WTI consider supply/demand, inventories, OPEC policy and COT.',
-      'Use current web-grounded information. Prefer official sources such as EIA, CFTC, government agencies and established commodity institutions. Do not invent values.',
+      'Research the latest reliable evidence for current price, directional sentiment, and the structured macro drivers below.',
+      'For Gold consider real yields, inflation expectations, central-bank demand, geopolitical risk and COT positioning. For Silver consider real yields, industrial demand, China/global manufacturing, gold/silver relationship and COT. For WTI consider global demand, US/China demand, supply, inventories, OPEC+ policy, refinery demand, geopolitical disruption and COT.',
+      'Use current web-grounded information. Prefer official primary sources such as Federal Reserve/Treasury, EIA, CFTC, OPEC, government agencies, World Gold Council and Silver Institute. Do not invent values. If a driver is not verifiable, return null for that field.',
       'Return JSON only:',
-      '{ "price": number|null, "sentiment": "BULLISH"|"NEUTRAL"|"BEARISH", "sentimentConfidence": number, "sourceName": string, "sourceUrl": string, "drivers": string[], "notes": string }',
+      '{ "price": number|null, "sentiment": "BULLISH"|"NEUTRAL"|"BEARISH", "sentimentConfidence": number, "sourceName": string, "sourceUrl": string, "drivers": string[], "notes": string, "usRealYield10Y": number|null, "inflationBreakeven5Y": number|null, "centralBankDemandTone": "AGGRESSIVE_BUYING"|"STEADY"|"SLOW"|null, "industrialDemandTone": "STRONG"|"NEUTRAL"|"WEAK"|null, "geopoliticalRiskLevel": "HIGH"|"MODERATE"|"LOW"|null, "supplyDemandBalance": "SURPLUS"|"BALANCED"|"DEFICIT"|null, "inventoriesWeeklySurpriseMb": number|null, "opecPolicyTone": "DEFENDING_FLOOR"|"STEADY_PRODUCTION"|"EXPANDING_SUPPLY"|null }',
     ].join('\n');
 
     const { parsed, sources, searchQueries } = await groundedJsonResearch(prompt);
@@ -1013,6 +1013,14 @@ app.post('/api/fundamental/generate-commodity', async (req, res) => {
       confidence: Math.max(0, Math.min(100, finiteOrNull(parsed.confidence) ?? finiteOrNull(parsed.sentimentConfidence) ?? 0)),
       notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
       drivers: Array.isArray(parsed.drivers) ? parsed.drivers.filter((item: any) => typeof item === 'string').slice(0, 8) : [],
+      usRealYield10Y: finiteOrNull(parsed.usRealYield10Y) ?? undefined,
+      inflationBreakeven5Y: finiteOrNull(parsed.inflationBreakeven5Y) ?? undefined,
+      centralBankDemandTone: ['AGGRESSIVE_BUYING', 'STEADY', 'SLOW'].includes(parsed.centralBankDemandTone) ? parsed.centralBankDemandTone : undefined,
+      industrialDemandTone: ['STRONG', 'NEUTRAL', 'WEAK'].includes(parsed.industrialDemandTone) ? parsed.industrialDemandTone : undefined,
+      geopoliticalRiskLevel: ['HIGH', 'MODERATE', 'LOW'].includes(parsed.geopoliticalRiskLevel) ? parsed.geopoliticalRiskLevel : undefined,
+      supplyDemandBalance: ['SURPLUS', 'BALANCED', 'DEFICIT'].includes(parsed.supplyDemandBalance) ? parsed.supplyDemandBalance : undefined,
+      inventoriesWeeklySurpriseMb: finiteOrNull(parsed.inventoriesWeeklySurpriseMb) ?? undefined,
+      opecPolicyTone: ['DEFENDING_FLOOR', 'STEADY_PRODUCTION', 'EXPANDING_SUPPLY'].includes(parsed.opecPolicyTone) ? parsed.opecPolicyTone : undefined,
       sources,
       searchQueries,
     });
