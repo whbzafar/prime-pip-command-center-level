@@ -32,21 +32,21 @@ const ASSETS: AssetDefinition[] = [
     code: 'XAU',
     name: 'Gold (XAU/USD)',
     type: 'COMMODITY',
-    essentialIndicators: ['US 10Y real yield', 'US 2Y/10Y yields', 'Fed expected path', 'Inflation expectations', 'Central-bank demand', 'ETF/physical demand', 'Geopolitical risk', 'COT non-commercial positioning', 'USD relationship'],
+    essentialIndicators: ['US 10Y real yield', 'US 2Y/10Y yields', 'Fed expected path', 'Inflation expectations', 'Central-bank demand', 'ETF/physical demand', 'Geopolitical risk', 'Retail contrarian positioning', 'USD relationship'],
     relationships: ['USD ↔ Gold', 'Gold ↔ real yields', 'Gold/Silver ratio'],
   },
   {
     code: 'XAG',
     name: 'Silver (XAG/USD)',
     type: 'COMMODITY',
-    essentialIndicators: ['US 10Y real yield', 'USD', 'Global manufacturing PMI', 'China industrial demand', 'Solar/electronics demand', 'Mine supply/recycling', 'Gold/Silver ratio', 'COT non-commercial positioning', 'Risk regime'],
+    essentialIndicators: ['US 10Y real yield', 'USD', 'Global manufacturing PMI', 'China industrial demand', 'Solar/electronics demand', 'Mine supply/recycling', 'Gold/Silver ratio', 'Retail contrarian positioning', 'Risk regime'],
     relationships: ['USD ↔ Silver', 'Silver ↔ industrial cycle', 'Gold/Silver ratio'],
   },
   {
     code: 'WTI',
     name: 'Crude Oil (WTI)',
     type: 'COMMODITY',
-    essentialIndicators: ['Global demand growth', 'US/China demand', 'OPEC+ policy', 'Non-OPEC supply', 'US production', 'EIA crude inventories/SPR', 'Refinery utilization', 'Futures curve', 'Geopolitical disruptions', 'COT non-commercial positioning'],
+    essentialIndicators: ['Global demand growth', 'US/China demand', 'OPEC+ policy', 'Non-OPEC supply', 'US production', 'EIA crude inventories/SPR', 'Refinery utilization', 'Futures curve', 'Geopolitical disruptions', 'Retail contrarian positioning'],
     relationships: ['USD ↔ WTI', 'CAD ↔ WTI', 'WTI ↔ global growth'],
   },
 ];
@@ -215,7 +215,7 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
               <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-xl border border-slate-800 bg-slate-950/80 p-2 text-center font-mono-code">
                 <div><div className="text-[9px] text-slate-500">SCORE</div><div className="font-bold">{incomplete ? '—' : (score > 0 ? '+' : '') + score}</div></div>
                 <div><div className="text-[9px] text-slate-500">COVERAGE</div><div className="font-bold">{coverage}%</div></div>
-                <div><div className="text-[9px] text-slate-500">COT</div><div className="font-bold text-slate-300">{currency?.categoryScores?.COT_POSITIONING?.activeCount ? 'LIVE' : asset.type === 'CURRENCY' ? 'WAITING' : 'INPUT'}</div></div>
+                <div><div className="text-[9px] text-slate-500">COT</div><div className="font-bold text-slate-300">{asset.type === 'CURRENCY' ? (currency?.categoryScores?.COT_POSITIONING?.activeCount ? 'LIVE' : 'WAITING') : 'SEPARATE'}</div></div>
                 <div><div className="text-[9px] text-slate-500">RETAIL SENTIMENT</div><div className={retailScore === null ? 'font-bold text-amber-300' : retailScore > 0 ? 'font-bold text-emerald-300' : retailScore < 0 ? 'font-bold text-rose-300' : 'font-bold text-slate-300'}>{retailScore === null ? 'INPUT' : (retailScore > 0 ? '+' : '') + retailScore + ' · ' + retailLabel}</div></div>
               </div>
 
