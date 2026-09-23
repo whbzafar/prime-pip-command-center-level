@@ -22,6 +22,7 @@ import {
 interface CommoditiesMacroViewProps {
   usdScore?: CurrencyScoreResult;
   commodityObservations?: CommodityObservation[];
+  retailPositioning?: RetailPositioningRecord[];
   onUpdateCommodity?: (observation: CommodityObservation) => void;
   onRequestAiExplanation?: (commodity: string) => void;
 }
@@ -29,6 +30,7 @@ interface CommoditiesMacroViewProps {
 export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   usdScore,
   commodityObservations,
+  retailPositioning = [],
   onUpdateCommodity,
   onRequestAiExplanation,
 }) => {
@@ -69,7 +71,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   }, [commodityData, commodityObservations]);
 
   const currentObs = commodityData.find((c) => c.symbol === activeCommodity) || commodityData[0];
-  const calculated = calculateCommodityFundamentalScore(currentObs);
+  const calculated = calculateCommodityFundamentalScore(currentObs, retailPositioning.find((r) => r.asset === currentObs.symbol));
   const commodityDataComplete =
     currentObs.symbol === 'GOLD'
       ? currentObs.price > 0 && currentObs.usRealYield10Y !== undefined && currentObs.inflationBreakeven5Y !== undefined && currentObs.centralBankDemandTone !== undefined && currentObs.geopoliticalRiskLevel !== undefined && currentObs.sentiment !== undefined
