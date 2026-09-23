@@ -46,6 +46,8 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
   };
 
   const sortedPairs = [...allPairs].sort((a, b) => getScoreForHorizon(b) - getScoreForHorizon(a));
+  const topBullishForHorizon = sortedPairs.slice(0, 5);
+  const topBearishForHorizon = [...sortedPairs].reverse().slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -126,7 +128,7 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
           </div>
 
           <div className="space-y-2">
-            {topBullish.map((item) => {
+            {topBullishForHorizon.map((item) => {
               const score = getScoreForHorizon(item);
               return (
                 <div
@@ -167,7 +169,7 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
           </div>
 
           <div className="space-y-2">
-            {topBearish.map((item) => {
+            {topBearishForHorizon.map((item) => {
               const score = getScoreForHorizon(item);
               return (
                 <div
