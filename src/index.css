@@ -711,9 +711,8 @@ html[data-theme='arc-neon'] {
 #root {
   min-height: 100dvh;
   width: 100%;
-  /* Secondary whole-app luminance pass so fixed-color components respond too. */
-  filter: brightness(clamp(0.9, calc(0.75 + (var(--prime-intensity, 1) * 0.25)), 1.15));
-  transition: filter 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Do not apply filter/transform to #root: it would create a containing block
+     for position:fixed overlays and make the Theme Studio appear off-screen. */
 }
 
 html, body {
