@@ -859,6 +859,8 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
       {activeTab === 'COMMODITIES' && (
         <CommoditiesMacroView
           usdScore={currencyScores.USD}
+          commodityObservations={commodityObservations}
+          onUpdateCommodity={handleUpdateCommodity}
           onRequestAiExplanation={(comm) => handleRequestAiExplanation(comm as any)}
         />
       )}
