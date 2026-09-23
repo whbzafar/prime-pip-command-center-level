@@ -191,8 +191,8 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
           const usdScore = currencyScores.USD?.score ?? 0;
           const usdReady = (currencyScores.USD?.dataCoveragePercent ?? 0) >= 75 && currencyScores.USD?.freshnessStatus !== 'INCOMPLETE';
           const usdRelativeScore = commodityScore && usdReady ? Math.round(Math.max(-100, Math.min(100, (commodityScore.score - usdScore) / 2))) : null;
-          const coverage = currency?.dataCoveragePercent ?? (commodity ? commodityCoverage(commodity) : 0);
-          const incomplete = asset.type === 'CURRENCY' ? coverage < 75 : coverage < 60;
+          const coverage = currency?.dataCoveragePercent ?? (commodity ? commodityCoverage(commodity, retailRecord) : 0);
+          const incomplete = asset.type === 'CURRENCY' ? coverage < 75 : coverage < 100;
           const symbol = asset.code === 'XAU' ? 'GOLD' : asset.code === 'XAG' ? 'SILVER' : 'CRUDE_OIL';
           const icon = asset.code === 'XAU' ? <Gem className="w-5 h-5" /> : asset.code === 'XAG' ? <Coins className="w-5 h-5" /> : asset.code === 'WTI' ? <Droplets className="w-5 h-5" /> : <BarChart3 className="w-5 h-5" />;
 
@@ -296,18 +296,34 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
   );
 };
 
-function commodityCoverage(obs: CommodityObservation): number {
-  const fields = [
-    obs.price > 0,
-    obs.usRealYield10Y !== undefined,
-    obs.inflationBreakeven5Y !== undefined,
-    obs.centralBankDemandTone !== undefined,
-    obs.industrialDemandTone !== undefined,
-    obs.supplyDemandBalance !== undefined,
-    obs.inventoriesWeeklySurpriseMb !== undefined,
-    obs.opecPolicyTone !== undefined,
-    obs.geopoliticalRiskLevel !== undefined,
-    obs.sentiment !== undefined,
-  ];
+function commodityCoverage(obs: CommodityObservation, retailRecord?: RetailPositioningRecord): number {
+  const fields = obs.symbol === 'GOLD'
+    ? [
+        obs.price > 0,
+        obs.usRealYield10Y !== undefined,
+        obs.inflationBreakeven5Y !== undefined,
+        obs.centralBankDemandTone !== undefined,
+        obs.geopoliticalRiskLevel !== undefined,
+        obs.sentiment !== undefined,
+        retailRecord?.isEntered === true,
+      ]
+    : obs.symbol === 'SILVER'
+    ? [
+        obs.price > 0,
+        obs.usRealYield10Y !== undefined,
+        obs.industrialDemandTone !== undefined,
+        obs.geopoliticalRiskLevel !== undefined,
+        obs.sentiment !== undefined,
+        retailRecord?.isEntered === true,
+      ]
+    : [
+        obs.price > 0,
+        obs.supplyDemandBalance !== undefined,
+        obs.inventoriesWeeklySurpriseMb !== undefined,
+        obs.opecPolicyTone !== undefined,
+        obs.sentiment !== undefined,
+        retailRecord?.isEntered === true,
+      ];
+
   return Math.round((fields.filter(Boolean).length / fields.length) * 100);
 }
