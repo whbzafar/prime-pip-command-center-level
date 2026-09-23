@@ -261,7 +261,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={handleMouseLeave}
-      className="min-h-screen w-full bg-[#030712] text-slate-100 flex flex-col items-center justify-center p-3 sm:p-6 lg:p-10 relative overflow-x-hidden selection:bg-cyan-500/30 selection:text-cyan-200"
+      className="min-h-screen min-h-[100dvh] w-full bg-[#030712] text-slate-100 flex items-center justify-center p-3 sm:p-6 lg:p-8 relative overflow-x-hidden overflow-y-auto selection:bg-cyan-500/30 selection:text-cyan-200"
       style={{ perspective: '1200px' }}
     >
       {/* Dynamic Ambient Background Elements */}
@@ -305,7 +305,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         initial={{ opacity: 0, y: -20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-md mb-5 z-20"
+        className="absolute top-[max(0.75rem,env(safe-area-inset-top))] left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-md z-20"
       >
         <div className="relative group p-[1px] rounded-full bg-gradient-to-r from-cyan-500/40 via-blue-500/20 to-amber-500/40 shadow-xl shadow-cyan-950/40 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-2.5 rounded-full bg-slate-950/80 border border-white/5">
@@ -337,7 +337,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       </motion.div>
 
       {/* Main 3D Container Holding Central Card & Desktop Floating HUD Elements */}
-      <div className="relative w-full max-w-5xl flex items-center justify-center z-10">
+      <div className="relative w-full max-w-6xl mx-auto flex items-center justify-center z-10">
         {/* Floating HUD Card 1: Top-Left (Desktop Only) */}
         <motion.div
           animate={{
@@ -346,7 +346,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
             rotateZ: isHovered ? mousePos.x * -4 : 0,
           }}
           transition={{ type: 'spring', damping: 25, stiffness: 120 }}
-          className="hidden lg:flex flex-col gap-1.5 absolute -left-12 top-10 w-60 p-4 rounded-2xl bg-slate-900/60 border border-cyan-500/20 backdrop-blur-xl shadow-2xl shadow-cyan-950/30 pointer-events-none z-0"
+          className="hidden 2xl:flex flex-col gap-1.5 absolute -left-12 top-10 w-60 p-4 rounded-2xl bg-slate-900/60 border border-cyan-500/20 backdrop-blur-xl shadow-2xl shadow-cyan-950/30 pointer-events-none z-0"
         >
           <div className="flex items-center justify-between text-xs font-mono-code">
             <span className="text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-bold">
@@ -377,7 +377,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
             rotateZ: isHovered ? mousePos.x * 5 : 0,
           }}
           transition={{ type: 'spring', damping: 25, stiffness: 120 }}
-          className="hidden lg:flex flex-col gap-1.5 absolute -right-12 top-8 w-60 p-4 rounded-2xl bg-slate-900/60 border border-amber-500/20 backdrop-blur-xl shadow-2xl shadow-amber-950/30 pointer-events-none z-0"
+          className="hidden 2xl:flex flex-col gap-1.5 absolute -right-12 top-8 w-60 p-4 rounded-2xl bg-slate-900/60 border border-amber-500/20 backdrop-blur-xl shadow-2xl shadow-amber-950/30 pointer-events-none z-0"
         >
           <div className="flex items-center justify-between text-xs font-mono-code">
             <span className="text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-bold">
@@ -405,7 +405,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
             rotateZ: isHovered ? mousePos.x * -3 : 0,
           }}
           transition={{ type: 'spring', damping: 25, stiffness: 120 }}
-          className="hidden lg:flex flex-col gap-1.5 absolute -left-12 bottom-12 w-60 p-4 rounded-2xl bg-slate-900/60 border border-blue-500/20 backdrop-blur-xl shadow-2xl shadow-blue-950/30 pointer-events-none z-0"
+          className="hidden 2xl:flex flex-col gap-1.5 absolute -left-12 bottom-12 w-60 p-4 rounded-2xl bg-slate-900/60 border border-blue-500/20 backdrop-blur-xl shadow-2xl shadow-blue-950/30 pointer-events-none z-0"
         >
           <div className="flex items-center justify-between text-xs font-mono-code">
             <span className="text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-bold">
@@ -432,7 +432,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
             rotateZ: isHovered ? mousePos.x * 4 : 0,
           }}
           transition={{ type: 'spring', damping: 25, stiffness: 120 }}
-          className="hidden lg:flex flex-col gap-1.5 absolute -right-12 bottom-10 w-60 p-4 rounded-2xl bg-slate-900/60 border border-emerald-500/20 backdrop-blur-xl shadow-2xl shadow-emerald-950/30 pointer-events-none z-0"
+          className="hidden 2xl:flex flex-col gap-1.5 absolute -right-12 bottom-10 w-60 p-4 rounded-2xl bg-slate-900/60 border border-emerald-500/20 backdrop-blur-xl shadow-2xl shadow-emerald-950/30 pointer-events-none z-0"
         >
           <div className="flex items-center justify-between text-xs font-mono-code">
             <span className="text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-bold">
@@ -459,13 +459,13 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
             translateZ: isHovered ? 20 : 0,
           }}
           transition={{ type: 'spring', damping: 20, stiffness: 140 }}
-          className="w-full max-w-md relative z-10"
+          className="w-full max-w-md mx-auto relative z-10"
         >
           {/* Iridescent Cyber Rim Glow */}
-          <div className="absolute -inset-[1.5px] rounded-3xl bg-gradient-to-r from-cyan-500 via-blue-600 to-amber-500 opacity-80 blur-[2px] transition duration-500" />
+          <div className="absolute -inset-[1.5px] rounded-3xl bg-gradient-to-r from-cyan-400 via-blue-600 to-violet-500 opacity-85 blur-[2px] transition duration-500" />
 
           {/* Core Frosted Glass Card Body */}
-          <div className="relative rounded-3xl bg-slate-950/90 border border-white/10 p-6 sm:p-8 backdrop-blur-2xl shadow-2xl shadow-cyan-950/50 overflow-hidden">
+          <div className="relative rounded-3xl bg-slate-950/90 border border-white/10 p-6 sm:p-8 backdrop-blur-2xl shadow-2xl shadow-cyan-950/50 overflow-hidden ring-1 ring-cyan-400/10">
             {/* Top Glossy Reflection Sheen */}
             <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
 
