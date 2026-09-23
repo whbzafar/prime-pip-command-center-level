@@ -257,6 +257,8 @@ export interface ModelCategoryWeights {
   SENTIMENT: number;           // e.g. 5
   HOUSING: number;             // e.g. 1
   FISCAL: number;              // e.g. 1
+  /** Explicit weight for currency-specific commodity / terms-of-trade drivers. */
+  COMMODITY_DRIVER?: number;   // e.g. 5
 }
 
 export interface IndicatorScoreResult {
