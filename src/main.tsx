@@ -6,7 +6,7 @@ import './community-layout-fix.css';
 import { applyInterfaceTemplate } from './data/interfaceTemplates';
 
 try {
-  const savedTheme = localStorage.getItem('primepipfx_theme') || 'midnight';
+  const savedTheme = localStorage.getItem('primepipfx_theme') || 'liquid-glass-neon';
   const rawBrightness = localStorage.getItem('primepipfx_brightness');
   // Calibrated brightness (104%) for optimal institutional clarity without washing out UI
   const num = rawBrightness ? Number(rawBrightness) : NaN;
