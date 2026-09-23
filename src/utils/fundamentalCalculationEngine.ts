@@ -7,6 +7,7 @@ import {
   MarketSentimentRecord,
   InterestRateRecord,
   CommodityObservation,
+  RetailPositioningRecord,
   ModelCategoryWeights,
   IndicatorScoreResult,
   CategoryScoreResult,
@@ -182,7 +183,8 @@ export function calculateCategoryScores(
   customWeights: ModelCategoryWeights = DEFAULT_CATEGORY_WEIGHTS,
   cotRecords: CotPositioningRecord[] = [],
   sentimentRecords: MarketSentimentRecord[],
-  interestRateRecords: InterestRateRecord[]
+  interestRateRecords: InterestRateRecord[],
+  retailPositioning: RetailPositioningRecord[] = []
 ): Record<IndicatorCategory, CategoryScoreResult> {
   const definitions = OFFICIAL_INDICATOR_REGISTRY.filter((d) => d.currency === currency && d.isActive);
   const obsMap = new Map<string, IndicatorObservation>(observations.filter((o) => o.currency === currency).map((o) => [o.indicatorId, o]));
@@ -243,9 +245,11 @@ export function calculateCategoryScores(
     }
 
     if (cat === 'SENTIMENT') {
-      const sent = sentimentRecords.find((s) => s.currency === currency);
-      const sentValid = !!sent && sent.isEntered !== false && Number.isFinite(sent.sentimentConfidence) && sent.sentimentConfidence > 0 && sent.sentimentConfidence <= 100;
-      const sentScore = sentValid ? calculateSentimentScore(sent!) : 0;
+      const retail = retailPositioning.find((r) => r.asset === currency);
+      const sentScore = retail && retail.isEntered !== false && Number.isFinite(retail.longPercent) && Number.isFinite(retail.shortPercent)
+        ? calculateRetailContrarianScore(retail)
+        : 0;
+      const sentValid = !!retail && retail.isEntered !== false && Number.isFinite(retail.longPercent) && Number.isFinite(retail.shortPercent) && Math.abs((retail.longPercent + retail.shortPercent) - 100) < 0.01;
       const weight = customWeights.SENTIMENT || 5;
       results[cat] = {
         category: cat,
@@ -343,6 +347,13 @@ export function calculateCotScore(record: CotPositioningRecord): number {
   return Math.round(Math.max(-100, Math.min(100, netRatio * 500)));
 }
 
+export function calculateRetailContrarianScore(record: RetailPositioningRecord): number {
+  if (record.longPercent < 0 || record.longPercent > 100 || record.shortPercent < 0 || record.shortPercent > 100) return 0;
+  if (Math.abs((record.longPercent + record.shortPercent) - 100) > 0.01) return 0;
+  // User-configured contrarian rule: retail long-heavy => bearish, retail short-heavy => bullish.
+  return Math.round(Math.max(-100, Math.min(100, record.shortPercent - record.longPercent)));
+}
+
 export function calculateSentimentScore(record: MarketSentimentRecord): number {
   let score = 0;
   // Risk regime
@@ -395,6 +406,7 @@ export function calculateCurrencyScore(
   cotRecords: CotPositioningRecord[] = [],
   sentimentRecords: MarketSentimentRecord[] = [],
   interestRateRecords: InterestRateRecord[] = [],
+  retailPositioning: RetailPositioningRecord[] = [],
   modelVersion = '1.0',
   weightsVersion = '1.0'
 ): CurrencyScoreResult {
@@ -407,7 +419,8 @@ export function calculateCurrencyScore(
     customWeights,
     cotRecords,
     sentimentRecords,
-    interestRateRecords
+    interestRateRecords,
+    retailPositioning
   );
 
   let weightedScoreSum = 0;
@@ -649,7 +662,7 @@ export function calculateAllPairDifferentials(
   return majorPairs.map(([base, quote]) => calculatePairDifferential(base, quote, currencyScores, ruleConfig));
 }
 
-export function calculateCommodityFundamentalScore(obs: CommodityObservation): {
+export function calculateCommodityFundamentalScore(obs: CommodityObservation, retailPositioning?: RetailPositioningRecord): {
   score: number;
   bias: 'STRONGLY_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONGLY_BEARISH';
   drivers: { label: string; score: number; impact: string }[];
@@ -726,7 +739,17 @@ export function calculateCommodityFundamentalScore(obs: CommodityObservation): {
     }
   }
 
-  // Sentiment is a distinct contextual input. It is capped so it cannot overpower physical/macro drivers.
+  // Manual retail positioning is a separate, bounded contrarian input.
+  if (retailPositioning?.isEntered !== false && retailPositioning && Number.isFinite(retailPositioning.longPercent) && Number.isFinite(retailPositioning.shortPercent)) {
+    const retailScore = calculateRetailContrarianScore(retailPositioning);
+    const boundedRetailScore = Math.round(retailScore * 0.15);
+    if (boundedRetailScore !== 0) {
+      score += boundedRetailScore;
+      drivers.push({ label: 'Retail Positioning (Contrarian)', score: boundedRetailScore, impact: retailScore > 0 ? 'Bullish: retail is net short' : 'Bearish: retail is net long' });
+    }
+  }
+
+  // Legacy macro/news sentiment remains separate and only applies when present.
   if (obs.sentiment === 'BULLISH') {
     const sentimentScore = Math.min(10, Math.max(0, Math.round((obs.sentimentConfidence ?? 50) / 10)));
     score += sentimentScore;
