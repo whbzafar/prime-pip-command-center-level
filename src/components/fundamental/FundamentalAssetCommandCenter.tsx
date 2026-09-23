@@ -189,7 +189,8 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
           const retailLabel = retailScore === null ? 'INPUT' : retailScore > 0 ? 'BULLISH' : retailScore < 0 ? 'BEARISH' : 'NEUTRAL';
           const score = currency?.score ?? commodityScore?.score ?? 0;
           const usdScore = currencyScores.USD?.score ?? 0;
-          const usdRelativeScore = commodityScore ? Math.round(Math.max(-100, Math.min(100, (commodityScore.score - usdScore) / 2))) : null;
+          const usdReady = (currencyScores.USD?.dataCoveragePercent ?? 0) >= 75 && currencyScores.USD?.freshnessStatus !== 'INCOMPLETE';
+          const usdRelativeScore = commodityScore && usdReady ? Math.round(Math.max(-100, Math.min(100, (commodityScore.score - usdScore) / 2))) : null;
           const coverage = currency?.dataCoveragePercent ?? (commodity ? commodityCoverage(commodity) : 0);
           const incomplete = asset.type === 'CURRENCY' ? coverage < 75 : coverage < 60;
           const symbol = asset.code === 'XAU' ? 'GOLD' : asset.code === 'XAG' ? 'SILVER' : 'CRUDE_OIL';
@@ -218,7 +219,7 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
                 <div><div className="text-[9px] text-slate-500">RETAIL SENTIMENT</div><div className={retailScore === null ? 'font-bold text-amber-300' : retailScore > 0 ? 'font-bold text-emerald-300' : retailScore < 0 ? 'font-bold text-rose-300' : 'font-bold text-slate-300'}>{retailScore === null ? 'INPUT' : (retailScore > 0 ? '+' : '') + retailScore + ' · ' + retailLabel}</div></div>
               </div>
 
-              {commodityScore && (
+              {commodityScore && !incomplete && usdRelativeScore !== null && (
                 <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-2 text-center font-mono-code">
                   <div>
                     <div className="text-[9px] text-slate-500">ABSOLUTE ASSET BIAS</div>
@@ -228,8 +229,8 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
                   </div>
                   <div>
                     <div className="text-[9px] text-slate-500">{asset.code === 'XAU' ? 'XAU/USD' : asset.code === 'XAG' ? 'XAG/USD' : 'WTI/USD'} RELATIVE</div>
-                    <div className={usdRelativeScore! > 0 ? 'font-bold text-emerald-300' : usdRelativeScore! < 0 ? 'font-bold text-rose-300' : 'font-bold text-slate-300'}>
-                      {(usdRelativeScore! > 0 ? '+' : '') + usdRelativeScore}% · {labelForScore(usdRelativeScore!)}
+                    <div className={usdRelativeScore > 0 ? 'font-bold text-emerald-300' : usdRelativeScore < 0 ? 'font-bold text-rose-300' : 'font-bold text-slate-300'}>
+                      {(usdRelativeScore > 0 ? '+' : '') + usdRelativeScore}% · {labelForScore(usdRelativeScore)}
                     </div>
                   </div>
                 </div>
