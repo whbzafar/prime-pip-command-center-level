@@ -480,7 +480,7 @@ export const FundamentalIndicators: React.FC = () => {
       console.warn('AI Explanation call failed, utilizing deterministic fallback synthesis:', err);
       const fallback = `### Institutional Macro Assessment: ${currency}
 **Composite Score:** ${scoreResult.finalCompositeScore > 0 ? `+${scoreResult.finalCompositeScore}` : scoreResult.finalCompositeScore}/100 (${scoreResult.assessmentLabel})
-**Reference Policy Rate:** ${scoreResult.interestRateLevel.toFixed(2)}% | **10Y Benchmark Yield:** ${scoreResult.tenYearBondYield.toFixed(2)}%
+**Reference Policy Rate:** ${scoreResult.interestRateLevel !== undefined ? scoreResult.interestRateLevel.toFixed(2) + '%' : '—'} | **10Y Benchmark Yield:** ${scoreResult.tenYearBondYield !== undefined ? scoreResult.tenYearBondYield.toFixed(2) + '%' : '—'}
 
 #### 1. Core Economic Drivers
 ${scoreResult.primaryDrivers.map((d) => `- **${d}**`).join('\n')}
