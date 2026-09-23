@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Check,
   Palette,
@@ -43,7 +43,7 @@ const ThemeMiniPreview: React.FC<{ template: InterfaceTemplate; isSelected: bool
   isSelected,
 }) => {
   const isLiquidGlass = template.id === 'liquid-glass';
-  const isNeonGlass = template.id === 'liquid-glass-neon' || template.id === 'liquid-glass-ui-kit';
+  const isNeonGlass = template.id === 'liquid-glass-neon';
   const isGlass = Boolean(template.isGlass);
   const isBright = Boolean(template.isBright);
 
@@ -221,7 +221,8 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
   isOpen,
   onClose,
 }) => {
-  const [theme, setTheme] = useState<string>(() => readStored('primepipfx_theme', 'liquid-glass-neon'));
+  const [theme, setTheme] = useState<string>(() => readStored('primepipfx_theme', 'midnight'));
+  const initialThemeApply = useRef(true);
   const [hoveredThemeId, setHoveredThemeId] = useState<string | null>(null);
   const [customThemes, setCustomThemes] = useState<InterfaceTemplate[]>(() => getStoredCustomThemes());
   const [brightness, setBrightness] = useState<number>(() => {
@@ -250,6 +251,14 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
 
   useEffect(() => {
     applyInterfaceTemplate(theme, brightness);
+    if (initialThemeApply.current) {
+      initialThemeApply.current = false;
+      return;
+    }
+    try {
+      localStorage.setItem('primepipfx_visual_style', 'restored');
+    } catch {}
+    delete document.documentElement.dataset.visualStyle;
   }, [theme, brightness]);
 
   // Handle escape key
