@@ -160,6 +160,8 @@ export interface MarketSentimentRecord {
   time: string;
   notes: string;
   updatedAt: string;
+  /** False means the row is a blank input template and must not affect scoring. */
+  isEntered?: boolean;
 }
 
 export interface InterestRateRecord {
@@ -179,6 +181,8 @@ export interface InterestRateRecord {
   realYield10Y?: number;
   sourceUrl: string;
   updatedAt: string;
+  /** False means the row is a blank input template and must not affect scoring. */
+  isEntered?: boolean;
 }
 
 export interface CommodityObservation {
