@@ -223,6 +223,7 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
                 <th className="p-3 text-right">Growth Spread</th>
                 <th className="p-3 text-right">Real Rate Spread</th>
                 <th className="p-3 text-right">Retail Sentiment</th>
+                <th className="p-3 text-right">Commodity Exposure</th>
                 <th className="p-3 text-center">Short Bias</th>
                 <th className="p-3 text-center">Medium Bias</th>
                 <th className="p-3 text-center">Long Bias</th>
@@ -264,6 +265,11 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
                     <td className="p-3 text-right text-cyan-300">
                       {item.structuralFactors.retailSentimentDifferential > 0 ? '+' : ''}{item.structuralFactors.retailSentimentDifferential}
                     </td>
+
+                    <td className="p-3 text-right text-amber-300">
+                      {item.structuralFactors.structuralCommodityExposure > 0 ? '+' : ''}{item.structuralFactors.structuralCommodityExposure}
+                    </td>
+
                     {([
                       ['SHORT', item.shortTermDiff],
                       ['MEDIUM', item.mediumTermDiff],
