@@ -46,8 +46,9 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
   };
 
   const sortedPairs = [...allPairs].sort((a, b) => getScoreForHorizon(b) - getScoreForHorizon(a));
-  const topBullishForHorizon = sortedPairs.slice(0, 5);
-  const topBearishForHorizon = [...sortedPairs].reverse().slice(0, 5);
+  const readyPairs = sortedPairs.filter((item) => item.dataStatus === 'READY');
+  const topBullishForHorizon = readyPairs.slice(0, 5);
+  const topBearishForHorizon = [...readyPairs].reverse().slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -239,35 +240,35 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
                     </td>
 
                     <td className="p-3 text-right text-slate-300">
-                      {item.shortTermDiff > 0 ? `+${item.shortTermDiff}` : item.shortTermDiff}
+                      {item.dataStatus === 'READY' ? (item.shortTermDiff > 0 ? `+${item.shortTermDiff}` : item.shortTermDiff) : '—'}
                     </td>
 
                     <td className="p-3 text-right text-slate-300">
-                      {item.mediumTermDiff > 0 ? `+${item.mediumTermDiff}` : item.mediumTermDiff}
+                      {item.dataStatus === 'READY' ? (item.mediumTermDiff > 0 ? `+${item.mediumTermDiff}` : item.mediumTermDiff) : '—'}
                     </td>
 
                     <td className="p-3 text-right font-military font-bold text-purple-300">
-                      {item.longTermDiff > 0 ? `+${item.longTermDiff}` : item.longTermDiff}
+                      {item.dataStatus === 'READY' ? (item.longTermDiff > 0 ? `+${item.longTermDiff}` : item.longTermDiff) : '—'}
                     </td>
 
                     <td className="p-3 text-right text-slate-400">
-                      {item.structuralFactors.monetaryPolicyRegime > 0 ? `+${item.structuralFactors.monetaryPolicyRegime}` : item.structuralFactors.monetaryPolicyRegime}
+                      {item.dataStatus === 'READY' ? (item.structuralFactors.monetaryPolicyRegime > 0 ? `+${item.structuralFactors.monetaryPolicyRegime}` : item.structuralFactors.monetaryPolicyRegime) : '—'}
                     </td>
 
                     <td className="p-3 text-right text-slate-400">
-                      {item.structuralFactors.growthTrend > 0 ? `+${item.structuralFactors.growthTrend}` : item.structuralFactors.growthTrend}
+                      {item.dataStatus === 'READY' ? (item.structuralFactors.growthTrend > 0 ? `+${item.structuralFactors.growthTrend}` : item.structuralFactors.growthTrend) : '—'}
                     </td>
 
                     <td className="p-3 text-right text-slate-400">
-                      {item.structuralFactors.realRateDifferential > 0 ? `+${item.structuralFactors.realRateDifferential}` : item.structuralFactors.realRateDifferential}
+                      {item.dataStatus === 'READY' ? (item.structuralFactors.realRateDifferential > 0 ? `+${item.structuralFactors.realRateDifferential}` : item.structuralFactors.realRateDifferential) : '—'}
                     </td>
 
                     <td className="p-3 text-right text-cyan-300">
-                      {item.structuralFactors.retailSentimentDifferential > 0 ? '+' : ''}{item.structuralFactors.retailSentimentDifferential}
+                      {item.dataStatus === 'READY' ? (item.structuralFactors.retailSentimentDifferential > 0 ? '+' : '') + item.structuralFactors.retailSentimentDifferential : '—'}
                     </td>
 
                     <td className="p-3 text-right text-amber-300">
-                      {item.structuralFactors.structuralCommodityExposure > 0 ? '+' : ''}{item.structuralFactors.structuralCommodityExposure}
+                      {item.dataStatus === 'READY' ? (item.structuralFactors.structuralCommodityExposure > 0 ? '+' : '') + item.structuralFactors.structuralCommodityExposure : '—'}
                     </td>
 
                     {([
