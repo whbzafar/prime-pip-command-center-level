@@ -199,7 +199,7 @@ export function calculateCategoryScores(
     CONSUMER: 'Consumer Spending & Sentiment',
     TRADE_EXTERNAL: 'Trade & External Balance',
     COT_POSITIONING: 'COT Market Positioning',
-    SENTIMENT: 'Market Sentiment & Risk Regime',
+    SENTIMENT: 'Retail Sentiment (Contrarian)',
     HOUSING: 'Housing & Real Estate',
     FISCAL: 'Fiscal & Government Policy',
     COMMODITY_DRIVER: 'Commodity & Terms of Trade Exposure',
