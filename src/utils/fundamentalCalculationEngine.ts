@@ -244,7 +244,7 @@ export function calculateCategoryScores(
 
     if (cat === 'SENTIMENT') {
       const sent = sentimentRecords.find((s) => s.currency === currency);
-      const sentValid = !!sent && Number.isFinite(sent.sentimentConfidence) && sent.sentimentConfidence >= 0 && sent.sentimentConfidence <= 100;
+      const sentValid = !!sent && sent.isEntered !== false && Number.isFinite(sent.sentimentConfidence) && sent.sentimentConfidence > 0 && sent.sentimentConfidence <= 100;
       const sentScore = sentValid ? calculateSentimentScore(sent!) : 0;
       const weight = customWeights.SENTIMENT || 5;
       results[cat] = {
@@ -262,7 +262,7 @@ export function calculateCategoryScores(
 
     if (cat === 'RATES_YIELDS') {
       const ir = interestRateRecords.find((r) => r.currency === currency);
-      const rateValid = !!ir && Number.isFinite(ir.currentPolicyRate) && Number.isFinite(ir.expectedNextRate) && Number.isFinite(ir.yield2Y) && Number.isFinite(ir.yield10Y);
+      const rateValid = !!ir && ir.isEntered !== false && Number.isFinite(ir.currentPolicyRate) && Number.isFinite(ir.expectedNextRate) && Number.isFinite(ir.yield2Y) && Number.isFinite(ir.yield10Y);
       const yieldScore = rateValid ? calculateInterestRateScore(ir!) : 0;
       const weight = customWeights.RATES_YIELDS || 10;
       results[cat] = {
@@ -484,8 +484,10 @@ export function calculateCurrencyScore(
     score: compositeScore,
     finalCompositeScore: compositeScore,
     primaryDrivers: primarySupport,
-    interestRateLevel: observations.find((o) => o.currency === currency && o.indicatorId.includes('POLICY'))?.actual,
-    tenYearBondYield: observations.find((o) => o.currency === currency && o.indicatorId.includes('10Y'))?.actual,
+    interestRateLevel: interestRateRecords.find((r) => r.currency === currency && Number.isFinite(r.currentPolicyRate))?.currentPolicyRate
+      ?? observations.find((o) => o.currency === currency && o.indicatorId.includes('POLICY'))?.actual,
+    tenYearBondYield: interestRateRecords.find((r) => r.currency === currency && Number.isFinite(r.yield10Y))?.yield10Y
+      ?? observations.find((o) => o.currency === currency && o.indicatorId.includes('10Y'))?.actual,
     categoryScores,
     dataCoveragePercent,
     completedIndicators,
@@ -545,6 +547,9 @@ export function calculatePairDifferential(
   const rateBase = base?.categoryScores?.RATES_YIELDS?.score ?? 0;
   const rateQuote = quote?.categoryScores?.RATES_YIELDS?.score ?? 0;
   const interestRateDifferential = rateBase - rateQuote;
+  const tenYearSpread = base?.tenYearBondYield !== undefined && quote?.tenYearBondYield !== undefined
+    ? Number((base.tenYearBondYield - quote.tenYearBondYield).toFixed(2))
+    : undefined;
 
   const avgCoverage = Math.round(((base?.dataCoveragePercent ?? 100) + (quote?.dataCoveragePercent ?? 100)) / 2);
 
@@ -598,7 +603,7 @@ export function calculatePairDifferential(
     sentimentDifferential,
     interestRateDifferential,
     interestRateSpread: interestRateDifferential,
-    tenYearSpread: rateBase - rateQuote,
+    tenYearSpread,
     dataCoveragePercent: avgCoverage,
     conflictLevel,
     bias,
@@ -719,7 +724,20 @@ export function calculateCommodityFundamentalScore(obs: CommodityObservation): {
       score += 15;
       drivers.push({ label: 'Precious Metals Haven Tone', score: 15, impact: 'Supportive safe-haven contagion from Gold' });
     }
-  } else if (obs.symbol === 'CRUDE_OIL') {
+  }
+
+  // Sentiment is a distinct contextual input. It is capped so it cannot overpower physical/macro drivers.
+  if (obs.sentiment === 'BULLISH') {
+    const sentimentScore = Math.min(10, Math.max(0, Math.round((obs.sentimentConfidence ?? 50) / 10)));
+    score += sentimentScore;
+    drivers.push({ label: 'Market Sentiment', score: sentimentScore, impact: 'Supportive contextual sentiment' });
+  } else if (obs.sentiment === 'BEARISH') {
+    const sentimentScore = -Math.min(10, Math.max(0, Math.round((obs.sentimentConfidence ?? 50) / 10)));
+    score += sentimentScore;
+    drivers.push({ label: 'Market Sentiment', score: sentimentScore, impact: 'Negative contextual sentiment' });
+  }
+
+  if (obs.symbol === 'CRUDE_OIL') {
     // Supply / Demand balance
     if (obs.supplyDemandBalance === 'DEFICIT') {
       score += 35;
