@@ -351,22 +351,21 @@ export function normalizeRetailPositioningPercentages(record: RetailPositioningR
   const long = Number(record.longPercent);
   const short = Number(record.shortPercent);
   if (!Number.isFinite(long) || !Number.isFinite(short) || long < 0 || long > 100 || short < 0 || short > 100) return null;
+  if (long + short <= 0) return null;
 
-  const total = long + short;
-  if (total <= 0) return null;
-
-  return {
-    longPercent: (long / total) * 100,
-    shortPercent: (short / total) * 100,
-  };
+  // These are broker/client positioning percentages. Do NOT force them to sum to 100:
+  // the entered values are preserved as the observed retail positioning data.
+  return { longPercent: long, shortPercent: short };
 }
 
 export function calculateRetailContrarianScore(record: RetailPositioningRecord): number {
-  const normalized = normalizeRetailPositioningPercentages(record);
-  if (!normalized) return 0;
+  const positioning = normalizeRetailPositioningPercentages(record);
+  if (!positioning) return 0;
 
-  // User-configured contrarian rule: retail long-heavy => bearish, retail short-heavy => bullish.
-  return Math.round(Math.max(-100, Math.min(100, normalized.shortPercent - normalized.longPercent)));
+  // Higher side = what retail is actually thinking.
+  // Model signal is deliberately the opposite: retail long-heavy => bearish,
+  // retail short-heavy => bullish. The magnitude is the observed percentage gap.
+  return Math.round(Math.max(-100, Math.min(100, positioning.shortPercent - positioning.longPercent)));
 }
 
 export function calculateSentimentScore(record: MarketSentimentRecord): number {
