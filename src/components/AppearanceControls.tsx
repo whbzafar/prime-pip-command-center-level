@@ -43,7 +43,7 @@ const ThemeMiniPreview: React.FC<{ template: InterfaceTemplate; isSelected: bool
   isSelected,
 }) => {
   const isLiquidGlass = template.id === 'liquid-glass';
-  const isNeonGlass = template.id === 'liquid-glass-neon';
+  const isNeonGlass = template.id === 'liquid-glass-neon' || template.id === 'liquid-glass-ui-kit';
   const isGlass = Boolean(template.isGlass);
   const isBright = Boolean(template.isBright);
 
@@ -462,7 +462,7 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
               className="text-[11px] font-mono-code px-2.5 py-1 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer shrink-0 ml-2"
             >
               <RotateCcw className="w-3 h-3" />
-              <span className="hidden sm:inline">Reset Neon</span>
+              <span className="hidden sm:inline">Restore Command Center</span>
             </button>
           </div>
 
