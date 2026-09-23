@@ -50,14 +50,14 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   const [commodityLiveLoading, setCommodityLiveLoading] = useState(false);
   const [commodityLiveMessage, setCommodityLiveMessage] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
-    price: 0,
-    usRealYield10Y: 0,
-    inflationBreakeven5Y: 0,
+    price: '',
+    usRealYield10Y: '',
+    inflationBreakeven5Y: '',
     centralBankDemandTone: 'AGGRESSIVE_BUYING',
     industrialDemandTone: 'NEUTRAL',
     geopoliticalRiskLevel: 'HIGH',
     supplyDemandBalance: 'DEFICIT',
-    inventoriesWeeklySurpriseMb: 0,
+    inventoriesWeeklySurpriseMb: '',
     opecPolicyTone: 'DEFENDING_FLOOR',
     notes: '',
   });
@@ -121,14 +121,14 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   const handleStartEdit = (obs: CommodityObservation) => {
     setEditingObs(obs);
     setEditForm({
-      price: obs.price,
-      usRealYield10Y: obs.usRealYield10Y ?? 0,
-      inflationBreakeven5Y: obs.inflationBreakeven5Y ?? 0,
+      price: obs.price > 0 ? String(obs.price) : '',
+      usRealYield10Y: obs.usRealYield10Y !== undefined ? String(obs.usRealYield10Y) : '',
+      inflationBreakeven5Y: obs.inflationBreakeven5Y !== undefined ? String(obs.inflationBreakeven5Y) : '',
       centralBankDemandTone: obs.centralBankDemandTone ?? 'AGGRESSIVE_BUYING',
       industrialDemandTone: obs.industrialDemandTone ?? 'NEUTRAL',
       geopoliticalRiskLevel: obs.geopoliticalRiskLevel ?? 'HIGH',
       supplyDemandBalance: obs.supplyDemandBalance ?? 'DEFICIT',
-      inventoriesWeeklySurpriseMb: obs.inventoriesWeeklySurpriseMb ?? 0,
+      inventoriesWeeklySurpriseMb: obs.inventoriesWeeklySurpriseMb !== undefined ? String(obs.inventoriesWeeklySurpriseMb) : '',
       opecPolicyTone: obs.opecPolicyTone ?? 'DEFENDING_FLOOR',
       notes: obs.notes || '',
     });
@@ -136,16 +136,23 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
 
   const handleSaveEdit = () => {
     if (!editingObs) return;
+    const price = Number(editForm.price);
+    const realYield = Number(editForm.usRealYield10Y);
+    const breakeven = Number(editForm.inflationBreakeven5Y);
+    const inventory = Number(editForm.inventoriesWeeklySurpriseMb);
+    if (!Number.isFinite(price) || price <= 0) return;
+    if (editingObs.symbol !== 'CRUDE_OIL' && (!Number.isFinite(realYield) || !Number.isFinite(breakeven))) return;
+    if (editingObs.symbol === 'CRUDE_OIL' && !Number.isFinite(inventory)) return;
     const updated: CommodityObservation = {
       ...editingObs,
-      price: Number(editForm.price),
-      usRealYield10Y: Number(editForm.usRealYield10Y),
-      inflationBreakeven5Y: Number(editForm.inflationBreakeven5Y),
+      price,
+      usRealYield10Y: editingObs.symbol === 'CRUDE_OIL' ? editingObs.usRealYield10Y : realYield,
+      inflationBreakeven5Y: editingObs.symbol === 'CRUDE_OIL' ? editingObs.inflationBreakeven5Y : breakeven,
       centralBankDemandTone: editForm.centralBankDemandTone as any,
       industrialDemandTone: editForm.industrialDemandTone as any,
       geopoliticalRiskLevel: editForm.geopoliticalRiskLevel as any,
       supplyDemandBalance: editForm.supplyDemandBalance as any,
-      inventoriesWeeklySurpriseMb: Number(editForm.inventoriesWeeklySurpriseMb),
+      inventoriesWeeklySurpriseMb: editingObs.symbol === 'CRUDE_OIL' ? inventory : editingObs.inventoriesWeeklySurpriseMb,
       opecPolicyTone: editForm.opecPolicyTone as any,
       notes: editForm.notes,
       updatedAt: new Date().toISOString(),
@@ -445,7 +452,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                   type="number"
                   step="any"
                   value={editForm.price}
-                  onChange={(e) => setEditForm({ ...editForm, price: Number(e.target.value) })}
+                  onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-slate-100"
                 />
               </div>
@@ -459,7 +466,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                         type="number"
                         step="0.01"
                         value={editForm.usRealYield10Y}
-                        onChange={(e) => setEditForm({ ...editForm, usRealYield10Y: Number(e.target.value) })}
+                        onChange={(e) => setEditForm({ ...editForm, usRealYield10Y: e.target.value })}
                         className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-slate-100"
                       />
                     </div>
@@ -530,7 +537,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                       type="number"
                       step="0.1"
                       value={editForm.inventoriesWeeklySurpriseMb}
-                      onChange={(e) => setEditForm({ ...editForm, inventoriesWeeklySurpriseMb: Number(e.target.value) })}
+                      onChange={(e) => setEditForm({ ...editForm, inventoriesWeeklySurpriseMb: e.target.value })}
                       placeholder="Negative = draw (bullish), Positive = build (bearish)"
                       className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-slate-100"
                     />
