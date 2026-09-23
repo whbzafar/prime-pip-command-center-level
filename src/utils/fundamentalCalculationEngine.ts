@@ -44,8 +44,6 @@ export const PRIMARY_PAIR_MATRIX_20: [CurrencyCode, CurrencyCode][] = [
   ['GBP', 'CAD'],
   ['GBP', 'CHF'],
   ['AUD', 'CAD'],
-  ['AUD', 'NZD'],
-  ['AUD', 'CHF'],
 ];
 
 export function calculateIndicatorScore(
