@@ -94,12 +94,22 @@ interface Props {
   currencyScores: Record<CurrencyCode, CurrencyScoreResult>;
   commodityObservations: CommodityObservation[];
   onCommodityUpdate: (observation: CommodityObservation) => void;
+  onOpenCurrencyWorkspace?: (currency: CurrencyCode) => void;
+  onOpenRates?: (currency: CurrencyCode) => void;
+  onOpenCot?: (currency: CurrencyCode) => void;
+  onOpenSentiment?: (currency: CurrencyCode) => void;
+  onOpenCommodities?: () => void;
 }
 
 export const FundamentalAssetCommandCenter: React.FC<Props> = ({
   currencyScores,
   commodityObservations,
   onCommodityUpdate,
+  onOpenCurrencyWorkspace,
+  onOpenRates,
+  onOpenCot,
+  onOpenSentiment,
+  onOpenCommodities,
 }) => {
   const [loading, setLoading] = React.useState<AssetCode | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
@@ -222,6 +232,18 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
                   <span className="inline-flex items-center gap-1.5"><RefreshCw className={'w-3.5 h-3.5 ' + (loading === asset.code ? 'animate-spin' : '')} /> {loading === asset.code ? 'RESEARCHING...' : 'GENERATE / REGENERATE LIVE'}</span>
                 </button>
               )}
+
+              <div className="mt-4 border-t border-slate-800 pt-3">
+                <div className="text-[9px] font-mono-code uppercase tracking-wider text-cyan-300">DATA INPUT / RESEARCH</div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {asset.type === 'CURRENCY' ? <>
+                    <button type="button" onClick={() => onOpenCurrencyWorkspace?.(asset.code as CurrencyCode)} className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 text-[9px] text-cyan-300 hover:border-cyan-400">INDICATORS {currency?.completedIndicators ?? 0}/{currency?.totalIndicators ?? 0}</button>
+                    <button type="button" onClick={() => onOpenRates?.(asset.code as CurrencyCode)} className="rounded-lg border border-slate-800 bg-slate-950 px-2 py-1 text-[9px] text-slate-300 hover:border-cyan-400">RATE / YIELD {currency?.categoryScores?.RATES_YIELDS?.activeCount ? 'ACTIVE' : 'INPUT'}</button>
+                    <button type="button" onClick={() => onOpenCot?.(asset.code as CurrencyCode)} className="rounded-lg border border-slate-800 bg-slate-950 px-2 py-1 text-[9px] text-slate-300 hover:border-cyan-400">COT {currency?.categoryScores?.COT_POSITIONING?.activeCount ? 'ACTIVE' : 'INPUT'}</button>
+                    <button type="button" onClick={() => onOpenSentiment?.(asset.code as CurrencyCode)} className="rounded-lg border border-slate-800 bg-slate-950 px-2 py-1 text-[9px] text-slate-300 hover:border-cyan-400">SENTIMENT {currency?.categoryScores?.SENTIMENT?.activeCount ? 'ACTIVE' : 'INPUT'}</button>
+                  </> : <button type="button" onClick={() => onOpenCommodities?.()} className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-[9px] text-amber-300 hover:border-amber-400">OPEN COMMODITY INPUTS</button>}
+                </div>
+              </div>
 
               <div className="mt-4 border-t border-slate-800 pt-3">
                 <div className="text-[9px] font-mono-code uppercase tracking-wider text-slate-500">Cross-asset links</div>
