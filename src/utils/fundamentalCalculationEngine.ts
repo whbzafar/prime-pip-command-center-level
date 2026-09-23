@@ -954,7 +954,8 @@ export function calculateSentimentMetrics(raw: {
  */
 export function calculateLongTermPairRankings(
   currencyScores: Record<CurrencyCode, CurrencyScoreResult>,
-  observations: IndicatorObservation[]
+  observations: IndicatorObservation[],
+  retailPositioning: RetailPositioningRecord[] = []
 ) {
   const pairs: [CurrencyCode, CurrencyCode][] = [
     ['EUR', 'USD'],
@@ -1017,17 +1018,29 @@ export function calculateLongTermPairRankings(
     const baseExt = currencyScores[base]?.categoryScores?.TRADE_EXTERNAL?.score ?? 0;
     const quoteExt = currencyScores[quote]?.categoryScores?.TRADE_EXTERNAL?.score ?? 0;
     const externalBalance = baseExt - quoteExt;
+    const baseRetail = retailPositioning.find((r) => r.asset === base);
+    const quoteRetail = retailPositioning.find((r) => r.asset === quote);
+    const retailSentimentDifferential = (baseRetail && baseRetail.isEntered !== false ? calculateRetailContrarianScore(baseRetail) : 0)
+      - (quoteRetail && quoteRetail.isEntered !== false ? calculateRetailContrarianScore(quoteRetail) : 0);
+    const cotDifferential = (currencyScores[base]?.categoryScores?.COT_POSITIONING?.score ?? 0)
+      - (currencyScores[quote]?.categoryScores?.COT_POSITIONING?.score ?? 0);
 
-    // Long-term composite weighted score
+    // Long-term composite: retail sentiment is explicitly 10%; COT is 5%.
     const longTermDiff = Math.round(
-      monetaryPolicyRegime * 0.3 +
-        growthTrend * 0.25 +
-        inflationTrend * 0.15 +
+      monetaryPolicyRegime * 0.25 +
+        growthTrend * 0.22 +
+        inflationTrend * 0.13 +
         realRateDifferential * 0.15 +
-        externalBalance * 0.15
+        externalBalance * 0.10 +
+        cotDifferential * 0.05 +
+        retailSentimentDifferential * 0.10
     );
 
-    const mediumTermDiff = Math.round(shortTermDiff * 0.4 + longTermDiff * 0.6);
+    // Short/medium horizons retain the full currency composite while explicitly exposing the retail component.
+    const shortTermDiffWithSentiment = Math.round(shortTermDiff * 0.9 + retailSentimentDifferential * 0.1);
+    const mediumTermDiff = Math.round(shortTermDiffWithSentiment * 0.4 + longTermDiff * 0.6);
+
+
 
     let bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONG_BEARISH' = 'NEUTRAL';
     if (longTermDiff >= 40) bias = 'STRONG_BULLISH';
@@ -1046,7 +1059,7 @@ export function calculateLongTermPairRankings(
       pair: `${base}${quote}`,
       baseCurrency: base,
       quoteCurrency: quote,
-      shortTermDiff,
+      shortTermDiff: shortTermDiffWithSentiment,
       mediumTermDiff,
       longTermDiff,
       structuralFactors: {
@@ -1057,7 +1070,8 @@ export function calculateLongTermPairRankings(
         externalBalance,
         termsOfTrade: Math.round(externalBalance * 0.9),
         realRateDifferential,
-        longTermCot: (currencyScores[base]?.categoryScores?.COT_POSITIONING?.score ?? 0) - (currencyScores[quote]?.categoryScores?.COT_POSITIONING?.score ?? 0),
+        longTermCot: cotDifferential,
+        retailSentimentDifferential,
         structuralCommodityExposure: 0,
       },
       bias,
