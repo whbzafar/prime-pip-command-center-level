@@ -60,26 +60,6 @@ export const INTERFACE_TEMPLATES: InterfaceTemplate[] = [
     glassStyle: 'NEON_DARK',
     glowColor: 'rgba(0, 240, 255, 0.4)',
   },
-  // ── FLAGSHIP: LIQUID GLASS UI KIT PRO (REF: USER IMAGE 2) ───────────
-  {
-    id: 'liquid-glass-ui-kit',
-    label: 'Liquid Glass UI Kit Pro',
-    category: 'GLASS',
-    badge: 'FLAGSHIP • UI KIT',
-    description: 'Reference-driven liquid glass command interface: soft translucent cards, cyan-blue-violet-magenta refraction, luminous edges, pill controls, and premium depth.',
-    accent: '#35f4ff',
-    accentSecondary: '#ff4bd8',
-    bg: '#050814',
-    surface: 'rgba(18, 27, 49, 0.58)',
-    elevated: 'rgba(34, 42, 70, 0.68)',
-    border: 'rgba(170, 225, 255, 0.28)',
-    ink: '#f7fbff',
-    inkMuted: '#9ba9c3',
-    isGlass: true,
-    isBright: false,
-    glassStyle: 'NEON_DARK',
-    glowColor: 'rgba(53, 244, 255, 0.42)',
-  },
   // ── FROSTED OPAL GLASS ──────────────────────────────────────────────
   {
     id: 'frosted-opal',
