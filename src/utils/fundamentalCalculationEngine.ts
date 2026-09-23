@@ -978,12 +978,10 @@ export function calculateLongTermPairRankings(
 ) {
   const pairs = PRIMARY_PAIR_MATRIX_20;
 
-  const eligiblePairs = pairs.filter(([base, quote]) =>
-    (currencyScores[base]?.dataCoveragePercent ?? 0) >= 75 &&
-    (currencyScores[quote]?.dataCoveragePercent ?? 0) >= 75
-  );
-
-  const results = eligiblePairs.map(([base, quote]) => {
+  // Keep all 20 rows visible. A pair is only actionable once both currencies
+  // meet the 75% fundamental-data gate; otherwise the row is explicitly marked
+  // INSUFFICIENT instead of being silently removed or treated as neutral.
+  const results = pairs.map(([base, quote]) => {
     const baseScore = currencyScores[base]?.score ?? 0;
     const quoteScore = currencyScores[quote]?.score ?? 0;
     const shortTermDiff = baseScore - quoteScore;
@@ -1039,18 +1037,24 @@ export function calculateLongTermPairRankings(
 
 
 
-    let bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONG_BEARISH' = 'NEUTRAL';
-    if (longTermDiff >= 40) bias = 'STRONG_BULLISH';
-    else if (longTermDiff >= 15) bias = 'BULLISH';
-    else if (longTermDiff <= -40) bias = 'STRONG_BEARISH';
-    else if (longTermDiff <= -15) bias = 'BEARISH';
+    const pairCoverage = Math.round(((currencyScores[base]?.dataCoveragePercent ?? 0) + (currencyScores[quote]?.dataCoveragePercent ?? 0)) / 2);
+    const dataStatus: 'READY' | 'INSUFFICIENT' = pairCoverage >= 75 ? 'READY' : 'INSUFFICIENT';
 
-    const structuralRationale =
-      longTermDiff > 20
-        ? `Sustained macro advantage in monetary policy and growth potential for ${base}.`
-        : longTermDiff < -20
-        ? `Structural headwind: ${quote} yields and terms-of-trade outshine ${base}.`
-        : `Balanced structural equilibrium between ${base} and ${quote}.`;
+    let bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONG_BEARISH' = 'NEUTRAL';
+    if (dataStatus === 'READY') {
+      if (longTermDiff >= 40) bias = 'STRONG_BULLISH';
+      else if (longTermDiff >= 15) bias = 'BULLISH';
+      else if (longTermDiff <= -40) bias = 'STRONG_BEARISH';
+      else if (longTermDiff <= -15) bias = 'BEARISH';
+    }
+
+    const structuralRationale = dataStatus === 'INSUFFICIENT'
+      ? `INSUFFICIENT DATA — pair coverage ${pairCoverage}% (75% required).`
+      : longTermDiff > 20
+      ? `Sustained macro advantage in monetary policy, growth and relative commodity exposure for ${base}.`
+      : longTermDiff < -20
+      ? `Structural headwind: ${quote} yields, macro fundamentals and terms-of-trade exposure outshine ${base}.`
+      : `Balanced structural equilibrium between ${base} and ${quote}.`;
 
     return {
       pair: `${base}${quote}`,
@@ -1071,6 +1075,8 @@ export function calculateLongTermPairRankings(
         retailSentimentDifferential,
         structuralCommodityExposure,
       },
+      dataCoveragePercent: pairCoverage,
+      dataStatus,
       bias,
       structuralRationale,
     };
