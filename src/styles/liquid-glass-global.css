@@ -46,3 +46,5 @@ html[data-visual-style='liquid-glass-pro'] ::-webkit-scrollbar-thumb{background:
 html[data-visual-style='liquid-glass-pro'] .prime-card-elevated{animation:prime-liquid-breathe 7s ease-in-out infinite}
 @media(prefers-reduced-motion:reduce){html[data-visual-style='liquid-glass-pro'] *,html[data-visual-style='liquid-glass-pro'] *:before,html[data-visual-style='liquid-glass-pro'] *:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
 @media(max-width:768px){html[data-visual-style='liquid-glass-pro'] :where(.prime-card,.prime-card-elevated){backdrop-filter:blur(15px) saturate(150%)!important;-webkit-backdrop-filter:blur(15px) saturate(150%)!important}}
+
+/* Build marker: global visual skin validated independently from business logic. */
