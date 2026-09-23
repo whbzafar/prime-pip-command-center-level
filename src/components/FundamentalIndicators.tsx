@@ -184,7 +184,13 @@ export const FundamentalIndicators: React.FC = () => {
   });
 
   // Interest Rates state with localStorage persistence
-  const [commodityObservations, setCommodityObservations] = useState(DEFAULT_COMMODITY_OBSERVATIONS);
+  const [commodityObservations, setCommodityObservations] = useState(() => {
+    try {
+      const saved = localStorage.getItem('primepip_fundamental_commodities_v2');
+      if (saved) return JSON.parse(saved);
+    } catch (e) { console.error('Error loading commodity observations from storage', e); }
+    return DEFAULT_COMMODITY_OBSERVATIONS;
+  });
 
   const [interestRates, setInterestRates] = useState<InterestRateRecord[]>(() => {
     try {
