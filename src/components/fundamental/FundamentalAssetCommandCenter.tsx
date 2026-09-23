@@ -188,6 +188,8 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
           const retailScore = retailRecord?.isEntered !== false && retailRecord ? calculateRetailContrarianScore(retailRecord) : null;
           const retailLabel = retailScore === null ? 'INPUT' : retailScore > 0 ? 'BULLISH' : retailScore < 0 ? 'BEARISH' : 'NEUTRAL';
           const score = currency?.score ?? commodityScore?.score ?? 0;
+          const usdScore = currencyScores.USD?.score ?? 0;
+          const usdRelativeScore = commodityScore ? Math.round(Math.max(-100, Math.min(100, (commodityScore.score - usdScore) / 2))) : null;
           const coverage = currency?.dataCoveragePercent ?? (commodity ? commodityCoverage(commodity) : 0);
           const incomplete = asset.type === 'CURRENCY' ? coverage < 75 : coverage < 60;
           const symbol = asset.code === 'XAU' ? 'GOLD' : asset.code === 'XAG' ? 'SILVER' : 'CRUDE_OIL';
@@ -215,6 +217,23 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
                 <div><div className="text-[9px] text-slate-500">COT</div><div className="font-bold text-slate-300">{currency?.categoryScores?.COT_POSITIONING?.activeCount ? 'LIVE' : asset.type === 'CURRENCY' ? 'WAITING' : 'INPUT'}</div></div>
                 <div><div className="text-[9px] text-slate-500">RETAIL SENTIMENT</div><div className={retailScore === null ? 'font-bold text-amber-300' : retailScore > 0 ? 'font-bold text-emerald-300' : retailScore < 0 ? 'font-bold text-rose-300' : 'font-bold text-slate-300'}>{retailScore === null ? 'INPUT' : (retailScore > 0 ? '+' : '') + retailScore + ' · ' + retailLabel}</div></div>
               </div>
+
+              {commodityScore && (
+                <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-2 text-center font-mono-code">
+                  <div>
+                    <div className="text-[9px] text-slate-500">ABSOLUTE ASSET BIAS</div>
+                    <div className={score > 0 ? 'font-bold text-emerald-300' : score < 0 ? 'font-bold text-rose-300' : 'font-bold text-slate-300'}>
+                      {(score > 0 ? '+' : '') + score}% · {labelForScore(score)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-slate-500">{asset.code === 'XAU' ? 'XAU/USD' : asset.code === 'XAG' ? 'XAG/USD' : 'WTI/USD'} RELATIVE</div>
+                    <div className={usdRelativeScore! > 0 ? 'font-bold text-emerald-300' : usdRelativeScore! < 0 ? 'font-bold text-rose-300' : 'font-bold text-slate-300'}>
+                      {(usdRelativeScore! > 0 ? '+' : '') + usdRelativeScore}% · {labelForScore(usdRelativeScore!)}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-3">
                 <div className="mb-1.5 flex items-center justify-between text-[10px] font-mono-code">
@@ -268,7 +287,7 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
         <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-300">
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3"><b className="text-cyan-300">Direction</b><p className="mt-1 text-slate-400">Each indicator has an explicit scoring direction; higher/lower readings are never assumed to have the same meaning.</p></div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3"><b className="text-cyan-300">COT</b><p className="mt-1 text-slate-400">CFTC non-commercial long minus short is normalized by open interest. COT is a positioning input, not a guaranteed price forecast.</p></div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3"><b className="text-cyan-300">Retail Sentiment</b><p className="mt-1 text-slate-400">Long/Short inputs are normalized to a 100% mix, converted to a contrarian score, and included in the weighted sentiment category and pair differentials.</p></div>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3"><b className="text-cyan-300">Retail Sentiment</b><p className="mt-1 text-slate-400">Observed Long% and Short% are preserved exactly; the higher side describes retail positioning, while the model applies the configured contrarian gap without forcing the two values to sum to 100.</p></div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3"><b className="text-cyan-300">Relationships</b><p className="mt-1 text-slate-400">USD/Gold, USD/Silver, USD/WTI, CAD/WTI, AUD/China, NZD/Dairy and JPY/US yields are contextual relationships, not hard-coded inverse rules.</p></div>
         </div>
       </section>
