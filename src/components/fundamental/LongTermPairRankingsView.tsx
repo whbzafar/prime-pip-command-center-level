@@ -33,7 +33,7 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
 }) => {
   const [horizon, setHorizon] = useState<'SHORT' | 'MEDIUM' | 'LONG'>('LONG');
 
-  const { allPairs, topBullish, topBearish } = calculateLongTermPairRankings(
+  const { allPairs } = calculateLongTermPairRankings(
     currencyScores,
     observations,
     retailPositioning
