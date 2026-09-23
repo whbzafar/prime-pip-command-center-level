@@ -221,7 +221,7 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
   isOpen,
   onClose,
 }) => {
-  const [theme, setTheme] = useState<string>(() => readStored('primepipfx_theme', 'midnight'));
+  const [theme, setTheme] = useState<string>(() => readStored('primepipfx_theme', 'liquid-glass-neon'));
   const [hoveredThemeId, setHoveredThemeId] = useState<string | null>(null);
   const [customThemes, setCustomThemes] = useState<InterfaceTemplate[]>(() => getStoredCustomThemes());
   const [brightness, setBrightness] = useState<number>(() => {
@@ -456,13 +456,13 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
             <button
               type="button"
               onClick={() => {
-                setTheme('midnight');
+                setTheme('liquid-glass-neon');
                 setBrightness(104);
               }}
               className="text-[11px] font-mono-code px-2.5 py-1 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer shrink-0 ml-2"
             >
               <RotateCcw className="w-3 h-3" />
-              <span className="hidden sm:inline">Reset</span>
+              <span className="hidden sm:inline">Reset Neon</span>
             </button>
           </div>
 
