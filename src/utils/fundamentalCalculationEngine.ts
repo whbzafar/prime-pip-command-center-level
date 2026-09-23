@@ -452,8 +452,8 @@ export function calculateCurrencyScore(
   sentimentRecords: MarketSentimentRecord[] = [],
   interestRateRecords: InterestRateRecord[] = [],
   retailPositioning: RetailPositioningRecord[] = [],
-  modelVersion = '1.0',
-  weightsVersion = '1.0'
+  modelVersion = '2.0',
+  weightsVersion = '2.0'
 ): CurrencyScoreResult {
   const currencyInfo = CURRENCIES.find((c) => c.code === currency);
   const currencyName = currencyInfo ? currencyInfo.name : currency;
