@@ -50,6 +50,8 @@ import { ModelWeightsRegistryView } from './fundamental/ModelWeightsRegistryView
 import { FundamentalMethodologyView } from './fundamental/FundamentalMethodologyView';
 import { FundamentalLiveSearch } from './fundamental/FundamentalLiveSearch';
 import { FundamentalAssetCommandCenter } from './fundamental/FundamentalAssetCommandCenter';
+import { FundamentalSentimentMeter } from './fundamental/FundamentalSentimentMeter';
+import { LiquidGlassThemeToggle } from './LiquidGlassThemeToggle';
 
 // Modals
 import { ModelAuditModal } from './fundamental/ModelAuditModal';
@@ -647,6 +649,8 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
 
           {/* Quick Engine Actions (Strict PDF-only export) */}
           <div className="flex items-center gap-2 flex-wrap">
+            <LiquidGlassThemeToggle variant="compact" />
+
             <a
               href="https://www.forexfactory.com/calendar"
               target="_blank"
@@ -742,6 +746,23 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
           </button>
         </div>
       </div>
+
+      {/* Visual Color-Coded Bullish/Bearish Sentiment Meter & Trend Confidence */}
+      <FundamentalSentimentMeter
+        currencyScores={currencyScores}
+        commodityObservations={commodityObservations}
+        pairDifferentials={pairDifferentials}
+        retailPositioning={retailPositioning}
+        cotRecords={cotRecords}
+        interestRates={interestRates}
+        observations={observations}
+        activeCurrency={activeCurrency}
+        onSelectCurrency={(c) => {
+          setActiveCurrency(c);
+          setActiveTab('WORKSPACES');
+        }}
+        onSelectTab={(tab) => setActiveTab(tab)}
+      />
 
       {/* Primary Sub-Tab Content Views */}
       {isStudentWithAssignedAdmin && (
@@ -886,6 +907,7 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
       {activeTab === 'COMMODITIES' && (
         <CommoditiesMacroView
           usdScore={currencyScores.USD}
+          currencyScores={currencyScores}
           commodityObservations={commodityObservations}
           retailPositioning={retailPositioning}
           onUpdateCommodity={handleUpdateCommodity}

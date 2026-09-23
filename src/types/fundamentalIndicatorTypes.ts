@@ -325,12 +325,32 @@ export interface PairDifferentialResult {
   tenYearSpread?: number;
   dataCoveragePercent: number;
   conflictLevel: 'NONE' | 'LOW' | 'MODERATE' | 'HIGH';
-  bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL_MIXED' | 'BEARISH' | 'STRONG_BEARISH';
+  bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL_MIXED' | 'BEARISH' | 'STRONG_BEARISH' | 'INSUFFICIENT_DATA';
   biasLabel: string;
   fundamentalBias?: string;
+  shortTermDirection?: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'INSUFFICIENT DATA';
+  mediumTermDirection?: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'INSUFFICIENT DATA';
+  longTermDirection?: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'INSUFFICIENT DATA';
   primaryDrivers: string[];
   conflicts: string[];
   aiExplanation?: string;
+}
+
+export interface CrossAssetRelationshipResult {
+  pairKey: 'USD_GOLD' | 'USD_SILVER' | 'USD_WTI' | 'CAD_WTI' | 'AUD_COMMODITY' | 'NZD_COMMODITY';
+  title: string;
+  assetA: string;
+  assetB: string;
+  status: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'INSUFFICIENT DATA';
+  score: number | null;
+  drivers: string[];
+  structuralMechanism: string;
+  correlation: {
+    shortTerm30D: { value: number; interpretation: string };
+    mediumTerm90D: { value: number; interpretation: string };
+    longTerm1Y: { value: number; interpretation: string };
+  };
+  notes: string;
 }
 
 export interface FundamentalModelSnapshot {

@@ -45,20 +45,21 @@ html[data-theme='liquid-glass'] {
   --bg-input: rgba(255, 255, 255, 0.92);
 }
 
-/* 2. Liquid Glass Neon (Ref: Image 2) */
-html[data-theme='liquid-glass-neon'] {
-  --bg: #070a13;
-  --bg-surface: rgba(13, 19, 36, 0.74);
-  --bg-elevated: rgba(23, 34, 58, 0.85);
+/* 2. Liquid Glass Neon & Liquid Glass UI Kit (Ref: Uploaded Liquid Glass UI Kit Overview) */
+html[data-theme='liquid-glass-neon'],
+html[data-theme='liquid-glass-ui-kit'] {
+  --bg: #050814;
+  --bg-surface: rgba(14, 22, 42, 0.72);
+  --bg-elevated: rgba(24, 34, 62, 0.82);
   --accent: #00f0ff;
   --accent-secondary: #d946ef;
   --ink: #f8fafc;
   --ink-muted: #94a3b8;
   --border-color: rgba(56, 189, 248, 0.35);
-  --shadow-surface: 0 10px 40px 0 rgba(0, 0, 0, 0.6), inset 0 1px 1px 0 rgba(255, 255, 255, 0.20), 0 0 16px -2px rgba(0, 240, 255, 0.15);
-  --glass-blur: blur(16px) saturate(180%);
+  --shadow-surface: 0 12px 45px 0 rgba(0, 0, 0, 0.65), inset 0 1px 1px 0 rgba(255, 255, 255, 0.22), 0 0 20px -2px rgba(0, 240, 255, 0.20);
+  --glass-blur: blur(20px) saturate(180%);
   --glass-blur-sm: blur(14px);
-  --bg-input: rgba(11, 16, 30, 0.85);
+  --bg-input: rgba(12, 19, 36, 0.82);
 }
 
 /* 3. Solar Daylight (Bright Mode) */
@@ -778,11 +779,12 @@ html[data-theme='liquid-glass'] body {
   background-attachment: fixed !important;
 }
 
-html[data-theme='liquid-glass-neon'] body {
-  background: radial-gradient(circle at 15% 15%, rgba(0, 240, 255, 0.14) 0%, transparent 45%),
-              radial-gradient(circle at 85% 20%, rgba(217, 70, 239, 0.12) 0%, transparent 45%),
-              radial-gradient(circle at 50% 85%, rgba(59, 130, 246, 0.10) 0%, transparent 50%),
-              #070a13 !important;
+html[data-theme='liquid-glass-neon'] body,
+html[data-theme='liquid-glass-ui-kit'] body {
+  background: radial-gradient(circle at 12% 10%, rgba(0, 240, 255, 0.16) 0%, transparent 45%),
+              radial-gradient(circle at 88% 15%, rgba(217, 70, 239, 0.14) 0%, transparent 45%),
+              radial-gradient(circle at 50% 88%, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
+              #050814 !important;
   background-attachment: fixed !important;
 }
 
@@ -794,11 +796,13 @@ html[data-theme='liquid-glass'] .bg-cyan-500 {
 }
 
 html[data-theme='liquid-glass-neon'] .bg-blue-500,
-html[data-theme='liquid-glass-neon'] .bg-cyan-500 {
-  background: linear-gradient(135deg, #00f0ff 0%, #3b82f6 50%, #d946ef 100%) !important;
-  color: #070a13 !important;
+html[data-theme='liquid-glass-neon'] .bg-cyan-500,
+html[data-theme='liquid-glass-ui-kit'] .bg-blue-500,
+html[data-theme='liquid-glass-ui-kit'] .bg-cyan-500 {
+  background: linear-gradient(135deg, #35f4ff 0%, #00d2ff 45%, #2563eb 100%) !important;
+  color: #04101a !important;
   font-weight: 700 !important;
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 8px 24px rgba(0, 245, 255, 0.45), 0 0 20px rgba(0, 245, 255, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.75) !important;
 }
 
 /* High contrast typography adjustments for bright modes */
@@ -2217,70 +2221,94 @@ html[data-theme='daylight'] textarea::placeholder {
 
 
 /* ==========================================================================
-   PRIME PIP FX — NEON LIQUID GLASS FLAGSHIP SYSTEM
-   Scoped exclusively to the liquid-glass-neon theme.
-   This layer upgrades the existing theme without touching application logic.
+   PRIME PIP FX — LIQUID GLASS UI KIT FLAGSHIP SYSTEM
+   Reference: Uploaded "Liquid Glass UI Kit Overview"
+   Scoped to liquid-glass-neon & liquid-glass-ui-kit themes.
    ========================================================================== */
 
-html[data-theme='liquid-glass-neon'] {
-  --neon-cyan: #00f5ff;
-  --neon-blue: #2979ff;
+html[data-theme='liquid-glass-neon'],
+html[data-theme='liquid-glass-ui-kit'] {
+  --neon-cyan: #00f0ff;
+  --neon-cyan-bright: #35f4ff;
+  --neon-blue: #2563eb;
   --neon-violet: #8b5cf6;
   --neon-magenta: #ff2bd6;
-  --neon-pink: #ff65e7;
+  --neon-pink: #ff4bd8;
   --neon-profit: #00ffb3;
   --neon-danger: #ff3864;
   --neon-warning: #ffd166;
-  --glass-border: rgba(143, 232, 255, 0.20);
-  --glass-border-strong: rgba(0, 245, 255, 0.52);
-  --glass-highlight: rgba(255, 255, 255, 0.11);
-  --glass-shadow: 0 18px 50px rgba(0, 0, 0, 0.40), inset 0 1px 0 rgba(255, 255, 255, 0.09);
-  --glass-shadow-hover: 0 22px 70px rgba(0, 0, 0, 0.50), 0 0 34px rgba(0, 245, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  --glass-blur: blur(20px) saturate(155%);
-  --glass-blur-sm: blur(14px) saturate(145%);
+  --glass-border: rgba(147, 210, 255, 0.24);
+  --glass-border-strong: rgba(0, 240, 255, 0.65);
+  --glass-border-magenta: rgba(255, 43, 214, 0.55);
+  --glass-highlight: rgba(255, 255, 255, 0.20);
+  --glass-shadow: 0 16px 45px rgba(0, 0, 0, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.16), 0 0 20px -2px rgba(0, 240, 255, 0.12);
+  --glass-shadow-hover: 0 22px 65px rgba(0, 0, 0, 0.65), 0 0 32px rgba(0, 240, 255, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+  --glass-blur: blur(20px) saturate(175%);
+  --glass-blur-sm: blur(14px) saturate(155%);
   --radius-card: 20px;
-  --radius-btn: 14px;
+  --radius-btn: 9999px;
 }
 
-/* Deep ambient command-center lighting */
-html[data-theme='liquid-glass-neon'] body {
+/* Deep ambient command-center lighting & radial glows */
+html[data-theme='liquid-glass-neon'] body,
+html[data-theme='liquid-glass-ui-kit'] body {
   min-height: 100vh;
   background:
-    radial-gradient(900px 600px at 7% 3%, rgba(0, 245, 255, 0.105), transparent 65%),
-    radial-gradient(800px 650px at 94% 9%, rgba(139, 92, 246, 0.105), transparent 62%),
-    radial-gradient(850px 650px at 78% 96%, rgba(255, 43, 214, 0.075), transparent 62%),
-    radial-gradient(650px 500px at 22% 86%, rgba(41, 121, 255, 0.065), transparent 64%),
-    #050914 !important;
+    radial-gradient(950px 650px at 5% 2%, rgba(0, 240, 255, 0.13), transparent 62%),
+    radial-gradient(900px 650px at 95% 6%, rgba(139, 92, 246, 0.13), transparent 62%),
+    radial-gradient(900px 700px at 90% 95%, rgba(255, 43, 214, 0.10), transparent 62%),
+    radial-gradient(800px 600px at 15% 90%, rgba(37, 99, 235, 0.09), transparent 62%),
+    #050814 !important;
   background-attachment: fixed !important;
 }
 
 /* Global selection and focus language */
-html[data-theme='liquid-glass-neon'] ::selection {
+html[data-theme='liquid-glass-neon'] ::selection,
+html[data-theme='liquid-glass-ui-kit'] ::selection {
   color: #031017;
-  background: rgba(0, 245, 255, 0.88);
+  background: rgba(0, 240, 255, 0.90);
 }
 
-html[data-theme='liquid-glass-neon'] :where(button, a, input, select, textarea):focus-visible {
+html[data-theme='liquid-glass-neon'] :where(button, a, input, select, textarea):focus-visible,
+html[data-theme='liquid-glass-ui-kit'] :where(button, a, input, select, textarea):focus-visible {
   outline: 2px solid var(--neon-cyan) !important;
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(0, 245, 255, 0.12), 0 0 22px rgba(0, 245, 255, 0.18) !important;
+  box-shadow: 0 0 0 4px rgba(0, 240, 255, 0.16), 0 0 24px rgba(0, 240, 255, 0.25) !important;
 }
 
-/* Shared glass material for common Tailwind surfaces */
+/* Shared glass material for cards & surfaces */
 html[data-theme='liquid-glass-neon'] :where(
   .prime-card,
   .prime-card-elevated,
   .bg-slate-950,
+  .bg-slate-950\/95,
   .bg-slate-950\/90,
+  .bg-slate-950\/85,
   .bg-slate-950\/80,
   .bg-slate-900,
+  .bg-slate-900\/95,
+  .bg-slate-900\/90,
+  .bg-slate-900\/80,
+  .bg-slate-900\/60,
+  .bg-slate-900\/50
+),
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .prime-card,
+  .prime-card-elevated,
+  .bg-slate-950,
+  .bg-slate-950\/95,
+  .bg-slate-950\/90,
+  .bg-slate-950\/85,
+  .bg-slate-950\/80,
+  .bg-slate-900,
+  .bg-slate-900\/95,
   .bg-slate-900\/90,
   .bg-slate-900\/80,
   .bg-slate-900\/60,
   .bg-slate-900\/50
 ) {
   position: relative;
-  background: linear-gradient(145deg, rgba(18, 28, 49, 0.78), rgba(7, 13, 27, 0.70)) !important;
+  background: linear-gradient(145deg, rgba(18, 28, 52, 0.72) 0%, rgba(9, 14, 28, 0.76) 100%) !important;
   border-color: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
   backdrop-filter: var(--glass-blur) !important;
@@ -2292,39 +2320,58 @@ html[data-theme='liquid-glass-neon'] :where(
   .prime-card,
   .prime-card-elevated,
   [class*="hover\:shadow"]
+),
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .prime-card,
+  .prime-card-elevated,
+  [class*="hover\:shadow"]
 ) {
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
 }
 
-html[data-theme='liquid-glass-neon'] :where(.prime-card, .prime-card-elevated):hover {
+html[data-theme='liquid-glass-neon'] :where(.prime-card, .prime-card-elevated):hover,
+html[data-theme='liquid-glass-ui-kit'] :where(.prime-card, .prime-card-elevated):hover {
   transform: translateY(-1px);
-  border-color: rgba(0, 245, 255, 0.34) !important;
+  border-color: rgba(0, 240, 255, 0.40) !important;
   box-shadow: var(--glass-shadow-hover) !important;
 }
 
-/* Specular glass edge */
-html[data-theme='liquid-glass-neon'] :where(.prime-card, .prime-card-elevated)::before {
+/* Specular top glass reflection line */
+html[data-theme='liquid-glass-neon'] :where(.prime-card, .prime-card-elevated, .bg-slate-950\/90, .bg-slate-950)::before,
+html[data-theme='liquid-glass-ui-kit'] :where(.prime-card, .prime-card-elevated, .bg-slate-950\/90, .bg-slate-950)::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  background: linear-gradient(115deg, rgba(255,255,255,0.08), transparent 22%, transparent 72%, rgba(0,245,255,0.035));
-  opacity: 0.8;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.03) 26%, transparent 65%, rgba(0, 240, 255, 0.04) 100%);
+  opacity: 0.85;
 }
 
-/* Primary actions: cyan -> blue -> violet -> magenta */
+/* Primary buttons: Vibrant cyan pill with top specular shine & drop glow (Ref: Image "Button") */
 html[data-theme='liquid-glass-neon'] :where(
-  .bg-blue-500,
-  .bg-blue-600,
-  .bg-cyan-500,
-  .bg-cyan-600
+  .btn-primary,
+  button.bg-blue-500,
+  button.bg-blue-600,
+  button.bg-cyan-500,
+  button.bg-cyan-600,
+  button[data-liquid-role="primary"]
+),
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .btn-primary,
+  button.bg-blue-500,
+  button.bg-blue-600,
+  button.bg-cyan-500,
+  button.bg-cyan-600,
+  button[data-liquid-role="primary"]
 ) {
-  background: linear-gradient(135deg, var(--neon-cyan) 0%, var(--neon-blue) 48%, var(--neon-violet) 76%, var(--neon-magenta) 100%) !important;
-  color: #04101a !important;
-  border-color: rgba(255,255,255,0.38) !important;
-  box-shadow: 0 8px 26px rgba(0, 245, 255, 0.22), 0 0 24px rgba(139, 92, 246, 0.14), inset 0 1px 0 rgba(255,255,255,0.55) !important;
+  background: linear-gradient(135deg, #35f4ff 0%, #00d2ff 48%, #2563eb 100%) !important;
+  color: #031018 !important;
+  font-weight: 700 !important;
+  border: 1px solid rgba(255, 255, 255, 0.60) !important;
+  box-shadow: 0 8px 24px rgba(0, 240, 255, 0.42), 0 0 20px rgba(0, 240, 255, 0.26), inset 0 1px 1px rgba(255, 255, 255, 0.75) !important;
   text-shadow: none !important;
+  border-radius: 9999px !important;
 }
 
 html[data-theme='liquid-glass-neon'] :where(
@@ -2332,13 +2379,25 @@ html[data-theme='liquid-glass-neon'] :where(
   button.bg-blue-600,
   button.bg-cyan-500,
   button.bg-cyan-600
+):hover,
+html[data-theme='liquid-glass-ui-kit'] :where(
+  button.bg-blue-500,
+  button.bg-blue-600,
+  button.bg-cyan-500,
+  button.bg-cyan-600
 ):hover {
-  filter: brightness(1.10) saturate(1.08);
-  transform: translateY(-1px);
-  box-shadow: 0 10px 32px rgba(0, 245, 255, 0.30), 0 0 30px rgba(255, 43, 214, 0.16), inset 0 1px 0 rgba(255,255,255,0.65) !important;
+  filter: brightness(1.08) saturate(1.08);
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 12px 32px rgba(0, 240, 255, 0.52), 0 0 30px rgba(53, 244, 255, 0.38), inset 0 1px 1px rgba(255, 255, 255, 0.9) !important;
 }
 
 html[data-theme='liquid-glass-neon'] :where(
+  button.bg-blue-500,
+  button.bg-blue-600,
+  button.bg-cyan-500,
+  button.bg-cyan-600
+):active,
+html[data-theme='liquid-glass-ui-kit'] :where(
   button.bg-blue-500,
   button.bg-blue-600,
   button.bg-cyan-500,
@@ -2347,109 +2406,174 @@ html[data-theme='liquid-glass-neon'] :where(
   transform: translateY(0) scale(0.985);
 }
 
-/* Secondary/ghost buttons */
+/* Secondary buttons: Translucent indigo/violet pill with glowing magenta border (Ref: Image "Secondary") */
 html[data-theme='liquid-glass-neon'] :where(
+  .btn-secondary,
   button.bg-slate-900,
+  button.bg-slate-900\/90,
+  button.bg-slate-900\/80,
+  button.bg-slate-900\/60
+),
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .btn-secondary,
+  button.bg-slate-900,
+  button.bg-slate-900\/90,
   button.bg-slate-900\/80,
   button.bg-slate-900\/60
 ) {
-  background: rgba(14, 23, 41, 0.70) !important;
-  border-color: rgba(118, 218, 255, 0.18) !important;
-  color: var(--ink) !important;
+  background: linear-gradient(145deg, rgba(32, 28, 65, 0.78), rgba(18, 18, 42, 0.85)) !important;
+  border: 1.5px solid rgba(217, 70, 239, 0.55) !important;
+  color: #f3e8ff !important;
+  box-shadow: 0 4px 18px rgba(217, 70, 239, 0.24), 0 0 14px rgba(217, 70, 239, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+  border-radius: 9999px !important;
   backdrop-filter: var(--glass-blur-sm) !important;
   -webkit-backdrop-filter: var(--glass-blur-sm) !important;
 }
 
 html[data-theme='liquid-glass-neon'] :where(
   button.bg-slate-900,
+  button.bg-slate-900\/90,
+  button.bg-slate-900\/80,
+  button.bg-slate-900\/60
+):hover,
+html[data-theme='liquid-glass-ui-kit'] :where(
+  button.bg-slate-900,
+  button.bg-slate-900\/90,
   button.bg-slate-900\/80,
   button.bg-slate-900\/60
 ):hover {
-  border-color: rgba(0, 245, 255, 0.46) !important;
-  color: var(--neon-cyan) !important;
-  box-shadow: 0 0 22px rgba(0, 245, 255, 0.12) !important;
+  border-color: rgba(255, 43, 214, 0.85) !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 24px rgba(255, 43, 214, 0.38), 0 0 22px rgba(217, 70, 239, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+  transform: translateY(-1px) scale(1.01);
 }
 
-/* Form controls */
-html[data-theme='liquid-glass-neon'] :where(input, select, textarea) {
-  background: rgba(8, 15, 29, 0.78) !important;
-  color: #f4f8ff !important;
-  border-color: rgba(143, 232, 255, 0.18) !important;
-  border-radius: 13px !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.045), 0 5px 18px rgba(0,0,0,0.18) !important;
+/* Upgrade / Special gradient button (Ref: Image "Upgrade plan") */
+html[data-theme='liquid-glass-neon'] :where(
+  .btn-upgrade,
+  button.bg-amber-400,
+  button.bg-amber-500,
+  button.bg-purple-600,
+  button.bg-fuchsia-600
+),
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .btn-upgrade,
+  button.bg-amber-400,
+  button.bg-amber-500,
+  button.bg-purple-600,
+  button.bg-fuchsia-600
+) {
+  background: linear-gradient(135deg, #38bdf8 0%, #a855f7 48%, #ff4bd8 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border: 1px solid rgba(255, 255, 255, 0.50) !important;
+  box-shadow: 0 8px 24px rgba(217, 70, 239, 0.38), 0 0 22px rgba(168, 85, 247, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.6) !important;
+  border-radius: 9999px !important;
+}
+
+/* Form controls (Ref: Image "Search projects...", "Create workspace") */
+html[data-theme='liquid-glass-neon'] :where(input, select, textarea),
+html[data-theme='liquid-glass-ui-kit'] :where(input, select, textarea) {
+  background: rgba(12, 19, 36, 0.78) !important;
+  color: #f8fafc !important;
+  border-color: rgba(147, 210, 255, 0.26) !important;
+  border-radius: 16px !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 15px rgba(0, 0, 0, 0.2) !important;
   backdrop-filter: var(--glass-blur-sm) !important;
   -webkit-backdrop-filter: var(--glass-blur-sm) !important;
   transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
-html[data-theme='liquid-glass-neon'] :where(input, select, textarea):hover {
-  border-color: rgba(0, 245, 255, 0.32) !important;
+html[data-theme='liquid-glass-neon'] :where(input, select, textarea):hover,
+html[data-theme='liquid-glass-ui-kit'] :where(input, select, textarea):hover {
+  border-color: rgba(0, 240, 255, 0.45) !important;
 }
 
-html[data-theme='liquid-glass-neon'] :where(input, select, textarea):focus {
-  border-color: rgba(0, 245, 255, 0.72) !important;
-  background: rgba(10, 21, 39, 0.88) !important;
+html[data-theme='liquid-glass-neon'] :where(input, select, textarea):focus,
+html[data-theme='liquid-glass-ui-kit'] :where(input, select, textarea):focus {
+  border-color: #00f0ff !important;
+  background: rgba(14, 23, 46, 0.90) !important;
+  box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.20), 0 0 22px rgba(0, 240, 255, 0.26), inset 0 1px 2px rgba(0, 0, 0, 0.35) !important;
 }
 
-/* Tabs / active navigation */
-html[data-theme='liquid-glass-neon'] [data-active-nav='true'] {
-  background: linear-gradient(135deg, rgba(0,245,255,0.96), rgba(41,121,255,0.96), rgba(139,92,246,0.96)) !important;
-  color: #04101a !important;
-  border-color: rgba(255,255,255,0.42) !important;
-  box-shadow: 0 0 22px rgba(0,245,255,0.24), 0 0 34px rgba(139,92,246,0.12) !important;
+/* Navigation tabs & categories (Ref: Image "Tabs ...") */
+html[data-theme='liquid-glass-neon'] [data-active-nav='true'],
+html[data-theme='liquid-glass-ui-kit'] [data-active-nav='true'] {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.95), rgba(41, 121, 255, 0.95), rgba(139, 92, 246, 0.95)) !important;
+  color: #031018 !important;
+  font-weight: 700 !important;
+  border-color: rgba(255, 255, 255, 0.50) !important;
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.35), 0 0 32px rgba(139, 92, 246, 0.20) !important;
+  border-radius: 9999px !important;
 }
 
-html[data-theme='liquid-glass-neon'] [data-active-nav='false']:hover {
-  border-color: rgba(0,245,255,0.42) !important;
-  background: rgba(15, 31, 55, 0.80) !important;
-  box-shadow: 0 0 18px rgba(0,245,255,0.09) !important;
+html[data-theme='liquid-glass-neon'] [data-active-nav='false'],
+html[data-theme='liquid-glass-ui-kit'] [data-active-nav='false'] {
+  border-color: rgba(147, 210, 255, 0.16) !important;
+  border-radius: 9999px !important;
+  transition: all 180ms ease !important;
+}
+
+html[data-theme='liquid-glass-neon'] [data-active-nav='false']:hover,
+html[data-theme='liquid-glass-ui-kit'] [data-active-nav='false']:hover {
+  border-color: rgba(0, 240, 255, 0.45) !important;
+  background: rgba(16, 32, 58, 0.82) !important;
+  color: #00f0ff !important;
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.16) !important;
 }
 
 /* Status semantics */
-html[data-theme='liquid-glass-neon'] :where(.text-emerald-300, .text-emerald-400, .text-green-400) {
+html[data-theme='liquid-glass-neon'] :where(.text-emerald-300, .text-emerald-400, .text-green-400),
+html[data-theme='liquid-glass-ui-kit'] :where(.text-emerald-300, .text-emerald-400, .text-green-400) {
   color: var(--neon-profit) !important;
-  text-shadow: 0 0 12px rgba(0,255,179,0.22);
+  text-shadow: 0 0 12px rgba(0, 255, 179, 0.25);
 }
 
-html[data-theme='liquid-glass-neon'] :where(.text-red-300, .text-red-400, .text-rose-400) {
+html[data-theme='liquid-glass-neon'] :where(.text-red-300, .text-red-400, .text-rose-400),
+html[data-theme='liquid-glass-ui-kit'] :where(.text-red-300, .text-red-400, .text-rose-400) {
   color: var(--neon-danger) !important;
-  text-shadow: 0 0 12px rgba(255,56,100,0.20);
+  text-shadow: 0 0 12px rgba(255, 56, 100, 0.22);
 }
 
 /* Neon scrollbar */
-html[data-theme='liquid-glass-neon'] ::-webkit-scrollbar {
+html[data-theme='liquid-glass-neon'] ::-webkit-scrollbar,
+html[data-theme='liquid-glass-ui-kit'] ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-html[data-theme='liquid-glass-neon'] ::-webkit-scrollbar-track {
+html[data-theme='liquid-glass-neon'] ::-webkit-scrollbar-track,
+html[data-theme='liquid-glass-ui-kit'] ::-webkit-scrollbar-track {
   background: rgba(2, 7, 16, 0.65);
 }
 
-html[data-theme='liquid-glass-neon'] ::-webkit-scrollbar-thumb {
+html[data-theme='liquid-glass-neon'] ::-webkit-scrollbar-thumb,
+html[data-theme='liquid-glass-ui-kit'] ::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, var(--neon-cyan), var(--neon-violet), var(--neon-magenta)) !important;
   border-radius: 999px;
   border: 2px solid rgba(5, 9, 20, 0.8);
 }
 
-/* Lightweight ambient animation; disabled automatically for reduced motion */
-@keyframes prime-neon-breathe {
-  0%, 100% { opacity: 0.72; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.012); }
+/* Iridescent Torus Ring (Ref: Image bottom left multi-color glowing torus) */
+.liquid-glass-iridescent-ring {
+  background: conic-gradient(from 180deg at 50% 50%, #00f0ff 0deg, #8b5cf6 90deg, #ff2bd6 180deg, #f59e0b 270deg, #00f0ff 360deg);
+  box-shadow: 0 0 30px rgba(0, 240, 255, 0.35), 0 0 40px rgba(255, 43, 214, 0.25);
+  border-radius: 9999px;
 }
 
-html[data-theme='liquid-glass-neon'] #app-perimeter-animated-frame {
-  filter: drop-shadow(0 0 8px rgba(0,245,255,0.08));
-}
-
-html[data-theme='liquid-glass-neon'] .animate-pulse {
-  animation-duration: 2.2s !important;
+/* App perimeter frame subtle highlight */
+html[data-theme='liquid-glass-neon'] #app-perimeter-animated-frame,
+html[data-theme='liquid-glass-ui-kit'] #app-perimeter-animated-frame {
+  filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.12));
 }
 
 @media (prefers-reduced-motion: reduce) {
   html[data-theme='liquid-glass-neon'] *,
   html[data-theme='liquid-glass-neon'] *::before,
-  html[data-theme='liquid-glass-neon'] *::after {
+  html[data-theme='liquid-glass-neon'] *::after,
+  html[data-theme='liquid-glass-ui-kit'] *,
+  html[data-theme='liquid-glass-ui-kit'] *::before,
+  html[data-theme='liquid-glass-ui-kit'] *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;

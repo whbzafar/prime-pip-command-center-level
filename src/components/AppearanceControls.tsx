@@ -29,6 +29,7 @@ import {
   synthesizeThemeFromQuery,
 } from '../utils/themeSynthesizer';
 import { BrightnessController } from './BrightnessController';
+import { LiquidGlassThemeToggle } from './LiquidGlassThemeToggle';
 
 const readStored = (key: string, fallback: string) => {
   try {
@@ -457,7 +458,7 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
             <button
               type="button"
               onClick={() => {
-                setTheme('liquid-glass-neon');
+                setTheme('liquid-glass-ui-kit');
                 setBrightness(104);
               }}
               className="text-[11px] font-mono-code px-2.5 py-1 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer shrink-0 ml-2"
@@ -466,6 +467,9 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
               <span className="hidden sm:inline">Restore Command Center</span>
             </button>
           </div>
+
+          {/* Liquid Glass UI Kit Showcase & Generator Banner */}
+          <LiquidGlassThemeToggle variant="card" />
 
           {/* Search Bar with Google Discovery prompt */}
           <div className="space-y-2">

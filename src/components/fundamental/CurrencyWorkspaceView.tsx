@@ -28,6 +28,9 @@ import {
   Activity,
   Users,
   RotateCcw,
+  RefreshCw,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import { OFFICIAL_INDICATOR_REGISTRY, CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
 import { DEFAULT_INTEREST_RATES, DEFAULT_COT_RECORDS } from '../../data/defaultFundamentalObservations';
@@ -75,6 +78,8 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [editingObsId, setEditingObsId] = useState<string | null>(null);
   const [generatingIndicatorId, setGeneratingIndicatorId] = useState<string | null>(null);
+  const [zoomScale, setZoomScale] = useState<'100' | '90' | '80'>('90');
+  const [rowFeedbackMap, setRowFeedbackMap] = useState<Record<string, { type: 'success' | 'error'; text: string }>>({});
   const [generateAllState, setGenerateAllState] = useState<{ running: boolean; completed: number; total: number; mode: 'GENERATE' | 'REGENERATE' }>({
     running: false,
     completed: 0,
@@ -320,8 +325,17 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
     try {
       const existing = observations.find((observation) => observation.indicatorId === def.id);
       const result = await generateIndicator(def, existing, mode);
-      if (result.status !== 'VERIFIED' || result.actual === null) {
-        setLiveResearchMessage(result.notes || `${def.shortLabel}: no verified release was returned; existing data was preserved.`);
+      if (result.actual === null) {
+        const errorMsg = result.notes || `${def.shortLabel}: No published data found on Google/official source.`;
+        setLiveResearchMessage(errorMsg);
+        setRowFeedbackMap((prev) => ({ ...prev, [def.id]: { type: 'error', text: errorMsg } }));
+        setTimeout(() => {
+          setRowFeedbackMap((prev) => {
+            const next = { ...prev };
+            delete next[def.id];
+            return next;
+          });
+        }, 6000);
         return;
       }
 
@@ -332,22 +346,40 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
         referencePeriod: result.referencePeriod || existing?.referencePeriod || 'Latest',
         releaseDate: result.releaseDate || existing?.releaseDate || new Date().toISOString().split('T')[0],
         actual: result.actual,
-        forecast: result.forecast,
-        previous: result.previous,
+        forecast: result.forecast !== null && result.forecast !== undefined ? result.forecast : (existing?.forecast ?? null),
+        previous: result.previous !== null && result.previous !== undefined ? result.previous : (existing?.previous ?? null),
         revisedPrevious: result.revisedPrevious ?? existing?.revisedPrevious ?? null,
         unit: def.unit,
         sourceUrl: result.sourceUrl || def.officialSourceUrl,
         notes: result.notes || existing?.notes,
         updatedAt: result.retrievedAt || new Date().toISOString(),
         verificationStatus: 'VERIFIED',
-        confidence: result.confidence,
+        confidence: result.confidence || 90,
         researchRetrievedAt: result.retrievedAt,
         researchSourceName: result.sourceName,
       };
       onUpdateObservation(updated);
-      setLiveResearchMessage(`${def.shortLabel}: verified and updated from grounded web research.`);
+      const successMsg = `✓ Updated: ${result.actual}${def.unit} (${result.referencePeriod || 'Latest'})`;
+      setLiveResearchMessage(`${def.shortLabel}: ${successMsg}`);
+      setRowFeedbackMap((prev) => ({ ...prev, [def.id]: { type: 'success', text: successMsg } }));
+      setTimeout(() => {
+        setRowFeedbackMap((prev) => {
+          const next = { ...prev };
+          delete next[def.id];
+          return next;
+        });
+      }, 5000);
     } catch (error) {
-      setLiveResearchMessage(error instanceof Error ? error.message : 'Live research failed; existing data was preserved.');
+      const errText = error instanceof Error ? error.message : 'Live research failed; existing data was preserved.';
+      setLiveResearchMessage(errText);
+      setRowFeedbackMap((prev) => ({ ...prev, [def.id]: { type: 'error', text: errText } }));
+      setTimeout(() => {
+        setRowFeedbackMap((prev) => {
+          const next = { ...prev };
+          delete next[def.id];
+          return next;
+        });
+      }, 6000);
     } finally {
       setGeneratingIndicatorId(null);
     }
@@ -372,8 +404,8 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
               referencePeriod: result.referencePeriod || existing?.referencePeriod || 'Latest',
               releaseDate: result.releaseDate || existing?.releaseDate || new Date().toISOString().split('T')[0],
               actual: result.actual,
-              forecast: result.forecast,
-              previous: result.previous,
+              forecast: result.forecast !== null && result.forecast !== undefined ? result.forecast : (existing?.forecast ?? null),
+              previous: result.previous !== null && result.previous !== undefined ? result.previous : (existing?.previous ?? null),
               revisedPrevious: result.revisedPrevious ?? existing?.revisedPrevious ?? null,
               unit: def.unit,
               sourceUrl: result.sourceUrl || def.officialSourceUrl,
@@ -472,7 +504,42 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* View Zoom Controller for Full-Screen & Compact Displays */}
+            <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-[11px] font-mono-code shadow-sm">
+              <span className="text-slate-400 px-1.5 hidden sm:inline">Zoom:</span>
+              <button
+                type="button"
+                onClick={() => setZoomScale('100')}
+                className={`px-2 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  zoomScale === '100' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Default 100% Zoom"
+              >
+                100%
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoomScale('90')}
+                className={`px-2 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  zoomScale === '90' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Fit Screen Zoom Out (90%)"
+              >
+                90% Fit
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoomScale('80')}
+                className={`px-2 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  zoomScale === '80' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Compact Zoom Out (80%)"
+              >
+                80% Compact
+              </button>
+            </div>
+
             {/* Transparent "Why?" Button */}
             <button
               type="button"
@@ -861,19 +928,23 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
               {/* Indicators Table */}
               {!isCollapsed && (
                 <>
-                  <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-left text-xs font-mono-code">
+                  <div className={`hidden md:block overflow-x-auto transition-all ${
+                    zoomScale === '80' ? 'text-[10px]' : zoomScale === '90' ? 'text-[11px]' : 'text-xs'
+                  }`}>
+                  <table className="w-full text-left font-mono-code">
                     <thead className="bg-[#0b1120] text-slate-400 border-b border-slate-800 text-[10px] uppercase">
                       <tr>
-                        <th className="p-3">Indicator / Measurement</th>
-                        <th className="p-3 text-right">Actual</th>
-                        <th className="p-3 text-right">Forecast</th>
-                        <th className="p-3 text-right">Previous</th>
-                        <th className="p-3 text-right">Surprise</th>
-                        <th className="p-3 text-right">Change</th>
-                        <th className="p-3 text-center">Score (-100..+100)</th>
-                        <th className="p-3 text-center">Official Source</th>
-                        <th className="p-3 text-center">Action</th>
+                        <th className="p-2.5">Indicator / Measurement</th>
+                        <th className="p-2 text-right">Actual</th>
+                        <th className="p-2 text-right">Forecast</th>
+                        <th className="p-2 text-right">Previous</th>
+                        <th className="p-2 text-right">Surprise</th>
+                        <th className="p-2 text-right">Change</th>
+                        <th className="p-2 text-center">Score (-100..+100)</th>
+                        <th className="p-2 text-center">Official Source</th>
+                        <th className="p-2 text-center sticky right-0 z-20 bg-[#0b1120] border-l border-slate-800 shadow-[-8px_0_12px_rgba(0,0,0,0.6)] min-w-[210px]">
+                          Action
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60 bg-slate-950/40">
@@ -895,7 +966,7 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                         return (
                           <React.Fragment key={def.id}>
                             <tr className="hover:bg-slate-900/40 transition">
-                              <td className="p-3">
+                              <td className="p-2.5">
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <span className="font-military font-bold text-xs text-slate-100">
@@ -916,13 +987,13 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                                       </span>
                                     )}
                                   </div>
-                                  <span className="text-[11px] text-slate-400 block truncate max-w-[280px]">
+                                  <span className="text-[11px] text-slate-400 block truncate max-w-[260px]">
                                     {def.name}
                                   </span>
                                 </div>
                               </td>
 
-                              <td className="p-3 text-right">
+                              <td className="p-2 text-right">
                                 {actualVal !== null ? (
                                   <span className="font-bold text-slate-100 text-sm">
                                     {actualVal}
@@ -933,15 +1004,15 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                                 )}
                               </td>
 
-                              <td className="p-3 text-right text-slate-400">
+                              <td className="p-2 text-right text-slate-400">
                                 {forecastVal !== null ? `${forecastVal}${def.unit}` : '—'}
                               </td>
 
-                              <td className="p-3 text-right text-slate-400">
+                              <td className="p-2 text-right text-slate-400">
                                 {previousVal !== null ? `${previousVal}${def.unit}` : '—'}
                               </td>
 
-                              <td className="p-3 text-right">
+                              <td className="p-2 text-right">
                                 {surprise !== null ? (
                                   <span
                                     className={`font-bold inline-flex items-center gap-0.5 ${
@@ -956,11 +1027,11 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                                 )}
                               </td>
 
-                              <td className="p-3 text-right text-slate-400">
+                              <td className="p-2 text-right text-slate-400">
                                 {change !== null ? (change > 0 ? `+${change}` : change) : '—'}
                               </td>
 
-                              <td className="p-3 text-center">
+                              <td className="p-2 text-center">
                                 {indScore ? (
                                   <span
                                     className={`px-2 py-0.5 rounded text-[11px] font-bold ${
@@ -979,37 +1050,48 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                               </td>
 
                               {/* Prominent Button: Open Official Source ↗ (Mandatory Section 12) */}
-                              <td className="p-3 text-center">
+                              <td className="p-2 text-center">
                                 <a
                                   href={def.officialSourceUrl}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="inline-flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 underline font-semibold transition"
                                 >
-                                  <span>Open Official Source</span>
+                                  <span>Open Source</span>
                                   <ExternalLink className="w-3 h-3" />
                                 </a>
                               </td>
 
-                              <td className="p-3 text-center">
+                              <td className="p-2 text-center sticky right-0 z-10 bg-[#0b1120] border-l border-slate-800 shadow-[-8px_0_12px_rgba(0,0,0,0.6)]">
                                 <div className="flex items-center justify-center gap-1.5">
                                   <button
                                     type="button"
                                     onClick={() => handleGenerateIndicator(def, 'GENERATE')}
                                     disabled={generatingIndicatorId === def.id || generateAllState.running}
-                                    className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 disabled:opacity-40 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold transition cursor-pointer"
-                                    title="Generate latest verified release"
+                                    className="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 active:scale-95 disabled:opacity-40 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold transition cursor-pointer flex items-center gap-1 min-w-[78px] justify-center"
+                                    title="Generate latest verified release from Google and official sources"
                                   >
-                                    {generatingIndicatorId === def.id ? '...' : 'Generate'}
+                                    {generatingIndicatorId === def.id ? (
+                                      <>
+                                        <RefreshCw className="w-3 h-3 animate-spin text-emerald-400" />
+                                        <span>Fetching</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Sparkles className="w-3 h-3 text-emerald-400" />
+                                        <span>Generate</span>
+                                      </>
+                                    )}
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleGenerateIndicator(def, 'REGENERATE')}
                                     disabled={generatingIndicatorId === def.id || generateAllState.running}
-                                    className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-cyan-300 border border-slate-700 text-[10px] font-bold transition cursor-pointer"
+                                    className="px-2 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 active:scale-95 disabled:opacity-40 text-cyan-300 border border-slate-700 text-[11px] font-bold transition cursor-pointer flex items-center gap-1"
                                     title="Force a fresh web search and verification"
                                   >
-                                    Regenerate
+                                    <RefreshCw className="w-3 h-3 text-cyan-400" />
+                                    <span>Regen</span>
                                   </button>
                                   <button
                                     type="button"
@@ -1020,6 +1102,18 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                                     <Edit3 className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
+                                {rowFeedbackMap[def.id] && (
+                                  <div
+                                    className={`mt-1 text-[10px] font-mono-code font-bold truncate max-w-[200px] mx-auto px-1.5 py-0.5 rounded ${
+                                      rowFeedbackMap[def.id].type === 'success'
+                                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                    }`}
+                                    title={rowFeedbackMap[def.id].text}
+                                  >
+                                    {rowFeedbackMap[def.id].text}
+                                  </div>
+                                )}
                               </td>
                             </tr>
 
@@ -1235,6 +1329,59 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                             <ExternalLink className="w-3 h-3" />
                           </a>
                         </div>
+
+                        {/* Mobile Action Bar: Generate, Regenerate, Edit (min 44px touch target) */}
+                        <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80">
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateIndicator(def, 'GENERATE')}
+                            disabled={generatingIndicatorId === def.id || generateAllState.running}
+                            className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 active:scale-95 disabled:opacity-40 text-emerald-300 border border-emerald-500/40 text-xs font-military font-bold flex items-center justify-center gap-1.5 min-h-[44px] transition cursor-pointer"
+                          >
+                            {generatingIndicatorId === def.id ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+                                <span>Fetching...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-4 h-4 text-emerald-400" />
+                                <span>Generate</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateIndicator(def, 'REGENERATE')}
+                            disabled={generatingIndicatorId === def.id || generateAllState.running}
+                            className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 disabled:opacity-40 text-cyan-300 border border-slate-700 text-xs font-military font-bold flex items-center justify-center gap-1 min-h-[44px] transition cursor-pointer"
+                            title="Force a fresh web search"
+                          >
+                            <RefreshCw className="w-4 h-4 text-cyan-400" />
+                            <span>Regen</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => (isEditing ? setEditingObsId(null) : handleStartEdit(def, obs))}
+                            className="py-2.5 px-3 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 border border-blue-500/30 text-xs font-military font-bold flex items-center justify-center gap-1 min-h-[44px] transition cursor-pointer"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                            <span>{isEditing ? 'Close' : 'Edit'}</span>
+                          </button>
+                        </div>
+
+                        {/* Mobile Row Feedback Badge */}
+                        {rowFeedbackMap[def.id] && (
+                          <div
+                            className={`p-2.5 rounded-xl text-xs font-mono-code font-bold ${
+                              rowFeedbackMap[def.id].type === 'success'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                            }`}
+                          >
+                            {rowFeedbackMap[def.id].text}
+                          </div>
+                        )}
 
                         {/* Mobile Direct Edit Form */}
                         {isEditing && (

@@ -58,6 +58,7 @@ import { OfflineIndicator } from './OfflineIndicator';
 import { PWAInstallButton } from './PWAInstallButton';
 import { playDisciplineAlert, getAlertSettings, toggleSoundEnabled, AlertSettings } from '../utils/audioAlerts';
 import { DailyPrayerBar } from './DailyPrayerBar';
+import { LiquidGlassThemeToggle } from './LiquidGlassThemeToggle';
 import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
 import { GlobalTimeSessionModal } from './GlobalTimeSessionModal';
 import { GlobalSearch } from './GlobalSearch';
@@ -644,6 +645,9 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline">BACKUP</span>
             </button>
           )}
+
+          {/* Liquid Glass UI Kit Flagship Suite: Quick Generate & Restore */}
+          <LiquidGlassThemeToggle variant="header" onOpenAppearance={onOpenAppearance} />
 
           {/* Quick Brightness & Luminance Intensity Controller Pill & Popover */}
           <div ref={brightnessRef} className="relative">

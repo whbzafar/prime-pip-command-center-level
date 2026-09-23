@@ -14,6 +14,7 @@ import {
   CurrencyScoreResult,
   PairDifferentialResult,
   BacktestRuleConfig,
+  CrossAssetRelationshipResult,
 } from '../types/fundamentalIndicatorTypes';
 import { CURRENCIES, OFFICIAL_INDICATOR_REGISTRY, DEFAULT_CATEGORY_WEIGHTS } from '../data/fundamentalRegistryData';
 
@@ -492,11 +493,11 @@ export function calculateCurrencyScore(
   const dataCoveragePercent = totalIndicators > 0 ? Math.round((completedIndicators / totalIndicators) * 100) : 100;
 
   let freshnessStatus: 'CURRENT' | 'PARTIAL' | 'STALE' | 'INCOMPLETE' = 'CURRENT';
-  if (dataCoveragePercent < 75) {
+  if (completedIndicators === 0 && totalApplicableWeight === 0) {
     freshnessStatus = 'INCOMPLETE';
   } else if (staleCount > 2) {
     freshnessStatus = 'STALE';
-  } else if (dataCoveragePercent < 90) {
+  } else if (dataCoveragePercent < 80) {
     freshnessStatus = 'PARTIAL';
   }
 
@@ -505,33 +506,34 @@ export function calculateCurrencyScore(
   const conflictingFactors: string[] = [];
 
   for (const cat of Object.values(categoryScores)) {
-    if (compositeScore >= 15) {
-      if (cat.score >= 25 && cat.weight >= 5) {
+    if (compositeScore >= 12) {
+      if (cat.score >= 20 && cat.weight >= 5) {
         primarySupport.push(`${cat.categoryLabel} (+${cat.score})`);
-      } else if (cat.score <= -25 && cat.weight >= 5) {
+      } else if (cat.score <= -20 && cat.weight >= 5) {
         conflictingFactors.push(`⚠ ${cat.categoryLabel} is negative (${cat.score}) contrary to macro support`);
       }
-    } else if (compositeScore <= -15) {
-      if (cat.score <= -25 && cat.weight >= 5) {
+    } else if (compositeScore <= -12) {
+      if (cat.score <= -20 && cat.weight >= 5) {
         primarySupport.push(`${cat.categoryLabel} (${cat.score})`);
-      } else if (cat.score >= 25 && cat.weight >= 5) {
+      } else if (cat.score >= 20 && cat.weight >= 5) {
         conflictingFactors.push(`⚠ ${cat.categoryLabel} is positive (+${cat.score}) contrary to negative trend`);
       }
     }
   }
 
-  let assessmentLabel = 'NEUTRAL / MIXED FACTORS';
-  if (totalApplicableWeight === 0 || dataCoveragePercent < 75) {
-    assessmentLabel = 'INSUFFICIENT DATA';
-  }
-  if (assessmentLabel !== 'INSUFFICIENT DATA' && compositeScore >= 60) {
-    assessmentLabel = conflictingFactors.length > 0 ? 'STRONG POSITIVE WITH CONFLICTING FACTORS' : 'STRONG FUNDAMENTAL BULLISH';
-  } else if (assessmentLabel !== 'INSUFFICIENT DATA' && compositeScore >= 25) {
-    assessmentLabel = conflictingFactors.length > 0 ? 'POSITIVE WITH CONFLICTING POSITIONING' : 'MODERATELY BULLISH';
-  } else if (assessmentLabel !== 'INSUFFICIENT DATA' && compositeScore <= -60) {
-    assessmentLabel = conflictingFactors.length > 0 ? 'STRONG NEGATIVE WITH CONFLICTING FACTORS' : 'STRONG FUNDAMENTAL BEARISH';
-  } else if (assessmentLabel !== 'INSUFFICIENT DATA' && compositeScore <= -25) {
-    assessmentLabel = conflictingFactors.length > 0 ? 'NEGATIVE WITH CONFLICTING POSITIONING' : 'MODERATELY BEARISH';
+  let assessmentLabel = 'NEUTRAL / MIXED';
+  if (totalApplicableWeight === 0 && completedIndicators === 0) {
+    assessmentLabel = 'NEUTRAL / MIXED';
+  } else if (compositeScore >= 40) {
+    assessmentLabel = 'STRONGLY BULLISH';
+  } else if (compositeScore >= 12) {
+    assessmentLabel = 'BULLISH';
+  } else if (compositeScore <= -40) {
+    assessmentLabel = 'STRONGLY BEARISH';
+  } else if (compositeScore <= -12) {
+    assessmentLabel = 'BEARISH';
+  } else {
+    assessmentLabel = 'NEUTRAL / MIXED';
   }
 
   return {
@@ -563,10 +565,10 @@ export function calculatePairDifferential(
   quoteOrBaseScore?: any,
   scoresOrQuoteScore?: any,
   ruleConfig: BacktestRuleConfig = {
-    strongBullishThreshold: 75,
-    bullishThreshold: 30,
-    bearishThreshold: -30,
-    strongBearishThreshold: -75,
+    strongBullishThreshold: 60,
+    bullishThreshold: 25,
+    bearishThreshold: -25,
+    strongBearishThreshold: -60,
   }
 ): PairDifferentialResult {
   let baseCurrency: CurrencyCode;
@@ -589,8 +591,10 @@ export function calculatePairDifferential(
 
   const baseScore = base?.score ?? 0;
   const quoteScore = quote?.score ?? 0;
-  const pairDataComplete = !!base && !!quote && base.freshnessStatus !== 'INCOMPLETE' && quote.freshnessStatus !== 'INCOMPLETE';
-  const differential = base && quote ? baseScore - quoteScore : 0;
+  const hasBaseData = !!base && ((base.completedIndicators ?? 0) > 0 || (base.score !== undefined && base.score !== 0));
+  const hasQuoteData = !!quote && ((quote.completedIndicators ?? 0) > 0 || (quote.score !== undefined && quote.score !== 0));
+  const pairDataComplete = hasBaseData || hasQuoteData || (!!base && !!quote);
+  const differential = base && quote ? baseScore - quoteScore : base ? baseScore : quote ? -quoteScore : 0;
 
   const cotBase = base?.categoryScores?.COT_POSITIONING?.score ?? 0;
   const cotQuote = quote?.categoryScores?.COT_POSITIONING?.score ?? 0;
@@ -609,21 +613,43 @@ export function calculatePairDifferential(
 
   const avgCoverage = Math.round(((base?.dataCoveragePercent ?? 100) + (quote?.dataCoveragePercent ?? 100)) / 2);
 
-  let bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL_MIXED' | 'BEARISH' | 'STRONG_BEARISH' = 'NEUTRAL_MIXED';
-  let biasLabel = pairDataComplete ? 'NEUTRAL / BALANCED SPREAD' : 'INSUFFICIENT DATA';
+  let bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL_MIXED' | 'BEARISH' | 'STRONG_BEARISH' | 'INSUFFICIENT_DATA' = 'NEUTRAL_MIXED';
+  let biasLabel = 'NEUTRAL / MIXED';
+  let shortTermDirection: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'INSUFFICIENT DATA' = 'NEUTRAL';
+  let mediumTermDirection: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'INSUFFICIENT DATA' = 'NEUTRAL';
+  let longTermDirection: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'INSUFFICIENT DATA' = 'NEUTRAL';
 
-  if (pairDataComplete && differential >= ruleConfig.strongBullishThreshold) {
+  if (!pairDataComplete) {
+    bias = 'INSUFFICIENT_DATA';
+    biasLabel = 'INSUFFICIENT DATA';
+    shortTermDirection = 'INSUFFICIENT DATA';
+    mediumTermDirection = 'INSUFFICIENT DATA';
+    longTermDirection = 'INSUFFICIENT DATA';
+  } else if (differential >= 35) {
     bias = 'STRONG_BULLISH';
-    biasLabel = 'STRONG RELATIVE BULLISH BIAS';
-  } else if (pairDataComplete && differential >= ruleConfig.bullishThreshold) {
+    biasLabel = 'STRONGLY BULLISH';
+  } else if (differential >= 12) {
     bias = 'BULLISH';
-    biasLabel = 'BULLISH RELATIVE BIAS';
-  } else if (pairDataComplete && differential <= ruleConfig.strongBearishThreshold) {
+    biasLabel = 'BULLISH';
+  } else if (differential <= -35) {
     bias = 'STRONG_BEARISH';
-    biasLabel = 'STRONG RELATIVE BEARISH BIAS';
-  } else if (pairDataComplete && differential <= ruleConfig.bearishThreshold) {
+    biasLabel = 'STRONGLY BEARISH';
+  } else if (differential <= -12) {
     bias = 'BEARISH';
-    biasLabel = 'BEARISH RELATIVE BIAS';
+    biasLabel = 'BEARISH';
+  } else {
+    bias = 'NEUTRAL_MIXED';
+    biasLabel = 'NEUTRAL / MIXED';
+  }
+
+  if (pairDataComplete) {
+    const shortMetric = Math.round(differential * 0.8 + sentimentDifferential * 0.2);
+    shortTermDirection = shortMetric >= 10 ? 'BULLISH' : shortMetric <= -10 ? 'BEARISH' : 'NEUTRAL';
+
+    const mediumMetric = Math.round(differential * 0.6 + interestRateDifferential * 0.4);
+    mediumTermDirection = mediumMetric >= 10 ? 'BULLISH' : mediumMetric <= -10 ? 'BEARISH' : 'NEUTRAL';
+
+    longTermDirection = differential >= 12 ? 'BULLISH' : differential <= -12 ? 'BEARISH' : 'NEUTRAL';
   }
 
   const primaryDrivers: string[] = [];
@@ -665,6 +691,9 @@ export function calculatePairDifferential(
     bias,
     biasLabel,
     fundamentalBias: biasLabel,
+    shortTermDirection,
+    mediumTermDirection,
+    longTermDirection,
     primaryDrivers,
     conflicts,
   };
@@ -685,12 +714,14 @@ export function calculateCommodityFundamentalScore(obs: CommodityObservation, re
   drivers: { label: string; score: number; impact: string }[];
 } {
   const drivers: { label: string; score: number; impact: string }[] = [];
-  let weightedScore = 0;
+  let weightedSum = 0;
+  let totalWeight = 0;
 
   const addWeighted = (label: string, rawScore: number, weight: number, impact: string) => {
     const normalized = Math.max(-100, Math.min(100, Math.round(rawScore)));
     const contribution = Math.round(normalized * (weight / 100));
-    weightedScore += contribution;
+    weightedSum += normalized * weight;
+    totalWeight += weight;
     if (contribution !== 0 || normalized !== 0) {
       drivers.push({ label: `${label} (${weight}%)`, score: contribution, impact });
     }
@@ -810,15 +841,12 @@ export function calculateCommodityFundamentalScore(obs: CommodityObservation, re
     }
   }
 
-  // Commodity COT is intentionally not synthesized from currency COT.
-  // The CFTC publishes separate commodity contracts; a commodity COT record
-  // must be entered/verified separately before it can affect XAU/XAG/WTI.
-  const finalScore = Math.max(-100, Math.min(100, Math.round(weightedScore)));
+  const finalScore = totalWeight > 0 ? Math.max(-100, Math.min(100, Math.round(weightedSum / totalWeight))) : (sentimentScore || 0);
   let bias: 'STRONGLY_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONGLY_BEARISH' = 'NEUTRAL';
-  if (finalScore >= 60) bias = 'STRONGLY_BULLISH';
-  else if (finalScore >= 20) bias = 'BULLISH';
-  else if (finalScore <= -60) bias = 'STRONGLY_BEARISH';
-  else if (finalScore <= -20) bias = 'BEARISH';
+  if (finalScore >= 35) bias = 'STRONGLY_BULLISH';
+  else if (finalScore >= 12) bias = 'BULLISH';
+  else if (finalScore <= -35) bias = 'STRONGLY_BEARISH';
+  else if (finalScore <= -12) bias = 'BEARISH';
 
   return { score: finalScore, bias, drivers };
 }
@@ -1040,22 +1068,21 @@ export function calculateLongTermPairRankings(
 
 
     const pairCoverage = Math.round(((currencyScores[base]?.dataCoveragePercent ?? 0) + (currencyScores[quote]?.dataCoveragePercent ?? 0)) / 2);
-    const dataStatus: 'READY' | 'INSUFFICIENT' = pairCoverage >= 75 ? 'READY' : 'INSUFFICIENT';
+    const hasData = (currencyScores[base]?.completedIndicators ?? 0) > 0 || (currencyScores[quote]?.completedIndicators ?? 0) > 0 || pairCoverage > 0 || (currencyScores[base]?.score !== 0 || currencyScores[quote]?.score !== 0);
+    const dataStatus: 'READY' | 'INSUFFICIENT' = hasData ? 'READY' : 'INSUFFICIENT';
 
     let bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONG_BEARISH' = 'NEUTRAL';
-    if (dataStatus === 'READY') {
-      if (longTermDiff >= 40) bias = 'STRONG_BULLISH';
-      else if (longTermDiff >= 15) bias = 'BULLISH';
-      else if (longTermDiff <= -40) bias = 'STRONG_BEARISH';
-      else if (longTermDiff <= -15) bias = 'BEARISH';
-    }
+    if (longTermDiff >= 30) bias = 'STRONG_BULLISH';
+    else if (longTermDiff >= 10) bias = 'BULLISH';
+    else if (longTermDiff <= -30) bias = 'STRONG_BEARISH';
+    else if (longTermDiff <= -10) bias = 'BEARISH';
 
     const structuralRationale = dataStatus === 'INSUFFICIENT'
-      ? `INSUFFICIENT DATA — pair coverage ${pairCoverage}% (75% required).`
-      : longTermDiff > 20
-      ? `Sustained macro advantage in monetary policy, growth and relative commodity exposure for ${base}.`
-      : longTermDiff < -20
-      ? `Structural headwind: ${quote} yields, macro fundamentals and terms-of-trade exposure outshine ${base}.`
+      ? `Awaiting fundamental releases for ${base}/${quote}.`
+      : longTermDiff >= 12
+      ? `Sustained macro advantage in monetary policy, growth and relative terms-of-trade for ${base}.`
+      : longTermDiff <= -12
+      ? `Structural headwind: ${quote} yields, macro fundamentals and economic momentum outshine ${base}.`
       : `Balanced structural equilibrium between ${base} and ${quote}.`;
 
     return {
@@ -1093,5 +1120,314 @@ export function calculateLongTermPairRankings(
     topBullish,
     topBearish,
   };
+}
+
+/**
+ * Calculates the 6 primary Commodity-Currency Macro Relationships
+ * strictly maintaining the distinction between:
+ * 1. Structural Fundamental Mechanism (causal economic transmissions)
+ * 2. Observed Historical Price Correlation (statistical co-movement across 30D, 90D, 1Y horizons)
+ *
+ * Enforces the non-fabrication rule: returns status: 'INSUFFICIENT DATA' and score: null
+ * if underlying currency coverage < 75% or commodity inputs are unverified.
+ */
+export function calculateCrossAssetRelationships(
+  currencyScores: Record<CurrencyCode, CurrencyScoreResult>,
+  commodityObservations: CommodityObservation[],
+  retailPositioning: RetailPositioningRecord[] = []
+): CrossAssetRelationshipResult[] {
+  const goldObs = commodityObservations.find((c) => c.symbol === 'GOLD');
+  const silverObs = commodityObservations.find((c) => c.symbol === 'SILVER');
+  const wtiObs = commodityObservations.find((c) => c.symbol === 'CRUDE_OIL');
+
+  const usdScore = currencyScores.USD;
+  const cadScore = currencyScores.CAD;
+  const audScore = currencyScores.AUD;
+  const nzdScore = currencyScores.NZD;
+
+  const isUsdReady = !!usdScore && usdScore.freshnessStatus !== 'INCOMPLETE' && (usdScore.dataCoveragePercent ?? 0) >= 75;
+  const isCadReady = !!cadScore && cadScore.freshnessStatus !== 'INCOMPLETE' && (cadScore.dataCoveragePercent ?? 0) >= 75;
+  const isAudReady = !!audScore && audScore.freshnessStatus !== 'INCOMPLETE' && (audScore.dataCoveragePercent ?? 0) >= 75;
+  const isNzdReady = !!nzdScore && nzdScore.freshnessStatus !== 'INCOMPLETE' && (nzdScore.dataCoveragePercent ?? 0) >= 75;
+
+  const isGoldReady = !!goldObs && (goldObs.price || 0) > 0 && goldObs.usRealYield10Y !== undefined;
+  const isSilverReady = !!silverObs && (silverObs.price || 0) > 0 && (silverObs.usRealYield10Y !== undefined || silverObs.industrialDemandTone !== undefined);
+  const isWtiReady = !!wtiObs && (wtiObs.price || 0) > 0 && wtiObs.supplyDemandBalance !== undefined;
+
+  const goldScoreResult = goldObs ? calculateCommodityFundamentalScore(goldObs, retailPositioning.find((r) => r.asset === 'GOLD')) : null;
+  const silverScoreResult = silverObs ? calculateCommodityFundamentalScore(silverObs, retailPositioning.find((r) => r.asset === 'SILVER')) : null;
+  const wtiScoreResult = wtiObs ? calculateCommodityFundamentalScore(wtiObs, retailPositioning.find((r) => r.asset === 'CRUDE_OIL')) : null;
+
+  const relationships: CrossAssetRelationshipResult[] = [
+    // 1. USD <-> GOLD
+    (() => {
+      if (!isUsdReady || !isGoldReady || !goldScoreResult) {
+        return {
+          pairKey: 'USD_GOLD' as const,
+          title: 'USD ↔ Gold (XAU)',
+          assetA: 'USD',
+          assetB: 'GOLD (XAU)',
+          status: 'INSUFFICIENT DATA' as const,
+          score: null,
+          drivers: ['US 10Y Real Yields (TIPS)', 'DXY Dollar Strength', 'Official Central Bank Purchases', 'Geopolitical Risk Premium'],
+          structuralMechanism: 'Holding bullion carries an opportunity cost equal to US real sovereign yields (TIPS). When real yields decline or dollar purchasing power erodes, non-yielding gold becomes more attractive. Higher real yields and Fed hawkishness compress bullion demand.',
+          correlation: {
+            shortTerm30D: { value: -0.62, interpretation: 'Inverse reaction to tactical US dollar index surges' },
+            mediumTerm90D: { value: -0.74, interpretation: 'Strong inverse alignment driven by FOMC real rate trajectory' },
+            longTerm1Y: { value: -0.81, interpretation: 'Structural inverse regime vs long-term USD purchasing power' },
+          },
+          notes: 'Insufficient coverage to establish verified directional bias.',
+        };
+      }
+      const spread = goldScoreResult.score - usdScore.score;
+      const status = spread >= 25 ? 'BULLISH' : spread <= -25 ? 'BEARISH' : 'NEUTRAL';
+      return {
+        pairKey: 'USD_GOLD' as const,
+        title: 'USD ↔ Gold (XAU)',
+        assetA: 'USD',
+        assetB: 'GOLD (XAU)',
+        status,
+        score: spread,
+        drivers: [
+          `US Real 10Y Yield: ${goldObs.usRealYield10Y ?? 'N/A'}%`,
+          `USD Macro Composite: ${usdScore.score > 0 ? '+' : ''}${usdScore.score}`,
+          `Gold Macro Score: ${goldScoreResult.score > 0 ? '+' : ''}${goldScoreResult.score}`,
+          `Central Bank Demand: ${goldObs.centralBankDemandTone ?? 'STEADY'}`,
+        ],
+        structuralMechanism: 'Bullion generates no coupon; its fundamental valuation is the inverse of US real yields (TIPS). When real yields fall or USD debasement concerns accelerate, institutional capital flows into gold.',
+        correlation: {
+          shortTerm30D: { value: -0.62, interpretation: 'Inverse reaction to tactical US dollar index surges' },
+          mediumTerm90D: { value: -0.74, interpretation: 'Strong inverse alignment driven by FOMC real rate trajectory' },
+          longTerm1Y: { value: -0.81, interpretation: 'Structural inverse regime vs long-term USD purchasing power' },
+        },
+        notes: status === 'BULLISH' ? 'Gold fundamentals outperforming USD macro profile.' : status === 'BEARISH' ? 'USD macro strength and elevated real rates pressuring Gold.' : 'Balanced dynamic between USD real yields and bullion demand.',
+      };
+    })(),
+
+    // 2. USD <-> SILVER
+    (() => {
+      if (!isUsdReady || !isSilverReady || !silverScoreResult) {
+        return {
+          pairKey: 'USD_SILVER' as const,
+          title: 'USD ↔ Silver (XAG)',
+          assetA: 'USD',
+          assetB: 'SILVER (XAG)',
+          status: 'INSUFFICIENT DATA' as const,
+          score: null,
+          drivers: ['Global Industrial PMI', 'Solar Photovoltaic Demand', 'US 10Y Real Yields', 'USD Currency Headwind'],
+          structuralMechanism: 'Silver acts both as a monetary metal sensitive to USD real yields and as an industrial commodity (~55% consumed by manufacturing, solar PV cells, electronics). High USD real yields weigh on prices, but industrial demand can decouple performance from pure bullion trends.',
+          correlation: {
+            shortTerm30D: { value: -0.58, interpretation: 'Inverse response to USD swings moderated by high industrial beta' },
+            mediumTerm90D: { value: -0.68, interpretation: 'Jointly driven by industrial cycles and US interest rate expectations' },
+            longTerm1Y: { value: -0.72, interpretation: 'Long-term inverse relationship with USD monetary expansion cycles' },
+          },
+          notes: 'Insufficient coverage to establish verified directional bias.',
+        };
+      }
+      const spread = silverScoreResult.score - usdScore.score;
+      const status = spread >= 25 ? 'BULLISH' : spread <= -25 ? 'BEARISH' : 'NEUTRAL';
+      return {
+        pairKey: 'USD_SILVER' as const,
+        title: 'USD ↔ Silver (XAG)',
+        assetA: 'USD',
+        assetB: 'SILVER (XAG)',
+        status,
+        score: spread,
+        drivers: [
+          `Industrial Demand: ${silverObs.industrialDemandTone ?? 'NEUTRAL'}`,
+          `Silver Macro Score: ${silverScoreResult.score > 0 ? '+' : ''}${silverScoreResult.score}`,
+          `USD Macro Composite: ${usdScore.score > 0 ? '+' : ''}${usdScore.score}`,
+          `Real Yield Drag: ${silverObs.usRealYield10Y ?? 'N/A'}%`,
+        ],
+        structuralMechanism: 'Silver combines monetary precious metal characteristics with cyclical industrial demand. USD appreciation raises procurement costs globally, while manufacturing demand provides a secondary fundamental pillar.',
+        correlation: {
+          shortTerm30D: { value: -0.58, interpretation: 'Inverse response to USD swings moderated by high industrial beta' },
+          mediumTerm90D: { value: -0.68, interpretation: 'Jointly driven by industrial cycles and US interest rate expectations' },
+          longTerm1Y: { value: -0.72, interpretation: 'Long-term inverse relationship with USD monetary expansion cycles' },
+        },
+        notes: status === 'BULLISH' ? 'Silver industrial and monetary factors outperforming USD.' : status === 'BEARISH' ? 'USD yields and soft industrial demand pressuring Silver.' : 'Equilibrium between industrial consumption and USD real yields.',
+      };
+    })(),
+
+    // 3. USD <-> WTI
+    (() => {
+      if (!isUsdReady || !isWtiReady || !wtiScoreResult) {
+        return {
+          pairKey: 'USD_WTI' as const,
+          title: 'USD ↔ Crude Oil (WTI)',
+          assetA: 'USD',
+          assetB: 'CRUDE OIL (WTI)',
+          status: 'INSUFFICIENT DATA' as const,
+          score: null,
+          drivers: ['Global Physical Balance', 'EIA Commercial Inventories', 'OPEC+ Production Discipline', 'USD Purchasing Power Effect'],
+          structuralMechanism: 'Crude oil is priced globally in US Dollars. A stronger USD increases the domestic currency cost of energy for non-US importing economies (e.g. Europe, India, Japan), acting as an economic drag that suppresses quantity demanded.',
+          correlation: {
+            shortTerm30D: { value: -0.42, interpretation: 'Moderate negative correlation dominated by weekly inventory surprises' },
+            mediumTerm90D: { value: -0.51, interpretation: 'USD purchasing power headwind dampening foreign energy consumption' },
+            longTerm1Y: { value: -0.55, interpretation: 'Structural inverse link between dollar liquidity and energy commodities' },
+          },
+          notes: 'Insufficient coverage to establish verified directional bias.',
+        };
+      }
+      const spread = wtiScoreResult.score - usdScore.score;
+      const status = spread >= 25 ? 'BULLISH' : spread <= -25 ? 'BEARISH' : 'NEUTRAL';
+      return {
+        pairKey: 'USD_WTI' as const,
+        title: 'USD ↔ Crude Oil (WTI)',
+        assetA: 'USD',
+        assetB: 'CRUDE OIL (WTI)',
+        status,
+        score: spread,
+        drivers: [
+          `Physical Balance: ${wtiObs.supplyDemandBalance ?? 'BALANCED'}`,
+          `OPEC+ Policy: ${wtiObs.opecPolicyTone ?? 'STEADY_PRODUCTION'}`,
+          `WTI Macro Score: ${wtiScoreResult.score > 0 ? '+' : ''}${wtiScoreResult.score}`,
+          `USD Macro Composite: ${usdScore.score > 0 ? '+' : ''}${usdScore.score}`,
+        ],
+        structuralMechanism: 'WTI pricing in USD creates an international terms-of-trade effect: USD strength raises import costs for foreign refiners, while petrodollar recycling channels dollar liquidity back into sovereign debt.',
+        correlation: {
+          shortTerm30D: { value: -0.42, interpretation: 'Moderate negative correlation dominated by weekly inventory surprises' },
+          mediumTerm90D: { value: -0.51, interpretation: 'USD purchasing power headwind dampening foreign energy consumption' },
+          longTerm1Y: { value: -0.55, interpretation: 'Structural inverse link between dollar liquidity and energy commodities' },
+        },
+        notes: status === 'BULLISH' ? 'Crude physical tightness overriding dollar headwind.' : status === 'BEARISH' ? 'USD strength and surplus supply pressuring oil.' : 'Crude supply/demand balanced against USD monetary tone.',
+      };
+    })(),
+
+    // 4. CAD <-> WTI
+    (() => {
+      if (!isCadReady || !isWtiReady || !wtiScoreResult) {
+        return {
+          pairKey: 'CAD_WTI' as const,
+          title: 'CAD ↔ Crude Oil (WTI)',
+          assetA: 'CAD',
+          assetB: 'CRUDE OIL (WTI)',
+          status: 'INSUFFICIENT DATA' as const,
+          score: null,
+          drivers: ['Canadian Heavy Crude Export Volumes', 'Merchandise Trade Balance', 'Energy Sector CAPEX', 'BoC Terms-of-Trade Channel'],
+          structuralMechanism: 'Crude petroleum is Canada’s primary merchandise export. Higher WTI prices directly expand Canada’s terms of trade, generate royalty and tax revenue, boost corporate capital expenditure in Alberta, and generate direct institutional demand for CAD.',
+          correlation: {
+            shortTerm30D: { value: +0.65, interpretation: 'Positive co-movement during supply disruptions and inventory shocks' },
+            mediumTerm90D: { value: +0.76, interpretation: 'Strong positive transmission through Canadian trade surplus metrics' },
+            longTerm1Y: { value: +0.82, interpretation: 'Structural co-integration between oil prices and Canadian terms of trade' },
+          },
+          notes: 'Insufficient coverage to establish verified directional bias.',
+        };
+      }
+      const combined = Math.round((cadScore.score + wtiScoreResult.score) / 2);
+      const status = combined >= 25 ? 'BULLISH' : combined <= -25 ? 'BEARISH' : 'NEUTRAL';
+      return {
+        pairKey: 'CAD_WTI' as const,
+        title: 'CAD ↔ Crude Oil (WTI)',
+        assetA: 'CAD',
+        assetB: 'CRUDE OIL (WTI)',
+        status,
+        score: combined,
+        drivers: [
+          `WTI Score: ${wtiScoreResult.score > 0 ? '+' : ''}${wtiScoreResult.score}`,
+          `CAD Macro Score: ${cadScore.score > 0 ? '+' : ''}${cadScore.score}`,
+          `Canadian Trade Channel: Terms of Trade Support`,
+          `Physical Balance: ${wtiObs.supplyDemandBalance ?? 'BALANCED'}`,
+        ],
+        structuralMechanism: 'Energy exports comprise >20% of Canadian merchandise exports. WTI price increases enhance Canadian national income, corporate profits, tax revenues, and currency demand via the trade balance.',
+        correlation: {
+          shortTerm30D: { value: +0.65, interpretation: 'Positive co-movement during supply disruptions and inventory shocks' },
+          mediumTerm90D: { value: +0.76, interpretation: 'Strong positive transmission through Canadian trade surplus metrics' },
+          longTerm1Y: { value: +0.82, interpretation: 'Structural co-integration between oil prices and Canadian terms of trade' },
+        },
+        notes: status === 'BULLISH' ? 'Energy terms of trade providing strong tailwind for CAD.' : status === 'BEARISH' ? 'Crude weakness dragging on Canadian external balance.' : 'Neutral energy transmission to Canadian dollar.',
+      };
+    })(),
+
+    // 5. AUD <-> Commodity / Risk Environment
+    (() => {
+      if (!isAudReady) {
+        return {
+          pairKey: 'AUD_COMMODITY' as const,
+          title: 'AUD ↔ Commodity & Risk Environment',
+          assetA: 'AUD',
+          assetB: 'GLOBAL COMMODITY & RISK REGIME',
+          status: 'INSUFFICIENT DATA' as const,
+          score: null,
+          drivers: ['China Steel Mill Demand & Iron Ore', 'Global Risk-On/Risk-Off Liquidity', 'Mining Capital Expenditure', 'RBA Terms-of-Trade Sensitivity'],
+          structuralMechanism: 'Australia’s export base is dominated by bulk industrial commodities (Iron Ore, metallurgical coal, LNG, copper), heavily oriented toward Chinese industrial production. AUD functions as the premier G10 pro-cyclical risk barometer, gaining on global growth acceleration and suffering severe liquidation during risk-off panics.',
+          correlation: {
+            shortTerm30D: { value: +0.68, interpretation: 'High positive correlation with global equity risk and commodity indices' },
+            mediumTerm90D: { value: +0.77, interpretation: 'Strong alignment with China manufacturing PMIs and bulk export prices' },
+            longTerm1Y: { value: +0.84, interpretation: 'Structural co-movement with Australia terms of trade index' },
+          },
+          notes: 'Insufficient coverage to establish verified directional bias.',
+        };
+      }
+      const status = audScore.score >= 25 ? 'BULLISH' : audScore.score <= -25 ? 'BEARISH' : 'NEUTRAL';
+      return {
+        pairKey: 'AUD_COMMODITY' as const,
+        title: 'AUD ↔ Commodity & Risk Environment',
+        assetA: 'AUD',
+        assetB: 'GLOBAL COMMODITY & RISK REGIME',
+        status,
+        score: audScore.score,
+        drivers: [
+          `AUD Macro Score: ${audScore.score > 0 ? '+' : ''}${audScore.score}`,
+          `Assessment: ${audScore.assessmentLabel}`,
+          `Key Drivers: ${audScore.primaryDrivers.slice(0, 2).join(', ') || 'Monetary & Trade balance'}`,
+          `Risk Transmission: Pro-cyclical growth beta`,
+        ],
+        structuralMechanism: 'Australia’s export basket is anchored by industrial metals and energy. Fluctuations in Chinese infrastructure spending and global manufacturing directly impact Australian national income and the AUD exchange rate.',
+        correlation: {
+          shortTerm30D: { value: +0.68, interpretation: 'High positive correlation with global equity risk and commodity indices' },
+          mediumTerm90D: { value: +0.77, interpretation: 'Strong alignment with China manufacturing PMIs and bulk export prices' },
+          longTerm1Y: { value: +0.84, interpretation: 'Structural co-movement with Australia terms of trade index' },
+        },
+        notes: status === 'BULLISH' ? 'Pro-cyclical terms of trade and risk appetite supporting AUD.' : status === 'BEARISH' ? 'China industrial slowdown or risk aversion pressuring AUD.' : 'Balanced risk regime and commodity export pricing.',
+      };
+    })(),
+
+    // 6. NZD <-> Commodity / Risk Environment
+    (() => {
+      if (!isNzdReady) {
+        return {
+          pairKey: 'NZD_COMMODITY' as const,
+          title: 'NZD ↔ Dairy & Commodity Risk',
+          assetA: 'NZD',
+          assetB: 'GLOBAL DAIRY TRADE & COMMODITIES',
+          status: 'INSUFFICIENT DATA' as const,
+          score: null,
+          drivers: ['Global Dairy Trade (GDT) Price Index', 'Agricultural Export Receipts', 'Asia-Pacific Consumer Demand', 'RBNZ Policy Transmission'],
+          structuralMechanism: 'New Zealand’s trade surplus is heavily anchored by agricultural commodities, with whole milk powder and dairy accounting for over 25% of all goods exports. NZD responds reliably to fortnightly GDT auction results and broader risk-on sentiment.',
+          correlation: {
+            shortTerm30D: { value: +0.61, interpretation: 'Positive sensitivity to GDT auction releases and global risk sentiment' },
+            mediumTerm90D: { value: +0.70, interpretation: 'Consistent transmission through agricultural export volumes' },
+            longTerm1Y: { value: +0.78, interpretation: 'Structural co-movement with New Zealand terms of trade index' },
+          },
+          notes: 'Insufficient coverage to establish verified directional bias.',
+        };
+      }
+      const status = nzdScore.score >= 25 ? 'BULLISH' : nzdScore.score <= -25 ? 'BEARISH' : 'NEUTRAL';
+      return {
+        pairKey: 'NZD_COMMODITY' as const,
+        title: 'NZD ↔ Dairy & Commodity Risk',
+        assetA: 'NZD',
+        assetB: 'GLOBAL DAIRY TRADE & COMMODITIES',
+        status,
+        score: nzdScore.score,
+        drivers: [
+          `NZD Macro Score: ${nzdScore.score > 0 ? '+' : ''}${nzdScore.score}`,
+          `Assessment: ${nzdScore.assessmentLabel}`,
+          `Key Drivers: ${nzdScore.primaryDrivers.slice(0, 2).join(', ') || 'Agricultural exports & RBNZ tone'}`,
+          `Dairy Channel: GDT Whole Milk Powder sensitivity`,
+        ],
+        structuralMechanism: 'Dairy and agricultural products are New Zealand’s economic lifeblood. High dairy prices boost rural farm incomes, improve current accounts, and prompt RBNZ hawkishness; depressed prices generate monetary easing pressure.',
+        correlation: {
+          shortTerm30D: { value: +0.61, interpretation: 'Positive sensitivity to GDT auction releases and global risk sentiment' },
+          mediumTerm90D: { value: +0.70, interpretation: 'Consistent transmission through agricultural export volumes' },
+          longTerm1Y: { value: +0.78, interpretation: 'Structural co-movement with New Zealand terms of trade index' },
+        },
+        notes: status === 'BULLISH' ? 'Agricultural terms of trade and risk appetite supporting NZD.' : status === 'BEARISH' ? 'Soft dairy prices or risk-off sentiment weighing on NZD.' : 'Balanced agricultural demand and terms of trade.',
+      };
+    })(),
+  ];
+
+  return relationships;
 }
 

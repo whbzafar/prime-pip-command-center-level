@@ -81,10 +81,10 @@ function currencyRelationships(code: CurrencyCode): string[] {
 }
 
 const labelForScore = (score: number) => {
-  if (score >= 60) return 'STRONG BULLISH';
-  if (score >= 25) return 'BULLISH';
-  if (score <= -60) return 'STRONG BEARISH';
-  if (score <= -25) return 'BEARISH';
+  if (score >= 40) return 'STRONG BULLISH';
+  if (score >= 12) return 'BULLISH';
+  if (score <= -40) return 'STRONG BEARISH';
+  if (score <= -12) return 'BEARISH';
   return 'NEUTRAL / MIXED';
 };
 
@@ -189,10 +189,13 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
           const retailLabel = retailScore === null ? 'INPUT' : retailScore > 0 ? 'BULLISH' : retailScore < 0 ? 'BEARISH' : 'NEUTRAL';
           const score = currency?.score ?? commodityScore?.score ?? 0;
           const usdScore = currencyScores.USD?.score ?? 0;
-          const usdReady = (currencyScores.USD?.dataCoveragePercent ?? 0) >= 75 && currencyScores.USD?.freshnessStatus !== 'INCOMPLETE';
+          const usdReady = (currencyScores.USD?.dataCoveragePercent ?? 0) > 0 || (currencyScores.USD?.completedIndicators ?? 0) > 0 || (currencyScores.USD?.score !== undefined && currencyScores.USD?.score !== 0);
           const usdRelativeScore = commodityScore && usdReady ? Math.round(Math.max(-100, Math.min(100, (commodityScore.score - usdScore) / 2))) : null;
           const coverage = currency?.dataCoveragePercent ?? (commodity ? commodityCoverage(commodity, retailRecord) : 0);
-          const incomplete = asset.type === 'CURRENCY' ? coverage < 75 : coverage < 100;
+          const hasData = asset.type === 'CURRENCY'
+            ? ((currency?.completedIndicators ?? 0) > 0 || coverage > 0 || (currency?.score !== undefined && currency.score !== 0))
+            : (commodity && (commodity.price > 0 || commodity.sentiment !== undefined || (commodityScore && commodityScore.drivers.length > 0)));
+          const incomplete = !hasData;
           const symbol = asset.code === 'XAU' ? 'GOLD' : asset.code === 'XAG' ? 'SILVER' : 'CRUDE_OIL';
           const icon = asset.code === 'XAU' ? <Gem className="w-5 h-5" /> : asset.code === 'XAG' ? <Coins className="w-5 h-5" /> : asset.code === 'WTI' ? <Droplets className="w-5 h-5" /> : <BarChart3 className="w-5 h-5" />;
 

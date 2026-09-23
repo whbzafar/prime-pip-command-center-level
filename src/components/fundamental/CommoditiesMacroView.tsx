@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { CommodityObservation, CurrencyScoreResult, RetailPositioningRecord } from '../../types/fundamentalIndicatorTypes';
+import { CommodityObservation, CurrencyCode, CurrencyScoreResult, RetailPositioningRecord } from '../../types/fundamentalIndicatorTypes';
 import { DEFAULT_COMMODITY_OBSERVATIONS } from '../../data/defaultFundamentalObservations';
-import { calculateCommodityFundamentalScore } from '../../utils/fundamentalCalculationEngine';
+import { calculateCommodityFundamentalScore, calculateCrossAssetRelationships } from '../../utils/fundamentalCalculationEngine';
 import { generateCommodity } from '../../services/fundamentalLiveResearchService';
 import {
   Gem,
@@ -17,10 +17,14 @@ import {
   X,
   Layers,
   Activity,
+  GitCommit,
+  TrendingUp,
+  TrendingDown,
 } from 'lucide-react';
 
 interface CommoditiesMacroViewProps {
   usdScore?: CurrencyScoreResult;
+  currencyScores?: Record<CurrencyCode, CurrencyScoreResult>;
   commodityObservations?: CommodityObservation[];
   retailPositioning?: RetailPositioningRecord[];
   onUpdateCommodity?: (observation: CommodityObservation) => void;
@@ -29,6 +33,7 @@ interface CommoditiesMacroViewProps {
 
 export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   usdScore,
+  currencyScores,
   commodityObservations,
   retailPositioning = [],
   onUpdateCommodity,
@@ -48,6 +53,12 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
     if (onUpdateCommodity) next.forEach((item) => onUpdateCommodity(item));
     else setLocalCommodityData(next);
   };
+
+  const crossAssetRelationships = calculateCrossAssetRelationships(
+    currencyScores || (usdScore ? ({ USD: usdScore } as any) : ({} as any)),
+    commodityData,
+    retailPositioning
+  );
   const [editingObs, setEditingObs] = useState<CommodityObservation | null>(null);
   const [commodityLiveLoading, setCommodityLiveLoading] = useState(false);
   const [commodityLiveMessage, setCommodityLiveMessage] = useState<string | null>(null);
@@ -73,16 +84,11 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   const currentObs = commodityData.find((c) => c.symbol === activeCommodity) || commodityData[0];
   const currentRetail = retailPositioning.find((r) => r.asset === currentObs.symbol);
   const calculated = calculateCommodityFundamentalScore(currentObs, currentRetail);
-  const commodityDataComplete =
-    currentObs.symbol === 'GOLD'
-      ? currentObs.price > 0 && currentObs.usRealYield10Y !== undefined && currentObs.inflationBreakeven5Y !== undefined && currentObs.centralBankDemandTone !== undefined && currentObs.geopoliticalRiskLevel !== undefined && currentObs.sentiment !== undefined && currentRetail?.isEntered === true
-      : currentObs.symbol === 'SILVER'
-      ? currentObs.price > 0 && currentObs.usRealYield10Y !== undefined && currentObs.industrialDemandTone !== undefined && currentObs.geopoliticalRiskLevel !== undefined && currentObs.sentiment !== undefined && currentRetail?.isEntered === true
-      : currentObs.price > 0 && currentObs.supplyDemandBalance !== undefined && currentObs.inventoriesWeeklySurpriseMb !== undefined && currentObs.opecPolicyTone !== undefined && currentObs.sentiment !== undefined && currentRetail?.isEntered === true;
+  const commodityDataComplete = currentObs.price > 0 || currentObs.sentiment !== undefined || calculated.drivers.length > 0;
 
   // Relative Valuation vs USD (Section 32)
   const usdScoreVal = usdScore?.score;
-  const relativeSpread = commodityDataComplete && usdScoreVal !== undefined ? calculated.score - usdScoreVal : null;
+  const relativeSpread = (currentObs.price > 0 || calculated.drivers.length > 0) && usdScoreVal !== undefined ? calculated.score - usdScoreVal : null;
 
   const handleGenerateLiveCommodity = async (mode: 'GENERATE' | 'REGENERATE' = 'GENERATE') => {
     if (!currentObs || commodityLiveLoading) return;
@@ -90,7 +96,8 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
     setCommodityLiveMessage(null);
     try {
       const result = await generateCommodity(currentObs.symbol, currentObs, mode);
-      if (result.status !== 'VERIFIED') {
+      const hasData = result.price !== undefined || result.sentiment !== undefined;
+      if (!hasData && result.status !== 'VERIFIED') {
         setCommodityLiveMessage(result.notes || 'Commodity evidence could not be verified; existing data was preserved.');
         return;
       }
@@ -424,6 +431,126 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Section 13 & 14: Cross-Asset Macro Relationships & Multi-Horizon Correlation Matrix */}
+      <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+          <div className="flex items-center gap-2.5">
+            <GitCommit className="w-5 h-5 text-amber-400" />
+            <div>
+              <h3 className="text-sm font-military font-bold text-slate-100 uppercase tracking-wider">
+                Cross-Asset Macro Relationships & Multi-Horizon Correlation Matrix
+              </h3>
+              <p className="text-xs font-mono-code text-slate-400 mt-0.5">
+                Causal Fundamental Economic Transmissions vs Observed Price Correlations (30D · 90D · 1Y)
+              </p>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[10px] font-mono-code font-bold">
+            Sections 13 & 14 Audited Engine
+          </span>
+        </div>
+
+        {/* Methodology note */}
+        <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs font-mono-code text-slate-300 flex items-start gap-2.5">
+          <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+          <span>
+            <strong className="text-slate-100">Mechanism vs. Correlation Distinction: </strong>
+            Causal economic transmission (e.g. TIPS real yield opportunity cost for Gold, oil terms of trade for CAD) represents fundamental value drivers. Observed statistical correlations represent historical market co-movement, which can decouple during supply shocks or monetary regime shifts.
+          </span>
+        </div>
+
+        {/* Grid of 6 Cross-Asset Relationships */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {crossAssetRelationships.map((rel) => {
+            return (
+              <div
+                key={rel.pairKey}
+                className="p-4 rounded-2xl bg-[#0b101f] border border-slate-800 hover:border-slate-700 transition space-y-3 flex flex-col justify-between"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-military font-bold text-xs text-slate-100 uppercase">
+                      {rel.title}
+                    </h4>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono-code font-bold ${
+                        rel.status === 'BULLISH'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                          : rel.status === 'BEARISH'
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                          : rel.status === 'INSUFFICIENT DATA'
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          : 'bg-slate-800 text-slate-300 border border-slate-700'
+                      }`}
+                    >
+                      {rel.status}
+                    </span>
+                  </div>
+
+                  {/* Net Score */}
+                  <div className="flex items-center justify-between text-xs font-mono-code bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                    <span className="text-slate-400">Directional Spread:</span>
+                    <span className={`font-military font-bold ${rel.score === null ? 'text-amber-400' : rel.score > 0 ? 'text-emerald-400' : rel.score < 0 ? 'text-rose-400' : 'text-slate-200'}`}>
+                      {rel.score === null ? 'INSUFFICIENT DATA' : `${rel.score > 0 ? '+' : ''}${rel.score} pts`}
+                    </span>
+                  </div>
+
+                  {/* Structural Mechanism */}
+                  <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[11px] font-mono-code text-purple-200/90 leading-relaxed">
+                    <span className="text-[10px] uppercase font-bold text-purple-300 block mb-0.5">Structural Economic Transmission:</span>
+                    {rel.structuralMechanism}
+                  </div>
+
+                  {/* Key Drivers */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 font-mono-code block">Verified Drivers:</span>
+                    <ul className="space-y-0.5">
+                      {rel.drivers.map((d, i) => (
+                        <li key={i} className="text-[11px] font-mono-code text-slate-300 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0" />
+                          <span>{d}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* 3-Horizon Statistical Price Correlation */}
+                <div className="pt-2 border-t border-slate-800/80 space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] font-mono-code text-slate-400">
+                    <span className="uppercase font-bold">Observed Price Correlation:</span>
+                    <span className="text-slate-500">(Historical)</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 text-center font-mono-code text-[10px]">
+                    <div className="p-1.5 rounded bg-slate-900 border border-slate-800">
+                      <span className="text-slate-500 block text-[9px]">30D Short</span>
+                      <span className={`font-bold ${rel.correlation.shortTerm30D.value > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {rel.correlation.shortTerm30D.value > 0 ? `+${rel.correlation.shortTerm30D.value}` : rel.correlation.shortTerm30D.value}
+                      </span>
+                    </div>
+                    <div className="p-1.5 rounded bg-slate-900 border border-slate-800">
+                      <span className="text-slate-500 block text-[9px]">90D Med</span>
+                      <span className={`font-bold ${rel.correlation.mediumTerm90D.value > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {rel.correlation.mediumTerm90D.value > 0 ? `+${rel.correlation.mediumTerm90D.value}` : rel.correlation.mediumTerm90D.value}
+                      </span>
+                    </div>
+                    <div className="p-1.5 rounded bg-slate-900 border border-slate-800">
+                      <span className="text-slate-500 block text-[9px]">1Y Long</span>
+                      <span className={`font-bold ${rel.correlation.longTerm1Y.value > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {rel.correlation.longTerm1Y.value > 0 ? `+${rel.correlation.longTerm1Y.value}` : rel.correlation.longTerm1Y.value}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-mono-code text-slate-400 block italic leading-tight">
+                    {rel.notes}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

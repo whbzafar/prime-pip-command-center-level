@@ -52,6 +52,7 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
 }) => {
   const [filterCategory, setFilterCategory] = useState<'ALL' | 'MAJOR' | 'CROSS'>('ALL');
   const [minDifferential, setMinDifferential] = useState<number>(0);
+  const [showIncomplete, setShowIncomplete] = useState<boolean>(true);
 
   // Compute differentials
   const pairResults: Array<{
@@ -68,20 +69,35 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
     };
   });
 
+  const readyCount = pairResults.filter((p) => p.diff.biasLabel !== 'INSUFFICIENT DATA').length;
+  const insufficientCount = pairResults.length - readyCount;
+
   // Filter pairs
   const filtered = pairResults.filter((item) => {
     if (filterCategory !== 'ALL' && item.category !== filterCategory) return false;
-    if (item.diff.biasLabel === 'INSUFFICIENT DATA') return false;
-    if (Math.abs(item.diff.differential) < minDifferential) return false;
+    if (!showIncomplete && item.diff.biasLabel === 'INSUFFICIENT DATA') return false;
+    if (item.diff.biasLabel !== 'INSUFFICIENT DATA' && Math.abs(item.diff.differential) < minDifferential) return false;
     return true;
   });
 
   // Sort pairs by absolute differential descending
-  const sorted = [...filtered].sort(
-    (a, b) => Math.abs(b.diff.differential) - Math.abs(a.diff.differential)
-  );
+  const sorted = [...filtered].sort((a, b) => {
+    const aIncomplete = a.diff.biasLabel === 'INSUFFICIENT DATA';
+    const bIncomplete = b.diff.biasLabel === 'INSUFFICIENT DATA';
+    if (aIncomplete && !bIncomplete) return 1;
+    if (!aIncomplete && bIncomplete) return -1;
+    return Math.abs(b.diff.differential) - Math.abs(a.diff.differential);
+  });
 
-  const getBiasBadge = (bias: PairDifferentialResult['bias']) => {
+  const getBiasBadge = (bias: PairDifferentialResult['bias'], biasLabel?: string) => {
+    if (biasLabel === 'INSUFFICIENT DATA' || bias === 'INSUFFICIENT_DATA') {
+      return (
+        <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-mono-code font-bold inline-flex items-center gap-1">
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span>INSUFFICIENT DATA</span>
+        </span>
+      );
+    }
     switch (bias) {
       case 'STRONG_BULLISH':
         return (
@@ -139,6 +155,12 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
 
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-mono-code">
+              <span className="text-emerald-400 font-bold">{readyCount} READY</span>
+              <span className="text-slate-600">·</span>
+              <span className="text-amber-400 font-bold">{insufficientCount} INSUFFICIENT</span>
+            </div>
+
             <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs font-mono-code">
               {(['ALL', 'MAJOR', 'CROSS'] as const).map((cat) => (
                 <button
@@ -168,6 +190,16 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
                 <option value={60}>Elite Dislocation (≥ 60 pts)</option>
               </select>
             </div>
+
+            <label className="flex items-center gap-1.5 text-xs font-mono-code text-slate-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showIncomplete}
+                onChange={(e) => setShowIncomplete(e.target.checked)}
+                className="rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-0"
+              />
+              <span>Show Incomplete</span>
+            </label>
           </div>
         </div>
 
@@ -176,6 +208,7 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
           {sorted.map(({ pair, base, quote, diff }) => {
             const baseMeta = CURRENCY_METADATA[base];
             const quoteMeta = CURRENCY_METADATA[quote];
+            const isIncomplete = diff.biasLabel === 'INSUFFICIENT DATA';
 
             return (
               <div
@@ -198,7 +231,7 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
                     </div>
                   </div>
 
-                  {getBiasBadge(diff.bias)}
+                  {getBiasBadge(diff.bias, diff.biasLabel)}
                 </div>
 
                 {/* Card Middle: Scores Breakdown */}
@@ -207,10 +240,10 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
                     <span className="text-[10px] text-slate-500 block">{base} Score</span>
                     <span
                       className={`font-bold ${
-                        diff.baseScore > 0 ? 'text-emerald-400' : diff.baseScore < 0 ? 'text-rose-400' : 'text-slate-300'
+                        isIncomplete ? 'text-slate-500' : diff.baseScore > 0 ? 'text-emerald-400' : diff.baseScore < 0 ? 'text-rose-400' : 'text-slate-300'
                       }`}
                     >
-                      {diff.baseScore > 0 ? `+${diff.baseScore}` : diff.baseScore}
+                      {isIncomplete ? '—' : diff.baseScore > 0 ? `+${diff.baseScore}` : diff.baseScore}
                     </span>
                   </div>
 
@@ -218,10 +251,10 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
                     <span className="text-[10px] text-slate-500 block">{quote} Score</span>
                     <span
                       className={`font-bold ${
-                        diff.quoteScore > 0 ? 'text-emerald-400' : diff.quoteScore < 0 ? 'text-rose-400' : 'text-slate-300'
+                        isIncomplete ? 'text-slate-500' : diff.quoteScore > 0 ? 'text-emerald-400' : diff.quoteScore < 0 ? 'text-rose-400' : 'text-slate-300'
                       }`}
                     >
-                      {diff.quoteScore > 0 ? `+${diff.quoteScore}` : diff.quoteScore}
+                      {isIncomplete ? '—' : diff.quoteScore > 0 ? `+${diff.quoteScore}` : diff.quoteScore}
                     </span>
                   </div>
 
@@ -229,14 +262,16 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
                     <span className="text-[10px] text-slate-400 font-bold block">Net Spread</span>
                     <span
                       className={`font-military font-bold text-sm ${
-                        diff.differential > 0
+                        isIncomplete
+                          ? 'text-amber-400 text-xs'
+                          : diff.differential > 0
                           ? 'text-emerald-400'
                           : diff.differential < 0
                           ? 'text-rose-400'
                           : 'text-slate-200'
                       }`}
                     >
-                      {diff.differential > 0 ? `+${diff.differential}` : diff.differential}
+                      {isIncomplete ? 'INSUFFICIENT' : diff.differential > 0 ? `+${diff.differential}` : diff.differential}
                     </span>
                   </div>
                 </div>

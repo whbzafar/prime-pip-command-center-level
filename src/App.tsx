@@ -857,7 +857,12 @@ export default function App() {
       <CommandCenterAtmosphere account={activeAccount} metrics={metrics} currentUser={currentUser} activeTab={activeTab} />
 
       {/* Main Content Area */}
-      <main ref={mainContainerRef} className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-6 pt-1 sm:pt-3 pb-32 sm:pb-28 md:pb-10 overflow-x-hidden focus:outline-none">
+      <main
+        ref={mainContainerRef}
+        className={`flex-1 w-full mx-auto px-2 sm:px-6 pt-1 sm:pt-3 pb-32 sm:pb-28 md:pb-10 overflow-x-hidden focus:outline-none ${
+          activeTab === 'FUNDAMENTAL_INDICATORS' ? 'max-w-[1750px]' : 'max-w-7xl'
+        }`}
+      >
         {activeTab === 'DASHBOARD' && (
           <MainDashboard
             metrics={metrics}

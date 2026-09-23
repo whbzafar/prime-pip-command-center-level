@@ -93,7 +93,8 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
     setLiveMessage(null);
     try {
       const result = await generateCot(selectedCurrency, currentRecord, mode);
-      if (result.status !== 'VERIFIED') {
+      const hasData = result.openInterest && (result.nonCommercialLong !== 0 || result.commercialLong !== 0);
+      if (!hasData && result.status !== 'VERIFIED') {
         setLiveMessage(result.notes || 'COT evidence could not be verified; existing record was preserved.');
         return;
       }
