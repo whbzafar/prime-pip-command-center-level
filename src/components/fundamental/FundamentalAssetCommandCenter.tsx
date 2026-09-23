@@ -7,7 +7,7 @@ import {
   RetailPositioningRecord,
 } from '../../types/fundamentalIndicatorTypes';
 import { CURRENCIES } from '../../data/fundamentalRegistryData';
-import { calculateCommodityFundamentalScore } from '../../utils/fundamentalCalculationEngine';
+import { calculateCommodityFundamentalScore, calculateRetailContrarianScore } from '../../utils/fundamentalCalculationEngine';
 import { generateCommodity } from '../../services/fundamentalLiveResearchService';
 
 type AssetCode = CurrencyCode | 'XAU' | 'XAG' | 'WTI';
@@ -181,7 +181,12 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
         {ASSETS.map((asset) => {
           const currency = asset.type === 'CURRENCY' ? currencyScores[asset.code as CurrencyCode] : undefined;
           const commodity = asset.type === 'COMMODITY' ? getCommodity(asset.code) : undefined;
-          const commodityScore = commodity ? calculateCommodityFundamentalScore(commodity, retailPositioning.find((r) => r.asset === commodity.symbol)) : null;
+          const commodityRetail = commodity ? retailPositioning.find((r) => r.asset === commodity.symbol) : undefined;
+          const currencyRetail = asset.type === 'CURRENCY' ? retailPositioning.find((r) => r.asset === asset.code) : undefined;
+          const retailRecord = currencyRetail ?? commodityRetail;
+          const commodityScore = commodity ? calculateCommodityFundamentalScore(commodity, commodityRetail) : null;
+          const retailScore = retailRecord?.isEntered !== false && retailRecord ? calculateRetailContrarianScore(retailRecord) : null;
+          const retailLabel = retailScore === null ? 'INPUT' : retailScore > 0 ? 'BULLISH' : retailScore < 0 ? 'BEARISH' : 'NEUTRAL';
           const score = currency?.score ?? commodityScore?.score ?? 0;
           const coverage = currency?.dataCoveragePercent ?? (commodity ? commodityCoverage(commodity) : 0);
           const incomplete = asset.type === 'CURRENCY' ? coverage < 75 : coverage < 60;
@@ -204,10 +209,11 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl border border-slate-800 bg-slate-950/80 p-2 text-center font-mono-code">
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-xl border border-slate-800 bg-slate-950/80 p-2 text-center font-mono-code">
                 <div><div className="text-[9px] text-slate-500">SCORE</div><div className="font-bold">{incomplete ? '—' : (score > 0 ? '+' : '') + score}</div></div>
                 <div><div className="text-[9px] text-slate-500">COVERAGE</div><div className="font-bold">{coverage}%</div></div>
                 <div><div className="text-[9px] text-slate-500">COT</div><div className="font-bold text-slate-300">{currency?.categoryScores?.COT_POSITIONING?.activeCount ? 'LIVE' : asset.type === 'CURRENCY' ? 'WAITING' : 'INPUT'}</div></div>
+                <div><div className="text-[9px] text-slate-500">RETAIL SENTIMENT</div><div className={retailScore === null ? 'font-bold text-amber-300' : retailScore > 0 ? 'font-bold text-emerald-300' : retailScore < 0 ? 'font-bold text-rose-300' : 'font-bold text-slate-300'}>{retailScore === null ? 'INPUT' : (retailScore > 0 ? '+' : '') + retailScore + ' · ' + retailLabel}</div></div>
               </div>
 
               <div className="mt-3">
@@ -262,6 +268,7 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
         <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-300">
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3"><b className="text-cyan-300">Direction</b><p className="mt-1 text-slate-400">Each indicator has an explicit scoring direction; higher/lower readings are never assumed to have the same meaning.</p></div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3"><b className="text-cyan-300">COT</b><p className="mt-1 text-slate-400">CFTC non-commercial long minus short is normalized by open interest. COT is a positioning input, not a guaranteed price forecast.</p></div>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3"><b className="text-cyan-300">Retail Sentiment</b><p className="mt-1 text-slate-400">Long/Short inputs are normalized to a 100% mix, converted to a contrarian score, and included in the weighted sentiment category and pair differentials.</p></div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3"><b className="text-cyan-300">Relationships</b><p className="mt-1 text-slate-400">USD/Gold, USD/Silver, USD/WTI, CAD/WTI, AUD/China, NZD/Dairy and JPY/US yields are contextual relationships, not hard-coded inverse rules.</p></div>
         </div>
       </section>
