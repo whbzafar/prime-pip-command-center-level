@@ -684,131 +684,136 @@ export function calculateCommodityFundamentalScore(obs: CommodityObservation, re
   bias: 'STRONGLY_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONGLY_BEARISH';
   drivers: { label: string; score: number; impact: string }[];
 } {
-  let score = 0;
   const drivers: { label: string; score: number; impact: string }[] = [];
+  let weightedScore = 0;
+
+  const addWeighted = (label: string, rawScore: number, weight: number, impact: string) => {
+    const normalized = Math.max(-100, Math.min(100, Math.round(rawScore)));
+    const contribution = Math.round(normalized * (weight / 100));
+    weightedScore += contribution;
+    if (contribution !== 0 || normalized !== 0) {
+      drivers.push({ label: `${label} (${weight}%)`, score: contribution, impact });
+    }
+  };
+
+  const sentimentScore = obs.sentiment === 'BULLISH'
+    ? 100
+    : obs.sentiment === 'BEARISH'
+    ? -100
+    : 0;
+
+  const retailScore = retailPositioning && retailPositioning.isEntered !== false
+    ? calculateRetailContrarianScore(retailPositioning)
+    : 0;
 
   if (obs.symbol === 'GOLD') {
-    // Real yields (inverted: lower real yields = positive gold)
+    // Gold model = 100%: real yields 30, inflation expectations 10,
+    // central-bank demand 20, geopolitical risk 15, sentiment 10, retail contrarian 15.
     if (obs.usRealYield10Y !== undefined) {
-      const realYieldScore = Math.round(Math.max(-40, Math.min(40, (2.0 - obs.usRealYield10Y) * 30)));
-      score += realYieldScore;
-      drivers.push({
-        label: 'US 10Y Real Yield (TIPS)',
-        score: realYieldScore,
-        impact: obs.usRealYield10Y < 1.8 ? 'Bullish (Lower opportunity cost vs non-yielding bullion)' : 'Bearish (High real yield on risk-free cash)',
-      });
+      const raw = (2.0 - obs.usRealYield10Y) * 50;
+      addWeighted(
+        'US 10Y Real Yield (TIPS)',
+        raw,
+        30,
+        obs.usRealYield10Y < 1.8 ? 'Bullish: lower real yields reduce bullion opportunity cost.' : 'Bearish: elevated real yields increase opportunity cost.'
+      );
     }
-
-    // Inflation hedging expectations (5Y Breakeven)
     if (obs.inflationBreakeven5Y !== undefined) {
-      const infScore = Math.round(Math.max(-20, Math.min(20, (obs.inflationBreakeven5Y - 2.15) * 25)));
-      score += infScore;
-      drivers.push({
-        label: '5Y Inflation Breakeven Expectations',
-        score: infScore,
-        impact: obs.inflationBreakeven5Y >= 2.2 ? 'Bullish (Elevated inflation hedging demand)' : 'Bearish (Disinflationary pricing)',
-      });
+      const raw = (obs.inflationBreakeven5Y - 2.15) * 200;
+      addWeighted(
+        '5Y Inflation Breakeven',
+        raw,
+        10,
+        obs.inflationBreakeven5Y >= 2.15 ? 'Bullish: stronger inflation-hedging demand.' : 'Bearish: softer inflation expectations.'
+      );
     }
-
-    // Central bank demand (Sovereign reserve de-dollarization)
-    if (obs.centralBankDemandTone === 'AGGRESSIVE_BUYING') {
-      score += 25;
-      drivers.push({ label: 'Central Bank Gold Reserves Buying', score: 25, impact: 'Very Bullish (Sovereign de-dollarization & reserve diversification)' });
-    } else if (obs.centralBankDemandTone === 'STEADY') {
-      score += 10;
-      drivers.push({ label: 'Central Bank Gold Reserves Buying', score: 10, impact: 'Mildly Supportive' });
+    if (obs.centralBankDemandTone !== undefined) {
+      const raw =
+        obs.centralBankDemandTone === 'AGGRESSIVE_BUYING' ? 100 :
+        obs.centralBankDemandTone === 'STEADY' ? 50 : -25;
+      addWeighted(
+        'Central Bank Demand',
+        raw,
+        20,
+        raw > 0 ? 'Supportive official-sector reserve demand.' : 'Less supportive official-sector demand.'
+      );
     }
-
-    // Geopolitical risk premium
-    if (obs.geopoliticalRiskLevel === 'HIGH') {
-      score += 25;
-      drivers.push({ label: 'Geopolitical Risk Premium', score: 25, impact: 'Bullish (Safe-haven hedging and tail-risk defense)' });
-    } else if (obs.geopoliticalRiskLevel === 'LOW') {
-      score -= 10;
-      drivers.push({ label: 'Geopolitical Risk Premium', score: -10, impact: 'Mild Drag (Low flight-to-safety urgency)' });
+    if (obs.geopoliticalRiskLevel !== undefined) {
+      const raw =
+        obs.geopoliticalRiskLevel === 'HIGH' ? 100 :
+        obs.geopoliticalRiskLevel === 'MODERATE' ? 25 : -50;
+      addWeighted(
+        'Geopolitical Risk Premium',
+        raw,
+        15,
+        raw > 0 ? 'Safe-haven demand supports bullion.' : 'Lower safe-haven demand removes a support.'
+      );
     }
-
+    if (obs.sentiment !== undefined) {
+      addWeighted('Market Sentiment', sentimentScore, 10, sentimentScore > 0 ? 'Verified contextual sentiment is bullish.' : sentimentScore < 0 ? 'Verified contextual sentiment is bearish.' : 'Neutral contextual sentiment.');
+    }
+    if (retailPositioning && retailPositioning.isEntered !== false) {
+      addWeighted('Retail Positioning (Contrarian)', retailScore, 15, retailScore > 0 ? 'Retail is net short; model reads the positioning contrarianly.' : retailScore < 0 ? 'Retail is net long; model reads the positioning contrarianly.' : 'Retail positioning is balanced.');
+    }
   } else if (obs.symbol === 'SILVER') {
-    // Real yields (inverted)
+    // Silver model = 100%: real yields 25, industrial demand 30,
+    // geopolitical risk 10, sentiment 15, retail contrarian 20.
     if (obs.usRealYield10Y !== undefined) {
-      const realYieldScore = Math.round(Math.max(-30, Math.min(30, (2.0 - obs.usRealYield10Y) * 25)));
-      score += realYieldScore;
-      drivers.push({
-        label: 'US 10Y Real Yield (TIPS)',
-        score: realYieldScore,
-        impact: obs.usRealYield10Y < 1.8 ? 'Bullish (Monetary easing tailwind)' : 'Bearish (High real yields)',
-      });
+      addWeighted(
+        'US 10Y Real Yield (TIPS)',
+        (2.0 - obs.usRealYield10Y) * 50,
+        25,
+        obs.usRealYield10Y < 1.8 ? 'Bullish: lower real yields support precious metals.' : 'Bearish: higher real yields pressure non-yielding metals.'
+      );
     }
-
-    // Industrial demand is a core silver driver; do not reuse gold's central-bank field.
-    if (obs.industrialDemandTone === 'STRONG') {
-      score += 25;
-      drivers.push({ label: 'Industrial Demand', score: 25, impact: 'Bullish (Strong industrial/technology demand)' });
-    } else if (obs.industrialDemandTone === 'WEAK') {
-      score -= 25;
-      drivers.push({ label: 'Industrial Demand', score: -25, impact: 'Bearish (Weak industrial demand)' });
+    if (obs.industrialDemandTone !== undefined) {
+      const raw = obs.industrialDemandTone === 'STRONG' ? 100 : obs.industrialDemandTone === 'WEAK' ? -100 : 0;
+      addWeighted('Industrial Demand', raw, 30, raw > 0 ? 'Strong industrial demand supports silver.' : raw < 0 ? 'Weak industrial demand is a headwind.' : 'Industrial demand is balanced.');
     }
-
-    // Geopolitical Risk
-    if (obs.geopoliticalRiskLevel === 'HIGH') {
-      score += 15;
-      drivers.push({ label: 'Precious Metals Haven Tone', score: 15, impact: 'Supportive safe-haven contagion from Gold' });
+    if (obs.geopoliticalRiskLevel !== undefined) {
+      const raw = obs.geopoliticalRiskLevel === 'HIGH' ? 100 : obs.geopoliticalRiskLevel === 'MODERATE' ? 25 : -25;
+      addWeighted('Precious Metals Risk Regime', raw, 10, raw > 0 ? 'Risk aversion can support precious metals.' : 'Lower risk premium reduces safe-haven support.');
     }
-  }
-
-  // Manual retail positioning is a separate, bounded contrarian input.
-  if (retailPositioning?.isEntered !== false && retailPositioning && Number.isFinite(retailPositioning.longPercent) && Number.isFinite(retailPositioning.shortPercent)) {
-    const retailScore = calculateRetailContrarianScore(retailPositioning);
-    const boundedRetailScore = Math.round(retailScore * 0.15);
-    if (boundedRetailScore !== 0) {
-      score += boundedRetailScore;
-      drivers.push({ label: 'Retail Positioning (Contrarian)', score: boundedRetailScore, impact: retailScore > 0 ? 'Bullish: retail is net short' : 'Bearish: retail is net long' });
+    if (obs.sentiment !== undefined) {
+      addWeighted('Market Sentiment', sentimentScore, 15, sentimentScore > 0 ? 'Verified contextual sentiment is bullish.' : sentimentScore < 0 ? 'Verified contextual sentiment is bearish.' : 'Neutral contextual sentiment.');
     }
-  }
-
-  // Legacy macro/news sentiment remains separate and only applies when present.
-  if (obs.sentiment === 'BULLISH') {
-    const sentimentScore = Math.min(10, Math.max(0, Math.round((obs.sentimentConfidence ?? 50) / 10)));
-    score += sentimentScore;
-    drivers.push({ label: 'Market Sentiment', score: sentimentScore, impact: 'Supportive contextual sentiment' });
-  } else if (obs.sentiment === 'BEARISH') {
-    const sentimentScore = -Math.min(10, Math.max(0, Math.round((obs.sentimentConfidence ?? 50) / 10)));
-    score += sentimentScore;
-    drivers.push({ label: 'Market Sentiment', score: sentimentScore, impact: 'Negative contextual sentiment' });
-  }
-
-  if (obs.symbol === 'CRUDE_OIL') {
-    // Supply / Demand balance
-    if (obs.supplyDemandBalance === 'DEFICIT') {
-      score += 35;
-      drivers.push({ label: 'Physical Market Balance', score: 35, impact: 'Bullish (Demand outpacing supply)' });
-    } else if (obs.supplyDemandBalance === 'SURPLUS') {
-      score -= 30;
-      drivers.push({ label: 'Physical Market Balance', score: -30, impact: 'Bearish (Excess global supply)' });
+    if (retailPositioning && retailPositioning.isEntered !== false) {
+      addWeighted('Retail Positioning (Contrarian)', retailScore, 20, retailScore > 0 ? 'Retail is net short; model reads the positioning contrarianly.' : retailScore < 0 ? 'Retail is net long; model reads the positioning contrarianly.' : 'Retail positioning is balanced.');
     }
-
-    // Inventories surprise
+  } else {
+    // WTI model = 100%: physical balance 30, inventories 20, OPEC+ 20,
+    // sentiment 15, retail contrarian 15.
+    if (obs.supplyDemandBalance !== undefined) {
+      const raw = obs.supplyDemandBalance === 'DEFICIT' ? 100 : obs.supplyDemandBalance === 'SURPLUS' ? -100 : 0;
+      addWeighted('Physical Supply/Demand Balance', raw, 30, raw > 0 ? 'Deficit supports crude prices.' : raw < 0 ? 'Surplus pressures crude prices.' : 'Physical balance is neutral.');
+    }
     if (obs.inventoriesWeeklySurpriseMb !== undefined) {
-      const invScore = Math.round(Math.max(-25, Math.min(25, -obs.inventoriesWeeklySurpriseMb * 12)));
-      score += invScore;
-      drivers.push({
-        label: 'EIA Commercial Inventories Surprise',
-        score: invScore,
-        impact: obs.inventoriesWeeklySurpriseMb < 0 ? 'Bullish (Drawdown)' : 'Bearish (Inventory build)',
-      });
+      // Negative inventory surprise = draw, positive = build. 5 Mb maps to ±100.
+      addWeighted(
+        'EIA Commercial Inventories Surprise',
+        -obs.inventoriesWeeklySurpriseMb * 20,
+        20,
+        obs.inventoriesWeeklySurpriseMb < 0 ? 'Bullish: inventories drew more than expected.' : obs.inventoriesWeeklySurpriseMb > 0 ? 'Bearish: inventories built more than expected.' : 'Inventory result was neutral.'
+      );
     }
-
-    // OPEC+ tone
-    if (obs.opecPolicyTone === 'DEFENDING_FLOOR') {
-      score += 25;
-      drivers.push({ label: 'OPEC+ Supply Discipline', score: 25, impact: 'Bullish (Quota defense & delay of hikes)' });
-    } else if (obs.opecPolicyTone === 'EXPANDING_SUPPLY') {
-      score -= 35;
-      drivers.push({ label: 'OPEC+ Supply Discipline', score: -35, impact: 'Bearish (Volume competition)' });
+    if (obs.opecPolicyTone !== undefined) {
+      const raw =
+        obs.opecPolicyTone === 'DEFENDING_FLOOR' ? 100 :
+        obs.opecPolicyTone === 'STEADY_PRODUCTION' ? 25 : -100;
+      addWeighted('OPEC+ Supply Policy', raw, 20, raw > 0 ? 'Supply discipline supports the market balance.' : raw < 0 ? 'Additional supply is a bearish supply shock.' : 'OPEC+ stance is broadly neutral.');
+    }
+    if (obs.sentiment !== undefined) {
+      addWeighted('Market Sentiment', sentimentScore, 15, sentimentScore > 0 ? 'Verified contextual sentiment is bullish.' : sentimentScore < 0 ? 'Verified contextual sentiment is bearish.' : 'Neutral contextual sentiment.');
+    }
+    if (retailPositioning && retailPositioning.isEntered !== false) {
+      addWeighted('Retail Positioning (Contrarian)', retailScore, 15, retailScore > 0 ? 'Retail is net short; model reads the positioning contrarianly.' : retailScore < 0 ? 'Retail is net long; model reads the positioning contrarianly.' : 'Retail positioning is balanced.');
     }
   }
 
-  const finalScore = Math.round(Math.max(-100, Math.min(100, score)));
+  // Commodity COT is intentionally not synthesized from currency COT.
+  // The CFTC publishes separate commodity contracts; a commodity COT record
+  // must be entered/verified separately before it can affect XAU/XAG/WTI.
+  const finalScore = Math.max(-100, Math.min(100, Math.round(weightedScore)));
   let bias: 'STRONGLY_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONGLY_BEARISH' = 'NEUTRAL';
   if (finalScore >= 60) bias = 'STRONGLY_BULLISH';
   else if (finalScore >= 20) bias = 'BULLISH';
@@ -817,7 +822,6 @@ export function calculateCommodityFundamentalScore(obs: CommodityObservation, re
 
   return { score: finalScore, bias, drivers };
 }
-
 export const calculateCommodityScores = calculateCommodityFundamentalScore;
 
 /**
