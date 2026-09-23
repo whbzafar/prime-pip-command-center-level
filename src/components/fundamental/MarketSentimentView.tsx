@@ -51,8 +51,8 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
         setError(`${row.asset}: Long and Short must each be between 0 and 100%.`);
         return;
       }
-      if (Math.abs(long + short - 100) > 0.01) {
-        setError(`${row.asset}: Long + Short must equal 100%.`);
+      if (long + short <= 0) {
+        setError(`${row.asset}: enter at least one Long or Short percentage above 0%.`);
         return;
       }
       next.push({ asset: row.asset, longPercent: Number(long.toFixed(1)), shortPercent: Number(short.toFixed(1)), updatedAt: new Date().toISOString(), isEntered: true });
@@ -88,7 +88,7 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
             </div>
             <div>
               <h2 className="text-sm font-military font-bold text-slate-100 uppercase tracking-wider">Retail Sentiment — 11 Assets</h2>
-              <p className="text-[10px] font-mono-code text-slate-500 mt-1">Enter only the Long % and Short %. The system derives retail sentiment and applies the contrarian score.</p>
+              <p className="text-[10px] font-mono-code text-slate-500 mt-1">Enter only the Long % and Short %. The system normalizes their ratio to 100%, derives retail sentiment, and feeds the weighted sentiment indicator into all downstream scoring.</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -114,8 +114,14 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
             <tbody className="divide-y divide-slate-800/70">
               {rows.map((row) => {
                 const d = getDraft(row.asset, row.record);
-                const entered = row.record.isEntered !== false;
-                const score = entered ? calculateRetailContrarianScore(row.record) : null;
+                const draftLong = Number(d.long);
+                const draftShort = Number(d.short);
+                const hasDraft = Number.isFinite(draftLong) && Number.isFinite(draftShort) && draftLong >= 0 && draftShort >= 0 && (draftLong + draftShort) > 0;
+                const displayRecord = hasDraft
+                  ? { ...row.record, longPercent: draftLong, shortPercent: draftShort, isEntered: true }
+                  : row.record;
+                const entered = hasDraft || row.record.isEntered !== false;
+                const score = entered ? calculateRetailContrarianScore(displayRecord) : null;
                 return (
                   <tr key={row.asset} className="bg-slate-950/40 hover:bg-slate-900/50">
                     <td className="p-3">
@@ -130,9 +136,9 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
                     <td className="p-2">
                       <input aria-label={row.asset + ' short percentage'} inputMode="decimal" type="number" min="0" max="100" step="0.1" value={d.short} onChange={(e) => setDrafts((p) => ({ ...p, [row.asset]: { ...getDraft(row.asset, row.record), short: e.target.value } }))} placeholder="e.g. 30" className="w-28 mx-auto block rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-center text-slate-100 focus:border-cyan-400 focus:outline-none" />
                     </td>
-                    <td className="p-3 text-center font-bold text-slate-300">{retailSide(row.record)}</td>
+                    <td className="p-3 text-center font-bold text-slate-300">{retailSide(displayRecord)}</td>
                     <td className="p-3 text-center">
-                      <span className={score === null ? 'text-amber-300' : score > 0 ? 'text-emerald-300' : score < 0 ? 'text-rose-300' : 'text-slate-300'}>{retailLabel(row.record)}</span>
+                      <span className={score === null ? 'text-amber-300' : score > 0 ? 'text-emerald-300' : score < 0 ? 'text-rose-300' : 'text-slate-300'}>{retailLabel(displayRecord)}</span>
                     </td>
                     <td className="p-3 text-center font-military font-bold">{score === null ? '—' : score > 0 ? '+' + score : score}</td>
                   </tr>
@@ -145,7 +151,7 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
 
       <section className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4">
         <div className="text-[10px] font-mono-code text-slate-400">
-          <span className="text-slate-200 font-bold">Calculation:</span> Retail long-heavy is treated as contrarian bearish; retail short-heavy is treated as contrarian bullish. This is a configurable model rule, not a guarantee of future price direction.
+          <span className="text-slate-200 font-bold">Calculation:</span> The entered Long/Short values are treated as relative percentages and normalized internally to 100%. Retail long-heavy is contrarian bearish; retail short-heavy is contrarian bullish. The resulting score is used by the Retail Sentiment category and pair/asset calculations. This is a configurable model rule, not a guarantee of future price direction.
         </div>
       </section>
     </div>
