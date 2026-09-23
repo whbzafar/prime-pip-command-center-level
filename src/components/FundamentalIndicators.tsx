@@ -769,6 +769,11 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
           currencyScores={currencyScores}
           commodityObservations={commodityObservations}
           onCommodityUpdate={handleUpdateCommodity}
+          onOpenCurrencyWorkspace={(currency) => { setActiveCurrency(currency); setActiveTab('WORKSPACES'); }}
+          onOpenRates={(currency) => { setActiveCurrency(currency); setActiveTab('RATES_YIELDS'); }}
+          onOpenCot={(currency) => { setActiveCurrency(currency); setActiveTab('COT_REPORT'); }}
+          onOpenSentiment={(currency) => { setActiveCurrency(currency); setActiveTab('MARKET_SENTIMENT'); }}
+          onOpenCommodities={() => setActiveTab('COMMODITIES')}
         />
       )}
 
