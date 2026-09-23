@@ -205,10 +205,10 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
       <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
         <div className="p-4 border-b border-slate-800 bg-[#0c1222] flex items-center justify-between">
           <h4 className="font-military font-bold text-xs text-slate-100 uppercase tracking-wider">
-            Eligible Pair Structural Factor Matrix
+            20-Pair Structural Factor Matrix
           </h4>
           <span className="text-[10px] font-mono-code text-slate-400">
-            Sorted by {horizon} Fundamental Score
+            {allPairs.length}/20 primary pairs · {readyPairs.length} ready · Sorted by {horizon} Fundamental Score
           </span>
         </div>
 
@@ -277,8 +277,8 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
                       ['LONG', item.longTermDiff],
                     ] as const).map(([label, value]) => (
                       <td key={label} className="p-3 text-center">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${value > 15 ? 'bg-emerald-500/20 text-emerald-300' : value < -15 ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-slate-300'}`}>
-                          {value > 15 ? 'BULLISH' : value < -15 ? 'BEARISH' : 'NEUTRAL'}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.dataStatus !== 'READY' ? 'bg-amber-500/15 text-amber-300' : value > 15 ? 'bg-emerald-500/20 text-emerald-300' : value < -15 ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-slate-300'}`}>
+                          {item.dataStatus !== 'READY' ? 'INSUFFICIENT' : value > 15 ? 'BULLISH' : value < -15 ? 'BEARISH' : 'NEUTRAL'}
                         </span>
                       </td>
                     ))}                  </tr>
