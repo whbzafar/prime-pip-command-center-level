@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import './community-layout-fix.css';
+import './styles/liquid-glass-ui-kit.css';
 import { applyInterfaceTemplate } from './data/interfaceTemplates';
 
 try {
