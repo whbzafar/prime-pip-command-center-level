@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Check,
   Palette,
@@ -321,7 +322,7 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
 
   if (!isOpen) return null;
 
-  return (
+  const appearanceOverlay = (
     <div
       className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-150"
       onClick={onClose}
@@ -831,4 +832,10 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
       </section>
     </div>
   );
+
+  // Render the Theme Studio outside #root so fixed positioning is always
+  // relative to the viewport, never to a filtered/transformed app container.
+  return typeof document !== 'undefined'
+    ? createPortal(appearanceOverlay, document.body)
+    : null;
 };
