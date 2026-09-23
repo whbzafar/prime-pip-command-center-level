@@ -71,13 +71,14 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   }, [commodityData, commodityObservations]);
 
   const currentObs = commodityData.find((c) => c.symbol === activeCommodity) || commodityData[0];
-  const calculated = calculateCommodityFundamentalScore(currentObs, retailPositioning.find((r) => r.asset === currentObs.symbol));
+  const currentRetail = retailPositioning.find((r) => r.asset === currentObs.symbol);
+  const calculated = calculateCommodityFundamentalScore(currentObs, currentRetail);
   const commodityDataComplete =
     currentObs.symbol === 'GOLD'
-      ? currentObs.price > 0 && currentObs.usRealYield10Y !== undefined && currentObs.inflationBreakeven5Y !== undefined && currentObs.centralBankDemandTone !== undefined && currentObs.geopoliticalRiskLevel !== undefined && currentObs.sentiment !== undefined
+      ? currentObs.price > 0 && currentObs.usRealYield10Y !== undefined && currentObs.inflationBreakeven5Y !== undefined && currentObs.centralBankDemandTone !== undefined && currentObs.geopoliticalRiskLevel !== undefined && currentObs.sentiment !== undefined && currentRetail?.isEntered === true
       : currentObs.symbol === 'SILVER'
-      ? currentObs.price > 0 && currentObs.usRealYield10Y !== undefined && currentObs.industrialDemandTone !== undefined && currentObs.geopoliticalRiskLevel !== undefined && currentObs.sentiment !== undefined
-      : currentObs.price > 0 && currentObs.supplyDemandBalance !== undefined && currentObs.inventoriesWeeklySurpriseMb !== undefined && currentObs.opecPolicyTone !== undefined && currentObs.sentiment !== undefined;
+      ? currentObs.price > 0 && currentObs.usRealYield10Y !== undefined && currentObs.industrialDemandTone !== undefined && currentObs.geopoliticalRiskLevel !== undefined && currentObs.sentiment !== undefined && currentRetail?.isEntered === true
+      : currentObs.price > 0 && currentObs.supplyDemandBalance !== undefined && currentObs.inventoriesWeeklySurpriseMb !== undefined && currentObs.opecPolicyTone !== undefined && currentObs.sentiment !== undefined && currentRetail?.isEntered === true;
 
   // Relative Valuation vs USD (Section 32)
   const usdScoreVal = usdScore?.score;
