@@ -9,9 +9,11 @@ import { applyInterfaceTemplate } from './data/interfaceTemplates';
 try {
   const savedTheme = localStorage.getItem('primepipfx_theme') || 'liquid-glass-neon';
   const rawBrightness = localStorage.getItem('primepipfx_brightness');
-  // Calibrated brightness (104%) for optimal institutional clarity without washing out UI
+  // Brightness controls intentionally support the full 60%-160% range.
+  // The previous 90%-110% clamp made the +/- buttons appear to respond while
+  // silently snapping the application back into the narrow range.
   const num = rawBrightness ? Number(rawBrightness) : NaN;
-  const savedBrightness = !isNaN(num) && num >= 90 && num <= 110 ? num : 104;
+  const savedBrightness = !isNaN(num) && num >= 60 && num <= 160 ? num : 104;
   applyInterfaceTemplate(savedTheme, savedBrightness);
 } catch {}
 
