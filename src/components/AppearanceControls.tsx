@@ -223,6 +223,7 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
 }) => {
   const [theme, setTheme] = useState<string>(() => readStored('primepipfx_theme', 'midnight'));
   const initialThemeApply = useRef(true);
+  const previousTheme = useRef(theme);
   const [hoveredThemeId, setHoveredThemeId] = useState<string | null>(null);
   const [customThemes, setCustomThemes] = useState<InterfaceTemplate[]>(() => getStoredCustomThemes());
   const [brightness, setBrightness] = useState<number>(() => {
@@ -253,12 +254,16 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
     applyInterfaceTemplate(theme, brightness);
     if (initialThemeApply.current) {
       initialThemeApply.current = false;
+      previousTheme.current = theme;
       return;
     }
-    try {
-      localStorage.setItem('primepipfx_visual_style', 'restored');
-    } catch {}
-    delete document.documentElement.dataset.visualStyle;
+    if (previousTheme.current !== theme) {
+      try {
+        localStorage.setItem('primepipfx_visual_style', 'restored');
+      } catch {}
+      delete document.documentElement.dataset.visualStyle;
+      previousTheme.current = theme;
+    }
   }, [theme, brightness]);
 
   // Handle escape key
