@@ -104,6 +104,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
       realYield10Y: realY !== undefined && !isNaN(realY) ? realY : editingRecord.realYield10Y,
       recentGuidance: rateForm.recentGuidance,
       updatedAt: new Date().toISOString(),
+      isEntered: true,
     };
 
     if (onUpdateInterestRate) {
@@ -200,17 +201,17 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
 
                     <td className="p-3 text-right">
                       <span className="text-sm font-military font-bold text-cyan-300">
-                        {r.currentPolicyRate.toFixed(2)}%
+                        {r.isEntered === false ? '—' : `${r.currentPolicyRate.toFixed(2)}%`}
                       </span>
                     </td>
 
                     <td className="p-3 text-right text-slate-400">
-                      {r.previousPolicyRate.toFixed(2)}%
+                      {r.isEntered === false ? '—' : `${r.previousPolicyRate.toFixed(2)}%`}
                     </td>
 
                     <td className="p-3 text-right">
                       <span className="text-slate-200 font-bold">
-                        {r.expectedNextRate.toFixed(2)}%
+                        {r.isEntered === false ? '—' : `${r.expectedNextRate.toFixed(2)}%`}
                       </span>
                       <span className="text-[10px] text-slate-500 block">
                         {r.expectedRateChangeBps > 0 ? `+${r.expectedRateChangeBps} bps` : r.expectedRateChangeBps < 0 ? `${r.expectedRateChangeBps} bps` : 'Hold'}
@@ -297,8 +298,9 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
             <tbody className="divide-y divide-slate-800/60 bg-slate-950/40">
               {rateRecords.map((r) => {
                 const meta = CURRENCY_METADATA[r.currency];
-                const slope = Number((r.yield10Y - r.yield2Y).toFixed(2));
-                const isInverted = slope < 0;
+                const hasYieldData = r.isEntered !== false && Number.isFinite(r.yield10Y) && Number.isFinite(r.yield2Y);
+                const slope = hasYieldData ? Number((r.yield10Y - r.yield2Y).toFixed(2)) : null;
+                const isInverted = slope !== null && slope < 0;
 
                 return (
                   <tr key={r.currency} className="hover:bg-slate-900/40 transition">
@@ -307,11 +309,11 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
                       <span>{r.currency} Sovereign Bonds</span>
                     </td>
 
-                    <td className="p-3 text-right text-slate-300">{r.yield2Y.toFixed(2)}%</td>
-                    <td className="p-3 text-right text-slate-300">{r.yield5Y.toFixed(2)}%</td>
-                    <td className="p-3 text-right font-military font-bold text-cyan-300">{r.yield10Y.toFixed(2)}%</td>
+                    <td className="p-3 text-right text-slate-300">{r.isEntered === false ? '—' : `${r.yield2Y.toFixed(2)}%`}</td>
+                    <td className="p-3 text-right text-slate-300">{r.isEntered === false ? '—' : `${r.yield5Y.toFixed(2)}%`}</td>
+                    <td className="p-3 text-right font-military font-bold text-cyan-300">{r.isEntered === false ? '—' : `${r.yield10Y.toFixed(2)}%`}</td>
                     <td className="p-3 text-right text-slate-300">
-                      {r.realYield10Y !== undefined ? `${r.realYield10Y.toFixed(2)}%` : '—'}
+                      {r.isEntered !== false && r.realYield10Y !== undefined ? `${r.realYield10Y.toFixed(2)}%` : '—'}
                     </td>
 
                     <td className="p-3 text-right">
@@ -320,7 +322,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
                           isInverted ? 'text-rose-400' : 'text-emerald-400'
                         }`}
                       >
-                        {slope > 0 ? `+${slope}%` : `${slope}%`}
+                        {slope === null ? '—' : slope > 0 ? `+${slope}%` : `${slope}%`}
                       </span>
                     </td>
 
@@ -332,7 +334,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
                             : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
                         }`}
                       >
-                        {isInverted ? 'INVERTED' : 'NORMAL / STEEP'}
+                        {slope === null ? 'INPUT REQUIRED' : isInverted ? 'INVERTED' : 'NORMAL / STEEP'}
                       </span>
                     </td>
 
@@ -374,7 +376,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
                 <div>
                   <span className="font-military font-bold text-slate-200">{p.pair}</span>
                   <span className="text-[10px] text-slate-500 block">
-                    {p.base} ({baseRec?.currentPolicyRate}%) vs {p.quote} ({quoteRec?.currentPolicyRate}%)
+                    {p.base} ({baseRec?.isEntered === false ? '—' : baseRec?.currentPolicyRate + '%'}) vs {p.quote} ({quoteRec?.isEntered === false ? '—' : quoteRec?.currentPolicyRate + '%'})
                   </span>
                 </div>
                 <span
@@ -382,7 +384,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
                     diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-rose-400' : 'text-slate-400'
                   }`}
                 >
-                  {diff > 0 ? `+${diff}%` : `${diff}%`}
+                  {diff === null ? 'INPUT' : diff > 0 ? `+${diff}%` : `${diff}%`}
                 </span>
               </div>
             );
