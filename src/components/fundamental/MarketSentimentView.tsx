@@ -61,6 +61,7 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
   });
 
   React.useEffect(() => setCurrencyRecords(currencySentimentRecords), [currencySentimentRecords]);
+  React.useEffect(() => setRecords(sentimentRecords), [sentimentRecords]);
 
   const startCurrencyEdit = (record: MarketSentimentRecord) => {
     setEditingCurrency(record.currency);
