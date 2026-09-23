@@ -200,7 +200,10 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
 
           <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs font-mono-code">
             <button
-              onClick={() => setActiveCommodity('GOLD')}
+              onClick={() => {
+                setActiveCommodity('GOLD');
+                window.dispatchEvent(new CustomEvent('primepipfx_select_fundamental_asset', { detail: { asset: 'XAU/USD' } }));
+              }}
               className={`px-3.5 py-1.5 rounded-lg transition font-bold cursor-pointer ${
                 activeCommodity === 'GOLD'
                   ? 'bg-amber-500 text-slate-950 shadow'
@@ -210,7 +213,10 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
               GOLD (XAU/USD)
             </button>
             <button
-              onClick={() => setActiveCommodity('SILVER')}
+              onClick={() => {
+                setActiveCommodity('SILVER');
+                window.dispatchEvent(new CustomEvent('primepipfx_select_fundamental_asset', { detail: { asset: 'XAG/USD' } }));
+              }}
               className={`px-3.5 py-1.5 rounded-lg transition font-bold cursor-pointer ${
                 activeCommodity === 'SILVER'
                   ? 'bg-amber-500 text-slate-950 shadow'
@@ -220,7 +226,10 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
               SILVER (XAG/USD)
             </button>
             <button
-              onClick={() => setActiveCommodity('CRUDE_OIL')}
+              onClick={() => {
+                setActiveCommodity('CRUDE_OIL');
+                window.dispatchEvent(new CustomEvent('primepipfx_select_fundamental_asset', { detail: { asset: 'US Oil' } }));
+              }}
               className={`px-3.5 py-1.5 rounded-lg transition font-bold cursor-pointer ${
                 activeCommodity === 'CRUDE_OIL'
                   ? 'bg-amber-500 text-slate-950 shadow'

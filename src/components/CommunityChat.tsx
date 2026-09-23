@@ -509,7 +509,11 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
 
   useEffect(() => {
     fetchMessages(true);
-    const interval = setInterval(() => fetchMessages(false), 1000);
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchMessages(false);
+      }
+    }, 4000);
     return () => clearInterval(interval);
   }, [commMode, currentUser?.id]);
 

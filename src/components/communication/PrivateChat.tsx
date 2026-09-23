@@ -166,7 +166,11 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
       .then((res) => res.ok ? res.json() : null)
       .then((data) => setIsBlocked(Boolean(data?.blocked)))
       .catch(() => setIsBlocked(false));
-    const interval = setInterval(fetchPrivateMessages, 1000);
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchPrivateMessages();
+      }
+    }, 4000);
     return () => clearInterval(interval);
   }, [activeContact.id, currentUser]);
 

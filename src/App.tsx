@@ -721,7 +721,7 @@ export default function App() {
   }
 
   return (
-    <div className="prime-command-shell w-full max-w-full min-h-screen text-slate-100 flex flex-col selection:bg-blue-500/30 selection:text-cyan-200 relative overflow-x-hidden">
+    <div className="prime-command-shell w-full max-w-full min-h-screen text-slate-100 flex flex-col selection:bg-blue-500/30 selection:text-cyan-200 relative overflow-x-clip">
       <CommunicationNotifications currentUser={currentUser} onOpenCommunication={() => setActiveTab('COMMUNITY')} />
 
       {/* 4-Side Animated Laser Perimeter Frame */}
@@ -859,7 +859,7 @@ export default function App() {
       {/* Main Content Area */}
       <main
         ref={mainContainerRef}
-        className={`flex-1 w-full mx-auto px-2 sm:px-6 pt-1 sm:pt-3 pb-32 sm:pb-28 md:pb-10 overflow-x-hidden focus:outline-none ${
+        className={`flex-1 w-full mx-auto px-2 sm:px-6 pt-1 sm:pt-3 pb-24 sm:pb-20 md:pb-8 overflow-x-clip focus:outline-none ${
           activeTab === 'FUNDAMENTAL_INDICATORS' ? 'max-w-[1750px]' : 'max-w-7xl'
         }`}
       >

@@ -111,7 +111,11 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
 
   useEffect(() => {
     fetchFriends();
-    const interval = setInterval(fetchFriends, 2000);
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchFriends();
+      }
+    }, 8000);
     return () => clearInterval(interval);
   }, [currentUser]);
 

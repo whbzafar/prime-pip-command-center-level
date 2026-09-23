@@ -72,8 +72,18 @@ export const CommunicationNotifications: React.FC<CommunicationNotificationsProp
   useEffect(() => {
     previousIds.current = new Set();
     load();
-    const timer = window.setInterval(load, 1000);
-    return () => window.clearInterval(timer);
+    const handleVisibility = () => {
+      if (!document.hidden) load();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    // Poll every 12 seconds instead of every 1 second to eliminate UI lag
+    const timer = window.setInterval(() => {
+      if (!document.hidden) load();
+    }, 12000);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.clearInterval(timer);
+    };
   }, [currentUser?.id]);
 
   const updateSettings = async (nextMuted: boolean, nextSound: boolean) => {

@@ -5,7 +5,7 @@ import {
   PairDifferentialResult,
 } from '../../types/fundamentalIndicatorTypes';
 import { calculatePairDifferential } from '../../utils/fundamentalCalculationEngine';
-import { Sparkles, ArrowRight, ArrowUpRight, ArrowDownRight, Scale, AlertTriangle, ShieldCheck, Filter } from 'lucide-react';
+import { Sparkles, ArrowRight, ArrowUpRight, ArrowDownRight, Scale, AlertTriangle, ShieldCheck, Filter, Gauge } from 'lucide-react';
 import { CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
 
 interface PairDifferentialScannerViewProps {
@@ -311,13 +311,27 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
                     </button>
                   </div>
 
-                  <button
-                    onClick={() => onRequestAiPairThesis(pair, diff)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-cyan-300 text-xs font-military font-bold border border-blue-500/30 transition cursor-pointer"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    <span>AI THESIS</span>
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('primepipfx_select_fundamental_asset', { detail: { asset: pair } }));
+                        window.scrollTo({ top: 120, behavior: 'smooth' });
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-military font-bold border border-slate-700 transition cursor-pointer"
+                      title="Inspect sentiment gauge and trend conviction for this pair"
+                    >
+                      <Gauge className="w-3 h-3 text-cyan-400" />
+                      <span>METER</span>
+                    </button>
+
+                    <button
+                      onClick={() => onRequestAiPairThesis(pair, diff)}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-cyan-300 text-xs font-military font-bold border border-blue-500/30 transition cursor-pointer"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>AI THESIS</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             );

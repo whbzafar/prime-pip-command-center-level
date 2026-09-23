@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Activity,
   BookOpen,
@@ -103,12 +104,22 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   };
 
   const isMoreTabActive = !['DASHBOARD', 'PRE_TRADE_PLAN', 'LOT_SIZE', 'JOURNAL'].includes(activeTab);
+  const [mounted, setMounted] = useState(false);
 
-  return (
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || typeof document === 'undefined') {
+    return null;
+  }
+
+  return createPortal(
     <>
       <nav
         aria-label="Mobile Navigation"
-        className="fixed bottom-0 left-0 right-0 z-40 bg-[#090d16] border-t border-cyan-500/20 px-2 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] md:hidden select-none shadow-2xl transform-gpu"
+        className="fixed bottom-0 left-0 right-0 z-50 bg-[#070b14]/98 border-t border-cyan-500/25 px-2 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] md:hidden select-none shadow-2xl backdrop-blur-md"
+        style={{ touchAction: 'manipulation' }}
       >
         <div className="flex items-center justify-around max-w-md mx-auto relative">
           {/* 1. Dashboard */}
@@ -325,7 +336,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           </div>
         </div>
       )}
-    </>
+    </>,
+    document.body
   );
 };
 

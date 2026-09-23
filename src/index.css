@@ -716,6 +716,19 @@ html[data-theme='arc-neon'] {
      for position:fixed overlays and make the Theme Studio appear off-screen. */
 }
 
+html {
+  scroll-behavior: smooth;
+  overflow-x: clip;
+}
+
+body {
+  overflow-x: clip;
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  -webkit-overflow-scrolling: touch;
+}
+
 html, body {
   background-color: var(--bg) !important;
   color: var(--ink) !important;
@@ -1947,8 +1960,9 @@ html[data-theme='daylight'] textarea::placeholder {
   html, body, #root {
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
     overscroll-behavior-x: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   .prime-command-shell,
