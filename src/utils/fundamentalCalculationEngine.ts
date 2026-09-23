@@ -19,6 +19,35 @@ import { CURRENCIES, OFFICIAL_INDICATOR_REGISTRY, DEFAULT_CATEGORY_WEIGHTS } fro
 
 const CURRENT_TIMESTAMP_MS = Date.now();
 
+/**
+ * Canonical 20-pair universe shared by the pair differential engine and
+ * the long-term structural matrix.
+ */
+export const PRIMARY_PAIR_MATRIX_20: [CurrencyCode, CurrencyCode][] = [
+  ['EUR', 'USD'],
+  ['GBP', 'USD'],
+  ['USD', 'JPY'],
+  ['USD', 'CHF'],
+  ['USD', 'CAD'],
+  ['AUD', 'USD'],
+  ['NZD', 'USD'],
+  ['EUR', 'GBP'],
+  ['EUR', 'JPY'],
+  ['GBP', 'JPY'],
+  ['AUD', 'JPY'],
+  ['CAD', 'JPY'],
+  ['CHF', 'JPY'],
+  ['EUR', 'AUD'],
+  ['EUR', 'CAD'],
+  ['EUR', 'CHF'],
+  ['GBP', 'AUD'],
+  ['GBP', 'CAD'],
+  ['GBP', 'CHF'],
+  ['AUD', 'CAD'],
+  ['AUD', 'NZD'],
+  ['AUD', 'CHF'],
+];
+
 export function calculateIndicatorScore(
   definition: IndicatorDefinition,
   observation?: IndicatorObservation
@@ -315,7 +344,9 @@ export function calculateCategoryScores(
       }
     }
 
-    const catWeight = (customWeights as any)[cat] || 0;
+    const catWeight = cat === 'COMMODITY_DRIVER'
+      ? Number((customWeights as any).COMMODITY_DRIVER ?? 5)
+      : Number((customWeights as any)[cat] || 0);
     results[cat] = {
       category: cat,
       categoryLabel: categoryLabels[cat],
@@ -645,35 +676,9 @@ export function calculateAllPairDifferentials(
   currencyScores: Record<CurrencyCode, CurrencyScoreResult>,
   ruleConfig?: BacktestRuleConfig
 ): PairDifferentialResult[] {
-  const majorPairs: [CurrencyCode, CurrencyCode][] = [
-    ['EUR', 'USD'],
-    ['GBP', 'USD'],
-    ['USD', 'JPY'],
-    ['USD', 'CHF'],
-    ['USD', 'CAD'],
-    ['AUD', 'USD'],
-    ['NZD', 'USD'],
-    ['EUR', 'GBP'],
-    ['EUR', 'JPY'],
-    ['GBP', 'JPY'],
-    ['AUD', 'JPY'],
-    ['CAD', 'JPY'],
-    ['CHF', 'JPY'],
-    ['NZD', 'JPY'],
-    ['EUR', 'AUD'],
-    ['EUR', 'CAD'],
-    ['EUR', 'CHF'],
-    ['GBP', 'AUD'],
-    ['GBP', 'CAD'],
-    ['GBP', 'CHF'],
-    ['AUD', 'CAD'],
-    ['AUD', 'NZD'],
-    ['AUD', 'CHF'],
-    ['NZD', 'CAD'],
-    ['CAD', 'CHF'],
-  ];
-
-  return majorPairs.map(([base, quote]) => calculatePairDifferential(base, quote, currencyScores, ruleConfig));
+  return PRIMARY_PAIR_MATRIX_20.map(([base, quote]) =>
+    calculatePairDifferential(base, quote, currencyScores, ruleConfig)
+  );
 }
 
 export function calculateCommodityFundamentalScore(obs: CommodityObservation, retailPositioning?: RetailPositioningRecord): {
@@ -971,36 +976,7 @@ export function calculateLongTermPairRankings(
   observations: IndicatorObservation[],
   retailPositioning: RetailPositioningRecord[] = []
 ) {
-  const pairs: [CurrencyCode, CurrencyCode][] = [
-    ['EUR', 'USD'],
-    ['GBP', 'USD'],
-    ['USD', 'JPY'],
-    ['USD', 'CHF'],
-    ['USD', 'CAD'],
-    ['AUD', 'USD'],
-    ['NZD', 'USD'],
-    ['EUR', 'GBP'],
-    ['EUR', 'JPY'],
-    ['GBP', 'JPY'],
-    ['AUD', 'JPY'],
-    ['CAD', 'JPY'],
-    ['CHF', 'JPY'],
-    ['NZD', 'JPY'],
-    ['EUR', 'AUD'],
-    ['EUR', 'CAD'],
-    ['EUR', 'CHF'],
-    ['EUR', 'NZD'],
-    ['GBP', 'AUD'],
-    ['GBP', 'CAD'],
-    ['GBP', 'CHF'],
-    ['GBP', 'NZD'],
-    ['AUD', 'CAD'],
-    ['AUD', 'NZD'],
-    ['AUD', 'CHF'],
-    ['CAD', 'CHF'],
-    ['NZD', 'CAD'],
-    ['NZD', 'CHF'],
-  ];
+  const pairs = PRIMARY_PAIR_MATRIX_20;
 
   const eligiblePairs = pairs.filter(([base, quote]) =>
     (currencyScores[base]?.dataCoveragePercent ?? 0) >= 75 &&
@@ -1039,13 +1015,20 @@ export function calculateLongTermPairRankings(
     const cotDifferential = (currencyScores[base]?.categoryScores?.COT_POSITIONING?.score ?? 0)
       - (currencyScores[quote]?.categoryScores?.COT_POSITIONING?.score ?? 0);
 
-    // Long-term composite: retail sentiment is explicitly 10%; COT is 5%.
+    const baseCommodity = currencyScores[base]?.categoryScores?.COMMODITY_DRIVER?.score ?? 0;
+    const quoteCommodity = currencyScores[quote]?.categoryScores?.COMMODITY_DRIVER?.score ?? 0;
+    const structuralCommodityExposure = baseCommodity - quoteCommodity;
+
+    // Reproducible long-term weights (sum = 100%):
+    // Policy 25, Growth 17, Inflation 13, Real Yield 15,
+    // External Balance 10, Commodity Exposure 5, COT 5, Retail Contrarian 10.
     const longTermDiff = Math.round(
       monetaryPolicyRegime * 0.25 +
-        growthTrend * 0.22 +
+        growthTrend * 0.17 +
         inflationTrend * 0.13 +
         realRateDifferential * 0.15 +
         externalBalance * 0.10 +
+        structuralCommodityExposure * 0.05 +
         cotDifferential * 0.05 +
         retailSentimentDifferential * 0.10
     );
@@ -1086,7 +1069,7 @@ export function calculateLongTermPairRankings(
         realRateDifferential,
         longTermCot: cotDifferential,
         retailSentimentDifferential,
-        structuralCommodityExposure: 0,
+        structuralCommodityExposure,
       },
       bias,
       structuralRationale,
