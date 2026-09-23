@@ -59,6 +59,14 @@ export interface LiveCommodityResult {
   confidence: number;
   notes?: string;
   drivers?: string[];
+  usRealYield10Y?: number;
+  inflationBreakeven5Y?: number;
+  centralBankDemandTone?: 'AGGRESSIVE_BUYING' | 'STEADY' | 'SLOW';
+  industrialDemandTone?: 'STRONG' | 'NEUTRAL' | 'WEAK';
+  geopoliticalRiskLevel?: 'HIGH' | 'MODERATE' | 'LOW';
+  supplyDemandBalance?: 'SURPLUS' | 'BALANCED' | 'DEFICIT';
+  inventoriesWeeklySurpriseMb?: number;
+  opecPolicyTone?: 'DEFENDING_FLOOR' | 'STEADY_PRODUCTION' | 'EXPANDING_SUPPLY';
   sources?: { title?: string; uri: string }[];
 }
 
