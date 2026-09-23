@@ -281,7 +281,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       </div>
 
       {/* Top Mobile Status Ticker (Visible on mobile/tablet screens < lg) */}
-      <div className="w-full max-w-md lg:hidden mb-4 z-10">
+      <div className="absolute top-[calc(env(safe-area-inset-top)+4.5rem)] left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-md lg:hidden z-20">
         <div className="flex items-center justify-between gap-2 px-3.5 py-2 rounded-full bg-slate-900/80 border border-slate-800/80 backdrop-blur-md shadow-lg text-[11px] font-mono-code text-slate-300">
           <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -337,7 +337,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       </motion.div>
 
       {/* Main 3D Container Holding Central Card & Desktop Floating HUD Elements */}
-      <div className="relative w-full max-w-6xl mx-auto flex items-center justify-center z-10">
+      <div className="relative w-full max-w-6xl min-h-[100dvh] mx-auto flex items-center justify-center z-10 py-16 sm:py-12">
         {/* Floating HUD Card 1: Top-Left (Desktop Only) */}
         <motion.div
           animate={{
