@@ -1,0 +1,471 @@
+/*
+ * PRIME PIP FX — LIQUID GLASS UI KIT PRO
+ * Reference language: supplied Liquid Glass UI Kit image.
+ * Scope: only html[data-theme='liquid-glass-ui-kit'].
+ *
+ * This file is presentation-only. It does not change application state,
+ * routes, authentication, calculations, APIs, permissions, or data.
+ */
+
+html[data-theme='liquid-glass-ui-kit'] {
+  --lgui-bg: #050814;
+  --lgui-bg-2: #0a1020;
+  --lgui-panel: rgba(17, 25, 46, 0.56);
+  --lgui-panel-strong: rgba(23, 33, 59, 0.72);
+  --lgui-panel-soft: rgba(255, 255, 255, 0.055);
+  --lgui-white: #f7fbff;
+  --lgui-muted: #9aa8c0;
+  --lgui-cyan: #35f4ff;
+  --lgui-blue: #5a8dff;
+  --lgui-violet: #9b62ff;
+  --lgui-magenta: #ff4bd8;
+  --lgui-pink: #ff7ae9;
+  --lgui-profit: #58ffd5;
+  --lgui-danger: #ff6b93;
+  --lgui-border: rgba(171, 226, 255, 0.23);
+  --lgui-border-strong: rgba(98, 231, 255, 0.62);
+  --lgui-radius: 22px;
+  --lgui-radius-sm: 16px;
+  --lgui-pill: 999px;
+  --lgui-glass-blur: blur(24px) saturate(165%);
+  --lgui-glass-blur-sm: blur(16px) saturate(150%);
+  --lgui-shadow: 0 24px 70px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255,255,255,0.09);
+  --lgui-glow: 0 0 24px rgba(53,244,255,0.20), 0 0 42px rgba(155,98,255,0.10);
+}
+
+/* --------------------------------------------------------------------------
+   01. THE CANVAS — deep glass studio background
+   -------------------------------------------------------------------------- */
+html[data-theme='liquid-glass-ui-kit'],
+html[data-theme='liquid-glass-ui-kit'] body {
+  background:
+    radial-gradient(760px 560px at 9% 10%, rgba(53,244,255,0.12), transparent 62%),
+    radial-gradient(780px 620px at 92% 16%, rgba(155,98,255,0.14), transparent 60%),
+    radial-gradient(760px 620px at 76% 88%, rgba(255,75,216,0.12), transparent 62%),
+    radial-gradient(520px 420px at 23% 83%, rgba(90,141,255,0.08), transparent 65%),
+    linear-gradient(135deg, var(--lgui-bg) 0%, #080c18 52%, #090b17 100%) !important;
+  background-attachment: fixed !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    linear-gradient(118deg, transparent 0 28%, rgba(255,255,255,0.018) 31%, transparent 36%),
+    radial-gradient(circle at 50% 8%, rgba(255,255,255,0.045), transparent 30%);
+  mix-blend-mode: screen;
+}
+
+/* Keep the application above the ambient lighting layer. */
+html[data-theme='liquid-glass-ui-kit'] #root {
+  position: relative;
+  z-index: 1;
+}
+
+/* --------------------------------------------------------------------------
+   02. THE GLASS MATERIAL — the defining reference treatment
+   -------------------------------------------------------------------------- */
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .prime-card,
+  .prime-card-elevated,
+  .bg-slate-950,
+  .bg-slate-950\/95,
+  .bg-slate-950\/90,
+  .bg-slate-950\/80,
+  .bg-slate-900,
+  .bg-slate-900\/95,
+  .bg-slate-900\/90,
+  .bg-slate-900\/80,
+  .bg-slate-900\/70,
+  .bg-slate-900\/60,
+  .bg-slate-900\/50,
+  .bg-slate-800,
+  .bg-slate-800\/80
+) {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, rgba(39,54,86,0.48), rgba(8,13,27,0.68)),
+    var(--lgui-panel) !important;
+  border-color: var(--lgui-border) !important;
+  border-radius: var(--lgui-radius) !important;
+  box-shadow: var(--lgui-shadow) !important;
+  backdrop-filter: var(--lgui-glass-blur) !important;
+  -webkit-backdrop-filter: var(--lgui-glass-blur) !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .prime-card,
+  .prime-card-elevated
+)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(118deg, rgba(255,255,255,0.13), transparent 18%, transparent 72%, rgba(53,244,255,0.035)),
+    linear-gradient(180deg, rgba(255,255,255,0.05), transparent 22%);
+  opacity: 0.9;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .prime-card,
+  .prime-card-elevated
+):hover {
+  border-color: rgba(96,231,255,0.38) !important;
+  box-shadow:
+    0 28px 80px rgba(0,0,0,0.50),
+    0 0 34px rgba(53,244,255,0.11),
+    inset 0 1px 0 rgba(255,255,255,0.13) !important;
+}
+
+/* --------------------------------------------------------------------------
+   03. REFERENCE BUTTON LANGUAGE — two luminous gradient families
+   -------------------------------------------------------------------------- */
+html[data-theme='liquid-glass-ui-kit'] :where(
+  button.bg-blue-500,
+  button.bg-blue-600,
+  button.bg-cyan-500,
+  button.bg-cyan-600,
+  a.bg-blue-500,
+  a.bg-blue-600
+) {
+  background: linear-gradient(105deg, #25efff 0%, #4e9cff 48%, #8c63ff 100%) !important;
+  color: #06111b !important;
+  border: 1px solid rgba(255,255,255,0.42) !important;
+  border-radius: var(--lgui-pill) !important;
+  box-shadow:
+    0 10px 30px rgba(53,244,255,0.22),
+    0 0 28px rgba(90,141,255,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.62) !important;
+  text-shadow: none !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  button.bg-purple-500,
+  button.bg-purple-600,
+  button.bg-fuchsia-500,
+  button.bg-fuchsia-600,
+  button.bg-pink-500,
+  button.bg-pink-600
+) {
+  background: linear-gradient(105deg, #765cff 0%, #a65dff 48%, #ff58d7 100%) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.30) !important;
+  border-radius: var(--lgui-pill) !important;
+  box-shadow:
+    0 10px 30px rgba(155,98,255,0.24),
+    0 0 30px rgba(255,75,216,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.36) !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  button,
+  a
+) {
+  transition:
+    transform 180ms cubic-bezier(0.2,0.8,0.2,1),
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    filter 180ms ease,
+    background 180ms ease;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  button.bg-blue-500,
+  button.bg-blue-600,
+  button.bg-cyan-500,
+  button.bg-cyan-600,
+  button.bg-purple-500,
+  button.bg-purple-600,
+  button.bg-fuchsia-500,
+  button.bg-fuchsia-600,
+  button.bg-pink-500,
+  button.bg-pink-600
+):hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08) saturate(1.08);
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  button.bg-blue-500,
+  button.bg-blue-600,
+  button.bg-cyan-500,
+  button.bg-cyan-600
+):active {
+  transform: translateY(0) scale(0.985);
+}
+
+/* --------------------------------------------------------------------------
+   04. DARK PILL CONTROLS — reference tabs, workspace selector, switches
+   -------------------------------------------------------------------------- */
+html[data-theme='liquid-glass-ui-kit'] :where(
+  button.bg-slate-900,
+  button.bg-slate-900\/90,
+  button.bg-slate-900\/80,
+  button.bg-slate-900\/70,
+  button.bg-slate-900\/60,
+  button.bg-slate-800,
+  button.bg-slate-800\/80
+) {
+  background: linear-gradient(180deg, rgba(43,57,87,0.64), rgba(17,25,45,0.74)) !important;
+  color: var(--lgui-white) !important;
+  border-color: rgba(174,218,255,0.20) !important;
+  border-radius: var(--lgui-pill) !important;
+  backdrop-filter: var(--lgui-glass-blur-sm) !important;
+  -webkit-backdrop-filter: var(--lgui-glass-blur-sm) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.09),
+    0 7px 22px rgba(0,0,0,0.24) !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  button.bg-slate-900,
+  button.bg-slate-900\/80,
+  button.bg-slate-800
+):hover {
+  border-color: rgba(53,244,255,0.40) !important;
+  box-shadow: 0 0 24px rgba(53,244,255,0.10), inset 0 1px 0 rgba(255,255,255,0.12) !important;
+}
+
+/* --------------------------------------------------------------------------
+   05. SEARCH / INPUTS — bright glass like the supplied reference
+   -------------------------------------------------------------------------- */
+html[data-theme='liquid-glass-ui-kit'] :where(input, select, textarea) {
+  min-height: 42px;
+  background: linear-gradient(180deg, rgba(249,252,255,0.98), rgba(230,237,248,0.96)) !important;
+  color: #101827 !important;
+  border: 1px solid rgba(255,255,255,0.80) !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.22),
+    inset 0 1px 0 rgba(255,255,255,0.95) !important;
+  backdrop-filter: blur(14px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(130%) !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(input, select, textarea)::placeholder {
+  color: #6b768a !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(input, select, textarea):focus {
+  border-color: rgba(53,244,255,0.85) !important;
+  box-shadow:
+    0 0 0 3px rgba(53,244,255,0.13),
+    0 12px 34px rgba(53,244,255,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.98) !important;
+}
+
+/* --------------------------------------------------------------------------
+   06. NAV / HEADER — translucent floating glass, not flat bars
+   -------------------------------------------------------------------------- */
+html[data-theme='liquid-glass-ui-kit'] :where(
+  header,
+  nav
+) {
+  background:
+    linear-gradient(180deg, rgba(13,21,40,0.78), rgba(8,13,26,0.62)) !important;
+  border-color: rgba(132,217,255,0.16) !important;
+  backdrop-filter: blur(22px) saturate(165%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(165%) !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.24), inset 0 -1px 0 rgba(255,255,255,0.055) !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] [data-active-nav='true'] {
+  background: linear-gradient(105deg, #2cefff, #5f8dff 52%, #8b62ff) !important;
+  color: #06111b !important;
+  border-color: rgba(255,255,255,0.45) !important;
+  box-shadow: 0 0 24px rgba(53,244,255,0.24), 0 0 34px rgba(155,98,255,0.13) !important;
+}
+
+/* --------------------------------------------------------------------------
+   07. TEXT + SEMANTIC STATUS
+   -------------------------------------------------------------------------- */
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .text-slate-100,
+  .text-slate-200,
+  .text-slate-300
+) {
+  color: var(--lgui-white) !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .text-slate-400,
+  .text-slate-500
+) {
+  color: var(--lgui-muted) !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .text-emerald-300,
+  .text-emerald-400,
+  .text-green-400
+) {
+  color: var(--lgui-profit) !important;
+  text-shadow: 0 0 13px rgba(88,255,213,0.22);
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .text-red-300,
+  .text-red-400,
+  .text-rose-400
+) {
+  color: var(--lgui-danger) !important;
+  text-shadow: 0 0 13px rgba(255,107,147,0.22);
+}
+
+/* --------------------------------------------------------------------------
+   08. GLASS STATUS / BADGE / TAB CHIPS
+   -------------------------------------------------------------------------- */
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .rounded-lg.border,
+  .rounded-xl.border,
+  .rounded-2xl.border
+) {
+  border-color: rgba(170,225,255,0.18) !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  [class*='rounded-full'].border,
+  [class*='rounded-lg'].border
+) {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.055);
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  [class*='bg-cyan-500\/'],
+  [class*='bg-blue-500\/'],
+  [class*='bg-purple-500\/'],
+  [class*='bg-fuchsia-500\/'],
+  [class*='bg-pink-500\/']
+) {
+  backdrop-filter: blur(10px) saturate(145%);
+  -webkit-backdrop-filter: blur(10px) saturate(145%);
+}
+
+/* --------------------------------------------------------------------------
+   09. GLOWING CHECKBOXES / TOGGLES
+   -------------------------------------------------------------------------- */
+html[data-theme='liquid-glass-ui-kit'] :where(
+  input[type='checkbox'],
+  input[type='radio']
+) {
+  accent-color: var(--lgui-cyan);
+  filter: drop-shadow(0 0 7px rgba(53,244,255,0.35));
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  button[role='switch'],
+  [role='switch']
+) {
+  border-radius: var(--lgui-pill) !important;
+  border-color: rgba(53,244,255,0.60) !important;
+  background: linear-gradient(90deg, rgba(0,245,255,0.24), rgba(155,98,255,0.18)) !important;
+  box-shadow: 0 0 20px rgba(53,244,255,0.16) !important;
+}
+
+/* --------------------------------------------------------------------------
+   10. TABLES / MODALS / DRAWERS / MENUS
+   -------------------------------------------------------------------------- */
+html[data-theme='liquid-glass-ui-kit'] :where(
+  table,
+  [role='dialog'],
+  [role='menu'],
+  [role='listbox']
+) {
+  border-color: rgba(170,225,255,0.18) !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  [role='dialog'],
+  [role='menu'],
+  [role='listbox']
+) {
+  background: linear-gradient(145deg, rgba(27,39,67,0.88), rgba(8,13,27,0.92)) !important;
+  border-radius: var(--lgui-radius-sm) !important;
+  box-shadow: 0 30px 90px rgba(0,0,0,0.55), var(--lgui-glow) !important;
+  backdrop-filter: blur(26px) saturate(165%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(165%) !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(thead) {
+  background: rgba(255,255,255,0.045) !important;
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  tbody tr:hover
+) {
+  background: linear-gradient(90deg, rgba(53,244,255,0.06), rgba(155,98,255,0.05)) !important;
+}
+
+/* --------------------------------------------------------------------------
+   11. REFERENCE-STYLE DECORATIVE GLASS LIGHT
+   -------------------------------------------------------------------------- */
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .prime-card,
+  .prime-card-elevated
+)::after {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 22% 26%, rgba(53,244,255,0.10), transparent 17%),
+    radial-gradient(circle at 84% 22%, rgba(255,75,216,0.10), transparent 18%);
+  opacity: 0.8;
+  transform: rotate(-7deg);
+}
+
+html[data-theme='liquid-glass-ui-kit'] :where(
+  .text-cyan-300,
+  .text-cyan-400,
+  .text-sky-300,
+  .text-sky-400
+) {
+  color: var(--lgui-cyan) !important;
+  text-shadow: 0 0 12px rgba(53,244,255,0.24);
+}
+
+/* Scrollbar */
+html[data-theme='liquid-glass-ui-kit'] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+html[data-theme='liquid-glass-ui-kit'] ::-webkit-scrollbar-track {
+  background: rgba(3,7,16,0.72);
+}
+html[data-theme='liquid-glass-ui-kit'] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--lgui-cyan), var(--lgui-violet), var(--lgui-magenta));
+  border-radius: 999px;
+  border: 2px solid rgba(5,8,20,0.8);
+}
+
+/* Accessible focus treatment */
+html[data-theme='liquid-glass-ui-kit'] :where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--lgui-cyan) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(53,244,255,0.12), 0 0 24px rgba(53,244,255,0.18) !important;
+}
+
+/* Reduce motion / reduce blur for constrained devices. */
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme='liquid-glass-ui-kit'] *,
+  html[data-theme='liquid-glass-ui-kit'] *::before,
+  html[data-theme='liquid-glass-ui-kit'] *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 768px) {
+  html[data-theme='liquid-glass-ui-kit'] :where(.prime-card, .prime-card-elevated) {
+    backdrop-filter: blur(16px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+  }
+}
