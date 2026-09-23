@@ -468,6 +468,8 @@ export interface LongTermPairOutlook {
     retailSentimentDifferential: number;
     structuralCommodityExposure: number;
   };
+  dataCoveragePercent: number;
+  dataStatus: 'READY' | 'INSUFFICIENT';
   bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONG_BEARISH';
   structuralRationale: string;
 }
