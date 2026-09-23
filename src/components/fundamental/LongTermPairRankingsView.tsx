@@ -3,6 +3,7 @@ import {
   CurrencyCode,
   CurrencyScoreResult,
   IndicatorObservation,
+  RetailPositioningRecord,
 } from '../../types/fundamentalIndicatorTypes';
 import { calculateLongTermPairRankings } from '../../utils/fundamentalCalculationEngine';
 import {
@@ -20,19 +21,22 @@ import {
 interface LongTermPairRankingsViewProps {
   currencyScores: Record<CurrencyCode, CurrencyScoreResult>;
   observations: IndicatorObservation[];
+  retailPositioning?: RetailPositioningRecord[];
   onOpenPairModal: (pairResult: any) => void;
 }
 
 export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> = ({
   currencyScores,
   observations,
+  retailPositioning = [],
   onOpenPairModal,
 }) => {
   const [horizon, setHorizon] = useState<'SHORT' | 'MEDIUM' | 'LONG'>('LONG');
 
   const { allPairs, topBullish, topBearish } = calculateLongTermPairRankings(
     currencyScores,
-    observations
+    observations,
+    retailPositioning
   );
 
   const getScoreForHorizon = (item: (typeof allPairs)[0]) => {
@@ -100,7 +104,7 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
           <ShieldCheck className="w-4 h-4 flex-shrink-0" />
           <span>
             {horizon === 'LONG' &&
-              'Structural Long-Term horizon weights slower-moving fundamentals: Policy Regimes (30%), Growth Trajectories (25%), Terms of Trade (15%), and Real Yield Differentials (15%).'}
+              'Structural Long-Term horizon weights slower-moving fundamentals: Policy (25%), Growth (22%), Inflation (13%), Real Yields (15%), External Balance (10%), COT (5%), and Retail Contrarian Sentiment (10%).'}
             {horizon === 'MEDIUM' &&
               'Medium-Term horizon blends current surprise momentum (40%) with structural policy fundamentals (60%).'}
             {horizon === 'SHORT' &&
@@ -216,7 +220,10 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
                 <th className="p-3 text-right">Policy Spread</th>
                 <th className="p-3 text-right">Growth Spread</th>
                 <th className="p-3 text-right">Real Rate Spread</th>
-                <th className="p-3 text-center">Structural Bias</th>
+                <th className="p-3 text-right">Retail Sentiment</th>
+                <th className="p-3 text-center">Short Bias</th>
+                <th className="p-3 text-center">Medium Bias</th>
+                <th className="p-3 text-center">Long Bias</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 bg-slate-950/40">
@@ -252,20 +259,20 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
                       {item.structuralFactors.realRateDifferential > 0 ? `+${item.structuralFactors.realRateDifferential}` : item.structuralFactors.realRateDifferential}
                     </td>
 
-                    <td className="p-3 text-center">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          activeScore > 15
-                            ? 'bg-emerald-500/20 text-emerald-300'
-                            : activeScore < -15
-                            ? 'bg-rose-500/20 text-rose-300'
-                            : 'bg-slate-800 text-slate-300'
-                        }`}
-                      >
-                        {item.bias.replace('_', ' ')}
-                      </span>
+                    <td className="p-3 text-right text-cyan-300">
+                      {item.structuralFactors.retailSentimentDifferential > 0 ? '+' : ''}{item.structuralFactors.retailSentimentDifferential}
                     </td>
-                  </tr>
+                    {([
+                      ['SHORT', item.shortTermDiff],
+                      ['MEDIUM', item.mediumTermDiff],
+                      ['LONG', item.longTermDiff],
+                    ] as const).map(([label, value]) => (
+                      <td key={label} className="p-3 text-center">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${value > 15 ? 'bg-emerald-500/20 text-emerald-300' : value < -15 ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-slate-300'}`}>
+                          {value > 15 ? 'BULLISH' : value < -15 ? 'BEARISH' : 'NEUTRAL'}
+                        </span>
+                      </td>
+                    ))}                  </tr>
                 );
               })}
             </tbody>
