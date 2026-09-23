@@ -1080,8 +1080,9 @@ export function calculateLongTermPairRankings(
     };
   });
 
-  const topBullish = [...results].sort((a, b) => b.longTermDiff - a.longTermDiff).slice(0, 5);
-  const topBearish = [...results].sort((a, b) => a.longTermDiff - b.longTermDiff).slice(0, 5);
+  const readyResults = results.filter((result) => result.dataStatus === 'READY');
+  const topBullish = [...readyResults].sort((a, b) => b.longTermDiff - a.longTermDiff).slice(0, 5);
+  const topBearish = [...readyResults].sort((a, b) => a.longTermDiff - b.longTermDiff).slice(0, 5);
 
   return {
     allPairs: results,
