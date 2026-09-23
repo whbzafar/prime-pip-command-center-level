@@ -107,7 +107,7 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
           <ShieldCheck className="w-4 h-4 flex-shrink-0" />
           <span>
             {horizon === 'LONG' &&
-              'Structural Long-Term horizon weights slower-moving fundamentals: Policy (25%), Growth (22%), Inflation (13%), Real Yields (15%), External Balance (10%), COT (5%), and Retail Contrarian Sentiment (10%).'}
+              'Structural Long-Term horizon weights slower-moving fundamentals: Policy (25%), Growth (17%), Inflation (13%), Real Yields (15%), External Balance (10%), Commodity Exposure (5%), COT (5%), and Retail Contrarian Sentiment (10%).'}
             {horizon === 'MEDIUM' &&
               'Medium-Term horizon blends current surprise momentum (40%) with structural policy fundamentals (60%).'}
             {horizon === 'SHORT' &&
