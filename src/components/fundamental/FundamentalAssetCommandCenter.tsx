@@ -119,6 +119,14 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
         sentimentSourceUrl: result.sentimentSourceUrl,
         sentimentUpdatedAt: result.retrievedAt,
         notes: result.notes || existing?.notes,
+        usRealYield10Y: result.usRealYield10Y ?? existing?.usRealYield10Y,
+        inflationBreakeven5Y: result.inflationBreakeven5Y ?? existing?.inflationBreakeven5Y,
+        centralBankDemandTone: result.centralBankDemandTone ?? existing?.centralBankDemandTone,
+        industrialDemandTone: result.industrialDemandTone ?? existing?.industrialDemandTone,
+        geopoliticalRiskLevel: result.geopoliticalRiskLevel ?? existing?.geopoliticalRiskLevel,
+        supplyDemandBalance: result.supplyDemandBalance ?? existing?.supplyDemandBalance,
+        inventoriesWeeklySurpriseMb: result.inventoriesWeeklySurpriseMb ?? existing?.inventoriesWeeklySurpriseMb,
+        opecPolicyTone: result.opecPolicyTone ?? existing?.opecPolicyTone,
         updatedAt: result.retrievedAt,
       });
       setMessage(result.status === 'VERIFIED' ? code + ' live research verified.' : code + ' returned review-required data; no missing values were invented.');
