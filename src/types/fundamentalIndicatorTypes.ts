@@ -463,6 +463,7 @@ export interface LongTermPairOutlook {
     termsOfTrade: number;
     realRateDifferential: number;
     longTermCot: number;
+    retailSentimentDifferential: number;
     structuralCommodityExposure: number;
   };
   bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONG_BEARISH';
