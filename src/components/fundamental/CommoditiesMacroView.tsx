@@ -21,15 +21,19 @@ import {
 
 interface CommoditiesMacroViewProps {
   usdScore?: CurrencyScoreResult;
+  commodityObservations?: CommodityObservation[];
+  onUpdateCommodity?: (observation: CommodityObservation) => void;
   onRequestAiExplanation?: (commodity: string) => void;
 }
 
 export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   usdScore,
+  commodityObservations,
+  onUpdateCommodity,
   onRequestAiExplanation,
 }) => {
   const [activeCommodity, setActiveCommodity] = useState<'GOLD' | 'CRUDE_OIL' | 'SILVER'>('GOLD');
-  const [commodityData, setCommodityData] = useState<CommodityObservation[]>(() => {
+  const [localCommodityData, setLocalCommodityData] = useState<CommodityObservation[]>(() => {
     try {
       const saved = localStorage.getItem('primepip_fundamental_commodity_observations_v1');
       return saved ? JSON.parse(saved) : DEFAULT_COMMODITY_OBSERVATIONS;
@@ -37,6 +41,11 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
       return DEFAULT_COMMODITY_OBSERVATIONS;
     }
   });
+  const commodityData = commodityObservations ?? localCommodityData;
+  const updateCommodityData = (next: CommodityObservation[]) => {
+    if (onUpdateCommodity) next.forEach((item) => onUpdateCommodity(item));
+    else setLocalCommodityData(next);
+  };
   const [editingObs, setEditingObs] = useState<CommodityObservation | null>(null);
   const [commodityLiveLoading, setCommodityLiveLoading] = useState(false);
   const [commodityLiveMessage, setCommodityLiveMessage] = useState<string | null>(null);
@@ -55,9 +64,9 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
 
   React.useEffect(() => {
     try {
-      localStorage.setItem('primepip_fundamental_commodity_observations_v1', JSON.stringify(commodityData));
+      if (!commodityObservations) localStorage.setItem('primepip_fundamental_commodity_observations_v1', JSON.stringify(commodityData));
     } catch {}
-  }, [commodityData]);
+  }, [commodityData, commodityObservations]);
 
   const currentObs = commodityData.find((c) => c.symbol === activeCommodity) || commodityData[0];
   const calculated = calculateCommodityFundamentalScore(currentObs);
@@ -82,16 +91,25 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
         setCommodityLiveMessage(result.notes || 'Commodity evidence could not be verified; existing data was preserved.');
         return;
       }
-      setCommodityData((prev) => prev.map((item) => item.symbol === currentObs.symbol ? {
-        ...item,
-        price: result.price ?? item.price,
+      const updated: CommodityObservation = {
+        ...currentObs,
+        price: result.price ?? currentObs.price,
         sentiment: result.sentiment,
         sentimentConfidence: result.sentimentConfidence,
-        sentimentSourceUrl: result.sentimentSourceUrl || item.sentimentSourceUrl,
+        sentimentSourceUrl: result.sentimentSourceUrl || currentObs.sentimentSourceUrl,
         sentimentUpdatedAt: result.retrievedAt,
-        notes: result.notes || item.notes,
+        notes: result.notes || currentObs.notes,
+        usRealYield10Y: result.usRealYield10Y ?? currentObs.usRealYield10Y,
+        inflationBreakeven5Y: result.inflationBreakeven5Y ?? currentObs.inflationBreakeven5Y,
+        centralBankDemandTone: result.centralBankDemandTone ?? currentObs.centralBankDemandTone,
+        industrialDemandTone: result.industrialDemandTone ?? currentObs.industrialDemandTone,
+        geopoliticalRiskLevel: result.geopoliticalRiskLevel ?? currentObs.geopoliticalRiskLevel,
+        supplyDemandBalance: result.supplyDemandBalance ?? currentObs.supplyDemandBalance,
+        inventoriesWeeklySurpriseMb: result.inventoriesWeeklySurpriseMb ?? currentObs.inventoriesWeeklySurpriseMb,
+        opecPolicyTone: result.opecPolicyTone ?? currentObs.opecPolicyTone,
         updatedAt: result.retrievedAt,
-      } : item));
+      };
+      updateCommodityData(commodityData.map((item) => item.symbol === currentObs.symbol ? updated : item));
       setCommodityLiveMessage(`${currentObs.name}: sentiment and current evidence verified.`);
     } catch (error) {
       setCommodityLiveMessage(error instanceof Error ? error.message : 'Live commodity research failed; existing data was preserved.');
@@ -104,13 +122,13 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
     setEditingObs(obs);
     setEditForm({
       price: obs.price,
-      usRealYield10Y: obs.usRealYield10Y ?? 1.85,
-      inflationBreakeven5Y: obs.inflationBreakeven5Y ?? 2.35,
+      usRealYield10Y: obs.usRealYield10Y ?? 0,
+      inflationBreakeven5Y: obs.inflationBreakeven5Y ?? 0,
       centralBankDemandTone: obs.centralBankDemandTone ?? 'AGGRESSIVE_BUYING',
       industrialDemandTone: obs.industrialDemandTone ?? 'NEUTRAL',
       geopoliticalRiskLevel: obs.geopoliticalRiskLevel ?? 'HIGH',
       supplyDemandBalance: obs.supplyDemandBalance ?? 'DEFICIT',
-      inventoriesWeeklySurpriseMb: obs.inventoriesWeeklySurpriseMb ?? -1.8,
+      inventoriesWeeklySurpriseMb: obs.inventoriesWeeklySurpriseMb ?? 0,
       opecPolicyTone: obs.opecPolicyTone ?? 'DEFENDING_FLOOR',
       notes: obs.notes || '',
     });
@@ -134,7 +152,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
     };
 
     const next = commodityData.map((c) => (c.symbol === updated.symbol ? updated : c));
-    setCommodityData(next);
+    updateCommodityData(next);
     setEditingObs(null);
   };
 
