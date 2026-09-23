@@ -4,6 +4,7 @@ import {
   MarketSentimentRecord,
   InterestRateRecord,
   CommodityObservation,
+  RetailPositioningRecord,
 } from '../types/fundamentalIndicatorTypes';
 
 export const DEFAULT_OBSERVATIONS: IndicatorObservation[] = [];
@@ -17,6 +18,19 @@ export const DEFAULT_COT_RECORDS: CotPositioningRecord[] = [
   { id: 'cot_cad', currency: 'CAD', contractName: 'Canadian Dollar Futures (CME)', reportDate: '', releaseDate: '', openInterest: 0, nonCommercialLong: 0, nonCommercialShort: 0, commercialLong: 0, commercialShort: 0, dealerLong: 0, dealerShort: 0, assetManagerLong: 0, assetManagerShort: 0, leveragedFundsLong: 0, leveragedFundsShort: 0, otherReportablesLong: 0, otherReportablesShort: 0, nonReportableLong: 0, nonReportableShort: 0, sourceUrl: 'https://www.tradingster.com/cot', notes: '', updatedAt: '' },
   { id: 'cot_aud', currency: 'AUD', contractName: 'Australian Dollar Futures (CME)', reportDate: '', releaseDate: '', openInterest: 0, nonCommercialLong: 0, nonCommercialShort: 0, commercialLong: 0, commercialShort: 0, dealerLong: 0, dealerShort: 0, assetManagerLong: 0, assetManagerShort: 0, leveragedFundsLong: 0, leveragedFundsShort: 0, otherReportablesLong: 0, otherReportablesShort: 0, nonReportableLong: 0, nonReportableShort: 0, sourceUrl: 'https://www.tradingster.com/cot', notes: '', updatedAt: '' },
   { id: 'cot_nzd', currency: 'NZD', contractName: 'New Zealand Dollar Futures (CME)', reportDate: '', releaseDate: '', openInterest: 0, nonCommercialLong: 0, nonCommercialShort: 0, commercialLong: 0, commercialShort: 0, dealerLong: 0, dealerShort: 0, assetManagerLong: 0, assetManagerShort: 0, leveragedFundsLong: 0, leveragedFundsShort: 0, otherReportablesLong: 0, otherReportablesShort: 0, nonReportableLong: 0, nonReportableShort: 0, sourceUrl: 'https://www.tradingster.com/cot', notes: '', updatedAt: '' },
+];
+
+export const DEFAULT_RETAIL_POSITIONING: RetailPositioningRecord[] = [
+  ...(['USD','EUR','GBP','JPY','CHF','CAD','AUD','NZD'] as const).map((asset) => ({
+    asset,
+    longPercent: 0,
+    shortPercent: 0,
+    updatedAt: '',
+    isEntered: false,
+  })),
+  { asset: 'GOLD', longPercent: 0, shortPercent: 0, updatedAt: '', isEntered: false },
+  { asset: 'SILVER', longPercent: 0, shortPercent: 0, updatedAt: '', isEntered: false },
+  { asset: 'CRUDE_OIL', longPercent: 0, shortPercent: 0, updatedAt: '', isEntered: false },
 ];
 
 export const DEFAULT_SENTIMENT_RECORDS: MarketSentimentRecord[] = [
