@@ -249,7 +249,7 @@ export function calculateCategoryScores(
       const sentScore = retail && retail.isEntered !== false && Number.isFinite(retail.longPercent) && Number.isFinite(retail.shortPercent)
         ? calculateRetailContrarianScore(retail)
         : 0;
-      const sentValid = !!retail && retail.isEntered !== false && Number.isFinite(retail.longPercent) && Number.isFinite(retail.shortPercent) && Math.abs((retail.longPercent + retail.shortPercent) - 100) < 0.01;
+      const sentValid = !!retail && retail.isEntered !== false && normalizeRetailPositioningPercentages(retail) !== null;
       const weight = customWeights.SENTIMENT || 5;
       results[cat] = {
         category: cat,
@@ -347,11 +347,26 @@ export function calculateCotScore(record: CotPositioningRecord): number {
   return Math.round(Math.max(-100, Math.min(100, netRatio * 500)));
 }
 
+export function normalizeRetailPositioningPercentages(record: RetailPositioningRecord): { longPercent: number; shortPercent: number } | null {
+  const long = Number(record.longPercent);
+  const short = Number(record.shortPercent);
+  if (!Number.isFinite(long) || !Number.isFinite(short) || long < 0 || long > 100 || short < 0 || short > 100) return null;
+
+  const total = long + short;
+  if (total <= 0) return null;
+
+  return {
+    longPercent: (long / total) * 100,
+    shortPercent: (short / total) * 100,
+  };
+}
+
 export function calculateRetailContrarianScore(record: RetailPositioningRecord): number {
-  if (record.longPercent < 0 || record.longPercent > 100 || record.shortPercent < 0 || record.shortPercent > 100) return 0;
-  if (Math.abs((record.longPercent + record.shortPercent) - 100) > 0.01) return 0;
+  const normalized = normalizeRetailPositioningPercentages(record);
+  if (!normalized) return 0;
+
   // User-configured contrarian rule: retail long-heavy => bearish, retail short-heavy => bullish.
-  return Math.round(Math.max(-100, Math.min(100, record.shortPercent - record.longPercent)));
+  return Math.round(Math.max(-100, Math.min(100, normalized.shortPercent - normalized.longPercent)));
 }
 
 export function calculateSentimentScore(record: MarketSentimentRecord): number {
