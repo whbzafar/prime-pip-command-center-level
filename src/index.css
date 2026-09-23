@@ -2272,6 +2272,7 @@ html[data-theme='liquid-glass-neon'] :where(
   .bg-slate-900\/60,
   .bg-slate-900\/50
 ) {
+  position: relative;
   background: linear-gradient(145deg, rgba(18, 28, 49, 0.78), rgba(7, 13, 27, 0.70)) !important;
   border-color: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
