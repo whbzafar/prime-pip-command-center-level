@@ -147,6 +147,17 @@ export interface CotPositioningRecord {
   updatedAt: string;
 }
 
+export type RetailSentimentAsset = CurrencyCode | 'GOLD' | 'SILVER' | 'CRUDE_OIL';
+
+/** Manual retail positioning only: long/short percentages. The engine applies the configured contrarian rule. */
+export interface RetailPositioningRecord {
+  asset: RetailSentimentAsset;
+  longPercent: number;
+  shortPercent: number;
+  updatedAt: string;
+  isEntered?: boolean;
+}
+
 export interface MarketSentimentRecord {
   id: string;
   currency: CurrencyCode;
