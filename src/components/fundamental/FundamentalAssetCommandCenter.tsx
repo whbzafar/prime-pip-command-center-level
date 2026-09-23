@@ -93,6 +93,7 @@ const ScoreIcon = ({ score }: { score: number }) =>
 interface Props {
   currencyScores: Record<CurrencyCode, CurrencyScoreResult>;
   commodityObservations: CommodityObservation[];
+  retailPositioning?: RetailPositioningRecord[];
   onCommodityUpdate: (observation: CommodityObservation) => void;
   onOpenCurrencyWorkspace?: (currency: CurrencyCode) => void;
   onOpenRates?: (currency: CurrencyCode) => void;
@@ -104,6 +105,7 @@ interface Props {
 export const FundamentalAssetCommandCenter: React.FC<Props> = ({
   currencyScores,
   commodityObservations,
+  retailPositioning = [],
   onCommodityUpdate,
   onOpenCurrencyWorkspace,
   onOpenRates,
@@ -178,7 +180,7 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
         {ASSETS.map((asset) => {
           const currency = asset.type === 'CURRENCY' ? currencyScores[asset.code as CurrencyCode] : undefined;
           const commodity = asset.type === 'COMMODITY' ? getCommodity(asset.code) : undefined;
-          const commodityScore = commodity ? calculateCommodityFundamentalScore(commodity) : null;
+          const commodityScore = commodity ? calculateCommodityFundamentalScore(commodity, retailPositioning.find((r) => r.asset === commodity.symbol)) : null;
           const score = currency?.score ?? commodityScore?.score ?? 0;
           const coverage = currency?.dataCoveragePercent ?? (commodity ? commodityCoverage(commodity) : 0);
           const incomplete = asset.type === 'CURRENCY' ? coverage < 75 : coverage < 60;
