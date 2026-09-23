@@ -10,6 +10,7 @@ import {
   PairSentimentRecord,
   CotPositioningRecord,
   InterestRateRecord,
+  RetailPositioningRecord,
 } from '../types/fundamentalIndicatorTypes';
 import {
   DEFAULT_OBSERVATIONS,
@@ -17,6 +18,7 @@ import {
   DEFAULT_SENTIMENT_RECORDS,
   DEFAULT_COMMODITY_OBSERVATIONS,
   DEFAULT_INTEREST_RATES,
+  DEFAULT_RETAIL_POSITIONING,
 } from '../data/defaultFundamentalObservations';
 import {
   DEFAULT_CATEGORY_WEIGHTS,
@@ -104,6 +106,7 @@ const LOCAL_STORAGE_SENTIMENT_KEY = 'primepip_fundamental_sentiment_v2';
 const LOCAL_STORAGE_PAIR_SENTIMENT_KEY = 'primepip_fundamental_pair_sentiment_v1';
 const LOCAL_STORAGE_COT_KEY = 'primepip_fundamental_cot_v2';
 const LOCAL_STORAGE_RATES_KEY = 'primepip_fundamental_rates_v2';
+const LOCAL_STORAGE_RETAIL_POSITIONING_KEY = 'primepip_fundamental_retail_positioning_v1';
 
 export const FundamentalIndicators: React.FC = () => {
   const [fundamentalUser, setFundamentalUser] = useState<any>(null);
@@ -224,6 +227,17 @@ export const FundamentalIndicators: React.FC = () => {
     return DEFAULT_SENTIMENT_RECORDS;
   });
 
+  // Retail positioning is the only manual input used by the Sentiment workspace.
+  const [retailPositioning, setRetailPositioning] = useState<RetailPositioningRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_RETAIL_POSITIONING_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Error loading retail positioning from storage', e);
+    }
+    return DEFAULT_RETAIL_POSITIONING;
+  });
+
   // Pair sentiment is contextual Myfxbook data and remains separate from currency fundamentals.
   const [pairSentimentRecords, setPairSentimentRecords] = useState<PairSentimentRecord[]>(() => {
     try {
@@ -287,6 +301,15 @@ export const FundamentalIndicators: React.FC = () => {
     }
   }, [sentimentRecords]);
 
+  // Save retail positioning when updated
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_RETAIL_POSITIONING_KEY, JSON.stringify(retailPositioning));
+    } catch (e) {
+      console.error('Failed to save retail positioning', e);
+    }
+  }, [retailPositioning]);
+
   // Save pair sentiment when updated
   useEffect(() => {
     try {
@@ -329,11 +352,11 @@ export const FundamentalIndicators: React.FC = () => {
     const result: Record<CurrencyCode, CurrencyScoreResult> = {} as any;
 
     currencies.forEach((code) => {
-      result[code] = calculateCurrencyScore(code, observations, categoryWeights, cotRecords, sentimentRecords, interestRates);
+      result[code] = calculateCurrencyScore(code, observations, categoryWeights, cotRecords, sentimentRecords, interestRates, retailPositioning);
     });
 
     return result;
-  }, [observations, categoryWeights, cotRecords, sentimentRecords, interestRates]);
+  }, [observations, categoryWeights, cotRecords, sentimentRecords, interestRates, retailPositioning]);
 
   // Deterministically compute pair differentials for all 28 pairs
   const pairDifferentials = useMemo(() => {
@@ -361,6 +384,9 @@ export const FundamentalIndicators: React.FC = () => {
       return [...prev, updated];
     });
   };
+
+  // Retail positioning update handler
+  const handleUpdateRetailPositioning = (records: RetailPositioningRecord[]) => setRetailPositioning(records);
 
   // Interest Rate Update Handler
   const handleUpdateCommodity = (updated: (typeof DEFAULT_COMMODITY_OBSERVATIONS)[number]) => {
@@ -390,12 +416,14 @@ export const FundamentalIndicators: React.FC = () => {
       setSentimentRecords(DEFAULT_SENTIMENT_RECORDS);
       setCotRecords(DEFAULT_COT_RECORDS);
       setInterestRates(DEFAULT_INTEREST_RATES);
+      setRetailPositioning(DEFAULT_RETAIL_POSITIONING);
       localStorage.removeItem(LOCAL_STORAGE_OBSERVATIONS_KEY);
       localStorage.removeItem('primepip_fundamental_commodities_v2');
       localStorage.removeItem(LOCAL_STORAGE_WEIGHTS_KEY);
       localStorage.removeItem(LOCAL_STORAGE_SENTIMENT_KEY);
       localStorage.removeItem(LOCAL_STORAGE_COT_KEY);
       localStorage.removeItem(LOCAL_STORAGE_RATES_KEY);
+      localStorage.removeItem(LOCAL_STORAGE_RETAIL_POSITIONING_KEY);
       showNotification('✓ Restored verified institutional baseline economic data.');
     }
   };
@@ -849,10 +877,8 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
 
       {activeTab === 'MARKET_SENTIMENT' && (
         <MarketSentimentView
-          currencySentimentRecords={sentimentRecords}
-          onUpdateCurrencySentimentRecord={handleUpdateSentimentRecord}
-          sentimentRecords={pairSentimentRecords}
-          onUpdateSentimentRecords={setPairSentimentRecords}
+          retailPositioning={retailPositioning}
+          onUpdateRetailPositioning={handleUpdateRetailPositioning}
         />
       )}
 
@@ -869,6 +895,7 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
         <LongTermPairRankingsView
           currencyScores={currencyScores}
           observations={observations}
+          retailPositioning={retailPositioning}
           onOpenPairModal={(pair) => setActivePairModal(pair)}
         />
       )}
