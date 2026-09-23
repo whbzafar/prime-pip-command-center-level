@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CommodityObservation, CurrencyScoreResult } from '../../types/fundamentalIndicatorTypes';
+import { CommodityObservation, CurrencyScoreResult, RetailPositioningRecord } from '../../types/fundamentalIndicatorTypes';
 import { DEFAULT_COMMODITY_OBSERVATIONS } from '../../data/defaultFundamentalObservations';
 import { calculateCommodityFundamentalScore } from '../../utils/fundamentalCalculationEngine';
 import { generateCommodity } from '../../services/fundamentalLiveResearchService';
