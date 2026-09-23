@@ -329,11 +329,11 @@ export const FundamentalIndicators: React.FC = () => {
     const result: Record<CurrencyCode, CurrencyScoreResult> = {} as any;
 
     currencies.forEach((code) => {
-      result[code] = calculateCurrencyScore(code, observations, categoryWeights, cotRecords, sentimentRecords);
+      result[code] = calculateCurrencyScore(code, observations, categoryWeights, cotRecords, sentimentRecords, interestRates);
     });
 
     return result;
-  }, [observations, categoryWeights, cotRecords, sentimentRecords]);
+  }, [observations, categoryWeights, cotRecords, sentimentRecords, interestRates]);
 
   // Deterministically compute pair differentials for all 28 pairs
   const pairDifferentials = useMemo(() => {
@@ -368,9 +368,17 @@ export const FundamentalIndicators: React.FC = () => {
   };
 
   const handleUpdateInterestRate = (updated: InterestRateRecord) => {
-    setInterestRates((prev) =>
-      prev.map((r) => (r.currency === updated.currency ? updated : r))
-    );
+    setInterestRates((prev) => {
+      const exists = prev.some((r) => r.currency === updated.currency);
+      return exists ? prev.map((r) => (r.currency === updated.currency ? updated : r)) : [...prev, updated];
+    });
+  };
+
+  const handleUpdateSentimentRecord = (updated: MarketSentimentRecord) => {
+    setSentimentRecords((prev) => {
+      const exists = prev.some((r) => r.currency === updated.currency);
+      return exists ? prev.map((r) => (r.currency === updated.currency ? updated : r)) : [...prev, updated];
+    });
   };
 
   // Reset to Verified Baseline
@@ -836,6 +844,8 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
 
       {activeTab === 'MARKET_SENTIMENT' && (
         <MarketSentimentView
+          currencySentimentRecords={sentimentRecords}
+          onUpdateCurrencySentimentRecord={handleUpdateSentimentRecord}
           sentimentRecords={pairSentimentRecords}
           onUpdateSentimentRecords={setPairSentimentRecords}
         />
