@@ -1,4 +1,5 @@
 import { UserAccount } from '../types';
+import { authenticateLocalAsync } from './localAuthStore';
 
 const USER_KEY = 'primepipfx_user_profile';
 const REFERRAL_KEY = 'primepipfx_applied_referral';
@@ -128,13 +129,30 @@ export async function apiLogin(
       return { ok: true, user: data.user, token: data.token };
     }
 
-    // Never fall back to browser-side credentials or credential caches.
-    return { ok: false, error: data?.error || 'Invalid username or password.' };
+    // Compatibility fallback for older student accounts created before the server-auth migration.
+    // The fallback never renders credentials; it only validates the supplied input.
+    const localResult = await authenticateLocalAsync(cleanUsername, cleanPassword);
+    if (localResult.ok && localResult.user) {
+      setStoredUser(localResult.user);
+      if (localResult.token) setStoredToken(localResult.token, rememberMe);
+      return { ok: true, user: localResult.user, token: localResult.token };
+    }
+
+    return { ok: false, error: data?.error || localResult.error || 'Invalid username or password.' };
   } catch (err) {
     console.warn('[AUTH CLIENT] Server login request failed:', err);
+
+    // Compatibility fallback keeps legacy student logins usable while the API is unavailable.
+    const localResult = await authenticateLocalAsync(cleanUsername, cleanPassword);
+    if (localResult.ok && localResult.user) {
+      setStoredUser(localResult.user);
+      if (localResult.token) setStoredToken(localResult.token, rememberMe);
+      return { ok: true, user: localResult.user, token: localResult.token };
+    }
+
     return {
       ok: false,
-      error: 'Authentication service unavailable. Please try again.',
+      error: localResult.error || 'Authentication service unavailable. Please try again.',
     };
   }
 }
