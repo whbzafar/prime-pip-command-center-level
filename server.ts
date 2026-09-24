@@ -1944,7 +1944,17 @@ app.post('/api/admin/customers', requireDeveloper, async (req, res) => {
     return res.status(400).json({ ok: false, error: result.error });
   }
   if (isSupabaseAuthEnabled && result.user && result.generatedPassword) {
-    void provisionPrimePipfxUser(result.user, result.generatedPassword).catch((error) => console.warn('[AUTH] Customer provisioning failed:', error?.message || error));
+    try {
+      // Provision before confirming success so the credential is immediately usable
+      // and remains valid across serverless instances/deployments.
+      await provisionPrimePipfxUser(result.user, result.generatedPassword);
+    } catch (error) {
+      console.error('[AUTH] Customer provisioning failed:', error);
+      return res.status(503).json({
+        ok: false,
+        error: 'Student account was created locally, but durable authentication provisioning failed. No login credential was issued.',
+      });
+    }
   }
   return res.json({
     ok: true,
