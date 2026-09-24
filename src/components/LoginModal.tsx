@@ -41,7 +41,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [step, setStep] = useState<'LOGIN' | 'CHANGE_PASSWORD' | 'LINK_STORAGE'>('LOGIN');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -55,7 +55,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changeSuccess, setChangeSuccess] = useState(false);
 
-  // Body scroll lock while modal is open
+  // Security: never retain entered credentials when the login modal is reopened.\n  useEffect(() => {\n    if (!isOpen) return;\n    setStep('LOGIN');\n    setUsername('');\n    setPassword('');\n    setNewPassword('');\n    setConfirmPassword('');\n    setPendingUser(null);\n    setPendingToken(null);\n    setError(null);\n    setChangeSuccess(false);\n    setDriveLinkSuccess(false);\n    setShowPassword(false);\n    setRememberMe(false);\n  }, [isOpen]);\n\n  // Body scroll lock while modal is open
   useEffect(() => {
     if (!isOpen) return;
     const prevOverflow = document.body.style.overflow;
@@ -267,11 +267,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
                 <span>{error}</span>
               </div>
-              <div className="text-[11px] text-slate-300 bg-slate-900/80 p-2 rounded-lg border border-slate-700/60 leading-relaxed">
-                <span className="text-amber-400 font-bold block mb-1">🔑 Credentials Guide:</span>
-                <div>• <strong className="text-cyan-300">Admin:</strong> <code className="text-cyan-200">primepipfx-admin</code> / <code className="text-cyan-200">PPFX@Admin#2026</code> (or <code className="text-cyan-200">admin123</code>)</div>
-                <div>• <strong className="text-emerald-300">Students:</strong> <code className="text-emerald-200">&lt;username&gt;12345</code> (e.g. <code className="text-emerald-200">zartab12345</code> or <code className="text-emerald-200">wahab12345</code>)</div>
-              </div>
             </motion.div>
           )}
 
@@ -403,6 +398,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <input
                     type="text"
                     autoCapitalize="none"
+                    autoComplete="off"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="e.g. primepipfx-admin or username"
@@ -419,6 +415,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
@@ -436,61 +433,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </div>
               </div>
 
-              {/* Quick Fill Credentials */}
-              <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-700/60 space-y-2">
-                <div className="flex items-center justify-between text-xs font-mono-code">
-                  <span className="text-slate-300 font-bold flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
-                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                    Quick Fill Authorized Account
-                  </span>
-                  <span className="text-[10px] text-cyan-400/80 font-mono-code">1-Click Fill</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUsername('primepipfx-admin');
-                      setPassword('PPFX@Admin#2026');
-                      setError(null);
-                    }}
-                    className="p-2 bg-slate-800/80 hover:bg-cyan-950/60 hover:border-cyan-500/50 border border-slate-700/60 rounded-lg text-left transition-all group cursor-pointer"
-                  >
-                    <div className="text-[10px] font-bold text-cyan-400 group-hover:text-cyan-300 font-mono-code truncate">
-                      Admin / Dev
-                    </div>
-                    <div className="text-[9px] text-slate-400 truncate">Master Pass</div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUsername('zartab');
-                      setPassword('zartab12345');
-                      setError(null);
-                    }}
-                    className="p-2 bg-slate-800/80 hover:bg-emerald-950/60 hover:border-emerald-500/50 border border-slate-700/60 rounded-lg text-left transition-all group cursor-pointer"
-                  >
-                    <div className="text-[10px] font-bold text-emerald-400 group-hover:text-emerald-300 font-mono-code truncate">
-                      Zartab
-                    </div>
-                    <div className="text-[9px] text-slate-400 truncate">zartab12345</div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUsername('wahab');
-                      setPassword('wahab12345');
-                      setError(null);
-                    }}
-                    className="p-2 bg-slate-800/80 hover:bg-amber-950/60 hover:border-amber-500/50 border border-slate-700/60 rounded-lg text-left transition-all group cursor-pointer"
-                  >
-                    <div className="text-[10px] font-bold text-amber-400 group-hover:text-amber-300 font-mono-code truncate">
-                      Wahab
-                    </div>
-                    <div className="text-[9px] text-slate-400 truncate">wahab12345</div>
-                  </button>
-                </div>
-              </div>
-
               {/* Persistent Session / Remember Me option */}
               <div className="flex items-center justify-between py-1 px-1">
                 <label className="flex items-center gap-2 text-xs font-mono-code text-slate-300 cursor-pointer select-none">
@@ -500,7 +442,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 rounded bg-slate-900 border-slate-700 text-cyan-500 focus:ring-0 accent-cyan-500 cursor-pointer"
                   />
-                  <span>Remember on this device</span>
+                  <span>Remember this device</span>
                 </label>
                 <span className="text-[10px] text-emerald-400 font-mono-code font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                   PERSISTENT
