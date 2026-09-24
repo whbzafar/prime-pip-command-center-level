@@ -553,6 +553,16 @@ export function calculateCurrencyScore(
     overallConfidence,
     topDrivers: primarySupport.slice(0, 5),
     scoreReasons: [
+      `Composite uses available category weights only; missing categories are renormalized.`,
+      `State/impulse scoring separates structural condition from release shock; impulse decays with age.`,
+      `Overall confidence is coverage/freshness weighted, not a probability of correctness.`,
+    ],
+    conflicts: conflictingFactors,
+    riskRegime: undefined,
+    regimeConfidence: 0,
+    overallConfidence,
+    topDrivers: primarySupport.slice(0, 5),
+    scoreReasons: [
       'Composite = weighted category scores after available-data renormalization.',
       'Indicator impulse is freshness-decayed; missing/unverified observations do not receive full production weight.',
       'State and impulse are kept separate so a stale surprise cannot dominate the structural signal.',
