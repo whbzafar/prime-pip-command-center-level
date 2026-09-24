@@ -51,157 +51,63 @@ export function calculateIndicatorScore(
   definition: IndicatorDefinition,
   observation?: IndicatorObservation
 ): IndicatorScoreResult {
-  if (!observation || typeof observation.actual !== 'number' || isNaN(observation.actual)) {
-    return {
-      indicatorId: definition.id,
-      definition,
-      observation,
-      actual: null,
-      forecast: null,
-      previous: null,
-      surprise: null,
-      change: null,
-      standardizedSurprise: null,
-      score: 0,
-      weightedContribution: 0,
-      interpretationText: 'No verified observation recorded. Indicator requires manual entry.',
-      status: 'MISSING',
-      ageDays: 999,
-    };
+  const missing = !observation || typeof observation.actual !== 'number' || !Number.isFinite(observation.actual);
+  if (missing) {
+    return { indicatorId: definition.id, definition, observation, actual: null, forecast: null, previous: null, surprise: null, change: null, standardizedSurprise: null, stateScore: 0, impulseScore: 0, effectiveWeight: 0, confidence: 0, scoreReasons: ['MISSING: no verified numeric observation is available.'], score: 0, weightedContribution: 0, interpretationText: 'MISSING — no verified numeric observation. This indicator contributes no weight to the composite.', status: 'MISSING', ageDays: 999 };
   }
-
   const actual = observation.actual;
-  const forecast = typeof observation.forecast === 'number' && !isNaN(observation.forecast) ? observation.forecast : null;
-  const previous = typeof observation.previous === 'number' && !isNaN(observation.previous) ? observation.previous : null;
-
+  const forecast = Number.isFinite(observation.forecast) ? observation.forecast : null;
+  const previous = Number.isFinite(observation.previous) ? observation.previous : null;
   const surprise = forecast !== null ? Number((actual - forecast).toFixed(4)) : null;
   const change = previous !== null ? Number((actual - previous).toFixed(4)) : null;
-
-  const stdDev = definition.historicalSurpriseStdDev || 1.0;
-  const standardizedSurprise = surprise !== null ? Number((surprise / stdDev).toFixed(3)) : null;
-
-  let rawScore = 0;
-  let interpretationText = '';
-
-  switch (definition.scoringDirection) {
-    case 'HIGHER_IS_BULLISH': {
-      if (standardizedSurprise !== null) {
-        // Standardized z-score mapping (-2.5 to +2.5 maps to -100 to +100)
-        rawScore = Math.max(-100, Math.min(100, standardizedSurprise * 40));
-        if (change !== null) {
-          rawScore = rawScore * 0.75 + Math.sign(change) * Math.min(25, Math.abs(change) * 10);
-        }
-      } else if (change !== null) {
-        rawScore = Math.max(-80, Math.min(80, (change / stdDev) * 35));
-      } else {
-        rawScore = 0;
-      }
-
-      if (definition.benchmarkTarget !== undefined) {
-        const diffFromTarget = actual - definition.benchmarkTarget;
-        const targetComponent = Math.max(-30, Math.min(30, diffFromTarget * 10));
-        rawScore = rawScore * 0.7 + targetComponent;
-      }
-
-      interpretationText = surprise !== null && surprise > 0
-        ? `Surprise beat forecast by +${surprise}${definition.unit}. Supportive of economic expansion.`
-        : surprise !== null && surprise < 0
-        ? `Missed forecast by ${surprise}${definition.unit}. Indicates slowing momentum.`
-        : `In line with expectations. Moderate baseline support.`;
-      break;
-    }
-
-    case 'LOWER_IS_BULLISH': {
-      // Inverted direction: lower actual vs forecast/previous is bullish (e.g. unemployment)
-      if (standardizedSurprise !== null) {
-        rawScore = Math.max(-100, Math.min(100, -standardizedSurprise * 45));
-        if (change !== null) {
-          rawScore = rawScore * 0.75 - Math.sign(change) * Math.min(25, Math.abs(change) * 15);
-        }
-      } else if (change !== null) {
-        rawScore = Math.max(-80, Math.min(80, -(change / stdDev) * 40));
-      }
-
-      interpretationText = surprise !== null && surprise < 0
-        ? `Lower than forecast by ${surprise}${definition.unit}. Tighter labor market supports economic strength.`
-        : surprise !== null && surprise > 0
-        ? `Higher than forecast by +${surprise}${definition.unit}. Softening conditions reduce policy rate support.`
-        : `Aligned with forecast. Neutral labor market pressure.`;
-      break;
-    }
-
-    case 'INFLATION_POLICY_PATH': {
-      const target = definition.benchmarkTarget ?? 2.0;
-      if (standardizedSurprise !== null) {
-        let surpriseComponent = Math.max(-70, Math.min(70, standardizedSurprise * 40));
-        const aboveTarget = actual - target;
-        let targetComponent = Math.max(-30, Math.min(30, aboveTarget * 18));
-
-        // Overheating penalty: if inflation is extreme (> 7.5%), it harms the currency via purchasing power erosion
-        if (actual > 7.5) {
-          surpriseComponent -= (actual - 7.5) * 15;
-        }
-
-        rawScore = Math.max(-100, Math.min(100, surpriseComponent + targetComponent));
-      } else {
-        const diff = actual - target;
-        rawScore = Math.max(-60, Math.min(60, diff * 25));
-      }
-
-      interpretationText = actual > target
-        ? `Headline/Core print of ${actual}% exceeds the ${target}% target, reinforcing higher-for-longer rate probabilities.`
-        : `Reading of ${actual}% below target level, increasing policy easing leeway.`;
-      break;
-    }
-
-    case 'EXTERNAL_BALANCE': {
-      if (standardizedSurprise !== null) {
-        rawScore = Math.max(-100, Math.min(100, standardizedSurprise * 40));
-      } else {
-        rawScore = Math.max(-60, Math.min(60, actual > 0 ? 30 : -30));
-      }
-      interpretationText = actual >= 0
-        ? `Positive trade surplus of ${actual} provides structural foreign exchange demand.`
-        : `Trade deficit of ${actual} represents net capital outflow pressure.`;
-      break;
-    }
-
-    default: {
-      rawScore = standardizedSurprise !== null ? Math.max(-80, Math.min(80, standardizedSurprise * 35)) : 0;
-      interpretationText = `Observed reading: ${actual}${definition.unit}.`;
-    }
-  }
-
-  const score = Math.round(Math.max(-100, Math.min(100, rawScore)));
-
-  // Calculate age in days
+  const stdDev = Math.max(Math.abs(definition.historicalSurpriseStdDev || 1), 0.000001);
   const releaseTime = new Date(observation.releaseDate || observation.updatedAt).getTime();
-  const ageDays = Math.max(0, Math.floor((CURRENT_TIMESTAMP_MS - releaseTime) / (1000 * 60 * 60 * 24)));
-
-  let status: 'CURRENT' | 'RECENT' | 'STALE' | 'MISSING' = 'CURRENT';
-  const staleThresholdDays = definition.frequency === 'Quarterly' ? 120 : definition.frequency === 'Annual' ? 400 : 45;
-
-  if (ageDays > staleThresholdDays) {
-    status = 'STALE';
-  } else if (ageDays > 20) {
-    status = 'RECENT';
+  const ageDays = Number.isFinite(releaseTime) ? Math.max(0, Math.floor((Date.now() - releaseTime) / 86400000)) : 999;
+  const staleThreshold = definition.frequency === 'Quarterly' ? 120 : definition.frequency === 'Annual' ? 400 : definition.frequency === 'Bi-Weekly' ? 30 : definition.frequency === 'Daily' ? 10 : 45;
+  const status: 'CURRENT' | 'RECENT' | 'STALE' | 'MISSING' = ageDays > staleThreshold ? 'STALE' : ageDays > 20 ? 'RECENT' : 'CURRENT';
+  const freshnessHalfLife = definition.frequency === 'Daily' ? 5 : definition.frequency === 'Weekly' ? 14 : definition.frequency === 'Bi-Weekly' ? 18 : definition.frequency === 'Monthly' ? 35 : definition.frequency === 'Quarterly' ? 90 : 180;
+  const freshnessFactor = Math.max(0.15, Math.exp(-Math.max(0, ageDays) / freshnessHalfLife));
+  const verification = observation.verificationStatus ?? 'MANUAL';
+  const verificationFactor = verification === 'VERIFIED' ? 1 : verification === 'MANUAL' ? 0.65 : 0.15;
+  const z = surprise !== null ? Math.max(-3, Math.min(3, surprise / stdDev)) : 0;
+  const deltaZ = change !== null ? Math.max(-3, Math.min(3, change / stdDev)) : 0;
+  const direction = definition.scoringDirection === 'LOWER_IS_BULLISH' ? -1 : 1;
+  let stateScore = 0;
+  let impulseScore = 0;
+  const reasons: string[] = [];
+  if (definition.scoringDirection === 'INFLATION_POLICY_PATH') {
+    const target = definition.benchmarkTarget ?? 2;
+    const targetDistance = Math.max(-3, Math.min(3, (actual - target) / stdDev));
+    stateScore = Math.max(-100, Math.min(100, targetDistance * 28));
+    impulseScore = Math.max(-100, Math.min(100, z * 32));
+    reasons.push('State: ' + actual + definition.unit + ' vs ' + target + definition.unit + ' policy target.');
+  } else if (definition.scoringDirection === 'EXTERNAL_BALANCE') {
+    stateScore = Math.max(-100, Math.min(100, (actual / stdDev) * 18));
+    impulseScore = surprise !== null ? Math.max(-100, Math.min(100, z * 35)) : Math.max(-80, Math.min(80, deltaZ * 25));
+    reasons.push('External balance level/change contributes structurally; no forecast is treated as zero surprise.');
+  } else {
+    stateScore = Math.max(-100, Math.min(100, direction * deltaZ * 30));
+    impulseScore = Math.max(-100, Math.min(100, direction * z * 42));
+    if (definition.benchmarkTarget !== undefined) {
+      const targetDistance = Math.max(-3, Math.min(3, (actual - definition.benchmarkTarget) / stdDev));
+      stateScore = Math.max(-100, Math.min(100, (stateScore * 0.65) + direction * targetDistance * 18));
+      reasons.push('State includes distance from benchmark ' + definition.benchmarkTarget + definition.unit + '.');
+    }
   }
-
+  if (surprise !== null) reasons.push('Impulse: actual ' + actual + ' vs forecast ' + forecast + ', surprise ' + surprise + definition.unit + ' (z=' + z.toFixed(2) + ').');
+  else reasons.push('Impulse: no verified consensus forecast; score relies on state/trend only.');
+  const impulseDecay = Math.max(0.20, freshnessFactor);
+  const score = Math.round(Math.max(-100, Math.min(100, stateScore * 0.60 + impulseScore * 0.40 * impulseDecay)));
+  const effectiveWeight = Number((definition.weightInCategory * freshnessFactor * verificationFactor).toFixed(4));
+  const confidence = Math.round(100 * freshnessFactor * verificationFactor);
+  if (verification !== 'VERIFIED') reasons.push('VERIFY: observation status is ' + verification + '; production confidence is reduced.');
+  if (status === 'STALE') reasons.push('Freshness: ' + ageDays + ' days old; effective weight decayed.');
+  const interpretationText = score > 15 ? 'Supportive fundamental state/impulse after freshness and verification adjustments.' : score < -15 ? 'Deteriorating fundamental state/impulse after freshness and verification adjustments.' : 'Mixed/neutral fundamental state and impulse.';
   return {
-    indicatorId: definition.id,
-    definition,
-    observation,
-    actual,
-    forecast,
-    previous,
-    surprise,
-    change,
-    standardizedSurprise,
-    score,
-    weightedContribution: Number(((score * definition.weightInCategory) / 100).toFixed(2)),
-    interpretationText,
-    status,
-    ageDays,
+    indicatorId: definition.id, definition, observation, actual, forecast, previous, surprise, change, standardizedSurprise: surprise !== null ? Number(z.toFixed(3)) : null,
+    stateScore: Math.round(stateScore), impulseScore: Math.round(impulseScore), effectiveWeight, confidence, scoreReasons: reasons, score,
+    weightedContribution: Number(((score * effectiveWeight) / 100).toFixed(2)), interpretationText, status, ageDays,
+    source: { sourceName: observation.researchSourceName || definition.officialSourceName, sourceUrl: observation.sourceUrl || definition.officialSourceUrl, retrievedAt: observation.researchRetrievedAt || observation.updatedAt, releaseDate: observation.releaseDate, referencePeriod: observation.referencePeriod, verificationStatus: verification },
   };
 }
 
@@ -329,14 +235,14 @@ export function calculateCategoryScores(
       return calculateIndicatorScore(def, obs);
     });
 
-    const activeIndicators = indicatorScores.filter((i) => i.actual !== null);
+    const activeIndicators = indicatorScores.filter((i) => i.actual !== null && (i.effectiveWeight ?? 0) > 0);
     let categoryScore = 0;
 
     if (activeIndicators.length > 0) {
-      const totalActiveWeight = activeIndicators.reduce((acc, i) => acc + i.definition.weightInCategory, 0);
+      const totalActiveWeight = activeIndicators.reduce((acc, i) => acc + (i.effectiveWeight ?? i.definition.weightInCategory), 0);
       if (totalActiveWeight > 0) {
         const weightedSum = activeIndicators.reduce(
-          (acc, i) => acc + i.score * (i.definition.weightInCategory / totalActiveWeight),
+          (acc, i) => acc + i.score * ((i.effectiveWeight ?? i.definition.weightInCategory) / totalActiveWeight),
           0
         );
         categoryScore = Math.round(weightedSum);
@@ -354,6 +260,9 @@ export function calculateCategoryScores(
       weightedContribution: Number(((categoryScore * catWeight) / 100).toFixed(2)),
       indicatorCount: catDefs.length,
       activeCount: activeIndicators.length,
+      coveragePercent: catDefs.length ? Math.round((activeIndicators.length / catDefs.length) * 100) : 0,
+      confidence: activeIndicators.length ? Math.round(activeIndicators.reduce((s, i) => s + (i.confidence ?? 0), 0) / activeIndicators.length) : 0,
+      availableWeight: Number(totalActiveWeight.toFixed(4)),
       indicators: indicatorScores,
     };
   }
