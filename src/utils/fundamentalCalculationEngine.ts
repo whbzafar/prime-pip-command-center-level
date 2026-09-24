@@ -56,8 +56,8 @@ export function calculateIndicatorScore(
     return { indicatorId: definition.id, definition, observation, actual: null, forecast: null, previous: null, surprise: null, change: null, standardizedSurprise: null, stateScore: 0, impulseScore: 0, effectiveWeight: 0, confidence: 0, scoreReasons: ['MISSING: no verified numeric observation is available.'], score: 0, weightedContribution: 0, interpretationText: 'MISSING — no verified numeric observation. This indicator contributes no weight to the composite.', status: 'MISSING', ageDays: 999 };
   }
   const actual = observation.actual;
-  const forecast = Number.isFinite(observation.forecast) ? observation.forecast : null;
-  const previous = Number.isFinite(observation.previous) ? observation.previous : null;
+  const forecast = typeof observation.forecast === 'number' && Number.isFinite(observation.forecast) ? observation.forecast : null;
+  const previous = typeof observation.previous === 'number' && Number.isFinite(observation.previous) ? observation.previous : null;
   const surprise = forecast !== null ? Number((actual - forecast).toFixed(4)) : null;
   const change = previous !== null ? Number((actual - previous).toFixed(4)) : null;
   const stdDev = Math.max(Math.abs(definition.historicalSurpriseStdDev || 1), 0.000001);
