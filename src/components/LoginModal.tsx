@@ -97,7 +97,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) {
+    if (!username.trim() || !password) {
       setError('Please enter both username and password.');
       return;
     }
@@ -106,7 +106,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setError(null);
 
     try {
-      const result = await apiLogin(username.trim(), password.trim(), rememberMe);
+      const result = await apiLogin(username.trim(), password, rememberMe);
       setLoading(false);
 
       if (result.ok && result.user) {
