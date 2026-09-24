@@ -53,67 +53,109 @@ export function calculateIndicatorScore(
 ): IndicatorScoreResult {
   const missing = !observation || typeof observation.actual !== 'number' || !Number.isFinite(observation.actual);
   if (missing) {
-    return { indicatorId: definition.id, definition, observation, actual: null, forecast: null, previous: null, surprise: null, change: null, standardizedSurprise: null, stateScore: 0, impulseScore: 0, effectiveWeight: 0, confidence: 0, scoreReasons: ['MISSING: no verified numeric observation is available.'], score: 0, weightedContribution: 0, interpretationText: 'MISSING — no verified numeric observation. This indicator contributes no weight to the composite.', status: 'MISSING', ageDays: 999 };
+    return {
+      indicatorId: definition.id, definition, observation,
+      actual: null, forecast: null, previous: null, surprise: null,
+      change: null, standardizedSurprise: null, score: 0, weightedContribution: 0,
+      interpretationText: 'MISSING — no verified observation is available.',
+      status: 'MISSING', ageDays: 999, effectiveWeight: 0, confidence: 0,
+      stateScore: 0, impulseScore: 0,
+      scoreReasons: ['No verified observation. This indicator is excluded from the composite.'],
+    };
   }
+
+  const verification = observation.verificationStatus;
+  const sourceOk = verification === 'VERIFIED' || verification === 'MANUAL';
+  if (!sourceOk) {
+    return {
+      indicatorId: definition.id, definition, observation,
+      actual: null, forecast: null, previous: null, surprise: null,
+      change: null, standardizedSurprise: null, score: 0, weightedContribution: 0,
+      interpretationText: 'VERIFY — observation is not verified and is excluded from scoring.',
+      status: 'MISSING', ageDays: 999, effectiveWeight: 0, confidence: 0,
+      stateScore: 0, impulseScore: 0,
+      scoreReasons: ['Verification status is not VERIFIED/MANUAL.'],
+      source: observation.sourceUrl ? {
+        sourceName: observation.researchSourceName || definition.officialSourceName,
+        sourceUrl: observation.sourceUrl,
+        retrievedAt: observation.researchRetrievedAt || observation.updatedAt,
+        releaseDate: observation.releaseDate,
+        referencePeriod: observation.referencePeriod,
+        verificationStatus: verification || 'REVIEW_REQUIRED',
+      } : undefined,
+    };
+  }
+
   const actual = observation.actual;
   const forecast = typeof observation.forecast === 'number' && Number.isFinite(observation.forecast) ? observation.forecast : null;
   const previous = typeof observation.previous === 'number' && Number.isFinite(observation.previous) ? observation.previous : null;
   const surprise = forecast !== null ? Number((actual - forecast).toFixed(4)) : null;
   const change = previous !== null ? Number((actual - previous).toFixed(4)) : null;
-  const stdDev = Math.max(Math.abs(definition.historicalSurpriseStdDev || 1), 0.000001);
-  const releaseTime = new Date(observation.releaseDate || observation.updatedAt).getTime();
-  const ageDays = Number.isFinite(releaseTime) ? Math.max(0, Math.floor((Date.now() - releaseTime) / 86400000)) : 999;
-  const staleThreshold = definition.frequency === 'Quarterly' ? 120 : definition.frequency === 'Annual' ? 400 : definition.frequency === 'Bi-Weekly' ? 30 : definition.frequency === 'Daily' ? 10 : 45;
-  const status: 'CURRENT' | 'RECENT' | 'STALE' | 'MISSING' = ageDays > staleThreshold ? 'STALE' : ageDays > 20 ? 'RECENT' : 'CURRENT';
-  const freshnessHalfLife = definition.frequency === 'Daily' ? 5 : definition.frequency === 'Weekly' ? 14 : definition.frequency === 'Bi-Weekly' ? 18 : definition.frequency === 'Monthly' ? 35 : definition.frequency === 'Quarterly' ? 90 : 180;
-  const freshnessFactor = Math.max(0.15, Math.exp(-Math.max(0, ageDays) / freshnessHalfLife));
-  const verification = observation.verificationStatus ?? 'MANUAL';
-  const verificationFactor = verification === 'VERIFIED' ? 1 : verification === 'MANUAL' ? 0.65 : 0.15;
-  const z = surprise !== null ? Math.max(-3, Math.min(3, surprise / stdDev)) : 0;
-  const deltaZ = change !== null ? Math.max(-3, Math.min(3, change / stdDev)) : 0;
+  const stdDev = Math.max(0.0001, definition.historicalSurpriseStdDev || 1);
+  const standardizedSurprise = surprise !== null ? Number((surprise / stdDev).toFixed(3)) : null;
+
+  const robustClamp = (v: number, cap = 2.5) => Math.max(-cap, Math.min(cap, v));
   const direction = definition.scoringDirection === 'LOWER_IS_BULLISH' ? -1 : 1;
-  let stateScore = 0;
-  let impulseScore = 0;
+  let state = 0;
+  let impulse = 0;
   const reasons: string[] = [];
-  if (definition.scoringDirection === 'CONTEXT_ONLY') {
-    reasons.push('Context-only input: displayed for diagnostics and excluded from directional composite scoring.');
-  } else if (definition.scoringDirection === 'RATE_EXPECTATIONS') {
-    stateScore = Math.max(-100, Math.min(100, direction * deltaZ * 30));
-    impulseScore = Math.max(-100, Math.min(100, direction * z * 42));
-    reasons.push('Rate signal uses change/repricing rather than the absolute yield level.');
-  } else if (definition.scoringDirection === 'INFLATION_POLICY_PATH') {
+
+  if (definition.scoringDirection === 'INFLATION_POLICY_PATH') {
     const target = definition.benchmarkTarget ?? 2;
-    const targetDistance = Math.max(-3, Math.min(3, (actual - target) / stdDev));
-    stateScore = Math.max(-100, Math.min(100, targetDistance * 28));
-    impulseScore = Math.max(-100, Math.min(100, z * 32));
-    reasons.push('State: ' + actual + definition.unit + ' vs ' + target + definition.unit + ' policy target.');
+    state = Math.max(-100, Math.min(100, (actual - target) * 25));
+    if (actual > target) reasons.push(`Inflation is ${(actual - target).toFixed(2)}pp above target, increasing policy persistence pressure.`);
+    else reasons.push(`Inflation is ${(target - actual).toFixed(2)}pp below target, increasing policy easing room.`);
   } else if (definition.scoringDirection === 'EXTERNAL_BALANCE') {
-    stateScore = Math.max(-100, Math.min(100, (actual / stdDev) * 18));
-    impulseScore = surprise !== null ? Math.max(-100, Math.min(100, z * 35)) : Math.max(-80, Math.min(80, deltaZ * 25));
-    reasons.push('External balance level/change contributes structurally; no forecast is treated as zero surprise.');
-  } else {
-    stateScore = Math.max(-100, Math.min(100, direction * deltaZ * 30));
-    impulseScore = Math.max(-100, Math.min(100, direction * z * 42));
-    if (definition.benchmarkTarget !== undefined) {
-      const targetDistance = Math.max(-3, Math.min(3, (actual - definition.benchmarkTarget) / stdDev));
-      stateScore = Math.max(-100, Math.min(100, (stateScore * 0.65) + direction * targetDistance * 18));
-      reasons.push('State includes distance from benchmark ' + definition.benchmarkTarget + definition.unit + '.');
-    }
+    state = Math.max(-100, Math.min(100, actual === 0 ? 0 : actual > 0 ? 35 : -35));
+    reasons.push(actual > 0 ? 'Positive external balance is structurally supportive.' : 'Negative external balance is structurally less supportive.');
+  } else if (definition.scoringDirection === 'RATE_EXPECTATIONS') {
+    state = 0;
+    reasons.push('Absolute yield level is not scored; policy-path repricing is handled by the rates module.');
+  } else if (definition.scoringDirection === 'CONTEXT_ONLY') {
+    state = 0;
+    reasons.push('Context-only input: displayed for diagnosis and excluded from directional scoring.');
+  } else if (definition.benchmarkTarget !== undefined) {
+    state = Math.max(-100, Math.min(100, (actual - definition.benchmarkTarget) * 20 * direction));
+  } else if (previous !== null) {
+    state = Math.max(-100, Math.min(100, (actual - previous) / std * 25 * direction));
   }
-  if (surprise !== null) reasons.push('Impulse: actual ' + actual + ' vs forecast ' + forecast + ', surprise ' + surprise + definition.unit + ' (z=' + z.toFixed(2) + ').');
-  else reasons.push('Impulse: no verified consensus forecast; score relies on state/trend only.');
-  const impulseDecay = Math.max(0.20, freshnessFactor);
-  const score = Math.round(Math.max(-100, Math.min(100, stateScore * 0.60 + impulseScore * 0.40 * impulseDecay)));
-  const effectiveWeight = Number((definition.weightInCategory * freshnessFactor * verificationFactor).toFixed(4));
-  const confidence = Math.round(100 * freshnessFactor * verificationFactor);
-  if (verification !== 'VERIFIED') reasons.push('VERIFY: observation status is ' + verification + '; production confidence is reduced.');
-  if (status === 'STALE') reasons.push('Freshness: ' + ageDays + ' days old; effective weight decayed.');
-  const interpretationText = score > 15 ? 'Supportive fundamental state/impulse after freshness and verification adjustments.' : score < -15 ? 'Deteriorating fundamental state/impulse after freshness and verification adjustments.' : 'Mixed/neutral fundamental state and impulse.';
+
+  if (standardizedSurprise !== null && definition.scoringDirection !== 'CONTEXT_ONLY' && definition.scoringDirection !== 'RATE_EXPECTATIONS') {
+    impulse = Math.max(-100, Math.min(100, robustClamp(standardizedSurprise * direction) * 40));
+    reasons.push(`Release impulse: ${standardizedSurprise > 0 ? '+' : ''}${standardizedSurprise} standard deviations versus the indicator's historical surprise volatility.`);
+  } else if (change !== null && definition.scoringDirection !== 'CONTEXT_ONLY' && definition.scoringDirection !== 'RATE_EXPECTATIONS') {
+    impulse = Math.max(-100, Math.min(100, (change / std) * 30 * direction));
+  }
+
+  const releaseTime = new Date(observation.releaseDate || observation.updatedAt).getTime();
+  const ageDays = Math.max(0, Math.floor((Date.now() - releaseTime) / 86400000));
+  const staleThreshold = definition.frequency === 'Quarterly' ? 120 : definition.frequency === 'Annual' ? 400 : definition.frequency === 'Weekly' ? 21 : 45;
+  const freshness = Math.max(0, Math.min(1, Math.exp(-ageDays / Math.max(1, staleThreshold))));
+  const decay = Math.max(0.20, freshness);
+  const hasForecast = forecast !== null;
+  const verificationConfidence = verification === 'VERIFIED' ? 1 : 0.85;
+  const coverageConfidence = (hasForecast || previous !== null) ? 1 : 0.70;
+  const confidence = Math.round(100 * verificationConfidence * coverageConfidence * freshness);
+  const score = Math.round(Math.max(-100, Math.min(100, state * 0.65 + impulse * 0.35 * decay)));
+  const effectiveWeight = Number((definition.weightInCategory * verificationConfidence * coverageConfidence * decay).toFixed(3));
+
   return {
-    indicatorId: definition.id, definition, observation, actual, forecast, previous, surprise, change, standardizedSurprise: surprise !== null ? Number(z.toFixed(3)) : null,
-    stateScore: Math.round(stateScore), impulseScore: Math.round(impulseScore), effectiveWeight, confidence, scoreReasons: reasons, score,
-    weightedContribution: Number(((score * effectiveWeight) / 100).toFixed(2)), interpretationText, status, ageDays,
-    source: { sourceName: observation.researchSourceName || definition.officialSourceName, sourceUrl: observation.sourceUrl || definition.officialSourceUrl, retrievedAt: observation.researchRetrievedAt || observation.updatedAt, releaseDate: observation.releaseDate, referencePeriod: observation.referencePeriod, verificationStatus: verification },
+    indicatorId: definition.id, definition, observation, actual, forecast, previous,
+    surprise, change, standardizedSurprise, stateScore: Math.round(state),
+    impulseScore: Math.round(impulse * decay), effectiveWeight, confidence,
+    score, weightedContribution: Number(((score * effectiveWeight) / 100).toFixed(2)),
+    interpretationText: `State ${Math.round(state)}, impulse ${Math.round(impulse * decay)}, confidence ${confidence}%.`,
+    status: ageDays > staleThreshold ? 'STALE' : ageDays > 20 ? 'RECENT' : 'CURRENT',
+    ageDays,
+    scoreReasons: reasons,
+    source: {
+      sourceName: observation.researchSourceName || definition.officialSourceName,
+      sourceUrl: observation.sourceUrl || definition.officialSourceUrl,
+      retrievedAt: observation.researchRetrievedAt || observation.updatedAt,
+      releaseDate: observation.releaseDate,
+      referencePeriod: observation.referencePeriod,
+      verificationStatus: verification || 'MANUAL',
+    },
   };
 }
 
