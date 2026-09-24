@@ -356,6 +356,22 @@ export function calculateInterestRateScore(record: InterestRateRecord): number {
   return Math.round(components.reduce((a, b) => a + b, 0) / components.length);
 }
 
+export function calculateGlobalRiskRegime(records: MarketSentimentRecord[]): { regime: 'RISK_ON' | 'NEUTRAL' | 'RISK_OFF' | 'INFLATION' | 'GROWTH_SCARE'; confidence: number } {
+  const entered = records.filter((r) => r.isEntered !== false);
+  if (!entered.length) return { regime: 'NEUTRAL', confidence: 0 };
+  const riskVotes = entered.map((r) => r.globalRiskRegime);
+  const counts = {
+    RISK_ON: riskVotes.filter((x) => x === 'RISK_ON').length,
+    NEUTRAL: riskVotes.filter((x) => x === 'NEUTRAL').length,
+    RISK_OFF: riskVotes.filter((x) => x === 'RISK_OFF').length,
+  };
+  const regime = counts.RISK_OFF > counts.RISK_ON && counts.RISK_OFF >= counts.NEUTRAL ? 'RISK_OFF'
+    : counts.RISK_ON > counts.RISK_OFF && counts.RISK_ON >= counts.NEUTRAL ? 'RISK_ON'
+    : 'NEUTRAL';
+  const confidence = Math.round((Math.max(counts.RISK_ON, counts.RISK_OFF, counts.NEUTRAL) / riskVotes.length) * 100);
+  return { regime, confidence };
+}
+
 export function calculateCurrencyScore(
   currency: CurrencyCode,
   observations: IndicatorObservation[],
@@ -438,6 +454,7 @@ export function calculateCurrencyScore(
   }
 
   let assessmentLabel = 'NEUTRAL / MIXED';
+  const monetaryPolicyScore = categoryScores.MONETARY_POLICY?.score ?? 0;
   if (totalApplicableWeight === 0 && completedIndicators === 0) {
     assessmentLabel = 'NEUTRAL / MIXED';
   } else if (compositeScore >= 40) {
@@ -449,7 +466,7 @@ export function calculateCurrencyScore(
   } else if (compositeScore <= -12) {
     assessmentLabel = 'BEARISH';
   } else {
-    assessmentLabel = 'NEUTRAL / MIXED';
+    assessmentLabel = (compositeScore < 0 && monetaryPolicyScore < -10 && overallConfidence < 65) ? 'WEAK' : 'NEUTRAL / MIXED';
   }
 
   return {
@@ -480,8 +497,8 @@ export function calculateCurrencyScore(
       'Indicator impulse is freshness-decayed; missing/unverified observations do not receive full production weight.',
       'State and impulse are kept separate so a stale surprise cannot dominate the structural signal.',
     ],
-    riskRegime: 'NEUTRAL',
-    regimeConfidence: 0,
+    riskRegime: calculateGlobalRiskRegime(sentimentRecords).regime,
+    regimeConfidence: calculateGlobalRiskRegime(sentimentRecords).confidence,
     conflicts: conflictingFactors,
   };
 }
@@ -537,7 +554,11 @@ export function calculatePairDifferential(
     ? Number((base.tenYearBondYield - quote.tenYearBondYield).toFixed(2))
     : undefined;
 
-  const avgCoverage = Math.round(((base?.dataCoveragePercent ?? 100) + (quote?.dataCoveragePercent ?? 100)) / 2);
+  const baseConfidence = base?.overallConfidence ?? base?.dataCoveragePercent ?? 0;
+  const quoteConfidence = quote?.overallConfidence ?? quote?.dataCoveragePercent ?? 0;
+  const pairConfidence = Math.min(baseConfidence, quoteConfidence);
+  const avgCoverage = Math.round(((base?.dataCoveragePercent ?? 0) + (quote?.dataCoveragePercent ?? 0)) / 2);
+  const confidenceAdjustedDifferential = Math.round(differential * Math.max(0, Math.min(1, pairConfidence / 100)));
 
   let bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL_MIXED' | 'BEARISH' | 'STRONG_BEARISH' | 'INSUFFICIENT_DATA' = 'NEUTRAL_MIXED';
   let biasLabel = 'NEUTRAL / MIXED';
@@ -551,16 +572,16 @@ export function calculatePairDifferential(
     shortTermDirection = 'INSUFFICIENT DATA';
     mediumTermDirection = 'INSUFFICIENT DATA';
     longTermDirection = 'INSUFFICIENT DATA';
-  } else if (differential >= 35) {
+  } else if (confidenceAdjustedDifferential >= 35) {
     bias = 'STRONG_BULLISH';
     biasLabel = 'STRONGLY BULLISH';
-  } else if (differential >= 12) {
+  } else if (confidenceAdjustedDifferential >= 12) {
     bias = 'BULLISH';
     biasLabel = 'BULLISH';
-  } else if (differential <= -35) {
+  } else if (confidenceAdjustedDifferential <= -35) {
     bias = 'STRONG_BEARISH';
     biasLabel = 'STRONGLY BEARISH';
-  } else if (differential <= -12) {
+  } else if (confidenceAdjustedDifferential <= -12) {
     bias = 'BEARISH';
     biasLabel = 'BEARISH';
   } else {
@@ -569,13 +590,13 @@ export function calculatePairDifferential(
   }
 
   if (pairDataComplete) {
-    const shortMetric = Math.round(differential * 0.8 + sentimentDifferential * 0.2);
+    const shortMetric = Math.round(confidenceAdjustedDifferential * 0.65 + sentimentDifferential * 0.35);
     shortTermDirection = shortMetric >= 10 ? 'BULLISH' : shortMetric <= -10 ? 'BEARISH' : 'NEUTRAL';
 
-    const mediumMetric = Math.round(differential * 0.6 + interestRateDifferential * 0.4);
+    const mediumMetric = Math.round(confidenceAdjustedDifferential * 0.55 + interestRateDifferential * 0.45);
     mediumTermDirection = mediumMetric >= 10 ? 'BULLISH' : mediumMetric <= -10 ? 'BEARISH' : 'NEUTRAL';
 
-    longTermDirection = differential >= 12 ? 'BULLISH' : differential <= -12 ? 'BEARISH' : 'NEUTRAL';
+    longTermDirection = confidenceAdjustedDifferential >= 12 ? 'BULLISH' : confidenceAdjustedDifferential <= -12 ? 'BEARISH' : 'NEUTRAL';
   }
 
   const primaryDrivers: string[] = [];
@@ -613,6 +634,7 @@ export function calculatePairDifferential(
     interestRateSpread: interestRateDifferential,
     tenYearSpread,
     dataCoveragePercent: avgCoverage,
+    confidence: pairConfidence,
     conflictLevel,
     bias,
     biasLabel,
