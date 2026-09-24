@@ -319,26 +319,21 @@ export function calculateCategoryScores(
 }
 
 export function calculateCotScore(record: CotPositioningRecord): number {
-  if (!Number.isFinite(record.openInterest) || record.openInterest <= 0) return 0;
-  const leveragedNet = Number.isFinite(record.leveragedFundsLong) && Number.isFinite(record.leveragedFundsShort)
-    ? record.leveragedFundsLong - record.leveragedFundsShort
-    : null;
-  const legacyNet = Number.isFinite(record.nonCommercialLong) && Number.isFinite(record.nonCommercialShort)
-    ? (record.nonCommercialLong! - record.nonCommercialShort!)
-    : null;
-  const netPosition = leveragedNet ?? legacyNet;
-  if (netPosition === null) return 0;
+  const long = Number(record.leveragedFundsLong ?? record.nonCommercialLong);
+  const short = Number(record.leveragedFundsShort ?? record.nonCommercialShort);
+  const oi = Number(record.openInterest);
+  if (![long, short, oi].every(Number.isFinite) || oi <= 0) return 0;
 
-  const netRatio = netPosition / record.openInterest;
-  // Smooth rather than linearly exploding at crowded extremes.
-  const baseScore = Math.tanh(netRatio * 8) * 100;
-  const percentile = Number(record.historicalPercentile);
-  if (Number.isFinite(percentile)) {
-    // Crowding is a risk flag, not an automatic reversal signal.
-    if (percentile >= 90) return Math.round(baseScore * 0.85);
-    if (percentile <= 10) return Math.round(baseScore * 0.85);
+  const netRatio = (long - short) / oi;
+  if (Number.isFinite(record.historicalPercentile)) {
+    const p = Math.max(0, Math.min(100, record.historicalPercentile!));
+    // Crowding is a positioning/timing layer: extremes increase reversal risk rather than
+    // being treated as a permanent fundamental driver.
+    if (p >= 90) return -Math.round((p - 50) * 2);
+    if (p <= 10) return Math.round((50 - p) * 2);
+    return Math.round((p - 50) * 1.25);
   }
-  return Math.round(Math.max(-100, Math.min(100, baseScore)));
+  return Math.round(Math.max(-100, Math.min(100, netRatio * 500)));
 }
 
 export function normalizeRetailPositioningPercentages(record: RetailPositioningRecord): { longPercent: number; shortPercent: number } | null {
@@ -355,16 +350,13 @@ export function normalizeRetailPositioningPercentages(record: RetailPositioningR
 export function calculateRetailContrarianScore(record: RetailPositioningRecord): number {
   const positioning = normalizeRetailPositioningPercentages(record);
   if (!positioning) return 0;
-
   const long = positioning.longPercent;
   const short = positioning.shortPercent;
-  // Nonlinear timing layer: ordinary 50/50 positioning is nearly neutral;
-  // the signal becomes meaningful only once one side reaches a crowded zone.
-  if (long >= 70) return -Math.round(Math.min(100, (long - 65) * 2.5));
-  if (short >= 70) return Math.round(Math.min(100, (short - 65) * 2.5));
-  if (long >= 65) return -Math.round((long - 50) * 1.25);
-  if (short >= 65) return Math.round((short - 50) * 1.25);
-  return 0;
+  const dominant = Math.max(long, short);
+  if (dominant < 65) return Math.round((short - long) * 0.5);
+  const gap = Math.abs(long - short);
+  const thresholdBoost = Math.min(2, (dominant - 65) / 15 + 1);
+  return Math.round(Math.max(-100, Math.min(100, (short - long) * thresholdBoost)));
 }
 
 export function calculateSentimentScore(record: MarketSentimentRecord): number {
