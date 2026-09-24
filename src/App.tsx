@@ -71,6 +71,81 @@ import { CommandCenterAtmosphere } from './components/CommandCenterAtmosphere';
 import { AllCategoriesModal } from './components/AllCategoriesModal';
 import { CommunicationNotifications } from './components/CommunicationNotifications';
 
+class FundamentalIndicatorsErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('Fundamental Intelligence UI error:', error, info);
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false });
+  };
+
+  handleResetStoredData = () => {
+    try {
+      [
+        'primepip_fundamental_observations_v2',
+        'primepip_fundamental_weights_v2',
+        'primepip_fundamental_sentiment_v2',
+        'primepip_fundamental_pair_sentiment_v1',
+        'primepip_fundamental_cot_v2',
+        'primepip_fundamental_rates_v2',
+        'primepip_fundamental_retail_positioning_v1',
+        'primepip_fundamental_commodities_v2',
+      ].forEach((key) => localStorage.removeItem(key));
+    } catch (error) {
+      console.warn('Unable to clear Fundamental Intelligence local data:', error);
+    }
+    window.location.reload();
+  };
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+
+    return (
+      <div className="w-full max-w-4xl mx-auto p-6">
+        <div className="rounded-3xl border border-amber-500/30 bg-slate-950/95 p-8 shadow-2xl">
+          <div className="text-xs font-mono-code font-bold tracking-widest text-amber-300 uppercase">
+            Fundamental Intelligence recovered from a rendering error
+          </div>
+          <h2 className="mt-2 text-xl font-bold text-slate-100">
+            The workspace could not render safely.
+          </h2>
+          <p className="mt-2 text-sm text-slate-400">
+            Your main Command Center is protected. Retry the workspace first; if an older
+            browser-stored data shape is responsible, reset only the Fundamental Intelligence
+            stored data and reload.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={this.handleRetry}
+              className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-bold hover:bg-cyan-300 transition"
+            >
+              RETRY FUNDAMENTAL INTELLIGENCE
+            </button>
+            <button
+              type="button"
+              onClick={this.handleResetStoredData}
+              className="px-4 py-2 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-200 text-xs font-bold hover:bg-amber-500/20 transition"
+            >
+              RESET FUNDAMENTAL STORED DATA
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
 export default function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<MainNavTab>('DASHBOARD');
@@ -899,7 +974,9 @@ export default function App() {
         )}
 
         {activeTab === 'FUNDAMENTAL_INDICATORS' && (
-          <FundamentalIndicators />
+          <FundamentalIndicatorsErrorBoundary>
+            <FundamentalIndicators />
+          </FundamentalIndicatorsErrorBoundary>
         )}
 
         {activeTab === 'FREEHAND_WORKSPACE' && (
