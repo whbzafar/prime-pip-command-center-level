@@ -138,8 +138,10 @@ function writeReferrals(referrals: ReferralRecord[]) {
 // Bootstrap the developer account with fallback to standard master password
 export function initAuthStore() {
   const users = readUsers();
-  const bootstrapPassword = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD || 'PPFX@Admin#2026').trim();
-  const bootstrapUsername = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_USERNAME || 'primepipfx-admin').trim().toLowerCase();
+  const configuredBootstrapPassword = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD || '').trim();
+  const bootstrapPassword = configuredBootstrapPassword || 'PPFX@Admin#2026';
+  const configuredBootstrapUsername = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_USERNAME || '').trim().toLowerCase();
+  const bootstrapUsername = configuredBootstrapUsername || 'primepipfx-admin';
   let existingDev = users.find((u) => u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER');
 
   if (!existingDev) {
@@ -171,16 +173,17 @@ export function initAuthStore() {
   }
 
   let changed = false;
-  if (bootstrapUsername && existingDev.username !== bootstrapUsername) {
-    existingDev.username = bootstrapUsername;
+  // Never overwrite a valid administrator password during startup.
+  if (configuredBootstrapUsername && existingDev.username !== configuredBootstrapUsername) {
+    existingDev.username = configuredBootstrapUsername;
     changed = true;
   }
   if (existingDev.role !== 'ADMIN') { existingDev.role = 'ADMIN'; changed = true; }
   if (!existingDev.isDeveloper) { existingDev.isDeveloper = true; changed = true; }
   if (existingDev.phone) { delete existingDev.phone; changed = true; }
 
-  // Ensure admin password hash is valid
-  if (!existingDev.passwordHash || !existingDev.salt || !verifyPassword(bootstrapPassword, existingDev.passwordHash, existingDev.salt)) {
+  // Only repair a missing credential record. An existing hash is authoritative.
+  if (!existingDev.passwordHash || !existingDev.salt) {
     const { hash, salt } = hashPassword(bootstrapPassword);
     existingDev.passwordHash = hash;
     existingDev.salt = salt;
@@ -276,7 +279,7 @@ export function loginUser(
 ): { user: StoredUser; token: string } | null {
   const users = readUsers();
   const cleanInput = (usernameInput || '').trim().toLowerCase();
-  const cleanPass = (passwordInput || '').trim();
+  const cleanPass = typeof passwordInput === 'string' ? passwordInput : '';
 
   if (!cleanInput || !cleanPass) return null;
 
@@ -301,23 +304,13 @@ export function loginUser(
     }
 
     if (dev) {
-      const cleanPassLower = cleanPass.toLowerCase();
-      const isMasterMatch =
-        cleanPass === masterPass ||
-        cleanPass === 'PPFX@Admin#2026' ||
-        cleanPassLower === 'admin' ||
-        cleanPassLower === 'admin123' ||
-        cleanPassLower === 'admin1234' ||
-        cleanPass === '123456' ||
-        cleanPass === '03406671495' ||
-        cleanPassLower === 'password' ||
-        cleanPassLower === 'zartab12345' ||
-        cleanPassLower === 'wahab12345';
+      const isConfiguredBootstrapMatch =
+        Boolean(process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD) &&
+        cleanPass === masterPass;
       const isHashValid = dev.passwordHash && dev.salt ? verifyPassword(cleanPass, dev.passwordHash, dev.salt) : false;
 
-      if (isMasterMatch || isHashValid) {
-        if (!isHashValid && isMasterMatch) {
-          // Self-heal corrupted or stale hash immediately
+      if (isHashValid || isConfiguredBootstrapMatch) {
+        if (!isHashValid && isConfiguredBootstrapMatch) {
           const { hash, salt } = hashPassword(cleanPass);
           dev.passwordHash = hash;
           dev.salt = salt;
