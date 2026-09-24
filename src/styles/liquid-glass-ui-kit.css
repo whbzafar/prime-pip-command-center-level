@@ -38,31 +38,59 @@ html[data-theme='liquid-glass-ui-kit'] {
    -------------------------------------------------------------------------- */
 html[data-theme='liquid-glass-ui-kit'],
 html[data-theme='liquid-glass-ui-kit'] body {
+  min-height: 100%;
+  background-color: #080c18 !important;
+}
+
+html[data-theme='liquid-glass-ui-kit']::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: -999;
   background:
     radial-gradient(760px 560px at 9% 10%, rgba(53,244,255,0.12), transparent 62%),
     radial-gradient(780px 620px at 92% 16%, rgba(155,98,255,0.14), transparent 60%),
     radial-gradient(760px 620px at 76% 88%, rgba(255,75,216,0.12), transparent 62%),
     radial-gradient(520px 420px at 23% 83%, rgba(90,141,255,0.08), transparent 65%),
-    linear-gradient(135deg, var(--lgui-bg) 0%, #080c18 52%, #090b17 100%) !important;
-  background-attachment: fixed !important;
+    linear-gradient(135deg, #080c18 0%, #080c18 52%, #090b17 100%);
+}
+
+html[data-theme='liquid-glass-ui-kit'] body {
+  background: transparent !important;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 html[data-theme='liquid-glass-ui-kit'] body::before {
   content: "";
   position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100vh;
   pointer-events: none;
-  z-index: 0;
+  z-index: -998;
   background:
     linear-gradient(118deg, transparent 0 28%, rgba(255,255,255,0.018) 31%, transparent 36%),
     radial-gradient(circle at 50% 8%, rgba(255,255,255,0.045), transparent 30%);
   mix-blend-mode: screen;
 }
 
-/* Keep the application above the ambient lighting layer. */
-html[data-theme='liquid-glass-ui-kit'] #root {
+/* Keep the application above the ambient lighting layer and eliminate empty bottom space. */
+html[data-theme='liquid-glass-ui-kit'] #root,
+html[data-theme='liquid-glass-ui-kit'] .prime-command-shell {
   position: relative;
   z-index: 1;
+  min-height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  background-color: transparent !important;
 }
 
 /* --------------------------------------------------------------------------

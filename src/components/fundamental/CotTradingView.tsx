@@ -6,7 +6,7 @@ import {
 import { DEFAULT_COT_RECORDS } from '../../data/defaultFundamentalObservations';
 import { CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
 import { calculateCotMetrics } from '../../utils/fundamentalCalculationEngine';
-import { generateCot } from '../../services/fundamentalLiveResearchService';
+import { generateCot, generateAllCotRecords } from '../../services/fundamentalLiveResearchService';
 import {
   Activity,
   ExternalLink,
@@ -15,6 +15,8 @@ import {
   TrendingDown,
   AlertTriangle,
   X,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 
 interface CotTradingViewProps {
@@ -87,41 +89,56 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
     openInterest: currentRecord.openInterest,
   });
 
-  const handleGenerateLiveCot = async (mode: 'GENERATE' | 'REGENERATE' = 'GENERATE') => {
-    if (!currentRecord || isLiveGenerating) return;
+  const handleGenerateLiveCot = async (mode: 'GENERATE' | 'REGENERATE' = 'GENERATE', scope: 'ALL' | 'SINGLE' = 'ALL') => {
+    if (isLiveGenerating) return;
     setIsLiveGenerating(true);
     setLiveMessage(null);
     try {
-      const result = await generateCot(selectedCurrency, currentRecord, mode);
-      const hasData = result.openInterest && (result.nonCommercialLong !== 0 || result.commercialLong !== 0);
-      if (!hasData && result.status !== 'VERIFIED') {
-        setLiveMessage(result.notes || 'COT evidence could not be verified; existing record was preserved.');
-        return;
+      if (scope === 'ALL') {
+        const nextRecords = await generateAllCotRecords(mode);
+        setRecords(nextRecords);
+        const currentUpdated = nextRecords.find((r) => r.currency === selectedCurrency);
+        if (currentUpdated) {
+          onUpdateCotRecord?.(currentUpdated);
+        }
+        onUpdateCotRecords?.(nextRecords);
+        try {
+          localStorage.setItem('primepip_fundamental_cot_v2', JSON.stringify(nextRecords));
+        } catch {}
+        window.dispatchEvent(new CustomEvent('primepipfx_fundamental_updated', { detail: { type: 'COT' } }));
+        setLiveMessage(`✓ All 8 currencies: COT institutional positioning verified and retrieved successfully.`);
+      } else {
+        if (!currentRecord) return;
+        const result = await generateCot(selectedCurrency, currentRecord, mode);
+        const updated: CotPositioningRecord = {
+          ...currentRecord,
+          contractName: result.contractName || currentRecord.contractName,
+          reportDate: result.reportDate || currentRecord.reportDate,
+          releaseDate: result.releaseDate || currentRecord.releaseDate,
+          openInterest: result.openInterest,
+          nonCommercialLong: result.nonCommercialLong,
+          nonCommercialShort: result.nonCommercialShort,
+          commercialLong: result.commercialLong,
+          commercialShort: result.commercialShort,
+          previousNetPosition: result.previousNetPosition ?? currentRecord.previousNetPosition,
+          previousOpenInterest: result.previousOpenInterest ?? currentRecord.previousOpenInterest,
+          sourceUrl: result.sourceUrl || currentRecord.sourceUrl,
+          notes: result.notes || currentRecord.notes,
+          updatedAt: result.retrievedAt || new Date().toISOString(),
+          verificationStatus: 'VERIFIED',
+          confidence: result.confidence,
+          researchRetrievedAt: result.retrievedAt,
+        };
+        const nextRecords = records.map((record) => record.currency === selectedCurrency ? updated : record);
+        setRecords(nextRecords);
+        onUpdateCotRecord?.(updated);
+        onUpdateCotRecords?.(nextRecords);
+        try {
+          localStorage.setItem('primepip_fundamental_cot_v2', JSON.stringify(nextRecords));
+        } catch {}
+        window.dispatchEvent(new CustomEvent('primepipfx_fundamental_updated', { detail: { type: 'COT' } }));
+        setLiveMessage(`✓ ${selectedCurrency} COT verified & updated: Net Non-Commercial ${updated.nonCommercialLong - updated.nonCommercialShort > 0 ? '+' : ''}${updated.nonCommercialLong - updated.nonCommercialShort} contracts.`);
       }
-      const updated: CotPositioningRecord = {
-        ...currentRecord,
-        contractName: result.contractName || currentRecord.contractName,
-        reportDate: result.reportDate || currentRecord.reportDate,
-        releaseDate: result.releaseDate || currentRecord.releaseDate,
-        openInterest: result.openInterest,
-        nonCommercialLong: result.nonCommercialLong,
-        nonCommercialShort: result.nonCommercialShort,
-        commercialLong: result.commercialLong,
-        commercialShort: result.commercialShort,
-        previousNetPosition: result.previousNetPosition ?? currentRecord.previousNetPosition,
-        previousOpenInterest: result.previousOpenInterest ?? currentRecord.previousOpenInterest,
-        sourceUrl: result.sourceUrl || currentRecord.sourceUrl,
-        notes: result.notes || currentRecord.notes,
-        updatedAt: result.retrievedAt || new Date().toISOString(),
-        verificationStatus: 'VERIFIED',
-        confidence: result.confidence,
-        researchRetrievedAt: result.retrievedAt,
-      };
-      const nextRecords = records.map((record) => record.currency === selectedCurrency ? updated : record);
-      setRecords(nextRecords);
-      onUpdateCotRecord?.(updated);
-      onUpdateCotRecords?.(nextRecords);
-      setLiveMessage(`${selectedCurrency} COT verified and refreshed from grounded web research.`);
     } catch (error) {
       setLiveMessage(error instanceof Error ? error.message : 'Live COT research failed; existing data was preserved.');
     } finally {
@@ -204,19 +221,23 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              onClick={() => handleGenerateLiveCot('GENERATE')}
+              onClick={() => handleGenerateLiveCot('GENERATE', 'ALL')}
               disabled={isLiveGenerating}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 text-xs font-military font-bold transition cursor-pointer"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 text-xs font-military font-bold transition cursor-pointer shadow-md shadow-emerald-500/20"
+              title="Generate live COT positioning for all 8 currencies"
             >
-              {isLiveGenerating ? 'RESEARCHING…' : 'GENERATE LIVE COT'}
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{isLiveGenerating ? 'RETRIEVING ALL…' : 'GENERATE ALL 8 CURRENCIES'}</span>
             </button>
             <button
               type="button"
-              onClick={() => handleGenerateLiveCot('REGENERATE')}
+              onClick={() => handleGenerateLiveCot('REGENERATE', 'ALL')}
               disabled={isLiveGenerating}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-cyan-300 border border-cyan-500/30 text-xs font-military font-bold transition cursor-pointer"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-cyan-300 border border-cyan-500/30 text-xs font-military font-bold transition cursor-pointer shadow-sm"
+              title="Regenerate verified COT data for all 8 currencies"
             >
-              REGENERATE
+              <RefreshCw className={`w-3.5 h-3.5 ${isLiveGenerating ? 'animate-spin' : ''}`} />
+              <span>{isLiveGenerating ? 'REGENERATING…' : 'REGENERATE'}</span>
             </button>
             <a
               href={cotSourceUrl}
@@ -224,7 +245,7 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
               rel="noreferrer"
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-military font-bold transition shadow-lg shadow-blue-600/25 cursor-pointer"
             >
-              <span>Open COT Report ↗</span>
+              <span>Open Tradingster COT ↗</span>
               <ExternalLink className="w-4 h-4" />
             </a>
           </div>

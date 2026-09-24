@@ -767,6 +767,8 @@ export default function App() {
           logoutUser();
           try {
             localStorage.removeItem('primepipfx_demo_mode');
+            localStorage.removeItem('primepipfx_session_token');
+            localStorage.removeItem('primepipfx_user_profile');
           } catch {}
           setCurrentUser(null);
           setIsDemoMode(false);
@@ -859,7 +861,7 @@ export default function App() {
       {/* Main Content Area */}
       <main
         ref={mainContainerRef}
-        className={`flex-1 w-full mx-auto px-2 sm:px-6 pt-1 sm:pt-3 pb-24 sm:pb-20 md:pb-8 overflow-x-clip focus:outline-none ${
+        className={`flex-1 w-full mx-auto px-2 sm:px-6 pt-1 sm:pt-3 pb-4 overflow-x-clip focus:outline-none ${
           activeTab === 'FUNDAMENTAL_INDICATORS' ? 'max-w-[1750px]' : 'max-w-7xl'
         }`}
       >
@@ -1091,7 +1093,9 @@ export default function App() {
           </div>
         )}
 
-        <AppFooter />
+        <div className="w-full pb-14 md:pb-0">
+          <AppFooter />
+        </div>
       </main>
 
       {/* Native Mobile Bottom App Bar (Sticky Thumb Navigation for Modern Phones) */}

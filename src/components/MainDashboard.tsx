@@ -33,6 +33,7 @@ import { formatCurrency } from '../utils/currencyFormatter';
 import { getKarachiEpoch } from '../utils/time';
 import { calculateNextTradeReadiness } from '../utils/readinessEngine';
 import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
+import { FundamentalNotificationBanner } from './fundamental/FundamentalNotificationBanner';
 
 
 
@@ -318,6 +319,20 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* DAILY FUNDAMENTAL INTELLIGENCE & SURPRISE NOTIFICATION BANNER */}
+      <FundamentalNotificationBanner
+        onNavigateToFundamental={(targetAsset) => {
+          onNavigateToTab('FUNDAMENTAL_INDICATORS');
+          if (targetAsset) {
+            setTimeout(() => {
+              window.dispatchEvent(
+                new CustomEvent('primepipfx_select_fundamental_asset', { detail: { asset: targetAsset } })
+              );
+            }, 150);
+          }
+        }}
+      />
 
       {adminWorkspace?.editorAssigned && (
         <div className="rounded-2xl border border-cyan-500/25 bg-slate-950/80 shadow-xl overflow-hidden">

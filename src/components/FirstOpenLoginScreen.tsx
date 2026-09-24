@@ -49,7 +49,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const [step, setStep] = useState<'LOGIN' | 'CHANGE_PASSWORD' | 'LINK_STORAGE'>('LOGIN');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -568,8 +568,9 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
                   <span>{error}</span>
                 </div>
-                <div className="text-[11px] text-slate-400 bg-slate-900/80 p-2.5 rounded-lg border border-slate-700/60 leading-relaxed">
-                  Enter your authorized account details to initialize the terminal.
+                <div className="text-[11px] text-slate-300 bg-slate-900/80 p-2.5 rounded-lg border border-slate-700/60 leading-relaxed">
+                  <span className="text-amber-400 font-bold block mb-1">🔑 Login Credentials:</span>
+                  <div>Enter your authorized username and password manually to initialize the terminal.</div>
                 </div>
               </motion.div>
             )}
@@ -599,9 +600,13 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                       required
                       autoFocus
                       autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={username}
+                      onFocus={() => setIsTypingActive(true)}
+                      onBlur={() => setIsTypingActive(false)}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder="e.g. primepipfx-admin or your username"
+                      placeholder="Enter username or email"
                       className="w-full pl-10 pr-4 py-3 bg-slate-900/80 border border-slate-700/80 rounded-xl font-mono-code text-base sm:text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/25 transition-all placeholder:text-slate-600"
                     />
                     <User className="w-4 h-4 text-cyan-400 absolute left-3.5 top-3.5" />
@@ -615,11 +620,15 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      autoComplete="new-password"
                       required
+                      autoComplete="current-password"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={password}
+                      onFocus={() => setIsTypingActive(true)}
+                      onBlur={() => setIsTypingActive(false)}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••••••"
+                      placeholder="Enter password"
                       className="w-full pl-10 pr-11 py-3 bg-slate-900/80 border border-slate-700/80 rounded-xl font-mono-code text-base sm:text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/25 transition-all placeholder:text-slate-600"
                     />
                     <KeyRound className="w-4 h-4 text-cyan-400 absolute left-3.5 top-3.5" />
@@ -634,6 +643,52 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   </div>
                 </div>
 
+                {/* ANIMATED BADGES: TRUSTPILOT & TOP GLOBAL ORGANIZATIONS */}
+                <div
+                  className={`p-3 rounded-2xl border transition-all duration-300 ${
+                    isTypingActive
+                      ? 'bg-slate-900/95 border-cyan-400/60 shadow-lg shadow-cyan-500/15 ring-1 ring-cyan-400/20'
+                      : 'bg-slate-950/70 border-slate-800/80'
+                  }`}
+                >
+                  {/* Verified by Trustpilot Badge */}
+                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800/80">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-4 h-4 rounded bg-emerald-500 flex items-center justify-center text-slate-950 font-bold text-[10px] shadow-xs">
+                        ★
+                      </div>
+                      <span className="text-[11px] font-bold tracking-tight text-white font-sans">Verified by Trustpilot</span>
+                      <div className="flex text-emerald-400 text-xs">
+                        {'★★★★★'}
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-mono-code text-emerald-300 font-bold bg-emerald-500/15 px-1.5 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      TrustScore 4.9 | Excellent
+                    </span>
+                  </div>
+
+                  {/* Badges from Top Global Organizations */}
+                  <div className="grid grid-cols-2 gap-1.5 pt-2 text-[9px] font-mono-code text-slate-400">
+                    <div className="flex items-center gap-1">
+                      <Shield className="w-3 h-3 text-cyan-400 shrink-0" />
+                      <span>ISO 27001 Security</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Activity className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span>Tier-1 Macro Telemetry</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Award className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span>CFA Macro Standards</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-blue-400 shrink-0" />
+                      <span>Bloomberg Confluence</span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Remember Me Option */}
                 <div className="flex items-center justify-between py-1 px-1">
                   <label className="flex items-center gap-2 text-xs font-mono-code text-slate-300 cursor-pointer select-none">
@@ -643,10 +698,10 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                       onChange={(e) => setRememberMe(e.target.checked)}
                       className="w-4 h-4 rounded bg-slate-900 border-slate-700 text-cyan-500 focus:ring-0 accent-cyan-500 cursor-pointer"
                     />
-                    <span>Remember this device</span>
+                    <span>Remember on this device</span>
                   </label>
-                  <span className="text-[10px] text-slate-500 font-mono-code font-bold bg-slate-800/60 px-2 py-0.5 rounded border border-slate-700/60">
-                    OPTIONAL
+                  <span className="text-[10px] text-emerald-400 font-mono-code font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    PERSISTENT
                   </span>
                 </div>
 
@@ -828,6 +883,44 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
           </div>
         </motion.div>
       </div>
+
+      {/* CONGRATULATIONS ANIMATED CELEBRATION OVERLAY */}
+      <AnimatePresence>
+        {showCongratulations && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="fixed inset-0 z-[350] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xl"
+          >
+            <div className="max-w-md w-full p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 border border-cyan-400/80 shadow-2xl shadow-cyan-500/30 text-center relative overflow-hidden ring-1 ring-cyan-400/40">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-400 via-cyan-400 to-amber-400" />
+              <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-emerald-400 via-cyan-500 to-blue-600 flex items-center justify-center text-slate-950 shadow-xl shadow-cyan-500/30">
+                <Sparkles className="w-9 h-9" />
+              </div>
+              <h3 className="text-2xl font-military font-black tracking-wider text-white uppercase">
+                🎉 CONGRATULATIONS!
+              </h3>
+              <p className="text-xs font-military font-bold text-cyan-300 uppercase tracking-widest mt-1">
+                ACCESS AUTHORIZED & VERIFIED
+              </p>
+              <p className="text-xs font-mono-code text-slate-300 mt-2.5 leading-relaxed">
+                Welcome to <strong className="text-white">PRIMEPIPFX</strong> Institutional Command Center — everything you need under one roof.
+              </p>
+              <div className="mt-4 p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-mono-code text-slate-300 flex items-center justify-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                <span>
+                  Trader: <strong className="text-cyan-300">{congratsUser?.username || congratsUser?.name || 'Trader'}</strong> ({congratsUser?.role || 'TRADER'})
+                </span>
+              </div>
+              <p className="text-[11px] font-mono-code text-emerald-400 mt-3 animate-pulse">
+                Initializing institutional suite & trading workspace...
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

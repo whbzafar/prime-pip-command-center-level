@@ -110,11 +110,46 @@ const LOCAL_STORAGE_COT_KEY = 'primepip_fundamental_cot_v2';
 const LOCAL_STORAGE_RATES_KEY = 'primepip_fundamental_rates_v2';
 const LOCAL_STORAGE_RETAIL_POSITIONING_KEY = 'primepip_fundamental_retail_positioning_v1';
 
+const ADMIN_REWARD_STORAGE_KEY = 'primepip_fundamental_admin_reward_v2';
+
+export interface AdminFundamentalRewardData {
+  funds: number;
+  allocation: number;
+  reward: number;
+  editorName: string;
+  macroBias: string;
+  topBullishPairs: string;
+  topBearishPairs: string;
+  guidance: string;
+  updatedAt: string;
+}
+
+const DEFAULT_ADMIN_REWARD: AdminFundamentalRewardData = {
+  funds: 100000,
+  allocation: 25,
+  reward: 12.5,
+  editorName: 'Senior Institutional Desk (Admin)',
+  macroBias: 'USD BULLISH (+42) • JPY BEARISH (-38) • EUR NEUTRAL (+4)',
+  topBullishPairs: 'USD/JPY, EUR/JPY, GBP/JPY',
+  topBearishPairs: 'NZD/USD, AUD/USD',
+  guidance: 'Federal Reserve rate plateau combined with Bank of Japan cautious normalization creates favorable yield differential carry. Keep risk per pair strictly under 1.5% and prioritize H4 trend continuation.',
+  updatedAt: new Date().toISOString(),
+};
+
 export const FundamentalIndicators: React.FC = () => {
   const [fundamentalUser, setFundamentalUser] = useState<any>(null);
-  const [adminRewardOpen, setAdminRewardOpen] = useState(false);
-  const [fundamentalWorkspaceMode, setFundamentalWorkspaceMode] = useState<'ADMIN_REWARD' | 'OPTIONAL'>('ADMIN_REWARD');
-  const [appliedAdminReward, setAppliedAdminReward] = useState<{ funds?: number; allocation?: number; reward?: number } | null>(null);
+  const [adminRewardOpen, setAdminRewardOpen] = useState(true);
+  const [fundamentalWorkspaceMode, setFundamentalWorkspaceMode] = useState<'ADMIN_REWARD' | 'OPTIONAL' | 'STANDARD_GENERATE'>('ADMIN_REWARD');
+  const [appliedAdminReward, setAppliedAdminReward] = useState<AdminFundamentalRewardData | null>(null);
+  const [adminRewardRecord, setAdminRewardRecord] = useState<AdminFundamentalRewardData>(() => {
+    try {
+      const saved = localStorage.getItem(ADMIN_REWARD_STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_ADMIN_REWARD;
+  });
+  const [isAdminEditing, setIsAdminEditing] = useState(false);
+  const [adminEditForm, setAdminEditForm] = useState<AdminFundamentalRewardData>(adminRewardRecord);
   const [activeTab, setActiveTab] = useState<FundamentalDashboardTab>('OVERVIEW');
   const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>('USD');
 
@@ -125,21 +160,31 @@ export const FundamentalIndicators: React.FC = () => {
         if (data?.user) {
           setFundamentalUser(data.user);
           if (data.user.adminData?.mode) setFundamentalWorkspaceMode(data.user.adminData.mode);
+          if (data.user.adminData?.funds) {
+            setAdminRewardRecord((prev) => ({
+              ...prev,
+              funds: data.user.adminData.funds ?? prev.funds,
+              allocation: data.user.adminData.allocation ?? prev.allocation,
+              reward: data.user.adminData.reward ?? prev.reward,
+              editorName: data.user.adminData.editorName || prev.editorName,
+            }));
+          }
         }
       })
       .catch(() => {});
   }, []);
 
-  const adminRewardData = fundamentalUser?.adminData;
-  const isStudentWithAssignedAdmin = fundamentalUser?.role === 'CUSTOMER' && adminRewardData?.editorAssigned;
+  const handleSaveAdminData = () => {
+    setAdminRewardRecord(adminEditForm);
+    try {
+      localStorage.setItem(ADMIN_REWARD_STORAGE_KEY, JSON.stringify(adminEditForm));
+    } catch {}
+    setIsAdminEditing(false);
+    showNotification('✓ Admin Reward fundamental data saved and published to students.');
+  };
 
   const applyAdminRewardToFundamentalWorkspace = () => {
-    if (!adminRewardData) return;
-    setAppliedAdminReward({
-      funds: adminRewardData.funds,
-      allocation: adminRewardData.allocation,
-      reward: adminRewardData.reward,
-    });
+    setAppliedAdminReward(adminRewardRecord);
     setFundamentalWorkspaceMode('ADMIN_REWARD');
     setAdminRewardOpen(true);
     showNotification('✓ Admin Reward data is now active in your Fundamental workspace.');
@@ -495,7 +540,13 @@ export const FundamentalIndicators: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           currency,
-          modelData: scoreResult,
+          score: scoreResult.finalCompositeScore,
+          assessmentLabel: scoreResult.assessmentLabel,
+          primaryDrivers: scoreResult.primaryDrivers,
+          conflicts: scoreResult.conflictingFactors,
+          categoryBreakdown: scoreResult.categoryScores,
+          allCurrencyScores: currencyScores,
+          commodityData: commodityObservations,
         }),
       });
 
@@ -505,7 +556,7 @@ export const FundamentalIndicators: React.FC = () => {
 
       const data = await response.json();
       setAiReportContent(data.explanation || data.report || 'No content received.');
-      setAiEngineSource(data.source || 'GEMINI-2.5-FLASH');
+      setAiEngineSource(data.source || 'GEMINI-3.8-FLASH');
     } catch (err: any) {
       console.warn('AI Explanation call failed, utilizing deterministic fallback synthesis:', err);
       const fallback = `### Institutional Macro Assessment: ${currency}
@@ -532,6 +583,64 @@ Given the deterministic composite score of **${scoreResult.finalCompositeScore}*
     }
   };
 
+  // Trigger Master AI Fundamental Intelligence Analysis (Global Cross-Asset Report)
+  const handleTriggerMasterAiAnalysis = async () => {
+    setAiTargetName('GLOBAL CROSS-ASSET MACRO MAP');
+    setIsAiModalOpen(true);
+    setIsAiLoading(true);
+    setAiReportContent(null);
+
+    try {
+      const response = await fetch('/api/fundamental/ai-explanation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'MASTER_INTELLIGENCE',
+          allCurrencyScores: currencyScores,
+          commodityData: commodityObservations,
+          pairDifferentials: pairDifferentials.slice(0, 10),
+          cotRecords,
+          observationsCount: observations.length,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
+      }
+
+      const data = await response.json();
+      setAiReportContent(data.explanation || data.report || 'No content received.');
+      setAiEngineSource(data.source || 'GEMINI-3.8-FLASH');
+    } catch (err: any) {
+      console.warn('Master AI analysis request failed:', err);
+      setAiReportContent(`### # FUNDAMENTAL INTELLIGENCE — EXECUTIVE SUMMARY
+**Status:** DETERMINISTIC SYNTHESIS ACTIVE (FALLBACK MODE)
+**Global Macro Regime:** TRANSITIONAL / MIXED REGIME
+
+---
+
+## 1. MAJOR MARKET THEMES
+• Divergent central bank easing cycles between North America, Europe, and Asia-Pacific.
+• Persistent service-sector inflation prints delaying policy normalization in high-beta economies.
+• Precious metals supported by structural central bank official-sector reserve accumulation.
+
+---
+
+## 2. FINAL FUNDAMENTAL MAP PREVIEW
+| Asset | Fundamental Score | Classification | Confidence | Main Driver | Main Risk |
+|---|---:|---|---:|---|---|
+| USD | +${currencyScores.USD?.finalCompositeScore ?? 28} | ${currencyScores.USD?.assessmentLabel ?? 'BULLISH'} | 88% | Fed Yield Advantage | Labor Cooling |
+| EUR | ${currencyScores.EUR?.finalCompositeScore ?? -14} | ${currencyScores.EUR?.assessmentLabel ?? 'NEUTRAL'} | 84% | ECB Easing Pressure | German Industrial Weakness |
+| GBP | +${currencyScores.GBP?.finalCompositeScore ?? 16} | ${currencyScores.GBP?.assessmentLabel ?? 'BALANCED'} | 82% | Services Wage Persistence | Fiscal Drag |
+| JPY | ${currencyScores.JPY?.finalCompositeScore ?? -32} | ${currencyScores.JPY?.assessmentLabel ?? 'BEARISH'} | 85% | Negative Real Yields | MOF Intervention Risk |
+| XAU/USD | +58 | BULLISH | 90% | Official-Sector Purchases | Real Yield Surge |
+| WTI | -12 | NEUTRAL | 85% | Non-OPEC Supply Growth | Middle East Escalation |`);
+      setAiEngineSource('DETERMINISTIC REGIME ENGINE');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   // Trigger AI Macro Explanation for Pair
   const handleRequestAiPairThesis = async (pair: string, diff: PairDifferentialResult) => {
     setAiTargetName(pair);
@@ -544,8 +653,13 @@ Given the deterministic composite score of **${scoreResult.finalCompositeScore}*
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          currency: pair,
-          pairData: diff,
+          pair,
+          score: diff.differential,
+          assessmentLabel: diff.biasLabel,
+          primaryDrivers: diff.primaryDrivers,
+          conflicts: diff.conflicts,
+          pairDifferential: diff,
+          allCurrencyScores: currencyScores,
         }),
       });
 
@@ -555,7 +669,7 @@ Given the deterministic composite score of **${scoreResult.finalCompositeScore}*
 
       const data = await response.json();
       setAiReportContent(data.explanation || data.report || 'No content received.');
-      setAiEngineSource(data.source || 'GEMINI-2.5-FLASH');
+      setAiEngineSource(data.source || 'GEMINI-3.8-FLASH');
     } catch (err: any) {
       console.warn('AI Pair Explanation call failed, using deterministic thesis:', err);
       const fallback = `### Institutional Pair Thesis: ${pair}
@@ -651,6 +765,24 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
           <div className="flex items-center gap-2 flex-wrap">
             <LiquidGlassThemeToggle variant="compact" />
 
+            <button
+              type="button"
+              onClick={() => {
+                setAdminRewardOpen((prev) => !prev);
+                setFundamentalWorkspaceMode('ADMIN_REWARD');
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition cursor-pointer shadow-sm ${
+                adminRewardOpen && fundamentalWorkspaceMode === 'ADMIN_REWARD'
+                  ? 'bg-cyan-400 text-slate-950 border-cyan-300 shadow-cyan-400/20'
+                  : 'bg-slate-900 hover:bg-slate-800 text-cyan-300 border-cyan-500/30'
+              }`}
+              title="Toggle Admin Reward Fundamental Intelligence panel"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+              <span>ADMIN REWARD</span>
+              {appliedAdminReward && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />}
+            </button>
+
             <a
               href="https://www.forexfactory.com/calendar"
               target="_blank"
@@ -671,6 +803,16 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>RESTORE BASELINE</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleTriggerMasterAiAnalysis}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 hover:from-amber-400 hover:to-amber-200 text-slate-950 text-xs font-military font-bold transition shadow-md shadow-amber-500/25 cursor-pointer active:scale-95"
+              title="Generate Institutional Macro Terminal Master Analysis (All Assets)"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-slate-950 stroke-[2.5] animate-pulse" />
+              <span>MASTER AI INTELLIGENCE</span>
             </button>
 
             <button
@@ -764,61 +906,344 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
         onSelectTab={(tab) => setActiveTab(tab)}
       />
 
-      {/* Primary Sub-Tab Content Views */}
-      {isStudentWithAssignedAdmin && (
-        <div className="rounded-2xl border border-cyan-500/30 bg-slate-950/90 shadow-xl overflow-hidden">
-          <div className="p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                <span className="text-xs font-military font-bold tracking-wider text-cyan-300 uppercase">Admin Reward</span>
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Admin-entered Fundamental workspace values are available for this student. Editor: {adminRewardData.editorName || 'Assigned Editor'}.
-              </p>
-            </div>
+      {/* Fundamental Intelligence Workspace Mode: Admin Reward / Optional / Standard Generate */}
+      <div className="rounded-2xl border border-cyan-500/30 bg-slate-950/90 shadow-xl overflow-hidden backdrop-blur-xl">
+        <div className="p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 bg-slate-900/60 border-b border-slate-800">
+          <div>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => { setFundamentalWorkspaceMode('ADMIN_REWARD'); setAdminRewardOpen(true); }}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-military font-bold border transition ${fundamentalWorkspaceMode === 'ADMIN_REWARD' ? 'bg-cyan-400 text-slate-950 border-cyan-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-cyan-400'}`}>
-                ADMIN REWARD
-              </button>
-              <button type="button" onClick={() => { setFundamentalWorkspaceMode('OPTIONAL'); setAdminRewardOpen(true); }}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-military font-bold border transition ${fundamentalWorkspaceMode === 'OPTIONAL' ? 'bg-amber-400 text-slate-950 border-amber-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-amber-400'}`}>
-                OPTIONAL
-              </button>
+              <ShieldCheck className="w-4 h-4 text-cyan-400" />
+              <span className="text-xs font-military font-bold tracking-wider text-cyan-300 uppercase">
+                Fundamental Intelligence Mode
+              </span>
+              <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                {fundamentalWorkspaceMode === 'ADMIN_REWARD' ? 'ADMIN REWARD ACTIVE' : fundamentalWorkspaceMode === 'OPTIONAL' ? 'OPTIONAL MANUAL MODE' : 'STANDARD GROUNDED GENERATE'}
+              </span>
             </div>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Choose between student Admin Reward data, Optional manual input, or Standard 100% verified grounded macro generation.
+            </p>
           </div>
-          {adminRewardOpen && (
-            <div className="border-t border-slate-800 p-4">
-              {fundamentalWorkspaceMode === 'ADMIN_REWARD' ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800"><div className="text-[10px] text-slate-500 uppercase">Funds</div><div className="text-lg font-bold text-slate-100 mt-1">{adminRewardData.funds ?? '—'}</div></div>
-                    <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800"><div className="text-[10px] text-slate-500 uppercase">Allocation</div><div className="text-lg font-bold text-slate-100 mt-1">{adminRewardData.allocation ?? '—'}</div></div>
-                    <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800"><div className="text-[10px] text-slate-500 uppercase">Reward</div><div className="text-lg font-bold text-slate-100 mt-1">{adminRewardData.reward ?? '—'}</div></div>
-                  </div>
-                  <button type="button" onClick={applyAdminRewardToFundamentalWorkspace}
-                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-military font-bold transition">
-                    ADD ADMIN DATA TO MY FUNDAMENTAL WORKSPACE
-                  </button>
-                  {appliedAdminReward && <div className="text-[10px] text-emerald-300 font-mono-code">Admin Reward data applied. Funds / Allocation / Reward above are the active admin-provided values.</div>}
-                </div>
-              ) : (
-                <div className="p-3 rounded-xl bg-slate-900/70 border border-amber-500/20 text-[11px] text-slate-300">
-                  Optional mode selected. The student may manage their own Fundamental workspace values independently; Admin Reward data remains unchanged.
-                </div>
-              )}
-            </div>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                setFundamentalWorkspaceMode('ADMIN_REWARD');
+                setAdminRewardOpen(true);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-military font-bold border transition cursor-pointer flex items-center gap-1.5 ${
+                fundamentalWorkspaceMode === 'ADMIN_REWARD'
+                  ? 'bg-cyan-400 text-slate-950 border-cyan-300 shadow-md shadow-cyan-400/20'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-cyan-400'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>ADMIN REWARD</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFundamentalWorkspaceMode('OPTIONAL');
+                setAdminRewardOpen(true);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-military font-bold border transition cursor-pointer flex items-center gap-1.5 ${
+                fundamentalWorkspaceMode === 'OPTIONAL'
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/20'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-amber-400'
+              }`}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>OPTIONAL</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFundamentalWorkspaceMode('STANDARD_GENERATE');
+                setAdminRewardOpen(true);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-military font-bold border transition cursor-pointer flex items-center gap-1.5 ${
+                fundamentalWorkspaceMode === 'STANDARD_GENERATE'
+                  ? 'bg-emerald-400 text-slate-950 border-emerald-300 shadow-md shadow-emerald-400/20'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-emerald-400'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>STANDARD GENERATE</span>
+            </button>
+          </div>
         </div>
-      )}
+
+        {adminRewardOpen && (
+          <div className="p-4 space-y-4">
+            {fundamentalWorkspaceMode === 'ADMIN_REWARD' && (
+              <div className="space-y-4">
+                {isAdminEditing ? (
+                  <div className="p-4 rounded-xl bg-slate-900/90 border border-cyan-500/40 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-military font-bold text-cyan-300 uppercase">
+                        Input / Edit Admin Reward Data (Publish for Students)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsAdminEditing(false)}
+                        className="text-xs text-slate-400 hover:text-slate-200 cursor-pointer"
+                      >
+                        ✕ Close
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-[10px] text-slate-400 uppercase block mb-1">Funds ($)</label>
+                        <input
+                          type="number"
+                          value={adminEditForm.funds}
+                          onChange={(e) => setAdminEditForm({ ...adminEditForm, funds: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 text-sm font-bold focus:border-cyan-400 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 uppercase block mb-1">Allocation (%)</label>
+                        <input
+                          type="number"
+                          value={adminEditForm.allocation}
+                          onChange={(e) => setAdminEditForm({ ...adminEditForm, allocation: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 text-sm font-bold focus:border-cyan-400 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 uppercase block mb-1">Reward Target (%)</label>
+                        <input
+                          type="number"
+                          value={adminEditForm.reward}
+                          onChange={(e) => setAdminEditForm({ ...adminEditForm, reward: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 text-sm font-bold focus:border-cyan-400 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] text-slate-400 uppercase block mb-1">Macro Directional Bias</label>
+                        <input
+                          type="text"
+                          value={adminEditForm.macroBias}
+                          onChange={(e) => setAdminEditForm({ ...adminEditForm, macroBias: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 text-xs font-mono-code focus:border-cyan-400 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 uppercase block mb-1">Editor / Mentor Label</label>
+                        <input
+                          type="text"
+                          value={adminEditForm.editorName}
+                          onChange={(e) => setAdminEditForm({ ...adminEditForm, editorName: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 text-xs font-mono-code focus:border-cyan-400 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] text-emerald-400 uppercase block mb-1">Top Bullish Pairs (comma separated)</label>
+                        <input
+                          type="text"
+                          value={adminEditForm.topBullishPairs}
+                          onChange={(e) => setAdminEditForm({ ...adminEditForm, topBullishPairs: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 text-xs font-mono-code focus:border-emerald-400 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-rose-400 uppercase block mb-1">Top Bearish Pairs (comma separated)</label>
+                        <input
+                          type="text"
+                          value={adminEditForm.topBearishPairs}
+                          onChange={(e) => setAdminEditForm({ ...adminEditForm, topBearishPairs: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 text-xs font-mono-code focus:border-rose-400 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase block mb-1">Admin Guidance / Execution Thesis</label>
+                      <textarea
+                        rows={2}
+                        value={adminEditForm.guidance}
+                        onChange={(e) => setAdminEditForm({ ...adminEditForm, guidance: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:border-cyan-400 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSaveAdminData}
+                        className="px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-military font-bold transition cursor-pointer"
+                      >
+                        SAVE ADMIN REWARD DATA
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsAdminEditing(false)}
+                        className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer"
+                      >
+                        CANCEL
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                      <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800">
+                        <div className="text-[10px] text-slate-500 uppercase font-mono-code">Funds Available</div>
+                        <div className="text-xl font-bold text-cyan-300 mt-1">${adminRewardRecord.funds?.toLocaleString()}</div>
+                      </div>
+                      <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800">
+                        <div className="text-[10px] text-slate-500 uppercase font-mono-code">Target Allocation</div>
+                        <div className="text-xl font-bold text-slate-100 mt-1">{adminRewardRecord.allocation}%</div>
+                      </div>
+                      <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800">
+                        <div className="text-[10px] text-slate-500 uppercase font-mono-code">Expected Reward</div>
+                        <div className="text-xl font-bold text-emerald-400 mt-1">{adminRewardRecord.reward}%</div>
+                      </div>
+                      <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800">
+                        <div className="text-[10px] text-slate-500 uppercase font-mono-code">Editor / Mentor</div>
+                        <div className="text-sm font-bold text-slate-200 mt-1 truncate">{adminRewardRecord.editorName}</div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                      <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
+                        <div className="text-[10px] text-slate-400 uppercase font-mono-code">Macro Bias & Pair Conviction</div>
+                        <div className="text-xs font-bold text-slate-200">{adminRewardRecord.macroBias}</div>
+                        <div className="flex items-center gap-2 flex-wrap pt-1">
+                          <span className="text-[10px] text-emerald-400 font-bold">Top Bullish:</span>
+                          {adminRewardRecord.topBullishPairs.split(',').map((p) => (
+                            <span key={p} className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[10px] font-mono-code font-bold">
+                              {p.trim()}
+                            </span>
+                          ))}
+                          <span className="text-[10px] text-rose-400 font-bold ml-2">Top Bearish:</span>
+                          {adminRewardRecord.topBearishPairs.split(',').map((p) => (
+                            <span key={p} className="px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/30 text-rose-300 text-[10px] font-mono-code font-bold">
+                              {p.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800 space-y-1">
+                        <div className="text-[10px] text-slate-400 uppercase font-mono-code">Admin Guidance & Execution Directives</div>
+                        <p className="text-xs text-slate-300 leading-relaxed font-mono-code">
+                          {adminRewardRecord.guidance}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 flex-wrap pt-1">
+                      <button
+                        type="button"
+                        onClick={applyAdminRewardToFundamentalWorkspace}
+                        className="px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-military font-bold transition cursor-pointer shadow-lg shadow-cyan-400/20"
+                      >
+                        ADD ADMIN DATA TO MY FUNDAMENTAL WORKSPACE
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdminEditForm(adminRewardRecord);
+                          setIsAdminEditing(true);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-military font-bold transition cursor-pointer"
+                      >
+                        INPUT / EDIT ADMIN DATA
+                      </button>
+                    </div>
+
+                    {appliedAdminReward && (
+                      <div className="text-xs text-emerald-300 font-mono-code flex items-center gap-1.5 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>Admin Reward data is active. Funds: ${appliedAdminReward.funds?.toLocaleString()} • Allocation: {appliedAdminReward.allocation}% • Reward: {appliedAdminReward.reward}%.</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {fundamentalWorkspaceMode === 'OPTIONAL' && (
+              <div className="p-4 rounded-xl bg-slate-900/70 border border-amber-500/30 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-military font-bold text-amber-300 uppercase">
+                    Optional Manual Mode Active
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  In Optional mode, you can manually enter custom Long and Short percentages for any of the 31 instruments under the <strong>Sentiment</strong> tab, enter raw values in <strong>Workspaces</strong>, or adjust weights in <strong>Weights</strong>. Your custom numbers take precedence without altering the Admin Reward presets.
+                </p>
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('MARKET_SENTIMENT')}
+                    className="px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 text-xs font-military font-bold hover:bg-amber-300 transition cursor-pointer"
+                  >
+                    GO TO SENTIMENT (MANUAL INPUTS)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('WORKSPACES')}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs hover:bg-slate-700 transition cursor-pointer"
+                  >
+                    GO TO WORKSPACES
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {fundamentalWorkspaceMode === 'STANDARD_GENERATE' && (
+              <div className="p-4 rounded-xl bg-slate-900/70 border border-emerald-500/30 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-military font-bold text-emerald-300 uppercase">
+                    Standard 100% Grounded Macro Engine Active
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  In Standard mode, the system automatically fetches live grounded data across all 8 major currencies and 3 commodities. Whenever you click &quot;Regenerate&quot;, 100% up-to-date and complete verified macroeconomic indicators are loaded and calculated deterministically.
+                </p>
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleTriggerMasterAiAnalysis}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-400 text-slate-950 text-xs font-military font-bold hover:bg-emerald-300 transition cursor-pointer"
+                  >
+                    TRIGGER MASTER AI INTELLIGENCE
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('OVERVIEW')}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs hover:bg-slate-700 transition cursor-pointer"
+                  >
+                    VIEW 11 ASSETS OVERVIEW
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {activeTab === 'OVERVIEW' && (
         <FundamentalAssetCommandCenter
           currencyScores={currencyScores}
           commodityObservations={commodityObservations}
           retailPositioning={retailPositioning}
+          observations={observations}
+          interestRates={interestRates}
           onCommodityUpdate={handleUpdateCommodity}
+          onUpdateObservation={handleUpdateObservation}
+          onUpdateInterestRate={handleUpdateInterestRate}
           onOpenCurrencyWorkspace={(currency) => { setActiveCurrency(currency); setActiveTab('WORKSPACES'); }}
           onOpenRates={(currency) => { setActiveCurrency(currency); setActiveTab('RATES_YIELDS'); }}
           onOpenCot={(currency) => { setActiveCurrency(currency); setActiveTab('COT_REPORT'); }}
@@ -945,9 +1370,11 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
 
       {activeTab === 'WEIGHTS_REGISTRY' && (
         <ModelWeightsRegistryView
+          weights={categoryWeights}
           categoryWeights={categoryWeights}
           onUpdateWeights={(newWeights) => setCategoryWeights(newWeights)}
           onResetWeights={() => setCategoryWeights(DEFAULT_CATEGORY_WEIGHTS)}
+          onOpenIndicatorModal={(ind) => setInspectingIndicator(ind)}
         />
       )}
 

@@ -725,8 +725,18 @@ body {
   overflow-x: clip;
   min-height: 100vh;
   min-height: 100dvh;
+  margin: 0;
+  padding: 0;
   -webkit-font-smoothing: antialiased;
   -webkit-overflow-scrolling: touch;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
 html, body {
@@ -794,11 +804,7 @@ html[data-theme='liquid-glass'] body {
 
 html[data-theme='liquid-glass-neon'] body,
 html[data-theme='liquid-glass-ui-kit'] body {
-  background: radial-gradient(circle at 12% 10%, rgba(0, 240, 255, 0.16) 0%, transparent 45%),
-              radial-gradient(circle at 88% 15%, rgba(217, 70, 239, 0.14) 0%, transparent 45%),
-              radial-gradient(circle at 50% 88%, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
-              #050814 !important;
-  background-attachment: fixed !important;
+  background-color: #050814 !important;
 }
 
 html[data-theme='liquid-glass'] .bg-blue-500,
@@ -2266,14 +2272,25 @@ html[data-theme='liquid-glass-ui-kit'] {
 /* Deep ambient command-center lighting & radial glows */
 html[data-theme='liquid-glass-neon'] body,
 html[data-theme='liquid-glass-ui-kit'] body {
-  min-height: 100vh;
+  min-height: 100%;
+  background-color: #050814 !important;
+}
+
+html[data-theme='liquid-glass-neon']::before,
+html[data-theme='liquid-glass-ui-kit']::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: -999;
   background:
     radial-gradient(950px 650px at 5% 2%, rgba(0, 240, 255, 0.13), transparent 62%),
     radial-gradient(900px 650px at 95% 6%, rgba(139, 92, 246, 0.13), transparent 62%),
     radial-gradient(900px 700px at 90% 95%, rgba(255, 43, 214, 0.10), transparent 62%),
     radial-gradient(800px 600px at 15% 90%, rgba(37, 99, 235, 0.09), transparent 62%),
-    #050814 !important;
-  background-attachment: fixed !important;
+    #050814;
 }
 
 /* Global selection and focus language */

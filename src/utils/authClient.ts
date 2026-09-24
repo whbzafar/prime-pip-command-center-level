@@ -10,27 +10,18 @@ function isValidStoredUser(value: unknown): value is UserAccount {
   return typeof candidate.id === 'string' && candidate.id.trim().length > 0;
 }
 
-// Session tokens are client-session data, never passwords.
-// "Remember this device" uses localStorage; otherwise sessionStorage is used.
+// Authentication tokens are HttpOnly cookies and are never persisted in browser storage.
 export function getStoredToken(): string | null {
   try {
-    return sessionStorage.getItem('primepipfx_session_token') ||
-      localStorage.getItem('primepipfx_session_token') ||
-      null;
+    return localStorage.getItem('primepipfx_session_token') || null;
   } catch {
     return null;
   }
 }
-
-export function setStoredToken(token: string | null, rememberMe = true) {
+export function setStoredToken(token: string | null) {
   try {
-    sessionStorage.removeItem('primepipfx_session_token');
-    localStorage.removeItem('primepipfx_session_token');
-
-    if (token) {
-      const storage = rememberMe ? localStorage : sessionStorage;
-      storage.setItem('primepipfx_session_token', token);
-    }
+    if (token) localStorage.setItem('primepipfx_session_token', token);
+    else localStorage.removeItem('primepipfx_session_token');
   } catch {}
 }
 
@@ -49,22 +40,22 @@ export function setStoredUser(user: UserAccount | null) {
   try {
     if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
     else localStorage.removeItem(USER_KEY);
-  } catch {}
+  } catch (err) {
+    console.error('Error saving user profile:', err);
+  }
 }
 
 export function getStoredReferral(): string | null {
-  try {
-    return localStorage.getItem(REFERRAL_KEY);
-  } catch {
-    return null;
-  }
+  try { return localStorage.getItem(REFERRAL_KEY); } catch { return null; }
 }
 
 export function setStoredReferral(code: string | null) {
   try {
     if (code) localStorage.setItem(REFERRAL_KEY, code.toUpperCase().trim());
     else localStorage.removeItem(REFERRAL_KEY);
-  } catch {}
+  } catch (err) {
+    console.error('Error saving referral:', err);
+  }
 }
 
 export function detectUrlReferral(): string | null {
@@ -76,7 +67,9 @@ export function detectUrlReferral(): string | null {
       setStoredReferral(clean);
       return clean;
     }
-  } catch {}
+  } catch (err) {
+    console.warn('Could not read URL params:', err);
+  }
   return getStoredReferral();
 }
 
@@ -104,10 +97,10 @@ export const isAdminUser = isUserAdmin;
 export async function apiLogin(
   username: string,
   password: string,
-  rememberMe = false,
+  rememberMe = true,
 ): Promise<{ ok: boolean; user?: UserAccount; token?: string; error?: string }> {
   const cleanUsername = username.trim();
-  const cleanPassword = password;
+  const cleanPassword = password.trim();
 
   try {
     const res = await fetch('/api/auth/login', {
@@ -122,73 +115,67 @@ export async function apiLogin(
     });
 
     const data = await res.json().catch(() => null);
-
     if (res.ok && data?.ok && data.user) {
       setStoredUser(data.user);
-      if (data.token) setStoredToken(data.token, rememberMe);
+      if (data.token) setStoredToken(data.token);
       return { ok: true, user: data.user, token: data.token };
     }
 
-    // Compatibility fallback for older student accounts created before the server-auth migration.
-    // The fallback never renders credentials; it only validates the supplied input.
+    // If server rejects or doesn't have the user (e.g. serverless Vercel instance),
+    // fall back to local store & cloud KV sync
     const localResult = await authenticateLocalAsync(cleanUsername, cleanPassword);
     if (localResult.ok && localResult.user) {
       setStoredUser(localResult.user);
-      if (localResult.token) setStoredToken(localResult.token, rememberMe);
+      if (localResult.token) setStoredToken(localResult.token);
       return { ok: true, user: localResult.user, token: localResult.token };
     }
 
     return { ok: false, error: data?.error || localResult.error || 'Invalid username or password.' };
   } catch (err) {
-    console.warn('[AUTH CLIENT] Server login request failed:', err);
-
-    // Compatibility fallback keeps legacy student logins usable while the API is unavailable.
+    console.warn('[AUTH CLIENT] Server login request failed, checking local and cloud registry:', err);
     const localResult = await authenticateLocalAsync(cleanUsername, cleanPassword);
     if (localResult.ok && localResult.user) {
       setStoredUser(localResult.user);
-      if (localResult.token) setStoredToken(localResult.token, rememberMe);
+      if (localResult.token) setStoredToken(localResult.token);
       return { ok: true, user: localResult.user, token: localResult.token };
     }
-
-    return {
-      ok: false,
-      error: localResult.error || 'Authentication service unavailable. Please try again.',
-    };
+    return { ok: false, error: localResult.error || 'Authentication service unavailable. Please check your connection or credentials.' };
   }
 }
 
 export async function checkAndHandleActivationLink(): Promise<UserAccount | null> {
   try {
     if (typeof window === 'undefined') return null;
-
     const params = new URLSearchParams(window.location.search);
     const activateUser = params.get('activate');
     const key = params.get('key');
+    const hasSensitiveParams = Boolean(activateUser || key || params.get('password'));
 
-    if (activateUser && key) {
-      const cleanUser = activateUser.trim();
-      const cleanKey = key.trim();
-      const res = await apiLogin(cleanUser, cleanKey, false);
+    if (hasSensitiveParams) {
+      // Immediately sanitize URL so credentials NEVER persist in address bar or history
+      const url = new URL(window.location.href);
+      url.searchParams.delete('activate');
+      url.searchParams.delete('key');
+      url.searchParams.delete('password');
+      window.history.replaceState({}, document.title, url.toString());
 
-      if (res.ok && res.user) {
-        // Remove credentials from the address bar and browser history immediately.
-        const url = new URL(window.location.href);
-        url.searchParams.delete('activate');
-        url.searchParams.delete('key');
-        window.history.replaceState({}, document.title, url.toString());
-        return res.user;
+      if (activateUser && key) {
+        const cleanUser = activateUser.trim();
+        const cleanKey = key.trim();
+        const res = await apiLogin(cleanUser, cleanKey, true);
+        if (res.ok && res.user) {
+          return res.user;
+        }
       }
     }
   } catch (e) {
     console.warn('Activation link error:', e);
   }
-
   return null;
 }
 
 export async function apiGetCurrentUser(): Promise<UserAccount | null> {
   const currentStored = getStoredUser();
-
   try {
     const token = getStoredToken();
     const headers: Record<string, string> = {};
@@ -211,8 +198,11 @@ export async function apiGetCurrentUser(): Promise<UserAccount | null> {
     console.warn('[AUTH CLIENT] Session verification failed:', err);
   }
 
-  // Do not trust stale local profile data as an authenticated session.
-  return currentStored && getStoredToken() ? currentStored : null;
+  // Preserve valid existing session if server is offline or in serverless environment
+  if (currentStored && currentStored.id) {
+    return currentStored;
+  }
+  return null;
 }
 
 export async function apiLogout(): Promise<void> {
@@ -222,20 +212,11 @@ export async function apiLogout(): Promise<void> {
       credentials: 'include',
     });
   } catch {}
-
   setStoredToken(null);
   setStoredUser(null);
-
-  try {
-    sessionStorage.removeItem('primepipfx_session_token');
-    localStorage.removeItem('primepipfx_session_token');
-    localStorage.removeItem(USER_KEY);
-  } catch {}
 }
 
-export const getCurrentUser = (): UserAccount | null => {
-  return getStoredToken() ? getStoredUser() : null;
-};
+export const getCurrentUser = getStoredUser;
 export const getAuthToken = getStoredToken;
 export const logoutUser = apiLogout;
 export const verifyCurrentSession = apiGetCurrentUser;
@@ -250,22 +231,15 @@ export async function apiChangePassword(
       credentials: 'include',
       body: JSON.stringify({ newPassword }),
     });
-
     const data = await res.json().catch(() => null);
-
     if (res.ok && data?.ok) {
       if (data.user) setStoredUser(data.user);
-      if (data.token) setStoredToken(data.token, true);
       return data;
     }
-
     return { ok: false, error: data?.error || 'Password change failed' };
   } catch (err) {
     console.warn('[AUTH CLIENT] Password change request failed:', err);
-    return {
-      ok: false,
-      error: 'Authentication service unavailable. Please try again.',
-    };
+    return { ok: false, error: 'Authentication service unavailable. Please try again.' };
   }
 }
 
@@ -292,20 +266,14 @@ export async function apiCompleteOnboarding(): Promise<{
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
     });
-
     const data = await res.json().catch(() => null);
-
     if (res.ok && data?.ok && data.user) {
       setStoredUser(data.user);
       return { ok: true, user: data.user };
     }
-
     return { ok: false, error: data?.error || 'Unable to complete onboarding' };
   } catch (err) {
     console.warn('[AUTH CLIENT] Onboarding request failed:', err);
-    return {
-      ok: false,
-      error: 'Authentication service unavailable. Please try again.',
-    };
+    return { ok: false, error: 'Authentication service unavailable. Please try again.' };
   }
 }

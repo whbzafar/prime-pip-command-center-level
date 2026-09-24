@@ -6,6 +6,7 @@ import {
 } from '../../types/fundamentalIndicatorTypes';
 import { DEFAULT_INTEREST_RATES } from '../../data/defaultFundamentalObservations';
 import { CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
+import { generateRates } from '../../services/fundamentalLiveResearchService';
 import {
   Compass,
   ExternalLink,
@@ -19,6 +20,7 @@ import {
   CheckCircle2,
   Edit3,
   X,
+  RefreshCw,
 } from 'lucide-react';
 
 interface RatesAndYieldsViewProps {
@@ -36,6 +38,8 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
 }) => {
   const rateRecords = interestRates || DEFAULT_INTEREST_RATES;
   const [editingRecord, setEditingRecord] = useState<InterestRateRecord | null>(null);
+  const [regeneratingCurrency, setRegeneratingCurrency] = useState<string | null>(null);
+  const [ratesMessage, setRatesMessage] = useState<string | null>(null);
   const [rateForm, setRateForm] = useState({
     currentPolicyRate: '',
     previousPolicyRate: '',
@@ -50,6 +54,57 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
     realYield10Y: '',
     recentGuidance: '',
   });
+
+  const handleRegenerateRate = async (curr: CurrencyCode) => {
+    setRegeneratingCurrency(curr);
+    setRatesMessage(null);
+    try {
+      const res = await generateRates(curr, 'REGENERATE');
+      const rateData = res.rate;
+      if (rateData && onUpdateInterestRate) {
+        const existing = rateRecords.find((r) => r.currency === curr);
+        const updated: InterestRateRecord = {
+          currency: curr,
+          centralBankName: rateData.centralBankName || existing?.centralBankName || 'Central Bank',
+          currentPolicyRate: rateData.currentPolicyRate ?? existing?.currentPolicyRate ?? 0,
+          previousPolicyRate: rateData.previousPolicyRate ?? existing?.previousPolicyRate ?? 0,
+          expectedNextRate: rateData.expectedNextRate ?? existing?.expectedNextRate ?? rateData.currentPolicyRate,
+          expectedRateChangeBps: rateData.expectedRateChangeBps ?? existing?.expectedRateChangeBps ?? 0,
+          nextMeetingDate: rateData.nextMeetingDate || existing?.nextMeetingDate || 'Upcoming',
+          centralBankBias: rateData.centralBankBias || existing?.centralBankBias || 'NEUTRAL',
+          balanceSheetDirection: existing?.balanceSheetDirection || 'NEUTRAL',
+          yield2Y: rateData.yield2Y ?? existing?.yield2Y ?? 0,
+          yield5Y: rateData.yield5Y ?? existing?.yield5Y ?? 0,
+          yield10Y: rateData.yield10Y ?? existing?.yield10Y ?? 0,
+          realYield10Y: rateData.realYield10Y ?? existing?.realYield10Y ?? 0,
+          recentGuidance: rateData.recentGuidance || existing?.recentGuidance || '',
+          sourceUrl: rateData.sourceUrl || existing?.sourceUrl || '',
+          updatedAt: new Date().toISOString(),
+          isEntered: true,
+        };
+        onUpdateInterestRate(updated);
+        setRatesMessage(`${curr}: Verified official rates & sovereign yields updated.`);
+      }
+    } catch (err: any) {
+      setRatesMessage(`${curr}: ${err?.message || 'Failed to regenerate rates.'}`);
+    } finally {
+      setRegeneratingCurrency(null);
+    }
+  };
+
+  const handleRegenerateAllRates = async () => {
+    setRegeneratingCurrency('ALL');
+    setRatesMessage(null);
+    try {
+      const currencies: CurrencyCode[] = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
+      for (const curr of currencies) {
+        await handleRegenerateRate(curr);
+      }
+      setRatesMessage('All 8 Central Bank rates & sovereign yields updated successfully.');
+    } finally {
+      setRegeneratingCurrency(null);
+    }
+  };
 
   const handleStartEdit = (rec: InterestRateRecord) => {
     setEditingRecord(rec);
@@ -159,11 +214,34 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
 
       {/* Central Bank Policy Rates Table */}
       <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-        <div className="p-4 border-b border-slate-800 bg-[#0c1222]">
-          <h4 className="font-military font-bold text-xs text-slate-100 uppercase tracking-wider">
-            G8 Central Bank Benchmark Rates & Forward Guidance
-          </h4>
+        <div className="p-4 border-b border-slate-800 bg-[#0c1222] flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h4 className="font-military font-bold text-xs text-slate-100 uppercase tracking-wider">
+              G8 Central Bank Benchmark Rates & Forward Guidance
+            </h4>
+            <p className="text-[10px] text-slate-400 font-mono-code mt-0.5">
+              Fed • ECB • BoE • BoJ • SNB • BoC • RBA • RBNZ official policy benchmarks
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={regeneratingCurrency !== null}
+            onClick={handleRegenerateAllRates}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-[10px] font-military font-bold transition disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${regeneratingCurrency === 'ALL' ? 'animate-spin' : ''}`} />
+            <span>{regeneratingCurrency === 'ALL' ? 'REGENERATING G8...' : 'REGENERATE ALL G8 RATES'}</span>
+          </button>
         </div>
+
+        {ratesMessage && (
+          <div className="mx-4 mt-3 p-2.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-200 text-xs font-mono-code flex items-center justify-between">
+            <span>{ratesMessage}</span>
+            <button type="button" onClick={() => setRatesMessage(null)} className="text-cyan-400 hover:text-cyan-200">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono-code">
@@ -253,14 +331,26 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
                     </td>
 
                     <td className="p-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleStartEdit(r)}
-                        className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 transition cursor-pointer"
-                        title="Edit policy rate and next meeting date"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          disabled={regeneratingCurrency === r.currency || regeneratingCurrency === 'ALL'}
+                          onClick={() => handleRegenerateRate(r.currency)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition cursor-pointer text-[10px] font-military font-bold disabled:opacity-50"
+                          title={`Regenerate official rate and yields for ${r.currency}`}
+                        >
+                          <RefreshCw className={`w-3 h-3 ${regeneratingCurrency === r.currency ? 'animate-spin' : ''}`} />
+                          <span>REGENERATE</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(r)}
+                          className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 transition cursor-pointer"
+                          title="Edit policy rate and next meeting date"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

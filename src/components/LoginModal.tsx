@@ -41,7 +41,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [step, setStep] = useState<'LOGIN' | 'CHANGE_PASSWORD' | 'LINK_STORAGE'>('LOGIN');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,23 +54,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changeSuccess, setChangeSuccess] = useState(false);
-
-  // Security: never retain entered credentials when the login modal is reopened.
-  useEffect(() => {
-    if (!isOpen) return;
-    setStep('LOGIN');
-    setUsername('');
-    setPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setPendingUser(null);
-    setPendingToken(null);
-    setError(null);
-    setChangeSuccess(false);
-    setDriveLinkSuccess(false);
-    setShowPassword(false);
-    setRememberMe(false);
-  }, [isOpen]);
 
   // Body scroll lock while modal is open
   useEffect(() => {
@@ -97,7 +80,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password) {
+    if (!username.trim() || !password.trim()) {
       setError('Please enter both username and password.');
       return;
     }
@@ -106,7 +89,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setError(null);
 
     try {
-      const result = await apiLogin(username.trim(), password, rememberMe);
+      const result = await apiLogin(username.trim(), password.trim(), rememberMe);
       setLoading(false);
 
       if (result.ok && result.user) {
@@ -230,7 +213,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   )}`;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md overflow-y-auto p-4 selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/98 backdrop-blur-2xl overflow-y-auto p-4 selection:bg-cyan-500/30 selection:text-cyan-200">
       {/* Dynamic Ambient Blur Orbs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
@@ -248,7 +231,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-cyan-500 via-blue-600 to-amber-500 opacity-80 blur-[2px]" />
 
         {/* Card Body */}
-        <div className="relative rounded-3xl bg-slate-950/95 border border-white/10 p-5 sm:p-7 shadow-2xl backdrop-blur-2xl overflow-hidden">
+        <div className="relative rounded-3xl bg-slate-950 border border-white/10 p-5 sm:p-7 shadow-2xl backdrop-blur-2xl overflow-hidden">
           {/* Close button */}
           <button
             onClick={onClose}
@@ -278,12 +261,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <motion.div
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono-code flex flex-col gap-2"
+              className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono-code flex items-start gap-2"
             >
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
-                <span>{error}</span>
-              </div>
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+              <span>{error}</span>
             </motion.div>
           )}
 
@@ -416,10 +397,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     type="text"
                     autoCapitalize="none"
                     autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="e.g. primepipfx-admin or username"
-                    className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-700/80 rounded-xl font-mono-code text-base sm:text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                    placeholder="Enter username or email"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-700/80 rounded-xl font-mono-code text-base sm:text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 placeholder:text-slate-600"
                   />
                   <User className="w-4 h-4 text-cyan-400 absolute left-3.5 top-3.5" />
                 </div>
@@ -432,11 +415,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    autoComplete="new-password"
+                    autoComplete="current-password"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full pl-10 pr-11 py-3 bg-slate-900 border border-slate-700/80 rounded-xl font-mono-code text-base sm:text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                    placeholder="Enter password"
+                    className="w-full pl-10 pr-11 py-3 bg-slate-900 border border-slate-700/80 rounded-xl font-mono-code text-base sm:text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 placeholder:text-slate-600"
                   />
                   <KeyRound className="w-4 h-4 text-cyan-400 absolute left-3.5 top-3.5" />
                   <button
@@ -459,7 +444,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 rounded bg-slate-900 border-slate-700 text-cyan-500 focus:ring-0 accent-cyan-500 cursor-pointer"
                   />
-                  <span>Remember this device</span>
+                  <span>Remember on this device</span>
                 </label>
                 <span className="text-[10px] text-emerald-400 font-mono-code font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                   PERSISTENT

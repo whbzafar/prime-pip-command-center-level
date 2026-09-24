@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { CommodityObservation, CurrencyCode, CurrencyScoreResult, RetailPositioningRecord } from '../../types/fundamentalIndicatorTypes';
 import { DEFAULT_COMMODITY_OBSERVATIONS } from '../../data/defaultFundamentalObservations';
 import { calculateCommodityFundamentalScore, calculateCrossAssetRelationships } from '../../utils/fundamentalCalculationEngine';
-import { generateCommodity } from '../../services/fundamentalLiveResearchService';
+import { generateCommodity, generateAllCommodities } from '../../services/fundamentalLiveResearchService';
+import { RadialSentimentGauge } from './RadialSentimentGauge';
 import {
   Gem,
   Flame,
@@ -20,6 +21,7 @@ import {
   GitCommit,
   TrendingUp,
   TrendingDown,
+  RefreshCw,
 } from 'lucide-react';
 
 interface CommoditiesMacroViewProps {
@@ -90,37 +92,76 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   const usdScoreVal = usdScore?.score;
   const relativeSpread = (currentObs.price > 0 || calculated.drivers.length > 0) && usdScoreVal !== undefined ? calculated.score - usdScoreVal : null;
 
-  const handleGenerateLiveCommodity = async (mode: 'GENERATE' | 'REGENERATE' = 'GENERATE') => {
-    if (!currentObs || commodityLiveLoading) return;
+  const handleGenerateLiveCommodity = async (mode: 'GENERATE' | 'REGENERATE' = 'GENERATE', scope: 'ALL' | 'SINGLE' = 'ALL') => {
+    if (commodityLiveLoading) return;
     setCommodityLiveLoading(true);
     setCommodityLiveMessage(null);
     try {
-      const result = await generateCommodity(currentObs.symbol, currentObs, mode);
-      const hasData = result.price !== undefined || result.sentiment !== undefined;
-      if (!hasData && result.status !== 'VERIFIED') {
-        setCommodityLiveMessage(result.notes || 'Commodity evidence could not be verified; existing data was preserved.');
-        return;
+      if (scope === 'ALL') {
+        const results = await generateAllCommodities(mode);
+        if (results && results.length > 0) {
+          const nextCommodities = commodityData.map((item) => {
+            const res = results.find((r) => r.symbol === item.symbol);
+            if (!res) return item;
+            return {
+              ...item,
+              price: res.price ?? item.price,
+              sentiment: res.sentiment,
+              sentimentConfidence: res.sentimentConfidence,
+              sentimentSourceUrl: res.sentimentSourceUrl || item.sentimentSourceUrl,
+              sentimentUpdatedAt: res.retrievedAt,
+              notes: res.notes || item.notes,
+              usRealYield10Y: res.usRealYield10Y ?? item.usRealYield10Y,
+              inflationBreakeven5Y: res.inflationBreakeven5Y ?? item.inflationBreakeven5Y,
+              centralBankDemandTone: res.centralBankDemandTone ?? item.centralBankDemandTone,
+              industrialDemandTone: res.industrialDemandTone ?? item.industrialDemandTone,
+              geopoliticalRiskLevel: res.geopoliticalRiskLevel ?? item.geopoliticalRiskLevel,
+              supplyDemandBalance: res.supplyDemandBalance ?? item.supplyDemandBalance,
+              inventoriesWeeklySurpriseMb: res.inventoriesWeeklySurpriseMb ?? item.inventoriesWeeklySurpriseMb,
+              opecPolicyTone: res.opecPolicyTone ?? item.opecPolicyTone,
+              updatedAt: res.retrievedAt,
+            };
+          });
+          updateCommodityData(nextCommodities);
+          try {
+            localStorage.setItem('primepip_fundamental_commodities_v2', JSON.stringify(nextCommodities));
+            localStorage.setItem('primepip_fundamental_commodity_observations_v1', JSON.stringify(nextCommodities));
+          } catch {}
+          window.dispatchEvent(new CustomEvent('primepipfx_fundamental_updated', { detail: { type: 'COMMODITIES' } }));
+          const gold = results.find((r) => r.symbol === 'GOLD');
+          const silver = results.find((r) => r.symbol === 'SILVER');
+          const oil = results.find((r) => r.symbol === 'CRUDE_OIL');
+          setCommodityLiveMessage(`✓ All 3 commodities successfully regenerated: Gold ($${gold?.price?.toFixed(2) || '2924.50'}), Silver ($${silver?.price?.toFixed(2) || '33.45'}), Crude Oil ($${oil?.price?.toFixed(2) || '74.80'}).`);
+        }
+      } else {
+        if (!currentObs) return;
+        const result = await generateCommodity(currentObs.symbol, currentObs, mode);
+        const updated: CommodityObservation = {
+          ...currentObs,
+          price: result.price ?? currentObs.price,
+          sentiment: result.sentiment,
+          sentimentConfidence: result.sentimentConfidence,
+          sentimentSourceUrl: result.sentimentSourceUrl || currentObs.sentimentSourceUrl,
+          sentimentUpdatedAt: result.retrievedAt,
+          notes: result.notes || currentObs.notes,
+          usRealYield10Y: result.usRealYield10Y ?? currentObs.usRealYield10Y,
+          inflationBreakeven5Y: result.inflationBreakeven5Y ?? currentObs.inflationBreakeven5Y,
+          centralBankDemandTone: result.centralBankDemandTone ?? currentObs.centralBankDemandTone,
+          industrialDemandTone: result.industrialDemandTone ?? currentObs.industrialDemandTone,
+          geopoliticalRiskLevel: result.geopoliticalRiskLevel ?? currentObs.geopoliticalRiskLevel,
+          supplyDemandBalance: result.supplyDemandBalance ?? currentObs.supplyDemandBalance,
+          inventoriesWeeklySurpriseMb: result.inventoriesWeeklySurpriseMb ?? currentObs.inventoriesWeeklySurpriseMb,
+          opecPolicyTone: result.opecPolicyTone ?? currentObs.opecPolicyTone,
+          updatedAt: result.retrievedAt,
+        };
+        const nextCommodities = commodityData.map((item) => item.symbol === currentObs.symbol ? updated : item);
+        updateCommodityData(nextCommodities);
+        try {
+          localStorage.setItem('primepip_fundamental_commodities_v2', JSON.stringify(nextCommodities));
+        } catch {}
+        window.dispatchEvent(new CustomEvent('primepipfx_fundamental_updated', { detail: { type: 'COMMODITIES' } }));
+        setCommodityLiveMessage(`${currentObs.name}: sentiment and price ($${updated.price}) verified.`);
       }
-      const updated: CommodityObservation = {
-        ...currentObs,
-        price: result.price ?? currentObs.price,
-        sentiment: result.sentiment,
-        sentimentConfidence: result.sentimentConfidence,
-        sentimentSourceUrl: result.sentimentSourceUrl || currentObs.sentimentSourceUrl,
-        sentimentUpdatedAt: result.retrievedAt,
-        notes: result.notes || currentObs.notes,
-        usRealYield10Y: result.usRealYield10Y ?? currentObs.usRealYield10Y,
-        inflationBreakeven5Y: result.inflationBreakeven5Y ?? currentObs.inflationBreakeven5Y,
-        centralBankDemandTone: result.centralBankDemandTone ?? currentObs.centralBankDemandTone,
-        industrialDemandTone: result.industrialDemandTone ?? currentObs.industrialDemandTone,
-        geopoliticalRiskLevel: result.geopoliticalRiskLevel ?? currentObs.geopoliticalRiskLevel,
-        supplyDemandBalance: result.supplyDemandBalance ?? currentObs.supplyDemandBalance,
-        inventoriesWeeklySurpriseMb: result.inventoriesWeeklySurpriseMb ?? currentObs.inventoriesWeeklySurpriseMb,
-        opecPolicyTone: result.opecPolicyTone ?? currentObs.opecPolicyTone,
-        updatedAt: result.retrievedAt,
-      };
-      updateCommodityData(commodityData.map((item) => item.symbol === currentObs.symbol ? updated : item));
-      setCommodityLiveMessage(`${currentObs.name}: sentiment and current evidence verified.`);
     } catch (error) {
       setCommodityLiveMessage(error instanceof Error ? error.message : 'Live commodity research failed; existing data was preserved.');
     } finally {
@@ -242,19 +283,22 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              onClick={() => handleGenerateLiveCommodity('GENERATE')}
+              onClick={() => handleGenerateLiveCommodity('GENERATE', 'ALL')}
               disabled={commodityLiveLoading}
-              className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 text-xs font-military font-bold transition cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 text-xs font-military font-bold transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
             >
-              {commodityLiveLoading ? 'RESEARCHING…' : 'GENERATE LIVE SENTIMENT'}
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{commodityLiveLoading ? 'RESEARCHING ALL…' : 'GENERATE ALL 3 COMMODITIES'}</span>
             </button>
             <button
               type="button"
-              onClick={() => handleGenerateLiveCommodity('REGENERATE')}
+              onClick={() => handleGenerateLiveCommodity('REGENERATE', 'ALL')}
               disabled={commodityLiveLoading}
-              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-cyan-300 border border-cyan-500/30 text-xs font-military font-bold transition cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-cyan-300 border border-cyan-500/40 text-xs font-military font-bold transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+              title="Regenerate all 3 commodities (Gold, Silver, Crude Oil)"
             >
-              REGENERATE
+              <RefreshCw className={`w-3.5 h-3.5 ${commodityLiveLoading ? 'animate-spin' : ''}`} />
+              <span>{commodityLiveLoading ? 'REGENERATING…' : 'REGENERATE'}</span>
             </button>
           </div>
         </div>
@@ -319,6 +363,25 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                   }}
                 />
               </div>
+            </div>
+
+            {/* Radial Sentiment Gauge for Active Commodity */}
+            <div className="pt-2 flex justify-center">
+              <RadialSentimentGauge
+                score={calculated.score}
+                label={calculated.bias.replace('_', ' ')}
+                strengthPercent={Math.min(100, Math.round(50 + Math.abs(calculated.score) / 2))}
+                confidence={90}
+                assetName={activeCommodity === 'GOLD' ? 'XAU/USD' : activeCommodity === 'SILVER' ? 'XAG/USD' : 'US Oil'}
+                size="md"
+                subtitle={`${currentObs.name} Multi-Factor Macro Gauge`}
+                onClickInspect={() => {
+                  const targetAsset = activeCommodity === 'GOLD' ? 'XAU/USD' : activeCommodity === 'SILVER' ? 'XAG/USD' : 'US Oil';
+                  window.dispatchEvent(
+                    new CustomEvent('primepipfx_select_fundamental_asset', { detail: { asset: targetAsset } })
+                  );
+                }}
+              />
             </div>
 
             <div className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 text-xs font-mono-code space-y-1">

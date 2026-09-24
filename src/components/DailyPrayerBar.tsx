@@ -39,9 +39,20 @@ export const DailyPrayerBar: React.FC = () => {
     prayerName: string;
     message: string;
     isImminentWarning: boolean;
+    alertCount: number;
   } | null>(null);
 
-  const lastChimeTimeRef = useRef<string>('');
+  // Track dispatched notifications to strictly enforce sending exactly twice per prayer
+  const notificationsSentRef = useRef<Record<string, { date: string; imminent: boolean; arrived: boolean }>>(
+    (() => {
+      try {
+        const raw = localStorage.getItem('primepipfx_prayer_notif_tracking');
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    })()
+  );
 
   // Refresh schedule whenever settings change
   useEffect(() => {
@@ -51,25 +62,54 @@ export const DailyPrayerBar: React.FC = () => {
         if (mounted) {
           setSchedule(s);
 
-          // Check if next prayer is imminent
+          // Check if next prayer alert should fire (strictly capped at twice per prayer)
           if (s.nextPrayer && settings.remindersEnabled) {
-            if (s.nextPrayer.isImminentWarning && s.nextPrayer.timeRemainingMins > 0) {
-              setActiveAlert({
-                prayerName: s.nextPrayer.name,
-                message: `${s.nextPrayer.name} prayer time in ${s.nextPrayer.timeRemainingStr}. Inspect active trades and set stop-loss before stepping away.`,
-                isImminentWarning: true,
-              });
-            } else if (s.nextPrayer.timeRemainingMins === 0) {
-              // At prayer time
-              setActiveAlert({
-                prayerName: s.nextPrayer.name,
-                message: `${s.nextPrayer.name} prayer time has arrived. Step away from the charts and offer your prayer.`,
-                isImminentWarning: false,
-              });
+            const todayStr = new Date().toISOString().split('T')[0];
+            const prayerKey = s.nextPrayer.key;
+            const tracking = notificationsSentRef.current;
+            const prayerTrack = tracking[prayerKey]?.date === todayStr 
+              ? tracking[prayerKey] 
+              : { date: todayStr, imminent: false, arrived: false };
 
-              if (settings.soundEnabled && lastChimeTimeRef.current !== s.nextPrayer.name) {
-                lastChimeTimeRef.current = s.nextPrayer.name;
-                playPrayerChime();
+            // Notification 1 of 2: Pre-prayer imminent warning (e.g. 15 minutes before)
+            if (s.nextPrayer.isImminentWarning && s.nextPrayer.timeRemainingMins > 0) {
+              if (!prayerTrack.imminent) {
+                prayerTrack.imminent = true;
+                tracking[prayerKey] = prayerTrack;
+                try {
+                  localStorage.setItem('primepipfx_prayer_notif_tracking', JSON.stringify(tracking));
+                } catch {}
+
+                setActiveAlert({
+                  prayerName: s.nextPrayer.name,
+                  message: `${s.nextPrayer.name} prayer time in ${s.nextPrayer.timeRemainingStr}. Inspect active trades and set stop-loss before stepping away. (Notification 1 of 2)`,
+                  isImminentWarning: true,
+                  alertCount: 1,
+                });
+
+                if (settings.soundEnabled) {
+                  playPrayerChime();
+                }
+              }
+            } else if (s.nextPrayer.timeRemainingMins === 0) {
+              // Notification 2 of 2: At prayer time
+              if (!prayerTrack.arrived) {
+                prayerTrack.arrived = true;
+                tracking[prayerKey] = prayerTrack;
+                try {
+                  localStorage.setItem('primepipfx_prayer_notif_tracking', JSON.stringify(tracking));
+                } catch {}
+
+                setActiveAlert({
+                  prayerName: s.nextPrayer.name,
+                  message: `${s.nextPrayer.name} prayer time has arrived. Step away from the charts and offer your prayer. (Notification 2 of 2)`,
+                  isImminentWarning: false,
+                  alertCount: 2,
+                });
+
+                if (settings.soundEnabled) {
+                  playPrayerChime();
+                }
               }
             }
           }
@@ -265,12 +305,17 @@ export const DailyPrayerBar: React.FC = () => {
               <ShieldAlert className="w-4 h-4" />
               <span>{activeAlert.isImminentWarning ? 'PRE-PRAYER POSITION DISCIPLINE' : 'PRAYER TIME ALERT'}</span>
             </div>
-            <button
-              onClick={() => setActiveAlert(null)}
-              className="p-1 text-slate-400 hover:text-slate-200 cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono-code bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                Notice {activeAlert.alertCount}/2
+              </span>
+              <button
+                onClick={() => setActiveAlert(null)}
+                className="p-1 text-slate-400 hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
           <p className="text-xs text-slate-200 leading-relaxed font-mono-code">
             {activeAlert.message}

@@ -4,12 +4,13 @@ import { OFFICIAL_INDICATOR_REGISTRY, DEFAULT_CATEGORY_WEIGHTS } from '../../dat
 import { Sliders, RotateCcw, Search, ExternalLink, ShieldCheck, Download, Upload, Info } from 'lucide-react';
 
 interface ModelWeightsRegistryViewProps {
-  weights: ModelCategoryWeights;
+  weights?: ModelCategoryWeights;
+  categoryWeights?: ModelCategoryWeights;
   onUpdateWeights: (weights: ModelCategoryWeights) => void;
   onResetWeights: () => void;
-  onExportJson: () => void;
-  onImportJson: (data: any) => void;
-  onOpenIndicatorModal: (indicator: IndicatorDefinition) => void;
+  onExportJson?: () => void;
+  onImportJson?: (data: any) => void;
+  onOpenIndicatorModal?: (indicator: IndicatorDefinition) => void;
 }
 
 const CATEGORY_METADATA: { key: keyof ModelCategoryWeights; label: string; desc: string }[] = [
@@ -29,20 +30,22 @@ const CATEGORY_METADATA: { key: keyof ModelCategoryWeights; label: string; desc:
 
 export const ModelWeightsRegistryView: React.FC<ModelWeightsRegistryViewProps> = ({
   weights,
+  categoryWeights,
   onUpdateWeights,
   onResetWeights,
   onExportJson,
   onImportJson,
   onOpenIndicatorModal,
 }) => {
+  const activeWeights = weights || categoryWeights || DEFAULT_CATEGORY_WEIGHTS;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCurrencyFilter, setSelectedCurrencyFilter] = useState<string>('ALL');
 
-  const totalWeight = (Object.values(weights) as number[]).reduce((sum, w) => sum + (Number(w) || 0), 0);
+  const totalWeight = (Object.values(activeWeights) as number[]).reduce((sum, w) => sum + (Number(w) || 0), 0);
 
   const handleWeightChange = (category: keyof ModelCategoryWeights, newWeight: number) => {
     onUpdateWeights({
-      ...weights,
+      ...activeWeights,
       [category]: Math.max(0, Math.min(100, newWeight)),
     });
   };
@@ -101,7 +104,7 @@ export const ModelWeightsRegistryView: React.FC<ModelWeightsRegistryViewProps> =
         {/* Weights Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
           {CATEGORY_METADATA.map(({ key, label, desc }) => {
-            const currentWeight = weights[key] || 0;
+            const currentWeight = activeWeights[key] || 0;
             return (
               <div
                 key={key}
@@ -222,7 +225,7 @@ export const ModelWeightsRegistryView: React.FC<ModelWeightsRegistryViewProps> =
                   <td className="p-3 text-center">
                     <button
                       type="button"
-                      onClick={() => onOpenIndicatorModal(ind)}
+                      onClick={() => onOpenIndicatorModal?.(ind)}
                       className="px-2.5 py-1 rounded bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-cyan-300 text-[11px] font-bold transition cursor-pointer"
                     >
                       Inspect Spec

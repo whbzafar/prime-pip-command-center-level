@@ -7,6 +7,7 @@ import {
 import { calculatePairDifferential } from '../../utils/fundamentalCalculationEngine';
 import { Sparkles, ArrowRight, ArrowUpRight, ArrowDownRight, Scale, AlertTriangle, ShieldCheck, Filter, Gauge } from 'lucide-react';
 import { CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
+import { RadialSentimentGauge } from './RadialSentimentGauge';
 
 interface PairDifferentialScannerViewProps {
   currencyScores: Record<CurrencyCode, CurrencyScoreResult>;
@@ -53,6 +54,7 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
   const [filterCategory, setFilterCategory] = useState<'ALL' | 'MAJOR' | 'CROSS'>('ALL');
   const [minDifferential, setMinDifferential] = useState<number>(0);
   const [showIncomplete, setShowIncomplete] = useState<boolean>(true);
+  const [selectedPair, setSelectedPair] = useState<string>('EURUSD');
 
   // Compute differentials
   const pairResults: Array<{
@@ -203,6 +205,97 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
           </div>
         </div>
 
+        {/* Selected Pair Radial Sentiment Meter Preview */}
+        {(() => {
+          const activeItem = pairResults.find((p) => p.pair === selectedPair) || pairResults[0];
+          if (!activeItem) return null;
+          const isBull = activeItem.diff.differential >= 12;
+          const isBear = activeItem.diff.differential <= -12;
+          const strength = Math.min(100, Math.round(50 + Math.abs(activeItem.diff.differential) / 2));
+
+          return (
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-900/70 border border-cyan-500/30 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+              <div className="flex justify-center">
+                <RadialSentimentGauge
+                  score={activeItem.diff.differential}
+                  label={activeItem.diff.biasLabel}
+                  strengthPercent={strength}
+                  confidence={88}
+                  assetName={activeItem.pair}
+                  size="md"
+                  subtitle={`${activeItem.base}/${activeItem.quote} Net Divergence Spread`}
+                  onClickInspect={() => {
+                    window.dispatchEvent(
+                      new CustomEvent('primepipfx_select_fundamental_asset', { detail: { asset: activeItem.pair } })
+                    );
+                  }}
+                />
+              </div>
+
+              <div className="md:col-span-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-military font-bold text-slate-200 uppercase">
+                    {activeItem.pair} PAIR SENTIMENT METER
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.dispatchEvent(
+                        new CustomEvent('primepipfx_select_fundamental_asset', { detail: { asset: activeItem.pair } })
+                      );
+                      window.scrollTo({ top: 100, behavior: 'smooth' });
+                    }}
+                    className="text-[11px] font-mono-code text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer"
+                  >
+                    Open In Master Sentiment Dial →
+                  </button>
+                </div>
+
+                <div className="text-xs font-mono-code text-slate-300 leading-relaxed">
+                  {isBull ? (
+                    <span>
+                      <strong className="text-emerald-400">{activeItem.pair}</strong> reflects an aggregate{' '}
+                      <strong className="text-emerald-400 font-bold">BULLISH</strong> bias of{' '}
+                      <strong>+{activeItem.diff.differential}</strong> ({strength}% strength). The base currency (
+                      {activeItem.base}: {activeItem.diff.baseScore > 0 ? `+${activeItem.diff.baseScore}` : activeItem.diff.baseScore}) is fundamentally outperforming the quote currency (
+                      {activeItem.quote}: {activeItem.diff.quoteScore > 0 ? `+${activeItem.diff.quoteScore}` : activeItem.diff.quoteScore}).
+                    </span>
+                  ) : isBear ? (
+                    <span>
+                      <strong className="text-rose-400">{activeItem.pair}</strong> reflects an aggregate{' '}
+                      <strong className="text-rose-400 font-bold">BEARISH</strong> bias of{' '}
+                      <strong>{activeItem.diff.differential}</strong> ({strength}% pressure). The quote currency (
+                      {activeItem.quote}) possesses stronger macroeconomic momentum than the base currency ({activeItem.base}).
+                    </span>
+                  ) : (
+                    <span>
+                      <strong className="text-cyan-300">{activeItem.pair}</strong> is currently{' '}
+                      <strong className="text-cyan-300 font-bold">NEUTRAL / BALANCED</strong> (Spread: {activeItem.diff.differential}). Yield and inflation trajectories between {activeItem.base} and {activeItem.quote} remain closely aligned.
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => onSelectCurrency(activeItem.base)}
+                    className="text-[11px] font-mono-code px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-cyan-300 hover:border-cyan-400 cursor-pointer"
+                  >
+                    Examine {activeItem.base} ({activeItem.diff.baseScore > 0 ? `+${activeItem.diff.baseScore}` : activeItem.diff.baseScore})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSelectCurrency(activeItem.quote)}
+                    className="text-[11px] font-mono-code px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-cyan-300 hover:border-cyan-400 cursor-pointer"
+                  >
+                    Examine {activeItem.quote} ({activeItem.diff.quoteScore > 0 ? `+${activeItem.diff.quoteScore}` : activeItem.diff.quoteScore})
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Pair Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {sorted.map(({ pair, base, quote, diff }) => {
@@ -210,10 +303,17 @@ export const PairDifferentialScannerView: React.FC<PairDifferentialScannerViewPr
             const quoteMeta = CURRENCY_METADATA[quote];
             const isIncomplete = diff.biasLabel === 'INSUFFICIENT DATA';
 
+            const isCurrentSelected = pair === selectedPair;
+
             return (
               <div
                 key={pair}
-                className="p-4 rounded-xl border bg-slate-900/60 border-slate-800 hover:border-slate-700 transition flex flex-col justify-between space-y-3"
+                onClick={() => setSelectedPair(pair)}
+                className={`p-4 rounded-xl border transition flex flex-col justify-between space-y-3 cursor-pointer ${
+                  isCurrentSelected
+                    ? 'bg-slate-900 border-cyan-400 ring-1 ring-cyan-400/40 shadow-lg shadow-cyan-500/10'
+                    : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                }`}
               >
                 {/* Card Top: Pair Name + Bias */}
                 <div className="flex items-center justify-between">
