@@ -1,9 +1,9 @@
 import { UserAccount } from '../types';
 
 export interface StoredStudentUser extends UserAccount {
-  // Deprecated fields kept only for backwards-compatible typing. They are never persisted or returned.
-  password?: never;
-  originalPassword?: never;
+  // Deprecated compatibility fields. They are accepted by older callers but stripped before persistence.
+  password?: string;
+  originalPassword?: string;
   showActiveStatus?: boolean;
 }
 
