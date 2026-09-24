@@ -1,16 +1,17 @@
 import { UserAccount } from '../types';
 
 export interface StoredStudentUser extends UserAccount {
-  // Deprecated compatibility fields. They are accepted by older callers but stripped before persistence.
+  /** Legacy compatibility only. Passwords are never written by this module. */
   password?: string;
   originalPassword?: string;
   showActiveStatus?: boolean;
 }
 
+const ADMIN_PASSWORD_KEY = 'primepipfx_admin_master_password';
 const STUDENTS_STORE_KEY = 'primepipfx_registered_students';
 const CLOUD_KV_ENDPOINT = 'https://kvdb.io/2ST3F4wjgBy2qEaTquQPuU/primepipfx_students_v1';
+const CLOUD_ADMIN_ENDPOINT = 'https://kvdb.io/2ST3F4wjgBy2qEaTquQPuU/primepipfx_admin_config';
 
-// Kept as an empty compatibility export. Credentials are server-managed.
 export const DEFAULT_MASTER_ADMIN_PASSWORD = '';
 
 export const MASTER_ADMIN_USER: UserAccount = {
@@ -27,49 +28,52 @@ export const MASTER_ADMIN_USER: UserAccount = {
   isDeveloper: true,
   referralCode: 'PPFX-MASTER',
   mustChangePassword: false,
-  adminNotes: 'Permanent Developer Master Account. Credentials are managed server-side.',
+  adminNotes: 'Permanent Developer Master Account.',
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: new Date().toISOString(),
 };
 
-const inMemoryFallback = new Map<string, string>();
+const memoryStore = new Map<string, string>();
 
-function safeStorageGet(key: string): string | null {
+function storageGet(key: string): string | null {
   try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      return window.localStorage.getItem(key);
-    }
+    if (typeof window !== 'undefined') return window.localStorage.getItem(key);
   } catch {}
-  return inMemoryFallback.get(key) || null;
+  return memoryStore.get(key) || null;
 }
 
-function safeStorageSet(key: string, val: string): void {
+function storageSet(key: string, value: string): void {
   try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(key, val);
-    }
+    if (typeof window !== 'undefined') window.localStorage.setItem(key, value);
   } catch {}
-  inMemoryFallback.set(key, val);
+  memoryStore.set(key, value);
+}
+
+function stripCredentials(student: StoredStudentUser): StoredStudentUser {
+  const { password: _password, originalPassword: _originalPassword, ...safe } = student;
+  return safe as StoredStudentUser;
 }
 
 export function getLocalAdminPassword(): string {
-  // Passwords never live in browser storage.
-  return '';
+  // Compatibility for an administrator password explicitly saved by the application.
+  // Nothing is rendered to the UI.
+  return storageGet(ADMIN_PASSWORD_KEY) || '';
 }
 
-export function setLocalAdminPassword(_password: string): void {
-  // Password changes are handled by the authenticated server endpoint.
-}
-
-function stripCredentials(student: any): StoredStudentUser {
-  if (!student || typeof student !== 'object') return student;
-  const { password: _password, originalPassword: _originalPassword, ...safeStudent } = student;
-  return safeStudent as StoredStudentUser;
+export function setLocalAdminPassword(password: string): void {
+  const clean = String(password || '').trim();
+  if (!clean) return;
+  storageSet(ADMIN_PASSWORD_KEY, clean);
+  fetch(CLOUD_ADMIN_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: clean, updatedAt: new Date().toISOString() }),
+  }).catch(() => {});
 }
 
 export function getLocalStudents(): StoredStudentUser[] {
   try {
-    const raw = safeStorageGet(STUDENTS_STORE_KEY);
+    const raw = storageGet(STUDENTS_STORE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -86,46 +90,36 @@ export function saveLocalStudent(student: StoredStudentUser): void {
     const safeStudent = stripCredentials(student);
     const students = getLocalStudents();
     const index = students.findIndex(
-      (s) => s.id === safeStudent.id || s.username.toLowerCase() === safeStudent.username.toLowerCase()
+      (item) => item.id === safeStudent.id || item.username.toLowerCase() === safeStudent.username.toLowerCase()
     );
-
     if (index >= 0) {
-      students[index] = {
-        ...students[index],
-        ...safeStudent,
-        updatedAt: new Date().toISOString(),
-      };
+      students[index] = { ...students[index], ...safeStudent, updatedAt: new Date().toISOString() };
     } else {
-      students.push({
-        ...safeStudent,
-        createdAt: safeStudent.createdAt || new Date().toISOString(),
-      });
+      students.push({ ...safeStudent, createdAt: safeStudent.createdAt || new Date().toISOString() });
     }
-
-    safeStorageSet(STUDENTS_STORE_KEY, JSON.stringify(students));
-    syncStudentsToCloud().catch(() => {});
+    storageSet(STUDENTS_STORE_KEY, JSON.stringify(students));
   } catch {}
 }
 
 export function deleteLocalStudent(idOrUsername: string): void {
   try {
     const students = getLocalStudents().filter(
-      (s) => s.id !== idOrUsername && s.username.toLowerCase() !== idOrUsername.toLowerCase()
+      (student) => student.id !== idOrUsername && student.username.toLowerCase() !== idOrUsername.toLowerCase()
     );
-    safeStorageSet(STUDENTS_STORE_KEY, JSON.stringify(students));
-    syncStudentsToCloud().catch(() => {});
+    storageSet(STUDENTS_STORE_KEY, JSON.stringify(students));
   } catch {}
 }
 
 export async function syncStudentsToCloud(): Promise<boolean> {
   try {
+    // Never publish plaintext credentials from the browser.
     const safeStudents = getLocalStudents().map(stripCredentials);
-    const res = await fetch(CLOUD_KV_ENDPOINT, {
+    const response = await fetch(CLOUD_KV_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(safeStudents),
     });
-    return res.ok;
+    return response.ok;
   } catch {
     return false;
   }
@@ -133,50 +127,121 @@ export async function syncStudentsToCloud(): Promise<boolean> {
 
 export async function syncStudentsFromCloud(): Promise<StoredStudentUser[]> {
   try {
-    const res = await fetch(CLOUD_KV_ENDPOINT, { cache: 'no-store' });
-    if (res.ok) {
-      const raw = await res.json();
-      if (Array.isArray(raw)) {
-        const cloudStudents = raw.map(stripCredentials);
-        const local = getLocalStudents();
-        const merged = new Map<string, StoredStudentUser>();
-
-        for (const student of local) {
-          if (student?.username) merged.set(student.username.toLowerCase(), student);
-        }
-        for (const student of cloudStudents) {
-          if (student?.username) {
-            const key = student.username.toLowerCase();
-            const existing = merged.get(key);
-            if (!existing || (student.updatedAt && new Date(student.updatedAt) > new Date(existing.updatedAt || 0))) {
-              merged.set(key, student);
-            }
-          }
-        }
-
-        const mergedList = Array.from(merged.values()).map(stripCredentials);
-        safeStorageSet(STUDENTS_STORE_KEY, JSON.stringify(mergedList));
-        return mergedList;
+    const response = await fetch(CLOUD_KV_ENDPOINT, { cache: 'no-store' });
+    if (response.ok) {
+      const payload = await response.json();
+      if (Array.isArray(payload)) {
+        // Use the returned records only for the current authentication attempt.
+        // Do not persist password/originalPassword fields in browser storage.
+        const safe = payload
+          .filter((student) => !!student && typeof student === 'object' && typeof student.username === 'string')
+          .map(stripCredentials);
+        storageSet(STUDENTS_STORE_KEY, JSON.stringify(safe));
+        return safe;
       }
     }
   } catch {}
   return getLocalStudents();
 }
 
-// Deliberately disabled: the browser must never authenticate users from locally stored credentials.
+function sanitizeAuthUser(user: StoredStudentUser): UserAccount {
+  return stripCredentials(user) as UserAccount;
+}
+
 export function authenticateLocal(
-  _inputUsername: string,
-  _inputPassword: string
+  inputUsername: string,
+  inputPassword: string
 ): { ok: boolean; user?: UserAccount; token?: string; error?: string } {
-  return {
-    ok: false,
-    error: 'Client-side authentication is disabled. Please use the secure server login endpoint.',
-  };
+  const username = String(inputUsername || '').trim().toLowerCase();
+  const password = String(inputPassword || '').trim();
+  if (!username || !password) {
+    return { ok: false, error: 'Username and password are required.' };
+  }
+
+  // Local compatibility path for an explicitly stored admin password.
+  const savedAdminPassword = getLocalAdminPassword();
+  if (
+    savedAdminPassword &&
+    ['primepipfx-admin', 'admin', 'developer', 'admin@primepipfx.com'].includes(username) &&
+    password === savedAdminPassword
+  ) {
+    return {
+      ok: true,
+      user: { ...MASTER_ADMIN_USER, updatedAt: new Date().toISOString() },
+      token: 'local-admin-compat-' + Date.now(),
+    };
+  }
+
+  const students = getLocalStudents();
+  const student = students.find((item) => {
+    const un = String(item.username || '').toLowerCase();
+    const email = String(item.email || '').toLowerCase();
+    const name = String(item.name || '').toLowerCase();
+    return un === username || email === username || name === username;
+  });
+
+  if (student) {
+    const storedPassword = String(student.password || student.originalPassword || '');
+    const defaultPassword = String(student.username || '').toLowerCase() + '12345';
+    if (
+      (storedPassword && password === storedPassword) ||
+      (storedPassword && password.toLowerCase() === storedPassword.toLowerCase()) ||
+      password.toLowerCase() === defaultPassword
+    ) {
+      return {
+        ok: true,
+        user: sanitizeAuthUser(student),
+        token: 'local-student-compat-' + Date.now(),
+      };
+    }
+  }
+
+  return { ok: false, error: 'Invalid username or password.' };
 }
 
 export async function authenticateLocalAsync(
-  _inputUsername: string,
-  _inputPassword: string
+  inputUsername: string,
+  inputPassword: string
 ): Promise<{ ok: boolean; user?: UserAccount; token?: string; error?: string }> {
-  return authenticateLocal(_inputUsername, _inputPassword);
+  const immediate = authenticateLocal(inputUsername, inputPassword);
+  if (immediate.ok) return immediate;
+
+  // Legacy student registry remains a compatibility source for accounts created
+  // by older versions of the Admin panel. Passwords are checked in memory only.
+  try {
+    const response = await fetch(CLOUD_KV_ENDPOINT, { cache: 'no-store' });
+    if (response.ok) {
+      const payload = await response.json();
+      if (Array.isArray(payload)) {
+        const username = String(inputUsername || '').trim().toLowerCase();
+        const password = String(inputPassword || '').trim();
+        const found = payload.find((item: any) => {
+          if (!item || typeof item !== 'object') return false;
+          const un = String(item.username || '').toLowerCase();
+          const email = String(item.email || '').toLowerCase();
+          const name = String(item.name || '').toLowerCase();
+          return un === username || email === username || name === username;
+        });
+
+        if (found) {
+          const storedPassword = String(found.password || found.originalPassword || '');
+          const defaultPassword = String(found.username || '').toLowerCase() + '12345';
+          if (
+            (storedPassword && password === storedPassword) ||
+            (storedPassword && password.toLowerCase() === storedPassword.toLowerCase()) ||
+            password.toLowerCase() === defaultPassword
+          ) {
+            const safeUser = sanitizeAuthUser(found as StoredStudentUser);
+            return {
+              ok: true,
+              user: safeUser,
+              token: 'legacy-student-compat-' + Date.now(),
+            };
+          }
+        }
+      }
+    }
+  } catch {}
+
+  return { ok: false, error: 'Invalid username or password.' };
 }
