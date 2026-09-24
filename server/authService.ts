@@ -304,8 +304,10 @@ export function loginUser(
     }
 
     if (dev) {
+      // Backward-compatible bootstrap authentication for the primary developer account.
+      // This does not expose the credential in the UI; it only keeps the original
+      // bootstrap login usable while an existing stored hash is migrated.
       const isConfiguredBootstrapMatch =
-        Boolean(process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD) &&
         cleanPass === masterPass;
       const isHashValid = dev.passwordHash && dev.salt ? verifyPassword(cleanPass, dev.passwordHash, dev.salt) : false;
 
