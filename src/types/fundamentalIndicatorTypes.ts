@@ -49,7 +49,9 @@ export type ScoringDirection =
   | 'LOWER_IS_BULLISH'       // e.g. Unemployment Rate, Claims
   | 'INFLATION_POLICY_PATH'  // Above target increases policy rates (bullish currency), extreme overheating negative
   | 'CONTRARIAN_EXTREMES'    // Heavy net long crowding flips to bearish reversal risk
-  | 'EXTERNAL_BALANCE';      // Trade surpluses supportive, widening deficits negative
+  | 'EXTERNAL_BALANCE'       // Trade surpluses supportive, widening deficits negative
+  | 'RATE_EXPECTATIONS'      // Market repricing of expected policy path; not an absolute yield level
+  | 'CONTEXT_ONLY';           // Display/diagnostic input; excluded from directional composite scoring
 
 export interface IndicatorDefinition {
   id: string;
