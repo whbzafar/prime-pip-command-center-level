@@ -1666,6 +1666,30 @@ app.post('/api/auth/login', async (req, res) => {
 
   const localResult = loginUser(username, password, rememberMe);
 
+  // Administrator authentication is authoritative in the server auth store.
+  // A valid admin credential must not depend on a separate identity-provider
+  // login or stale Supabase credentials.
+  if (localResult?.user && (
+    localResult.user.isDeveloper ||
+    localResult.user.role === 'ADMIN' ||
+    localResult.user.role === 'DEVELOPER'
+  )) {
+    const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
+    res.cookie('primepipfx_session', localResult.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
+      sameSite: 'lax',
+      maxAge,
+      path: '/',
+    });
+    return res.json({
+      ok: true,
+      user: sanitizeUser(localResult.user),
+      token: localResult.token,
+      authMode: 'administrator',
+    });
+  }
+
   if (isSupabaseAuthEnabled) {
     try {
       const durable = await authenticatePrimePipfx(username, password, localResult?.user || null);
