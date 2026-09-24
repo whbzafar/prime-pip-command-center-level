@@ -49,7 +49,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const [step, setStep] = useState<'LOGIN' | 'CHANGE_PASSWORD' | 'LINK_STORAGE'>('LOGIN');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -599,6 +599,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                       type="text"
                       required
                       autoFocus
+                      autoComplete="off"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="e.g. primepipfx-admin or your username"
@@ -615,6 +616,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -642,10 +644,10 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                       onChange={(e) => setRememberMe(e.target.checked)}
                       className="w-4 h-4 rounded bg-slate-900 border-slate-700 text-cyan-500 focus:ring-0 accent-cyan-500 cursor-pointer"
                     />
-                    <span>Remember on this device</span>
+                    <span>Remember this device</span>
                   </label>
-                  <span className="text-[10px] text-emerald-400 font-mono-code font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                    PERSISTENT
+                  <span className="text-[10px] text-slate-500 font-mono-code font-bold bg-slate-800/60 px-2 py-0.5 rounded border border-slate-700/60">
+                    OPTIONAL
                   </span>
                 </div>
 
