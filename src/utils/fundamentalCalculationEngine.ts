@@ -452,6 +452,17 @@ export function calculateCurrencyScore(
   const dataCoveragePercent = totalIndicators > 0 ? Math.round((completedIndicators / totalIndicators) * 100) : 0;
   const categoryConfidences = Object.values(categoryScores).filter((c) => c.activeCount > 0).map((c) => c.confidence ?? 0);
   const overallConfidence = categoryConfidences.length ? Math.round(categoryConfidences.reduce((a, b) => a + b, 0) / categoryConfidences.length) : 0;
+  const validRiskRecords = sentimentRecords.filter((r) => r.isEntered !== false);
+  const riskCounts = validRiskRecords.reduce((acc, r) => {
+    acc[r.globalRiskRegime] = (acc[r.globalRiskRegime] || 0) + 1;
+    return acc;
+  }, {} as Record<'RISK_ON' | 'NEUTRAL' | 'RISK_OFF', number>);
+  const dominantRisk = (['RISK_ON', 'RISK_OFF', 'NEUTRAL'] as const)
+    .sort((a, b) => (riskCounts[b] || 0) - (riskCounts[a] || 0))[0];
+  const riskRegime = validRiskRecords.length ? dominantRisk : undefined;
+  const riskRegimeConfidence = validRiskRecords.length
+    ? Math.round(((riskCounts[dominantRisk] || 0) / validRiskRecords.length) * 100)
+    : 0;
 
   let freshnessStatus: 'CURRENT' | 'PARTIAL' | 'STALE' | 'INCOMPLETE' = 'CURRENT';
   if (completedIndicators === 0 && totalApplicableWeight === 0) {
@@ -522,22 +533,12 @@ export function calculateCurrencyScore(
     overallConfidence,
     topDrivers: primarySupport.slice(0, 5),
     scoreReasons: [
-      `Composite uses available category weights only; missing categories are renormalized.`,
-      `State/impulse scoring separates structural condition from release shock; impulse decays with age.`,
-      `Overall confidence is coverage/freshness weighted, not a probability of correctness.`,
-    ],
-    conflicts: conflictingFactors,
-    riskRegime: undefined,
-    regimeConfidence: 0,
-    overallConfidence,
-    topDrivers: primarySupport.slice(0, 5),
-    scoreReasons: [
       'Composite = weighted category scores after available-data renormalization.',
       'Indicator impulse is freshness-decayed; missing/unverified observations do not receive full production weight.',
       'State and impulse are kept separate so a stale surprise cannot dominate the structural signal.',
     ],
-    riskRegime: calculateGlobalRiskRegime(sentimentRecords).regime,
-    regimeConfidence: calculateGlobalRiskRegime(sentimentRecords).confidence,
+    riskRegime,
+    regimeConfidence: riskRegimeConfidence,
     conflicts: conflictingFactors,
   };
 }
