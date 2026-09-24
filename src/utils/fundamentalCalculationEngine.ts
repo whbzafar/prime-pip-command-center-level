@@ -398,38 +398,15 @@ export function calculateSentimentScore(record: MarketSentimentRecord): number {
 }
 
 export function calculateInterestRateScore(record: InterestRateRecord): number {
-  const components: number[] = [];
-  const current = Number(record.currentPolicyRate);
-  const next = Number(record.expectedNextRate);
-  const priced12m = Number(record.implied12MPolicyRate);
-  const realPolicy = Number(record.realPolicyRate);
-  if (Number.isFinite(priced12m) && Number.isFinite(current)) {
-    // Market pricing is the primary rate signal: expected 12M policy repricing.
-    components.push(Math.max(-100, Math.min(100, (priced12m - current) * 18)));
-  } else if (Number.isFinite(next) && Number.isFinite(current)) {
-    components.push(Math.max(-80, Math.min(80, (next - current) * 16)));
-  }
-  if (Number.isFinite(record.expectedRateChangeBps)) components.push(Math.max(-60, Math.min(60, record.expectedRateChangeBps / 2)));
-  if (Number.isFinite(realPolicy)) components.push(Math.max(-60, Math.min(60, (realPolicy - 1.0) * 20)));
-  // 10Y level is deliberately not scored as 'higher = bullish'; it is a context field.
-  if (components.length === 0) return 0;
-  return Math.round(components.reduce((a, b) => a + b, 0) / components.length);
-}
-
-export function calculateGlobalRiskRegime(records: MarketSentimentRecord[]): { regime: 'RISK_ON' | 'NEUTRAL' | 'RISK_OFF' | 'INFLATION' | 'GROWTH_SCARE'; confidence: number } {
-  const entered = records.filter((r) => r.isEntered !== false);
-  if (!entered.length) return { regime: 'NEUTRAL', confidence: 0 };
-  const riskVotes = entered.map((r) => r.globalRiskRegime);
-  const counts = {
-    RISK_ON: riskVotes.filter((x) => x === 'RISK_ON').length,
-    NEUTRAL: riskVotes.filter((x) => x === 'NEUTRAL').length,
-    RISK_OFF: riskVotes.filter((x) => x === 'RISK_OFF').length,
-  };
-  const regime = counts.RISK_OFF > counts.RISK_ON && counts.RISK_OFF >= counts.NEUTRAL ? 'RISK_OFF'
-    : counts.RISK_ON > counts.RISK_OFF && counts.RISK_ON >= counts.NEUTRAL ? 'RISK_ON'
-    : 'NEUTRAL';
-  const confidence = Math.round((Math.max(counts.RISK_ON, counts.RISK_OFF, counts.NEUTRAL) / riskVotes.length) * 100);
-  return { regime, confidence };
+  const current = Number.isFinite(record.currentPolicyRate) ? record.currentPolicyRate : 0;
+  const priced12M = record.implied12MPolicyRate ?? (
+    Number.isFinite(record.expected12MRateChangeBps) ? current + (record.expected12MRateChangeBps! / 100) : undefined
+  );
+  const path = priced12M !== undefined ? Math.max(-100, Math.min(100, (priced12M - current) * 20)) : 0;
+  const real = record.realPolicyRate !== undefined ? Math.max(-100, Math.min(100, record.realPolicyRate * 15)) : 0;
+  const twoYear = Number.isFinite(record.yield2Y) ? Math.max(-100, Math.min(100, record.yield2Y * 10)) : 0;
+  const bias = record.centralBankBias === 'HAWKISH' ? 20 : record.centralBankBias === 'DOVISH' ? -20 : 0;
+  return Math.round(Math.max(-100, Math.min(100, path * 0.55 + real * 0.20 + twoYear * 0.15 + bias * 0.10)));
 }
 
 export function calculateCurrencyScore(
