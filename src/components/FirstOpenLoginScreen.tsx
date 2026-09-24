@@ -568,9 +568,8 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
                   <span>{error}</span>
                 </div>
-                <div className="text-[11px] text-slate-300 bg-slate-900/80 p-2.5 rounded-lg border border-slate-700/60 leading-relaxed">
-                  <span className="text-amber-400 font-bold block mb-1">🔑 Login Credentials:</span>
-                  <div>Enter your authorized username and password manually to initialize the terminal.</div>
+                <div className="text-[11px] text-slate-400 bg-slate-900/80 p-2.5 rounded-lg border border-slate-700/60 leading-relaxed">
+                  Enter your authorized account details to initialize the terminal.
                 </div>
               </motion.div>
             )}
