@@ -159,6 +159,8 @@ export interface CotPositioningRecord {
   confidence?: number;
   researchRetrievedAt?: string;
   updatedAt: string;
+  historicalPercentile?: number;
+  reportingLagDays?: number;
 }
 
 export type RetailSentimentAsset = CurrencyCode | 'GOLD' | 'SILVER' | 'CRUDE_OIL';
