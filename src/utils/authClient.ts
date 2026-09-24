@@ -107,7 +107,7 @@ export async function apiLogin(
   rememberMe = false,
 ): Promise<{ ok: boolean; user?: UserAccount; token?: string; error?: string }> {
   const cleanUsername = username.trim();
-  const cleanPassword = password.trim();
+  const cleanPassword = password;
 
   try {
     const res = await fetch('/api/auth/login', {
