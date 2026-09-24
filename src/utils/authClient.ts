@@ -215,7 +215,9 @@ export async function apiLogout(): Promise<void> {
   } catch {}
 }
 
-export const getCurrentUser = getStoredUser;
+export const getCurrentUser = (): UserAccount | null => {
+  return getStoredToken() ? getStoredUser() : null;
+};
 export const getAuthToken = getStoredToken;
 export const logoutUser = apiLogout;
 export const verifyCurrentSession = apiGetCurrentUser;
