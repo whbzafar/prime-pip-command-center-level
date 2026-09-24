@@ -122,13 +122,13 @@ function readStoredArray<T>(key: string, fallback: T[]): T[] {
   }
 }
 
-function readStoredObject<T extends Record<string, unknown>>(key: string, fallback: T): T {
+function readStoredObject<T extends object>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? { ...fallback, ...parsed }
+      ? ({ ...fallback, ...parsed } as T)
       : fallback;
   } catch (error) {
     console.warn(`Ignoring invalid stored Fundamental Intelligence settings for ${key}.`, error);
