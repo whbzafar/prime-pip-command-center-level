@@ -51,157 +51,111 @@ export function calculateIndicatorScore(
   definition: IndicatorDefinition,
   observation?: IndicatorObservation
 ): IndicatorScoreResult {
-  if (!observation || typeof observation.actual !== 'number' || isNaN(observation.actual)) {
+  const missing = !observation || typeof observation.actual !== 'number' || !Number.isFinite(observation.actual);
+  if (missing) {
     return {
-      indicatorId: definition.id,
-      definition,
-      observation,
-      actual: null,
-      forecast: null,
-      previous: null,
-      surprise: null,
-      change: null,
-      standardizedSurprise: null,
-      score: 0,
-      weightedContribution: 0,
-      interpretationText: 'No verified observation recorded. Indicator requires manual entry.',
-      status: 'MISSING',
-      ageDays: 999,
+      indicatorId: definition.id, definition, observation,
+      actual: null, forecast: null, previous: null, surprise: null,
+      change: null, standardizedSurprise: null, score: 0, weightedContribution: 0,
+      interpretationText: 'MISSING — no verified observation is available.',
+      status: 'MISSING', ageDays: 999, effectiveWeight: 0, confidence: 0,
+      stateScore: 0, impulseScore: 0,
+      scoreReasons: ['No verified observation. This indicator is excluded from the composite.'],
+    };
+  }
+
+  const verification = observation.verificationStatus;
+  const sourceOk = verification === 'VERIFIED' || verification === 'MANUAL';
+  if (!sourceOk) {
+    return {
+      indicatorId: definition.id, definition, observation,
+      actual: null, forecast: null, previous: null, surprise: null,
+      change: null, standardizedSurprise: null, score: 0, weightedContribution: 0,
+      interpretationText: 'VERIFY — observation is not verified and is excluded from scoring.',
+      status: 'MISSING', ageDays: 999, effectiveWeight: 0, confidence: 0,
+      stateScore: 0, impulseScore: 0,
+      scoreReasons: ['Verification status is not VERIFIED/MANUAL.'],
+      source: observation.sourceUrl ? {
+        sourceName: observation.researchSourceName || definition.officialSourceName,
+        sourceUrl: observation.sourceUrl,
+        retrievedAt: observation.researchRetrievedAt || observation.updatedAt,
+        releaseDate: observation.releaseDate,
+        referencePeriod: observation.referencePeriod,
+        verificationStatus: verification || 'REVIEW_REQUIRED',
+      } : undefined,
     };
   }
 
   const actual = observation.actual;
-  const forecast = typeof observation.forecast === 'number' && !isNaN(observation.forecast) ? observation.forecast : null;
-  const previous = typeof observation.previous === 'number' && !isNaN(observation.previous) ? observation.previous : null;
-
+  const forecast = typeof observation.forecast === 'number' && Number.isFinite(observation.forecast) ? observation.forecast : null;
+  const previous = typeof observation.previous === 'number' && Number.isFinite(observation.previous) ? observation.previous : null;
   const surprise = forecast !== null ? Number((actual - forecast).toFixed(4)) : null;
   const change = previous !== null ? Number((actual - previous).toFixed(4)) : null;
-
-  const stdDev = definition.historicalSurpriseStdDev || 1.0;
+  const stdDev = Math.max(0.0001, definition.historicalSurpriseStdDev || 1);
   const standardizedSurprise = surprise !== null ? Number((surprise / stdDev).toFixed(3)) : null;
 
-  let rawScore = 0;
-  let interpretationText = '';
+  const robustClamp = (v: number, cap = 2.5) => Math.max(-cap, Math.min(cap, v));
+  const direction = definition.scoringDirection === 'LOWER_IS_BULLISH' ? -1 : 1;
+  let state = 0;
+  let impulse = 0;
+  const reasons: string[] = [];
 
-  switch (definition.scoringDirection) {
-    case 'HIGHER_IS_BULLISH': {
-      if (standardizedSurprise !== null) {
-        // Standardized z-score mapping (-2.5 to +2.5 maps to -100 to +100)
-        rawScore = Math.max(-100, Math.min(100, standardizedSurprise * 40));
-        if (change !== null) {
-          rawScore = rawScore * 0.75 + Math.sign(change) * Math.min(25, Math.abs(change) * 10);
-        }
-      } else if (change !== null) {
-        rawScore = Math.max(-80, Math.min(80, (change / stdDev) * 35));
-      } else {
-        rawScore = 0;
-      }
-
-      if (definition.benchmarkTarget !== undefined) {
-        const diffFromTarget = actual - definition.benchmarkTarget;
-        const targetComponent = Math.max(-30, Math.min(30, diffFromTarget * 10));
-        rawScore = rawScore * 0.7 + targetComponent;
-      }
-
-      interpretationText = surprise !== null && surprise > 0
-        ? `Surprise beat forecast by +${surprise}${definition.unit}. Supportive of economic expansion.`
-        : surprise !== null && surprise < 0
-        ? `Missed forecast by ${surprise}${definition.unit}. Indicates slowing momentum.`
-        : `In line with expectations. Moderate baseline support.`;
-      break;
-    }
-
-    case 'LOWER_IS_BULLISH': {
-      // Inverted direction: lower actual vs forecast/previous is bullish (e.g. unemployment)
-      if (standardizedSurprise !== null) {
-        rawScore = Math.max(-100, Math.min(100, -standardizedSurprise * 45));
-        if (change !== null) {
-          rawScore = rawScore * 0.75 - Math.sign(change) * Math.min(25, Math.abs(change) * 15);
-        }
-      } else if (change !== null) {
-        rawScore = Math.max(-80, Math.min(80, -(change / stdDev) * 40));
-      }
-
-      interpretationText = surprise !== null && surprise < 0
-        ? `Lower than forecast by ${surprise}${definition.unit}. Tighter labor market supports economic strength.`
-        : surprise !== null && surprise > 0
-        ? `Higher than forecast by +${surprise}${definition.unit}. Softening conditions reduce policy rate support.`
-        : `Aligned with forecast. Neutral labor market pressure.`;
-      break;
-    }
-
-    case 'INFLATION_POLICY_PATH': {
-      const target = definition.benchmarkTarget ?? 2.0;
-      if (standardizedSurprise !== null) {
-        let surpriseComponent = Math.max(-70, Math.min(70, standardizedSurprise * 40));
-        const aboveTarget = actual - target;
-        let targetComponent = Math.max(-30, Math.min(30, aboveTarget * 18));
-
-        // Overheating penalty: if inflation is extreme (> 7.5%), it harms the currency via purchasing power erosion
-        if (actual > 7.5) {
-          surpriseComponent -= (actual - 7.5) * 15;
-        }
-
-        rawScore = Math.max(-100, Math.min(100, surpriseComponent + targetComponent));
-      } else {
-        const diff = actual - target;
-        rawScore = Math.max(-60, Math.min(60, diff * 25));
-      }
-
-      interpretationText = actual > target
-        ? `Headline/Core print of ${actual}% exceeds the ${target}% target, reinforcing higher-for-longer rate probabilities.`
-        : `Reading of ${actual}% below target level, increasing policy easing leeway.`;
-      break;
-    }
-
-    case 'EXTERNAL_BALANCE': {
-      if (standardizedSurprise !== null) {
-        rawScore = Math.max(-100, Math.min(100, standardizedSurprise * 40));
-      } else {
-        rawScore = Math.max(-60, Math.min(60, actual > 0 ? 30 : -30));
-      }
-      interpretationText = actual >= 0
-        ? `Positive trade surplus of ${actual} provides structural foreign exchange demand.`
-        : `Trade deficit of ${actual} represents net capital outflow pressure.`;
-      break;
-    }
-
-    default: {
-      rawScore = standardizedSurprise !== null ? Math.max(-80, Math.min(80, standardizedSurprise * 35)) : 0;
-      interpretationText = `Observed reading: ${actual}${definition.unit}.`;
-    }
+  if (definition.scoringDirection === 'INFLATION_POLICY_PATH') {
+    const target = definition.benchmarkTarget ?? 2;
+    state = Math.max(-100, Math.min(100, (actual - target) * 25));
+    if (actual > target) reasons.push(`Inflation is ${(actual - target).toFixed(2)}pp above target, increasing policy persistence pressure.`);
+    else reasons.push(`Inflation is ${(target - actual).toFixed(2)}pp below target, increasing policy easing room.`);
+  } else if (definition.scoringDirection === 'EXTERNAL_BALANCE') {
+    state = Math.max(-100, Math.min(100, actual === 0 ? 0 : actual > 0 ? 35 : -35));
+    reasons.push(actual > 0 ? 'Positive external balance is structurally supportive.' : 'Negative external balance is structurally less supportive.');
+  } else if (definition.scoringDirection === 'RATE_EXPECTATIONS') {
+    state = 0;
+    reasons.push('Absolute yield level is not scored; policy-path repricing is handled by the rates module.');
+  } else if (definition.scoringDirection === 'CONTEXT_ONLY') {
+    state = 0;
+    reasons.push('Context-only input: displayed for diagnosis and excluded from directional scoring.');
+  } else if (definition.benchmarkTarget !== undefined) {
+    state = Math.max(-100, Math.min(100, (actual - definition.benchmarkTarget) * 20 * direction));
+  } else if (previous !== null) {
+    state = Math.max(-100, Math.min(100, (actual - previous) / std * 25 * direction));
   }
 
-  const score = Math.round(Math.max(-100, Math.min(100, rawScore)));
+  if (standardizedSurprise !== null && definition.scoringDirection !== 'CONTEXT_ONLY' && definition.scoringDirection !== 'RATE_EXPECTATIONS') {
+    impulse = Math.max(-100, Math.min(100, robustClamp(standardizedSurprise * direction) * 40));
+    reasons.push(`Release impulse: ${standardizedSurprise > 0 ? '+' : ''}${standardizedSurprise} standard deviations versus the indicator's historical surprise volatility.`);
+  } else if (change !== null && definition.scoringDirection !== 'CONTEXT_ONLY' && definition.scoringDirection !== 'RATE_EXPECTATIONS') {
+    impulse = Math.max(-100, Math.min(100, (change / std) * 30 * direction));
+  }
 
-  // Calculate age in days
   const releaseTime = new Date(observation.releaseDate || observation.updatedAt).getTime();
-  const ageDays = Math.max(0, Math.floor((CURRENT_TIMESTAMP_MS - releaseTime) / (1000 * 60 * 60 * 24)));
-
-  let status: 'CURRENT' | 'RECENT' | 'STALE' | 'MISSING' = 'CURRENT';
-  const staleThresholdDays = definition.frequency === 'Quarterly' ? 120 : definition.frequency === 'Annual' ? 400 : 45;
-
-  if (ageDays > staleThresholdDays) {
-    status = 'STALE';
-  } else if (ageDays > 20) {
-    status = 'RECENT';
-  }
+  const ageDays = Math.max(0, Math.floor((Date.now() - releaseTime) / 86400000));
+  const staleThreshold = definition.frequency === 'Quarterly' ? 120 : definition.frequency === 'Annual' ? 400 : definition.frequency === 'Weekly' ? 21 : 45;
+  const freshness = Math.max(0, Math.min(1, Math.exp(-ageDays / Math.max(1, staleThreshold))));
+  const decay = Math.max(0.20, freshness);
+  const hasForecast = forecast !== null;
+  const verificationConfidence = verification === 'VERIFIED' ? 1 : 0.85;
+  const coverageConfidence = (hasForecast || previous !== null) ? 1 : 0.70;
+  const confidence = Math.round(100 * verificationConfidence * coverageConfidence * freshness);
+  const score = Math.round(Math.max(-100, Math.min(100, state * 0.65 + impulse * 0.35 * decay)));
+  const effectiveWeight = Number((definition.weightInCategory * verificationConfidence * coverageConfidence * decay).toFixed(3));
 
   return {
-    indicatorId: definition.id,
-    definition,
-    observation,
-    actual,
-    forecast,
-    previous,
-    surprise,
-    change,
-    standardizedSurprise,
-    score,
-    weightedContribution: Number(((score * definition.weightInCategory) / 100).toFixed(2)),
-    interpretationText,
-    status,
+    indicatorId: definition.id, definition, observation, actual, forecast, previous,
+    surprise, change, standardizedSurprise, stateScore: Math.round(state),
+    impulseScore: Math.round(impulse * decay), effectiveWeight, confidence,
+    score, weightedContribution: Number(((score * effectiveWeight) / 100).toFixed(2)),
+    interpretationText: `State ${Math.round(state)}, impulse ${Math.round(impulse * decay)}, confidence ${confidence}%.`,
+    status: ageDays > staleThreshold ? 'STALE' : ageDays > 20 ? 'RECENT' : 'CURRENT',
     ageDays,
+    scoreReasons: reasons,
+    source: {
+      sourceName: observation.researchSourceName || definition.officialSourceName,
+      sourceUrl: observation.sourceUrl || definition.officialSourceUrl,
+      retrievedAt: observation.researchRetrievedAt || observation.updatedAt,
+      releaseDate: observation.releaseDate,
+      referencePeriod: observation.referencePeriod,
+      verificationStatus: verification || 'MANUAL',
+    },
   };
 }
 
@@ -210,12 +164,32 @@ export function calculateCategoryScores(
   observations: IndicatorObservation[],
   customWeights: ModelCategoryWeights = DEFAULT_CATEGORY_WEIGHTS,
   cotRecords: CotPositioningRecord[] = [],
-  sentimentRecords: MarketSentimentRecord[],
-  interestRateRecords: InterestRateRecord[],
+  sentimentRecords: MarketSentimentRecord[] = [],
+  interestRateRecords: InterestRateRecord[] = [],
   retailPositioning: RetailPositioningRecord[] = []
 ): Record<IndicatorCategory, CategoryScoreResult> {
+  // Persisted browser data can outlive schema changes. Normalize all runtime collections
+  // before scoring so one malformed/stale localStorage value cannot blank the dashboard.
+  const safeObservations = Array.isArray(observations)
+    ? observations.filter((o): o is IndicatorObservation => !!o && typeof o === 'object')
+    : [];
+  const safeCotRecords = Array.isArray(cotRecords)
+    ? cotRecords.filter((r): r is CotPositioningRecord => !!r && typeof r === 'object')
+    : [];
+  const safeSentimentRecords = Array.isArray(sentimentRecords)
+    ? sentimentRecords.filter((r): r is MarketSentimentRecord => !!r && typeof r === 'object')
+    : [];
+  const safeInterestRateRecords = Array.isArray(interestRateRecords)
+    ? interestRateRecords.filter((r): r is InterestRateRecord => !!r && typeof r === 'object')
+    : [];
+  const safeRetailPositioning = Array.isArray(retailPositioning)
+    ? retailPositioning.filter((r): r is RetailPositioningRecord => !!r && typeof r === 'object')
+    : [];
+
   const definitions = OFFICIAL_INDICATOR_REGISTRY.filter((d) => d.currency === currency && d.isActive);
-  const obsMap = new Map<string, IndicatorObservation>(observations.filter((o) => o.currency === currency).map((o) => [o.indicatorId, o]));
+  const obsMap = new Map<string, IndicatorObservation>(
+    safeObservations.filter((o) => o.currency === currency).map((o) => [o.indicatorId, o])
+  );
 
   const categoryLabels: Record<IndicatorCategory, string> = {
     MONETARY_POLICY: 'Monetary Policy & Central Bank',
@@ -255,7 +229,7 @@ export function calculateCategoryScores(
 
     // Handle special modules: COT and Sentiment
     if (cat === 'COT_POSITIONING') {
-      const cot = cotRecords.find((c) => c.currency === currency);
+      const cot = safeCotRecords.find((c) => c.currency === currency);
       const cotValid = !!cot && Number.isFinite(cot.nonCommercialLong) && Number.isFinite(cot.nonCommercialShort) && Number.isFinite(cot.openInterest) && (cot.openInterest as number) > 0;
       const cotScore = cotValid ? calculateCotScore(cot!) : 0;
       const weight = customWeights.COT_POSITIONING || 5;
@@ -267,13 +241,16 @@ export function calculateCategoryScores(
         weightedContribution: Number(((cotScore * weight) / 100).toFixed(2)),
         indicatorCount: 1,
         activeCount: cotValid ? 1 : 0,
+        coveragePercent: cotValid ? 100 : 0,
+        confidence: cotValid ? 100 : 0,
+        availableWeight: cotValid ? weight : 0,
         indicators: [],
       };
       continue;
     }
 
     if (cat === 'SENTIMENT') {
-      const retail = retailPositioning.find((r) => r.asset === currency);
+      const retail = safeRetailPositioning.find((r) => r.asset === currency);
       const sentScore = retail && retail.isEntered !== false && Number.isFinite(retail.longPercent) && Number.isFinite(retail.shortPercent)
         ? calculateRetailContrarianScore(retail)
         : 0;
@@ -287,13 +264,16 @@ export function calculateCategoryScores(
         weightedContribution: Number(((sentScore * weight) / 100).toFixed(2)),
         indicatorCount: 1,
         activeCount: sentValid ? 1 : 0,
+        coveragePercent: sentValid ? 100 : 0,
+        confidence: sentValid ? 100 : 0,
+        availableWeight: sentValid ? weight : 0,
         indicators: [],
       };
       continue;
     }
 
     if (cat === 'RATES_YIELDS') {
-      const ir = interestRateRecords.find((r) => r.currency === currency);
+      const ir = safeInterestRateRecords.find((r) => r.currency === currency);
       const rateValid = !!ir && ir.isEntered !== false && Number.isFinite(ir.currentPolicyRate) && Number.isFinite(ir.expectedNextRate) && Number.isFinite(ir.yield2Y) && Number.isFinite(ir.yield10Y);
       const yieldScore = rateValid ? calculateInterestRateScore(ir!) : 0;
       const weight = customWeights.RATES_YIELDS || 10;
@@ -305,6 +285,9 @@ export function calculateCategoryScores(
         weightedContribution: Number(((yieldScore * weight) / 100).toFixed(2)),
         indicatorCount: 1,
         activeCount: rateValid ? 1 : 0,
+        coveragePercent: rateValid ? 100 : 0,
+        confidence: rateValid ? 100 : 0,
+        availableWeight: rateValid ? weight : 0,
         indicators: [],
       };
       continue;
@@ -319,6 +302,9 @@ export function calculateCategoryScores(
         weightedContribution: 0,
         indicatorCount: 0,
         activeCount: 0,
+        coveragePercent: 0,
+        confidence: 0,
+        availableWeight: 0,
         indicators: [],
       };
       continue;
@@ -329,14 +315,14 @@ export function calculateCategoryScores(
       return calculateIndicatorScore(def, obs);
     });
 
-    const activeIndicators = indicatorScores.filter((i) => i.actual !== null);
+    const activeIndicators = indicatorScores.filter((i) => i.actual !== null && (i.effectiveWeight ?? 0) > 0);
     let categoryScore = 0;
 
     if (activeIndicators.length > 0) {
-      const totalActiveWeight = activeIndicators.reduce((acc, i) => acc + i.definition.weightInCategory, 0);
+      const totalActiveWeight = activeIndicators.reduce((acc, i) => acc + (i.effectiveWeight ?? i.definition.weightInCategory), 0);
       if (totalActiveWeight > 0) {
         const weightedSum = activeIndicators.reduce(
-          (acc, i) => acc + i.score * (i.definition.weightInCategory / totalActiveWeight),
+          (acc, i) => acc + i.score * ((i.effectiveWeight ?? i.definition.weightInCategory) / totalActiveWeight),
           0
         );
         categoryScore = Math.round(weightedSum);
@@ -354,6 +340,9 @@ export function calculateCategoryScores(
       weightedContribution: Number(((categoryScore * catWeight) / 100).toFixed(2)),
       indicatorCount: catDefs.length,
       activeCount: activeIndicators.length,
+      coveragePercent: catDefs.length ? Math.round((activeIndicators.length / catDefs.length) * 100) : 0,
+      confidence: activeIndicators.length ? Math.round(activeIndicators.reduce((s, i) => s + (i.confidence ?? 0), 0) / activeIndicators.length) : 0,
+      availableWeight: Number(totalActiveWeight.toFixed(4)),
       indicators: indicatorScores,
     };
   }
@@ -362,18 +351,20 @@ export function calculateCategoryScores(
 }
 
 export function calculateCotScore(record: CotPositioningRecord): number {
-  if (
-    typeof record.nonCommercialLong !== 'number' ||
-    typeof record.nonCommercialShort !== 'number' ||
-    typeof record.openInterest !== 'number' ||
-    !Number.isFinite(record.nonCommercialLong) ||
-    !Number.isFinite(record.nonCommercialShort) ||
-    !Number.isFinite(record.openInterest) ||
-    record.openInterest <= 0
-  ) return 0;
+  const long = Number(record.leveragedFundsLong ?? record.nonCommercialLong);
+  const short = Number(record.leveragedFundsShort ?? record.nonCommercialShort);
+  const oi = Number(record.openInterest);
+  if (![long, short, oi].every(Number.isFinite) || oi <= 0) return 0;
 
-  const netPosition = record.nonCommercialLong - record.nonCommercialShort;
-  const netRatio = netPosition / record.openInterest;
+  const netRatio = (long - short) / oi;
+  if (Number.isFinite(record.historicalPercentile)) {
+    const p = Math.max(0, Math.min(100, record.historicalPercentile!));
+    // Crowding is a positioning/timing layer: extremes increase reversal risk rather than
+    // being treated as a permanent fundamental driver.
+    if (p >= 90) return -Math.round((p - 50) * 2);
+    if (p <= 10) return Math.round((50 - p) * 2);
+    return Math.round((p - 50) * 1.25);
+  }
   return Math.round(Math.max(-100, Math.min(100, netRatio * 500)));
 }
 
@@ -391,11 +382,13 @@ export function normalizeRetailPositioningPercentages(record: RetailPositioningR
 export function calculateRetailContrarianScore(record: RetailPositioningRecord): number {
   const positioning = normalizeRetailPositioningPercentages(record);
   if (!positioning) return 0;
-
-  // Higher side = what retail is actually thinking.
-  // Model signal is deliberately the opposite: retail long-heavy => bearish,
-  // retail short-heavy => bullish. The magnitude is the observed percentage gap.
-  return Math.round(Math.max(-100, Math.min(100, positioning.shortPercent - positioning.longPercent)));
+  const long = positioning.longPercent;
+  const short = positioning.shortPercent;
+  const dominant = Math.max(long, short);
+  if (dominant < 65) return Math.round((short - long) * 0.5);
+  const gap = Math.abs(long - short);
+  const thresholdBoost = Math.min(2, (dominant - 65) / 15 + 1);
+  return Math.round(Math.max(-100, Math.min(100, (short - long) * thresholdBoost)));
 }
 
 export function calculateSentimentScore(record: MarketSentimentRecord): number {
@@ -429,18 +422,15 @@ export function calculateSentimentScore(record: MarketSentimentRecord): number {
 }
 
 export function calculateInterestRateScore(record: InterestRateRecord): number {
-  let score = 0;
-  // Policy rate level (0% is -40, 5% is +40)
-  score += Math.max(-50, Math.min(50, (record.currentPolicyRate - 2.5) * 16));
-
-  // Forward bias
-  if (record.centralBankBias === 'HAWKISH') score += 25;
-  else if (record.centralBankBias === 'DOVISH') score -= 25;
-
-  // 10Y sovereign yield
-  score += Math.max(-25, Math.min(25, (record.yield10Y - 2.5) * 10));
-
-  return Math.round(Math.max(-100, Math.min(100, score)));
+  const current = Number.isFinite(record.currentPolicyRate) ? record.currentPolicyRate : 0;
+  const priced12M = record.implied12MPolicyRate ?? (
+    Number.isFinite(record.expected12MRateChangeBps) ? current + (record.expected12MRateChangeBps! / 100) : undefined
+  );
+  const path = priced12M !== undefined ? Math.max(-100, Math.min(100, (priced12M - current) * 20)) : 0;
+  const real = record.realPolicyRate !== undefined ? Math.max(-100, Math.min(100, record.realPolicyRate * 15)) : 0;
+  const twoYear = Number.isFinite(record.yield2Y) ? Math.max(-100, Math.min(100, record.yield2Y * 10)) : 0;
+  const bias = record.centralBankBias === 'HAWKISH' ? 20 : record.centralBankBias === 'DOVISH' ? -20 : 0;
+  return Math.round(Math.max(-100, Math.min(100, path * 0.55 + real * 0.20 + twoYear * 0.15 + bias * 0.10)));
 }
 
 export function calculateCurrencyScore(
@@ -487,10 +477,24 @@ export function calculateCurrencyScore(
     }
   }
 
+  // Category weights are renormalized over categories with verified/usable data only.
   const rawComposite = totalApplicableWeight > 0 ? weightedScoreSum / totalApplicableWeight : 0;
   const compositeScore = Math.round(Math.max(-100, Math.min(100, rawComposite)));
 
-  const dataCoveragePercent = totalIndicators > 0 ? Math.round((completedIndicators / totalIndicators) * 100) : 100;
+  const dataCoveragePercent = totalIndicators > 0 ? Math.round((completedIndicators / totalIndicators) * 100) : 0;
+  const categoryConfidences = Object.values(categoryScores).filter((c) => c.activeCount > 0).map((c) => c.confidence ?? 0);
+  const overallConfidence = categoryConfidences.length ? Math.round(categoryConfidences.reduce((a, b) => a + b, 0) / categoryConfidences.length) : 0;
+  const validRiskRecords = safeSentimentRecords.filter((r) => r.isEntered !== false);
+  const riskCounts = validRiskRecords.reduce((acc, r) => {
+    acc[r.globalRiskRegime] = (acc[r.globalRiskRegime] || 0) + 1;
+    return acc;
+  }, {} as Record<'RISK_ON' | 'NEUTRAL' | 'RISK_OFF', number>);
+  const dominantRisk = (['RISK_ON', 'RISK_OFF', 'NEUTRAL'] as const)
+    .sort((a, b) => (riskCounts[b] || 0) - (riskCounts[a] || 0))[0];
+  const riskRegime = validRiskRecords.length ? dominantRisk : undefined;
+  const riskRegimeConfidence = validRiskRecords.length
+    ? Math.round(((riskCounts[dominantRisk] || 0) / validRiskRecords.length) * 100)
+    : 0;
 
   let freshnessStatus: 'CURRENT' | 'PARTIAL' | 'STALE' | 'INCOMPLETE' = 'CURRENT';
   if (completedIndicators === 0 && totalApplicableWeight === 0) {
@@ -522,6 +526,7 @@ export function calculateCurrencyScore(
   }
 
   let assessmentLabel = 'NEUTRAL / MIXED';
+  const monetaryPolicyScore = categoryScores.MONETARY_POLICY?.score ?? 0;
   if (totalApplicableWeight === 0 && completedIndicators === 0) {
     assessmentLabel = 'NEUTRAL / MIXED';
   } else if (compositeScore >= 40) {
@@ -533,7 +538,7 @@ export function calculateCurrencyScore(
   } else if (compositeScore <= -12) {
     assessmentLabel = 'BEARISH';
   } else {
-    assessmentLabel = 'NEUTRAL / MIXED';
+    assessmentLabel = (compositeScore < 0 && monetaryPolicyScore < -10 && overallConfidence < 65) ? 'WEAK' : 'NEUTRAL / MIXED';
   }
 
   return {
@@ -542,10 +547,10 @@ export function calculateCurrencyScore(
     score: compositeScore,
     finalCompositeScore: compositeScore,
     primaryDrivers: primarySupport,
-    interestRateLevel: interestRateRecords.find((r) => r.currency === currency && Number.isFinite(r.currentPolicyRate))?.currentPolicyRate
-      ?? observations.find((o) => o.currency === currency && o.indicatorId.includes('POLICY'))?.actual,
-    tenYearBondYield: interestRateRecords.find((r) => r.currency === currency && Number.isFinite(r.yield10Y))?.yield10Y
-      ?? observations.find((o) => o.currency === currency && o.indicatorId.includes('10Y'))?.actual,
+    interestRateLevel: safeInterestRateRecords.find((r) => r.currency === currency && Number.isFinite(r.currentPolicyRate))?.currentPolicyRate
+      ?? safeObservations.find((o) => o.currency === currency && o.indicatorId.includes('POLICY'))?.actual,
+    tenYearBondYield: safeInterestRateRecords.find((r) => r.currency === currency && Number.isFinite(r.yield10Y))?.yield10Y
+      ?? safeObservations.find((o) => o.currency === currency && o.indicatorId.includes('10Y'))?.actual,
     categoryScores,
     dataCoveragePercent,
     completedIndicators,
@@ -557,6 +562,16 @@ export function calculateCurrencyScore(
     modelVersion,
     weightsVersion,
     calculatedAt: new Date().toISOString(),
+    overallConfidence,
+    topDrivers: primarySupport.slice(0, 5),
+    scoreReasons: [
+      'Composite = weighted category scores after available-data renormalization.',
+      'Indicator impulse is freshness-decayed; missing/unverified observations do not receive full production weight.',
+      'State and impulse are kept separate so a stale surprise cannot dominate the structural signal.',
+    ],
+    riskRegime,
+    regimeConfidence: riskRegimeConfidence,
+    conflicts: conflictingFactors,
   };
 }
 
@@ -611,7 +626,11 @@ export function calculatePairDifferential(
     ? Number((base.tenYearBondYield - quote.tenYearBondYield).toFixed(2))
     : undefined;
 
-  const avgCoverage = Math.round(((base?.dataCoveragePercent ?? 100) + (quote?.dataCoveragePercent ?? 100)) / 2);
+  const baseConfidence = base?.overallConfidence ?? base?.dataCoveragePercent ?? 0;
+  const quoteConfidence = quote?.overallConfidence ?? quote?.dataCoveragePercent ?? 0;
+  const pairConfidence = Math.min(baseConfidence, quoteConfidence);
+  const avgCoverage = Math.round(((base?.dataCoveragePercent ?? 0) + (quote?.dataCoveragePercent ?? 0)) / 2);
+  const confidenceAdjustedDifferential = Math.round(differential * Math.max(0, Math.min(1, pairConfidence / 100)));
 
   let bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL_MIXED' | 'BEARISH' | 'STRONG_BEARISH' | 'INSUFFICIENT_DATA' = 'NEUTRAL_MIXED';
   let biasLabel = 'NEUTRAL / MIXED';
@@ -625,16 +644,16 @@ export function calculatePairDifferential(
     shortTermDirection = 'INSUFFICIENT DATA';
     mediumTermDirection = 'INSUFFICIENT DATA';
     longTermDirection = 'INSUFFICIENT DATA';
-  } else if (differential >= 35) {
+  } else if (confidenceAdjustedDifferential >= 35) {
     bias = 'STRONG_BULLISH';
     biasLabel = 'STRONGLY BULLISH';
-  } else if (differential >= 12) {
+  } else if (confidenceAdjustedDifferential >= 12) {
     bias = 'BULLISH';
     biasLabel = 'BULLISH';
-  } else if (differential <= -35) {
+  } else if (confidenceAdjustedDifferential <= -35) {
     bias = 'STRONG_BEARISH';
     biasLabel = 'STRONGLY BEARISH';
-  } else if (differential <= -12) {
+  } else if (confidenceAdjustedDifferential <= -12) {
     bias = 'BEARISH';
     biasLabel = 'BEARISH';
   } else {
@@ -643,13 +662,13 @@ export function calculatePairDifferential(
   }
 
   if (pairDataComplete) {
-    const shortMetric = Math.round(differential * 0.8 + sentimentDifferential * 0.2);
+    const shortMetric = Math.round(confidenceAdjustedDifferential * 0.65 + sentimentDifferential * 0.35);
     shortTermDirection = shortMetric >= 10 ? 'BULLISH' : shortMetric <= -10 ? 'BEARISH' : 'NEUTRAL';
 
-    const mediumMetric = Math.round(differential * 0.6 + interestRateDifferential * 0.4);
+    const mediumMetric = Math.round(confidenceAdjustedDifferential * 0.55 + interestRateDifferential * 0.45);
     mediumTermDirection = mediumMetric >= 10 ? 'BULLISH' : mediumMetric <= -10 ? 'BEARISH' : 'NEUTRAL';
 
-    longTermDirection = differential >= 12 ? 'BULLISH' : differential <= -12 ? 'BEARISH' : 'NEUTRAL';
+    longTermDirection = confidenceAdjustedDifferential >= 12 ? 'BULLISH' : confidenceAdjustedDifferential <= -12 ? 'BEARISH' : 'NEUTRAL';
   }
 
   const primaryDrivers: string[] = [];
@@ -687,6 +706,7 @@ export function calculatePairDifferential(
     interestRateSpread: interestRateDifferential,
     tenYearSpread,
     dataCoveragePercent: avgCoverage,
+    confidence: pairConfidence,
     conflictLevel,
     bias,
     biasLabel,

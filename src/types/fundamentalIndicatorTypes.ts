@@ -21,7 +21,8 @@ export type MeasurementFrequency =
   | 'Weekly'
   | 'Bi-Weekly'
   | 'Annual'
-  | 'Daily';
+  | 'Daily'
+  | 'Event';
 
 export type MeasurementPeriodType =
   | 'Year-over-Year (YoY) %'
@@ -48,7 +49,9 @@ export type ScoringDirection =
   | 'LOWER_IS_BULLISH'       // e.g. Unemployment Rate, Claims
   | 'INFLATION_POLICY_PATH'  // Above target increases policy rates (bullish currency), extreme overheating negative
   | 'CONTRARIAN_EXTREMES'    // Heavy net long crowding flips to bearish reversal risk
-  | 'EXTERNAL_BALANCE';      // Trade surpluses supportive, widening deficits negative
+  | 'EXTERNAL_BALANCE'       // Trade surpluses supportive, widening deficits negative
+  | 'RATE_EXPECTATIONS'      // Market repricing of expected policy path; not an absolute yield level
+  | 'CONTEXT_ONLY';           // Display/diagnostic input; excluded from directional composite scoring
 
 export interface IndicatorDefinition {
   id: string;
@@ -85,6 +88,19 @@ export interface BacktestRuleConfig {
   minDataCoverage?: number;
 }
 
+export type VerificationStatus = 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' | 'MANUAL';
+
+export type FundamentalRegime = 'RISK_ON' | 'NEUTRAL' | 'RISK_OFF' | 'INFLATION' | 'GROWTH_SCARE';
+
+export interface FundamentalSourceMeta {
+  sourceName: string;
+  sourceUrl: string;
+  retrievedAt: string;
+  releaseDate: string;
+  referencePeriod: string;
+  verificationStatus: VerificationStatus;
+}
+
 export interface IndicatorObservation {
   id: string;
   indicatorId: string;
@@ -100,7 +116,7 @@ export interface IndicatorObservation {
   sourceUrl?: string;
   notes?: string;
   updatedAt: string;
-  verificationStatus?: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' | 'MANUAL';
+  verificationStatus?: VerificationStatus;
   confidence?: number;
   researchRetrievedAt?: string;
   researchSourceName?: string;
@@ -145,6 +161,8 @@ export interface CotPositioningRecord {
   confidence?: number;
   researchRetrievedAt?: string;
   updatedAt: string;
+  historicalPercentile?: number;
+  reportingLagDays?: number;
 }
 
 export type RetailSentimentAsset = CurrencyCode | 'GOLD' | 'SILVER' | 'CRUDE_OIL';
@@ -182,6 +200,12 @@ export interface InterestRateRecord {
   previousPolicyRate: number;
   expectedNextRate: number;
   expectedRateChangeBps: number;
+  /** Market-priced cumulative policy-rate change over the next 12 months, in bps. */
+  expected12MRateChangeBps?: number;
+  /** OIS / futures-implied 12M policy rate, when available. */
+  implied12MPolicyRate?: number;
+  /** Real policy rate = policy rate - latest relevant inflation measure. */
+  realPolicyRate?: number;
   nextMeetingDate: string;
   centralBankBias: 'HAWKISH' | 'NEUTRAL' | 'DOVISH';
   recentGuidance: string;
@@ -271,11 +295,22 @@ export interface IndicatorScoreResult {
   surprise: number | null;
   change: number | null;
   standardizedSurprise: number | null;
+  /** Structural level/trend component, separated from release impulse. */
+  stateScore?: number;
+  /** Point-in-time surprise / change component with freshness decay. */
+  impulseScore?: number;
+  /** Effective weight after freshness and verification adjustments. */
+  effectiveWeight?: number;
+  /** 0-100 data confidence derived from verification, coverage and freshness. */
+  confidence?: number;
+  /** Human-readable calculation inputs and reason chain. */
+  scoreReasons?: string[];
   score: number; // -100 to +100
   weightedContribution: number;
   interpretationText: string;
   status: 'CURRENT' | 'RECENT' | 'STALE' | 'MISSING';
   ageDays: number;
+  source?: FundamentalSourceMeta;
 }
 
 export interface CategoryScoreResult {
@@ -283,7 +318,10 @@ export interface CategoryScoreResult {
   categoryLabel: string;
   score: number; // -100 to +100
   weight: number;
-  weightedContribution: number; // (score * weight) / 100
+  weightedContribution: number; // (score * normalized category weight) / 100
+  coveragePercent?: number;
+  confidence?: number;
+  availableWeight?: number;
   indicatorCount: number;
   activeCount: number;
   indicators: IndicatorScoreResult[];
@@ -308,6 +346,12 @@ export interface CurrencyScoreResult {
   modelVersion: string;
   weightsVersion: string;
   calculatedAt: string;
+  overallConfidence?: number;
+  topDrivers?: string[];
+  scoreReasons?: string[];
+  riskRegime?: FundamentalRegime;
+  regimeConfidence?: number;
+  conflicts?: string[];
 }
 
 export interface PairDifferentialResult {
@@ -334,6 +378,9 @@ export interface PairDifferentialResult {
   primaryDrivers: string[];
   conflicts: string[];
   aiExplanation?: string;
+  confidence?: number;
+  modelVersion?: string;
+  weightsVersion?: string;
 }
 
 export interface CrossAssetRelationshipResult {

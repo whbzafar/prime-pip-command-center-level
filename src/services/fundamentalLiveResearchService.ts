@@ -9,6 +9,22 @@ import {
 
 export type LiveVerificationStatus = 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND';
 
+/**
+ * LLM-generated numeric research is never promoted to production-truth automatically.
+ * A deterministic provider adapter or an explicit human verification step must mark it VERIFIED.
+ */
+function enforceProductionVerification<T extends { status: LiveVerificationStatus; notes?: string; confidence: number }>(result: T): T {
+  if (result.status === 'VERIFIED') {
+    return {
+      ...result,
+      status: 'REVIEW_REQUIRED',
+      confidence: Math.min(result.confidence ?? 0, 25),
+      notes: [result.notes, 'VERIFY: generated research is not a deterministic source-of-truth adapter. Numeric values require provider verification before production scoring.'].filter(Boolean).join(' '),
+    };
+  }
+  return result;
+}
+
 export interface LiveIndicatorResult {
   status: LiveVerificationStatus;
   indicatorId: string;
@@ -105,11 +121,12 @@ export async function generateIndicator(
   existingObservation?: IndicatorObservation,
   mode: 'GENERATE' | 'REGENERATE' = 'GENERATE',
 ): Promise<LiveIndicatorResult> {
-  return postJson<LiveIndicatorResult>('/api/fundamental/generate-indicator', {
+  const result = await postJson<LiveIndicatorResult>('/api/fundamental/generate-indicator', {
     mode,
     definition,
     existingObservation: existingObservation || null,
   });
+  return enforceProductionVerification(result);
 }
 
 export async function generateCot(
@@ -117,11 +134,12 @@ export async function generateCot(
   existingRecord?: CotPositioningRecord,
   mode: 'GENERATE' | 'REGENERATE' = 'GENERATE',
 ): Promise<LiveCotResult> {
-  return postJson<LiveCotResult>('/api/fundamental/generate-cot', {
+  const result = await postJson<LiveCotResult>('/api/fundamental/generate-cot', {
     mode,
     currency,
     existingRecord: existingRecord || null,
   });
+  return enforceProductionVerification(result);
 }
 
 export async function generateCommodity(
@@ -129,11 +147,12 @@ export async function generateCommodity(
   existingObservation?: CommodityObservation,
   mode: 'GENERATE' | 'REGENERATE' = 'GENERATE',
 ): Promise<LiveCommodityResult> {
-  return postJson<LiveCommodityResult>('/api/fundamental/generate-commodity', {
+  const result = await postJson<LiveCommodityResult>('/api/fundamental/generate-commodity', {
     mode,
     symbol,
     existingObservation: existingObservation || null,
   });
+  return enforceProductionVerification(result);
 }
 
 export async function generateCurrencyIndicators(

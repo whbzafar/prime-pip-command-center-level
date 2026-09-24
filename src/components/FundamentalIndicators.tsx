@@ -110,6 +110,32 @@ const LOCAL_STORAGE_COT_KEY = 'primepip_fundamental_cot_v2';
 const LOCAL_STORAGE_RATES_KEY = 'primepip_fundamental_rates_v2';
 const LOCAL_STORAGE_RETAIL_POSITIONING_KEY = 'primepip_fundamental_retail_positioning_v1';
 
+function readStoredArray<T>(key: string, fallback: T[]): T[] {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch (error) {
+    console.warn(`Ignoring invalid stored Fundamental Intelligence data for ${key}.`, error);
+    return fallback;
+  }
+}
+
+function readStoredObject<T extends object>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? ({ ...fallback, ...parsed } as T)
+      : fallback;
+  } catch (error) {
+    console.warn(`Ignoring invalid stored Fundamental Intelligence settings for ${key}.`, error);
+    return fallback;
+  }
+}
+
 export const FundamentalIndicators: React.FC = () => {
   const [fundamentalUser, setFundamentalUser] = useState<any>(null);
   const [adminRewardOpen, setAdminRewardOpen] = useState(false);
@@ -178,89 +204,43 @@ export const FundamentalIndicators: React.FC = () => {
   };
 
   // Observations state with localStorage persistence
-  const [observations, setObservations] = useState<IndicatorObservation[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_OBSERVATIONS_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Error loading fundamental observations from storage', e);
-    }
-    return DEFAULT_OBSERVATIONS;
-  });
+  const [observations, setObservations] = useState<IndicatorObservation[]>(() =>
+    readStoredArray<IndicatorObservation>(LOCAL_STORAGE_OBSERVATIONS_KEY, DEFAULT_OBSERVATIONS)
+  );
 
   // Interest Rates state with localStorage persistence
-  const [commodityObservations, setCommodityObservations] = useState(() => {
-    try {
-      const saved = localStorage.getItem('primepip_fundamental_commodities_v2');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { console.error('Error loading commodity observations from storage', e); }
-    return DEFAULT_COMMODITY_OBSERVATIONS;
-  });
+  const [commodityObservations, setCommodityObservations] = useState(() =>
+    readStoredArray<(typeof DEFAULT_COMMODITY_OBSERVATIONS)[number]>('primepip_fundamental_commodities_v2', DEFAULT_COMMODITY_OBSERVATIONS)
+  );
 
-  const [interestRates, setInterestRates] = useState<InterestRateRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_RATES_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Error loading interest rates from storage', e);
-    }
-    return DEFAULT_INTEREST_RATES;
-  });
+  const [interestRates, setInterestRates] = useState<InterestRateRecord[]>(() =>
+    readStoredArray<InterestRateRecord>(LOCAL_STORAGE_RATES_KEY, DEFAULT_INTEREST_RATES)
+  );
 
   // Category Weights state with localStorage persistence
-  const [categoryWeights, setCategoryWeights] = useState<ModelCategoryWeights>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_WEIGHTS_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Error loading fundamental weights from storage', e);
-    }
-    return DEFAULT_CATEGORY_WEIGHTS;
-  });
+  const [categoryWeights, setCategoryWeights] = useState<ModelCategoryWeights>(() =>
+    readStoredObject<ModelCategoryWeights>(LOCAL_STORAGE_WEIGHTS_KEY, DEFAULT_CATEGORY_WEIGHTS)
+  );
 
   // Sentiment records state
-  const [sentimentRecords, setSentimentRecords] = useState<MarketSentimentRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_SENTIMENT_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Error loading sentiment from storage', e);
-    }
-    return DEFAULT_SENTIMENT_RECORDS;
-  });
+  const [sentimentRecords, setSentimentRecords] = useState<MarketSentimentRecord[]>(() =>
+    readStoredArray<MarketSentimentRecord>(LOCAL_STORAGE_SENTIMENT_KEY, DEFAULT_SENTIMENT_RECORDS)
+  );
 
   // Retail positioning is the only manual input used by the Sentiment workspace.
-  const [retailPositioning, setRetailPositioning] = useState<RetailPositioningRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_RETAIL_POSITIONING_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Error loading retail positioning from storage', e);
-    }
-    return DEFAULT_RETAIL_POSITIONING;
-  });
+  const [retailPositioning, setRetailPositioning] = useState<RetailPositioningRecord[]>(() =>
+    readStoredArray<RetailPositioningRecord>(LOCAL_STORAGE_RETAIL_POSITIONING_KEY, DEFAULT_RETAIL_POSITIONING)
+  );
 
   // Pair sentiment is contextual Myfxbook data and remains separate from currency fundamentals.
-  const [pairSentimentRecords, setPairSentimentRecords] = useState<PairSentimentRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_PAIR_SENTIMENT_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Error loading pair sentiment from storage', e);
-    }
-    return [];
-  });
+  const [pairSentimentRecords, setPairSentimentRecords] = useState<PairSentimentRecord[]>(() =>
+    readStoredArray<PairSentimentRecord>(LOCAL_STORAGE_PAIR_SENTIMENT_KEY, [])
+  );
 
   // COT records state
-  const [cotRecords, setCotRecords] = useState<CotPositioningRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_COT_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Error loading COT from storage', e);
-    }
-    return DEFAULT_COT_RECORDS;
-  });
+  const [cotRecords, setCotRecords] = useState<CotPositioningRecord[]>(() =>
+    readStoredArray<CotPositioningRecord>(LOCAL_STORAGE_COT_KEY, DEFAULT_COT_RECORDS)
+  );
 
   // Save observations when updated
   useEffect(() => {
@@ -353,9 +333,32 @@ export const FundamentalIndicators: React.FC = () => {
     const currencies = Object.keys(CURRENCY_METADATA) as CurrencyCode[];
     const result: Record<CurrencyCode, CurrencyScoreResult> = {} as any;
 
-    currencies.forEach((code) => {
-      result[code] = calculateCurrencyScore(code, observations, categoryWeights, cotRecords, sentimentRecords, interestRates, retailPositioning);
-    });
+    try {
+      currencies.forEach((code) => {
+        result[code] = calculateCurrencyScore(
+          code,
+          Array.isArray(observations) ? observations : DEFAULT_OBSERVATIONS,
+          categoryWeights && typeof categoryWeights === 'object' ? categoryWeights : DEFAULT_CATEGORY_WEIGHTS,
+          Array.isArray(cotRecords) ? cotRecords : DEFAULT_COT_RECORDS,
+          Array.isArray(sentimentRecords) ? sentimentRecords : DEFAULT_SENTIMENT_RECORDS,
+          Array.isArray(interestRates) ? interestRates : DEFAULT_INTEREST_RATES,
+          Array.isArray(retailPositioning) ? retailPositioning : DEFAULT_RETAIL_POSITIONING,
+        );
+      });
+    } catch (error) {
+      console.error('Fundamental Intelligence calculation failed; using a safe empty score set.', error);
+      currencies.forEach((code) => {
+        result[code] = calculateCurrencyScore(
+          code,
+          [],
+          DEFAULT_CATEGORY_WEIGHTS,
+          [],
+          [],
+          [],
+          [],
+        );
+      });
+    }
 
     return result;
   }, [observations, categoryWeights, cotRecords, sentimentRecords, interestRates, retailPositioning]);
