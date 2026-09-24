@@ -271,19 +271,26 @@ export function calculateCategoryScores(
 }
 
 export function calculateCotScore(record: CotPositioningRecord): number {
-  if (
-    typeof record.nonCommercialLong !== 'number' ||
-    typeof record.nonCommercialShort !== 'number' ||
-    typeof record.openInterest !== 'number' ||
-    !Number.isFinite(record.nonCommercialLong) ||
-    !Number.isFinite(record.nonCommercialShort) ||
-    !Number.isFinite(record.openInterest) ||
-    record.openInterest <= 0
-  ) return 0;
+  if (!Number.isFinite(record.openInterest) || record.openInterest <= 0) return 0;
+  const leveragedNet = Number.isFinite(record.leveragedFundsLong) && Number.isFinite(record.leveragedFundsShort)
+    ? record.leveragedFundsLong - record.leveragedFundsShort
+    : null;
+  const legacyNet = Number.isFinite(record.nonCommercialLong) && Number.isFinite(record.nonCommercialShort)
+    ? (record.nonCommercialLong! - record.nonCommercialShort!)
+    : null;
+  const netPosition = leveragedNet ?? legacyNet;
+  if (netPosition === null) return 0;
 
-  const netPosition = record.nonCommercialLong - record.nonCommercialShort;
   const netRatio = netPosition / record.openInterest;
-  return Math.round(Math.max(-100, Math.min(100, netRatio * 500)));
+  // Smooth rather than linearly exploding at crowded extremes.
+  const baseScore = Math.tanh(netRatio * 8) * 100;
+  const percentile = Number(record.historicalPercentile);
+  if (Number.isFinite(percentile)) {
+    // Crowding is a risk flag, not an automatic reversal signal.
+    if (percentile >= 90) return Math.round(baseScore * 0.85);
+    if (percentile <= 10) return Math.round(baseScore * 0.85);
+  }
+  return Math.round(Math.max(-100, Math.min(100, baseScore)));
 }
 
 export function normalizeRetailPositioningPercentages(record: RetailPositioningRecord): { longPercent: number; shortPercent: number } | null {
@@ -301,10 +308,15 @@ export function calculateRetailContrarianScore(record: RetailPositioningRecord):
   const positioning = normalizeRetailPositioningPercentages(record);
   if (!positioning) return 0;
 
-  // Higher side = what retail is actually thinking.
-  // Model signal is deliberately the opposite: retail long-heavy => bearish,
-  // retail short-heavy => bullish. The magnitude is the observed percentage gap.
-  return Math.round(Math.max(-100, Math.min(100, positioning.shortPercent - positioning.longPercent)));
+  const long = positioning.longPercent;
+  const short = positioning.shortPercent;
+  // Nonlinear timing layer: ordinary 50/50 positioning is nearly neutral;
+  // the signal becomes meaningful only once one side reaches a crowded zone.
+  if (long >= 70) return -Math.round(Math.min(100, (long - 65) * 2.5));
+  if (short >= 70) return Math.round(Math.min(100, (short - 65) * 2.5));
+  if (long >= 65) return -Math.round((long - 50) * 1.25);
+  if (short >= 65) return Math.round((short - 50) * 1.25);
+  return 0;
 }
 
 export function calculateSentimentScore(record: MarketSentimentRecord): number {
