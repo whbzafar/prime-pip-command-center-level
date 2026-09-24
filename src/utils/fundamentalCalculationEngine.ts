@@ -75,7 +75,13 @@ export function calculateIndicatorScore(
   let stateScore = 0;
   let impulseScore = 0;
   const reasons: string[] = [];
-  if (definition.scoringDirection === 'INFLATION_POLICY_PATH') {
+  if (definition.scoringDirection === 'CONTEXT_ONLY') {
+    reasons.push('Context-only input: displayed for diagnostics and excluded from directional composite scoring.');
+  } else if (definition.scoringDirection === 'RATE_EXPECTATIONS') {
+    stateScore = Math.max(-100, Math.min(100, direction * deltaZ * 30));
+    impulseScore = Math.max(-100, Math.min(100, direction * z * 42));
+    reasons.push('Rate signal uses change/repricing rather than the absolute yield level.');
+  } else if (definition.scoringDirection === 'INFLATION_POLICY_PATH') {
     const target = definition.benchmarkTarget ?? 2;
     const targetDistance = Math.max(-3, Math.min(3, (actual - target) / stdDev));
     stateScore = Math.max(-100, Math.min(100, targetDistance * 28));
