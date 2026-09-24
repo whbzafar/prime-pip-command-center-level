@@ -338,18 +338,22 @@ export function calculateSentimentScore(record: MarketSentimentRecord): number {
 }
 
 export function calculateInterestRateScore(record: InterestRateRecord): number {
-  let score = 0;
-  // Policy rate level (0% is -40, 5% is +40)
-  score += Math.max(-50, Math.min(50, (record.currentPolicyRate - 2.5) * 16));
-
-  // Forward bias
-  if (record.centralBankBias === 'HAWKISH') score += 25;
-  else if (record.centralBankBias === 'DOVISH') score -= 25;
-
-  // 10Y sovereign yield
-  score += Math.max(-25, Math.min(25, (record.yield10Y - 2.5) * 10));
-
-  return Math.round(Math.max(-100, Math.min(100, score)));
+  const components: number[] = [];
+  const current = Number(record.currentPolicyRate);
+  const next = Number(record.expectedNextRate);
+  const priced12m = Number(record.implied12MPolicyRate);
+  const realPolicy = Number(record.realPolicyRate);
+  if (Number.isFinite(priced12m) && Number.isFinite(current)) {
+    // Market pricing is the primary rate signal: expected 12M policy repricing.
+    components.push(Math.max(-100, Math.min(100, (priced12m - current) * 18)));
+  } else if (Number.isFinite(next) && Number.isFinite(current)) {
+    components.push(Math.max(-80, Math.min(80, (next - current) * 16)));
+  }
+  if (Number.isFinite(record.expectedRateChangeBps)) components.push(Math.max(-60, Math.min(60, record.expectedRateChangeBps / 2)));
+  if (Number.isFinite(realPolicy)) components.push(Math.max(-60, Math.min(60, (realPolicy - 1.0) * 20)));
+  // 10Y level is deliberately not scored as 'higher = bullish'; it is a context field.
+  if (components.length === 0) return 0;
+  return Math.round(components.reduce((a, b) => a + b, 0) / components.length);
 }
 
 export function calculateCurrencyScore(
@@ -396,10 +400,13 @@ export function calculateCurrencyScore(
     }
   }
 
+  // Category weights are renormalized over categories with verified/usable data only.
   const rawComposite = totalApplicableWeight > 0 ? weightedScoreSum / totalApplicableWeight : 0;
   const compositeScore = Math.round(Math.max(-100, Math.min(100, rawComposite)));
 
-  const dataCoveragePercent = totalIndicators > 0 ? Math.round((completedIndicators / totalIndicators) * 100) : 100;
+  const dataCoveragePercent = totalIndicators > 0 ? Math.round((completedIndicators / totalIndicators) * 100) : 0;
+  const categoryConfidences = Object.values(categoryScores).filter((c) => c.activeCount > 0).map((c) => c.confidence ?? 0);
+  const overallConfidence = categoryConfidences.length ? Math.round(categoryConfidences.reduce((a, b) => a + b, 0) / categoryConfidences.length) : 0;
 
   let freshnessStatus: 'CURRENT' | 'PARTIAL' | 'STALE' | 'INCOMPLETE' = 'CURRENT';
   if (completedIndicators === 0 && totalApplicableWeight === 0) {
@@ -466,6 +473,16 @@ export function calculateCurrencyScore(
     modelVersion,
     weightsVersion,
     calculatedAt: new Date().toISOString(),
+    overallConfidence,
+    topDrivers: primarySupport.slice(0, 5),
+    scoreReasons: [
+      'Composite = weighted category scores after available-data renormalization.',
+      'Indicator impulse is freshness-decayed; missing/unverified observations do not receive full production weight.',
+      'State and impulse are kept separate so a stale surprise cannot dominate the structural signal.',
+    ],
+    riskRegime: 'NEUTRAL',
+    regimeConfidence: 0,
+    conflicts: conflictingFactors,
   };
 }
 
