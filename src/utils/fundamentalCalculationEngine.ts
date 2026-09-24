@@ -164,12 +164,32 @@ export function calculateCategoryScores(
   observations: IndicatorObservation[],
   customWeights: ModelCategoryWeights = DEFAULT_CATEGORY_WEIGHTS,
   cotRecords: CotPositioningRecord[] = [],
-  sentimentRecords: MarketSentimentRecord[],
-  interestRateRecords: InterestRateRecord[],
+  sentimentRecords: MarketSentimentRecord[] = [],
+  interestRateRecords: InterestRateRecord[] = [],
   retailPositioning: RetailPositioningRecord[] = []
 ): Record<IndicatorCategory, CategoryScoreResult> {
+  // Persisted browser data can outlive schema changes. Normalize all runtime collections
+  // before scoring so one malformed/stale localStorage value cannot blank the dashboard.
+  const safeObservations = Array.isArray(observations)
+    ? observations.filter((o): o is IndicatorObservation => !!o && typeof o === 'object')
+    : [];
+  const safeCotRecords = Array.isArray(cotRecords)
+    ? cotRecords.filter((r): r is CotPositioningRecord => !!r && typeof r === 'object')
+    : [];
+  const safeSentimentRecords = Array.isArray(sentimentRecords)
+    ? sentimentRecords.filter((r): r is MarketSentimentRecord => !!r && typeof r === 'object')
+    : [];
+  const safeInterestRateRecords = Array.isArray(interestRateRecords)
+    ? interestRateRecords.filter((r): r is InterestRateRecord => !!r && typeof r === 'object')
+    : [];
+  const safeRetailPositioning = Array.isArray(retailPositioning)
+    ? retailPositioning.filter((r): r is RetailPositioningRecord => !!r && typeof r === 'object')
+    : [];
+
   const definitions = OFFICIAL_INDICATOR_REGISTRY.filter((d) => d.currency === currency && d.isActive);
-  const obsMap = new Map<string, IndicatorObservation>(observations.filter((o) => o.currency === currency).map((o) => [o.indicatorId, o]));
+  const obsMap = new Map<string, IndicatorObservation>(
+    safeObservations.filter((o) => o.currency === currency).map((o) => [o.indicatorId, o])
+  );
 
   const categoryLabels: Record<IndicatorCategory, string> = {
     MONETARY_POLICY: 'Monetary Policy & Central Bank',
@@ -209,7 +229,7 @@ export function calculateCategoryScores(
 
     // Handle special modules: COT and Sentiment
     if (cat === 'COT_POSITIONING') {
-      const cot = cotRecords.find((c) => c.currency === currency);
+      const cot = safeCotRecords.find((c) => c.currency === currency);
       const cotValid = !!cot && Number.isFinite(cot.nonCommercialLong) && Number.isFinite(cot.nonCommercialShort) && Number.isFinite(cot.openInterest) && (cot.openInterest as number) > 0;
       const cotScore = cotValid ? calculateCotScore(cot!) : 0;
       const weight = customWeights.COT_POSITIONING || 5;
@@ -221,13 +241,16 @@ export function calculateCategoryScores(
         weightedContribution: Number(((cotScore * weight) / 100).toFixed(2)),
         indicatorCount: 1,
         activeCount: cotValid ? 1 : 0,
+        coveragePercent: cotValid ? 100 : 0,
+        confidence: cotValid ? 100 : 0,
+        availableWeight: cotValid ? weight : 0,
         indicators: [],
       };
       continue;
     }
 
     if (cat === 'SENTIMENT') {
-      const retail = retailPositioning.find((r) => r.asset === currency);
+      const retail = safeRetailPositioning.find((r) => r.asset === currency);
       const sentScore = retail && retail.isEntered !== false && Number.isFinite(retail.longPercent) && Number.isFinite(retail.shortPercent)
         ? calculateRetailContrarianScore(retail)
         : 0;
@@ -241,13 +264,16 @@ export function calculateCategoryScores(
         weightedContribution: Number(((sentScore * weight) / 100).toFixed(2)),
         indicatorCount: 1,
         activeCount: sentValid ? 1 : 0,
+        coveragePercent: sentValid ? 100 : 0,
+        confidence: sentValid ? 100 : 0,
+        availableWeight: sentValid ? weight : 0,
         indicators: [],
       };
       continue;
     }
 
     if (cat === 'RATES_YIELDS') {
-      const ir = interestRateRecords.find((r) => r.currency === currency);
+      const ir = safeInterestRateRecords.find((r) => r.currency === currency);
       const rateValid = !!ir && ir.isEntered !== false && Number.isFinite(ir.currentPolicyRate) && Number.isFinite(ir.expectedNextRate) && Number.isFinite(ir.yield2Y) && Number.isFinite(ir.yield10Y);
       const yieldScore = rateValid ? calculateInterestRateScore(ir!) : 0;
       const weight = customWeights.RATES_YIELDS || 10;
@@ -259,6 +285,9 @@ export function calculateCategoryScores(
         weightedContribution: Number(((yieldScore * weight) / 100).toFixed(2)),
         indicatorCount: 1,
         activeCount: rateValid ? 1 : 0,
+        coveragePercent: rateValid ? 100 : 0,
+        confidence: rateValid ? 100 : 0,
+        availableWeight: rateValid ? weight : 0,
         indicators: [],
       };
       continue;
@@ -273,6 +302,9 @@ export function calculateCategoryScores(
         weightedContribution: 0,
         indicatorCount: 0,
         activeCount: 0,
+        coveragePercent: 0,
+        confidence: 0,
+        availableWeight: 0,
         indicators: [],
       };
       continue;
@@ -452,7 +484,7 @@ export function calculateCurrencyScore(
   const dataCoveragePercent = totalIndicators > 0 ? Math.round((completedIndicators / totalIndicators) * 100) : 0;
   const categoryConfidences = Object.values(categoryScores).filter((c) => c.activeCount > 0).map((c) => c.confidence ?? 0);
   const overallConfidence = categoryConfidences.length ? Math.round(categoryConfidences.reduce((a, b) => a + b, 0) / categoryConfidences.length) : 0;
-  const validRiskRecords = sentimentRecords.filter((r) => r.isEntered !== false);
+  const validRiskRecords = safeSentimentRecords.filter((r) => r.isEntered !== false);
   const riskCounts = validRiskRecords.reduce((acc, r) => {
     acc[r.globalRiskRegime] = (acc[r.globalRiskRegime] || 0) + 1;
     return acc;
@@ -515,10 +547,10 @@ export function calculateCurrencyScore(
     score: compositeScore,
     finalCompositeScore: compositeScore,
     primaryDrivers: primarySupport,
-    interestRateLevel: interestRateRecords.find((r) => r.currency === currency && Number.isFinite(r.currentPolicyRate))?.currentPolicyRate
-      ?? observations.find((o) => o.currency === currency && o.indicatorId.includes('POLICY'))?.actual,
-    tenYearBondYield: interestRateRecords.find((r) => r.currency === currency && Number.isFinite(r.yield10Y))?.yield10Y
-      ?? observations.find((o) => o.currency === currency && o.indicatorId.includes('10Y'))?.actual,
+    interestRateLevel: safeInterestRateRecords.find((r) => r.currency === currency && Number.isFinite(r.currentPolicyRate))?.currentPolicyRate
+      ?? safeObservations.find((o) => o.currency === currency && o.indicatorId.includes('POLICY'))?.actual,
+    tenYearBondYield: safeInterestRateRecords.find((r) => r.currency === currency && Number.isFinite(r.yield10Y))?.yield10Y
+      ?? safeObservations.find((o) => o.currency === currency && o.indicatorId.includes('10Y'))?.actual,
     categoryScores,
     dataCoveragePercent,
     completedIndicators,
