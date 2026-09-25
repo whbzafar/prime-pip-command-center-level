@@ -22,7 +22,10 @@ import {
   TrendingUp,
   TrendingDown,
   RefreshCw,
+  Camera,
+  FileText,
 } from 'lucide-react';
+import { generateCommodityReportPdf } from '../../utils/fundamentalPdfGenerator';
 
 interface CommoditiesMacroViewProps {
   usdScore?: CurrencyScoreResult;
@@ -31,6 +34,7 @@ interface CommoditiesMacroViewProps {
   retailPositioning?: RetailPositioningRecord[];
   onUpdateCommodity?: (observation: CommodityObservation) => void;
   onRequestAiExplanation?: (commodity: string) => void;
+  onOpenImageExtractor?: (commoditySymbol?: string) => void;
 }
 
 export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
@@ -40,6 +44,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
   retailPositioning = [],
   onUpdateCommodity,
   onRequestAiExplanation,
+  onOpenImageExtractor,
 }) => {
   const [activeCommodity, setActiveCommodity] = useState<'GOLD' | 'CRUDE_OIL' | 'SILVER'>('GOLD');
   const [localCommodityData, setLocalCommodityData] = useState<CommodityObservation[]>(() => {
@@ -299,6 +304,26 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
             >
               <RefreshCw className={`w-3.5 h-3.5 ${commodityLiveLoading ? 'animate-spin' : ''}`} />
               <span>{commodityLiveLoading ? 'REGENERATING…' : 'REGENERATE'}</span>
+            </button>
+            {onOpenImageExtractor && (
+              <button
+                type="button"
+                onClick={() => onOpenImageExtractor(activeCommodity)}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-400/40 text-cyan-300 text-xs font-military font-bold transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                title={`Upload screenshot to extract ${activeCommodity} data with OCR`}
+              >
+                <Camera className="w-3.5 h-3.5 text-cyan-400" />
+                <span>UPLOAD IMAGE</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => generateCommodityReportPdf(activeCommodity, commodityData)}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-400/40 text-amber-300 text-xs font-military font-bold transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+              title="Download Commodities Macroeconomic Report"
+            >
+              <FileText className="w-3.5 h-3.5 text-amber-400" />
+              <span>REPORT</span>
             </button>
           </div>
         </div>

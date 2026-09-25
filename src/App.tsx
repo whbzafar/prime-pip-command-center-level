@@ -70,6 +70,8 @@ import { AppFooter } from './components/AppFooter';
 import { CommandCenterAtmosphere } from './components/CommandCenterAtmosphere';
 import { AllCategoriesModal } from './components/AllCategoriesModal';
 import { CommunicationNotifications } from './components/CommunicationNotifications';
+import { SituationSaver } from './components/situationSaver/SituationSaver';
+import { PairSaver } from './components/pairSaver/PairSaver';
 
 export default function App() {
   // Navigation State
@@ -902,6 +904,33 @@ export default function App() {
 
         {activeTab === 'FUNDAMENTAL_INDICATORS' && (
           <FundamentalIndicators />
+        )}
+
+        {activeTab === 'SITUATION_SAVER' && (
+          <SituationSaver
+            activeAccount={activeAccount}
+            onOpenNewTrade={(prefill) => {
+              if (prefill) setPrefilledTradeData(prefill);
+              setIsEntryModalOpen(true);
+            }}
+            onNavigateTab={(tab) => setActiveTab(tab as MainNavTab)}
+          />
+        )}
+
+        {activeTab === 'PAIR_SAVER' && (
+          <PairSaver
+            onOpenNewTrade={(prefill) => {
+              if (prefill) setPrefilledTradeData(prefill);
+              setIsEntryModalOpen(true);
+            }}
+            onNavigateTab={(tab) => setActiveTab(tab as MainNavTab)}
+            onOpenCurrencyWorkspace={() => {
+              setActiveTab('FUNDAMENTAL_INDICATORS');
+            }}
+            onSaveSituationForPair={() => {
+              setActiveTab('SITUATION_SAVER');
+            }}
+          />
         )}
 
         {activeTab === 'FREEHAND_WORKSPACE' && (

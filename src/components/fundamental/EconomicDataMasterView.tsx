@@ -25,18 +25,24 @@ import {
   Sparkles,
   RefreshCw,
   RotateCcw,
+  Camera,
+  FileText,
 } from 'lucide-react';
+import { generateMasterDataReportPdf } from '../../utils/fundamentalPdfGenerator';
+import { DEFAULT_COMMODITY_OBSERVATIONS } from '../../data/defaultFundamentalObservations';
 
 interface EconomicDataMasterViewProps {
   observations: IndicatorObservation[];
   onUpdateObservation: (updated: IndicatorObservation) => void;
   onSelectCurrency: (curr: CurrencyCode) => void;
+  onOpenImageExtractor?: (currency?: string) => void;
 }
 
 export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
   observations,
   onUpdateObservation,
   onSelectCurrency,
+  onOpenImageExtractor,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState<string>('ALL');
@@ -537,6 +543,26 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-cyan-300 border border-cyan-500/30 text-xs font-military font-bold transition cursor-pointer"
             >
               REGENERATE
+            </button>
+            {onOpenImageExtractor && (
+              <button
+                type="button"
+                onClick={() => onOpenImageExtractor(selectedCurrency !== 'ALL' ? selectedCurrency : 'USD')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-300 border border-cyan-400/40 text-xs font-military font-bold transition cursor-pointer"
+                title="Upload screenshot of economic table to extract indicators with OCR"
+              >
+                <Camera className="w-3.5 h-3.5 text-cyan-400" />
+                <span>UPLOAD IMAGE</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => generateMasterDataReportPdf(observations, DEFAULT_COMMODITY_OBSERVATIONS)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-400/40 text-amber-300 text-xs font-military font-bold transition cursor-pointer"
+              title="Download Master Economic Data Registry Report"
+            >
+              <FileText className="w-3.5 h-3.5 text-amber-400" />
+              <span>REPORT</span>
             </button>
           </div>
         </div>

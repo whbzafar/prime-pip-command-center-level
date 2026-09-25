@@ -85,21 +85,35 @@ export interface BacktestRuleConfig {
   minDataCoverage?: number;
 }
 
+export type IndicatorDataStatus =
+  | 'LIVE_VERIFIED'
+  | 'OFFICIAL_PUBLISHED'
+  | 'DELAYED'
+  | 'REVISED'
+  | 'EXTRACTED_FROM_IMAGE'
+  | 'UNAVAILABLE'
+  | 'UNVERIFIED';
+
 export interface IndicatorObservation {
   id: string;
   indicatorId: string;
+  indicatorName?: string;
   currency: CurrencyCode;
   referencePeriod: string;
   releaseDate: string;
+  releaseTime?: string;
   actual: number;
   forecast: number | null;
   previous: number | null;
   revisedPrevious?: number | null;
   unit?: string;
   isSeasonallyAdjusted?: boolean;
+  dataSource?: string;
   sourceUrl?: string;
   notes?: string;
   updatedAt: string;
+  dataRetrievalTimestamp?: string;
+  dataStatus?: IndicatorDataStatus;
   verificationStatus?: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' | 'MANUAL';
   confidence?: number;
   researchRetrievedAt?: string;

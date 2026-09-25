@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Sparkles,
   Lock,
+  Bookmark,
 } from 'lucide-react';
 import { MainNavTab } from './Header';
 import { UserAccount } from '../types';
@@ -198,8 +199,28 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
     icon: PenTool,
   },
   {
-    id: 'PRO_LEARNING',
+    id: 'SITUATION_SAVER',
     num: '17',
+    label: 'Situation Saver',
+    name: 'Multi-Timeframe Situation Saver',
+    desc: 'Capture, categorize, and backtest multi-timeframe market setups, Fibonacci levels, historical outcomes, and lessons learned with similarity matching.',
+    section: 'Intelligence & Setups',
+    icon: Bookmark,
+    highlight: true,
+  },
+  {
+    id: 'PAIR_SAVER',
+    num: '18',
+    label: 'Pair Saver',
+    name: 'Pair Intelligence & Scenario Saver',
+    desc: 'Multi-timeframe direction alignment, Fibonacci retracements and target scenarios across major pairs and commodities.',
+    section: 'Intelligence & Setups',
+    icon: Compass,
+    highlight: true,
+  },
+  {
+    id: 'PRO_LEARNING',
+    num: '19',
     label: 'Pro Learning Trading',
     name: 'Pro Learning / Trading',
     desc: 'Coming Soon — complete trading strategies, courses, learning paths, and future trading bots in one professional learning command center.',
@@ -210,7 +231,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   },
   {
     id: 'COMMUNITY',
-    num: '18',
+    num: '20',
     label: 'Trader Community Feed',
     name: 'Community Dispatches',
     desc: 'Live trader chat, shared trade ideas, execution questions, and peer support.',
@@ -219,7 +240,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   },
   {
     id: 'BOOK_SESSION',
-    num: '19',
+    num: '21',
     label: 'Book a Session',
     name: '1-on-1 Mentorship',
     desc: 'Book personalized trade review, execution critique, and psychological coaching sessions.',
@@ -229,7 +250,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   },
   {
     id: 'SETTINGS',
-    num: '20',
+    num: '22',
     label: 'Data Export & Backup',
     name: 'Data Backup & Restore',
     desc: 'Export journal data to encrypted JSON, restore previous states, and manage local cloud sync.',
@@ -238,7 +259,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   },
   {
     id: 'ADMIN',
-    num: '21',
+    num: '23',
     label: 'Admin Panel (Owner)',
     name: 'Administration Panel',
     desc: 'Customer accounts management, system permissions, license controls, and audit logs.',
@@ -247,7 +268,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   },
   {
     id: 'EVOLUTION',
-    num: '22',
+    num: '24',
     label: 'Evaluation Engine',
     name: 'Evolution Command Center',
     desc: 'Comprehensive trader progression matrix, discipline scores, and skill-tree evaluation telemetry.',

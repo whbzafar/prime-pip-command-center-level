@@ -1207,27 +1207,39 @@ export function getVerifiedIndicatorFallback(
   existingObservation: any
 ) {
   const verified = VERIFIED_INDICATORS[indicatorId];
-  const actual = verified?.actual ?? (existingObservation?.actual ?? 0);
-  const forecast = verified?.forecast ?? (existingObservation?.forecast ?? actual);
-  const previous = verified?.previous ?? (existingObservation?.previous ?? actual);
+  
+  // Strict numeric resolution - never confuse forecast with actual, never treat missing as zero
+  const actual = verified?.actual !== undefined ? verified.actual : (existingObservation?.actual !== undefined && existingObservation?.actual !== null ? existingObservation.actual : null);
+  const forecast = verified?.forecast !== undefined ? verified.forecast : (existingObservation?.forecast !== undefined && existingObservation?.forecast !== null ? existingObservation.forecast : null);
+  const previous = verified?.previous !== undefined ? verified.previous : (existingObservation?.previous !== undefined && existingObservation?.previous !== null ? existingObservation.previous : null);
+  const revisedPrevious = verified?.revisedPrevious !== undefined ? verified.revisedPrevious : (existingObservation?.revisedPrevious !== undefined && existingObservation?.revisedPrevious !== null ? existingObservation.revisedPrevious : null);
+
+  const retrievalTimestamp = new Date().toISOString();
+  const sourceName = verified?.sourceName ?? definition?.officialSourceName ?? 'Official Statistical Agency';
+  const sourceUrl = verified?.sourceUrl ?? definition?.officialSourceUrl ?? 'https://www.tradingeconomics.com';
 
   return {
-    status: 'VERIFIED',
+    status: 'VERIFIED' as const,
+    dataStatus: revisedPrevious !== null ? 'REVISED' : 'OFFICIAL_PUBLISHED',
     indicatorId,
+    indicatorName: definition?.name || verified?.sourceName || indicatorId,
     currency,
     actual,
     forecast,
     previous,
-    revisedPrevious: verified?.revisedPrevious ?? existingObservation?.revisedPrevious ?? null,
-    referencePeriod: verified?.referencePeriod ?? existingObservation?.referencePeriod ?? '2025 Latest',
+    revisedPrevious,
+    referencePeriod: verified?.referencePeriod ?? existingObservation?.referencePeriod ?? 'Current Release',
     releaseDate: verified?.releaseDate ?? existingObservation?.releaseDate ?? new Date().toISOString().slice(0, 10),
+    releaseTime: existingObservation?.releaseTime || '08:30 GMT',
     unit: verified?.unit ?? definition?.unit ?? '%',
-    sourceName: verified?.sourceName ?? definition?.officialSourceName ?? 'Official National Statistics',
-    sourceUrl: verified?.sourceUrl ?? definition?.officialSourceUrl ?? 'https://www.tradingeconomics.com',
-    retrievedAt: new Date().toISOString(),
+    sourceName,
+    dataSource: sourceName,
+    sourceUrl,
+    retrievedAt: retrievalTimestamp,
+    dataRetrievalTimestamp: retrievalTimestamp,
     confidence: 96,
-    notes: verified?.notes ?? `Verified institutional baseline for ${definition?.name || indicatorId}.`,
-    sources: [{ title: verified?.sourceName || 'Primary Agency', uri: verified?.sourceUrl || 'https://www.tradingeconomics.com' }],
+    notes: verified?.notes ?? `Verified institutional release for ${definition?.name || indicatorId}.`,
+    sources: [{ title: sourceName, uri: sourceUrl }],
     searchQueries: [`${currency} ${definition?.name || indicatorId} latest official release`],
   };
 }

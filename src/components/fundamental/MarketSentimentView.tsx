@@ -139,7 +139,7 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
     } catch {}
   }, [pairsData]);
 
-  // Sync to parent retailPositioning for currency/commodity score integration
+  // Sync to parent retailPositioning for currency/commodity score integration safely outside render
   const syncToParentRetailRecords = (currentData: Record<string, PairSentimentItem>) => {
     if (!onUpdateRetailPositioning) return;
     const records: RetailPositioningRecord[] = [];
@@ -193,6 +193,11 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
     onUpdateRetailPositioning(records);
   };
 
+  // Keep parent retail records synchronized whenever pairsData changes, safely in an effect
+  useEffect(() => {
+    syncToParentRetailRecords(pairsData);
+  }, [pairsData]);
+
   const handleRegeneratePair = async (pair: string) => {
     setRegeneratingPair(pair);
     setSentimentMessage(null);
@@ -220,7 +225,6 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
               isEntered: true,
             },
           };
-          syncToParentRetailRecords(next);
           return next;
         });
         setSentimentMessage(`${pair}: Verified retail sentiment regenerated successfully from broker network.`);
@@ -256,7 +260,6 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
               };
             }
           }
-          syncToParentRetailRecords(updated);
           return updated;
         });
         setSentimentMessage('All 31 instruments: Complete retail sentiment regenerated successfully.');
@@ -289,7 +292,6 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
           };
         }
       }
-      syncToParentRetailRecords(next);
       return next;
     });
     setDrafts({});
@@ -318,7 +320,6 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
         isEntered: true,
       };
       const next = { ...prev, [pair]: updatedItem };
-      syncToParentRetailRecords(next);
       return next;
     });
 
@@ -355,7 +356,6 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
     }
     setPairsData(initial);
     setDrafts({});
-    syncToParentRetailRecords(initial);
     setSentimentMessage('Reset to verified 31-pair benchmark positions.');
   };
 

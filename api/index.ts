@@ -15,6 +15,9 @@ export default function handler(req: Request, res: Response) {
     } else if (req.url && !req.url.startsWith('/api')) {
       req.url = '/api' + (req.url.startsWith('/') ? '' : '/') + req.url;
     }
+    if (req.body && typeof req.body === 'object') {
+      (req as any)._body = true;
+    }
     return app(req, res);
   } catch (err: any) {
     console.error('[API] Handler failure:', err);

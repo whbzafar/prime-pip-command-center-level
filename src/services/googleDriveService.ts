@@ -134,6 +134,14 @@ class GoogleDriveService {
       this.tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
         client_id: activeClientId,
         scope: SCOPES,
+        error_callback: (err: any) => {
+          const errMsg = err?.message || err?.type || String(err);
+          console.warn('[GoogleDrive] Google OAuth error:', errMsg);
+          this.notifyStatus({
+            state: 'ERROR',
+            lastError: `OAuth domain restriction: this deployment origin (${typeof window !== 'undefined' ? window.location.origin : 'current domain'}) must be authorized in Google Cloud Console. Alternatively, use the Free Cloud Email Vault with zero setup!`,
+          });
+        },
         callback: (tokenResponse: any) => {
           if (tokenResponse.error) {
             if (tokenResponse.error === 'popup_closed_by_user' || tokenResponse.error === 'access_denied') {

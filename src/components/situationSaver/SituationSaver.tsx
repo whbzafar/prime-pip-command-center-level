@@ -1,0 +1,1626 @@
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import {
+  Search,
+  Filter,
+  PlusCircle,
+  Bookmark,
+  Layers,
+  Crosshair,
+  TrendingUp,
+  TrendingDown,
+  CheckCircle2,
+  XCircle,
+  MinusCircle,
+  Sparkles,
+  BookOpen,
+  Calendar,
+  Clock,
+  ShieldCheck,
+  Award,
+  AlertTriangle,
+  ArrowRight,
+  Eye,
+  Trash2,
+  Edit3,
+  Download,
+  Upload,
+  RotateCcw,
+  Zap,
+  Target,
+  FileText,
+  Image as ImageIcon,
+  ChevronDown,
+  X,
+  ExternalLink,
+} from 'lucide-react';
+import {
+  MarketSituation,
+  SituationDirection,
+  SituationOutcome,
+  HTFTimeframe,
+  MTFTimeframe,
+  LTFTimeframe,
+  StructureElement,
+  FibonacciLevel,
+  SituationFilterOptions,
+  SimilarityMatchResult,
+  SituationTimeframe,
+  TimeframeScenarioConfig,
+} from '../../types/situationSaverTypes';
+import { DEFAULT_SITUATIONS_DATABASE } from '../../data/defaultSituationsData';
+import { SBTStrategyModel, Trade, TradingSession, AccountSettings } from '../../types';
+import { generateSituationReportPdf } from '../../utils/fundamentalPdfGenerator';
+
+interface SituationSaverProps {
+  onOpenNewTrade?: (prefill?: Partial<Trade>) => void;
+  onNavigateTab?: (tab: string) => void;
+  activeAccount?: AccountSettings | null;
+}
+
+const STORAGE_KEY = 'primepip_saved_market_situations_v2';
+
+const ALL_SBT_MODELS: SBTStrategyModel[] = [
+  'SBT Model 1',
+  'SBT Model 2',
+  'SBT Model 3',
+  'SBT Model 4',
+  'SBT Model 5',
+  'SBT Model 6',
+  'SBT Model 7',
+  'SBT Model 8',
+  'SBT Model 9',
+  'SBT Model 10',
+];
+
+const FIBONACCI_LEVELS: FibonacciLevel[] = [
+  '0.382',
+  '0.500 (Equilibrium)',
+  '0.618 (OTE Golden Pocket)',
+  '0.705 (OTE Institutional)',
+  '0.786 (Deep Discount/Premium)',
+  '0.886 (Extreme Invalidation Edge)',
+  '1.272 (Target Extension)',
+  '1.618 (Deep Target Extension)',
+  'None',
+];
+
+const POPULAR_PAIRS = [
+  'EUR/USD',
+  'GBP/USD',
+  'USD/JPY',
+  'USD/CHF',
+  'USD/CAD',
+  'AUD/USD',
+  'NZD/USD',
+  'GBP/JPY',
+  'EUR/JPY',
+  'EUR/GBP',
+  'AUD/JPY',
+  'CAD/JPY',
+  'XAU/USD',
+  'XAG/USD',
+  'USOIL',
+  'BTC/USD',
+  'US30',
+  'NAS100',
+];
+
+export const SituationSaver: React.FC<SituationSaverProps> = ({
+  onOpenNewTrade,
+  onNavigateTab,
+  activeAccount,
+}) => {
+  const [situations, setSituations] = useState<MarketSituation[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return DEFAULT_SITUATIONS_DATABASE;
+  });
+
+  // Filters
+  const [filters, setFilters] = useState<SituationFilterOptions>({
+    searchQuery: '',
+    pair: 'ALL',
+    direction: 'ALL',
+    sbtModel: 'ALL',
+    outcome: 'ALL',
+    fibonacciLevel: 'ALL',
+    session: 'ALL',
+  });
+
+  // Modals & Active Inspecting
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingSituation, setEditingSituation] = useState<MarketSituation | null>(null);
+  const [inspectingSituation, setInspectingSituation] = useState<MarketSituation | null>(null);
+  const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE'>('CARDS');
+
+  // Similarity Matcher State
+  const [isSimilarityMatcherOpen, setIsSimilarityMatcherOpen] = useState(false);
+  const [similarityInput, setSimilarityInput] = useState<{
+    pair: string;
+    direction: SituationDirection;
+    sbtModel: string;
+    fibonacciLevel: FibonacciLevel;
+  }>({
+    pair: 'EUR/USD',
+    direction: 'BEARISH',
+    sbtModel: 'SBT Model 3',
+    fibonacciLevel: '0.618 (OTE Golden Pocket)',
+  });
+
+  // Save to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(situations));
+    } catch {}
+  }, [situations]);
+
+  // Compute Overall Analytics
+  const stats = useMemo(() => {
+    const total = situations.length;
+    const completed = situations.filter((s) => s.outcome !== 'SAVED_SETUP');
+    const wins = situations.filter((s) => s.outcome === 'WIN_FULL_TP' || s.outcome === 'PARTIAL_WIN');
+    const winRate = completed.length > 0 ? Math.round((wins.length / completed.length) * 100) : 0;
+
+    const rrs = situations
+      .map((s) => s.realizedRiskReward)
+      .filter((r): r is number => typeof r === 'number');
+    const avgRr = rrs.length > 0 ? (rrs.reduce((a, b) => a + b, 0) / rrs.length).toFixed(2) : '3.2';
+
+    // Model breakdown
+    const modelCounts: Record<string, number> = {};
+    situations.forEach((s) => {
+      modelCounts[s.sbtModel] = (modelCounts[s.sbtModel] || 0) + 1;
+    });
+    const topModel = Object.entries(modelCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'SBT Model 3';
+
+    return { total, winRate, avgRr, topModel };
+  }, [situations]);
+
+  // Filtered List
+  const filteredSituations = useMemo(() => {
+    return situations.filter((item) => {
+      if (filters.pair !== 'ALL' && item.pair !== filters.pair) return false;
+      if (filters.direction !== 'ALL' && item.direction !== filters.direction) return false;
+      if (filters.sbtModel !== 'ALL' && item.sbtModel !== filters.sbtModel) return false;
+      if (filters.outcome !== 'ALL' && item.outcome !== filters.outcome) return false;
+      if (filters.fibonacciLevel !== 'ALL' && item.fibonacciLevel !== filters.fibonacciLevel) return false;
+      if (filters.session !== 'ALL' && item.session !== filters.session) return false;
+
+      if (filters.searchQuery.trim()) {
+        const query = filters.searchQuery.toLowerCase();
+        const matchesTitle = item.title.toLowerCase().includes(query);
+        const matchesNotes = item.htfContext.toLowerCase().includes(query) || item.mtfNotes.toLowerCase().includes(query) || item.lessonsLearned.toLowerCase().includes(query);
+        const matchesTags = item.tags.some((t) => t.toLowerCase().includes(query));
+        const matchesPair = item.pair.toLowerCase().includes(query);
+        if (!matchesTitle && !matchesNotes && !matchesTags && !matchesPair) return false;
+      }
+
+      return true;
+    });
+  }, [situations, filters]);
+
+  // Similarity Match Engine
+  const similarityResults: SimilarityMatchResult[] = useMemo(() => {
+    if (!isSimilarityMatcherOpen) return [];
+
+    return situations
+      .map((sit) => {
+        let score = 0;
+        const matchingFactors: string[] = [];
+
+        if (sit.pair === similarityInput.pair) {
+          score += 35;
+          matchingFactors.push(`Same Instrument (${sit.pair})`);
+        }
+        if (sit.direction === similarityInput.direction) {
+          score += 25;
+          matchingFactors.push(`Directional Bias (${sit.direction})`);
+        }
+        if (sit.sbtModel === similarityInput.sbtModel) {
+          score += 25;
+          matchingFactors.push(`Institutional Framework (${sit.sbtModel})`);
+        }
+        if (sit.fibonacciLevel === similarityInput.fibonacciLevel) {
+          score += 15;
+          matchingFactors.push(`Fibonacci Zone (${sit.fibonacciLevel})`);
+        }
+
+        return {
+          situation: sit,
+          similarityScore: score,
+          matchingFactors,
+        };
+      })
+      .filter((res) => res.similarityScore >= 35)
+      .sort((a, b) => b.similarityScore - a.similarityScore);
+  }, [situations, isSimilarityMatcherOpen, similarityInput]);
+
+  const handleDeleteSituation = (id: string) => {
+    if (confirm('Are you sure you want to delete this saved market situation?')) {
+      setSituations((prev) => prev.filter((s) => s.id !== id));
+      if (inspectingSituation?.id === id) setInspectingSituation(null);
+    }
+  };
+
+  const handleSaveSituation = (situation: MarketSituation) => {
+    setSituations((prev) => {
+      const idx = prev.findIndex((s) => s.id === situation.id);
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = situation;
+        return updated;
+      }
+      return [situation, ...prev];
+    });
+    setIsCreateModalOpen(false);
+    setEditingSituation(null);
+  };
+
+  const handleExportJson = () => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(situations, null, 2));
+    const dlAnchor = document.createElement('a');
+    dlAnchor.setAttribute('href', dataStr);
+    dlAnchor.setAttribute('download', `primepip_market_situations_${new Date().toISOString().slice(0, 10)}.json`);
+    dlAnchor.click();
+  };
+
+  const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const imported = JSON.parse(evt.target?.result as string);
+        if (Array.isArray(imported)) {
+          setSituations(imported);
+          alert(`Successfully imported ${imported.length} market situations!`);
+        }
+      } catch {
+        alert('Invalid JSON file format.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleSendToTradeJournal = (sit: MarketSituation) => {
+    if (onOpenNewTrade) {
+      onOpenNewTrade({
+        pair: sit.pair,
+        direction: sit.direction === 'BULLISH' ? 'BUY' : 'SELL',
+        entryPrice: sit.entryPrice,
+        stopLoss: sit.stopLossPrice,
+        takeProfit: sit.takeProfit1,
+        strategy: sit.sbtModel,
+        timeframe: sit.mtfTimeframe,
+        session: sit.session,
+        preTradeChecklist: {
+          htfBiasConfirmed: true,
+          liquidityIdentified: true,
+          clearDisplacement: true,
+          riskParametersChecked: true,
+          sessionTimingValid: true,
+        },
+        tradeRationale: `From Situation Saver: ${sit.title}\n${sit.htfContext}\n${sit.mtfNotes}\nGolden Lesson: ${sit.lessonsLearned}`,
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-6 pb-20">
+      {/* Top Banner & Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-[#0d1629] to-slate-950 border border-cyan-500/30 p-6 sm:p-8 shadow-2xl">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold font-military tracking-widest uppercase">
+                INSTITUTIONAL KNOWLEDGE-BASE
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400 text-[10px]">
+                Multi-Timeframe Architecture
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-military tracking-wide flex items-center gap-3">
+              <Bookmark className="w-7 h-7 text-cyan-400" />
+              <span>SITUATION SAVER</span>
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400 max-w-2xl leading-relaxed">
+              Capture, categorize, and backtest multi-timeframe market configurations with exact Fibonacci retracements, order block triggers, historical outcomes, and actionable lessons learned.
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setIsSimilarityMatcherOpen(!isSimilarityMatcherOpen)}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-military font-bold transition shadow cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-purple-400" />
+              <span>SIMILARITY MATCHER</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEditingSituation(null);
+                setIsCreateModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 text-xs font-military font-bold transition shadow-lg shadow-cyan-500/20 cursor-pointer"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>CREATE SITUATION</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => generateSituationReportPdf(situations)}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-military font-bold transition shadow cursor-pointer"
+              title="Download All Situations as Institutional PDF"
+            >
+              <Download className="w-4 h-4 text-emerald-400" />
+              <span>DOWNLOAD ALL</span>
+            </button>
+
+            <div className="flex items-center gap-1 bg-slate-900/80 border border-slate-800 rounded-xl p-1">
+              <button
+                type="button"
+                onClick={handleExportJson}
+                className="p-1.5 text-slate-400 hover:text-cyan-300 transition"
+                title="Export Situations JSON"
+              >
+                <FileText className="w-4 h-4" />
+              </button>
+              <label className="p-1.5 text-slate-400 hover:text-cyan-300 transition cursor-pointer" title="Import Situations JSON">
+                <Upload className="w-4 h-4" />
+                <input type="file" accept=".json" onChange={handleImportJson} className="hidden" />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Tactical Metrics Bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-slate-800/80 font-mono-code">
+          <div className="bg-slate-900/60 border border-slate-800/60 rounded-xl p-3">
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Total Situations</span>
+            <span className="text-xl font-bold text-white mt-0.5 block">{stats.total}</span>
+          </div>
+          <div className="bg-slate-900/60 border border-slate-800/60 rounded-xl p-3">
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Verified Win Rate</span>
+            <span className="text-xl font-bold text-emerald-400 mt-0.5 block">{stats.winRate}%</span>
+          </div>
+          <div className="bg-slate-900/60 border border-slate-800/60 rounded-xl p-3">
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Average Realized R:R</span>
+            <span className="text-xl font-bold text-cyan-400 mt-0.5 block">1 : {stats.avgRr}</span>
+          </div>
+          <div className="bg-slate-900/60 border border-slate-800/60 rounded-xl p-3">
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Top Framework</span>
+            <span className="text-xs font-bold text-amber-300 mt-1 block truncate">{stats.topModel}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Similarity Matcher Panel */}
+      {isSimilarityMatcherOpen && (
+        <div className="p-5 rounded-2xl bg-gradient-to-b from-[#14122b] to-[#0c0d1c] border border-purple-500/40 shadow-xl space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="w-5 h-5 text-purple-400" />
+              <h3 className="text-sm font-bold text-white font-military uppercase tracking-wide">
+                SETUP SIMILARITY MATCHING ENGINE
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSimilarityMatcherOpen(false)}
+              className="text-slate-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <p className="text-xs text-slate-400">
+            Evaluating a potential live market setup? Select your target pair, direction, and SBT framework to match identical historical situations and review past outcome win-rates and lessons learned before risking capital.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+            <div>
+              <label className="text-slate-400 block mb-1">Target Instrument</label>
+              <select
+                value={similarityInput.pair}
+                onChange={(e) => setSimilarityInput({ ...similarityInput, pair: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-mono-code focus:border-purple-400 outline-none"
+              >
+                {POPULAR_PAIRS.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-slate-400 block mb-1">Directional Bias</label>
+              <select
+                value={similarityInput.direction}
+                onChange={(e) => setSimilarityInput({ ...similarityInput, direction: e.target.value as SituationDirection })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-mono-code focus:border-purple-400 outline-none"
+              >
+                <option value="BULLISH">BULLISH (Long)</option>
+                <option value="BEARISH">BEARISH (Short)</option>
+                <option value="RANGING">RANGING (Mean Reversion)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-slate-400 block mb-1">SBT Playbook Model</label>
+              <select
+                value={similarityInput.sbtModel}
+                onChange={(e) => setSimilarityInput({ ...similarityInput, sbtModel: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-mono-code focus:border-purple-400 outline-none"
+              >
+                {ALL_SBT_MODELS.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-slate-400 block mb-1">Fibonacci Confluence</label>
+              <select
+                value={similarityInput.fibonacciLevel}
+                onChange={(e) => setSimilarityInput({ ...similarityInput, fibonacciLevel: e.target.value as FibonacciLevel })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-mono-code focus:border-purple-400 outline-none"
+              >
+                {FIBONACCI_LEVELS.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Matched Situations Output */}
+          <div className="pt-2 border-t border-purple-500/20">
+            <span className="text-[11px] font-bold text-purple-300 uppercase tracking-wider block mb-2">
+              Matched Situations ({similarityResults.length} Found)
+            </span>
+
+            {similarityResults.length === 0 ? (
+              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 text-center text-xs text-slate-500">
+                No past situations match these parameters. Save more setups to train your personalized institutional similarity library.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {similarityResults.slice(0, 4).map(({ situation, similarityScore, matchingFactors }) => (
+                  <div
+                    key={situation.id}
+                    onClick={() => setInspectingSituation(situation)}
+                    className="p-3.5 rounded-xl bg-slate-950/70 border border-purple-500/30 hover:border-purple-400 transition cursor-pointer space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                        {similarityScore}% Match
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          situation.outcome === 'WIN_FULL_TP' || situation.outcome === 'PARTIAL_WIN'
+                            ? 'bg-emerald-500/20 text-emerald-400'
+                            : situation.outcome === 'LOSS_STOPPED'
+                            ? 'bg-rose-500/20 text-rose-400'
+                            : 'bg-slate-800 text-slate-300'
+                        }`}
+                      >
+                        {situation.outcome.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    <h4 className="text-xs font-bold text-white truncate">{situation.title}</h4>
+
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {matchingFactors.map((fact, fIdx) => (
+                        <span key={fIdx} className="text-[9px] text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                          ✓ {fact}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="text-[11px] text-amber-300/90 italic line-clamp-2 bg-amber-500/10 p-2 rounded border border-amber-500/20">
+                      💡 Lesson: "{situation.lessonsLearned}"
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Filter and Control Toolbar */}
+      <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* Search Box */}
+          <div className="relative flex-1 w-full">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search situations by title, lessons learned, tags, or currency..."
+              value={filters.searchQuery}
+              onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value })}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono-code"
+            />
+          </div>
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-xl p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('CARDS')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-military font-bold transition ${
+                viewMode === 'CARDS' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              CARDS
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('TABLE')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-military font-bold transition ${
+                viewMode === 'TABLE' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              TABLE
+            </button>
+          </div>
+        </div>
+
+        {/* Dropdown Filters */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono-code pt-1">
+          <select
+            value={filters.pair}
+            onChange={(e) => setFilters({ ...filters, pair: e.target.value })}
+            className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 focus:border-cyan-500 outline-none"
+          >
+            <option value="ALL">All Instruments</option>
+            {POPULAR_PAIRS.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+
+          <select
+            value={filters.sbtModel}
+            onChange={(e) => setFilters({ ...filters, sbtModel: e.target.value })}
+            className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 focus:border-cyan-500 outline-none"
+          >
+            <option value="ALL">All SBT Models</option>
+            {ALL_SBT_MODELS.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+
+          <select
+            value={filters.direction}
+            onChange={(e) => setFilters({ ...filters, direction: e.target.value })}
+            className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 focus:border-cyan-500 outline-none"
+          >
+            <option value="ALL">All Directions</option>
+            <option value="BULLISH">Bullish (Long)</option>
+            <option value="BEARISH">Bearish (Short)</option>
+            <option value="RANGING">Ranging</option>
+          </select>
+
+          <select
+            value={filters.outcome}
+            onChange={(e) => setFilters({ ...filters, outcome: e.target.value })}
+            className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 focus:border-cyan-500 outline-none"
+          >
+            <option value="ALL">All Outcomes</option>
+            <option value="WIN_FULL_TP">Win (Full TP)</option>
+            <option value="PARTIAL_WIN">Partial Win</option>
+            <option value="BREAKEVEN">Breakeven</option>
+            <option value="LOSS_STOPPED">Stopped Out (Loss)</option>
+            <option value="SAVED_SETUP">Saved Setup (Pending)</option>
+          </select>
+
+          <select
+            value={filters.fibonacciLevel}
+            onChange={(e) => setFilters({ ...filters, fibonacciLevel: e.target.value })}
+            className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-300 focus:border-cyan-500 outline-none"
+          >
+            <option value="ALL">All Fibonacci Zones</option>
+            {FIBONACCI_LEVELS.map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      {filteredSituations.length === 0 ? (
+        <div className="p-12 text-center rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3">
+          <Bookmark className="w-10 h-10 text-slate-600 mx-auto" />
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider">No matching situations found</h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            Try resetting your filters or click "Save Situation" to record a new multi-timeframe market setup.
+          </p>
+          <button
+            type="button"
+            onClick={() => setFilters({ searchQuery: '', pair: 'ALL', direction: 'ALL', sbtModel: 'ALL', outcome: 'ALL', fibonacciLevel: 'ALL', session: 'ALL' })}
+            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-300 text-xs font-military font-bold border border-slate-800 transition"
+          >
+            RESET ALL FILTERS
+          </button>
+        </div>
+      ) : viewMode === 'CARDS' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredSituations.map((sit) => {
+            const isBullish = sit.direction === 'BULLISH';
+            const isBearish = sit.direction === 'BEARISH';
+
+            return (
+              <div
+                key={sit.id}
+                className="flex flex-col justify-between rounded-2xl bg-[#0b1120] border border-slate-800 hover:border-cyan-500/40 transition shadow-xl p-5 space-y-4 group cursor-pointer"
+                onClick={() => setInspectingSituation(sit)}
+              >
+                <div className="space-y-3">
+                  {/* Card Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-white font-mono-code">{sit.pair}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold font-military flex items-center gap-1 ${
+                          isBullish
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            : isBearish
+                            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                            : 'bg-slate-800 text-slate-300'
+                        }`}
+                      >
+                        {isBullish ? <TrendingUp className="w-3 h-3" /> : isBearish ? <TrendingDown className="w-3 h-3" /> : null}
+                        <span>{sit.direction}</span>
+                      </span>
+                    </div>
+
+                    {/* Outcome Badge */}
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                        sit.outcome === 'WIN_FULL_TP' || sit.outcome === 'PARTIAL_WIN'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                          : sit.outcome === 'LOSS_STOPPED'
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                          : 'bg-slate-900 text-slate-400 border border-slate-800'
+                      }`}
+                    >
+                      {sit.outcome === 'WIN_FULL_TP'
+                        ? '✓ WIN (FULL TP)'
+                        : sit.outcome === 'PARTIAL_WIN'
+                        ? '✓ PARTIAL WIN'
+                        : sit.outcome === 'LOSS_STOPPED'
+                        ? '✕ STOPPED OUT'
+                        : 'PENDING'}
+                    </span>
+                  </div>
+
+                  {/* Title */}
+                  <h3 className="text-xs font-bold text-slate-100 group-hover:text-cyan-300 transition line-clamp-2">
+                    {sit.title}
+                  </h3>
+
+                  {/* Framework & Confluence Badges */}
+                  <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-mono-code">
+                    <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold">
+                      {sit.sbtModel}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
+                      Fib: {sit.fibonacciLevel.split(' ')[0]}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
+                      {sit.session}
+                    </span>
+                  </div>
+
+                  {/* Numerical Levels */}
+                  <div className="grid grid-cols-3 gap-1.5 p-2 rounded-xl bg-slate-950 border border-slate-800/80 text-[10px] font-mono-code text-center">
+                    <div>
+                      <span className="text-slate-500 block">Entry</span>
+                      <span className="text-white font-bold">{sit.entryPrice}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">Stop</span>
+                      <span className="text-rose-400 font-bold">{sit.stopLossPrice}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">Target</span>
+                      <span className="text-emerald-400 font-bold">{sit.takeProfit1}</span>
+                    </div>
+                  </div>
+
+                  {/* Key Lesson Learned Excerpt */}
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed italic line-clamp-2">
+                    💡 <strong className="font-semibold text-amber-300">Takeaway:</strong> "{sit.lessonsLearned}"
+                  </div>
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        generateSituationReportPdf(sit);
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-emerald-400 transition"
+                      title="Download Situation Report (PDF)"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingSituation(sit);
+                        setIsCreateModalOpen(true);
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-cyan-300 transition"
+                      title="Edit Situation"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSituation(sit.id);
+                      }}
+                      className="p-1.5 text-slate-500 hover:text-rose-400 transition"
+                      title="Delete Situation"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSendToTradeJournal(sit);
+                    }}
+                    className="flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 font-bold font-military uppercase transition cursor-pointer"
+                  >
+                    <span>Send to Journal</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Table View */
+        <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/80 shadow-2xl">
+          <table className="w-full text-left font-mono-code text-xs">
+            <thead className="bg-[#0e172a] text-slate-400 border-b border-slate-800 text-[10px] uppercase">
+              <tr>
+                <th className="p-3">Instrument</th>
+                <th className="p-3">Direction</th>
+                <th className="p-3">Title & Framework</th>
+                <th className="p-3">Timeframes</th>
+                <th className="p-3">Fib Level</th>
+                <th className="p-3 text-right">Planned R:R</th>
+                <th className="p-3 text-center">Outcome</th>
+                <th className="p-3 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+              {filteredSituations.map((sit) => (
+                <tr
+                  key={sit.id}
+                  onClick={() => setInspectingSituation(sit)}
+                  className="hover:bg-slate-900/60 transition cursor-pointer"
+                >
+                  <td className="p-3 font-bold text-white">{sit.pair}</td>
+                  <td className="p-3">
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        sit.direction === 'BULLISH'
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : sit.direction === 'BEARISH'
+                          ? 'bg-rose-500/20 text-rose-400'
+                          : 'bg-slate-800 text-slate-300'
+                      }`}
+                    >
+                      {sit.direction}
+                    </span>
+                  </td>
+                  <td className="p-3 max-w-[260px]">
+                    <div className="font-bold text-slate-200 truncate">{sit.title}</div>
+                    <div className="text-[10px] text-cyan-400">{sit.sbtModel}</div>
+                  </td>
+                  <td className="p-3 text-slate-400 text-[11px]">
+                    {sit.htfTimeframe} → {sit.mtfTimeframe} → {sit.ltfTimeframe}
+                  </td>
+                  <td className="p-3 text-slate-300 text-[11px]">{sit.fibonacciLevel.split(' ')[0]}</td>
+                  <td className="p-3 text-right font-bold text-cyan-400">1 : {sit.plannedRiskReward}</td>
+                  <td className="p-3 text-center">
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                        sit.outcome === 'WIN_FULL_TP' || sit.outcome === 'PARTIAL_WIN'
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : sit.outcome === 'LOSS_STOPPED'
+                          ? 'bg-rose-500/20 text-rose-300'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {sit.outcome.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleSendToTradeJournal(sit)}
+                        className="px-2 py-1 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-bold"
+                      >
+                        Journal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSituation(sit.id)}
+                        className="p-1 text-slate-500 hover:text-rose-400"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Inspecting Modal */}
+      {inspectingSituation && (
+        <SituationDetailModal
+          situation={inspectingSituation}
+          onClose={() => setInspectingSituation(null)}
+          onEdit={() => {
+            setEditingSituation(inspectingSituation);
+            setInspectingSituation(null);
+            setIsCreateModalOpen(true);
+          }}
+          onDelete={() => {
+            handleDeleteSituation(inspectingSituation.id);
+          }}
+          onSendToJournal={() => handleSendToTradeJournal(inspectingSituation)}
+        />
+      )}
+
+      {/* Create / Edit Modal */}
+      {isCreateModalOpen && (
+        <CreateSituationModal
+          isOpen={isCreateModalOpen}
+          initialData={editingSituation}
+          onClose={() => {
+            setIsCreateModalOpen(false);
+            setEditingSituation(null);
+          }}
+          onSave={handleSaveSituation}
+        />
+      )}
+    </div>
+  );
+};
+
+// -------------------------------------------------------------
+// SITUATION DETAIL MODAL
+// -------------------------------------------------------------
+interface SituationDetailModalProps {
+  situation: MarketSituation;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onSendToJournal: () => void;
+}
+
+const SituationDetailModal: React.FC<SituationDetailModalProps> = ({
+  situation,
+  onClose,
+  onEdit,
+  onDelete,
+  onSendToJournal,
+}) => {
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
+      <div className="relative w-full max-w-4xl bg-[#0b1120] border border-cyan-500/30 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-[#080d19]">
+          <div className="flex items-center gap-3">
+            <span className="font-bold text-lg text-white font-military">{situation.pair}</span>
+            <span
+              className={`px-2 py-0.5 rounded text-xs font-bold ${
+                situation.direction === 'BULLISH'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                  : situation.direction === 'BEARISH'
+                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                  : 'bg-slate-800 text-slate-300'
+              }`}
+            >
+              {situation.direction}
+            </span>
+            <span className="px-2 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/40 text-xs font-bold font-military">
+              {situation.sbtModel}
+            </span>
+          </div>
+          <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:text-white transition">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <h2 className="text-base sm:text-lg font-bold text-white">{situation.title}</h2>
+
+          {/* Timeframe Pipeline */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1.5">
+              <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">
+                HTF Structure ({situation.htfTimeframe})
+              </span>
+              <p className="text-xs text-slate-300 leading-relaxed">{situation.htfContext}</p>
+            </div>
+            <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1.5">
+              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">
+                MTF Setup ({situation.mtfTimeframe} - {situation.mtfStructure})
+              </span>
+              <p className="text-xs text-slate-300 leading-relaxed">{situation.mtfNotes}</p>
+            </div>
+            <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1.5">
+              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+                LTF Execution ({situation.ltfTimeframe} - {situation.ltfTrigger})
+              </span>
+              <p className="text-xs text-slate-300 leading-relaxed">{situation.ltfNotes}</p>
+            </div>
+          </div>
+
+          {/* Numerical Levels & Fibonacci */}
+          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs font-mono-code text-center">
+            <div>
+              <span className="text-slate-500 block text-[10px]">Fibonacci Zone</span>
+              <span className="text-cyan-300 font-bold">{situation.fibonacciLevel}</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px]">Entry Price</span>
+              <span className="text-white font-bold">{situation.entryPrice}</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px]">Stop Loss</span>
+              <span className="text-rose-400 font-bold">{situation.stopLossPrice}</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px]">Take Profit 1</span>
+              <span className="text-emerald-400 font-bold">{situation.takeProfit1}</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px]">Planned R:R</span>
+              <span className="text-cyan-400 font-bold">1 : {situation.plannedRiskReward}</span>
+            </div>
+          </div>
+
+          {/* Fundamental Confluence */}
+          {situation.fundamentalConfluence && (
+            <div className="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800 space-y-1 text-xs">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Fundamental Intelligence Confluence
+              </span>
+              <p className="text-slate-300">{situation.fundamentalConfluence}</p>
+            </div>
+          )}
+
+          {/* Lessons Learned Card */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 space-y-2">
+            <div className="flex items-center gap-2 text-amber-300 font-military font-bold text-xs uppercase tracking-wide">
+              <Award className="w-4 h-4" />
+              <span>CORE LESSON LEARNED & INSTITUTIONAL RULE</span>
+            </div>
+            <p className="text-xs text-amber-100/90 leading-relaxed font-semibold italic">
+              "{situation.lessonsLearned}"
+            </p>
+            {situation.whatWentRight && (
+              <div className="text-[11px] text-slate-300 mt-2">
+                <strong className="text-emerald-400">What went right:</strong> {situation.whatWentRight}
+              </div>
+            )}
+            {situation.whatWentWrong && (
+              <div className="text-[11px] text-slate-300 mt-1">
+                <strong className="text-rose-400">Mistakes / what failed:</strong> {situation.whatWentWrong}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-[#080d19]">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => generateSituationReportPdf(situation)}
+              className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold flex items-center gap-1.5"
+              title="Download Institutional Situation PDF"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download PDF</span>
+            </button>
+            <button
+              type="button"
+              onClick={onEdit}
+              className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold"
+            >
+              Edit Setup
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              className="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-semibold"
+            >
+              Delete
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={onSendToJournal}
+            className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>Log Trade in Journal</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// -------------------------------------------------------------
+// CREATE / EDIT SITUATION MODAL
+// -------------------------------------------------------------
+const SITUATION_TIMEFRAMES: SituationTimeframe[] = [
+  '12 months',
+  '6 months',
+  '3 months',
+  '1 month',
+  '1 week',
+  'Daily',
+  'H4',
+  'H1',
+  'M30',
+  'M15',
+  'M5',
+];
+
+const FIBONACCI_TARGET_PRESETS = ['0.23', '0.38', '0.5', '0.618', '0.705', '0.786', '0.886', '1.272', '1.618'];
+
+interface CreateSituationModalProps {
+  isOpen: boolean;
+  initialData?: MarketSituation | null;
+  onClose: () => void;
+  onSave: (situation: MarketSituation) => void;
+}
+
+const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
+  isOpen,
+  initialData,
+  onClose,
+  onSave,
+}) => {
+  const [formData, setFormData] = useState<Partial<MarketSituation>>(() => {
+    if (initialData) return initialData;
+    return {
+      title: '',
+      pair: 'EUR/USD',
+      direction: 'BULLISH',
+      sbtModel: 'SBT Model 1',
+      session: 'LONDON',
+      htfTimeframe: 'D1',
+      htfTrend: 'BULLISH',
+      htfContext: '',
+      mtfTimeframe: 'H1',
+      mtfStructure: 'BOS',
+      mtfNotes: '',
+      ltfTimeframe: 'M5',
+      ltfTrigger: 'ORDER_BLOCK',
+      ltfNotes: '',
+      fibonacciLevel: '0.618 (OTE Golden Pocket)',
+      entryPrice: 0,
+      stopLossPrice: 0,
+      takeProfit1: 0,
+      plannedRiskReward: 3.0,
+      marketConditions: ['High Liquidity'],
+      fundamentalConfluence: '',
+      outcome: 'SAVED_SETUP',
+      realizedRiskReward: 0,
+      lessonsLearned: '',
+      notes: '',
+      finalTarget: '1.618',
+      selectedTimeframe: '1 week',
+      tags: [],
+    };
+  });
+
+  const [activeTf, setActiveTf] = useState<SituationTimeframe>(
+    (initialData?.selectedTimeframe as SituationTimeframe) || '1 week'
+  );
+
+  const [timeframeConfigs, setTimeframeConfigs] = useState<Record<string, TimeframeScenarioConfig>>(() => {
+    if (initialData?.timeframeConfigs) return initialData.timeframeConfigs;
+    const initialMap: Record<string, TimeframeScenarioConfig> = {};
+    SITUATION_TIMEFRAMES.forEach((tf) => {
+      initialMap[tf] = {
+        timeframe: tf,
+        bias: tf === 'Daily' || tf === '1 week' ? (initialData?.direction === 'BEARISH' ? 'Bearish' : 'Bullish') : 'None',
+        fibonacciLevels: ['0.23', '0.38', '0.5', '0.618'],
+        finalTarget: '1.618',
+        notes: '',
+      };
+    });
+    return initialMap;
+  });
+
+  const handleUpdateTfConfig = (tf: string, updates: Partial<TimeframeScenarioConfig>) => {
+    setTimeframeConfigs((prev) => ({
+      ...prev,
+      [tf]: {
+        ...(prev[tf] || { timeframe: tf, bias: 'None', fibonacciLevels: [], finalTarget: '1.618' }),
+        ...updates,
+      },
+    }));
+  };
+
+  const handleToggleTfFib = (tf: string, level: string) => {
+    const current = timeframeConfigs[tf]?.fibonacciLevels || [];
+    const next = current.includes(level)
+      ? current.filter((l) => l !== level)
+      : [...current, level];
+    handleUpdateTfConfig(tf, { fibonacciLevels: next });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.title?.trim()) {
+      alert('Please enter a descriptive situation title.');
+      return;
+    }
+    if (!formData.pair?.trim()) {
+      alert('Please enter or select a currency pair name.');
+      return;
+    }
+    if (!formData.lessonsLearned?.trim()) {
+      alert('Please write at least one golden institutional lesson learned from this market situation.');
+      return;
+    }
+
+    const entry = Number(formData.entryPrice) || 0;
+    const sl = Number(formData.stopLossPrice) || 0;
+    const tp = Number(formData.takeProfit1) || 0;
+
+    let plannedRr = formData.plannedRiskReward || 3.0;
+    if (entry > 0 && sl > 0 && tp > 0 && Math.abs(entry - sl) > 0) {
+      plannedRr = Number((Math.abs(tp - entry) / Math.abs(entry - sl)).toFixed(2));
+    }
+
+    const currentTfConfig = timeframeConfigs[activeTf];
+    const effectiveDirection =
+      currentTfConfig?.bias === 'Bullish'
+        ? 'BULLISH'
+        : currentTfConfig?.bias === 'Bearish'
+        ? 'BEARISH'
+        : formData.direction || 'BULLISH';
+
+    const savedRecord: MarketSituation = {
+      id: initialData?.id || `sit_${Date.now()}`,
+      title: formData.title.trim(),
+      pair: (formData.pair || 'EUR/USD').toUpperCase().trim(),
+      direction: effectiveDirection,
+      sbtModel: formData.sbtModel || 'SBT Model 1',
+      session: formData.session || 'LONDON',
+      htfTimeframe: formData.htfTimeframe || 'D1',
+      htfTrend: effectiveDirection,
+      htfContext: formData.htfContext || `${activeTf} Structure Alignment`,
+      mtfTimeframe: formData.mtfTimeframe || 'H1',
+      mtfStructure: formData.mtfStructure || 'BOS',
+      mtfNotes: formData.mtfNotes || '',
+      ltfTimeframe: formData.ltfTimeframe || 'M5',
+      ltfTrigger: formData.ltfTrigger || 'ORDER_BLOCK',
+      ltfNotes: formData.ltfNotes || '',
+      fibonacciLevel: formData.fibonacciLevel || '0.618 (OTE Golden Pocket)',
+      entryPrice: entry,
+      stopLossPrice: sl,
+      takeProfit1: tp,
+      plannedRiskReward: plannedRr,
+      // Timeframe configs & final target
+      timeframeConfigs,
+      selectedTimeframe: activeTf,
+      finalTarget: currentTfConfig?.finalTarget || formData.finalTarget || '1.618',
+      notes: formData.notes?.trim() || '',
+      marketConditions: formData.marketConditions || [],
+      fundamentalConfluence: formData.fundamentalConfluence || '',
+      outcome: formData.outcome || 'SAVED_SETUP',
+      realizedRiskReward: formData.realizedRiskReward,
+      lessonsLearned: formData.lessonsLearned.trim(),
+      whatWentRight: formData.whatWentRight,
+      whatWentWrong: formData.whatWentWrong,
+      tags: [(formData.pair || 'EUR/USD').toUpperCase().trim(), formData.sbtModel || 'SBT Model 1', activeTf],
+      createdAt: initialData?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    onSave(savedRecord);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
+      <div className="relative w-full max-w-4xl bg-[#0b1120] border border-cyan-500/30 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-[#080d19]">
+          <h2 className="text-base font-bold text-white font-military flex items-center gap-2">
+            <PlusCircle className="w-5 h-5 text-cyan-400" />
+            <span>{initialData ? 'EDIT MARKET SITUATION' : 'CREATE MARKET SITUATION'}</span>
+          </h2>
+          <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
+          {/* Situation Title */}
+          <div>
+            <label className="text-slate-300 block mb-1 font-bold">Situation Title *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. EUR/USD London Open Model (3) FVG Retest after Asian Sweep"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white font-semibold focus:border-cyan-400 outline-none"
+            />
+          </div>
+
+          {/* Currency Pair Name (Manual Input + Quick Chips) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-slate-300 font-bold">Currency Pair / Instrument Name *</label>
+              <span className="text-[10px] text-cyan-400">Manual entry allowed (type any pair)</span>
+            </div>
+            <input
+              type="text"
+              required
+              placeholder="e.g. EUR/USD, GBP/JPY, XAU/USD, USOIL, BTC/USD"
+              value={formData.pair}
+              onChange={(e) => setFormData({ ...formData, pair: e.target.value.toUpperCase().trim() })}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white font-mono-code font-bold uppercase focus:border-cyan-400 outline-none"
+            />
+            {/* Quick chips */}
+            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+              {['EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CAD', 'USD/CHF', 'NZD/USD', 'GBP/JPY', 'EUR/JPY', 'XAU/USD', 'XAG/USD', 'USOIL', 'BTC/USD'].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, pair: p })}
+                  className={`px-2 py-0.5 rounded text-[10px] font-mono-code transition cursor-pointer ${
+                    formData.pair === p
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 font-bold'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Timeframes Setup Grid (12 months down to M5) */}
+          <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-white uppercase tracking-wider font-military flex items-center gap-2">
+                <Layers className="w-4 h-4 text-cyan-400" />
+                <span>MULTI-TIMEFRAME SCENARIO CONFIGURATION ({SITUATION_TIMEFRAMES.length} TIMEFRAMES)</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-mono-code">Select a timeframe to set Bias, Fibonacci & Final Target</span>
+            </div>
+
+            {/* Timeframe List Tabs */}
+            <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-11 gap-1.5 font-mono-code text-[11px]">
+              {SITUATION_TIMEFRAMES.map((tf) => {
+                const isCurrent = activeTf === tf;
+                const cfg = timeframeConfigs[tf];
+                const bias = cfg?.bias;
+                return (
+                  <button
+                    key={tf}
+                    type="button"
+                    onClick={() => setActiveTf(tf)}
+                    className={`p-2 rounded-xl text-center border transition flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                      isCurrent
+                        ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                        : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 text-slate-300'
+                    }`}
+                  >
+                    <span className="font-bold text-[10px]">{tf}</span>
+                    <span
+                      className={`text-[9px] px-1 py-0.2 rounded font-semibold ${
+                        bias === 'Bullish'
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : bias === 'Bearish'
+                          ? 'bg-rose-500/20 text-rose-400'
+                          : 'text-slate-500'
+                      }`}
+                    >
+                      {bias === 'Bullish' ? '▲ BULL' : bias === 'Bearish' ? '▼ BEAR' : '—'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Active Timeframe Configuration Box */}
+            <div className="p-3.5 rounded-xl bg-slate-900/80 border border-cyan-500/30 space-y-3 mt-2">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="text-xs font-bold text-cyan-300 uppercase">
+                  CONFIGURING TIMEFRAME: <span className="text-white underline font-mono-code">{activeTf}</span>
+                </span>
+                <span className="text-[10px] text-slate-400">Settings apply specifically to {activeTf}</span>
+              </div>
+
+              {/* Directional Bias for this Timeframe */}
+              <div>
+                <label className="text-slate-400 block mb-1 text-[11px] font-bold">Directional Bias for {activeTf}:</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateTfConfig(activeTf, { bias: 'Bullish' })}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold font-military transition flex items-center gap-1.5 ${
+                      timeframeConfigs[activeTf]?.bias === 'Bullish'
+                        ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                        : 'bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30'
+                    }`}
+                  >
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>BULLISH</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateTfConfig(activeTf, { bias: 'Bearish' })}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold font-military transition flex items-center gap-1.5 ${
+                      timeframeConfigs[activeTf]?.bias === 'Bearish'
+                        ? 'bg-rose-500 text-slate-950 shadow-md shadow-rose-500/20'
+                        : 'bg-slate-800 hover:bg-slate-700 text-rose-400 border border-rose-500/30'
+                    }`}
+                  >
+                    <TrendingDown className="w-3.5 h-3.5" />
+                    <span>BEARISH</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateTfConfig(activeTf, { bias: 'None' })}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white ${
+                      timeframeConfigs[activeTf]?.bias === 'None' ? 'bg-slate-800 border border-slate-700' : ''
+                    }`}
+                  >
+                    Neutral / Clear
+                  </button>
+                </div>
+              </div>
+
+              {/* Fibonacci Levels Presets & Final Target */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="text-slate-400 block mb-1 text-[11px] font-bold">
+                    Fibonacci Target / Retracement Levels:
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {FIBONACCI_TARGET_PRESETS.map((fib) => {
+                      const isSelected = (timeframeConfigs[activeTf]?.fibonacciLevels || []).includes(fib);
+                      return (
+                        <button
+                          key={fib}
+                          type="button"
+                          onClick={() => handleToggleTfFib(activeTf, fib)}
+                          className={`px-2 py-1 rounded text-[10px] font-mono-code font-bold transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-400'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
+                          }`}
+                        >
+                          {fib}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <span className="text-[10px] text-slate-500 mt-1 block">Click to toggle Fibonacci levels (e.g. 0.23, 0.38, 0.5)</span>
+                </div>
+
+                {/* Final Target Custom Value Field */}
+                <div>
+                  <label className="text-amber-300 block mb-1 text-[11px] font-bold">
+                    Final Target Field (e.g. 1.618 or Target Price):
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 1.618, 1.0950, 2750.00"
+                    value={timeframeConfigs[activeTf]?.finalTarget || ''}
+                    onChange={(e) => handleUpdateTfConfig(activeTf, { finalTarget: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono-code focus:border-amber-400 outline-none text-xs"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">Custom target expansion or exact target price</span>
+                </div>
+              </div>
+
+              {/* Timeframe Specific Notes */}
+              <div>
+                <label className="text-slate-400 block mb-1 text-[10px]">Timeframe Observation for {activeTf}:</label>
+                <input
+                  type="text"
+                  placeholder={`e.g. ${activeTf} liquidity sweep into order block and displacement`}
+                  value={timeframeConfigs[activeTf]?.notes || ''}
+                  onChange={(e) => handleUpdateTfConfig(activeTf, { notes: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Strategy Model & Session */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="text-slate-400 block mb-1">SBT Playbook Model</label>
+              <select
+                value={formData.sbtModel}
+                onChange={(e) => setFormData({ ...formData, sbtModel: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-mono-code focus:border-cyan-400 outline-none"
+              >
+                {ALL_SBT_MODELS.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-slate-400 block mb-1">Trading Session</label>
+              <select
+                value={formData.session}
+                onChange={(e) => setFormData({ ...formData, session: e.target.value as TradingSession })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-mono-code focus:border-cyan-400 outline-none"
+              >
+                <option value="LONDON">LONDON</option>
+                <option value="NEW_YORK">NEW YORK</option>
+                <option value="LONDON_NY_OVERLAP">LONDON-NY OVERLAP</option>
+                <option value="ASIAN">ASIAN</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-slate-400 block mb-1">Outcome Status</label>
+              <select
+                value={formData.outcome}
+                onChange={(e) => setFormData({ ...formData, outcome: e.target.value as SituationOutcome })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-mono-code focus:border-cyan-400 outline-none"
+              >
+                <option value="SAVED_SETUP">Saved Setup (Pending / Tracking)</option>
+                <option value="WIN_FULL_TP">Win (Full TP)</option>
+                <option value="PARTIAL_WIN">Partial Win</option>
+                <option value="BREAKEVEN">Breakeven</option>
+                <option value="LOSS_STOPPED">Stopped Out (Loss)</option>
+                <option value="INVALIDATED_MISSED">Invalidated / Missed</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-slate-400 block mb-1">Fundamental Confluence</label>
+              <input
+                type="text"
+                placeholder="e.g. Fed hawkish divergence"
+                value={formData.fundamentalConfluence}
+                onChange={(e) => setFormData({ ...formData, fundamentalConfluence: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Numerical Levels & Execution Prices */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="text-slate-400 block mb-1">Fibonacci Confluence Zone</label>
+              <select
+                value={formData.fibonacciLevel}
+                onChange={(e) => setFormData({ ...formData, fibonacciLevel: e.target.value as FibonacciLevel })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-mono-code focus:border-cyan-400 outline-none"
+              >
+                {FIBONACCI_LEVELS.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">Entry Price</label>
+              <input
+                type="number"
+                step="any"
+                value={formData.entryPrice || ''}
+                onChange={(e) => setFormData({ ...formData, entryPrice: Number(e.target.value) })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-mono-code outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">Stop Loss Price</label>
+              <input
+                type="number"
+                step="any"
+                value={formData.stopLossPrice || ''}
+                onChange={(e) => setFormData({ ...formData, stopLossPrice: Number(e.target.value) })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-rose-400 font-mono-code outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">Take Profit 1 Price</label>
+              <input
+                type="number"
+                step="any"
+                value={formData.takeProfit1 || ''}
+                onChange={(e) => setFormData({ ...formData, takeProfit1: Number(e.target.value) })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-emerald-400 font-mono-code outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Dedicated Text Box for Manual Notes or Comments */}
+          <div>
+            <label className="text-slate-300 block mb-1 font-bold flex items-center justify-between">
+              <span>Manual Notes / Comments *</span>
+              <span className="text-[10px] text-slate-500 font-normal">Scenario observations, entry reasons, or annotations</span>
+            </label>
+            <textarea
+              rows={3}
+              placeholder="Enter manual scenario notes, setup reasons, session commentary, or trading thoughts here..."
+              value={formData.notes || ''}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 outline-none focus:border-cyan-400"
+            />
+          </div>
+
+          {/* Golden Institutional Lesson Learned */}
+          <div>
+            <label className="text-amber-300 block mb-1 font-bold">
+              Golden Institutional Lesson Learned *
+            </label>
+            <textarea
+              required
+              rows={2}
+              placeholder="What is the critical takeaway for students and yourself when this exact market situation appears again?"
+              value={formData.lessonsLearned}
+              onChange={(e) => setFormData({ ...formData, lessonsLearned: e.target.value })}
+              className="w-full bg-slate-900 border border-amber-500/40 rounded-lg p-2.5 text-amber-100 outline-none font-semibold"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs uppercase tracking-wider"
+            >
+              {initialData ? 'Update Situation' : 'Confirm & Save Situation'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};

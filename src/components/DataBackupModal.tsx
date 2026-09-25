@@ -33,6 +33,7 @@ import {
   Key,
   Link2,
   Copy,
+  Save,
   Trash2,
   ExternalLink,
 } from 'lucide-react';
@@ -107,6 +108,118 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   const [restoringFileId, setRestoringFileId] = useState<string | null>(null);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(() => googleDriveService.isAutoSaveEnabled());
+
+  // Free Cloud Email Vault State (Zero hosting required)
+  const [emailVaultAddress, setEmailVaultAddress] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('primepip_cloud_vault_email');
+      if (saved) return saved;
+    } catch {}
+    return (currentUser?.username && currentUser.username.includes('@')) ? currentUser.username : '';
+  });
+  const [isEmailVaultSaving, setIsEmailVaultSaving] = useState(false);
+  const [isEmailVaultRestoring, setIsEmailVaultRestoring] = useState(false);
+  const [emailVaultSuccess, setEmailVaultSuccess] = useState<string | null>(null);
+  const [emailVaultError, setEmailVaultError] = useState<string | null>(null);
+  const [isEmailVaultAutoSync, setIsEmailVaultAutoSync] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('primepip_cloud_vault_autosync') === 'true';
+    } catch {}
+    return false;
+  });
+  const [emailVaultStatus, setEmailVaultStatus] = useState<{ exists: boolean; savedAt?: string; tradesCount?: number; accountsCount?: number } | null>(null);
+
+  const checkEmailVaultStatus = useCallback(async (email: string) => {
+    if (!email || !email.includes('@')) return;
+    try {
+      const res = await fetch(`/api/cloud-vault/status?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+      if (res.ok) {
+        const data = await res.json();
+        setEmailVaultStatus(data);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (emailVaultAddress && emailVaultAddress.includes('@')) {
+      checkEmailVaultStatus(emailVaultAddress);
+    }
+  }, [emailVaultAddress, checkEmailVaultStatus]);
+
+  const handleSaveToEmailVault = async () => {
+    if (!emailVaultAddress || !emailVaultAddress.includes('@')) {
+      setEmailVaultError('Please enter a valid email address to save your cloud vault.');
+      return;
+    }
+    setIsEmailVaultSaving(true);
+    setEmailVaultError(null);
+    setEmailVaultSuccess(null);
+    try {
+      localStorage.setItem('primepip_cloud_vault_email', emailVaultAddress.trim().toLowerCase());
+      const backupData = await exportAllData(currentUser?.id);
+      const res = await fetch('/api/cloud-vault/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: emailVaultAddress.trim().toLowerCase(),
+          data: backupData,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || 'Failed to save cloud vault.');
+      }
+      setEmailVaultSuccess(`✓ All data backed up to cloud vault for ${emailVaultAddress}! (${json.tradesCount} trades, ${json.accountsCount} accounts)`);
+      checkEmailVaultStatus(emailVaultAddress);
+      setTimeout(() => setEmailVaultSuccess(null), 5000);
+    } catch (err: any) {
+      setEmailVaultError(err?.message || 'Failed to save to cloud vault.');
+    } finally {
+      setIsEmailVaultSaving(false);
+    }
+  };
+
+  const handleRestoreFromEmailVault = async () => {
+    if (!emailVaultAddress || !emailVaultAddress.includes('@')) {
+      setEmailVaultError('Please enter a valid email address to restore your cloud vault.');
+      return;
+    }
+    if (!window.confirm(`Restore data from cloud vault for ${emailVaultAddress}? This will restore all your saved accounts, trades, and journal entries.`)) {
+      return;
+    }
+    setIsEmailVaultRestoring(true);
+    setEmailVaultError(null);
+    setEmailVaultSuccess(null);
+    try {
+      const res = await fetch(`/api/cloud-vault/load?email=${encodeURIComponent(emailVaultAddress.trim().toLowerCase())}`);
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || 'No cloud vault found for this email address.');
+      }
+      await importAllData(json.data, currentUser?.id);
+      setEmailVaultSuccess(`✓ Successfully restored ${json.tradesCount} trades and ${json.accountsCount} accounts from Cloud Vault!`);
+      if (onDataRestored) onDataRestored();
+      setTimeout(() => setEmailVaultSuccess(null), 5000);
+    } catch (err: any) {
+      setEmailVaultError(err?.message || 'Failed to restore from cloud vault.');
+    } finally {
+      setIsEmailVaultRestoring(false);
+    }
+  };
+
+  const handleToggleEmailAutoSync = () => {
+    const next = !isEmailVaultAutoSync;
+    setIsEmailVaultAutoSync(next);
+    try {
+      localStorage.setItem('primepip_cloud_vault_autosync', String(next));
+    } catch {}
+    if (next) {
+      setEmailVaultSuccess('Auto-sync enabled: Your trade journal and records will periodically save to your email cloud vault.');
+      setTimeout(() => setEmailVaultSuccess(null), 4000);
+      if (emailVaultAddress) handleSaveToEmailVault();
+    }
+  };
 
   useEffect(() => {
     const unsub = googleDriveService.onStatusChange((newStatus) => {
@@ -1221,10 +1334,123 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
             </div>
           )}
 
-          {/* Tab 4: GOOGLE DRIVE ISOLATION SYNC */}
+          {/* Tab 4: CLOUD VAULT & GOOGLE DRIVE SYNC */}
           {activeTab === 'DRIVE' && (
             <div className="space-y-5">
-              {/* Google Drive Status Header Card */}
+              {/* PRIMARY OPTION: Free Cloud Email Vault (Zero Hosting Required) */}
+              <div className="p-4 rounded-xl bg-gradient-to-br from-cyan-950/60 to-slate-950 border border-cyan-500/40 shadow-lg space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                      <Cloud className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-sm font-military font-bold text-cyan-300">
+                          FREE CLOUD EMAIL VAULT
+                        </h4>
+                        <span className="text-[10px] px-2 py-0.5 rounded font-mono-code font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          RECOMMENDED • ZERO HOSTING SETUP
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 font-mono-code mt-0.5">
+                        Free persistent storage for your journals, trades, and chat history. Simply enter your email to save or restore anytime.
+                      </p>
+                    </div>
+                  </div>
+
+                  {emailVaultStatus?.exists && (
+                    <div className="text-right shrink-0">
+                      <span className="text-[10px] text-emerald-400 font-mono-code font-bold block">
+                        ✓ CLOUD VAULT FOUND
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono-code">
+                        {emailVaultStatus.tradesCount ?? 0} trades • {emailVaultStatus.accountsCount ?? 0} accounts
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                  <div className="sm:col-span-6">
+                    <label className="text-[10px] text-slate-400 uppercase font-mono-code block mb-1">
+                      Your Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={emailVaultAddress}
+                      onChange={(e) => setEmailVaultAddress(e.target.value)}
+                      placeholder="e.g. trader@example.com"
+                      className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 text-xs font-mono-code focus:border-cyan-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-6 flex items-center gap-2 pt-5">
+                    <button
+                      type="button"
+                      disabled={isEmailVaultSaving}
+                      onClick={handleSaveToEmailVault}
+                      className="flex-1 py-2 px-3 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-military font-bold text-xs tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-cyan-400/20 disabled:opacity-50"
+                    >
+                      {isEmailVaultSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                      <span>SAVE TO CLOUD</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isEmailVaultRestoring}
+                      onClick={handleRestoreFromEmailVault}
+                      className="flex-1 py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 font-military font-bold text-xs tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      {isEmailVaultRestoring ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                      <span>RESTORE</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-800/80 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleToggleEmailAutoSync}
+                    className="flex items-center gap-2 text-xs font-mono-code cursor-pointer text-slate-300 hover:text-slate-100"
+                  >
+                    <div
+                      className={`w-8 h-4 rounded-full transition-colors relative ${
+                        isEmailVaultAutoSync ? 'bg-cyan-500' : 'bg-slate-700'
+                      }`}
+                    >
+                      <div
+                        className={`w-3.5 h-3.5 rounded-full bg-white absolute top-0.25 transition-transform ${
+                          isEmailVaultAutoSync ? 'left-4' : 'left-0.5'
+                        }`}
+                      />
+                    </div>
+                    <span>Auto-Sync to Cloud Vault (On Changes)</span>
+                  </button>
+
+                  {emailVaultStatus?.savedAt && (
+                    <span className="text-[11px] font-mono-code text-slate-500">
+                      Last Saved: {new Date(emailVaultStatus.savedAt).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+
+                {emailVaultSuccess && (
+                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs font-mono-code text-emerald-300 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                    <span>{emailVaultSuccess}</span>
+                  </div>
+                )}
+
+                {emailVaultError && (
+                  <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-xs font-mono-code text-rose-300 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                    <span>{emailVaultError}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* SECONDARY OPTION: Google Drive Direct Integration */}
               <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
                   <div

@@ -270,18 +270,22 @@ export const LongTermPairRankingsView: React.FC<LongTermPairRankingsViewProps> =
                     <td className="p-3 text-right text-amber-300">
                       {item.dataStatus === 'READY' ? (item.structuralFactors.structuralCommodityExposure > 0 ? '+' : '') + item.structuralFactors.structuralCommodityExposure : '—'}
                     </td>
-
-                    {([
-                      ['SHORT', item.shortTermDiff],
-                      ['MEDIUM', item.mediumTermDiff],
-                      ['LONG', item.longTermDiff],
-                    ] as const).map(([label, value]) => (
-                      <td key={label} className="p-3 text-center">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.dataStatus !== 'READY' ? 'bg-amber-500/15 text-amber-300' : value > 15 ? 'bg-emerald-500/20 text-emerald-300' : value < -15 ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-slate-300'}`}>
-                          {item.dataStatus !== 'READY' ? 'INSUFFICIENT' : value > 15 ? 'BULLISH' : value < -15 ? 'BEARISH' : 'NEUTRAL'}
-                        </span>
-                      </td>
-                    ))}                  </tr>
+                    <td className="p-3 text-center">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.dataStatus !== 'READY' ? 'bg-amber-500/15 text-amber-300' : item.shortTermDiff > 15 ? 'bg-emerald-500/20 text-emerald-300' : item.shortTermDiff < -15 ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-slate-300'}`}>
+                        {item.dataStatus !== 'READY' ? 'INSUFFICIENT' : item.shortTermDiff > 15 ? 'BULLISH' : item.shortTermDiff < -15 ? 'BEARISH' : 'NEUTRAL'}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.dataStatus !== 'READY' ? 'bg-amber-500/15 text-amber-300' : item.mediumTermDiff > 15 ? 'bg-emerald-500/20 text-emerald-300' : item.mediumTermDiff < -15 ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-slate-300'}`}>
+                        {item.dataStatus !== 'READY' ? 'INSUFFICIENT' : item.mediumTermDiff > 15 ? 'BULLISH' : item.mediumTermDiff < -15 ? 'BEARISH' : 'NEUTRAL'}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.dataStatus !== 'READY' ? 'bg-amber-500/15 text-amber-300' : item.longTermDiff > 15 ? 'bg-emerald-500/20 text-emerald-300' : item.longTermDiff < -15 ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-slate-300'}`}>
+                        {item.dataStatus !== 'READY' ? 'INSUFFICIENT' : item.longTermDiff > 15 ? 'BULLISH' : item.longTermDiff < -15 ? 'BEARISH' : 'NEUTRAL'}
+                      </span>
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>

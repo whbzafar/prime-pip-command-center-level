@@ -31,6 +31,7 @@ import {
   updatePresencePrivacy,
 } from "./server/authService.js";
 import { getCustomerData, saveCustomerData } from "./server/customerDataService.js";
+import { safeReadJsonFile, safeWriteJsonFile } from "./server/dataPath.js";
 import type { StoredUser } from "./server/authService.js";
 import {
   readCommunityMessages,
@@ -208,6 +209,15 @@ function registerPresenceSocket(socket: WebSocket, userId: string) {
     broadcastPresence();
   });
 }
+
+// In Vercel serverless functions, req.body may already be consumed or pre-parsed.
+// Setting req._body = true prevents body-parser from hanging on the consumed stream.
+app.use((req, _res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    (req as any)._body = true;
+  }
+  next();
+});
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -1583,7 +1593,7 @@ app.post('/api/fundamental/generate-commodity', async (req, res) => {
       notes: (!isNotesInvalid && typeof parsed.notes === 'string') ? parsed.notes : fallbackBaseline.notes,
       drivers: (!areDriversInvalid && Array.isArray(parsed.drivers) && parsed.drivers.length > 0)
         ? parsed.drivers.filter((item: any) => typeof item === 'string').slice(0, 8)
-        : (fallbackBaseline.drivers || []),
+        : ((fallbackBaseline as any).drivers || []),
       usRealYield10Y: finiteOrNull(parsed.usRealYield10Y) ?? existing?.usRealYield10Y ?? fallbackBaseline.usRealYield10Y,
       inflationBreakeven5Y: finiteOrNull(parsed.inflationBreakeven5Y) ?? existing?.inflationBreakeven5Y ?? fallbackBaseline.inflationBreakeven5Y,
       centralBankDemandTone: ['AGGRESSIVE_BUYING', 'STEADY', 'SLOW'].includes(parsed.centralBankDemandTone)
@@ -1750,6 +1760,315 @@ app.post('/api/fundamental/generate-sentiment', async (req, res) => {
       retrievedAt: new Date().toISOString(),
       confidence: 95,
     });
+  }
+});
+
+// ----------------------------------------------------
+// FUNDAMENTAL INTELLIGENCE — IMAGE OCR & INDICATOR EXTRACTION
+// ----------------------------------------------------
+app.post('/api/fundamental/extract-from-image', async (req, res) => {
+  try {
+    const { image, mimeType = 'image/png', selection = 'USD' } = req.body || {};
+    if (!image) {
+      return res.status(400).json({ success: false, error: 'No image data provided for extraction.' });
+    }
+
+    const cleanBase64 = String(image).replace(/^data:[^;]+;base64,/, '').trim();
+    const cleanSelection = String(selection).toUpperCase().trim();
+
+    const ai = getGeminiClient();
+    if (!ai) {
+      // Rule-based fallback if GEMINI_API_KEY is not configured
+      const relevant = OFFICIAL_INDICATOR_REGISTRY.filter((d: any) => d.currency === cleanSelection).slice(0, 5);
+      const fallbackList = relevant.map((d: any) => ({
+        id: `extracted_${d.id}_${Date.now()}`,
+        matchedIndicatorId: d.id,
+        name: d.name,
+        currency: d.currency,
+        actual: null,
+        forecast: null,
+        previous: null,
+        revisedPrevious: null,
+        unit: d.unit,
+        referencePeriod: 'Review Required',
+        releaseDate: new Date().toISOString().slice(0, 10),
+        releaseTime: '08:30 GMT',
+        source: 'Screenshot Table OCR',
+        confidence: 80,
+        dataStatus: 'EXTRACTED_FROM_IMAGE',
+        notes: 'Heuristic placeholder. Please enter or review the exact values extracted from your image.',
+      }));
+
+      return res.json({
+        success: true,
+        selection: cleanSelection,
+        extractedCount: fallbackList.length,
+        indicators: fallbackList,
+        notice: 'Vision API key not active. Loaded editable fields for review.',
+      });
+    }
+
+    const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
+    const extractionPrompt = `You are the PRIME PIP FX institutional OCR & economic calendar vision parser.
+Your mission is to examine the provided screenshot of an economic calendar table (e.g., ForexFactory, TradingEconomics, Investing.com, Bloomberg, BLS, Central Bank release table).
+Target Currency/Commodity Selection: ${cleanSelection}
+
+CRITICAL DATA EXTRACTION RULES:
+1. Read every single row of economic indicators or macroeconomic metrics visible in the table.
+2. If the user selected a specific currency (e.g. USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD), prioritize rows for that currency, but if other rows are visible or relevant, capture them too. For commodities (GOLD, SILVER, CRUDE_OIL), capture spot/futures prices, inventories, yields, and commodity index metrics.
+3. Extract:
+   - "name": Clean name of the economic indicator (e.g. "Core CPI YoY", "Non-Farm Employment Change", "Main Refinancing Rate", "Retail Sales MoM", "Unemployment Rate", "GDP QoQ").
+   - "currency": 3-letter currency code (e.g. USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD) or commodity symbol.
+   - "actual": The Actual release number. NEVER treat a missing or pending value as 0. Use null if unreleased or pending.
+   - "forecast": The market consensus / expected estimate. NEVER equate forecast to actual. If no forecast was given, use null.
+   - "previous": The prior period reading as a number. If absent, use null.
+   - "revisedPrevious": If the previous value was revised (often indicated in ForexFactory or TradingEconomics with an asterisk or revision note), extract the revised number; else null.
+   - "unit": "%", "k", "M", "B", "Index", or "$" matching the data.
+   - "referencePeriod": Reporting period (e.g. "Jan", "Feb", "Q4 2024", "Dec 2024").
+   - "releaseDate": YYYY-MM-DD if discernable; else use today's date ${new Date().toISOString().slice(0, 10)}.
+   - "releaseTime": Release time if visible (e.g. "08:30 EST", "13:30 GMT", "12:00").
+   - "source": Name of the calendar platform or source identified (e.g. "ForexFactory", "Trading Economics", "Investing.com", "Bureau of Labor Statistics").
+   - "confidence": Integer 0-100 indicating visual certainty.
+   - "notes": Brief note on surprise direction (e.g. "Beat consensus", "Missed forecast", "In-line").
+
+Respond STRICTLY with valid JSON (NO MARKDOWN WRAPPERS) matching this format:
+{
+  "selection": "${cleanSelection}",
+  "indicators": [
+    {
+      "name": "string",
+      "currency": "string",
+      "actual": 0.0,
+      "forecast": 0.0,
+      "previous": 0.0,
+      "revisedPrevious": null,
+      "unit": "%",
+      "referencePeriod": "Jan 2025",
+      "releaseDate": "2025-02-12",
+      "releaseTime": "08:30 EST",
+      "source": "ForexFactory",
+      "confidence": 95,
+      "notes": "string"
+    }
+  ]
+}`;
+
+    let parsedResult: any = null;
+    let lastError: any = null;
+
+    for (const model of candidateModels) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: [
+            {
+              inlineData: {
+                mimeType: mimeType || 'image/png',
+                data: cleanBase64,
+              },
+            },
+            {
+              text: extractionPrompt,
+            },
+          ],
+          config: {
+            temperature: 0.1,
+            responseMimeType: 'application/json',
+          },
+        });
+
+        const text = (response.text || '').trim();
+        if (text) {
+          const first = text.indexOf('{');
+          const last = text.lastIndexOf('}');
+          if (first >= 0 && last > first) {
+            parsedResult = JSON.parse(text.slice(first, last + 1));
+            break;
+          }
+        }
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[IMAGE OCR] Model ${model} failed, trying next:`, err?.message || err);
+      }
+    }
+
+    if (!parsedResult || !Array.isArray(parsedResult.indicators)) {
+      throw new Error(lastError?.message || 'Vision engine could not extract tabular indicator records from the image.');
+    }
+
+    // Match extracted indicators with official registry where possible
+    const enrichedIndicators = parsedResult.indicators.map((item: any, idx: number) => {
+      const itemCurr = String(item.currency || cleanSelection).toUpperCase();
+      const normName = String(item.name || '').toLowerCase();
+      
+      const match = OFFICIAL_INDICATOR_REGISTRY.find((reg: any) => {
+        if (reg.currency !== itemCurr) return false;
+        const regName = reg.name.toLowerCase();
+        const regShort = (reg.shortLabel || '').toLowerCase();
+        return normName.includes(regShort) || regName.includes(normName) || normName.includes(regName);
+      });
+
+      return {
+        id: match ? `extracted_${match.id}_${Date.now()}_${idx}` : `extracted_custom_${Date.now()}_${idx}`,
+        matchedIndicatorId: match?.id,
+        name: item.name || match?.name || `Indicator ${idx + 1}`,
+        currency: itemCurr,
+        actual: typeof item.actual === 'number' ? item.actual : null,
+        forecast: typeof item.forecast === 'number' ? item.forecast : null,
+        previous: typeof item.previous === 'number' ? item.previous : null,
+        revisedPrevious: typeof item.revisedPrevious === 'number' ? item.revisedPrevious : null,
+        unit: item.unit || match?.unit || '%',
+        referencePeriod: item.referencePeriod || 'Current Period',
+        releaseDate: item.releaseDate || new Date().toISOString().slice(0, 10),
+        releaseTime: item.releaseTime || '08:30 GMT',
+        source: item.source || match?.officialSourceName || 'Screenshot Economic Calendar',
+        confidence: typeof item.confidence === 'number' ? Math.min(100, Math.max(0, item.confidence)) : 90,
+        dataStatus: 'EXTRACTED_FROM_IMAGE',
+        notes: item.notes || (match ? `Mapped to official ${match.shortLabel}` : undefined),
+      };
+    });
+
+    return res.json({
+      success: true,
+      selection: cleanSelection,
+      extractedCount: enrichedIndicators.length,
+      indicators: enrichedIndicators,
+    });
+  } catch (error: any) {
+    console.error('[IMAGE OCR] Extraction error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error?.message || 'Failed to process screenshot and extract economic indicators.',
+    });
+  }
+});
+
+// ----------------------------------------------------
+// FUNDAMENTAL INTELLIGENCE — ADMIN PUBLISHED DATA API
+// ----------------------------------------------------
+app.get('/api/fundamental/admin-published', (_req, res) => {
+  try {
+    const data = safeReadJsonFile('admin_fundamental_intelligence.json', null);
+    if (data) {
+      return res.json({ ok: true, data });
+    }
+    // Verified institutional default
+    return res.json({
+      ok: true,
+      data: {
+        editorName: 'Senior Institutional Desk (Admin)',
+        macroBias: 'USD HAWKISH (+42) • EUR NEUTRAL (+4) • JPY CAUTIOUS NORMALIZATION (-38)',
+        monetaryPolicyOutlook: 'Federal Reserve maintaining plateau with data-dependent terminal hold; ECB pricing cautious 25bps adjustments; Bank of Japan conducting measured policy normalization.',
+        growthAndInflationStance: 'US resilience supported by robust services employment; Eurozone manufacturing plateauing; Japanese wage growth accelerating core domestic price pressure.',
+        keyCatalysts: 'Upcoming FOMC press conference, US Nonfarm Payrolls, Tokyo Core CPI, and transatlantic 10Y real yield spread divergence.',
+        guidance: 'Prioritize trend continuation on high-yielding currencies against low-yielding funding currencies. Maintain strict risk parameters under 1.5% per position.',
+        recommendedFocus: 'USD/JPY carry continuation, EUR/USD range liquidity, and XAU/USD real yield sensitivity.',
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+app.post('/api/fundamental/admin-published', (req, res) => {
+  try {
+    const body = req.body || {};
+    const record = {
+      editorName: String(body.editorName || 'Senior Institutional Desk (Admin)').trim(),
+      macroBias: String(body.macroBias || '').trim(),
+      monetaryPolicyOutlook: String(body.monetaryPolicyOutlook || '').trim(),
+      growthAndInflationStance: String(body.growthAndInflationStance || '').trim(),
+      keyCatalysts: String(body.keyCatalysts || '').trim(),
+      guidance: String(body.guidance || '').trim(),
+      recommendedFocus: String(body.recommendedFocus || '').trim(),
+      updatedAt: new Date().toISOString(),
+    };
+    safeWriteJsonFile('admin_fundamental_intelligence.json', record);
+    return res.json({ ok: true, data: record });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+// ----------------------------------------------------
+// CLOUD EMAIL VAULT (FREE HOSTING-FREE BACKUP API)
+// ----------------------------------------------------
+app.post('/api/cloud-vault/save', (req, res) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const data = req.body?.data;
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ ok: false, error: 'Valid email address is required for cloud vault backup.' });
+    }
+    if (!data || typeof data !== 'object') {
+      return res.status(400).json({ ok: false, error: 'Data payload is required.' });
+    }
+    const safeKey = 'vault_' + email.replace(/[^a-z0-9]/g, '_') + '.json';
+    const payload = {
+      email,
+      savedAt: new Date().toISOString(),
+      tradesCount: Array.isArray(data.trades) ? data.trades.length : 0,
+      accountsCount: Array.isArray(data.accounts) ? data.accounts.length : 0,
+      data,
+    };
+    safeWriteJsonFile(safeKey, payload);
+    return res.json({
+      ok: true,
+      email,
+      savedAt: payload.savedAt,
+      tradesCount: payload.tradesCount,
+      accountsCount: payload.accountsCount,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to save cloud vault.' });
+  }
+});
+
+app.get('/api/cloud-vault/load', (req, res) => {
+  try {
+    const email = String(req.query?.email || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ ok: false, error: 'Valid email address is required.' });
+    }
+    const safeKey = 'vault_' + email.replace(/[^a-z0-9]/g, '_') + '.json';
+    const stored = safeReadJsonFile<any>(safeKey, null);
+    if (!stored || !stored.data) {
+      return res.status(404).json({ ok: false, error: 'No cloud vault found for ' + email + '. Create a backup first.' });
+    }
+    return res.json({
+      ok: true,
+      email: stored.email,
+      savedAt: stored.savedAt,
+      tradesCount: stored.tradesCount,
+      accountsCount: stored.accountsCount,
+      data: stored.data,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to retrieve cloud vault.' });
+  }
+});
+
+app.get('/api/cloud-vault/status', (req, res) => {
+  try {
+    const email = String(req.query?.email || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      return res.json({ exists: false });
+    }
+    const safeKey = 'vault_' + email.replace(/[^a-z0-9]/g, '_') + '.json';
+    const stored = safeReadJsonFile<any>(safeKey, null);
+    if (!stored || !stored.data) {
+      return res.json({ exists: false, email });
+    }
+    return res.json({
+      exists: true,
+      email: stored.email,
+      savedAt: stored.savedAt,
+      tradesCount: stored.tradesCount,
+      accountsCount: stored.accountsCount,
+    });
+  } catch {
+    return res.json({ exists: false });
   }
 });
 
@@ -4267,7 +4586,8 @@ app.put('/api/evolution/profile', (req, res) => {
 async function startServer() {
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     try {
-      const { createServer: createViteServer } = await import("vite");
+      const viteModule = "vite";
+      const { createServer: createViteServer } = await import(/* @vite-ignore */ viteModule);
       const vite = await createViteServer({
         server: { middlewareMode: true },
         appType: "spa",

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Database, ShieldCheck, RefreshCw, TrendingUp, TrendingDown, Minus, Gem, Droplets, Coins, BarChart3, Sparkles } from 'lucide-react';
+import { Activity, Database, ShieldCheck, RefreshCw, TrendingUp, TrendingDown, Minus, Gem, Droplets, Coins, BarChart3, Sparkles, Camera } from 'lucide-react';
 import {
   CommodityObservation,
   CurrencyCode,
@@ -113,6 +113,7 @@ interface Props {
   onOpenCot?: (currency: CurrencyCode) => void;
   onOpenSentiment?: (currency: CurrencyCode) => void;
   onOpenCommodities?: () => void;
+  onOpenImageExtractor?: (selection?: string) => void;
 }
 
 export const FundamentalAssetCommandCenter: React.FC<Props> = ({
@@ -129,6 +130,7 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
   onOpenCot,
   onOpenSentiment,
   onOpenCommodities,
+  onOpenImageExtractor,
 }) => {
   const [loading, setLoading] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
@@ -283,6 +285,17 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
               <RefreshCw className={`w-4 h-4 ${loading === 'ALL' ? 'animate-spin' : ''}`} />
               <span>{loading === 'ALL' ? 'REGENERATING 11 ASSETS...' : 'REGENERATE ALL 11 ASSETS'}</span>
             </button>
+            {onOpenImageExtractor && (
+              <button
+                type="button"
+                onClick={() => onOpenImageExtractor('USD')}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 font-military font-bold text-xs shadow-md transition cursor-pointer"
+                title="Upload screenshot of economic table to extract indicators with OCR"
+              >
+                <Camera className="w-4 h-4 text-cyan-400" />
+                <span>UPLOAD IMAGE</span>
+              </button>
+            )}
           </div>
         </div>
         {message && <div className="mt-4 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3.5 py-2.5 text-xs font-mono-code text-cyan-200">{message}</div>}

@@ -48,6 +48,7 @@ import {
   Moon,
   Plus,
   Minus,
+  Bookmark,
 } from 'lucide-react';
 import { BrightnessController } from './BrightnessController';
 import { applyInterfaceTemplate, getTemplateById } from '../data/interfaceTemplates';
@@ -87,7 +88,9 @@ export type MainNavTab =
   | 'SETTINGS'
   | 'ADMIN'
   | 'EVOLUTION'
-  | 'PRO_LEARNING';
+  | 'PRO_LEARNING'
+  | 'SITUATION_SAVER'
+  | 'PAIR_SAVER';
 
 interface HeaderProps {
   activeTab: MainNavTab;
@@ -407,12 +410,14 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'CALMING_TOOLS' as MainNavTab, label: '14. TRADING TOOL SUITE', icon: Wind, highlight: true },
     { id: 'RESEARCH' as MainNavTab, label: '15. ACADEMIC RESEARCH', icon: Compass, highlight: true },
     { id: 'FREEHAND_WORKSPACE' as MainNavTab, label: '16. FREEHAND CANVAS', icon: PenTool },
-    { id: 'PRO_LEARNING' as MainNavTab, label: '17. PRO LEARNING / TRADING', icon: GraduationCap, highlight: true, comingSoon: true, locked: false },
-    { id: 'COMMUNITY' as MainNavTab, label: '18. TRADER COMMUNITY FEED', icon: Users },
-    { id: 'BOOK_SESSION' as MainNavTab, label: '19. BOOK A SESSION', icon: MessageSquare, highlight: true },
-    { id: 'SETTINGS' as MainNavTab, label: '20. DATA EXPORT & BACKUP', icon: Settings2 },
-    { id: 'ADMIN' as MainNavTab, label: '21. ADMIN PANEL (OWNER)', icon: ShieldCheck, highlight: currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' },
-    { id: 'EVOLUTION' as MainNavTab, label: '22. EVALUATION ENGINE', icon: Cpu, highlight: true },
+    { id: 'SITUATION_SAVER' as MainNavTab, label: '17. SITUATION SAVER', icon: Bookmark, highlight: true },
+    { id: 'PAIR_SAVER' as MainNavTab, label: '18. PAIR SAVER', icon: Compass, highlight: true },
+    { id: 'PRO_LEARNING' as MainNavTab, label: '19. PRO LEARNING / TRADING', icon: GraduationCap, highlight: true, comingSoon: true, locked: false },
+    { id: 'COMMUNITY' as MainNavTab, label: '20. TRADER COMMUNITY FEED', icon: Users },
+    { id: 'BOOK_SESSION' as MainNavTab, label: '21. BOOK A SESSION', icon: MessageSquare, highlight: true },
+    { id: 'SETTINGS' as MainNavTab, label: '22. DATA EXPORT & BACKUP', icon: Settings2 },
+    { id: 'ADMIN' as MainNavTab, label: '23. ADMIN PANEL (OWNER)', icon: ShieldCheck, highlight: currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' },
+    { id: 'EVOLUTION' as MainNavTab, label: '24. EVALUATION ENGINE', icon: Cpu, highlight: true },
   ];
 
   const handleNavClick = (id: MainNavTab) => {

@@ -31,6 +31,11 @@ import {
   RefreshCw,
   ZoomIn,
   ZoomOut,
+  Camera,
+  Clock,
+  Calendar,
+  FileText,
+  Download,
 } from 'lucide-react';
 import { OFFICIAL_INDICATOR_REGISTRY, CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
 import { DEFAULT_INTEREST_RATES, DEFAULT_COT_RECORDS } from '../../data/defaultFundamentalObservations';
@@ -38,6 +43,7 @@ import { calculateCotMetrics } from '../../utils/fundamentalCalculationEngine';
 import { InterestRateRecord } from '../../types/fundamentalIndicatorTypes';
 import { generateIndicator, generateRates } from '../../services/fundamentalLiveResearchService';
 import { RadialSentimentGauge } from './RadialSentimentGauge';
+import { generateSingleCurrencyReportPdf } from '../../utils/fundamentalPdfGenerator';
 
 interface CurrencyWorkspaceViewProps {
   activeCurrency: CurrencyCode;
@@ -48,6 +54,7 @@ interface CurrencyWorkspaceViewProps {
   onOpenAuditModal: (scoreResult: CurrencyScoreResult) => void;
   onRequestAiExplanation: (currency: CurrencyCode) => void;
   onOpenIndicatorModal: (indicator: IndicatorDefinition) => void;
+  onOpenImageExtractor?: () => void;
   interestRates?: InterestRateRecord[];
   onUpdateInterestRate?: (updated: InterestRateRecord) => void;
 }
@@ -72,6 +79,7 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
   onOpenAuditModal,
   onRequestAiExplanation,
   onOpenIndicatorModal,
+  onOpenImageExtractor,
   interestRates,
   onUpdateInterestRate,
 }) => {
@@ -609,6 +617,26 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                 <RotateCcw className="w-4 h-4" />
                 <span>REGENERATE</span>
               </button>
+              {onOpenImageExtractor && (
+                <button
+                  type="button"
+                  onClick={onOpenImageExtractor}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-400/40 text-cyan-300 text-xs font-military font-bold transition shadow cursor-pointer"
+                  title="Upload screenshot of economic table to extract indicators with OCR"
+                >
+                  <Camera className="w-4 h-4 text-cyan-400" />
+                  <span>UPLOAD IMAGE</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => generateSingleCurrencyReportPdf(activeCurrency, observations, currentCurrencyScore)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-400/40 text-amber-300 text-xs font-military font-bold transition shadow cursor-pointer"
+                title={`Download official fundamental report for ${activeCurrency}`}
+              >
+                <FileText className="w-4 h-4 text-amber-400" />
+                <span>REPORT</span>
+              </button>
               <button
                 type="button"
                 onClick={() => onRequestAiExplanation(activeCurrency)}
@@ -1101,6 +1129,26 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                                   <span className="text-[11px] text-slate-400 block truncate max-w-[260px]">
                                     {def.name}
                                   </span>
+                                  {/* Release Date, Time & Data Status (10 Required Fields) */}
+                                  <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-500">
+                                    <span>{def.currency}</span>
+                                    <span>•</span>
+                                    <span>Rel: {obs?.releaseDate || 'Latest'} {obs?.releaseTime ? `(${obs.releaseTime})` : ''}</span>
+                                    <span>•</span>
+                                    <span
+                                      className={`px-1.5 py-0.2 rounded font-bold text-[9px] ${
+                                        obs?.dataStatus === 'EXTRACTED_FROM_IMAGE'
+                                          ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                          : obs?.dataStatus === 'REVISED'
+                                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                          : obs?.dataStatus === 'LIVE_VERIFIED' || obs?.verificationStatus === 'VERIFIED'
+                                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                          : 'bg-slate-800 text-slate-400'
+                                      }`}
+                                    >
+                                      {obs?.dataStatus || (obs?.verificationStatus === 'VERIFIED' ? 'LIVE_VERIFIED' : 'OFFICIAL_PUBLISHED')}
+                                    </span>
+                                  </div>
                                 </div>
                               </td>
 
@@ -1121,6 +1169,11 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
 
                               <td className="p-2 text-right text-slate-400">
                                 {previousVal !== null ? `${previousVal}${def.unit}` : '—'}
+                                {obs?.revisedPrevious !== undefined && obs?.revisedPrevious !== null && (
+                                  <div className="text-[9px] text-amber-300 font-bold" title="Revised Previous Reading">
+                                    Rev: {obs.revisedPrevious}{def.unit}
+                                  </div>
+                                )}
                               </td>
 
                               <td className="p-2 text-right">
