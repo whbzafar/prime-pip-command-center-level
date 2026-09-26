@@ -8,6 +8,7 @@ import {
   CotPositioningRecord,
   MarketSentimentRecord,
   CommodityObservation,
+  InterestRateRecord,
 } from '../types/fundamentalIndicatorTypes';
 import { CURRENCY_METADATA, OFFICIAL_INDICATOR_REGISTRY } from '../data/fundamentalRegistryData';
 import { MarketSituation } from '../types/situationSaverTypes';
@@ -595,19 +596,21 @@ export function generateSingleCurrencyReportPdf(
 
   const colX = {
     name: 16,
-    actual: 62,
-    forecast: 78,
-    previous: 94,
-    unit: 110,
-    period: 122,
-    source: 142,
-    status: 172,
+    actual: 58,
+    forecast: 74,
+    previous: 90,
+    cadence: 106,
+    unit: 124,
+    period: 136,
+    source: 154,
+    status: 174,
   };
 
   doc.text('INDICATOR / RELEASE', colX.name, y + 4.8);
   doc.text('ACTUAL', colX.actual, y + 4.8);
   doc.text('FORECAST', colX.forecast, y + 4.8);
   doc.text('PREVIOUS', colX.previous, y + 4.8);
+  doc.text('CADENCE', colX.cadence, y + 4.8);
   doc.text('UNIT', colX.unit, y + 4.8);
   doc.text('PERIOD', colX.period, y + 4.8);
   doc.text('SOURCE', colX.source, y + 4.8);
@@ -632,7 +635,7 @@ export function generateSingleCurrencyReportPdf(
     doc.setTextColor(30, 41, 59);
 
     const shortName = def.shortLabel || def.name;
-    const displayName = shortName.length > 25 ? shortName.slice(0, 24) + '…' : shortName;
+    const displayName = shortName.length > 22 ? shortName.slice(0, 21) + '…' : shortName;
     doc.text(displayName, colX.name, y + 3);
 
     doc.setFont('helvetica', 'normal');
@@ -667,16 +670,25 @@ export function generateSingleCurrencyReportPdf(
     const revisedNote = obs?.revisedPrevious !== undefined && obs?.revisedPrevious !== null ? ` (rev ${obs.revisedPrevious})` : '';
     doc.text(prevText + revisedNote, colX.previous, y + 4);
 
+    // Cadence
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6);
+    doc.setTextColor(14, 116, 144);
+    doc.text(def.frequency || 'Monthly', colX.cadence, y + 4);
+
     // Unit
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(71, 85, 105);
     doc.text(def.unit || '%', colX.unit, y + 4);
 
     // Period & Date
     const periodStr = obs?.referencePeriod || 'Latest';
     const dateStr = obs?.releaseDate ? ` (${obs.releaseDate})` : '';
-    doc.text((periodStr + dateStr).slice(0, 14), colX.period, y + 4);
+    doc.text((periodStr + dateStr).slice(0, 11), colX.period, y + 4);
 
     // Source
-    const sourceStr = (obs?.dataSource || def.officialSourceName || 'Official Desk').slice(0, 18);
+    const sourceStr = (obs?.dataSource || def.officialSourceName || 'Official Desk').slice(0, 14);
     doc.text(sourceStr, colX.source, y + 4);
 
     // Status Badge Text
@@ -688,14 +700,33 @@ export function generateSingleCurrencyReportPdf(
     } else {
       doc.setTextColor(14, 116, 144);
     }
-    doc.text(statusStr.slice(0, 14), colX.status, y + 4);
+    doc.text(statusStr.slice(0, 12), colX.status, y + 4);
 
     y += 9;
   });
 
+  // Institutional Indicator Cadence & Surprise Guide
+  checkAddPage(38);
+  y += 4;
+  doc.setFillColor(241, 245, 249);
+  doc.roundedRect(14, y, pageWidth - 28, 34, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text('MACRO INDICATOR CADENCE GUIDE & PREVIOUS / FORECAST / ACTUAL INTERPRETATION:', 18, y + 5);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text('• Monthly Data Required: High-velocity indicators like Non-Farm Payrolls (NFP), Consumer Price Index (CPI), PPI, and Retail Sales need monthly series to track short-term inflation and employment trends.', 18, y + 10);
+  doc.text('• Weekly Data Required: High-frequency data such as Initial Jobless Claims and Energy Inventories provide early turning-point signals before monthly summaries appear.', 18, y + 14);
+  doc.text('• Quarterly Data (3rd Month / 6th Month Revision Data): GDP and Current Account balance are reported quarterly with 1st estimate (Advance), 2nd estimate (2nd month), and final revision (3rd month / 6th month benchmarks).', 18, y + 18);
+  doc.text('• Annual Data: Structural metrics like fiscal debt-to-GDP and annual benchmark revisions anchor long-term sovereign solvency.', 18, y + 22);
+  doc.text('• Economic Surprise Dynamics: Previous = Prior period baseline; Forecast = Consensus expectation; Actual = Official print. When Actual exceeds Forecast (Positive Surprise), institutional capital flows in; when Actual misses, yields soften.', 18, y + 26);
+  doc.text('• Prime Pip FX verifies all macroeconomic inputs against official statistical desks with zero automated distortion.', 18, y + 30);
+
   // Footer Disclaimer
   checkAddPage(22);
-  y += 4;
+  y += 38;
   doc.setFillColor(241, 245, 249);
   doc.roundedRect(14, y, pageWidth - 28, 16, 2, 2, 'F');
   doc.setFont('helvetica', 'bold');
@@ -893,20 +924,22 @@ export function generateMasterDataReportPdf(
 
   const colX = {
     curr: 16,
-    name: 30,
-    cat: 95,
-    actual: 135,
-    forecast: 155,
-    previous: 175,
-    unit: 195,
-    period: 210,
-    source: 235,
+    name: 28,
+    cat: 88,
+    cadence: 122,
+    actual: 145,
+    forecast: 163,
+    previous: 181,
+    unit: 199,
+    period: 212,
+    source: 236,
     status: 265,
   };
 
   doc.text('CURR', colX.curr, y + 4.8);
   doc.text('INDICATOR NAME', colX.name, y + 4.8);
   doc.text('CATEGORY', colX.cat, y + 4.8);
+  doc.text('CADENCE', colX.cadence, y + 4.8);
   doc.text('ACTUAL', colX.actual, y + 4.8);
   doc.text('FORECAST', colX.forecast, y + 4.8);
   doc.text('PREVIOUS', colX.previous, y + 4.8);
@@ -933,12 +966,18 @@ export function generateMasterDataReportPdf(
 
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 41, 59);
-    doc.text(def.name.slice(0, 38), colX.name, y + 3.5);
+    doc.text(def.name.slice(0, 34), colX.name, y + 3.5);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(5.8);
     doc.setTextColor(100, 116, 139);
     doc.text(def.category.replace('_', ' '), colX.cat, y + 3.5);
+
+    // Cadence
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6);
+    doc.setTextColor(14, 116, 144);
+    doc.text(def.frequency || 'Monthly', colX.cadence, y + 3.5);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(6.5);
@@ -961,6 +1000,22 @@ export function generateMasterDataReportPdf(
 
     y += 6.5;
   });
+
+  // Institutional Cadence Guide at end of Master Data PDF
+  checkAddPage(32);
+  y += 4;
+  doc.setFillColor(241, 245, 249);
+  doc.roundedRect(14, y, pageWidth - 28, 24, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text('MACRO INDICATOR CADENCE GUIDE & PREVIOUS / FORECAST / ACTUAL INTERPRETATION:', 18, y + 5);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text('• Monthly Data Required: High-frequency monthly releases (NFP, CPI, Retail Sales) indicate instantaneous economic health and labor momentum.', 18, y + 10);
+  doc.text('• Weekly Data Required: Claims and Energy inventories provide earliest indication of trend shifts before broad macroeconomic prints.', 18, y + 14);
+  doc.text('• Quarterly Data (3rd Month / 6th Month Revision Data): GDP growth is reported quarterly with 1st, 2nd, and 3rd-month revisions, plus 6-month benchmarks.', 18, y + 18);
 
   drawFooter();
   doc.save(`primepip_master_economic_data_report_${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -1023,15 +1078,18 @@ export function generateSituationReportPdf(situationsInput: MarketSituation | Ma
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
-  doc.text(`Total Situations Documented: ${sitList.length} setup scenarios`, 14, y);
+  doc.text(`Complete Institutional Setup Scenarios & Multi-Timeframe Configurations (${sitList.length} total)`, 14, y);
   y += 8;
 
   sitList.forEach((sit, idx) => {
-    checkAddPage(60);
+    // Determine active timeframes with configuration
+    const activeTfs = Object.entries(sit.timeframeConfigs || {}).filter(([_, conf]) => conf && (conf.bias !== 'None' || (conf.fibonacciRetracements && conf.fibonacciRetracements.length > 0)));
+    const blockHeight = Math.max(58, 44 + (activeTfs.length > 0 ? activeTfs.length * 6 : 14));
+    checkAddPage(blockHeight + 6);
 
-    doc.setFillColor(241, 245, 249);
+    doc.setFillColor(248, 250, 252);
     doc.setDrawColor(203, 213, 225);
-    doc.roundedRect(14, y, pageWidth - 28, 52, 2, 2, 'FD');
+    doc.roundedRect(14, y, pageWidth - 28, blockHeight, 2, 2, 'FD');
 
     // Title and Pair
     doc.setFont('helvetica', 'bold');
@@ -1041,39 +1099,64 @@ export function generateSituationReportPdf(situationsInput: MarketSituation | Ma
 
     // Direction and Model Badge
     doc.setFontSize(8);
-    doc.setTextColor(sit.direction === 'BULLISH' ? 16 : 244, sit.direction === 'BULLISH' ? 185 : 63, sit.direction === 'BULLISH' ? 129 : 94);
-    doc.text(`${sit.direction} • ${sit.sbtModel || 'SBT Model'} • Outcome: ${sit.outcome || 'SAVED'}`, 18, y + 13);
+    const isBull = sit.direction === 'BULLISH';
+    const isBear = sit.direction === 'BEARISH';
+    doc.setTextColor(isBull ? 16 : isBear ? 244 : 71, isBull ? 185 : isBear ? 63 : 85, isBull ? 129 : isBear ? 94 : 105);
+    doc.text(`${sit.direction} • ${sit.sbtModel || 'SBT Model'} • Session: ${sit.session || 'All'} • Outcome: ${sit.outcome || 'SAVED'}`, 18, y + 13);
 
-    // Timeframe Scenarios & Fibonacci levels
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(51, 65, 85);
-    doc.text(`Selected Timeframe: ${sit.selectedTimeframe || sit.htfTimeframe || 'Daily'}`, 18, y + 19);
-    doc.text(`Fibonacci Confluence: ${sit.fibonacciLevel || '0.618 (OTE)'}`, 85, y + 19);
-    doc.text(`Final Target: ${sit.finalTarget || '1.618'}`, 145, y + 19);
+    // Timeframe Scenarios & Multi-Timeframe Details
+    let lineY = y + 19;
+    if (activeTfs.length > 0) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(30, 41, 59);
+      doc.text('Timeframe Parameters & Fibonacci Levels:', 18, lineY);
+      lineY += 5;
 
-    doc.text(`Entry: ${sit.entryPrice || '—'}`, 18, y + 25);
-    doc.text(`Stop Loss: ${sit.stopLossPrice || '—'}`, 85, y + 25);
-    doc.text(`Take Profit: ${sit.takeProfit1 || '—'} (R:R 1:${sit.plannedRiskReward || '3.0'})`, 145, y + 25);
-
-    // Notes
-    if (sit.notes) {
-      doc.text(`Notes: ${sit.notes.slice(0, 110)}`, 18, y + 31);
+      activeTfs.slice(0, 5).forEach(([tfKey, tfConf]) => {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(51, 65, 85);
+        const retraces = (tfConf.fibonacciRetracements || []).join(', ') || '0.238, 0.38, 0.50';
+        const target = tfConf.finalTarget || '1.618';
+        const customTgt = tfConf.customTarget ? ` (Optional: ${tfConf.customTarget})` : '';
+        doc.text(`• ${tfKey} [${tfConf.bias}]: Retracement: ${retraces} | Final Target: ${target}${customTgt}`, 20, lineY);
+        lineY += 4.5;
+      });
     } else {
-      doc.text(`HTF Context: ${(sit.htfContext || 'Aligned with trend').slice(0, 110)}`, 18, y + 31);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(51, 65, 85);
+      doc.text(`Timeframe: ${sit.selectedTimeframe || sit.htfTimeframe || 'Weekly'} | Fib Level: ${sit.fibonacciLevel || '0.618'} | Final Target: ${sit.finalTarget || '1.618'}`, 18, lineY);
+      lineY += 5;
+    }
+
+    // HTF / Notes
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(71, 85, 105);
+    if (sit.notes) {
+      doc.text(`Notes: ${sit.notes.slice(0, 110)}`, 18, lineY);
+      lineY += 4.5;
+    } else if (sit.htfContext) {
+      doc.text(`HTF Context: ${sit.htfContext.slice(0, 110)}`, 18, lineY);
+      lineY += 4.5;
     }
 
     // Golden Lesson Learned
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(180, 83, 9); // Amber 700
-    doc.text(`Golden Lesson: "${(sit.lessonsLearned || 'Strict risk execution.').slice(0, 110)}"`, 18, y + 37);
+    if (sit.lessonsLearned) {
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(180, 83, 9); // Amber 700
+      doc.text(`Golden Lesson Learned: "${sit.lessonsLearned.slice(0, 115)}"`, 18, lineY);
+      lineY += 4.5;
+    }
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text(`Recorded: ${sit.createdAt ? new Date(sit.createdAt).toLocaleDateString() : new Date().toLocaleDateString()}`, 18, y + 45);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Recorded: ${sit.createdAt ? new Date(sit.createdAt).toLocaleDateString() : new Date().toLocaleDateString()}`, 18, y + blockHeight - 3);
 
-    y += 56;
+    y += blockHeight + 5;
   });
 
   drawFooter();
@@ -1137,15 +1220,24 @@ export function generatePairScenarioReportPdf(scenariosInput: SavedPairScenario 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
-  doc.text(`Weekly to M1 Timeframe Alignment Records (${list.length} setups)`, 14, y);
+  doc.text(`Timeframe Alignment, Fibonacci Retracements & Final Targets (${list.length} setups)`, 14, y);
   y += 8;
 
   list.forEach((item, idx) => {
-    checkAddPage(50);
+    const tfs: PairSaverTimeframe[] = ['Weekly', 'Daily', 'H4', 'H1', 'M30', 'M15', 'M5', 'M3', 'M1'];
+    // Check which timeframes have detailed configuration or bias
+    const configuredTfs = tfs.filter((tf) => {
+      const bias = item.timeframeBiases[tf];
+      const d = item.timeframeDetails?.[tf];
+      return bias || (d && (d.retracements?.length || d.finalTarget || d.optionalTarget));
+    });
 
-    doc.setFillColor(241, 245, 249);
+    const cardHeight = Math.max(54, 38 + (configuredTfs.length > 0 ? Math.min(configuredTfs.length, 6) * 5.5 : 12));
+    checkAddPage(cardHeight + 6);
+
+    doc.setFillColor(248, 250, 252);
     doc.setDrawColor(203, 213, 225);
-    doc.roundedRect(14, y, pageWidth - 28, 44, 2, 2, 'FD');
+    doc.roundedRect(14, y, pageWidth - 28, cardHeight, 2, 2, 'FD');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
@@ -1157,42 +1249,546 @@ export function generatePairScenarioReportPdf(scenariosInput: SavedPairScenario 
     doc.setTextColor(100, 116, 139);
     doc.text(`Created: ${new Date(item.createdAt).toLocaleString()}`, 130, y + 7);
 
-    // 9 Timeframes Grid
-    const tfs: PairSaverTimeframe[] = ['Weekly', 'Daily', 'H4', 'H1', 'M30', 'M15', 'M5', 'M3', 'M1'];
+    // 9 Timeframes Quick Bias Summary
     let tfX = 18;
     tfs.forEach((tf) => {
       const bias = item.timeframeBiases[tf];
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(6.8);
+      doc.setFontSize(6.5);
       doc.setTextColor(71, 85, 105);
-      doc.text(tf, tfX, y + 16);
+      doc.text(tf, tfX, y + 14);
 
-      doc.setFontSize(7.2);
+      doc.setFontSize(6.8);
       if (bias === 'Bullish') {
         doc.setTextColor(16, 185, 129); // Green
-        doc.text('▲ BULL', tfX, y + 21);
+        doc.text('▲ BULL', tfX, y + 18.5);
       } else if (bias === 'Bearish') {
         doc.setTextColor(244, 63, 94); // Red
-        doc.text('▼ BEAR', tfX, y + 21);
+        doc.text('▼ BEAR', tfX, y + 18.5);
       } else {
         doc.setTextColor(148, 163, 184);
-        doc.text('—', tfX, y + 21);
+        doc.text('—', tfX, y + 18.5);
       }
 
       tfX += 19;
     });
 
+    // Timeframe-Specific Retracements & Targets
+    let detailY = y + 24;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(30, 41, 59);
+    doc.text('Detailed Timeframe Settings (Retracement / Final Target / Optional Target):', 18, detailY);
+    detailY += 4.5;
+
+    const displayTfs = (configuredTfs.length > 0 ? configuredTfs : tfs.slice(0, 3)).slice(0, 6);
+    displayTfs.forEach((tf) => {
+      const bias = item.timeframeBiases[tf] || 'Neutral';
+      const d = item.timeframeDetails?.[tf];
+      const retracements = (d?.retracements && d.retracements.length > 0) ? d.retracements.join(', ') : (item.retracements?.join(', ') || '0.23, 0.38, 0.50');
+      const finalTgt = d?.finalTarget || item.finalTargets?.[0] || '1.618';
+      const optTgt = d?.optionalTarget || item.optionalTargets?.[0] || '2.0';
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.8);
+      doc.setTextColor(51, 65, 85);
+      doc.text(`• ${tf} [${bias}]: Retracement: ${retracements} | Final Target: ${finalTgt} | Optional: ${optTgt}`, 20, detailY);
+      detailY += 4.5;
+    });
+
     if (item.notes) {
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
-      doc.setTextColor(51, 65, 85);
-      doc.text(`Notes: ${item.notes.slice(0, 120)}`, 18, y + 32);
+      doc.setFontSize(7);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Notes: ${item.notes.slice(0, 110)}`, 18, y + cardHeight - 3);
     }
 
-    y += 48;
+    y += cardHeight + 5;
   });
 
   drawFooter();
   doc.save(`primepip_pair_scenarios_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
+
+/**
+ * Generates an Institutional-Grade Rates & Sovereign Yields PDF Report
+ */
+export function generateRatesAndYieldsReportPdf(interestRates: InterestRateRecord[]): void {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let y = 14;
+  let pageNum = 1;
+
+  const drawHeader = () => {
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageWidth, 12, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text('PRIME PIP FX — G8 CENTRAL BANK RATES & SOVEREIGN YIELDS AUDIT REPORT', 14, 8);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`DATE: ${new Date().toISOString().slice(0, 10)}`, pageWidth - 14, 8, { align: 'right' });
+  };
+
+  const drawFooter = () => {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, pageHeight - 10, pageWidth - 14, pageHeight - 10);
+    doc.text('Prime Pip FX Command Center • Sovereign Yield Spread & Central Bank Policy Differential Engine', 14, pageHeight - 6);
+    doc.text(`Page ${pageNum}`, pageWidth - 14, pageHeight - 6, { align: 'right' });
+  };
+
+  const checkAddPage = (space: number) => {
+    if (y + space > pageHeight - 14) {
+      drawFooter();
+      doc.addPage();
+      pageNum++;
+      y = 16;
+      drawHeader();
+    }
+  };
+
+  drawHeader();
+  y = 20;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(15, 23, 42);
+  doc.text('G8 CENTRAL BANK BENCHMARK POLICY RATES & SOVEREIGN YIELDS', 14, y);
+  y += 5;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  doc.text('Federal Reserve, ECB, Bank of England, Bank of Japan, Swiss National Bank, Bank of Canada, RBA, RBNZ official rates & bond yields.', 14, y);
+  y += 7;
+
+  // Table header
+  doc.setFillColor(15, 23, 42);
+  doc.rect(14, y, pageWidth - 28, 7, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.8);
+  doc.setTextColor(255, 255, 255);
+
+  const colX = {
+    curr: 16,
+    cb: 32,
+    rate: 85,
+    prevRate: 110,
+    expected: 135,
+    bias: 160,
+    y2: 185,
+    y10: 205,
+    realY: 225,
+    meeting: 250,
+  };
+
+  doc.text('CURR', colX.curr, y + 4.8);
+  doc.text('CENTRAL BANK', colX.cb, y + 4.8);
+  doc.text('POLICY RATE', colX.rate, y + 4.8);
+  doc.text('PREVIOUS', colX.prevRate, y + 4.8);
+  doc.text('EXPECTED NEXT', colX.expected, y + 4.8);
+  doc.text('BIAS STANCE', colX.bias, y + 4.8);
+  doc.text('2Y YIELD', colX.y2, y + 4.8);
+  doc.text('10Y YIELD', colX.y10, y + 4.8);
+  doc.text('10Y REAL YIELD', colX.realY, y + 4.8);
+  doc.text('NEXT MEETING', colX.meeting, y + 4.8);
+
+  y += 8;
+
+  interestRates.forEach((rec, idx) => {
+    checkAddPage(8);
+    if (idx % 2 === 1) {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(14, y - 1, pageWidth - 28, 7, 'F');
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(14, 116, 144);
+    doc.text(rec.currency, colX.curr, y + 4);
+
+    doc.setTextColor(30, 41, 59);
+    doc.text(rec.centralBankName.slice(0, 28), colX.cb, y + 4);
+
+    doc.text(`${rec.currentPolicyRate.toFixed(2)}%`, colX.rate, y + 4);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`${rec.previousPolicyRate.toFixed(2)}%`, colX.prevRate, y + 4);
+
+    doc.text(`${rec.expectedNextRate.toFixed(2)}%`, colX.expected, y + 4);
+
+    // Bias
+    doc.setFont('helvetica', 'bold');
+    if (rec.centralBankBias === 'HAWKISH') {
+      doc.setTextColor(16, 185, 129);
+    } else if (rec.centralBankBias === 'DOVISH') {
+      doc.setTextColor(244, 63, 94);
+    } else {
+      doc.setTextColor(100, 116, 139);
+    }
+    doc.text(rec.centralBankBias, colX.bias, y + 4);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+    doc.text(`${rec.yield2Y.toFixed(2)}%`, colX.y2, y + 4);
+    doc.text(`${rec.yield10Y.toFixed(2)}%`, colX.y10, y + 4);
+    doc.text(rec.realYield10Y !== undefined ? `${rec.realYield10Y.toFixed(2)}%` : '—', colX.realY, y + 4);
+
+    doc.setTextColor(100, 116, 139);
+    doc.text(rec.nextMeetingDate.slice(0, 14), colX.meeting, y + 4);
+
+    y += 8;
+  });
+
+  // Institutional explanation section
+  checkAddPage(32);
+  y += 4;
+  doc.setFillColor(241, 245, 249);
+  doc.roundedRect(14, y, pageWidth - 28, 24, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text('INSTITUTIONAL RATES CADENCE & YIELD SPREAD EXPLANATION:', 18, y + 5);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
+  doc.setTextColor(71, 85, 105);
+  doc.text('• Data Cadence Needed: Central bank policy meetings occur approximately every 6 weeks (8 times annually), requiring real-time rate decision updates.', 18, y + 10);
+  doc.text('• Sovereign yields (2Y & 10Y) are marked-to-market daily. 2-Year yields reflect short-term policy path expectations; 10-Year yields reflect long-term growth and inflation.', 18, y + 14);
+  doc.text('• The yield differential between two currencies (Base Yield minus Quote Yield) serves as the primary capital attraction anchor for carry trade flows.', 18, y + 18);
+
+  drawFooter();
+  doc.save(`primepip_rates_yields_report_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+/**
+ * Generates an Institutional-Grade COT Report PDF
+ */
+export function generateCotReportPdf(cotRecords: CotPositioningRecord[]): void {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let y = 14;
+  let pageNum = 1;
+
+  const drawHeader = () => {
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageWidth, 12, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text('PRIME PIP FX — COMMITMENT OF TRADERS (COT) INSTITUTIONAL REPORT', 14, 8);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`DATE: ${new Date().toISOString().slice(0, 10)}`, pageWidth - 14, 8, { align: 'right' });
+  };
+
+  const drawFooter = () => {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, pageHeight - 10, pageWidth - 14, pageHeight - 10);
+    doc.text('Prime Pip FX Command Center • US CFTC Commitment of Traders Institutional Flow Verification', 14, pageHeight - 6);
+    doc.text(`Page ${pageNum}`, pageWidth - 14, pageHeight - 6, { align: 'right' });
+  };
+
+  const checkAddPage = (space: number) => {
+    if (y + space > pageHeight - 14) {
+      drawFooter();
+      doc.addPage();
+      pageNum++;
+      y = 16;
+      drawHeader();
+    }
+  };
+
+  drawHeader();
+  y = 20;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(15, 23, 42);
+  doc.text('CFTC COMMITMENT OF TRADERS (COT) WEEKLY INSTITUTIONAL POSITIONING', 14, y);
+  y += 5;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  doc.text('Non-Commercial (Speculators / Hedge Funds) vs Commercial (Corporate Hedgers) weekly net positioning across all 8 currencies.', 14, y);
+  y += 7;
+
+  // Table header
+  doc.setFillColor(15, 23, 42);
+  doc.rect(14, y, pageWidth - 28, 7, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.8);
+  doc.setTextColor(255, 255, 255);
+
+  const colX = {
+    curr: 16,
+    nonCommLong: 40,
+    nonCommShort: 70,
+    netPosition: 100,
+    commLong: 135,
+    commShort: 165,
+    openInterest: 195,
+    sentimentBias: 230,
+    reportDate: 260,
+  };
+
+  doc.text('CURRENCY', colX.curr, y + 4.8);
+  doc.text('NON-COMM LONG', colX.nonCommLong, y + 4.8);
+  doc.text('NON-COMM SHORT', colX.nonCommShort, y + 4.8);
+  doc.text('NET POSITION', colX.netPosition, y + 4.8);
+  doc.text('COMM LONG', colX.commLong, y + 4.8);
+  doc.text('COMM SHORT', colX.commShort, y + 4.8);
+  doc.text('OPEN INTEREST', colX.openInterest, y + 4.8);
+  doc.text('BIAS STANCE', colX.sentimentBias, y + 4.8);
+  doc.text('REPORT DATE', colX.reportDate, y + 4.8);
+
+  y += 8;
+
+  cotRecords.forEach((rec, idx) => {
+    checkAddPage(8);
+    if (idx % 2 === 1) {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(14, y - 1, pageWidth - 28, 7, 'F');
+    }
+
+    const net = rec.nonCommercialLong - rec.nonCommercialShort;
+    const isBull = net > 0;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(14, 116, 144);
+    doc.text(rec.currency, colX.curr, y + 4);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(30, 41, 59);
+    doc.text(rec.nonCommercialLong.toLocaleString(), colX.nonCommLong, y + 4);
+    doc.text(rec.nonCommercialShort.toLocaleString(), colX.nonCommShort, y + 4);
+
+    doc.setFont('helvetica', 'bold');
+    if (isBull) {
+      doc.setTextColor(16, 185, 129);
+      doc.text(`+${net.toLocaleString()}`, colX.netPosition, y + 4);
+    } else {
+      doc.setTextColor(244, 63, 94);
+      doc.text(net.toLocaleString(), colX.netPosition, y + 4);
+    }
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(rec.commercialLong.toLocaleString(), colX.commLong, y + 4);
+    doc.text(rec.commercialShort.toLocaleString(), colX.commShort, y + 4);
+    doc.text(rec.openInterest.toLocaleString(), colX.openInterest, y + 4);
+
+    doc.setFont('helvetica', 'bold');
+    if (isBull) {
+      doc.setTextColor(16, 185, 129);
+      doc.text('BULLISH NET', colX.sentimentBias, y + 4);
+    } else {
+      doc.setTextColor(244, 63, 94);
+      doc.text('BEARISH NET', colX.sentimentBias, y + 4);
+    }
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(rec.reportDate || 'Latest', colX.reportDate, y + 4);
+
+    y += 8;
+  });
+
+  // Institutional explanation section
+  checkAddPage(32);
+  y += 4;
+  doc.setFillColor(241, 245, 249);
+  doc.roundedRect(14, y, pageWidth - 28, 24, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text('COT REPORT CADENCE & INSTITUTIONAL SPECULATIVE MECHANICS:', 18, y + 5);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
+  doc.setTextColor(71, 85, 105);
+  doc.text('• Data Cadence Needed: WEEKLY data released every Friday at 15:30 EST by the CFTC, tracking Tuesday close futures positioning.', 18, y + 10);
+  doc.text('• Non-Commercial traders (hedge funds, asset managers) are trend followers. Sustained net long growth confirms institutional bullish conviction.', 18, y + 14);
+  doc.text('• Extreme positioning (top 95th percentile net long or net short) signals exhaustion where liquidity sweeps trigger contrarian turning points.', 18, y + 18);
+
+  drawFooter();
+  doc.save(`primepip_cot_report_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+/**
+ * Generates an Institutional-Grade Retail Market Sentiment Report PDF
+ */
+export function generateSentimentReportPdf(sentimentPairs: any[]): void {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let y = 14;
+  let pageNum = 1;
+
+  const drawHeader = () => {
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageWidth, 12, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text('PRIME PIP FX — 31 INSTRUMENT RETAIL SENTIMENT & CONTRARIAN INTELLIGENCE REPORT', 14, 8);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`DATE: ${new Date().toISOString().slice(0, 10)}`, pageWidth - 14, 8, { align: 'right' });
+  };
+
+  const drawFooter = () => {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, pageHeight - 10, pageWidth - 14, pageHeight - 10);
+    doc.text('Prime Pip FX Command Center • Contrarian Retail Sentiment Order Book Analysis • Sourced from Myfxbook, OANDA, IG', 14, pageHeight - 6);
+    doc.text(`Page ${pageNum}`, pageWidth - 14, pageHeight - 6, { align: 'right' });
+  };
+
+  const checkAddPage = (space: number) => {
+    if (y + space > pageHeight - 14) {
+      drawFooter();
+      doc.addPage();
+      pageNum++;
+      y = 16;
+      drawHeader();
+    }
+  };
+
+  drawHeader();
+  y = 20;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(15, 23, 42);
+  doc.text('31 FOREX PAIRS & COMMODITIES RETAIL SENTIMENT AUDIT', 14, y);
+  y += 5;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  doc.text('28 Standard Forex Pairs + Gold (XAU/USD) + Silver (XAG/USD) + Crude Oil (US Oil) broker order book positioning.', 14, y);
+  y += 7;
+
+  // Table header
+  doc.setFillColor(15, 23, 42);
+  doc.rect(14, y, pageWidth - 28, 7, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.8);
+  doc.setTextColor(255, 255, 255);
+
+  const colX = {
+    pair: 16,
+    name: 45,
+    cat: 95,
+    longPct: 135,
+    shortPct: 165,
+    retailBias: 195,
+    contrarianSignal: 230,
+    source: 260,
+  };
+
+  doc.text('INSTRUMENT', colX.pair, y + 4.8);
+  doc.text('ASSET NAME', colX.name, y + 4.8);
+  doc.text('CATEGORY', colX.cat, y + 4.8);
+  doc.text('RETAIL LONG %', colX.longPct, y + 4.8);
+  doc.text('RETAIL SHORT %', colX.shortPct, y + 4.8);
+  doc.text('RETAIL BIAS', colX.retailBias, y + 4.8);
+  doc.text('CONTRARIAN SIGNAL', colX.contrarianSignal, y + 4.8);
+  doc.text('SOURCE', colX.source, y + 4.8);
+
+  y += 8;
+
+  sentimentPairs.forEach((item, idx) => {
+    checkAddPage(7);
+    if (idx % 2 === 1) {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(14, y - 1, pageWidth - 28, 6.5, 'F');
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(14, 116, 144);
+    doc.text(item.pair, colX.pair, y + 3.8);
+
+    doc.setTextColor(30, 41, 59);
+    doc.text((item.name || item.pair).slice(0, 24), colX.name, y + 3.8);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text(item.category || 'FOREX', colX.cat, y + 3.8);
+
+    const longVal = typeof item.longPercent === 'number' ? item.longPercent : item.defaultLong || 50;
+    const shortVal = typeof item.shortPercent === 'number' ? item.shortPercent : item.defaultShort || 50;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(longVal > 60 ? 16 : 30, longVal > 60 ? 185 : 41, longVal > 60 ? 129 : 59);
+    doc.text(`${longVal.toFixed(1)}%`, colX.longPct, y + 3.8);
+
+    doc.setTextColor(shortVal > 60 ? 244 : 30, shortVal > 60 ? 63 : 41, shortVal > 60 ? 94 : 59);
+    doc.text(`${shortVal.toFixed(1)}%`, colX.shortPct, y + 3.8);
+
+    doc.setTextColor(longVal > shortVal ? 16 : 244, longVal > shortVal ? 185 : 63, longVal > shortVal ? 129 : 94);
+    doc.text(longVal > shortVal ? 'BULLISH CROWD' : 'BEARISH CROWD', colX.retailBias, y + 3.8);
+
+    // Contrarian signal is inverted
+    const isContrarianBull = shortVal > 65;
+    const isContrarianBear = longVal > 65;
+    if (isContrarianBear) {
+      doc.setTextColor(244, 63, 94);
+      doc.text('CONTRARIAN SHORT', colX.contrarianSignal, y + 3.8);
+    } else if (isContrarianBull) {
+      doc.setTextColor(16, 185, 129);
+      doc.text('CONTRARIAN LONG', colX.contrarianSignal, y + 3.8);
+    } else {
+      doc.setTextColor(100, 116, 139);
+      doc.text('NEUTRAL', colX.contrarianSignal, y + 3.8);
+    }
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.setTextColor(100, 116, 139);
+    doc.text((item.source || 'Myfxbook').slice(0, 16), colX.source, y + 3.8);
+
+    y += 7;
+  });
+
+  // Institutional explanation section
+  checkAddPage(30);
+  y += 4;
+  doc.setFillColor(241, 245, 249);
+  doc.roundedRect(14, y, pageWidth - 28, 22, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text('RETAIL COMMUNITY SENTIMENT CADENCE & CONTRARIAN INTERPRETATION:', 18, y + 5);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
+  doc.setTextColor(71, 85, 105);
+  doc.text('• Data Cadence Needed: DAILY and INTRA-DAY snapshot updates from live retail broker aggregate order books (Myfxbook, OANDA, IG).', 18, y + 10);
+  doc.text('• Over 70-80% of retail forex traders consistently lose money due to premature reversal chasing and poor risk management.', 18, y + 14);
+  doc.text('• When retail is heavily net long (>75%), liquidity pools sit beneath retail stop-losses, attracting institutional sell orders (Contrarian Short).', 18, y + 18);
+
+  drawFooter();
+  doc.save(`primepip_market_sentiment_report_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
 

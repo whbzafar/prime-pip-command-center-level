@@ -201,14 +201,28 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
 
     if (isCommodity && onApplyCommodity) {
       // Find price or sentiment metrics if present
-      const priceRow = selectedRows.find((r) => r.name.toLowerCase().includes('price') || r.unit === '$');
-      if (priceRow && priceRow.actual !== null) {
-        onApplyCommodity({
-          symbol: selectedAsset,
-          price: priceRow.actual,
-          updatedAt: new Date().toISOString(),
-        });
+      const priceRow = selectedRows.find((r) => r.name.toLowerCase().includes('price') || r.unit === '$' || (typeof r.actual === 'number' && r.actual > 20));
+      const yieldRow = selectedRows.find((r) => r.name.toLowerCase().includes('yield') || r.name.toLowerCase().includes('tips'));
+      const breakevenRow = selectedRows.find((r) => r.name.toLowerCase().includes('breakeven'));
+      const inventoryRow = selectedRows.find((r) => r.name.toLowerCase().includes('inventor'));
+
+      const updatePayload: Partial<CommodityObservation> = {
+        symbol: selectedAsset as any,
+        updatedAt: new Date().toISOString(),
+      };
+      if (priceRow && typeof priceRow.actual === 'number') {
+        updatePayload.price = priceRow.actual;
       }
+      if (yieldRow && typeof yieldRow.actual === 'number') {
+        updatePayload.usRealYield10Y = yieldRow.actual;
+      }
+      if (breakevenRow && typeof breakevenRow.actual === 'number') {
+        updatePayload.inflationBreakeven5Y = breakevenRow.actual;
+      }
+      if (inventoryRow && typeof inventoryRow.actual === 'number') {
+        updatePayload.inventoriesWeeklySurpriseMb = inventoryRow.actual;
+      }
+      onApplyCommodity(updatePayload);
     }
 
     // Convert to IndicatorObservation list

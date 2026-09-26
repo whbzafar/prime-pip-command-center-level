@@ -21,7 +21,11 @@ import {
   Edit3,
   X,
   RefreshCw,
+  Download,
+  Camera,
 } from 'lucide-react';
+import { generateRatesAndYieldsReportPdf } from '../../utils/fundamentalPdfGenerator';
+import { RatesImageExtractorModal } from './RatesImageExtractorModal';
 
 interface RatesAndYieldsViewProps {
   currencyScores?: Record<CurrencyCode, CurrencyScoreResult>;
@@ -38,6 +42,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
 }) => {
   const rateRecords = interestRates || DEFAULT_INTEREST_RATES;
   const [editingRecord, setEditingRecord] = useState<InterestRateRecord | null>(null);
+  const [isImageExtractorOpen, setIsImageExtractorOpen] = useState(false);
   const [regeneratingCurrency, setRegeneratingCurrency] = useState<string | null>(null);
   const [ratesMessage, setRatesMessage] = useState<string | null>(null);
   const [rateForm, setRateForm] = useState({
@@ -250,15 +255,35 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
               Fed • ECB • BoE • BoJ • SNB • BoC • RBA • RBNZ official policy benchmarks
             </p>
           </div>
-          <button
-            type="button"
-            disabled={regeneratingCurrency !== null}
-            onClick={handleRegenerateAllRates}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-[10px] font-military font-bold transition disabled:opacity-50 cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${regeneratingCurrency === 'ALL' ? 'animate-spin' : ''}`} />
-            <span>{regeneratingCurrency === 'ALL' ? 'REGENERATING G8...' : 'REGENERATE ALL G8 RATES'}</span>
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setIsImageExtractorOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-cyan-400/40 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-300 text-[10px] font-military font-bold transition cursor-pointer shadow-sm"
+              title="Upload screenshot or PDF of Central Bank tables to extract rates with OCR"
+            >
+              <Camera className="w-3.5 h-3.5 text-cyan-400" />
+              <span>UPLOAD IMAGE</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => generateRatesAndYieldsReportPdf(rateRecords)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-[10px] font-military font-bold transition cursor-pointer shadow-sm"
+              title="Download G8 Central Bank Rates & Yields PDF Report"
+            >
+              <Download className="w-3.5 h-3.5 text-cyan-400" />
+              <span>DOWNLOAD RATES REPORT</span>
+            </button>
+            <button
+              type="button"
+              disabled={regeneratingCurrency !== null}
+              onClick={handleRegenerateAllRates}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-[10px] font-military font-bold transition disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${regeneratingCurrency === 'ALL' ? 'animate-spin' : ''}`} />
+              <span>{regeneratingCurrency === 'ALL' ? 'REGENERATING G8...' : 'REGENERATE ALL G8 RATES'}</span>
+            </button>
+          </div>
         </div>
 
         {ratesMessage && (
@@ -698,6 +723,18 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+      {/* Rates Image & PDF OCR Extractor Modal */}
+      {isImageExtractorOpen && (
+        <RatesImageExtractorModal
+          isOpen={isImageExtractorOpen}
+          onClose={() => setIsImageExtractorOpen(false)}
+          existingRates={rateRecords}
+          onApplyRates={(newRates) => {
+            newRates.forEach((nr) => onUpdateInterestRate?.(nr));
+            setRatesMessage(`✓ Successfully extracted and updated ${newRates.length} Central Bank rates.`);
+          }}
+        />
       )}
     </div>
   );

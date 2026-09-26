@@ -644,6 +644,19 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
             <option value="INLINE">In-Line With Forecast</option>
           </select>
         </div>
+
+        {/* Institutional Macro Cadence & Forecast Guide */}
+        <div className="p-3.5 rounded-xl bg-gradient-to-r from-blue-950/30 via-slate-900 to-slate-950 border border-blue-500/20 text-xs font-mono-code space-y-1">
+          <span className="text-cyan-300 font-bold block text-xs font-military tracking-wide">
+            📊 DATA CADENCE & MACRO FORECAST ARCHITECTURE:
+          </span>
+          <p className="text-slate-300 text-[11px] leading-relaxed">
+            • <strong className="text-blue-300">Monthly Data:</strong> NFP (net job changes in thousands), CPI/PPI inflation rates, Retail Sales velocity.<br />
+            • <strong className="text-emerald-300">Weekly Data:</strong> Initial Jobless Claims and Energy inventories provide high-frequency early warning before monthly reports.<br />
+            • <strong className="text-purple-300">Quarterly Data (3M/6M Revision Data):</strong> GDP releases advance (1st mo), prelim (2nd mo), final (3rd mo) and 6-month annual benchmark updates.<br />
+            • <strong className="text-amber-300">Previous vs. Forecast vs. Actual:</strong> Previous = Baseline historical print; Forecast = Wall Street consensus; Actual = Official government release. <em>Economic Surprise = Actual − Forecast</em>.
+          </p>
+        </div>
       </div>
 
       {/* Economic Releases Master Table */}

@@ -341,6 +341,13 @@ export const FundamentalIndicators: React.FC = () => {
     }
   }, [cotRecords]);
 
+  // Notify dashboard and all listeners of fundamental data updates
+  useEffect(() => {
+    try {
+      window.dispatchEvent(new CustomEvent('primepipfx_fundamental_data_updated'));
+    } catch {}
+  }, [observations, commodityObservations, interestRates, categoryWeights, cotRecords, sentimentRecords, retailPositioning]);
+
   // Modals state
   const [auditModalScoreResult, setAuditModalScoreResult] = useState<CurrencyScoreResult | null>(null);
   const [inspectingIndicator, setInspectingIndicator] = useState<IndicatorDefinition | null>(null);

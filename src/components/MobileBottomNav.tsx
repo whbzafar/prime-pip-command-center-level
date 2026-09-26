@@ -78,7 +78,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'SETTINGS' as MainNavTab, label: '19. Data Export & Backup', desc: 'Export journal & restore state', icon: Settings2, section: 'Operations' },
       { id: 'ADMIN' as MainNavTab, label: '20. Admin Panel (Owner)', desc: 'User access & customer controls', icon: ShieldCheck, highlight: true, section: 'Administration' },
       { id: 'EVOLUTION' as MainNavTab, label: '21. Evaluation Engine', desc: 'Proprietary performance review & evolution', icon: Cpu, highlight: true, section: 'Administration' },
-      { id: 'PRO_LEARNING' as MainNavTab, label: '22. Pro Learning Trading', desc: 'Coming Soon — strategies, courses & future trading bots', icon: GraduationCap, highlight: true, section: 'Research & Tools' },
+      { id: 'PRO_LEARNING' as MainNavTab, label: '22. Pro Learning Trading', desc: 'Complete trading strategies, execution courses & trading bots', icon: GraduationCap, highlight: true, section: 'Research & Tools' },
     ];
   }, [currentUser]);
 

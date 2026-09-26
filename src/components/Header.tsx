@@ -412,7 +412,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'FREEHAND_WORKSPACE' as MainNavTab, label: '16. FREEHAND CANVAS', icon: PenTool },
     { id: 'SITUATION_SAVER' as MainNavTab, label: '17. SITUATION SAVER', icon: Bookmark, highlight: true },
     { id: 'PAIR_SAVER' as MainNavTab, label: '18. PAIR SAVER', icon: Compass, highlight: true },
-    { id: 'PRO_LEARNING' as MainNavTab, label: '19. PRO LEARNING / TRADING', icon: GraduationCap, highlight: true, comingSoon: true, locked: false },
+    { id: 'PRO_LEARNING' as MainNavTab, label: '19. PRO LEARNING / TRADING', icon: GraduationCap, highlight: true, comingSoon: false, locked: false },
     { id: 'COMMUNITY' as MainNavTab, label: '20. TRADER COMMUNITY FEED', icon: Users },
     { id: 'BOOK_SESSION' as MainNavTab, label: '21. BOOK A SESSION', icon: MessageSquare, highlight: true },
     { id: 'SETTINGS' as MainNavTab, label: '22. DATA EXPORT & BACKUP', icon: Settings2 },

@@ -352,6 +352,16 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <a
+            href="https://www.tradingview.com/chart/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/35 text-xs font-military font-bold tracking-wider transition shadow-lg shadow-emerald-500/10 cursor-pointer"
+            title="Open live TradingView chart for backtesting and forward testing"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+            <span>OPEN TRADINGVIEW</span>
+          </a>
           <button
             id="quick-log-10-btn"
             onClick={handleQuickLog10}
@@ -694,7 +704,19 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-mono-code text-slate-400 block mb-1">Instrument / Pair</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-mono-code text-slate-400">Instrument / Pair</label>
+                    <a
+                      href="https://www.tradingview.com/chart/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-emerald-400 hover:text-emerald-300 font-mono-code flex items-center gap-1 cursor-pointer"
+                      title="Open TradingView Chart in new window"
+                    >
+                      <span>TradingView</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
                   <select
                     value={formPair}
                     onChange={(e) => setFormPair(e.target.value)}

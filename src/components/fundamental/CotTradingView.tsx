@@ -17,7 +17,11 @@ import {
   X,
   RefreshCw,
   Sparkles,
+  Download,
+  Camera,
 } from 'lucide-react';
+import { generateCotReportPdf } from '../../utils/fundamentalPdfGenerator';
+import { CotImageExtractorModal } from './CotImageExtractorModal';
 
 interface CotTradingViewProps {
   activeCurrency?: CurrencyCode;
@@ -219,6 +223,15 @@ export const CotTradingView: React.FC<CotTradingViewProps> = ({
 
           {/* Prominent COT source button */}
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => generateCotReportPdf(records)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-military font-bold transition cursor-pointer shadow-sm"
+              title="Download G8 Commitment of Traders (COT) Institutional Report"
+            >
+              <Download className="w-3.5 h-3.5 text-cyan-400" />
+              <span>DOWNLOAD COT REPORT</span>
+            </button>
             <button
               type="button"
               onClick={() => handleGenerateLiveCot('GENERATE', 'ALL')}

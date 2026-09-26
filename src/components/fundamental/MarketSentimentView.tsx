@@ -16,7 +16,9 @@ import {
   Sparkles,
   Sliders,
   Edit3,
+  Download,
 } from 'lucide-react';
+import { generateSentimentReportPdf } from '../../utils/fundamentalPdfGenerator';
 
 export interface PairSentimentItem {
   pair: string;
@@ -395,6 +397,15 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => generateSentimentReportPdf(Object.values(pairsData))}
+              className="px-3 py-2 rounded-xl border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-xs font-military font-bold transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+              title="Download 31 Instruments Retail Sentiment PDF Report"
+            >
+              <Download className="w-3.5 h-3.5 text-cyan-400" />
+              <span>DOWNLOAD SENTIMENT REPORT</span>
+            </button>
             <button
               type="button"
               onClick={() => setShowAllOptional(!showAllOptional)}

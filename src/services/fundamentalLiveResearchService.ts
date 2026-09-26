@@ -452,3 +452,74 @@ export async function extractIndicatorsFromImage(
     throw new Error(err?.message || 'Failed to extract indicator data from screenshot.');
   }
 }
+
+export interface RatesImageExtractionResponse {
+  success: boolean;
+  extractedCount: number;
+  rates?: any[];
+  notice?: string;
+  error?: string;
+}
+
+export async function extractRatesFromImage(
+  imageBase64: string,
+  mimeType: string = 'image/png'
+): Promise<RatesImageExtractionResponse> {
+  try {
+    return await postJson<RatesImageExtractionResponse>('/api/fundamental/extract-rates-from-image', {
+      image: imageBase64,
+      mimeType,
+    });
+  } catch (err: any) {
+    console.error('[LiveResearch] extractRatesFromImage failed:', err);
+    throw new Error(err?.message || 'Failed to extract rates from screenshot.');
+  }
+}
+
+export interface SentimentImageExtractionResponse {
+  success: boolean;
+  extractedCount: number;
+  sentiments?: any[];
+  notice?: string;
+  error?: string;
+}
+
+export async function extractSentimentFromImage(
+  imageBase64: string,
+  mimeType: string = 'image/png'
+): Promise<SentimentImageExtractionResponse> {
+  try {
+    return await postJson<SentimentImageExtractionResponse>('/api/fundamental/extract-sentiment-from-image', {
+      image: imageBase64,
+      mimeType,
+    });
+  } catch (err: any) {
+    console.error('[LiveResearch] extractSentimentFromImage failed:', err);
+    throw new Error(err?.message || 'Failed to extract retail sentiment from screenshot.');
+  }
+}
+
+export interface CotImageExtractionResponse {
+  success: boolean;
+  extractedCount: number;
+  records?: any[];
+  notice?: string;
+  error?: string;
+}
+
+export async function extractCotFromImage(
+  imageBase64: string,
+  mimeType: string = 'image/png'
+): Promise<CotImageExtractionResponse> {
+  try {
+    return await postJson<CotImageExtractionResponse>('/api/fundamental/extract-cot-from-image', {
+      image: imageBase64,
+      mimeType,
+    });
+  } catch (err: any) {
+    console.error('[LiveResearch] extractCotFromImage failed:', err);
+    throw new Error(err?.message || 'Failed to extract COT data from screenshot.');
+  }
+}
+
+

@@ -71,10 +71,28 @@ export type PairSaverTimeframe =
   | 'M3'
   | 'M1';
 
+export interface TimeframeScenarioDetails {
+  bias: 'Bullish' | 'Bearish' | null | 'Neutral';
+  retracements: string[]; // e.g. ['0.23', '0.38', '0.50', '0.618']
+  customRetracement?: string;
+  finalTarget: string; // e.g. '1.618'
+  customFinalTarget?: string;
+  optionalTarget?: string; // e.g. '2.618', 'Runner'
+  customOptionalTarget?: string;
+  notes?: string;
+}
+
 export interface SavedPairScenario {
   id: string;
   pair: string; // e.g. EUR/USD, GBP/JPY, XAU/USD
-  timeframeBiases: Record<PairSaverTimeframe, 'Bullish' | 'Bearish' | null>;
+  timeframeBiases: Record<PairSaverTimeframe, 'Bullish' | 'Bearish' | null | 'Neutral'>;
+  timeframeDetails?: Partial<Record<PairSaverTimeframe, TimeframeScenarioDetails>>;
+  retracements?: string[]; // Global fallback
+  customRetracements?: string[];
+  finalTargets?: string[]; // Global fallback
+  customFinalTargets?: string[];
+  optionalTargets?: string[];
+  customOptionalTargets?: string[];
   notes?: string;
   createdAt: string;
   updatedAt: string;

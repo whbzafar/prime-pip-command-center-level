@@ -677,7 +677,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
           }`}
         >
           <Gift className="w-4 h-4" />
-          REFERRALS & REWARDS ({referrals.length})
+          REFERRALS AUDITOR ({referrals.length})
         </button>
 
         <button
@@ -1078,7 +1078,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                 >
                   <div>
                     <div className="text-cyan-300 font-bold uppercase tracking-wide">Admin Data</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">Funds • Allocation • Reward • Editor assignment</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">Funds • Allocation • Editor assignment</div>
                   </div>
                   <span className="text-[10px] text-slate-400">{adminDataExpanded ? 'HIDE' : 'OPEN'}</span>
                 </button>
@@ -1093,7 +1093,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                           onChange={(e) => setEditingUser({
                             ...editingUser,
                             adminData: {
-                              ...(editingUser.adminData || { mode: 'ADMIN_REWARD' }),
+                              ...(editingUser.adminData || { mode: 'ALLOCATED' }),
                               editorAssigned: e.target.checked,
                               editorName: e.target.checked
                                 ? (editingUser.adminData?.editorName || currentUser?.name || 'Assigned Editor')
@@ -1106,18 +1106,18 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                         <span className="text-xs font-bold">Editor Assigned</span>
                       </label>
                       <select
-                        value={editingUser.adminData?.mode || 'ADMIN_REWARD'}
+                        value={editingUser.adminData?.mode || 'ALLOCATED'}
                         onChange={(e) => setEditingUser({
                           ...editingUser,
                           adminData: {
                             ...(editingUser.adminData || { editorAssigned: false }),
-                            mode: e.target.value as 'ADMIN_REWARD' | 'OPTIONAL',
+                            mode: e.target.value as 'ALLOCATED' | 'OPTIONAL',
                             updatedAt: new Date().toISOString(),
                           },
                         })}
                         className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
                       >
-                        <option value="ADMIN_REWARD">ADMIN REWARD</option>
+                        <option value="ALLOCATED">STANDARD ALLOCATION</option>
                         <option value="OPTIONAL">OPTIONAL</option>
                       </select>
                     </div>
@@ -1130,7 +1130,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                           onChange={(e) => setEditingUser({
                             ...editingUser,
                             adminData: {
-                              ...(editingUser.adminData || { mode: 'ADMIN_REWARD', editorAssigned: true }),
+                              ...(editingUser.adminData || { mode: 'ALLOCATED', editorAssigned: true }),
                               editorAssigned: true,
                               editorName: e.target.value,
                               updatedAt: new Date().toISOString(),
@@ -1139,7 +1139,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                           placeholder="Assigned editor name"
                           className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
                         />
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <label className="text-slate-400 block mb-1">Funds</label>
                             <input
@@ -1149,7 +1149,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                               onChange={(e) => setEditingUser({
                                 ...editingUser,
                                 adminData: {
-                                  ...(editingUser.adminData || { mode: 'ADMIN_REWARD', editorAssigned: true }),
+                                  ...(editingUser.adminData || { mode: 'ALLOCATED', editorAssigned: true }),
                                   editorAssigned: true,
                                   funds: e.target.value === '' ? undefined : Number(e.target.value),
                                   updatedAt: new Date().toISOString(),
@@ -1167,27 +1167,9 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                               onChange={(e) => setEditingUser({
                                 ...editingUser,
                                 adminData: {
-                                  ...(editingUser.adminData || { mode: 'ADMIN_REWARD', editorAssigned: true }),
+                                  ...(editingUser.adminData || { mode: 'ALLOCATED', editorAssigned: true }),
                                   editorAssigned: true,
                                   allocation: e.target.value === '' ? undefined : Number(e.target.value),
-                                  updatedAt: new Date().toISOString(),
-                                },
-                              })}
-                              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-slate-400 block mb-1">Reward</label>
-                            <input
-                              type="number"
-                              step="any"
-                              value={editingUser.adminData?.reward ?? ''}
-                              onChange={(e) => setEditingUser({
-                                ...editingUser,
-                                adminData: {
-                                  ...(editingUser.adminData || { mode: 'ADMIN_REWARD', editorAssigned: true }),
-                                  editorAssigned: true,
-                                  reward: e.target.value === '' ? undefined : Number(e.target.value),
                                   updatedAt: new Date().toISOString(),
                                 },
                               })}
@@ -1405,7 +1387,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
           <div className="border-b border-slate-800 pb-3">
             <h2 className="text-sm font-military font-bold tracking-wider text-slate-100 uppercase flex items-center gap-2">
               <Gift className="w-4 h-4 text-purple-400" />
-              REFERRALS & LIFETIME ACCESS REWARD AUDITOR
+              REFERRALS & LIFETIME ACCESS AUDITOR
             </h2>
             <p className="text-xs text-slate-400 font-mono-code mt-0.5">
               Rule: When a referred customer pays and is activated by the Developer, the referrer automatically receives <span className="text-cyan-400 font-bold">LIFETIME FREE ACCESS</span>.
@@ -1425,7 +1407,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                     <th className="pb-3">Referred Customer</th>
                     <th className="pb-3">Referral Code</th>
                     <th className="pb-3">Referred Payment</th>
-                    <th className="pb-3">Reward Status</th>
+                    <th className="pb-3">Access Status</th>
                     <th className="pb-3">Date</th>
                   </tr>
                 </thead>
@@ -1448,7 +1430,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                             ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
                             : 'bg-blue-500/10 text-amber-300'
                         }`}>
-                          {ref.rewardStatus}
+                          {ref.rewardStatus === 'GRANTED_LIFETIME' ? 'LIFETIME GRANTED' : 'PENDING'}
                         </span>
                       </td>
                       <td className="py-3 text-slate-500 text-[11px]">{new Date(ref.createdAt).toLocaleDateString()}</td>

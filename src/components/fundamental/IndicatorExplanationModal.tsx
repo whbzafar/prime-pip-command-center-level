@@ -100,6 +100,47 @@ export const IndicatorExplanationModal: React.FC<IndicatorExplanationModalProps>
             </div>
           </div>
 
+          {/* Required Data Cadence & Forecast Dynamics */}
+          <div className="space-y-2 p-4 rounded-xl bg-purple-950/20 border border-purple-500/30">
+            <div className="flex items-center gap-2 text-xs font-military font-bold text-purple-300 uppercase tracking-wider">
+              <BookOpen className="w-4 h-4 text-purple-400" />
+              <span>Required Data Cadence & Economic Forecast Dynamics</span>
+            </div>
+            <div className="space-y-2 text-xs text-purple-100/90 leading-relaxed font-sans">
+              <div className="p-2.5 rounded-lg bg-slate-900/80 border border-purple-500/20">
+                <strong className="text-cyan-300 font-mono-code block mb-1">
+                  Required Data Cadence: {indicator.frequency.toUpperCase()} DATA ({indicator.measurementPeriod})
+                </strong>
+                <p className="text-slate-300">
+                  {indicator.frequency === 'Monthly' && (
+                    <>This indicator requires <strong>Monthly Data</strong> (e.g. NFP Non-Farm Payrolls, CPI, Unemployment, Retail Sales). Monthly prints establish immediate short-term velocity and monetary policy pressure.</>
+                  )}
+                  {indicator.frequency === 'Weekly' && (
+                    <>This indicator requires <strong>Weekly Data</strong> (e.g. Initial Jobless Claims, Weekly Petroleum Inventories). Weekly data provides high-frequency early warning before monthly figures are released.</>
+                  )}
+                  {indicator.frequency === 'Quarterly' && (
+                    <>This indicator requires <strong>Quarterly Data (3rd Month / 6th Month Revisions)</strong> (e.g. GDP, Current Account). Releases progress through Advance (1st month), Preliminary (2nd month), Final (3rd month), and multi-quarter benchmark revisions.</>
+                  )}
+                  {indicator.frequency === 'Annual' && (
+                    <>This indicator requires <strong>Annual Data</strong> (e.g. Sovereign Debt-to-GDP, fiscal balance benchmarks) to track long-term macroeconomic solvency.</>
+                  )}
+                  {indicator.frequency !== 'Monthly' && indicator.frequency !== 'Weekly' && indicator.frequency !== 'Quarterly' && indicator.frequency !== 'Annual' && (
+                    <>This indicator is evaluated on a <strong>{indicator.frequency}</strong> cadence to track macroeconomic cyclical adjustments.</>
+                  )}
+                </p>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-slate-900/80 border border-purple-500/20 space-y-1">
+                <strong className="text-amber-300 font-mono-code block">Previous vs. Forecast vs. Actual:</strong>
+                <p className="text-slate-300">
+                  • <strong>Previous:</strong> The prior period's baseline benchmark (frequently revised by statistical bureaus).<br />
+                  • <strong>Forecast:</strong> The median consensus expectation across institutional economists.<br />
+                  • <strong>Actual:</strong> The official government print. The <em>Economic Surprise (Actual − Forecast)</em> drives institutional order flow and sharp currency repricing.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Metadata Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs font-mono-code">
             <div className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800">

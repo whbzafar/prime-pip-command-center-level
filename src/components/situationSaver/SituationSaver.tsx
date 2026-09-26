@@ -113,13 +113,20 @@ export const SituationSaver: React.FC<SituationSaverProps> = ({
   const [situations, setSituations] = useState<MarketSituation[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {}
     return DEFAULT_SITUATIONS_DATABASE;
   });
+
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'info' = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
 
   // Filters
   const [filters, setFilters] = useState<SituationFilterOptions>({
@@ -241,24 +248,61 @@ export const SituationSaver: React.FC<SituationSaverProps> = ({
   }, [situations, isSimilarityMatcherOpen, similarityInput]);
 
   const handleDeleteSituation = (id: string) => {
-    if (confirm('Are you sure you want to delete this saved market situation?')) {
-      setSituations((prev) => prev.filter((s) => s.id !== id));
-      if (inspectingSituation?.id === id) setInspectingSituation(null);
+    setSituations((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    if (inspectingSituation?.id === id) setInspectingSituation(null);
+    showNotification('Market situation setup deleted.', 'info');
+  };
+
+  const handleUpdateSituationLesson = (id: string, newLesson: string) => {
+    const trimmed = newLesson.trim();
+    if (!trimmed) return;
+    setSituations((prev) => {
+      const idx = prev.findIndex((s) => s.id === id);
+      if (idx === -1) return prev;
+      const updated = [...prev];
+      updated[idx] = {
+        ...updated[idx],
+        lessonsLearned: trimmed,
+        updatedAt: new Date().toISOString(),
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    if (inspectingSituation?.id === id) {
+      setInspectingSituation((prev) =>
+        prev ? { ...prev, lessonsLearned: trimmed, updatedAt: new Date().toISOString() } : null
+      );
     }
+    showNotification('Golden Institutional Lesson Learned updated and saved.');
   };
 
   const handleSaveSituation = (situation: MarketSituation) => {
+    const isEdit = Boolean(editingSituation);
     setSituations((prev) => {
       const idx = prev.findIndex((s) => s.id === situation.id);
+      let updated: MarketSituation[];
       if (idx >= 0) {
-        const updated = [...prev];
+        updated = [...prev];
         updated[idx] = situation;
-        return updated;
+      } else {
+        updated = [situation, ...prev];
       }
-      return [situation, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
     });
     setIsCreateModalOpen(false);
     setEditingSituation(null);
+    showNotification(isEdit ? 'Market situation updated.' : 'New market situation setup saved.');
   };
 
   const handleExportJson = () => {
@@ -722,19 +766,15 @@ export const SituationSaver: React.FC<SituationSaverProps> = ({
                     </span>
                   </div>
 
-                  {/* Numerical Levels */}
-                  <div className="grid grid-cols-3 gap-1.5 p-2 rounded-xl bg-slate-950 border border-slate-800/80 text-[10px] font-mono-code text-center">
+                  {/* Timeframe & Target Summary */}
+                  <div className="p-2 rounded-xl bg-slate-950 border border-slate-800/80 text-[10px] font-mono-code flex items-center justify-between">
                     <div>
-                      <span className="text-slate-500 block">Entry</span>
-                      <span className="text-white font-bold">{sit.entryPrice}</span>
+                      <span className="text-slate-500 block">Timeframe</span>
+                      <span className="text-cyan-300 font-bold">{sit.selectedTimeframe || sit.htfTimeframe || 'Weekly'}</span>
                     </div>
-                    <div>
-                      <span className="text-slate-500 block">Stop</span>
-                      <span className="text-rose-400 font-bold">{sit.stopLossPrice}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 block">Target</span>
-                      <span className="text-emerald-400 font-bold">{sit.takeProfit1}</span>
+                    <div className="text-right">
+                      <span className="text-slate-500 block">Final Target</span>
+                      <span className="text-amber-400 font-bold">{sit.finalTarget || '1.618'}</span>
                     </div>
                   </div>
 
@@ -810,7 +850,7 @@ export const SituationSaver: React.FC<SituationSaverProps> = ({
                 <th className="p-3">Title & Framework</th>
                 <th className="p-3">Timeframes</th>
                 <th className="p-3">Fib Level</th>
-                <th className="p-3 text-right">Planned R:R</th>
+                <th className="p-3 text-right">Final Target</th>
                 <th className="p-3 text-center">Outcome</th>
                 <th className="p-3 text-center">Actions</th>
               </tr>
@@ -844,7 +884,7 @@ export const SituationSaver: React.FC<SituationSaverProps> = ({
                     {sit.htfTimeframe} → {sit.mtfTimeframe} → {sit.ltfTimeframe}
                   </td>
                   <td className="p-3 text-slate-300 text-[11px]">{sit.fibonacciLevel.split(' ')[0]}</td>
-                  <td className="p-3 text-right font-bold text-cyan-400">1 : {sit.plannedRiskReward}</td>
+                  <td className="p-3 text-right font-bold text-amber-400 font-mono-code">{sit.finalTarget || '1.618'}</td>
                   <td className="p-3 text-center">
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded ${
@@ -896,6 +936,7 @@ export const SituationSaver: React.FC<SituationSaverProps> = ({
           onDelete={() => {
             handleDeleteSituation(inspectingSituation.id);
           }}
+          onUpdateLesson={(id, lesson) => handleUpdateSituationLesson(id, lesson)}
           onSendToJournal={() => handleSendToTradeJournal(inspectingSituation)}
         />
       )}
@@ -924,6 +965,7 @@ interface SituationDetailModalProps {
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onUpdateLesson?: (id: string, lesson: string) => void;
   onSendToJournal: () => void;
 }
 
@@ -932,8 +974,28 @@ const SituationDetailModal: React.FC<SituationDetailModalProps> = ({
   onClose,
   onEdit,
   onDelete,
+  onUpdateLesson,
   onSendToJournal,
 }) => {
+  const [lessonDraft, setLessonDraft] = useState(situation.lessonsLearned || '');
+  const [lessonSavedFeedback, setLessonSavedFeedback] = useState(false);
+
+  const handleSaveLesson = () => {
+    if (!lessonDraft.trim()) return;
+    if (onUpdateLesson) {
+      onUpdateLesson(situation.id, lessonDraft.trim());
+      setLessonSavedFeedback(true);
+      setTimeout(() => setLessonSavedFeedback(false), 2500);
+    }
+  };
+
+  const [selectedInspectTf, setSelectedInspectTf] = useState<string>(
+    situation.selectedTimeframe || situation.htfTimeframe || '1 week'
+  );
+
+  const activeTfList = SITUATION_TIMEFRAMES;
+  const currentTfConfig = situation.timeframeConfigs?.[selectedInspectTf];
+
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
       <div className="relative w-full max-w-4xl bg-[#0b1120] border border-cyan-500/30 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
@@ -955,89 +1017,214 @@ const SituationDetailModal: React.FC<SituationDetailModalProps> = ({
             <span className="px-2 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/40 text-xs font-bold font-military">
               {situation.sbtModel}
             </span>
+            <span className="text-[10px] text-slate-400 font-mono-code">
+              {situation.session}
+            </span>
           </div>
-          <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:text-white transition">
+          <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:text-white transition cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <h2 className="text-base sm:text-lg font-bold text-white">{situation.title}</h2>
+          <div>
+            <h2 className="text-base sm:text-xl font-bold text-white font-military tracking-wide">{situation.title}</h2>
+            <div className="text-xs text-slate-400 font-mono-code mt-1">
+              Complete Multi-Timeframe Institutional Setup Architecture
+            </div>
+          </div>
 
           {/* Timeframe Pipeline */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1.5">
-              <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">
+              <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block font-mono-code">
                 HTF Structure ({situation.htfTimeframe})
               </span>
-              <p className="text-xs text-slate-300 leading-relaxed">{situation.htfContext}</p>
+              <p className="text-xs text-slate-300 leading-relaxed">{situation.htfContext || 'HTF bullish momentum and trend continuation.'}</p>
             </div>
             <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1.5">
-              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">
+              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block font-mono-code">
                 MTF Setup ({situation.mtfTimeframe} - {situation.mtfStructure})
               </span>
-              <p className="text-xs text-slate-300 leading-relaxed">{situation.mtfNotes}</p>
+              <p className="text-xs text-slate-300 leading-relaxed">{situation.mtfNotes || 'Clean break of structure & discount retest.'}</p>
             </div>
             <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1.5">
-              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block font-mono-code">
                 LTF Execution ({situation.ltfTimeframe} - {situation.ltfTrigger})
               </span>
-              <p className="text-xs text-slate-300 leading-relaxed">{situation.ltfNotes}</p>
+              <p className="text-xs text-slate-300 leading-relaxed">{situation.ltfNotes || 'Confirmation trigger and liquidity displacement.'}</p>
             </div>
           </div>
 
-          {/* Numerical Levels & Fibonacci */}
-          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs font-mono-code text-center">
-            <div>
-              <span className="text-slate-500 block text-[10px]">Fibonacci Zone</span>
-              <span className="text-cyan-300 font-bold">{situation.fibonacciLevel}</span>
+          {/* Timeframe Selector & Full Configuration (Weekly, Daily, H4, etc.) */}
+          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-cyan-400" />
+                <span className="text-xs font-bold text-slate-100 font-military uppercase tracking-wide">
+                  MULTI-TIMEFRAME SETUP PARAMETERS (WEEKLY, DAILY, H4 & MORE)
+                </span>
+              </div>
+              <span className="text-[11px] text-cyan-400 font-mono-code">
+                Viewing: <strong className="text-white">{selectedInspectTf}</strong>
+              </span>
             </div>
-            <div>
-              <span className="text-slate-500 block text-[10px]">Entry Price</span>
-              <span className="text-white font-bold">{situation.entryPrice}</span>
+
+            {/* Timeframe Chips */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {activeTfList.map((tf) => {
+                const conf = situation.timeframeConfigs?.[tf];
+                const hasBias = conf && conf.bias && conf.bias !== 'None';
+                const isSelected = selectedInspectTf === tf;
+                return (
+                  <button
+                    key={tf}
+                    type="button"
+                    onClick={() => setSelectedInspectTf(tf)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                      isSelected
+                        ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                        : hasBias
+                        ? 'bg-slate-900 text-cyan-300 border border-cyan-500/40'
+                        : 'bg-slate-900/60 text-slate-400 border border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <span>{tf}</span>
+                    {hasBias && (
+                      <span className={`w-1.5 h-1.5 rounded-full ${conf.bias === 'Bullish' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                    )}
+                  </button>
+                );
+              })}
             </div>
-            <div>
-              <span className="text-slate-500 block text-[10px]">Stop Loss</span>
-              <span className="text-rose-400 font-bold">{situation.stopLossPrice}</span>
+
+            {/* Selected Timeframe Breakdown */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono-code pt-1">
+              {/* Direction Bias */}
+              <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800 space-y-1">
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">
+                  Timeframe Direction Bias
+                </span>
+                <div className="pt-0.5">
+                  <span
+                    className={`px-2.5 py-1 rounded text-xs font-bold inline-flex items-center gap-1 ${
+                      currentTfConfig?.bias === 'Bullish'
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                        : currentTfConfig?.bias === 'Bearish'
+                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {currentTfConfig?.bias === 'Bullish' ? <TrendingUp className="w-3 h-3" /> : currentTfConfig?.bias === 'Bearish' ? <TrendingDown className="w-3 h-3" /> : null}
+                    <span>{currentTfConfig?.bias || situation.direction || 'Neutral'}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Retracements */}
+              <div className="p-3 rounded-lg bg-slate-900/70 border border-cyan-500/20 space-y-1">
+                <span className="text-[10px] text-cyan-400 font-bold uppercase block">
+                  Fibonacci Retracements
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  {(currentTfConfig?.fibonacciRetracements && currentTfConfig.fibonacciRetracements.length > 0) ? (
+                    currentTfConfig.fibonacciRetracements.map((r, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 font-bold border border-cyan-500/30 text-[11px]">
+                        {r}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-slate-400 text-xs">
+                      {situation.fibonacciLevel?.split(' ')[0] || '0.238, 0.38, 0.50'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Final Target */}
+              <div className="p-3 rounded-lg bg-slate-900/70 border border-amber-500/20 space-y-1">
+                <span className="text-[10px] text-amber-400 font-bold uppercase block">
+                  Final Target & Extension
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 font-bold border border-amber-500/30 text-[11px]">
+                    {currentTfConfig?.finalTarget || situation.finalTarget || '1.618'}
+                  </span>
+                  {currentTfConfig?.customTarget && (
+                    <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-200 border border-amber-500/25 text-[11px]">
+                      {currentTfConfig.customTarget}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-            <div>
-              <span className="text-slate-500 block text-[10px]">Take Profit 1</span>
-              <span className="text-emerald-400 font-bold">{situation.takeProfit1}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 block text-[10px]">Planned R:R</span>
-              <span className="text-cyan-400 font-bold">1 : {situation.plannedRiskReward}</span>
-            </div>
+
+            {currentTfConfig?.notes && (
+              <div className="p-2.5 rounded-lg bg-slate-900/50 border border-slate-800 text-xs text-slate-300">
+                <span className="text-[10px] text-slate-500 font-bold block mb-0.5">TIMEFRAME SPECIFIC NOTES:</span>
+                {currentTfConfig.notes}
+              </div>
+            )}
           </div>
 
           {/* Fundamental Confluence */}
           {situation.fundamentalConfluence && (
             <div className="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800 space-y-1 text-xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono-code">
                 Fundamental Intelligence Confluence
               </span>
               <p className="text-slate-300">{situation.fundamentalConfluence}</p>
             </div>
           )}
 
-          {/* Lessons Learned Card */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 space-y-2">
-            <div className="flex items-center gap-2 text-amber-300 font-military font-bold text-xs uppercase tracking-wide">
-              <Award className="w-4 h-4" />
-              <span>CORE LESSON LEARNED & INSTITUTIONAL RULE</span>
+          {/* Interactive Golden Institutional Lesson Learned Editor */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-slate-950 border border-amber-500/30 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-300 font-military font-bold text-xs uppercase tracking-wide">
+                <Award className="w-4 h-4 text-amber-400" />
+                <span>GOLDEN INSTITUTIONAL LESSON LEARNED</span>
+              </div>
+              {lessonSavedFeedback && (
+                <span className="text-[11px] font-mono-code text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded font-bold flex items-center gap-1">
+                  ✓ Lesson Updated & Saved!
+                </span>
+              )}
             </div>
-            <p className="text-xs text-amber-100/90 leading-relaxed font-semibold italic">
-              "{situation.lessonsLearned}"
+
+            <p className="text-[11px] text-slate-400">
+              Update and refine the core takeaway, institutional rule, or mistake prevention lesson learned from this market situation:
             </p>
+
+            <textarea
+              rows={3}
+              value={lessonDraft}
+              onChange={(e) => setLessonDraft(e.target.value)}
+              placeholder="Write the golden institutional lesson learned from this market situation..."
+              className="w-full bg-slate-900 border border-amber-500/40 rounded-xl p-3 text-amber-100 font-semibold text-xs leading-relaxed outline-none focus:border-amber-400"
+            />
+
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[10px] text-slate-500 font-mono-code">
+                Edits save directly to this situation setup.
+              </span>
+              <button
+                type="button"
+                onClick={handleSaveLesson}
+                className="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-military font-bold text-xs uppercase tracking-wider transition cursor-pointer shadow-md shadow-amber-500/20"
+              >
+                Update & Save Lesson
+              </button>
+            </div>
+
             {situation.whatWentRight && (
-              <div className="text-[11px] text-slate-300 mt-2">
-                <strong className="text-emerald-400">What went right:</strong> {situation.whatWentRight}
+              <div className="text-[11px] text-slate-300 mt-2 border-t border-amber-500/20 pt-2">
+                <strong className="text-emerald-400 font-semibold">What went right:</strong> {situation.whatWentRight}
               </div>
             )}
             {situation.whatWentWrong && (
               <div className="text-[11px] text-slate-300 mt-1">
-                <strong className="text-rose-400">Mistakes / what failed:</strong> {situation.whatWentWrong}
+                <strong className="text-rose-400 font-semibold">Mistakes / what failed:</strong> {situation.whatWentWrong}
               </div>
             )}
           </div>
@@ -1049,7 +1236,7 @@ const SituationDetailModal: React.FC<SituationDetailModalProps> = ({
             <button
               type="button"
               onClick={() => generateSituationReportPdf(situation)}
-              className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
               title="Download Institutional Situation PDF"
             >
               <Download className="w-3.5 h-3.5" />
@@ -1058,14 +1245,14 @@ const SituationDetailModal: React.FC<SituationDetailModalProps> = ({
             <button
               type="button"
               onClick={onEdit}
-              className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold"
+              className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition cursor-pointer"
             >
               Edit Setup
             </button>
             <button
               type="button"
               onClick={onDelete}
-              className="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-semibold"
+              className="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-semibold transition cursor-pointer"
             >
               Delete
             </button>
@@ -1073,10 +1260,9 @@ const SituationDetailModal: React.FC<SituationDetailModalProps> = ({
           <button
             type="button"
             onClick={onSendToJournal}
-            className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs uppercase tracking-wider transition cursor-pointer shadow-md shadow-cyan-500/20"
           >
-            <span>Log Trade in Journal</span>
-            <ArrowRight className="w-4 h-4" />
+            Send to Trade Journal
           </button>
         </div>
       </div>
@@ -1101,7 +1287,8 @@ const SITUATION_TIMEFRAMES: SituationTimeframe[] = [
   'M5',
 ];
 
-const FIBONACCI_TARGET_PRESETS = ['0.23', '0.38', '0.5', '0.618', '0.705', '0.786', '0.886', '1.272', '1.618'];
+const FIB_RETRACEMENT_PRESETS = ['0.238', '0.38', '0.50', '0.618', '0.705', '0.786'];
+const FIB_TARGET_PRESETS = ['1.414', '1.618', '1.272', '2.0'];
 
 interface CreateSituationModalProps {
   isOpen: boolean;
@@ -1161,7 +1348,9 @@ const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
       initialMap[tf] = {
         timeframe: tf,
         bias: tf === 'Daily' || tf === '1 week' ? (initialData?.direction === 'BEARISH' ? 'Bearish' : 'Bullish') : 'None',
-        fibonacciLevels: ['0.23', '0.38', '0.5', '0.618'],
+        fibonacciRetracements: ['0.238', '0.38', '0.50'],
+        fibonacciTargets: ['1.414', '1.618'],
+        fibonacciLevels: ['0.238', '0.38', '0.50'],
         finalTarget: '1.618',
         notes: '',
       };
@@ -1169,46 +1358,83 @@ const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
     return initialMap;
   });
 
+  const [customRetracementInput, setCustomRetracementInput] = useState('');
+  const [customTargetInput, setCustomTargetInput] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   const handleUpdateTfConfig = (tf: string, updates: Partial<TimeframeScenarioConfig>) => {
     setTimeframeConfigs((prev) => ({
       ...prev,
       [tf]: {
-        ...(prev[tf] || { timeframe: tf, bias: 'None', fibonacciLevels: [], finalTarget: '1.618' }),
+        ...(prev[tf] || {
+          timeframe: tf,
+          bias: 'None',
+          fibonacciRetracements: ['0.238', '0.38', '0.50'],
+          fibonacciTargets: ['1.414', '1.618'],
+          finalTarget: '1.618',
+        }),
         ...updates,
       },
     }));
   };
 
-  const handleToggleTfFib = (tf: string, level: string) => {
-    const current = timeframeConfigs[tf]?.fibonacciLevels || [];
+  const handleToggleRetracement = (tf: string, level: string) => {
+    const current = timeframeConfigs[tf]?.fibonacciRetracements || ['0.238', '0.38', '0.50'];
     const next = current.includes(level)
       ? current.filter((l) => l !== level)
       : [...current, level];
-    handleUpdateTfConfig(tf, { fibonacciLevels: next });
+    handleUpdateTfConfig(tf, { fibonacciRetracements: next, fibonacciLevels: next });
+  };
+
+  const handleAddCustomRetracement = (tf: string) => {
+    const val = customRetracementInput.trim();
+    if (!val) return;
+    const current = timeframeConfigs[tf]?.fibonacciRetracements || ['0.238', '0.38', '0.50'];
+    if (!current.includes(val)) {
+      const next = [...current, val];
+      handleUpdateTfConfig(tf, { fibonacciRetracements: next, fibonacciLevels: next });
+    }
+    setCustomRetracementInput('');
+  };
+
+  const handleToggleTarget = (tf: string, targetVal: string) => {
+    const current = timeframeConfigs[tf]?.fibonacciTargets || ['1.414', '1.618'];
+    const next = current.includes(targetVal)
+      ? current.filter((t) => t !== targetVal)
+      : [...current, targetVal];
+    handleUpdateTfConfig(tf, {
+      fibonacciTargets: next,
+      finalTarget: next[0] || '1.618',
+    });
+  };
+
+  const handleAddCustomTarget = (tf: string) => {
+    const val = customTargetInput.trim();
+    if (!val) return;
+    const current = timeframeConfigs[tf]?.fibonacciTargets || ['1.414', '1.618'];
+    if (!current.includes(val)) {
+      const next = [...current, val];
+      handleUpdateTfConfig(tf, {
+        fibonacciTargets: next,
+        finalTarget: val,
+      });
+    }
+    setCustomTargetInput('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title?.trim()) {
-      alert('Please enter a descriptive situation title.');
+      setValidationError('Please enter a descriptive situation title.');
       return;
     }
     if (!formData.pair?.trim()) {
-      alert('Please enter or select a currency pair name.');
+      setValidationError('Please enter or select a currency pair name.');
       return;
     }
     if (!formData.lessonsLearned?.trim()) {
-      alert('Please write at least one golden institutional lesson learned from this market situation.');
+      setValidationError('Please write at least one golden institutional lesson learned from this market situation.');
       return;
-    }
-
-    const entry = Number(formData.entryPrice) || 0;
-    const sl = Number(formData.stopLossPrice) || 0;
-    const tp = Number(formData.takeProfit1) || 0;
-
-    let plannedRr = formData.plannedRiskReward || 3.0;
-    if (entry > 0 && sl > 0 && tp > 0 && Math.abs(entry - sl) > 0) {
-      plannedRr = Number((Math.abs(tp - entry) / Math.abs(entry - sl)).toFixed(2));
     }
 
     const currentTfConfig = timeframeConfigs[activeTf];
@@ -1235,15 +1461,15 @@ const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
       ltfTimeframe: formData.ltfTimeframe || 'M5',
       ltfTrigger: formData.ltfTrigger || 'ORDER_BLOCK',
       ltfNotes: formData.ltfNotes || '',
-      fibonacciLevel: formData.fibonacciLevel || '0.618 (OTE Golden Pocket)',
-      entryPrice: entry,
-      stopLossPrice: sl,
-      takeProfit1: tp,
-      plannedRiskReward: plannedRr,
-      // Timeframe configs & final target
+      fibonacciLevel: (currentTfConfig?.fibonacciRetracements?.[0] || '0.500 (Equilibrium)') as FibonacciLevel,
+      entryPrice: 0,
+      stopLossPrice: 0,
+      takeProfit1: 0,
+      plannedRiskReward: 3.0,
+      // Timeframe configs & separated Fibonacci levels
       timeframeConfigs,
       selectedTimeframe: activeTf,
-      finalTarget: currentTfConfig?.finalTarget || formData.finalTarget || '1.618',
+      finalTarget: currentTfConfig?.finalTarget || currentTfConfig?.fibonacciTargets?.[0] || '1.618',
       notes: formData.notes?.trim() || '',
       marketConditions: formData.marketConditions || [],
       fundamentalConfluence: formData.fundamentalConfluence || '',
@@ -1259,6 +1485,9 @@ const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
 
     onSave(savedRecord);
   };
+
+  const currentRetracements = timeframeConfigs[activeTf]?.fibonacciRetracements || ['0.238', '0.38', '0.50'];
+  const currentTargets = timeframeConfigs[activeTf]?.fibonacciTargets || ['1.414', '1.618'];
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
@@ -1413,23 +1642,27 @@ const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
                 </div>
               </div>
 
-              {/* Fibonacci Levels Presets & Final Target */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label className="text-slate-400 block mb-1 text-[11px] font-bold">
-                    Fibonacci Target / Retracement Levels:
-                  </label>
+              {/* Separate Categories: Fibonacci Retracement & Fibonacci Target */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                {/* Category 1: Fibonacci Retracement */}
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-cyan-300 uppercase tracking-wider font-military">
+                      FIBONACCI RETRACEMENT
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-mono-code">{activeTf}</span>
+                  </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    {FIBONACCI_TARGET_PRESETS.map((fib) => {
-                      const isSelected = (timeframeConfigs[activeTf]?.fibonacciLevels || []).includes(fib);
+                    {['0.238', '0.38', '0.50'].map((fib) => {
+                      const isSelected = (timeframeConfigs[activeTf]?.fibonacciRetracements || ['0.238', '0.38', '0.50']).includes(fib);
                       return (
                         <button
                           key={fib}
                           type="button"
-                          onClick={() => handleToggleTfFib(activeTf, fib)}
-                          className={`px-2 py-1 rounded text-[10px] font-mono-code font-bold transition cursor-pointer ${
+                          onClick={() => handleToggleRetracement(activeTf, fib)}
+                          className={`px-2.5 py-1 rounded text-[11px] font-mono-code font-bold transition cursor-pointer ${
                             isSelected
-                              ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-400'
+                              ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-400 shadow-sm'
                               : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
                           }`}
                         >
@@ -1437,23 +1670,130 @@ const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
                         </button>
                       );
                     })}
+                    {/* Render any custom retracements added for this timeframe */}
+                    {(timeframeConfigs[activeTf]?.fibonacciRetracements || [])
+                      .filter((f) => !['0.238', '0.38', '0.50'].includes(f))
+                      .map((fib) => (
+                        <span
+                          key={fib}
+                          className="px-2 py-0.5 rounded text-[11px] font-mono-code font-bold bg-cyan-500/20 text-cyan-200 border border-cyan-400/50 flex items-center gap-1"
+                        >
+                          <span>{fib}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRetracement(activeTf, fib)}
+                            className="hover:text-rose-400 cursor-pointer text-[10px]"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
                   </div>
-                  <span className="text-[10px] text-slate-500 mt-1 block">Click to toggle Fibonacci levels (e.g. 0.23, 0.38, 0.5)</span>
+
+                  {/* Option to add custom level */}
+                  <div className="pt-1">
+                    <label className="text-slate-400 block mb-1 text-[10px]">
+                      Optional: Add Custom Retracement Level
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="e.g. 0.618, 0.705, 0.786"
+                        value={customRetracementInput}
+                        onChange={(e) => setCustomRetracementInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCustomRetracement(activeTf);
+                          }
+                        }}
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono-code outline-none focus:border-cyan-400 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddCustomRetracement(activeTf)}
+                        className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold cursor-pointer"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Final Target Custom Value Field */}
-                <div>
-                  <label className="text-amber-300 block mb-1 text-[11px] font-bold">
-                    Final Target Field (e.g. 1.618 or Target Price):
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 1.618, 1.0950, 2750.00"
-                    value={timeframeConfigs[activeTf]?.finalTarget || ''}
-                    onChange={(e) => handleUpdateTfConfig(activeTf, { finalTarget: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono-code focus:border-amber-400 outline-none text-xs"
-                  />
-                  <span className="text-[10px] text-slate-500 mt-0.5 block">Custom target expansion or exact target price</span>
+                {/* Category 2: Fibonacci Target */}
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-amber-300 uppercase tracking-wider font-military">
+                      FIBONACCI TARGET
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-mono-code">{activeTf}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {['1.414', '1.618'].map((tgt) => {
+                      const isSelected = (timeframeConfigs[activeTf]?.fibonacciTargets || ['1.414', '1.618']).includes(tgt);
+                      return (
+                        <button
+                          key={tgt}
+                          type="button"
+                          onClick={() => handleToggleTarget(activeTf, tgt)}
+                          className={`px-2.5 py-1 rounded text-[11px] font-mono-code font-bold transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-amber-500/30 text-amber-200 border border-amber-400 shadow-sm'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
+                          }`}
+                        >
+                          {tgt}
+                        </button>
+                      );
+                    })}
+                    {/* Render any custom targets added for this timeframe */}
+                    {(timeframeConfigs[activeTf]?.fibonacciTargets || [])
+                      .filter((t) => !['1.414', '1.618'].includes(t))
+                      .map((tgt) => (
+                        <span
+                          key={tgt}
+                          className="px-2 py-0.5 rounded text-[11px] font-mono-code font-bold bg-amber-500/20 text-amber-200 border border-amber-400/50 flex items-center gap-1"
+                        >
+                          <span>{tgt}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleTarget(activeTf, tgt)}
+                            className="hover:text-rose-400 cursor-pointer text-[10px]"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                  </div>
+
+                  {/* Option to add custom target */}
+                  <div className="pt-1">
+                    <label className="text-slate-400 block mb-1 text-[10px]">
+                      Optional: Add Custom Target Level
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="e.g. 1.272, 2.0, 1.0950, 2750.00"
+                        value={customTargetInput}
+                        onChange={(e) => setCustomTargetInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCustomTarget(activeTf);
+                          }
+                        }}
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono-code outline-none focus:border-amber-400 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddCustomTarget(activeTf)}
+                        className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold cursor-pointer"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1524,52 +1864,6 @@ const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
                 value={formData.fundamentalConfluence}
                 onChange={(e) => setFormData({ ...formData, fundamentalConfluence: e.target.value })}
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Numerical Levels & Execution Prices */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label className="text-slate-400 block mb-1">Fibonacci Confluence Zone</label>
-              <select
-                value={formData.fibonacciLevel}
-                onChange={(e) => setFormData({ ...formData, fibonacciLevel: e.target.value as FibonacciLevel })}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-mono-code focus:border-cyan-400 outline-none"
-              >
-                {FIBONACCI_LEVELS.map((f) => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-slate-400 block mb-1">Entry Price</label>
-              <input
-                type="number"
-                step="any"
-                value={formData.entryPrice || ''}
-                onChange={(e) => setFormData({ ...formData, entryPrice: Number(e.target.value) })}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-mono-code outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-slate-400 block mb-1">Stop Loss Price</label>
-              <input
-                type="number"
-                step="any"
-                value={formData.stopLossPrice || ''}
-                onChange={(e) => setFormData({ ...formData, stopLossPrice: Number(e.target.value) })}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-rose-400 font-mono-code outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-slate-400 block mb-1">Take Profit 1 Price</label>
-              <input
-                type="number"
-                step="any"
-                value={formData.takeProfit1 || ''}
-                onChange={(e) => setFormData({ ...formData, takeProfit1: Number(e.target.value) })}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-emerald-400 font-mono-code outline-none"
               />
             </div>
           </div>

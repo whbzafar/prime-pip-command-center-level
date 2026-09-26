@@ -507,12 +507,11 @@ export type SubscriptionStatus =
 export type PaymentStatus = 'UNPAID' | 'PENDING' | 'VERIFIED' | 'REJECTED';
 
 export interface AdminDataWorkspace {
-  mode: 'ADMIN_REWARD' | 'OPTIONAL';
+  mode: 'ALLOCATED' | 'OPTIONAL';
   editorAssigned: boolean;
   editorName?: string;
   funds?: number;
   allocation?: number;
-  reward?: number;
   updatedAt?: string;
 }
 

@@ -48,44 +48,57 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
   const [isRevealed, setIsRevealed] = useState<boolean>(false);
   const [localScores, setLocalScores] = useState<Record<CurrencyCode, CurrencyScoreResult> | null>(null);
 
-  // Compute live scores from storage if not supplied from props
+  // Compute live scores from storage if not supplied from props, with live sync listeners
   useEffect(() => {
-    if (propCurrencyScores && Object.keys(propCurrencyScores).length > 0) {
-      setLocalScores(propCurrencyScores);
-      return;
-    }
+    const computeScores = () => {
+      if (propCurrencyScores && Object.keys(propCurrencyScores).length > 0) {
+        setLocalScores(propCurrencyScores);
+        return;
+      }
 
-    try {
-      const rawObs = localStorage.getItem('primepip_fundamental_observations_v2');
-      const observations: IndicatorObservation[] = rawObs ? JSON.parse(rawObs) : DEFAULT_OBSERVATIONS;
-      const rawWeights = localStorage.getItem('primepip_fundamental_weights_v2');
-      const categoryWeights = rawWeights ? JSON.parse(rawWeights) : DEFAULT_CATEGORY_WEIGHTS;
-      const rawRates = localStorage.getItem('primepip_fundamental_rates_v2');
-      const interestRates = rawRates ? JSON.parse(rawRates) : DEFAULT_INTEREST_RATES;
-      const rawCot = localStorage.getItem('primepip_fundamental_cot_v2');
-      const cotRecords = rawCot ? JSON.parse(rawCot) : DEFAULT_COT_RECORDS;
-      const rawSentiment = localStorage.getItem('primepip_fundamental_sentiment_v2');
-      const sentimentRecords = rawSentiment ? JSON.parse(rawSentiment) : DEFAULT_SENTIMENT_RECORDS;
-      const rawRetail = localStorage.getItem('primepip_fundamental_retail_v1');
-      const retailPositioning: RetailPositioningRecord[] = rawRetail ? JSON.parse(rawRetail) : DEFAULT_RETAIL_POSITIONING;
+      try {
+        const rawObs = localStorage.getItem('primepip_fundamental_observations_v2');
+        const observations: IndicatorObservation[] = rawObs ? JSON.parse(rawObs) : DEFAULT_OBSERVATIONS;
+        const rawWeights = localStorage.getItem('primepip_fundamental_weights_v2');
+        const categoryWeights = rawWeights ? JSON.parse(rawWeights) : DEFAULT_CATEGORY_WEIGHTS;
+        const rawRates = localStorage.getItem('primepip_fundamental_rates_v2');
+        const interestRates = rawRates ? JSON.parse(rawRates) : DEFAULT_INTEREST_RATES;
+        const rawCot = localStorage.getItem('primepip_fundamental_cot_v2');
+        const cotRecords = rawCot ? JSON.parse(rawCot) : DEFAULT_COT_RECORDS;
+        const rawSentiment = localStorage.getItem('primepip_fundamental_sentiment_v2');
+        const sentimentRecords = rawSentiment ? JSON.parse(rawSentiment) : DEFAULT_SENTIMENT_RECORDS;
+        const rawRetail = localStorage.getItem('primepip_fundamental_retail_v1');
+        const retailPositioning: RetailPositioningRecord[] = rawRetail ? JSON.parse(rawRetail) : DEFAULT_RETAIL_POSITIONING;
 
-      const currencies = Object.keys(CURRENCY_METADATA) as CurrencyCode[];
-      const computed: Record<CurrencyCode, CurrencyScoreResult> = {} as any;
-      currencies.forEach((code) => {
-        computed[code] = calculateCurrencyScore(
-          code,
-          observations,
-          categoryWeights,
-          cotRecords,
-          sentimentRecords,
-          interestRates,
-          retailPositioning
-        );
-      });
-      setLocalScores(computed);
-    } catch {
-      // Fallback
-    }
+        const currencies = Object.keys(CURRENCY_METADATA) as CurrencyCode[];
+        const computed: Record<CurrencyCode, CurrencyScoreResult> = {} as any;
+        currencies.forEach((code) => {
+          computed[code] = calculateCurrencyScore(
+            code,
+            observations,
+            categoryWeights,
+            cotRecords,
+            sentimentRecords,
+            interestRates,
+            retailPositioning
+          );
+        });
+        setLocalScores(computed);
+      } catch {
+        // Fallback
+      }
+    };
+
+    computeScores();
+
+    const handleDataUpdate = () => computeScores();
+    window.addEventListener('primepipfx_fundamental_data_updated', handleDataUpdate);
+    window.addEventListener('storage', handleDataUpdate);
+
+    return () => {
+      window.removeEventListener('primepipfx_fundamental_data_updated', handleDataUpdate);
+      window.removeEventListener('storage', handleDataUpdate);
+    };
   }, [propCurrencyScores]);
 
   const activeCurrencyScores = propCurrencyScores && Object.keys(propCurrencyScores).length > 0
