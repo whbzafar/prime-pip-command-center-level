@@ -88,6 +88,15 @@ import { analyzeIntent } from "./server/intelligence/intentRouter.js";
 import { resolveCapability } from "./server/intelligence/capabilityRegistry.js";
 import { getClusters } from "./server/intelligence/gapLedger.js";
 import { syncLegacyStudentsToServer } from "./server/legacyStudentSync.js";
+import {
+  getStoredSignals,
+  createSignal,
+  updateSignalStatus,
+  deleteSignal,
+  getStoredAnnouncements,
+  createAnnouncement,
+  deleteAnnouncement,
+} from "./server/signalService.js";
 import { getFundamentalStrengthDashboard } from "./server/fundamentalStrengthService.js";
 import { OFFICIAL_INDICATOR_REGISTRY } from "./src/data/fundamentalRegistryData.js";
 import {
@@ -2222,10 +2231,10 @@ app.post('/api/fundamental/extract-cot-from-image', async (req, res) => {
 
     const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
     const cotPrompt = `You are an institutional CFTC Commitments of Traders (COT) report parser.
-Scan this screenshot or PDF of the CFTC Commitments of Traders Legacy report for currencies (USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD) or commodities.
+Scan this screenshot or PDF of the CFTC Commitments of Traders Legacy report for currencies (USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD) or commodities (XAU / Gold, XAG / Silver, OIL / Crude Oil).
 Extract:
-- currency: 3-letter currency code (e.g. USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD)
-- contractName: Name of futures contract (e.g. "EURO FX - CME", "JAPANESE YEN - CME", "BRITISH POUND - CME")
+- currency: asset or currency code: USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD, XAU (Gold), XAG (Silver), OIL (Crude Oil)
+- contractName: Name of futures contract (e.g. "EURO FX - CME", "GOLD - COMMODITY EXCHANGE INC.", "CRUDE OIL, LIGHT SWEET - NYMEX", "JAPANESE YEN - CME")
 - openInterest: Total open interest as integer number
 - nonCommercialLong: Non-Commercial / Speculator Long positions as integer number
 - nonCommercialShort: Non-Commercial / Speculator Short positions as integer number
@@ -2233,22 +2242,22 @@ Extract:
 - commercialShort: Commercial / Hedger Short positions as integer number
 - reportDate: As-of report date (YYYY-MM-DD)
 - releaseDate: Publication date (YYYY-MM-DD)
-- notes: Brief note on net position
+- notes: Brief note on net position and market stance (Bullish or Bearish, Long-Term or Short-Term)
 
 Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
 {
   "records": [
     {
-      "currency": "EUR",
-      "contractName": "Euro FX Futures",
-      "openInterest": 585000,
-      "nonCommercialLong": 198400,
-      "nonCommercialShort": 142100,
-      "commercialLong": 312000,
-      "commercialShort": 374000,
+      "currency": "XAU",
+      "contractName": "Gold Futures (COMEX)",
+      "openInterest": 512400,
+      "nonCommercialLong": 284500,
+      "nonCommercialShort": 68200,
+      "commercialLong": 122000,
+      "commercialShort": 338000,
       "reportDate": "2025-02-18",
       "releaseDate": "2025-02-21",
-      "notes": "Net speculative long +56,300 contracts"
+      "notes": "Net speculative long +216,300 contracts. Bullish short-term stance."
     }
   ]
 }`;
@@ -2300,10 +2309,23 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
       });
     }
 
+    const normalizeCotSymbol = (sym: string) => {
+      const u = (sym || '').toUpperCase().trim();
+      if (u.includes('GOLD') || u === 'XAU' || u === 'GC') return 'XAU';
+      if (u.includes('SILVER') || u === 'XAG' || u === 'SI') return 'XAG';
+      if (u.includes('OIL') || u.includes('CRUDE') || u === 'CL' || u === 'WTI') return 'OIL';
+      return u;
+    };
+
+    const cleanRecords = parsedResult.records.map((r: any) => ({
+      ...r,
+      currency: normalizeCotSymbol(r.currency),
+    }));
+
     return res.json({
       success: true,
-      extractedCount: parsedResult.records.length,
-      records: parsedResult.records,
+      extractedCount: cleanRecords.length,
+      records: cleanRecords,
     });
   } catch (error: any) {
     console.error('[COT OCR] Fallback error:', error);
@@ -3983,6 +4005,114 @@ app.patch('/api/user/presence-privacy', (req, res) => {
       : res.status(404).json({ ok: false, error: 'User not found' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+// ----------------------------------------------------
+// PREMIUM SIGNALS & ANNOUNCEMENTS API ENDPOINTS
+// ----------------------------------------------------
+app.get('/api/signals', (_req, res) => {
+  try {
+    const store = getStoredSignals();
+    return res.json({ ok: true, ...store });
+  } catch (err: any) {
+    console.error('[SIGNALS GET] Error:', err);
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to fetch signals' });
+  }
+});
+
+app.post('/api/signals', (req, res) => {
+  try {
+    const { pair, direction, entryPrice, stopLoss, takeProfit1, takeProfit2, takeProfit3, strategyNotes, recommendedRiskPercent } = req.body || {};
+    if (!pair || !entryPrice || !stopLoss || !takeProfit1) {
+      return res.status(400).json({ ok: false, error: 'Missing required fields: pair, entryPrice, stopLoss, takeProfit1' });
+    }
+    const signal = createSignal({
+      pair,
+      direction,
+      entryPrice,
+      stopLoss,
+      takeProfit1,
+      takeProfit2,
+      takeProfit3,
+      strategyNotes,
+      recommendedRiskPercent,
+      author: 'Admin / Chief Institutional Analyst',
+    });
+    return res.json({ ok: true, signal });
+  } catch (err: any) {
+    console.error('[SIGNALS POST] Error:', err);
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to create signal' });
+  }
+});
+
+app.patch('/api/signals/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, closedPrice, resultPips, resultPercent, closeReason, notes } = req.body || {};
+    if (!status) {
+      return res.status(400).json({ ok: false, error: 'Status is required' });
+    }
+    const updated = updateSignalStatus(id, status, { closedPrice, resultPips, resultPercent, closeReason, notes });
+    if (!updated) {
+      return res.status(404).json({ ok: false, error: 'Signal not found' });
+    }
+    return res.json({ ok: true, signal: updated });
+  } catch (err: any) {
+    console.error('[SIGNALS PATCH] Error:', err);
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to update signal' });
+  }
+});
+
+app.delete('/api/signals/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const success = deleteSignal(id);
+    return res.json({ ok: true, deleted: success });
+  } catch (err: any) {
+    console.error('[SIGNALS DELETE] Error:', err);
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to delete signal' });
+  }
+});
+
+app.get('/api/announcements', (_req, res) => {
+  try {
+    const announcements = getStoredAnnouncements();
+    return res.json({ ok: true, announcements });
+  } catch (err: any) {
+    console.error('[ANNOUNCEMENTS GET] Error:', err);
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to fetch announcements' });
+  }
+});
+
+app.post('/api/announcements', (req, res) => {
+  try {
+    const { title, message, category, signalId, sender } = req.body || {};
+    if (!message) {
+      return res.status(400).json({ ok: false, error: 'Message is required' });
+    }
+    const announcement = createAnnouncement({
+      title: title || 'Official Announcement',
+      message,
+      category: category || 'IMPORTANT_ANNOUNCEMENT',
+      signalId,
+      sender: sender || 'Admin / Owner',
+    });
+    return res.json({ ok: true, announcement });
+  } catch (err: any) {
+    console.error('[ANNOUNCEMENTS POST] Error:', err);
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to post announcement' });
+  }
+});
+
+app.delete('/api/announcements/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const success = deleteAnnouncement(id);
+    return res.json({ ok: true, deleted: success });
+  } catch (err: any) {
+    console.error('[ANNOUNCEMENTS DELETE] Error:', err);
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to delete announcement' });
   }
 });
 

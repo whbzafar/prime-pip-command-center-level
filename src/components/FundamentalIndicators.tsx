@@ -266,7 +266,15 @@ export const FundamentalIndicators: React.FC = () => {
   const [cotRecords, setCotRecords] = useState<CotPositioningRecord[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_COT_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed: CotPositioningRecord[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const map = new Map<string, CotPositioningRecord>();
+          for (const d of DEFAULT_COT_RECORDS) map.set(d.currency, d);
+          for (const p of parsed) map.set(p.currency, p);
+          return Array.from(map.values());
+        }
+      }
     } catch (e) {
       console.error('Error loading COT from storage', e);
     }
@@ -762,16 +770,6 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
 
             <button
               type="button"
-              onClick={handleTriggerMasterAiAnalysis}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 hover:from-amber-400 hover:to-amber-200 text-slate-950 text-xs font-military font-bold transition shadow-md shadow-amber-500/25 cursor-pointer active:scale-95"
-              title="Generate Institutional Macro Terminal Master Analysis (All Assets)"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-slate-950 stroke-[2.5] animate-pulse" />
-              <span>MASTER AI INTELLIGENCE</span>
-            </button>
-
-            <button
-              type="button"
               onClick={handleExportPdf}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold transition shadow-md shadow-blue-500/20 cursor-pointer"
               title="Export Full Audit PDF Report"
@@ -779,6 +777,15 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
               <FileText className="w-3.5 h-3.5" />
               <span>EXPORT PDF REPORT</span>
             </button>
+          </div>
+        </div>
+
+        {/* Fundamental AI Intelligence Disclaimer */}
+        <div className="flex items-start sm:items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200/90 font-mono-code shadow-sm">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+          <div className="leading-relaxed">
+            <span className="font-bold text-amber-300 uppercase tracking-wide mr-1.5">Fundamental Intelligence Disclaimer:</span>
+            <span>Clicking &apos;Generate&apos; or &apos;Regenerate&apos; might yield fabricated data; it is recommended that users upload or verify their own official economic indicator data.</span>
           </div>
         </div>
 
@@ -944,6 +951,9 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
           cotData={cotRecords}
           onUpdateCotRecord={(updated) => {
             setCotRecords((prev) => prev.map((r) => (r.currency === updated.currency ? updated : r)));
+          }}
+          onUpdateCotRecords={(records) => {
+            setCotRecords(records);
           }}
           onSelectCurrency={(c) => {
             setActiveCurrency(c);

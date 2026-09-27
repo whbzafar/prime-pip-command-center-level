@@ -35,6 +35,8 @@ import {
   CandlestickChart,
   Settings,
   Keyboard,
+  GraduationCap,
+  ExternalLink,
 } from 'lucide-react';
 
 export type Tool =
@@ -84,12 +86,23 @@ const FIB_LEVELS = [
   { level: 1.0, label: '100.0% (0.000)', color: '#94A3B8' },
 ];
 
-interface FreehandWorkspaceProps { userKey?: string; }
+interface FreehandWorkspaceProps {
+  userKey?: string;
+  onNavigateTab?: (tab: any) => void;
+}
 
-export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({ userKey = 'guest' }) => {
+export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({ userKey = 'guest', onNavigateTab }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleNavigate = (tabName: string) => {
+    if (onNavigateTab) {
+      onNavigateTab(tabName);
+    } else {
+      window.dispatchEvent(new CustomEvent('primepipfx:navigate-tab', { detail: { tab: tabName } }));
+    }
+  };
 
   const [tool, setTool] = useState<Tool>('LINE');
   const [color, setColor] = useState<string>('#F59E0B'); // Key-level gold default
@@ -1467,6 +1480,40 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({ userKey = 
           : ''
       }`}
     >
+      {/* Quick Navigation Links for Supply & Demand and Pro Learning Trading */}
+      <div className="bg-slate-950/90 backdrop-blur-md border border-slate-800/80 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-[11px] font-military uppercase tracking-wider text-slate-300 flex items-center gap-1.5 font-bold">
+            <Compass className="w-3.5 h-3.5 text-blue-400" />
+            Quick Links:
+          </span>
+          <span className="text-[10px] text-slate-400 hidden sm:inline">Directly jump to correlated training modules</span>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => handleNavigate('SBT_MODELS')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-300 hover:text-emerald-100 font-bold text-xs transition-all shadow-sm hover:border-emerald-400 cursor-pointer active:scale-95"
+            title="Open Supply & Demand (10 SBT Playbook Models)"
+          >
+            <Layers className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Supply &amp; Demand</span>
+            <ExternalLink className="w-3 h-3 text-emerald-400/80 ml-0.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleNavigate('PRO_LEARNING')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/25 text-indigo-300 hover:text-indigo-100 font-bold text-xs transition-all shadow-sm hover:border-indigo-400 cursor-pointer active:scale-95"
+            title="Open Pro Learning Trading Command Center"
+          >
+            <GraduationCap className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Pro Learning Trading</span>
+            <ExternalLink className="w-3 h-3 text-indigo-400/80 ml-0.5" />
+          </button>
+        </div>
+      </div>
+
       {/* Primary Toolbar */}
       <div className="bg-slate-950/90 backdrop-blur-md border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-xl">
         {/* Shape & Drawing Tools */}

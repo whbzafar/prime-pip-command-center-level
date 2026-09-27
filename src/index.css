@@ -18,10 +18,17 @@
   --radius-btn: 12px;
   --radius-pill: 9999px;
   --prime-brightness: 104%;
+  --prime-contrast: 100%;
+  --prime-saturation: 100%;
   --shadow-surface: none;
   --glass-blur: none;
   --glass-blur-sm: none;
   --bg-input: #0e1628;
+}
+
+html {
+  filter: brightness(var(--prime-brightness, 104%)) contrast(var(--prime-contrast, 100%)) saturate(var(--prime-saturation, 100%));
+  transition: filter 0.15s ease-out;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────

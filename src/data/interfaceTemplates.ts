@@ -939,6 +939,12 @@ export const applyInterfaceTemplate = (templateOrId: string | InterfaceTemplate,
     if (template.isCustom) {
       localStorage.setItem('primepipfx_active_custom_theme', JSON.stringify(template));
     }
+    const savedSat = localStorage.getItem('primepipfx_saturation');
+    if (savedSat) root.style.setProperty('--prime-saturation', `${savedSat}%`);
+    const savedCont = localStorage.getItem('primepipfx_contrast');
+    if (savedCont) root.style.setProperty('--prime-contrast', `${savedCont}%`);
+    const savedAccent = localStorage.getItem('primepipfx_custom_accent');
+    if (savedAccent) root.style.setProperty('--accent', savedAccent);
   } catch {}
 
   // 4. Notify listeners of brightness or theme change
@@ -955,4 +961,99 @@ export const applyInterfaceTemplate = (templateOrId: string | InterfaceTemplate,
   if (legacyStyle) {
     legacyStyle.remove();
   }
+};
+
+export const applyInterfaceColorComposition = (options: {
+  brightness?: number;
+  saturation?: number;
+  contrast?: number;
+  accent?: string;
+  secondaryAccent?: string;
+  buttonAnimation?: 'NONE' | 'PULSE' | 'GLOW' | 'SHIMMER' | 'BOUNCE';
+  buttonTextColor?: string;
+}): void => {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (options.brightness !== undefined) {
+    root.style.setProperty('--prime-brightness', `${options.brightness}%`);
+    try { localStorage.setItem('primepipfx_brightness', String(options.brightness)); } catch {}
+  }
+  if (options.saturation !== undefined) {
+    root.style.setProperty('--prime-saturation', `${options.saturation}%`);
+    try { localStorage.setItem('primepipfx_saturation', String(options.saturation)); } catch {}
+  }
+  if (options.contrast !== undefined) {
+    root.style.setProperty('--prime-contrast', `${options.contrast}%`);
+    try { localStorage.setItem('primepipfx_contrast', String(options.contrast)); } catch {}
+  }
+  if (options.accent) {
+    root.style.setProperty('--accent', options.accent);
+    try { localStorage.setItem('primepipfx_custom_accent', options.accent); } catch {}
+  }
+  if (options.secondaryAccent) {
+    root.style.setProperty('--accent-secondary', options.secondaryAccent);
+    try { localStorage.setItem('primepipfx_custom_accent_secondary', options.secondaryAccent); } catch {}
+  }
+  if (options.buttonAnimation) {
+    root.setAttribute('data-btn-anim', options.buttonAnimation);
+    try { localStorage.setItem('primepipfx_btn_anim', options.buttonAnimation); } catch {}
+  }
+
+  // Inject or update dynamic button style rules to ensure primary buttons reflect chosen colors and animations
+  let animStyle = document.getElementById('prime-btn-custom-styles') as HTMLStyleElement | null;
+  if (!animStyle) {
+    animStyle = document.createElement('style');
+    animStyle.id = 'prime-btn-custom-styles';
+    document.head.appendChild(animStyle);
+  }
+
+  const currentAccent = options.accent || localStorage.getItem('primepipfx_custom_accent') || '#00f0ff';
+  const animType = options.buttonAnimation || localStorage.getItem('primepipfx_btn_anim') || 'NONE';
+
+  let animationCss = '';
+  if (animType === 'PULSE') {
+    animationCss = `
+      @keyframes primeBtnPulse {
+        0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.4); }
+        50% { transform: scale(1.02); box-shadow: 0 0 16px 2px var(--accent, #00f0ff); }
+      }
+      button.bg-cyan-500, button.bg-blue-500, .prime-primary-btn {
+        animation: primeBtnPulse 2.4s infinite ease-in-out;
+      }
+    `;
+  } else if (animType === 'GLOW') {
+    animationCss = `
+      @keyframes primeNeonGlow {
+        0%, 100% { filter: drop-shadow(0 0 4px var(--accent, #00f0ff)); box-shadow: 0 0 12px 1px color-mix(in srgb, var(--accent, #00f0ff) 50%, transparent); }
+        50% { filter: drop-shadow(0 0 10px var(--accent, #00f0ff)); box-shadow: 0 0 24px 4px var(--accent, #00f0ff); }
+      }
+      button.bg-cyan-500, button.bg-blue-500, .prime-primary-btn {
+        animation: primeNeonGlow 2.8s infinite alternate ease-in-out;
+      }
+    `;
+  } else if (animType === 'SHIMMER') {
+    animationCss = `
+      @keyframes primeShimmerSheen {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+      }
+      button.bg-cyan-500, button.bg-blue-500, .prime-primary-btn {
+        background-image: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent) !important;
+        background-size: 200% 100% !important;
+        animation: primeShimmerSheen 3.2s infinite linear;
+      }
+    `;
+  } else if (animType === 'BOUNCE') {
+    animationCss = `
+      button.bg-cyan-500:hover, button.bg-blue-500:hover, .prime-primary-btn:hover {
+        transform: translateY(-2.5px) scale(1.03);
+        box-shadow: 0 8px 20px -3px var(--accent, #00f0ff);
+        transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+    `;
+  }
+
+  animStyle.textContent = `
+    ${animationCss}
+  `;
 };

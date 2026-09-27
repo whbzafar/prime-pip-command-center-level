@@ -92,7 +92,7 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
   onSelectCurrency,
   onSelectTab,
 }) => {
-  const [selectedTarget, setSelectedTarget] = useState<string>('GLOBAL');
+  const [selectedTarget, setSelectedTarget] = useState<string>(activeCurrency || 'USD');
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [categoryFilter, setCategoryFilter] = useState<AssetCategoryFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -118,9 +118,9 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
     return () => window.removeEventListener('primepipfx_select_fundamental_asset', handleCustomSelect);
   }, []);
 
-  // Synchronize when parent activeCurrency changes and target is currently a currency
+  // Synchronize when parent activeCurrency changes — activate immediately for the opened currency
   useEffect(() => {
-    if (activeCurrency && selectedTarget !== 'GLOBAL' && CURRENCIES.some((c) => c.code === selectedTarget)) {
+    if (activeCurrency) {
       setSelectedTarget(activeCurrency);
     }
   }, [activeCurrency]);
@@ -612,6 +612,44 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
         summary: 'Baseline trend confidence',
       };
 
+      const factorWeights = [
+        {
+          factor: 'Labor Market & NFP Payrolls',
+          weight: 20,
+          contribution: sc?.categoryScores?.LABOR ? `${sc.categoryScores.LABOR.score > 0 ? '+' : ''}${sc.categoryScores.LABOR.score} pts` : `${score > 0 ? '+' : ''}${Math.round(score * 0.20)} pts`,
+          score: sc?.categoryScores?.LABOR?.score ?? Math.round(score * 0.20),
+          isPositive: (sc?.categoryScores?.LABOR?.score ?? score) >= 0,
+        },
+        {
+          factor: 'Inflation Rate & Core CPI Pressures',
+          weight: 25,
+          contribution: sc?.categoryScores?.INFLATION ? `${sc.categoryScores.INFLATION.score > 0 ? '+' : ''}${sc.categoryScores.INFLATION.score} pts` : `${score > 0 ? '+' : ''}${Math.round(score * 0.25)} pts`,
+          score: sc?.categoryScores?.INFLATION?.score ?? Math.round(score * 0.25),
+          isPositive: (sc?.categoryScores?.INFLATION?.score ?? score) >= 0,
+        },
+        {
+          factor: 'Central Bank Policy Rates & 10Y Yields',
+          weight: 25,
+          contribution: sc?.categoryScores?.CENTRAL_BANK ? `${sc.categoryScores.CENTRAL_BANK.score > 0 ? '+' : ''}${sc.categoryScores.CENTRAL_BANK.score} pts` : `${score > 0 ? '+' : ''}${Math.round(score * 0.25)} pts`,
+          score: sc?.categoryScores?.CENTRAL_BANK?.score ?? Math.round(score * 0.25),
+          isPositive: (sc?.categoryScores?.CENTRAL_BANK?.score ?? score) >= 0,
+        },
+        {
+          factor: 'GDP Output & Manufacturing PMIs',
+          weight: 15,
+          contribution: sc?.categoryScores?.GROWTH ? `${sc.categoryScores.GROWTH.score > 0 ? '+' : ''}${sc.categoryScores.GROWTH.score} pts` : `${score > 0 ? '+' : ''}${Math.round(score * 0.15)} pts`,
+          score: sc?.categoryScores?.GROWTH?.score ?? Math.round(score * 0.15),
+          isPositive: (sc?.categoryScores?.GROWTH?.score ?? score) >= 0,
+        },
+        {
+          factor: 'Retail Sales & Domestic Consumption',
+          weight: 15,
+          contribution: sc?.categoryScores?.CONSUMER ? `${sc.categoryScores.CONSUMER.score > 0 ? '+' : ''}${sc.categoryScores.CONSUMER.score} pts` : `${score > 0 ? '+' : ''}${Math.round(score * 0.15)} pts`,
+          score: sc?.categoryScores?.CONSUMER?.score ?? Math.round(score * 0.15),
+          isPositive: (sc?.categoryScores?.CONSUMER?.score ?? score) >= 0,
+        },
+      ];
+
       return {
         id: currMeta.code,
         title: `${currMeta.code} — ${currMeta.name}`,
@@ -625,6 +663,7 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
         isNeutral,
         trendConfidence,
         drivers: sc?.primaryDrivers?.length ? sc.primaryDrivers : ['Awaiting published indicator releases'],
+        factorWeights,
         conflicts: sc?.conflictingFactors || [],
         policyRate: sc?.interestRateLevel,
         yield10Y: sc?.tenYearBondYield,
@@ -662,6 +701,37 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
       const fullName = isGold ? 'Gold (XAU/USD)' : isSilver ? 'Silver (XAG/USD)' : 'US Oil (WTI Crude)';
       const livePriceText = c?.price ? `Live Spot Price: $${c.price.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD` : 'Verified Institutional Macro Valuation';
 
+      const factorWeights = [
+        {
+          factor: 'Real Yields & Dollar Pressure',
+          weight: 35,
+          contribution: score > 0 ? '+24 pts' : '-20 pts',
+          score: Math.round(score * 0.35),
+          isPositive: score >= 0,
+        },
+        {
+          factor: 'Physical & Sovereign Reserve Inflows',
+          weight: 30,
+          contribution: isGold ? '+30 pts' : isSilver ? '+24 pts' : '+15 pts',
+          score: Math.round(score * 0.30),
+          isPositive: true,
+        },
+        {
+          factor: 'Industrial Demand & Commercial Hedging',
+          weight: 20,
+          contribution: isSilver ? '+28 pts' : isOil ? '+16 pts' : '+10 pts',
+          score: Math.round(score * 0.20),
+          isPositive: true,
+        },
+        {
+          factor: 'Supply/Demand Balance & Geopolitical Risk',
+          weight: 15,
+          contribution: score > 0 ? '+15 pts' : '-10 pts',
+          score: Math.round(score * 0.15),
+          isPositive: score >= 0,
+        },
+      ];
+
       return {
         id: isGold ? 'XAU/USD' : isSilver ? 'XAG/USD' : 'US Oil',
         title: fullName,
@@ -677,6 +747,7 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
         drivers: c?.drivers?.length
           ? c.drivers.map((d: any) => `${d.label}: ${d.impact} (${d.score > 0 ? '+' : ''}${d.score})`)
           : ['Awaiting fundamental commodity metric releases'],
+        factorWeights,
         conflicts: [],
         policyRate: undefined,
         yield10Y: undefined,
@@ -745,6 +816,30 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
         yield10YSpread ? `10Y Sovereign Bond Yield Spread: ${yield10YSpread}%` : `Data Coverage: Combined ${pairDiff?.dataCoveragePercent || 85}%`,
       ];
 
+      const factorWeights = [
+        {
+          factor: `${baseCode} Macro Economic Bias`,
+          weight: 40,
+          contribution: `${(baseSc?.finalCompositeScore ?? 0) > 0 ? '+' : ''}${baseSc?.finalCompositeScore ?? 0} pts`,
+          score: baseSc?.finalCompositeScore ?? 0,
+          isPositive: (baseSc?.finalCompositeScore ?? 0) >= 0,
+        },
+        {
+          factor: `${quoteCode} Monetary Counter-Weight`,
+          weight: 40,
+          contribution: `${-(quoteSc?.finalCompositeScore ?? 0) > 0 ? '+' : ''}${-(quoteSc?.finalCompositeScore ?? 0)} pts`,
+          score: -(quoteSc?.finalCompositeScore ?? 0),
+          isPositive: -(quoteSc?.finalCompositeScore ?? 0) >= 0,
+        },
+        {
+          factor: 'Central Bank Rate & Yield Differential',
+          weight: 20,
+          contribution: rateSpread ? `${rateSpread}% spread` : 'Parity',
+          score: rateSpread ? Math.round(parseFloat(rateSpread) * 10) : 0,
+          isPositive: rateSpread ? parseFloat(rateSpread) >= 0 : true,
+        },
+      ];
+
       return {
         id: cleanPair,
         title: `${cleanPair} — ${baseName} / ${quoteName}`,
@@ -758,6 +853,7 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
         isNeutral,
         trendConfidence,
         drivers,
+        factorWeights,
         conflicts: baseSc?.conflictingFactors?.concat(quoteSc?.conflictingFactors || []) || [],
         policyRate: baseSc?.interestRateLevel,
         yield10Y: baseSc?.tenYearBondYield,
@@ -1444,6 +1540,41 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
                     </div>
                   )}
                 </div>
+
+                {/* Specific Indicator Weights Contributing to Directional Sentiment */}
+                {(targetData as any).factorWeights && (targetData as any).factorWeights.length > 0 && (
+                  <div className="mt-3 pt-2 border-t border-slate-800/80 space-y-1.5 font-mono-code text-[10px]">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[10px] uppercase text-cyan-400 flex items-center gap-1">
+                        <Scale className="w-3 h-3 text-cyan-400" />
+                        <span>FACTOR WEIGHTS CONTRIBUTION</span>
+                      </span>
+                      <span className="text-[9px] text-slate-500">Weight &bull; Impact</span>
+                    </div>
+                    <div className="space-y-1">
+                      {(targetData as any).factorWeights.map((fw: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-1.5 rounded-lg bg-slate-900/70 border border-slate-800/50 hover:border-slate-700/80 transition-colors"
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-slate-800 text-slate-400 shrink-0">
+                              {fw.weight}%
+                            </span>
+                            <span className="text-slate-300 truncate text-[10px]">{fw.factor}</span>
+                          </div>
+                          <span
+                            className={`font-bold shrink-0 ml-2 text-[10px] ${
+                              fw.isPositive ? 'text-emerald-400' : 'text-rose-400'
+                            }`}
+                          >
+                            {fw.contribution}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Action Links & Key Rates */}

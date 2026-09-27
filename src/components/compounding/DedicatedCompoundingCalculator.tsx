@@ -31,9 +31,10 @@ interface DedicatedCompoundingCalculatorProps {
 
 export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalculatorProps> = ({
   initialCapital = 10000,
-  currency = 'USD',
+  currency: initialCurrency = 'USD',
 }) => {
   // Inputs
+  const [currency, setCurrency] = useState<string>(initialCurrency);
   const [startingCapital, setStartingCapital] = useState<number>(initialCapital > 0 ? initialCapital : 10000);
   const [targetRatePercent, setTargetRatePercent] = useState<number>(2.0); // 2% per period
   const [frequency, setFrequency] = useState<CompoundingFrequency>('DAILY');
@@ -199,6 +200,39 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
                 <span>CALCULATOR INPUTS</span>
               </h3>
               <span className="text-[10px] font-mono-code text-slate-400">PURE FINANCIAL MATH</span>
+            </div>
+
+            {/* 0. Currency Selection (Cent / USD / etc.) */}
+            <div className="space-y-1.5 pb-2 border-b border-slate-800/80">
+              <label className="text-xs font-mono-code text-slate-300 font-bold block">
+                ACCOUNT CURRENCY
+              </label>
+              <div className="flex flex-wrap gap-1 text-xs font-mono-code">
+                {['USD', 'Cent', 'USC', 'EUR', 'GBP', 'PKR'].map((cur) => (
+                  <button
+                    key={cur}
+                    type="button"
+                    onClick={() => {
+                      setCurrency(cur);
+                      if (cur === 'Cent' || cur === 'USC') {
+                        if (startingCapital < 5000) setStartingCapital(10000);
+                      }
+                    }}
+                    className={`px-2.5 py-1 rounded-lg border text-[11px] transition cursor-pointer ${
+                      currency === cur
+                        ? 'bg-blue-500 text-slate-950 border-cyan-400 font-bold shadow'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    {cur === 'Cent' ? 'Cent (¢)' : cur === 'USC' ? 'USC (¢)' : `${cur} (${getCurrencySymbol(cur).trim()})`}
+                  </button>
+                ))}
+              </div>
+              {(currency === 'Cent' || currency === 'USC') && (
+                <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 text-[11px] font-mono-code text-cyan-300">
+                  <strong>Cent Account Mode:</strong> Compounding calculations and targets are calculated in Cents (e.g. 10,000¢ = $100 USD).
+                </div>
+              )}
             </div>
 
             {/* 1. Starting Capital ($) */}

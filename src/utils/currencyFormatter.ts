@@ -27,6 +27,10 @@ export function getCurrencySymbol(currency?: string): string {
       return '£';
     case 'PKR':
       return '₨ ';
+    case 'USC':
+    case 'CENT':
+    case 'USC (CENT)':
+      return '¢';
     case 'JPY':
       return '¥';
     case 'AUD':

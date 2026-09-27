@@ -126,9 +126,11 @@ export interface IndicatorObservation {
   }[];
 }
 
+export type CotAssetCode = CurrencyCode | 'XAU' | 'XAG' | 'OIL';
+
 export interface CotPositioningRecord {
   id: string;
-  currency: CurrencyCode;
+  currency: CotAssetCode;
   contractName: string;
   reportDate: string;
   releaseDate: string;

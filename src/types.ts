@@ -314,12 +314,17 @@ export interface SignalItem {
   stopLoss: number;
   takeProfit1: number;
   takeProfit2?: number;
+  takeProfit3?: number;
   recommendedRiskPercent: number; // e.g. 1.0%
   strategyNotes: string;
-  status: 'PENDING' | 'ACTIVE' | 'HIT_TP' | 'HIT_SL' | 'CANCELLED';
+  status: 'PENDING' | 'ACTIVE' | 'HIT_TP' | 'HIT_SL' | 'CANCELLED' | 'FINISHED';
   createdAt: string;
   updatedAt: string;
   author: string;
+  closedPrice?: number;
+  resultPips?: number;
+  resultPercent?: number;
+  closedAt?: string;
 }
 
 export interface TradingRule {

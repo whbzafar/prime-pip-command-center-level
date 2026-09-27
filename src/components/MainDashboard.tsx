@@ -21,7 +21,16 @@ import {
   Brain,
   User,
   ShieldCheck,
+  Radio,
+  Bell,
+  X,
 } from 'lucide-react';
+import {
+  fetchSignalsFromServer,
+  fetchAnnouncementsServer,
+  InAppAnnouncement,
+} from '../services/signalsService';
+import { SignalItem } from '../types';
 import {
   DashboardMetrics,
   calculateStrategyMetrics,
@@ -75,6 +84,58 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   ];
   type ScoreKey = (typeof scoreCategories)[number]['key'];
   const [selectedScoreKey, setSelectedScoreKey] = useState<ScoreKey | null>(null);
+
+  // Active Signals & Announcements Drop-Down for Dashboard
+  const [activeSignals, setActiveSignals] = useState<SignalItem[]>([]);
+  const [announcements, setAnnouncements] = useState<InAppAnnouncement[]>([]);
+  const [dismissedSignalIds, setDismissedSignalIds] = useState<string[]>([]);
+  const [dismissedAnnIds, setDismissedAnnIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadSignalsAndAnnouncements = async () => {
+      try {
+        const [sigData, annData] = await Promise.all([
+          fetchSignalsFromServer(),
+          fetchAnnouncementsServer(),
+        ]);
+        if (isMounted) {
+          setActiveSignals(sigData.activeSignals);
+          setAnnouncements(annData);
+        }
+      } catch (e) {
+        console.warn('Dashboard signals load warning:', e);
+      }
+    };
+
+    loadSignalsAndAnnouncements();
+    const interval = setInterval(loadSignalsAndAnnouncements, 12000);
+
+    const onSigCreated = (e: any) => {
+      const sig = e?.detail;
+      if (sig) setActiveSignals((prev) => [sig, ...prev.filter((s) => s.id !== sig.id)]);
+    };
+    const onSigClosed = (e: any) => {
+      const sig = e?.detail;
+      if (sig) setActiveSignals((prev) => prev.filter((s) => s.id !== sig.id));
+    };
+    const onAnnCreated = (e: any) => {
+      const ann = e?.detail;
+      if (ann) setAnnouncements((prev) => [ann, ...prev.filter((a) => a.id !== ann.id)]);
+    };
+
+    window.addEventListener('primepipfx_signal_created', onSigCreated);
+    window.addEventListener('primepipfx_signal_closed', onSigClosed);
+    window.addEventListener('primepipfx_announcement_created', onAnnCreated);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener('primepipfx_signal_created', onSigCreated);
+      window.removeEventListener('primepipfx_signal_closed', onSigClosed);
+      window.removeEventListener('primepipfx_announcement_created', onAnnCreated);
+    };
+  }, []);
 
   const scoreEvidence = selectedScoreKey
     ? (() => {
@@ -302,6 +363,118 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
         }}
       />
 
+      {/* ACTIVE SIGNALS TOP DROP-DOWN BANNER (Drops down from top, vanishes when signal closed) */}
+      {activeSignals.filter((s) => !dismissedSignalIds.includes(s.id)).map((sig) => {
+        const isBuy = sig.direction === 'BUY';
+        return (
+          <div
+            key={sig.id}
+            className={`border rounded-2xl p-4 sm:p-5 shadow-2xl transition animate-in slide-in-from-top-4 fade-in duration-500 relative overflow-hidden ${
+              isBuy
+                ? 'bg-gradient-to-r from-emerald-950/40 via-slate-900 to-[#0B0F19] border-emerald-500/50 shadow-emerald-500/10'
+                : 'bg-gradient-to-r from-rose-950/40 via-slate-900 to-[#0B0F19] border-rose-500/50 shadow-rose-500/10'
+            }`}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                  isBuy ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-rose-500/20 border-rose-500/40 text-rose-400'
+                }`}>
+                  <Radio className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono-code font-bold uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      LIVE SIGNAL ACTIVE
+                    </span>
+                    <h3 className="text-base font-military font-bold text-slate-100 tracking-wider">
+                      {sig.pair} — {sig.direction}
+                    </h3>
+                    <span className="text-[10px] font-mono-code text-slate-400">
+                      {sig.createdAt}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs font-mono-code mt-1 text-slate-300">
+                    <span>Entry: <strong className="text-cyan-400">{sig.entryPrice}</strong></span>
+                    <span>•</span>
+                    <span>SL: <strong className="text-rose-400">{sig.stopLoss}</strong></span>
+                    <span>•</span>
+                    <span>TP: <strong className="text-emerald-400">{sig.takeProfit1}</strong></span>
+                    {sig.strategyNotes && (
+                      <>
+                        <span className="hidden md:inline">•</span>
+                        <span className="hidden md:inline text-slate-400 truncate max-w-sm">{sig.strategyNotes}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => onNavigateToTab('SIGNALS')}
+                  className="px-3.5 py-1.5 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs tracking-wider transition shadow shadow-blue-500/20 cursor-pointer"
+                >
+                  VIEW SIGNAL SETUP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDismissedSignalIds((prev) => [...prev, sig.id])}
+                  className="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                  title="Dismiss banner from view"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* OWNER ANNOUNCEMENTS TOP BANNER */}
+      {announcements.filter((a) => !dismissedAnnIds.includes(a.id)).slice(0, 1).map((ann) => (
+        <div
+          key={ann.id}
+          className="border border-blue-500/40 rounded-2xl p-4 bg-gradient-to-r from-blue-950/30 via-slate-900 to-[#0B0F19] shadow-xl animate-in slide-in-from-top-3 fade-in duration-300"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-cyan-400 shrink-0">
+                <Bell className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono-code font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/20 text-cyan-400 border border-blue-500/30">
+                    ANNOUNCEMENT
+                  </span>
+                  <strong className="text-xs font-military font-bold text-slate-200">{ann.title}</strong>
+                  <span className="text-[10px] font-mono-code text-slate-400">{ann.timestamp}</span>
+                </div>
+                <p className="text-xs font-mono-code text-slate-300 mt-0.5 line-clamp-1">{ann.message}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => onNavigateToTab('SIGNALS')}
+                className="text-xs font-mono-code text-cyan-400 hover:text-cyan-300 underline cursor-pointer"
+              >
+                View Feed
+              </button>
+              <button
+                type="button"
+                onClick={() => setDismissedAnnIds((prev) => [...prev, ann.id])}
+                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+
       {/* Tactical Status Banner */}
       <div className={`border rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl transition ${
         readiness.status === 'RED'
@@ -350,15 +523,6 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           >
             <Brain className="w-3.5 h-3.5 text-cyan-400" />
             <span>PSYCHOLOGICAL CENTER</span>
-          </button>
-
-          <button
-            onClick={() => onNavigateToTab('AI_COACH')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-cyan-400 text-xs font-mono-code transition cursor-pointer"
-            title="Consult AI Trading Coach"
-          >
-            <Brain className="w-3.5 h-3.5 text-cyan-400" />
-            <span>AI TACTICAL BRIEFING</span>
           </button>
 
           <button

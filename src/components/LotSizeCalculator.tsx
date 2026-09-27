@@ -143,17 +143,67 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
     }
   };
 
-  // Detect specification for manually typed pair
-  const cleanPair = (instrument || '').toUpperCase().trim();
+  // Universal Dynamic Specification for ANY currency pair
+  const cleanPair = (instrument || '').toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
   const matchedSpec = DEFAULT_SPECS[cleanPair];
-  const isKnownPair = Boolean(matchedSpec);
+  const isCentAccount = currency === 'Cent' || currency === 'USC' || currency === 'CENT';
 
-  // Determine effective pip value per standard lot
-  let effectivePipValue = isCustomMode ? customPipValue : (matchedSpec ? matchedSpec.pipValuePerStandardLot : 10);
+  // Compute dynamic pair specifications if not in default table
+  const dynamicSpec: InstrumentSpec = useMemo(() => {
+    if (matchedSpec) return matchedSpec;
+
+    // Check metals
+    if (cleanPair.includes('XAU') || cleanPair.includes('GOLD')) {
+      return { name: cleanPair, category: 'METALS', pipValuePerStandardLot: 10, pipSize: 0.1, contractSize: 100, description: 'Gold / USD ($10 per 1.0 point / 10 pips)' };
+    }
+    if (cleanPair.includes('XAG') || cleanPair.includes('SILVER')) {
+      return { name: cleanPair, category: 'METALS', pipValuePerStandardLot: 50, pipSize: 0.01, contractSize: 5000, description: 'Silver / USD ($50 per 0.01 point)' };
+    }
+    if (cleanPair.includes('OIL') || cleanPair.includes('WTI') || cleanPair.includes('BRENT')) {
+      return { name: cleanPair, category: 'CUSTOM', pipValuePerStandardLot: 10, pipSize: 0.01, contractSize: 1000, description: 'Crude Oil ($10 per 0.01 point)' };
+    }
+    if (cleanPair.includes('US30') || cleanPair.includes('NAS100') || cleanPair.includes('SPX500') || cleanPair.includes('GER')) {
+      return { name: cleanPair, category: 'INDICES', pipValuePerStandardLot: 1, pipSize: 1.0, contractSize: 1, description: 'Index CFD ($1 per point)' };
+    }
+    if (cleanPair.includes('BTC') || cleanPair.includes('ETH')) {
+      return { name: cleanPair, category: 'CRYPTO', pipValuePerStandardLot: 1, pipSize: 1.0, contractSize: 1, description: 'Crypto ($1 per point)' };
+    }
+
+    // Forex pair: inspect quote currency (last 3 letters)
+    const isJpy = cleanPair.endsWith('JPY') || cleanPair.includes('JPY');
+    const isGbp = cleanPair.endsWith('GBP');
+    const isEur = cleanPair.endsWith('EUR');
+    const isCad = cleanPair.endsWith('CAD');
+    const isChf = cleanPair.endsWith('CHF');
+    const isAud = cleanPair.endsWith('AUD');
+    const isNzd = cleanPair.endsWith('NZD');
+
+    let pipVal = 10; // default USD quote
+    if (isJpy) pipVal = 6.8;
+    else if (isGbp) pipVal = 12.6;
+    else if (isEur) pipVal = 10.5;
+    else if (isCad) pipVal = 7.3;
+    else if (isChf) pipVal = 11.2;
+    else if (isAud) pipVal = 6.4;
+    else if (isNzd) pipVal = 5.8;
+
+    return {
+      name: cleanPair,
+      category: 'FOREX',
+      pipValuePerStandardLot: pipVal,
+      pipSize: isJpy ? 0.01 : 0.0001,
+      contractSize: 100000,
+      description: `${cleanPair} Forex Pair (~$${pipVal.toFixed(2)}/pip per standard lot)`,
+    };
+  }, [cleanPair, matchedSpec]);
+
+  // Determine effective pip value per standard lot or cent lot
+  // In Cent account: 1 Cent Lot = 1,000 units. Pip value in Cents equals standard pip value in USD (e.g. 10¢ = $0.10)
+  let effectivePipValue = isCustomMode ? customPipValue : dynamicSpec.pipValuePerStandardLot;
   if (effectivePipValue <= 0) effectivePipValue = 10;
   const effectivePipSize = isCustomMode
     ? Math.max(0.00000001, tickSize || 0.0001)
-    : (matchedSpec?.pipSize || 0.0001);
+    : dynamicSpec.pipSize;
   const priceDistance = Math.abs(entryPrice - stopLossPrice);
   const hasValidPriceLevels =
     stopLossInputMode === 'PRICE' &&
@@ -168,14 +218,14 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
   // 1. Maximum Risk Amount = Account Balance * (Risk Percentage / 100)
   const riskAmount = (Math.max(0, balance) * Math.max(0, riskPercent)) / 100;
 
-  // 2. Lot Size = Risk Amount / (Stop Loss in Pips * Pip Value per Standard Lot)
+  // 2. Lot Size = Risk Amount / (Stop Loss in Pips * Pip Value)
   const sl = Math.max(
     0.1,
     stopLossInputMode === 'PRICE' ? (derivedStopLossPips || 0) : (stopLossPips || 1),
   );
   const rawLotSize = riskAmount / (sl * effectivePipValue);
 
-  // Professional formatting (forex standard 2 decimal places, rounded down to avoid over-risking)
+  // Professional formatting (2 decimal places, rounded down to avoid over-risking)
   const recommendedLotSize = Math.max(0.01, Math.floor(rawLotSize * 100) / 100);
 
   // Estimated loss at Stop Loss
@@ -375,6 +425,8 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                   className="w-full px-3 py-3 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-sm text-slate-200 focus:outline-none focus:border-cyan-400"
                 >
                   <option value="USD">USD ($)</option>
+                  <option value="Cent">Cent (¢)</option>
+                  <option value="USC">USC (¢)</option>
                   <option value="PKR">PKR (Rs)</option>
                   <option value="EUR">EUR (€)</option>
                   <option value="GBP">GBP (£)</option>
@@ -385,6 +437,11 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                 </select>
               </div>
             </div>
+            {(currency === 'Cent' || currency === 'USC' || currency === 'CENT') && (
+              <div className="mt-2 p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-[11px] font-mono-code text-cyan-300">
+                <strong>Cent Account Mode:</strong> Lot size is calculated for Cent account parameters (1.00 Cent Lot = 1,000 units; 1 pip = 10¢). The 1% risk calculation correctly computes risk in cents.
+              </div>
+            )}
           </div>
 
           {/* 3. Risk Percentage & Presets */}
@@ -570,29 +627,40 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
             {/* Giant Recommended Lot Output */}
             <div className="text-center py-4 bg-slate-950/80 rounded-xl border border-slate-800/80 shadow-inner mb-4">
               <span className="text-[11px] font-mono-code text-slate-400 uppercase tracking-wider block">
-                YOUR RECOMMENDED LOT SIZE
+                {isCentAccount ? 'YOUR RECOMMENDED CENT LOT SIZE' : 'YOUR RECOMMENDED LOT SIZE'}
               </span>
               <div className="mt-1 flex items-baseline justify-center gap-2">
                 <span className="text-4xl sm:text-5xl font-mono-code font-black text-amber-300 tracking-tight">
                   {recommendedLotSize.toFixed(2)}
                 </span>
-                <span className="text-lg font-military font-bold text-slate-400">LOTS</span>
+                <span className="text-lg font-military font-bold text-slate-400">
+                  {isCentAccount ? 'CENT LOTS' : 'LOTS'}
+                </span>
               </div>
-              {/* Standard / Mini / Micro breakdown */}
+              {/* Standard / Mini / Micro / Cent breakdown */}
               <div className="mt-2.5 pt-2 border-t border-slate-800/80 grid grid-cols-3 gap-1 px-3 text-[11px] font-mono-code">
                 <div className="bg-slate-950/90 py-1 px-1.5 rounded border border-slate-800 text-center">
-                  <span className="text-slate-500 block text-[9px] uppercase">Standard (1.0)</span>
+                  <span className="text-slate-500 block text-[9px] uppercase">{isCentAccount ? 'Cent Lot (1.0)' : 'Standard (1.0)'}</span>
                   <span className="text-slate-200 font-bold">{recommendedLotSize.toFixed(2)}</span>
                 </div>
                 <div className="bg-slate-950/90 py-1 px-1.5 rounded border border-slate-800 text-center">
-                  <span className="text-slate-500 block text-[9px] uppercase">Mini (0.1)</span>
-                  <span className="text-amber-300 font-bold">{(recommendedLotSize * 10).toFixed(1)}</span>
+                  <span className="text-slate-500 block text-[9px] uppercase">{isCentAccount ? 'Std Equivalent' : 'Mini (0.1)'}</span>
+                  <span className="text-amber-300 font-bold">
+                    {isCentAccount ? (recommendedLotSize / 100).toFixed(4) : (recommendedLotSize * 10).toFixed(1)}
+                  </span>
                 </div>
                 <div className="bg-slate-950/90 py-1 px-1.5 rounded border border-slate-800 text-center">
-                  <span className="text-slate-500 block text-[9px] uppercase">Micro (0.01)</span>
-                  <span className="text-emerald-300 font-bold">{Math.round(recommendedLotSize * 100)}</span>
+                  <span className="text-slate-500 block text-[9px] uppercase">{isCentAccount ? 'USD Risk ($)' : 'Micro (0.01)'}</span>
+                  <span className="text-emerald-300 font-bold">
+                    {isCentAccount ? `$${(estimatedLossAtSL / 100).toFixed(2)}` : Math.round(recommendedLotSize * 100)}
+                  </span>
                 </div>
               </div>
+              {isCentAccount && (
+                <div className="mt-2 text-[10px] text-cyan-300 font-mono-code px-3 py-1 bg-blue-500/10 rounded-lg mx-3 border border-blue-500/20">
+                  Cent Account ($1 = 100¢): 1 Cent Lot = 1,000 units. Risk of {estimatedLossAtSL.toFixed(1)}¢ equals ${(estimatedLossAtSL / 100).toFixed(2)} USD.
+                </div>
+              )}
               <span className="text-[10px] font-mono-code text-slate-500 mt-2 block">
                 Formula: {formatCurrency(riskAmount, currency)} ÷ ({sl.toFixed(2)} pips × {formatCurrency(effectivePipValue, 'USD')})
               </span>

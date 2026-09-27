@@ -51,9 +51,10 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
   const [broker, setBroker] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const currencyOptions = ['USD', 'EUR', 'GBP', 'PKR', 'Custom'];
+  const currencyOptions = ['USD', 'EUR', 'GBP', 'PKR', 'Cent', 'USC', 'Custom'];
   const accountTypeOptions = [
     { id: 'Personal Account', label: 'Personal Account', mappedType: 'PERSONAL_LIVE' as AccountType },
+    { id: 'Cent Account', label: 'Cent Account (USC / ¢)', mappedType: 'PERSONAL_LIVE' as AccountType },
     { id: 'Prop Firm Challenge', label: 'Prop Firm Challenge', mappedType: 'PROP_FIRM_EVALUATION' as AccountType },
     { id: 'Live Funded Account', label: 'Live Funded Account', mappedType: 'PROP_FIRM_FUNDED' as AccountType },
     { id: 'Demo Account', label: 'Demo Account', mappedType: 'DEMO' as AccountType },
@@ -356,22 +357,27 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                   <label className="block text-xs font-mono-code uppercase text-slate-300 mb-1.5 font-semibold">
                     Account Currency
                   </label>
-                  <div className="grid grid-cols-5 gap-1">
+                  <div className="flex flex-wrap gap-1.5">
                     {currencyOptions.map((c) => (
                       <button
                         key={c}
                         type="button"
                         onClick={() => setCurrency(c)}
-                        className={`py-2 text-xs font-mono-code rounded-lg border transition font-bold text-center ${
+                        className={`px-3 py-2 text-xs font-mono-code rounded-lg border transition font-bold text-center ${
                           currency === c
                             ? 'bg-blue-500 text-slate-950 border-cyan-400'
                             : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
                         }`}
                       >
-                        {c}
+                        {c === 'Cent' ? 'Cent (¢)' : c}
                       </button>
                     ))}
                   </div>
+                  {(currency === 'Cent' || currency === 'USC') && (
+                    <div className="mt-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 text-[11px] font-mono-code text-cyan-300">
+                      <strong>Cent Account Parameters:</strong> All risk calculations (1% rule, stop-loss amount, lot sizing, and compounding) will be automatically scaled to Cent units.
+                    </div>
+                  )}
                   {currency === 'Custom' && (
                     <input
                       type="text"

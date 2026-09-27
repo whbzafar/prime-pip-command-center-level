@@ -17,8 +17,10 @@ import {
   Sliders,
   Edit3,
   Download,
+  Camera,
 } from 'lucide-react';
 import { generateSentimentReportPdf } from '../../utils/fundamentalPdfGenerator';
+import { SentimentImageExtractorModal } from './SentimentImageExtractorModal';
 
 export interface PairSentimentItem {
   pair: string;
@@ -134,6 +136,59 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
   const [drafts, setDrafts] = useState<Record<string, { long: string; short: string }>>({});
   const [editingPair, setEditingPair] = useState<string | null>(null);
   const [showAllOptional, setShowAllOptional] = useState<boolean>(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
+
+  const handleApplyExtractedSentiments = (
+    extracted: { pair: string; longPercent: number; shortPercent: number; notes?: string }[]
+  ) => {
+    setPairsData((prev) => {
+      const next = { ...prev };
+      for (const item of extracted) {
+        const pKey = item.pair;
+        const long = item.longPercent;
+        const short = item.shortPercent;
+        const bias = long > short ? 'BULLISH' : long < short ? 'BEARISH' : 'NEUTRAL';
+        const contrarianSignal = long > short ? 'BEARISH' : long < short ? 'BULLISH' : 'NEUTRAL';
+        if (next[pKey]) {
+          next[pKey] = {
+            ...next[pKey],
+            longPercent: long,
+            shortPercent: short,
+            bias,
+            contrarianSignal,
+            notes: item.notes || next[pKey].notes,
+            updatedAt: new Date().toISOString(),
+            isEntered: true,
+          };
+        } else {
+          const def = PAIRS_31_DEFINITIONS.find(
+            (d) => d.pair.replace(/\//g, '').toUpperCase() === pKey.replace(/\//g, '').toUpperCase()
+          );
+          next[pKey] = {
+            pair: def?.pair || pKey,
+            name: def?.name || pKey,
+            category: def?.category || 'MAJOR',
+            flags: def?.flags || '🌐',
+            longPercent: long,
+            shortPercent: short,
+            bias,
+            contrarianSignal,
+            sampleSize: def?.sampleSize || 'Broker Network',
+            source: 'Uploaded Screenshot / PDF Extraction',
+            notes: item.notes || 'Extracted via optical intelligence.',
+            updatedAt: new Date().toISOString(),
+            isEntered: true,
+          };
+        }
+      }
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setSentimentMessage(`✓ Applied ${extracted.length} sentiment positions extracted from document.`);
+    setIsUploadModalOpen(false);
+  };
 
   useEffect(() => {
     try {
@@ -397,6 +452,15 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsUploadModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-military font-bold transition cursor-pointer flex items-center gap-1.5 shadow-sm shadow-amber-500/10"
+              title="Upload PDF or Screenshot of Retail Sentiment to extract long/short percentages"
+            >
+              <Camera className="w-3.5 h-3.5 text-amber-400" />
+              <span>UPLOAD IMAGE / PDF</span>
+            </button>
             <button
               type="button"
               onClick={() => generateSentimentReportPdf(Object.values(pairsData))}
@@ -725,6 +789,14 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
           </p>
         </div>
       </section>
+
+      {/* Extractor Modal */}
+      <SentimentImageExtractorModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onApplySentiments={handleApplyExtractedSentiments}
+        existingSentiments={pairsData}
+      />
     </div>
   );
 };

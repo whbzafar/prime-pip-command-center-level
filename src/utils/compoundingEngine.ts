@@ -48,6 +48,10 @@ export interface CompoundingDayRow {
   endBalance: number;
   nextRisk: number;
   projectedDrawdownBalance: number; // simulated conservative dip
+  outcome: 'TP_HIT' | 'SL_HIT' | 'MIXED' | 'BREAK_EVEN';
+  winCount: number;
+  lossCount: number;
+  tradesDetail?: { tradeNum: number; result: 'TP_HIT' | 'SL_HIT'; pnl: number }[];
 }
 
 export interface CompoundingResult {
@@ -64,6 +68,10 @@ export interface CompoundingResult {
   averageMonthlyGainDollars: number;
   expectedValuePerTrade: number;
   maxSimulatedDrawdownDollars: number;
+  totalSimulatedTrades: number;
+  totalWins: number;
+  totalLosses: number;
+  simulatedWinRatePercent: number;
 }
 
 /**
@@ -135,14 +143,34 @@ export function calculateCompoundingProjection(inputs: CompoundingInputs): Compo
     : Math.round(inputs.calculationMonths * (inputs.tradingDaysPerMonth || 21));
 
   const safeDays = Math.min(365, Math.max(1, totalDays));
-  const winRateFrac = Math.max(0.1, Math.min(0.95, inputs.expectedWinRate / 100));
+  const winRateFrac = Math.max(0.05, Math.min(0.95, inputs.expectedWinRate / 100));
   const rr = Math.max(0.5, inputs.riskRewardRatio);
   const tradesPerDay = Math.max(1, Math.min(10, inputs.tradesPerDay));
+  const totalTrades = safeDays * tradesPerDay;
+
+  // Generate deterministic win/loss distribution exactly matching expectedWinRate
+  const targetWins = Math.round(totalTrades * winRateFrac);
+  const tradeOutcomes: boolean[] = [];
+  
+  // Bresenham-like balanced distribution with deterministic organic spacing
+  let winAccumulator = 0;
+  for (let i = 0; i < totalTrades; i++) {
+    winAccumulator += targetWins;
+    if (winAccumulator >= totalTrades) {
+      tradeOutcomes.push(true);
+      winAccumulator -= totalTrades;
+    } else {
+      tradeOutcomes.push(false);
+    }
+  }
 
   let currentBalance = Math.max(10, inputs.startingBalance);
-  const rows: CompoundingDayRow[] = [];
+  let peakBalance = currentBalance;
+  let maxDrawdownDollars = 0;
+  let totalWins = 0;
+  let totalLosses = 0;
 
-  let maxSimulatedDip = 0;
+  const rows: CompoundingDayRow[] = [];
 
   // Initialize starting date (adjusting if starting date falls on a weekend)
   let currentDate = inputs.startDate ? new Date(inputs.startDate) : new Date();
@@ -155,7 +183,7 @@ export function calculateCompoundingProjection(inputs: CompoundingInputs): Compo
     currentDate.setDate(currentDate.getDate() + 2);
   }
 
-  const firstDate = new Date(currentDate);
+  let tradeCursor = 0;
 
   for (let day = 1; day <= safeDays; day++) {
     if (day > 1) {
@@ -169,18 +197,37 @@ export function calculateCompoundingProjection(inputs: CompoundingInputs): Compo
       ? Math.max(1, inputs.fixedRiskAmount)
       : (startBal * Math.max(0.1, inputs.riskPercent)) / 100;
 
-    // Mathematical Expected Value per trade:
-    // EV = (P(Win) * RR * Risk) - (P(Loss) * Risk)
-    // EV = Risk * (P(Win) * (RR + 1) - 1)
-    const evPerTrade = (winRateFrac * rr * riskPerTrade) - ((1 - winRateFrac) * riskPerTrade);
-    const dayPnl = evPerTrade * tradesPerDay;
+    let dayPnl = 0;
+    let dayWins = 0;
+    let dayLosses = 0;
+    const tradesDetail: { tradeNum: number; result: 'TP_HIT' | 'SL_HIT'; pnl: number }[] = [];
+
+    for (let t = 1; t <= tradesPerDay; t++) {
+      const isWin = tradeOutcomes[tradeCursor] ?? (Math.random() < winRateFrac);
+      tradeCursor++;
+
+      if (isWin) {
+        const winPnl = Number((riskPerTrade * rr).toFixed(2));
+        dayPnl += winPnl;
+        dayWins++;
+        totalWins++;
+        tradesDetail.push({ tradeNum: t, result: 'TP_HIT', pnl: winPnl });
+      } else {
+        const lossPnl = -Number(riskPerTrade.toFixed(2));
+        dayPnl += lossPnl;
+        dayLosses++;
+        totalLosses++;
+        tradesDetail.push({ tradeNum: t, result: 'SL_HIT', pnl: lossPnl });
+      }
+    }
 
     const endBal = Math.max(0, startBal + dayPnl);
-
-    // Simulated 3-consecutive-loss conservative drawdown scenario
-    const simulatedDip = endBal - (3 * riskPerTrade);
-    if (endBal - simulatedDip > maxSimulatedDip) {
-      maxSimulatedDip = endBal - simulatedDip;
+    if (endBal > peakBalance) {
+      peakBalance = endBal;
+    }
+    const currentDip = peakBalance - endBal;
+    if (currentDip > maxDrawdownDollars) {
+      maxDrawdownDollars = currentDip;
     }
 
     const nextRisk = inputs.compoundingMode === 'FIXED_RISK'
@@ -193,6 +240,15 @@ export function calculateCompoundingProjection(inputs: CompoundingInputs): Compo
     const dateStr = `${y}-${m}-${d}`;
     const dayOfWeek = DAY_NAMES[currentDate.getDay()];
 
+    const outcome: 'TP_HIT' | 'SL_HIT' | 'MIXED' | 'BREAK_EVEN' =
+      dayWins > 0 && dayLosses === 0
+        ? 'TP_HIT'
+        : dayLosses > 0 && dayWins === 0
+        ? 'SL_HIT'
+        : dayPnl === 0
+        ? 'BREAK_EVEN'
+        : 'MIXED';
+
     rows.push({
       day,
       dateStr,
@@ -201,7 +257,11 @@ export function calculateCompoundingProjection(inputs: CompoundingInputs): Compo
       pnl: Number(dayPnl.toFixed(2)),
       endBalance: Number(endBal.toFixed(2)),
       nextRisk: Number(nextRisk.toFixed(2)),
-      projectedDrawdownBalance: Number(Math.max(0, simulatedDip).toFixed(2)),
+      projectedDrawdownBalance: Number(Math.max(0, peakBalance - maxDrawdownDollars).toFixed(2)),
+      outcome,
+      winCount: dayWins,
+      lossCount: dayLosses,
+      tradesDetail,
     });
 
     currentBalance = endBal;
@@ -219,29 +279,24 @@ export function calculateCompoundingProjection(inputs: CompoundingInputs): Compo
     : (inputs.startingBalance * inputs.riskPercent) / 100;
   const expectedValuePerTrade = (winRateFrac * rr * baseRisk) - ((1 - winRateFrac) * baseRisk);
 
-  const totalCalendarDaysSpan = rows.length > 0
-    ? Math.round((currentDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-    : safeDays;
-
-  const weeklyRows = aggregateWeeklyProjections(rows);
-  const monthlyRows = aggregateMonthlyProjections(rows, inputs.tradingDaysPerMonth || 21);
-  const averageWeeklyGainDollars = weeklyRows.length > 0 ? totalProjectedGainDollars / weeklyRows.length : 0;
-  const averageMonthlyGainDollars = monthlyRows.length > 0 ? totalProjectedGainDollars / monthlyRows.length : 0;
-
   return {
     rows,
-    weeklyRows,
-    monthlyRows,
+    weeklyRows: aggregateWeeklyProjections(rows),
+    monthlyRows: aggregateMonthlyProjections(rows),
     totalDays: safeDays,
-    totalCalendarDaysSpan,
+    totalCalendarDaysSpan: rows.length > 0 ? Math.round((new Date(rows[rows.length - 1].dateStr).getTime() - new Date(rows[0].dateStr).getTime()) / (1000 * 60 * 60 * 24)) + 1 : safeDays,
     finalProjectedBalance: Number(finalProjectedBalance.toFixed(2)),
     totalProjectedGainDollars: Number(totalProjectedGainDollars.toFixed(2)),
     totalProjectedReturnPercent: Number(totalProjectedReturnPercent.toFixed(2)),
     averageDailyGainDollars: Number(averageDailyGainDollars.toFixed(2)),
-    averageWeeklyGainDollars: Number(averageWeeklyGainDollars.toFixed(2)),
-    averageMonthlyGainDollars: Number(averageMonthlyGainDollars.toFixed(2)),
+    averageWeeklyGainDollars: Number((averageDailyGainDollars * 5).toFixed(2)),
+    averageMonthlyGainDollars: Number((averageDailyGainDollars * 21).toFixed(2)),
     expectedValuePerTrade: Number(expectedValuePerTrade.toFixed(2)),
-    maxSimulatedDrawdownDollars: Number(maxSimulatedDip.toFixed(2)),
+    maxSimulatedDrawdownDollars: Number(maxDrawdownDollars.toFixed(2)),
+    totalSimulatedTrades: totalTrades,
+    totalWins,
+    totalLosses,
+    simulatedWinRatePercent: totalTrades > 0 ? Math.round((totalWins / totalTrades) * 100) : 0,
   };
 }
 

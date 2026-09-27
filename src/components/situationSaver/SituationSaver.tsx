@@ -1379,7 +1379,7 @@ const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
   };
 
   const handleToggleRetracement = (tf: string, level: string) => {
-    const current = timeframeConfigs[tf]?.fibonacciRetracements || ['0.238', '0.38', '0.50'];
+    const current = timeframeConfigs[tf]?.fibonacciRetracements ?? ['0.238', '0.38', '0.50'];
     const next = current.includes(level)
       ? current.filter((l) => l !== level)
       : [...current, level];
@@ -1389,7 +1389,7 @@ const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
   const handleAddCustomRetracement = (tf: string) => {
     const val = customRetracementInput.trim();
     if (!val) return;
-    const current = timeframeConfigs[tf]?.fibonacciRetracements || ['0.238', '0.38', '0.50'];
+    const current = timeframeConfigs[tf]?.fibonacciRetracements ?? ['0.238', '0.38', '0.50'];
     if (!current.includes(val)) {
       const next = [...current, val];
       handleUpdateTfConfig(tf, { fibonacciRetracements: next, fibonacciLevels: next });
@@ -1398,20 +1398,20 @@ const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
   };
 
   const handleToggleTarget = (tf: string, targetVal: string) => {
-    const current = timeframeConfigs[tf]?.fibonacciTargets || ['1.414', '1.618'];
+    const current = timeframeConfigs[tf]?.fibonacciTargets ?? ['1.414', '1.618'];
     const next = current.includes(targetVal)
       ? current.filter((t) => t !== targetVal)
       : [...current, targetVal];
     handleUpdateTfConfig(tf, {
       fibonacciTargets: next,
-      finalTarget: next[0] || '1.618',
+      finalTarget: next[0] || '',
     });
   };
 
   const handleAddCustomTarget = (tf: string) => {
     const val = customTargetInput.trim();
     if (!val) return;
-    const current = timeframeConfigs[tf]?.fibonacciTargets || ['1.414', '1.618'];
+    const current = timeframeConfigs[tf]?.fibonacciTargets ?? ['1.414', '1.618'];
     if (!current.includes(val)) {
       const next = [...current, val];
       handleUpdateTfConfig(tf, {
@@ -1486,8 +1486,8 @@ const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
     onSave(savedRecord);
   };
 
-  const currentRetracements = timeframeConfigs[activeTf]?.fibonacciRetracements || ['0.238', '0.38', '0.50'];
-  const currentTargets = timeframeConfigs[activeTf]?.fibonacciTargets || ['1.414', '1.618'];
+  const currentRetracements = timeframeConfigs[activeTf]?.fibonacciRetracements ?? ['0.238', '0.38', '0.50'];
+  const currentTargets = timeframeConfigs[activeTf]?.fibonacciTargets ?? ['1.414', '1.618'];
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
@@ -1654,7 +1654,7 @@ const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {['0.238', '0.38', '0.50'].map((fib) => {
-                      const isSelected = (timeframeConfigs[activeTf]?.fibonacciRetracements || ['0.238', '0.38', '0.50']).includes(fib);
+                      const isSelected = (timeframeConfigs[activeTf]?.fibonacciRetracements ?? ['0.238', '0.38', '0.50']).includes(fib);
                       return (
                         <button
                           key={fib}
@@ -1730,7 +1730,7 @@ const CreateSituationModal: React.FC<CreateSituationModalProps> = ({
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {['1.414', '1.618'].map((tgt) => {
-                      const isSelected = (timeframeConfigs[activeTf]?.fibonacciTargets || ['1.414', '1.618']).includes(tgt);
+                      const isSelected = (timeframeConfigs[activeTf]?.fibonacciTargets ?? ['1.414', '1.618']).includes(tgt);
                       return (
                         <button
                           key={tgt}

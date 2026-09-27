@@ -1,8 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { X, Upload, Camera, Sparkles, Check, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
-import { CurrencyCode, CotPositioningRecord } from '../../types/fundamentalIndicatorTypes';
+import { CurrencyCode, CotPositioningRecord, CotAssetCode } from '../../types/fundamentalIndicatorTypes';
 import { CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
 import { extractCotFromImage } from '../../services/fundamentalLiveResearchService';
+
+const getAssetFlag = (code: CotAssetCode) => {
+  if (code === 'XAU') return '🥇';
+  if (code === 'XAG') return '🥈';
+  if (code === 'OIL') return '🛢️';
+  return (CURRENCY_METADATA as any)[code]?.flag || '🌐';
+};
 
 interface CotImageExtractorModalProps {
   isOpen: boolean;
@@ -12,7 +19,7 @@ interface CotImageExtractorModalProps {
 }
 
 interface ExtractedCotRow {
-  currency: CurrencyCode;
+  currency: CotAssetCode;
   selected: boolean;
   contractName: string;
   openInterest: number;
@@ -82,13 +89,23 @@ export const CotImageExtractorModal: React.FC<CotImageExtractorModalProps> = ({
         throw new Error(res.error || 'No COT data could be extracted from this document.');
       }
 
+      const normalizeCotAsset = (raw: string): CotAssetCode => {
+        const u = (raw || '').toUpperCase().trim();
+        if (u.includes('GOLD') || u === 'XAU' || u === 'GC') return 'XAU';
+        if (u.includes('SILVER') || u === 'XAG' || u === 'SI') return 'XAG';
+        if (u.includes('OIL') || u.includes('CRUDE') || u === 'CL' || u === 'WTI') return 'OIL';
+        const validG8: CurrencyCode[] = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
+        if (validG8.includes(u as CurrencyCode)) return u as CurrencyCode;
+        return 'USD';
+      };
+
       const rows: ExtractedCotRow[] = res.records.map((r: any) => {
-        const curr = (String(r.currency || 'USD').toUpperCase()) as CurrencyCode;
+        const curr = normalizeCotAsset(r.currency);
         const existing = existingRecords.find((ex) => ex.currency === curr);
         return {
           currency: curr,
           selected: true,
-          contractName: r.contractName || existing?.contractName || `${curr} Futures (CME)`,
+          contractName: r.contractName || existing?.contractName || (curr === 'XAU' ? 'Gold Futures (COMEX)' : curr === 'XAG' ? 'Silver Futures (COMEX)' : curr === 'OIL' ? 'Crude Oil Light Sweet (NYMEX WTI)' : `${curr} Futures (CME)`),
           openInterest: typeof r.openInterest === 'number' ? r.openInterest : (existing?.openInterest ?? 100000),
           nonCommercialLong: typeof r.nonCommercialLong === 'number' ? r.nonCommercialLong : (existing?.nonCommercialLong ?? 40000),
           nonCommercialShort: typeof r.nonCommercialShort === 'number' ? r.nonCommercialShort : (existing?.nonCommercialShort ?? 30000),
@@ -311,7 +328,7 @@ export const CotImageExtractorModal: React.FC<CotImageExtractorModalProps> = ({
                                 />
                               </td>
                               <td className="p-2 font-bold text-white flex items-center gap-1.5">
-                                <span>{CURRENCY_METADATA[row.currency]?.flag}</span>
+                                <span>{getAssetFlag(row.currency)}</span>
                                 <span>{row.currency}</span>
                               </td>
                               <td className="p-2 text-right">

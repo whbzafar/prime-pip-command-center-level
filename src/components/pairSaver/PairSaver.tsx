@@ -637,9 +637,9 @@ const PairScenarioModal: React.FC<PairScenarioModalProps> = ({
           ? existing.retracements
           : (initialScenario?.retracements && initialScenario.retracements.length > 0 ? initialScenario.retracements : ['0.23', '0.38', '0.50']),
         customRetracement: existing?.customRetracement || '',
-        finalTarget: existing?.finalTarget || (initialScenario?.finalTargets?.[0] || '1.618'),
+        finalTarget: existing?.finalTarget !== undefined ? existing.finalTarget : (initialScenario?.finalTargets?.[0] || ''),
         customFinalTarget: existing?.customFinalTarget || '',
-        optionalTarget: existing?.optionalTarget || '2.0',
+        optionalTarget: existing?.optionalTarget !== undefined ? existing.optionalTarget : (initialScenario?.optionalTargets?.[0] || ''),
         customOptionalTarget: existing?.customOptionalTarget || '',
         notes: existing?.notes || '',
       };
@@ -973,7 +973,7 @@ const PairScenarioModal: React.FC<PairScenarioModalProps> = ({
                         <button
                           key={tgt}
                           type="button"
-                          onClick={() => handleUpdateTfDetail(activeTfTab, { finalTarget: tgt })}
+                          onClick={() => handleUpdateTfDetail(activeTfTab, { finalTarget: isSelected ? '' : tgt })}
                           className={`px-2.5 py-1 rounded text-xs font-bold transition cursor-pointer ${
                             isSelected
                               ? 'bg-amber-500/30 text-amber-200 border border-amber-400'
@@ -1021,7 +1021,7 @@ const PairScenarioModal: React.FC<PairScenarioModalProps> = ({
                         <button
                           key={opt}
                           type="button"
-                          onClick={() => handleUpdateTfDetail(activeTfTab, { optionalTarget: opt })}
+                          onClick={() => handleUpdateTfDetail(activeTfTab, { optionalTarget: isSelected ? '' : opt })}
                           className={`px-2.5 py-1 rounded text-xs font-bold transition cursor-pointer ${
                             isSelected
                               ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-400'

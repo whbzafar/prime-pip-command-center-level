@@ -72,6 +72,7 @@ import { AllCategoriesModal } from './components/AllCategoriesModal';
 import { CommunicationNotifications } from './components/CommunicationNotifications';
 import { SituationSaver } from './components/situationSaver/SituationSaver';
 import { PairSaver } from './components/pairSaver/PairSaver';
+import { ProTradingView } from './components/ProTradingView';
 
 export default function App() {
   // Navigation State
@@ -934,11 +935,14 @@ export default function App() {
         )}
 
         {activeTab === 'FREEHAND_WORKSPACE' && (
-          <FreehandWorkspace userKey={currentUser?.id || currentUser?.email || 'guest'} />
+          <FreehandWorkspace
+            userKey={currentUser?.id || currentUser?.email || 'guest'}
+            onNavigateTab={(tab) => setActiveTab(tab as MainNavTab)}
+          />
         )}
 
         {activeTab === 'PRO_LEARNING' && (
-          <ProLearningTrading />
+          <ProLearningTrading onNavigateTab={(tab) => setActiveTab(tab as MainNavTab)} />
         )}
 
         {activeTab === 'COMMUNITY' && (
@@ -1013,6 +1017,10 @@ export default function App() {
               setIsEntryModalOpen(true);
             }}
           />
+        )}
+
+        {activeTab === 'PRO_TRADING' && (
+          <ProTradingView onOpenNewTrade={() => setIsEntryModalOpen(true)} />
         )}
 
         {(activeTab === 'DAILY_DEV' || activeTab === 'IMPROVEMENT' || activeTab === 'BACKTESTING') && (

@@ -328,7 +328,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
             <div className="space-y-1.5 pt-2 border-t border-slate-800/80">
               <label className="text-slate-400 text-xs font-mono-code block">Currency Mode</label>
               <div className="flex flex-wrap gap-1 text-xs font-mono-code">
-                {['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'PKR'].map((cur) => (
+                {['USD', 'Cent', 'USC', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'PKR'].map((cur) => (
                   <button
                     key={cur}
                     type="button"
@@ -339,10 +339,16 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                         : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                     }`}
                   >
-                    {cur} ({getCurrencySymbol(cur).trim()})
+                    {cur === 'Cent' ? 'Cent (¢)' : cur === 'USC' ? 'USC (¢)' : `${cur} (${getCurrencySymbol(cur).trim()})`}
                   </button>
                 ))}
               </div>
+
+              {(currency === 'Cent' || currency === 'USC') && (
+                <div className="mt-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 text-[10px] font-mono-code text-cyan-300">
+                  <strong className="text-cyan-400 uppercase">CENT ACCOUNT FORMULA:</strong> $1.00 USD = 100 Cents (¢). If you deposit $100.00, your balance is 10,000 cents. All compounding projections, lot sizes, and risk amounts operate in exact cent units (1¢ precision).
+                </div>
+              )}
             </div>
 
             {/* 2. Compounding Mode Selection (Item 6) */}
@@ -619,6 +625,14 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                   <h4 className="text-xs font-military font-bold text-slate-200 tracking-wider">
                     PROJECTION SCHEDULE ({currency})
                   </h4>
+                  {/* Win/Loss simulation summary indicator */}
+                  <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                    <strong className="text-emerald-400">{projection.totalWins} TP Hits</strong>
+                    {' • '}
+                    <strong className="text-rose-400">{projection.totalLosses} SL Hits</strong>
+                    {' • '}
+                    <span className="text-cyan-400 font-bold">{projection.simulatedWinRatePercent}% Win Rate</span>
+                  </span>
                   {/* Schedule View Mode Switcher */}
                   <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded border border-slate-800 text-[10px] font-mono-code">
                     <button
@@ -668,6 +682,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                       <tr className="text-[10px] text-slate-400 border-b border-slate-800">
                         <th className="py-2 px-2">TRADING DAY</th>
                         <th className="py-2 px-2">MARKET DATE (MON-FRI)</th>
+                        <th className="py-2 px-2">OUTCOME</th>
                         <th className="py-2 px-2">START BALANCE</th>
                         <th className="py-2 px-2">PROFIT / LOSS</th>
                         <th className="py-2 px-2">END BALANCE</th>
@@ -686,8 +701,31 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                             </span>
                             <span>{row.dateStr}</span>
                           </td>
+                          <td className="py-1.5 px-2">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-military font-bold uppercase tracking-wider ${
+                                row.outcome === 'TP_HIT'
+                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                  : row.outcome === 'SL_HIT'
+                                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                  : 'bg-blue-500/20 text-cyan-400 border border-blue-500/30'
+                              }`}
+                            >
+                              {row.outcome === 'TP_HIT'
+                                ? 'TP HIT'
+                                : row.outcome === 'SL_HIT'
+                                ? 'SL HIT'
+                                : row.outcome === 'BREAK_EVEN'
+                                ? 'BREAK-EVEN'
+                                : `${row.winCount}W / ${row.lossCount}L`}
+                            </span>
+                          </td>
                           <td className="py-1.5 px-2 text-slate-300">{formatCurrency(row.startBalance, currency)}</td>
-                          <td className="py-1.5 px-2 text-emerald-400 font-bold">+{formatCurrency(row.pnl, currency)}</td>
+                          <td className={`py-1.5 px-2 font-bold ${
+                            row.pnl > 0 ? 'text-emerald-400' : row.pnl < 0 ? 'text-rose-400' : 'text-slate-400'
+                          }`}>
+                            {row.pnl > 0 ? `+${formatCurrency(row.pnl, currency)}` : row.pnl < 0 ? `-${formatCurrency(Math.abs(row.pnl), currency)}` : formatCurrency(0, currency)}
+                          </td>
                           <td className="py-1.5 px-2 text-amber-300 font-bold">{formatCurrency(row.endBalance, currency)}</td>
                           <td className="py-1.5 px-2 text-right text-slate-400">{formatCurrency(row.nextRisk, currency)}</td>
                         </tr>

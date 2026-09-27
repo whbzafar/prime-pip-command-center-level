@@ -28,6 +28,7 @@ import {
   Sparkles,
   Lock,
   Bookmark,
+  CandlestickChart,
 } from 'lucide-react';
 import { MainNavTab } from './Header';
 import { UserAccount } from '../types';
@@ -126,15 +127,26 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
     num: '09',
     label: 'Premium Signals',
     name: 'Institutional Signals Hub',
-    desc: 'Verified alpha signals, real-time setups, entry/exit notifications, and institutional confluences.',
+    desc: 'Live verified alpha signals, real-time setups, entry/exit notifications, and institutional confluences.',
     section: 'Intelligence & Setups',
     icon: Radio,
-    comingSoon: true,
+    comingSoon: false,
+    isLive: true,
+    highlight: true,
+  },
+  {
+    id: 'PRO_TRADING',
+    num: '10',
+    label: 'Pro Trading',
+    name: 'Pro Trading (Live Charts)',
+    desc: 'Full TradingView charting terminal with real-time multi-asset quotes, broker selection, indicators, and complete drawing toolset.',
+    section: 'Intelligence & Setups',
+    icon: CandlestickChart,
     highlight: true,
   },
   {
     id: 'COMPOUNDING',
-    num: '10',
+    num: '11',
     label: 'Compounding Tools',
     name: 'Compounding Engine',
     desc: 'Long-term equity compounding simulator, target milestones, and risk-adjusted growth trajectories.',
@@ -498,6 +510,12 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
                           {cat.comingSoon && (
                             <span className="flex items-center gap-0.5 text-[8px] font-mono-code px-1.5 py-0.5 rounded bg-blue-500/10 text-cyan-300 border border-blue-500/30">
                               <Lock className="w-2.5 h-2.5" /> SOON
+                            </span>
+                          )}
+                          {(cat as any).isLive && (
+                            <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              LIVE
                             </span>
                           )}
                           {cat.highlight && !isCurrent && (

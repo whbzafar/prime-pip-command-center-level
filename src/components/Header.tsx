@@ -49,6 +49,7 @@ import {
   Plus,
   Minus,
   Bookmark,
+  CandlestickChart,
 } from 'lucide-react';
 import { BrightnessController } from './BrightnessController';
 import { applyInterfaceTemplate, getTemplateById } from '../data/interfaceTemplates';
@@ -90,7 +91,8 @@ export type MainNavTab =
   | 'EVOLUTION'
   | 'PRO_LEARNING'
   | 'SITUATION_SAVER'
-  | 'PAIR_SAVER';
+  | 'PAIR_SAVER'
+  | 'PRO_TRADING';
 
 interface HeaderProps {
   activeTab: MainNavTab;
@@ -402,8 +404,9 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'PRE_TRADE_PLAN' as MainNavTab, label: '06. PRE-TRADE PLAN', icon: ShieldAlert, highlight: true },
     { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: '07. LIVE NEWS CALENDAR', icon: Calendar, highlight: true },
     { id: 'FUNDAMENTAL_INDICATORS' as MainNavTab, label: '08. FUNDAMENTAL INDICATORS', icon: Globe, highlight: true },
-    { id: 'SIGNALS' as MainNavTab, label: '09. PREMIUM SIGNALS', icon: Radio, highlight: true, comingSoon: true, locked: true },
-    { id: 'COMPOUNDING' as MainNavTab, label: '10. COMPOUNDING TOOLS', icon: Calculator },
+    { id: 'SIGNALS' as MainNavTab, label: '09. PREMIUM SIGNALS', icon: Radio, highlight: true, comingSoon: false, locked: false, isLive: true },
+    { id: 'PRO_TRADING' as MainNavTab, label: '10. PRO TRADING', icon: CandlestickChart, highlight: true },
+    { id: 'COMPOUNDING' as MainNavTab, label: '11. COMPOUNDING TOOLS', icon: Calculator },
     { id: 'PERFORMANCE' as MainNavTab, label: '11. PERFORMANCE REPORT', icon: BarChart3 },
     { id: 'DAILY_DEV' as MainNavTab, label: '12. DAILY DEVELOPMENT', icon: Award },
     { id: 'PSYCHOLOGY' as MainNavTab, label: '13. PSYCHOLOGICAL CENTER', icon: Brain, highlight: true },
@@ -1125,6 +1128,12 @@ export const Header: React.FC<HeaderProps> = ({
                   {isComingSoon && (
                     <span className="text-[8px] bg-blue-500/20 text-cyan-300 border border-blue-500/40 px-1 rounded uppercase">
                       SOON
+                    </span>
+                  )}
+                  {(item as any).isLive && (
+                    <span className="flex items-center gap-1 text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-1.5 py-0.5 rounded font-bold uppercase shadow-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      LIVE
                     </span>
                   )}
                 </button>
