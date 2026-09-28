@@ -4614,7 +4614,7 @@ app.post('/api/user/heartbeat', async (req, res) => {
   }
 });
 
-app.patch('/api/user/presence-privacy', (req, res) => {
+app.patch('/api/user/presence-privacy', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
