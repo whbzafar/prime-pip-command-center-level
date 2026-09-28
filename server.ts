@@ -5456,7 +5456,7 @@ app.get('/api/users/block/:userId', async (req, res) => {
 app.get('/api/groups', async (req, res) => {
   try {
     const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    const user = await getCommunityUser(req); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isSupabaseCommunityEnabled) return res.json({ ok: true, groups: [] });
     return res.json({ ok: true, groups: await listChatGroups(user.id) });
   } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
@@ -5465,7 +5465,7 @@ app.get('/api/groups', async (req, res) => {
 app.post('/api/groups', async (req, res) => {
   try {
     const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    const user = await getCommunityUser(req); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isSupabaseCommunityEnabled) return res.status(503).json({ ok: false, error: 'Groups require the durable Supabase community backend.' });
     const name = String(req.body?.name || '').trim();
     const memberIds = Array.isArray(req.body?.memberIds) ? req.body.memberIds.map(String) : [];
@@ -5482,7 +5482,7 @@ app.post('/api/groups', async (req, res) => {
 app.get('/api/groups/:groupId/members', async (req, res) => {
   try {
     const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    const user = await getCommunityUser(req); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isSupabaseCommunityEnabled || !(await isGroupMember(req.params.groupId, user.id))) return res.status(403).json({ ok: false, error: 'You are not a member of this group.' });
     return res.json({ ok: true, members: await listChatGroupMembers(req.params.groupId) });
   } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
@@ -5491,7 +5491,7 @@ app.get('/api/groups/:groupId/members', async (req, res) => {
 app.post('/api/groups/:groupId/members', async (req, res) => {
   try {
     const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    const user = await getCommunityUser(req); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isSupabaseCommunityEnabled) return res.status(503).json({ ok: false, error: 'Groups require the durable Supabase community backend.' });
     const groupId = req.params.groupId; const members = await listChatGroupMembers(groupId); const me = members.find((member: any) => member.userId === user.id);
     if (!me || !['OWNER','ADMIN'].includes(me.role)) return res.status(403).json({ ok: false, error: 'Only group admins can add members.' });
@@ -5507,7 +5507,7 @@ app.post('/api/groups/:groupId/members', async (req, res) => {
 app.get('/api/groups/:groupId/messages', async (req, res) => {
   try {
     const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    const user = await getCommunityUser(req); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isSupabaseCommunityEnabled || !(await isGroupMember(req.params.groupId, user.id))) return res.status(403).json({ ok: false, error: 'You are not a member of this group.' });
     return res.json({ ok: true, messages: await readGroupMessages(req.params.groupId) });
   } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
@@ -5516,7 +5516,7 @@ app.get('/api/groups/:groupId/messages', async (req, res) => {
 app.post('/api/groups/:groupId/messages', async (req, res) => {
   try {
     const token = getAuthToken(req); if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+    const user = await getCommunityUser(req); if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isSupabaseCommunityEnabled || !(await isGroupMember(req.params.groupId, user.id))) return res.status(403).json({ ok: false, error: 'You are not a member of this group.' });
     const text = String(req.body?.text || '').trim();
     if (!text) return res.status(400).json({ ok: false, error: 'Message text is required.' });
