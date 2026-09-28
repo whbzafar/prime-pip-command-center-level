@@ -259,6 +259,12 @@ app.use(async (req, res, next) => {
         if (user) {
           const { cacheAuthenticatedUser } = await import('./server/authService.js');
           cacheAuthenticatedUser(refreshed.access_token, user);
+          supabaseAuthCache.set(refreshed.access_token, { userId: user.id, expiresAt: Date.now() + 55 * 60 * 1000 });
+          // res.cookie() does not mutate req.cookies, so subsequent Community
+          // handlers must use the freshly refreshed token on this same request.
+          req.cookies = req.cookies || {};
+          req.cookies.primepipfx_session = refreshed.access_token;
+          req.headers.authorization = `Bearer ${refreshed.access_token}`;
           res.cookie('primepipfx_session', refreshed.access_token, {
             httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL),
             sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000, path: '/',
@@ -3346,8 +3352,12 @@ async function getCommunityUser(req: express.Request): Promise<StoredUser | null
   }
 
   for (const token of candidates) {
-    const localUser = getUserByToken(token);
-    if (localUser) return localUser;
+    try {
+      const localUser = getUserByToken(token);
+      if (localUser) return localUser;
+    } catch (error) {
+      console.warn('[AUTH] Local community session lookup failed:', error instanceof Error ? error.message : error);
+    }
   }
   return null;
 }
