@@ -44,6 +44,7 @@ export const WebRTCCallModal: React.FC<WebRTCCallModalProps> = ({
   const remoteDescriptionSetRef = useRef(false);
   const processedSignalsRef = useRef<Set<string>>(new Set());
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const pendingRemoteCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const durationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -90,6 +91,9 @@ export const WebRTCCallModal: React.FC<WebRTCCallModalProps> = ({
         if (signal.signal_type === 'ANSWER' && isCallerRef.current && !remoteDescriptionSetRef.current) {
           await pc.setRemoteDescription(new RTCSessionDescription(signal.payload));
           remoteDescriptionSetRef.current = true;
+          for (const candidate of pendingRemoteCandidatesRef.current.splice(0)) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          }
           setCallStatus('CONNECTED');
           for (const candidate of pendingCandidatesRef.current.splice(0)) {
             await postJson('/api/webrtc/candidate', {
@@ -103,6 +107,9 @@ export const WebRTCCallModal: React.FC<WebRTCCallModalProps> = ({
         if (signal.signal_type === 'OFFER' && !isCallerRef.current && !remoteDescriptionSetRef.current) {
           await pc.setRemoteDescription(new RTCSessionDescription(signal.payload));
           remoteDescriptionSetRef.current = true;
+          for (const candidate of pendingRemoteCandidatesRef.current.splice(0)) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          }
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           await postJson('/api/webrtc/answer', {
@@ -115,6 +122,8 @@ export const WebRTCCallModal: React.FC<WebRTCCallModalProps> = ({
         if (signal.signal_type === 'CANDIDATE' && signal.payload) {
           if (remoteDescriptionSetRef.current) {
             await pc.addIceCandidate(new RTCIceCandidate(signal.payload));
+          } else {
+            pendingRemoteCandidatesRef.current.push(signal.payload as RTCIceCandidateInit);
           }
         }
       } catch (error) {
@@ -211,7 +220,18 @@ export const WebRTCCallModal: React.FC<WebRTCCallModalProps> = ({
           cache: 'no-store',
         });
         const activeData = await activeResponse.json().catch(() => ({}));
-        if (activeData?.session?.callId) callIdRef.current = activeData.session.callId;
+        if (activeData?.session?.callId) {
+          callIdRef.current = activeData.session.callId;
+          for (const candidate of pendingCandidatesRef.current.splice(0)) {
+            await postJson('/api/webrtc/candidate', {
+              callId: callIdRef.current,
+              isCaller: false,
+              candidate,
+            });
+          }
+        } else {
+          throw new Error('No incoming call was found for your account.');
+        }
       } else {
         const offer = await pc.createOffer({
           offerToReceiveAudio: true,
