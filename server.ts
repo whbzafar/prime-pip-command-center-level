@@ -4593,7 +4593,7 @@ app.post('/api/user/heartbeat', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user session' });
     if (!isActiveCommunityMember(user)) {
       return res.status(403).json({ ok: false, error: 'An active subscription is required for community presence.' });
@@ -4618,7 +4618,7 @@ app.patch('/api/user/presence-privacy', (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user session' });
     if (typeof req.body?.showActiveStatus !== 'boolean') {
       return res.status(400).json({ ok: false, error: 'showActiveStatus must be a boolean' });
@@ -5392,7 +5392,7 @@ app.get('/api/notifications', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isSupabaseCommunityEnabled) return res.json({ ok: true, notifications: [], settings: { muted: false, sound_enabled: true }, backend: 'local-fallback' });
     await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: user.role });
@@ -5405,7 +5405,7 @@ app.post('/api/notifications/read', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (isSupabaseCommunityEnabled) await markAppNotificationsRead(user.id, Array.isArray(req.body?.ids) ? req.body.ids : undefined);
     return res.json({ ok: true });
@@ -5416,7 +5416,7 @@ app.patch('/api/notifications/settings', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     const muted = Boolean(req.body?.muted);
     const soundEnabled = req.body?.soundEnabled !== false;
@@ -5431,7 +5431,7 @@ app.post('/api/users/block', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     const targetUserId = String(req.body?.userId || '');
     if (!targetUserId || targetUserId === user.id) return res.status(400).json({ ok: false, error: 'A different user is required.' });
@@ -5446,7 +5446,7 @@ app.get('/api/users/block/:userId', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isSupabaseCommunityEnabled) return res.json({ ok: true, blocked: false });
     return res.json({ ok: true, blocked: await isUserBlocked(user.id, req.params.userId) });
