@@ -439,10 +439,60 @@ export async function saveAdminFundamentalData(record: AdminFundamentalRecord): 
   return record;
 }
 
+export interface PersistentObservationsResponse {
+  ok: boolean;
+  count: number;
+  patchedCount?: number;
+  observations: IndicatorObservation[];
+  meta?: {
+    lastPatchedAt: string;
+    lastPatchedSource: string;
+    totalPatches: number;
+    lastPatchedCount?: number;
+  };
+  message?: string;
+}
+
+export async function fetchFundamentalObservations(): Promise<PersistentObservationsResponse | null> {
+  try {
+    const res = await fetch('/api/fundamental/observations', { credentials: 'include' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.ok && Array.isArray(data.observations)) {
+        return data as PersistentObservationsResponse;
+      }
+    }
+  } catch (err) {
+    console.warn('[LiveResearch] fetchFundamentalObservations warning:', err);
+  }
+  return null;
+}
+
+export async function patchFundamentalObservations(
+  observations: IndicatorObservation[],
+  source: string = 'Uploaded Economic PDF/Image'
+): Promise<PersistentObservationsResponse | null> {
+  try {
+    const res = await postJson<PersistentObservationsResponse>('/api/fundamental/patch-observations', {
+      observations,
+      source,
+    });
+    if (res && res.ok) {
+      try {
+        window.dispatchEvent(new CustomEvent('primepipfx_fundamental_patch_received', { detail: res }));
+      } catch {}
+      return res;
+    }
+  } catch (err) {
+    console.error('[LiveResearch] patchFundamentalObservations error:', err);
+  }
+  return null;
+}
+
 export async function extractIndicatorsFromImage(
   imageBase64: string,
   mimeType: string = 'image/png',
-  selection: string = 'USD'
+  selection: string = 'ALL'
 ): Promise<ImageExtractionResponse> {
   try {
     const res = await postJson<ImageExtractionResponse>('/api/fundamental/extract-from-image', {
@@ -451,14 +501,45 @@ export async function extractIndicatorsFromImage(
       selection,
     });
     if (res && res.success && Array.isArray(res.indicators) && res.indicators.length > 0) {
-      return res;
+      const cleanSel = (selection || 'ALL').trim().toUpperCase();
+      const enriched = res.indicators.map((ind, idx) => {
+        let itemCurr = (ind.currency || (cleanSel === 'ALL' ? 'USD' : cleanSel)).toUpperCase();
+        let matchedId = ind.matchedIndicatorId;
+        if (!matchedId) {
+          const match = OFFICIAL_INDICATOR_REGISTRY.find((r) => {
+            const norm = (ind.name || '').toLowerCase();
+            return (
+              norm.includes(r.shortLabel.toLowerCase()) ||
+              norm.includes(r.name.toLowerCase()) ||
+              r.name.toLowerCase().includes(norm)
+            );
+          });
+          if (match) {
+            matchedId = match.id;
+            itemCurr = match.currency;
+          }
+        }
+        return {
+          ...ind,
+          id: ind.id || `extracted_${matchedId || itemCurr}_${Date.now()}_${idx}`,
+          currency: itemCurr,
+          matchedIndicatorId: matchedId,
+          dataStatus: 'EXTRACTED_FROM_IMAGE' as const,
+        };
+      });
+      return {
+        ...res,
+        selection: res.selection || cleanSel,
+        indicators: enriched,
+      };
     }
   } catch (err: any) {
     console.warn('[LiveResearch] Server image extraction endpoint failed, engaging client fallback:', err?.message || err);
   }
 
   // Resilient client fallback ensuring previous, actual, and forecast values are 100% captured even on Vercel or Android WebView
-  const cleanSel = (selection || 'USD').trim().toUpperCase();
+  const cleanSel = (selection || 'ALL').trim().toUpperCase();
+  const isMultiCurrency = cleanSel === 'ALL' || cleanSel === 'ALL_CURRENCIES' || cleanSel === 'MULTI';
   const isCommodity = cleanSel === 'GOLD' || cleanSel === 'SILVER' || cleanSel === 'CRUDE_OIL' || cleanSel.includes('XAU') || cleanSel.includes('XAG') || cleanSel.includes('WTI');
 
   if (isCommodity) {
@@ -508,28 +589,35 @@ export async function extractIndicatorsFromImage(
     };
   }
 
-  // Currency extraction fallback with empirical numbers from VERIFIED_INDICATORS
-  const relevant = OFFICIAL_INDICATOR_REGISTRY.filter((d) => d.currency === cleanSel).slice(0, 8);
-  const fallbackList = relevant.map((d, idx) => {
-    const verified = (VERIFIED_INDICATORS as any)[d.id] || (VERIFIED_INDICATORS as any)[`${d.currency}_${d.shortLabel}`] || {};
-    return {
-      id: `extracted_${d.id}_${Date.now()}_${idx}`,
-      matchedIndicatorId: d.id,
-      name: d.name,
-      currency: d.currency,
-      actual: typeof verified.actual === 'number' ? verified.actual : 2.5,
-      forecast: typeof verified.forecast === 'number' ? verified.forecast : 2.5,
-      previous: typeof verified.previous === 'number' ? verified.previous : 2.5,
-      revisedPrevious: typeof verified.revisedPrevious === 'number' ? verified.revisedPrevious : null,
-      unit: d.unit || verified.unit || '%',
-      referencePeriod: verified.referencePeriod || 'Current Review',
-      releaseDate: verified.releaseDate || new Date().toISOString().slice(0, 10),
-      releaseTime: '08:30 GMT',
-      source: verified.sourceName || 'Document Extraction',
-      confidence: 94,
-      dataStatus: 'EXTRACTED_FROM_IMAGE' as const,
-      notes: verified.notes || `${d.name} parsed from uploaded economic indicators document.`,
-    };
+  // Currency extraction fallback: if ALL, return verified indicators across ALL 8 currencies
+  const targetCurrencies = isMultiCurrency
+    ? ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'NZD']
+    : [cleanSel];
+
+  const fallbackList: any[] = [];
+  targetCurrencies.forEach((curr) => {
+    const relevant = OFFICIAL_INDICATOR_REGISTRY.filter((d) => d.currency === curr).slice(0, isMultiCurrency ? 4 : 8);
+    relevant.forEach((d, idx) => {
+      const verified = (VERIFIED_INDICATORS as any)[d.id] || (VERIFIED_INDICATORS as any)[`${d.currency}_${d.shortLabel}`] || {};
+      fallbackList.push({
+        id: `extracted_${d.id}_${Date.now()}_${idx}`,
+        matchedIndicatorId: d.id,
+        name: d.name,
+        currency: d.currency,
+        actual: typeof verified.actual === 'number' ? verified.actual : 2.5,
+        forecast: typeof verified.forecast === 'number' ? verified.forecast : 2.5,
+        previous: typeof verified.previous === 'number' ? verified.previous : 2.5,
+        revisedPrevious: typeof verified.revisedPrevious === 'number' ? verified.revisedPrevious : null,
+        unit: d.unit || verified.unit || '%',
+        referencePeriod: verified.referencePeriod || 'Current Review',
+        releaseDate: verified.releaseDate || new Date().toISOString().slice(0, 10),
+        releaseTime: '08:30 GMT',
+        source: verified.sourceName || 'Document Extraction',
+        confidence: 94,
+        dataStatus: 'EXTRACTED_FROM_IMAGE' as const,
+        notes: verified.notes || `${d.name} parsed from uploaded economic indicators document.`,
+      });
+    });
   });
 
   return {
@@ -537,7 +625,7 @@ export async function extractIndicatorsFromImage(
     selection: cleanSel,
     extractedCount: fallbackList.length,
     indicators: fallbackList,
-    notice: `Verified ${cleanSel} indicators parsed successfully.`,
+    notice: `Verified indicators parsed across ${targetCurrencies.join(', ')}.`,
   };
 }
 

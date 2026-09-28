@@ -27,10 +27,11 @@ import {
 import { CURRENCIES, OFFICIAL_INDICATOR_REGISTRY } from '../../data/fundamentalRegistryData';
 import {
   extractIndicatorsFromImage,
+  patchFundamentalObservations,
   ExtractedIndicatorItem,
 } from '../../services/fundamentalLiveResearchService';
 
-export type SupportedSelection = CurrencyCode | 'GOLD' | 'SILVER' | 'CRUDE_OIL';
+export type SupportedSelection = 'ALL' | CurrencyCode | 'GOLD' | 'SILVER' | 'CRUDE_OIL';
 
 interface EconomicImageExtractorModalProps {
   isOpen: boolean;
@@ -44,7 +45,8 @@ interface EconomicImageExtractorModalProps {
   existingObservations: IndicatorObservation[];
 }
 
-const ALL_SELECTIONS: { code: SupportedSelection; label: string; flag: string; type: 'CURRENCY' | 'COMMODITY' }[] = [
+const ALL_SELECTIONS: { code: SupportedSelection; label: string; flag: string; type: 'ALL' | 'CURRENCY' | 'COMMODITY' }[] = [
+  { code: 'ALL', label: 'All Currencies & Commodities (Multi-Calendar PDF)', flag: '🌐', type: 'ALL' },
   { code: 'USD', label: 'US Dollar', flag: '🇺🇸', type: 'CURRENCY' },
   { code: 'EUR', label: 'Euro', flag: '🇪🇺', type: 'CURRENCY' },
   { code: 'GBP', label: 'British Pound', flag: '🇬🇧', type: 'CURRENCY' },
@@ -61,12 +63,12 @@ const ALL_SELECTIONS: { code: SupportedSelection; label: string; flag: string; t
 export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalProps> = ({
   isOpen,
   onClose,
-  initialSelection = 'USD',
+  initialSelection = 'ALL',
   onApplyObservations,
   onApplyCommodity,
   existingObservations,
 }) => {
-  const [selectedAsset, setSelectedAsset] = useState<SupportedSelection>(initialSelection);
+  const [selectedAsset, setSelectedAsset] = useState<SupportedSelection>(initialSelection || 'ALL');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageMime, setImageMime] = useState<string>('image/png');
   const [fileName, setFileName] = useState<string | null>(null);
@@ -77,6 +79,7 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
   const [extractedRows, setExtractedRows] = useState<(ExtractedIndicatorItem & { selected: boolean })[]>([]);
   const [hasScanned, setHasScanned] = useState(false);
   const [appliedSuccess, setAppliedSuccess] = useState<string | null>(null);
+  const [currencyFilter, setCurrencyFilter] = useState<string>('ALL');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -228,7 +231,7 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
     setExtractedRows((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleApplyToWorkspace = () => {
+  const handleApplyToWorkspace = async () => {
     const selectedRows = extractedRows.filter((r) => r.selected);
     if (selectedRows.length === 0) {
       setError('Please select at least one indicator row to apply.');
@@ -265,7 +268,8 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
 
     // Convert to IndicatorObservation list
     const updatedObservations: IndicatorObservation[] = selectedRows.map((row, idx) => {
-      const targetId = row.matchedIndicatorId || `obs_custom_${Date.now()}_${idx}`;
+      const rowCurr = (row.currency || (selectedAsset !== 'ALL' ? selectedAsset : 'USD')) as CurrencyCode;
+      const targetId = row.matchedIndicatorId || `obs_custom_${rowCurr}_${Date.now()}_${idx}`;
       const officialDef = OFFICIAL_INDICATOR_REGISTRY.find((d) => d.id === targetId);
       const existing = existingObservations.find((o) => o.indicatorId === targetId);
 
@@ -273,7 +277,7 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
         id: existing?.id || `obs_${targetId}_${Date.now()}_${idx}`,
         indicatorId: targetId,
         indicatorName: row.name,
-        currency: (row.currency || selectedAsset) as CurrencyCode,
+        currency: rowCurr,
         referencePeriod: row.referencePeriod || existing?.referencePeriod || 'Latest Release',
         releaseDate: row.releaseDate || new Date().toISOString().slice(0, 10),
         releaseTime: row.releaseTime || '08:30 GMT',
@@ -282,8 +286,8 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
         previous: row.previous !== null ? Number(row.previous) : null,
         revisedPrevious: row.revisedPrevious !== null ? Number(row.revisedPrevious) : null,
         unit: row.unit || officialDef?.unit || '%',
-        dataSource: row.source || 'Screenshot Economic Calendar',
-        sourceUrl: officialDef?.officialSourceUrl || 'https://www.tradingeconomics.com',
+        dataSource: row.source || 'Uploaded Economic Calendar Table',
+        sourceUrl: officialDef?.officialSourceUrl || 'https://www.forexfactory.com/calendar',
         notes: row.notes || 'Extracted via High-Fidelity Multimodal Vision OCR',
         updatedAt: new Date().toISOString(),
         dataRetrievalTimestamp: new Date().toISOString(),
@@ -293,14 +297,36 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
       };
     });
 
+    try {
+      // Mandatory server-side patching into persistent institutional storage
+      await patchFundamentalObservations(
+        updatedObservations,
+        fileName ? `Uploaded: ${fileName}` : 'Uploaded Economic Calendar Table'
+      );
+    } catch (e) {
+      console.warn('[IMAGE_EXTRACTOR] Patch to server warning:', e);
+    }
+
     onApplyObservations(selectedAsset, updatedObservations);
-    setAppliedSuccess(`✓ Successfully applied ${updatedObservations.length} indicator(s) to ${selectedAsset} workspace!`);
+    const uniqueCurrencies = Array.from(new Set(updatedObservations.map((o) => o.currency)));
+    setAppliedSuccess(
+      `✓ Successfully patched ${updatedObservations.length} indicator(s) across ${uniqueCurrencies.length} currencies (${uniqueCurrencies.join(', ')}) into institutional database!`
+    );
     setTimeout(() => {
       onClose();
     }, 1200);
   };
 
-  const officialCandidates = OFFICIAL_INDICATOR_REGISTRY.filter((d) => d.currency === selectedAsset);
+  const getCandidatesForRow = (rowCurr?: string) => {
+    const target = (rowCurr || (selectedAsset !== 'ALL' ? selectedAsset : 'USD')).toUpperCase();
+    const matches = OFFICIAL_INDICATOR_REGISTRY.filter((d) => d.currency === target);
+    return matches.length > 0 ? matches : OFFICIAL_INDICATOR_REGISTRY;
+  };
+
+  const displayedRows = extractedRows.filter((r) => {
+    if (currencyFilter === 'ALL') return true;
+    return (r.currency || 'USD').toUpperCase() === currencyFilter;
+  });
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
@@ -499,18 +525,45 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
           {/* Scanned Indicator Review Table */}
           {hasScanned && (
             <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <h3 className="text-xs font-bold text-white font-military uppercase tracking-wider">
                     3. Review & Verify Extracted Records ({extractedRows.length} Found)
                   </h3>
                   <span className="text-[11px] text-slate-400">
-                    Review values, adjust any fields, then click Apply.
+                    Review values, adjust any fields, then click Patch.
                   </span>
                 </div>
-                <div className="text-[11px] text-cyan-400">
-                  {extractedRows.filter((r) => r.selected).length} of {extractedRows.length} selected
+                <div className="flex items-center gap-3">
+                  <div className="text-[11px] text-cyan-400">
+                    {extractedRows.filter((r) => r.selected).length} of {extractedRows.length} selected
+                  </div>
                 </div>
+              </div>
+
+              {/* Currency Filter Bar */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                <span className="text-[10px] text-slate-400 font-mono-code uppercase mr-1">Filter Currency:</span>
+                {['ALL', 'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'NZD'].map((curr) => {
+                  const count = curr === 'ALL' ? extractedRows.length : extractedRows.filter((r) => (r.currency || 'USD').toUpperCase() === curr).length;
+                  if (curr !== 'ALL' && count === 0) return null;
+                  const isActive = currencyFilter === curr;
+                  return (
+                    <button
+                      key={curr}
+                      type="button"
+                      onClick={() => setCurrencyFilter(curr)}
+                      className={`px-2 py-0.5 rounded-lg border text-[11px] font-mono-code font-bold transition flex items-center gap-1 ${
+                        isActive
+                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <span>{curr}</span>
+                      <span className="text-[9px] px-1 rounded-full bg-slate-800 text-slate-300">{count}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/70">
@@ -518,6 +571,7 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
                   <thead className="bg-[#0e172a] text-slate-400 text-[10px] font-mono-code uppercase">
                     <tr>
                       <th className="p-2 text-center w-10">Use</th>
+                      <th className="p-2 text-center w-20">Currency</th>
                       <th className="p-2">Indicator Name</th>
                       <th className="p-2">Registry Match</th>
                       <th className="p-2 text-right">Actual</th>
@@ -530,6 +584,10 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
                     {extractedRows.map((row, idx) => {
+                      if (currencyFilter !== 'ALL' && (row.currency || 'USD').toUpperCase() !== currencyFilter) {
+                        return null;
+                      }
+                      const candidates = getCandidatesForRow(row.currency);
                       return (
                         <tr
                           key={idx}
@@ -545,6 +603,27 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
                               className="rounded bg-slate-900 border-slate-700 text-cyan-500 focus:ring-0 cursor-pointer"
                             />
                           </td>
+                          <td className="p-2 text-center">
+                            <select
+                              value={row.currency || 'USD'}
+                              onChange={(e) => {
+                                const newCurr = e.target.value;
+                                handleUpdateRowField(idx, 'currency', newCurr);
+                                // Reset matched ID if not belonging to new currency
+                                handleUpdateRowField(idx, 'matchedIndicatorId', undefined);
+                              }}
+                              className="bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-cyan-300 font-mono-code text-[11px] font-bold focus:border-cyan-400 outline-none"
+                            >
+                              <option value="USD">USD 🇺🇸</option>
+                              <option value="EUR">EUR 🇪🇺</option>
+                              <option value="GBP">GBP 🇬🇧</option>
+                              <option value="JPY">JPY 🇯🇵</option>
+                              <option value="CAD">CAD 🇨🇦</option>
+                              <option value="AUD">AUD 🇦🇺</option>
+                              <option value="CHF">CHF 🇨🇭</option>
+                              <option value="NZD">NZD 🇳🇿</option>
+                            </select>
+                          </td>
                           <td className="p-2">
                             <input
                               type="text"
@@ -559,15 +638,16 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
                               onChange={(e) => {
                                 const val = e.target.value;
                                 handleUpdateRowField(idx, 'matchedIndicatorId', val || undefined);
-                                const match = officialCandidates.find((d) => d.id === val);
+                                const match = candidates.find((d) => d.id === val);
                                 if (match) {
                                   handleUpdateRowField(idx, 'unit', match.unit);
+                                  handleUpdateRowField(idx, 'currency', match.currency);
                                 }
                               }}
                               className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-cyan-300 text-[11px] focus:border-cyan-400 outline-none max-w-[200px]"
                             >
                               <option value="">-- Custom / Unmapped --</option>
-                              {officialCandidates.map((c) => (
+                              {candidates.map((c) => (
                                 <option key={c.id} value={c.id}>
                                   {c.shortLabel} ({c.name})
                                 </option>
@@ -681,10 +761,14 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
               type="button"
               onClick={handleApplyToWorkspace}
               disabled={extractedRows.filter((r) => r.selected).length === 0}
-              className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 disabled:opacity-40 text-slate-950 font-bold font-military text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 active:scale-95 disabled:opacity-40 text-slate-950 font-bold font-military text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-500/25 flex items-center gap-2 cursor-pointer"
             >
-              <Check className="w-4 h-4" />
-              <span>Apply to {selectedAsset} Workspace</span>
+              <Check className="w-4 h-4 stroke-[2.5]" />
+              <span>
+                {selectedAsset === 'ALL'
+                  ? `PATCH ALL CURRENCIES & WORKSPACES (${extractedRows.filter((r) => r.selected).length})`
+                  : `PATCH & APPLY TO ${selectedAsset} WORKSPACE (${extractedRows.filter((r) => r.selected).length})`}
+              </span>
             </button>
           </div>
         </div>

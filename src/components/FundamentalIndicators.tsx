@@ -85,7 +85,12 @@ import {
   ChevronRight,
   Calendar,
   ExternalLink,
+  Camera,
 } from 'lucide-react';
+import {
+  fetchFundamentalObservations,
+  patchFundamentalObservations,
+} from '../services/fundamentalLiveResearchService';
 
 export type FundamentalDashboardTab =
   | 'OVERVIEW'
@@ -116,9 +121,9 @@ export const FundamentalIndicators: React.FC = () => {
   const [activeTab, setActiveTab] = useState<FundamentalDashboardTab>('OVERVIEW');
   const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>('USD');
   const [isImageExtractorOpen, setIsImageExtractorOpen] = useState(false);
-  const [imageExtractorSelection, setImageExtractorSelection] = useState<SupportedSelection>('USD');
+  const [imageExtractorSelection, setImageExtractorSelection] = useState<SupportedSelection>('ALL');
 
-  const handleOpenImageExtractor = (selection: SupportedSelection = 'USD') => {
+  const handleOpenImageExtractor = (selection: SupportedSelection = 'ALL') => {
     setImageExtractorSelection(selection);
     setIsImageExtractorOpen(true);
   };
@@ -142,7 +147,43 @@ export const FundamentalIndicators: React.FC = () => {
       } catch {}
       return updated;
     });
+
+    // Mandatory server-side patching into persistent institutional storage
+    void patchFundamentalObservations(updatedObservations, 'Uploaded Economic Document').then((res) => {
+      if (res?.ok) {
+        showNotification(`✓ Successfully patched ${updatedObservations.length} indicator(s) into institutional database.`);
+      }
+    });
   };
+
+  // Mandatory Initial Data Fetch from Persistent Server Database
+  useEffect(() => {
+    let isMounted = true;
+    void fetchFundamentalObservations().then((data) => {
+      if (!isMounted || !data || !Array.isArray(data.observations) || data.observations.length === 0) return;
+      setObservations(data.observations);
+      try {
+        localStorage.setItem(LOCAL_STORAGE_OBSERVATIONS_KEY, JSON.stringify(data.observations));
+      } catch {}
+      console.log(`[Fundamental] Synced ${data.observations.length} indicators from persistent database.`);
+    });
+
+    const handlePatchReceived = (e: any) => {
+      const detail = e?.detail;
+      if (detail?.observations && Array.isArray(detail.observations) && detail.observations.length > 0) {
+        setObservations(detail.observations);
+        try {
+          localStorage.setItem(LOCAL_STORAGE_OBSERVATIONS_KEY, JSON.stringify(detail.observations));
+        } catch {}
+      }
+    };
+
+    window.addEventListener('primepipfx_fundamental_patch_received', handlePatchReceived);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('primepipfx_fundamental_patch_received', handlePatchReceived);
+    };
+  }, []);
 
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
@@ -436,8 +477,18 @@ export const FundamentalIndicators: React.FC = () => {
   };
 
   // Reset to Verified Baseline
-  const handleRestoreBaseline = () => {
+  const handleRestoreBaseline = async () => {
     if (window.confirm('Reset all indicators, weights, COT, and sentiment to verified institutional baseline?')) {
+      try {
+        await fetch('/api/fundamental/patch-observations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ reset: true }),
+        });
+      } catch (e) {
+        console.warn('Server reset failed:', e);
+      }
       setObservations(DEFAULT_OBSERVATIONS);
       setCommodityObservations(DEFAULT_COMMODITY_OBSERVATIONS);
       setCategoryWeights(DEFAULT_CATEGORY_WEIGHTS);
@@ -757,6 +808,16 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
               <span>FOREX FACTORY CALENDAR</span>
               <ExternalLink className="w-3 h-3 text-amber-400" />
             </a>
+
+            <button
+              type="button"
+              onClick={() => handleOpenImageExtractor('ALL')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-300 border border-cyan-400/40 text-xs font-mono-code font-bold transition shadow-sm cursor-pointer"
+              title="Upload PDF or screenshot to extract and patch economic data for all currencies"
+            >
+              <Camera className="w-3.5 h-3.5 text-cyan-400" />
+              <span>UPLOAD & PATCH DATA</span>
+            </button>
 
             <button
               type="button"

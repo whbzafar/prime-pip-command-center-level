@@ -288,12 +288,12 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
             {onOpenImageExtractor && (
               <button
                 type="button"
-                onClick={() => onOpenImageExtractor('USD')}
+                onClick={() => onOpenImageExtractor('ALL')}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 font-military font-bold text-xs shadow-md transition cursor-pointer"
-                title="Upload screenshot of economic table to extract indicators with OCR"
+                title="Upload PDF or screenshot to extract and patch economic indicators across all currencies"
               >
                 <Camera className="w-4 h-4 text-cyan-400" />
-                <span>UPLOAD IMAGE</span>
+                <span>UPLOAD & PATCH DATA</span>
               </button>
             )}
           </div>

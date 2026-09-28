@@ -547,12 +547,12 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
             {onOpenImageExtractor && (
               <button
                 type="button"
-                onClick={() => onOpenImageExtractor(selectedCurrency !== 'ALL' ? selectedCurrency : 'USD')}
+                onClick={() => onOpenImageExtractor(selectedCurrency !== 'ALL' ? selectedCurrency : 'ALL')}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-300 border border-cyan-400/40 text-xs font-military font-bold transition cursor-pointer"
-                title="Upload screenshot of economic table to extract indicators with OCR"
+                title="Upload PDF or screenshot of economic table to extract and patch indicators with OCR"
               >
                 <Camera className="w-3.5 h-3.5 text-cyan-400" />
-                <span>UPLOAD IMAGE</span>
+                <span>UPLOAD & PATCH DATA</span>
               </button>
             )}
             <button
