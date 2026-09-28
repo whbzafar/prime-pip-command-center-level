@@ -4800,7 +4800,7 @@ app.post('/api/community/messages/listened', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     const messageId = String(req.body?.messageId || '');
     if (!messageId) return res.status(400).json({ ok: false, error: 'messageId is required' });
@@ -4816,7 +4816,7 @@ app.post('/api/community/messages/seen', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isActiveCommunityMember(user)) {
       return res.status(403).json({ ok: false, error: 'An active subscription is required for the community.' });
@@ -5003,7 +5003,7 @@ app.get('/api/friends/all-traders', async (req, res) => {
     const token = getAuthToken(req);
     let currentUserId: string | undefined = undefined;
     if (token) {
-      const currentUser = getUserByToken(token);
+      const currentUser = await getCommunityUser(req);
       if (currentUser) {
         recordUserHeartbeat(currentUser.id);
         currentUserId = currentUser.id;
@@ -5173,7 +5173,7 @@ app.post('/api/friends/respond', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
 
     const { requestId, status } = req.body || {};
@@ -5231,7 +5231,7 @@ app.post('/api/messages/private/read', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     const senderId = String(req.body?.senderId || '');
     if (!senderId) return res.status(400).json({ ok: false, error: 'senderId is required' });
@@ -5250,7 +5250,7 @@ app.post('/api/messages/private/listened', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     const messageId = String(req.body?.messageId || '');
     if (!messageId) return res.status(400).json({ ok: false, error: 'messageId is required' });
@@ -5266,7 +5266,7 @@ app.post('/api/messages/private', async (req, res) => {
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = getUserByToken(token);
+    const user = await getCommunityUser(req);
     if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
     if (!isActiveCommunityMember(user)) {
       return res.status(403).json({ ok: false, error: 'An active subscription is required for private messaging.' });
