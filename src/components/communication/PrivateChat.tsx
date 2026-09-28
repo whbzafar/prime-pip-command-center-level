@@ -20,6 +20,7 @@ import {
 import { UserAccount } from '../../types';
 import { getKarachiDate, getKarachiTime } from '../../utils/time';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
+import { getStoredToken } from '../../utils/authClient';
 
 interface PrivateMessage {
   id: string;
@@ -56,6 +57,11 @@ interface PrivateChatProps {
   onBack: () => void;
   onStartCall?: () => void;
 }
+
+const communityAuthHeaders = (): Record<string, string> => {
+  const token = getStoredToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 export const PrivateChat: React.FC<PrivateChatProps> = ({
   currentUser,
@@ -96,8 +102,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
     try {
       const res = await fetch(`/api/messages/private/${activeContact.id}`, {
         credentials: 'include',
-        headers: {
-        },
+        headers: communityAuthHeaders(),
       });
       if (res.ok) {
         const data = await res.json();
@@ -124,6 +129,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...communityAuthHeaders(),
         },
         credentials: 'include',
         body: JSON.stringify({ senderId: activeContact.id })
@@ -145,7 +151,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
     try {
       await fetch('/api/messages/private/listened', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...communityAuthHeaders() },
         credentials: 'include',
         body: JSON.stringify({ messageId }),
       });
@@ -283,7 +289,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
       const res = await fetch('/api/users/block', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...communityAuthHeaders() },
         body: JSON.stringify({ userId: activeContact.id, blocked: next }),
       });
       const data = await res.json().catch(() => ({}));
@@ -319,7 +325,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
 
         const uploadRes = await fetch('/api/media/voice/upload', {
           method: 'POST',
-          headers: uploadHeaders,
+          headers: { ...uploadHeaders, ...communityAuthHeaders() },
           body: JSON.stringify({
             audioData: audioBase64,
             mimeType: recordedMimeType,
@@ -403,7 +409,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
     try {
       const response = await fetch('/api/messages/private', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...communityAuthHeaders() },
         credentials: 'include',
         body: JSON.stringify(payload),
       });
