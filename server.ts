@@ -4023,13 +4023,10 @@ app.get('/api/signals', (_req, res) => {
 
 app.post('/api/signals', (req, res) => {
   try {
-    const { pair, direction, entryPrice, stopLoss, takeProfit1, takeProfit2, takeProfit3, strategyNotes, recommendedRiskPercent } = req.body || {};
-    if (!pair || !entryPrice || !stopLoss || !takeProfit1) {
-      return res.status(400).json({ ok: false, error: 'Missing required fields: pair, entryPrice, stopLoss, takeProfit1' });
-    }
-    const signal = createSignal({
+    const {
       pair,
       direction,
+      timeframe,
       entryPrice,
       stopLoss,
       takeProfit1,
@@ -4037,6 +4034,27 @@ app.post('/api/signals', (req, res) => {
       takeProfit3,
       strategyNotes,
       recommendedRiskPercent,
+      imageUrl,
+      imageName,
+      imageMimeType,
+    } = req.body || {};
+    if (!pair || !entryPrice || !stopLoss || !takeProfit1) {
+      return res.status(400).json({ ok: false, error: 'Missing required fields: pair, entryPrice, stopLoss, takeProfit1' });
+    }
+    const signal = createSignal({
+      pair,
+      direction,
+      timeframe: timeframe || 'H1',
+      entryPrice,
+      stopLoss,
+      takeProfit1,
+      takeProfit2,
+      takeProfit3,
+      strategyNotes,
+      recommendedRiskPercent,
+      imageUrl,
+      imageName,
+      imageMimeType,
       author: 'Admin / Chief Institutional Analyst',
     });
     return res.json({ ok: true, signal });

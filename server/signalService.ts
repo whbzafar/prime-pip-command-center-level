@@ -22,6 +22,9 @@ export interface SignalItem {
   updatedAt: string;
   closedAt?: string;
   author: string;
+  imageUrl?: string;
+  imageName?: string;
+  imageMimeType?: string;
 }
 
 export interface InAppAnnouncement {
@@ -79,6 +82,9 @@ export function createSignal(signalData: Partial<SignalItem>): SignalItem {
     takeProfit3: signalData.takeProfit3 ? Number(signalData.takeProfit3) : undefined,
     recommendedRiskPercent: Number(signalData.recommendedRiskPercent) || 1.0,
     strategyNotes: signalData.strategyNotes || '',
+    imageUrl: signalData.imageUrl,
+    imageName: signalData.imageName,
+    imageMimeType: signalData.imageMimeType,
     status: 'ACTIVE',
     createdAt: pktTimeStr,
     updatedAt: pktTimeStr,

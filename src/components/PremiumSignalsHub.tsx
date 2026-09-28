@@ -26,6 +26,11 @@ import {
   FileText,
   BarChart3,
   Percent,
+  Upload,
+  Image as ImageIcon,
+  Maximize2,
+  Eye,
+  Paperclip,
 } from 'lucide-react';
 import { SignalItem, UserAccount } from '../types';
 import jsPDF from 'jspdf';
@@ -74,10 +79,23 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
   const [closePriceInput, setClosePriceInput] = useState<string>('');
   const [closeNotesInput, setCloseNotesInput] = useState<string>('');
 
+  // Available Setup Timeframes
+  const SIGNAL_TIMEFRAMES = [
+    'Weekly',
+    'Daily',
+    'H4',
+    'H1',
+    'M30',
+    'M15',
+    'M5',
+    'M3',
+    'M1',
+  ] as const;
+
   // Create Signal Form State
   const [pairInput, setPairInput] = useState<string>('XAU/USD');
   const [directionInput, setDirectionInput] = useState<'BUY' | 'SELL'>('BUY');
-  const [timeframeInput, setTimeframeInput] = useState<string>('M15 / H1');
+  const [timeframeInput, setTimeframeInput] = useState<string>('H1');
   const [entryPriceInput, setEntryPriceInput] = useState<string>('');
   const [stopLossInput, setStopLossInput] = useState<string>('');
   const [takeProfit1Input, setTakeProfit1Input] = useState<string>('');
@@ -86,6 +104,14 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
   const [riskPercentInput, setRiskPercentInput] = useState<string>('1.0');
   const [strategyNotesInput, setStrategyNotesInput] = useState<string>('');
   const [createError, setCreateError] = useState<string | null>(null);
+
+  // Signal Image / PDF Upload State
+  const [signalImageFile, setSignalImageFile] = useState<File | null>(null);
+  const [signalImagePreview, setSignalImagePreview] = useState<string | null>(null);
+  const [signalImageName, setSignalImageName] = useState<string>('');
+  const [signalImageMime, setSignalImageMime] = useState<string>('');
+  const [signalImageSize, setSignalImageSize] = useState<string>('');
+  const [previewLightboxImage, setPreviewLightboxImage] = useState<{ url: string; name: string; isPdf?: boolean } | null>(null);
 
   // Announcement Form State
   const [announcementTitle, setAnnouncementTitle] = useState<string>('');
@@ -126,6 +152,28 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
     };
   }, []);
 
+  // Handle Image/PDF selection and read as base64 for clear preview before activating
+  const handleImageSelect = (file: File) => {
+    setCreateError(null);
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (!isImage && !isPdf) {
+      setCreateError('Please upload a valid image file (PNG, JPG, WEBP) or PDF document.');
+      return;
+    }
+    const sizeKb = Math.round(file.size / 1024);
+    setSignalImageSize(sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`);
+    setSignalImageFile(file);
+    setSignalImageName(file.name);
+    setSignalImageMime(isPdf ? 'application/pdf' : (file.type || 'image/png'));
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setSignalImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Handle Create Signal Submission
   const handleSaveSignal = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,6 +213,9 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
         takeProfit3: takeProfit3Input ? parseFloat(takeProfit3Input) : undefined,
         strategyNotes: strategyNotesInput.trim(),
         recommendedRiskPercent: parseFloat(riskPercentInput) || 1.0,
+        imageUrl: signalImagePreview || undefined,
+        imageName: signalImageName || undefined,
+        imageMimeType: signalImageMime || undefined,
       });
 
       // Update state immediately
@@ -173,8 +224,8 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
       // Auto-post an in-app announcement dispatching this signal
       try {
         const autoAnn = await postAnnouncementServer({
-          title: `LIVE SIGNAL: ${cleanPair} ${directionInput}`,
-          message: `${cleanPair} ${directionInput} dispatched at ${entry}. SL: ${sl} | TP1: ${tp1}. ${strategyNotesInput ? 'Setup: ' + strategyNotesInput : ''}`,
+          title: `LIVE SIGNAL: ${cleanPair} ${directionInput} (${timeframeInput})`,
+          message: `${cleanPair} ${directionInput} [${timeframeInput}] dispatched at ${entry}. SL: ${sl} | TP1: ${tp1}.${signalImageName ? ' (Setup chart attached)' : ''} ${strategyNotesInput ? 'Setup: ' + strategyNotesInput : ''}`,
           category: 'SIGNAL_ALERT',
           signalId: newSignal.id,
           sender: currentUser?.displayName || currentUser?.email || 'Owner / Chief Institutional Analyst',
@@ -185,18 +236,60 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
 
       // Reset form & close modal
       setPairInput('XAU/USD');
+      setTimeframeInput('H1');
       setEntryPriceInput('');
       setStopLossInput('');
       setTakeProfit1Input('');
       setTakeProfit2Input('');
       setTakeProfit3Input('');
       setStrategyNotesInput('');
+      setSignalImageFile(null);
+      setSignalImagePreview(null);
+      setSignalImageName('');
+      setSignalImageMime('');
+      setSignalImageSize('');
       setIsCreateSignalModalOpen(false);
 
       // Notify dashboard
       window.dispatchEvent(new CustomEvent('primepipfx_signal_created', { detail: newSignal }));
     } catch (err: any) {
       setCreateError(err?.message || 'Failed to save signal');
+    }
+  };
+
+  // Direct 1-Click Close at Take Profit Target (TP1)
+  const handleDirectCloseAtTP = async (signal: SignalItem) => {
+    const isJpy = signal.pair.includes('JPY');
+    const pipMultiplier = isJpy ? 100 : 10000;
+    const diff = (signal.takeProfit1 - signal.entryPrice) * (signal.direction === 'BUY' ? 1 : -1);
+    const resultPips = Math.round(diff * pipMultiplier);
+    const resultPercent = 2.0;
+
+    const updated = await updateSignalStatusServer(signal.id, 'TP_HIT', {
+      closedPrice: signal.takeProfit1,
+      resultPips,
+      resultPercent,
+      closeReason: 'TP_HIT',
+      notes: `🎯 Take Profit Target (${signal.takeProfit1}) Reached! Setup closed in profit.`,
+    });
+
+    if (updated) {
+      setActiveSignals((prev) => prev.filter((s) => s.id !== signal.id));
+      setClosedSignals((prev) => [updated, ...prev.filter((s) => s.id !== updated.id)]);
+      window.dispatchEvent(new CustomEvent('primepipfx_signal_closed', { detail: updated }));
+
+      // Broadcast announcement
+      try {
+        const autoAnn = await postAnnouncementServer({
+          title: `🎯 TARGET REACHED: ${signal.pair} TP HIT!`,
+          message: `${signal.pair} ${signal.direction} [${signal.timeframe || 'H1'}] hit Take Profit at ${signal.takeProfit1} (+${resultPips} pips). Congratulations traders!`,
+          category: 'SIGNAL_ALERT',
+          signalId: signal.id,
+          sender: currentUser?.displayName || currentUser?.email || 'Owner / Chief Institutional Analyst',
+        });
+        setAnnouncements((prev) => [autoAnn, ...prev]);
+        window.dispatchEvent(new CustomEvent('primepipfx_announcement_created', { detail: autoAnn }));
+      } catch {}
     }
   };
 
@@ -213,9 +306,9 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
     );
     setCloseNotesInput(
       statusChoice === 'TP_HIT'
-        ? 'Take Profit secured. Model executed as planned.'
+        ? `🎯 Take Profit Target (${signal.takeProfit1}) Reached! Setup closed in profit.`
         : statusChoice === 'SL_HIT'
-        ? 'Stop Loss triggered. Risk contained to 1% plan.'
+        ? `🛑 Stop Loss (${signal.stopLoss}) Triggered. Risk strictly controlled.`
         : 'Closed at break-even entry level.'
     );
     setIsCloseSignalModalOpen(true);
@@ -245,6 +338,20 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
       setActiveSignals((prev) => prev.filter((s) => s.id !== selectedSignalToClose.id));
       setClosedSignals((prev) => [updated, ...prev.filter((s) => s.id !== updated.id)]);
       window.dispatchEvent(new CustomEvent('primepipfx_signal_closed', { detail: updated }));
+
+      // Broadcast announcement
+      try {
+        const isWin = closeStatusChoice === 'TP_HIT';
+        const autoAnn = await postAnnouncementServer({
+          title: isWin ? `🎯 TARGET REACHED: ${selectedSignalToClose.pair} TP HIT!` : `SIGNAL CLOSED: ${selectedSignalToClose.pair}`,
+          message: `${selectedSignalToClose.pair} ${selectedSignalToClose.direction} [${selectedSignalToClose.timeframe || 'H1'}] closed at ${closedPrice} (${resultPips > 0 ? '+' : ''}${resultPips} pips). Status: ${closeStatusChoice}.`,
+          category: 'SIGNAL_ALERT',
+          signalId: selectedSignalToClose.id,
+          sender: currentUser?.displayName || currentUser?.email || 'Owner / Chief Institutional Analyst',
+        });
+        setAnnouncements((prev) => [autoAnn, ...prev]);
+        window.dispatchEvent(new CustomEvent('primepipfx_announcement_created', { detail: autoAnn }));
+      } catch {}
     }
 
     setIsCloseSignalModalOpen(false);
@@ -650,9 +757,9 @@ Issued: ${signal.createdAt}`;
                     />
 
                     <div className="space-y-4">
-                      {/* Pair, Direction & Time */}
+                      {/* Pair, Direction, Timeframe & Time */}
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-lg font-military font-bold text-slate-100 tracking-wider">
                             {signal.pair}
                           </h3>
@@ -665,12 +772,64 @@ Issued: ${signal.createdAt}`;
                           >
                             {signal.direction}
                           </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono-code font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 shadow-sm">
+                            <Clock className="w-2.5 h-2.5" />
+                            {signal.timeframe || 'H1'}
+                          </span>
                         </div>
-                        <span className="text-[10px] font-mono-code text-slate-400 flex items-center gap-1">
+                        <span className="text-[10px] font-mono-code text-slate-400 flex items-center gap-1 shrink-0">
                           <Clock className="w-3 h-3 text-cyan-400" />
                           {signal.createdAt}
                         </span>
                       </div>
+
+                      {/* Uploaded Chart / Analysis Attachment */}
+                      {signal.imageUrl && (
+                        <div
+                          onClick={() =>
+                            setPreviewLightboxImage({
+                              url: signal.imageUrl!,
+                              name: signal.imageName || `${signal.pair} Setup Analysis`,
+                              isPdf:
+                                signal.imageMimeType === 'application/pdf' ||
+                                signal.imageUrl!.startsWith('data:application/pdf'),
+                            })
+                          }
+                          className="rounded-xl overflow-hidden border border-slate-800 bg-slate-900/60 hover:border-cyan-500/50 transition cursor-pointer group relative"
+                        >
+                          {signal.imageMimeType === 'application/pdf' ||
+                          signal.imageUrl.startsWith('data:application/pdf') ? (
+                            <div className="p-3 flex items-center justify-between bg-rose-500/10 border border-rose-500/20 text-rose-300">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText className="w-5 h-5 text-rose-400 shrink-0" />
+                                <div className="min-w-0">
+                                  <div className="text-xs font-bold truncate">
+                                    {signal.imageName || 'Signal Chart Analysis (PDF)'}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400">Click to view document</div>
+                                </div>
+                              </div>
+                              <Eye className="w-4 h-4 text-cyan-400 shrink-0 group-hover:scale-110 transition" />
+                            </div>
+                          ) : (
+                            <div className="relative aspect-video max-h-44 w-full bg-slate-950 overflow-hidden flex items-center justify-center">
+                              <img
+                                src={signal.imageUrl}
+                                alt={signal.imageName || 'Trade Setup Chart'}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end justify-between p-2.5 opacity-90 group-hover:opacity-100 transition-opacity">
+                                <span className="text-[10px] font-mono-code text-cyan-300 flex items-center gap-1 font-bold">
+                                  <Maximize2 className="w-3 h-3" /> Click to expand HD chart setup
+                                </span>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-900/90 text-slate-300 font-mono-code border border-slate-700">
+                                  HD ATTACHMENT
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Key Price Levels 3-Box */}
                       <div className="grid grid-cols-3 gap-2 text-center">
@@ -779,18 +938,35 @@ Issued: ${signal.createdAt}`;
 
                       {/* Admin-Only Status Closure Controls */}
                       {isAdmin && (
-                        <div className="pt-2 border-t border-slate-800/80">
-                          <span className="text-[9px] font-mono-code uppercase font-bold text-slate-500 block mb-1.5">
-                            ADMIN STATUS UPDATE (CLOSES SIGNAL)
-                          </span>
+                        <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-mono-code uppercase font-bold text-slate-400 block">
+                              ADMIN SIGNAL CLOSURE CONTROLS
+                            </span>
+                            <span className="text-[9px] font-mono-code text-emerald-400 font-bold">
+                              TP1: {signal.takeProfit1}
+                            </span>
+                          </div>
+
+                          {/* Direct 1-Click Take Profit Target Reached */}
+                          <button
+                            type="button"
+                            onClick={() => handleDirectCloseAtTP(signal)}
+                            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-military font-bold text-xs tracking-wider transition shadow-lg shadow-emerald-500/20 cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
+                            title="Instantly close signal at TP1 and broadcast announcement"
+                          >
+                            <Target className="w-3.5 h-3.5 fill-current" />
+                            <span>🎯 TARGET REACHED: CLOSE AT TP1</span>
+                          </button>
+
                           <div className="grid grid-cols-3 gap-1.5">
                             <button
                               type="button"
                               onClick={() => handleOpenCloseModal(signal, 'TP_HIT')}
                               className="px-2 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 font-military font-bold text-[10px] tracking-wider transition cursor-pointer text-center"
-                              title="Close signal with TP Hit / Finished"
+                              title="Custom TP Close (TP2, TP3, or custom price)"
                             >
-                              TP HIT
+                              CUSTOM TP
                             </button>
                             <button
                               type="button"
@@ -918,7 +1094,31 @@ Issued: ${signal.createdAt}`;
                       return (
                         <tr key={signal.id} className="hover:bg-slate-800/30 transition">
                           <td className="py-3 px-4 font-bold text-slate-200">
-                            {signal.pair}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span>{signal.pair}</span>
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono-code font-bold uppercase bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                                {signal.timeframe || 'H1'}
+                              </span>
+                              {signal.imageUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setPreviewLightboxImage({
+                                      url: signal.imageUrl!,
+                                      name: signal.imageName || `${signal.pair} Setup Chart`,
+                                      isPdf:
+                                        signal.imageMimeType === 'application/pdf' ||
+                                        signal.imageUrl!.startsWith('data:application/pdf'),
+                                    })
+                                  }
+                                  className="p-1 rounded bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 transition cursor-pointer inline-flex items-center gap-0.5"
+                                  title="View Setup Chart / Attachment"
+                                >
+                                  <ImageIcon className="w-3 h-3" />
+                                  <span className="text-[9px]">Chart</span>
+                                </button>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3 px-4">
                             <span
@@ -1191,7 +1391,37 @@ Issued: ${signal.createdAt}`;
                 </div>
               </div>
 
-              {/* Field 2 & 3: Entry Price & Stop-Loss Box */}
+              {/* Field 2: Timeframe Selection (Weekly, Daily, H4, H1, M30, M15, M5, M3, M1) */}
+              <div className="space-y-1.5 p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-300 font-bold flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Signal Timeframe <span className="text-rose-400">*</span></span>
+                  </label>
+                  <span className="text-[11px] font-mono-code font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/30">
+                    Selected: {timeframeInput}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-1.5">
+                  {SIGNAL_TIMEFRAMES.map((tf) => {
+                    const isSelected = timeframeInput === tf;
+                    return (
+                      <button
+                        key={tf}
+                        type="button"
+                        onClick={() => setTimeframeInput(tf)}
+                        className={`py-1.5 px-1.5 rounded-lg text-[11px] font-mono-code font-bold tracking-wider transition cursor-pointer text-center ${
+                          isSelected
+                            ? 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/30 border border-cyan-400 scale-[1.03]'
+                            : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                        }`}
+                      >
+                        {tf}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-slate-400 block mb-1">
@@ -1273,12 +1503,93 @@ Issued: ${signal.createdAt}`;
                   Optional Comments / Strategy Rationale
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={strategyNotesInput}
                   onChange={(e) => setStrategyNotesInput(e.target.value)}
                   placeholder="e.g. SBT Model 4: Asian range liquidity sweep into bullish fair value gap (FVG). Target London session high."
                   className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 outline-none focus:border-cyan-400"
                 />
+              </div>
+
+              {/* Field 6: Image / Chart Setup Upload (PNG, JPG, WEBP, PDF) */}
+              <div className="space-y-2 p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-300 font-bold flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Attach Setup Chart / Analysis (PNG, JPG, PDF)</span>
+                  </label>
+                  {signalImagePreview && (
+                    <span className="text-[10px] text-emerald-400 font-mono-code flex items-center gap-1 font-bold">
+                      <Check className="w-3 h-3" /> Attached ({signalImageSize || 'Ready'})
+                    </span>
+                  )}
+                </div>
+
+                {signalImagePreview ? (
+                  <div className="p-3 rounded-xl bg-slate-950 border border-cyan-500/40 space-y-2 relative">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {signalImageMime === 'application/pdf' ? (
+                          <FileText className="w-5 h-5 text-rose-400 shrink-0" />
+                        ) : (
+                          <ImageIcon className="w-5 h-5 text-cyan-400 shrink-0" />
+                        )}
+                        <span className="text-xs text-slate-200 font-bold truncate max-w-[260px]">
+                          {signalImageName || 'Setup Document'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSignalImageFile(null);
+                          setSignalImagePreview(null);
+                          setSignalImageName('');
+                          setSignalImageMime('');
+                          setSignalImageSize('');
+                        }}
+                        className="px-2 py-1 rounded-lg hover:bg-rose-500/20 text-rose-400 text-xs transition cursor-pointer flex items-center gap-1 border border-rose-500/30"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+
+                    {signalImageMime === 'application/pdf' ? (
+                      <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center justify-between">
+                        <span>PDF Document attached: will be clearly visible alongside signal details</span>
+                        <span className="text-[10px] font-mono-code text-slate-400">{signalImageSize}</span>
+                      </div>
+                    ) : (
+                      <div className="relative rounded-lg overflow-hidden max-h-48 border border-slate-800 bg-slate-950 flex items-center justify-center">
+                        <img
+                          src={signalImagePreview}
+                          alt="Setup Chart Preview"
+                          className="max-h-48 w-full object-contain"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-800 hover:border-cyan-500/50 rounded-xl bg-slate-950/70 hover:bg-slate-900 transition cursor-pointer text-center">
+                    <Upload className="w-6 h-6 text-slate-500 mb-1" />
+                    <span className="text-xs text-slate-200 font-bold">
+                      Click to upload or drag & drop setup screenshot or PDF
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">
+                      Supports PNG, JPG, WEBP, and PDF files. Preview is visible here before activating.
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/jpg,application/pdf,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleImageSelect(e.target.files[0]);
+                        }
+                      }}
+                    />
+                  </label>
+                )}
               </div>
 
               {/* Save & Cancel Buttons */}
@@ -1332,9 +1643,77 @@ Issued: ${signal.createdAt}`;
               </div>
             </div>
 
+            {/* Quick Target Level Fill Buttons */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-mono-code text-slate-400 block font-bold">
+                Quick Select Price Level
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCloseStatusChoice('TP_HIT');
+                    setClosePriceInput(String(selectedSignalToClose.takeProfit1));
+                    setCloseNotesInput(`🎯 TP1 Target (${selectedSignalToClose.takeProfit1}) secured.`);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 text-xs font-mono-code font-bold transition cursor-pointer"
+                >
+                  TP1 ({selectedSignalToClose.takeProfit1})
+                </button>
+                {selectedSignalToClose.takeProfit2 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCloseStatusChoice('TP_HIT');
+                      setClosePriceInput(String(selectedSignalToClose.takeProfit2));
+                      setCloseNotesInput(`🎯 TP2 Extended Target (${selectedSignalToClose.takeProfit2}) secured.`);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 text-xs font-mono-code font-bold transition cursor-pointer"
+                  >
+                    TP2 ({selectedSignalToClose.takeProfit2})
+                  </button>
+                )}
+                {selectedSignalToClose.takeProfit3 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCloseStatusChoice('TP_HIT');
+                      setClosePriceInput(String(selectedSignalToClose.takeProfit3));
+                      setCloseNotesInput(`🎯 TP3 Maximum Target (${selectedSignalToClose.takeProfit3}) secured.`);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 text-xs font-mono-code font-bold transition cursor-pointer"
+                  >
+                    TP3 ({selectedSignalToClose.takeProfit3})
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCloseStatusChoice('SL_HIT');
+                    setClosePriceInput(String(selectedSignalToClose.stopLoss));
+                    setCloseNotesInput(`🛑 Stop loss (${selectedSignalToClose.stopLoss}) hit.`);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-400 text-xs font-mono-code font-bold transition cursor-pointer"
+                >
+                  SL ({selectedSignalToClose.stopLoss})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCloseStatusChoice('BREAK_EVEN');
+                    setClosePriceInput(String(selectedSignalToClose.entryPrice));
+                    setCloseNotesInput(`⚖️ Closed at break-even entry (${selectedSignalToClose.entryPrice}).`);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 text-cyan-400 text-xs font-mono-code font-bold transition cursor-pointer"
+                >
+                  Entry BE ({selectedSignalToClose.entryPrice})
+                </button>
+              </div>
+            </div>
+
             {/* Status Options */}
             <div className="space-y-1.5">
-              <label className="text-xs font-mono-code text-slate-400 block">Select Outcome Status</label>
+              <label className="text-xs font-mono-code text-slate-400 block font-bold">Select Outcome Classification</label>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
@@ -1381,16 +1760,35 @@ Issued: ${signal.createdAt}`;
               </div>
             </div>
 
-            {/* Exit Price */}
-            <div>
-              <label className="text-xs font-mono-code text-slate-400 block mb-1">Exit / Closed Price</label>
-              <input
-                type="number"
-                step="any"
-                value={closePriceInput}
-                onChange={(e) => setClosePriceInput(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 font-mono-code text-xs outline-none focus:border-cyan-400"
-              />
+            {/* Exit Price & Live Projected Outcome */}
+            <div className="space-y-2">
+              <div>
+                <label className="text-xs font-mono-code text-slate-400 block mb-1">Exit / Closed Price</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={closePriceInput}
+                  onChange={(e) => setClosePriceInput(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 font-mono-code text-xs outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              {/* Live Pip Calculation Preview */}
+              {(() => {
+                const exitVal = parseFloat(closePriceInput) || selectedSignalToClose.entryPrice;
+                const isJpy = selectedSignalToClose.pair.includes('JPY');
+                const mult = isJpy ? 100 : 10000;
+                const diff = (exitVal - selectedSignalToClose.entryPrice) * (selectedSignalToClose.direction === 'BUY' ? 1 : -1);
+                const calcPips = Math.round(diff * mult);
+                return (
+                  <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between text-xs font-mono-code">
+                    <span className="text-slate-400">Calculated Pips & Impact:</span>
+                    <span className={`font-bold ${calcPips >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {calcPips > 0 ? `+${calcPips}` : calcPips} pips ({closeStatusChoice === 'TP_HIT' ? '+2.0% (Target Reached)' : closeStatusChoice === 'SL_HIT' ? '-1.0% (Contained)' : '0.0% (Parity)'})
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Comments */}
@@ -1420,6 +1818,57 @@ Issued: ${signal.createdAt}`;
               >
                 CONFIRM & MOVE TO REPORTS
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* LIGHTBOX: EXPANDED HD CHART / PDF PREVIEW MODAL               */}
+      {/* ============================================================ */}
+      {previewLightboxImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl max-w-5xl w-full p-4 sm:p-5 shadow-2xl space-y-3 flex flex-col max-h-[92vh]">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2 min-w-0">
+                <ImageIcon className="w-5 h-5 text-cyan-400 shrink-0" />
+                <h3 className="text-sm sm:text-base font-military font-bold tracking-wider text-slate-100 truncate">
+                  {previewLightboxImage.name || 'Trade Setup Analysis & Chart'}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={previewLightboxImage.url}
+                  download={previewLightboxImage.name || 'signal-setup.png'}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-mono-code border border-slate-800 transition cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Download</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewLightboxImage(null)}
+                  className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 min-h-0 flex items-center justify-center bg-slate-900/60 rounded-xl overflow-auto p-2 border border-slate-850">
+              {previewLightboxImage.isPdf ? (
+                <iframe
+                  src={previewLightboxImage.url}
+                  title="PDF Analysis Document"
+                  className="w-full h-[72vh] rounded-lg border border-slate-800"
+                />
+              ) : (
+                <img
+                  src={previewLightboxImage.url}
+                  alt={previewLightboxImage.name || 'Trade Setup Chart'}
+                  className="max-h-[75vh] max-w-full object-contain rounded-lg shadow-2xl"
+                />
+              )}
             </div>
           </div>
         </div>

@@ -326,6 +326,9 @@ export interface SignalItem {
   resultPercent?: number;
   closedAt?: string;
   closeReason?: string;
+  imageUrl?: string;
+  imageName?: string;
+  imageMimeType?: string;
 }
 
 export interface TradingRule {

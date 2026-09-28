@@ -57,6 +57,9 @@ export async function createSignalServer(signalData: {
   takeProfit3?: number;
   strategyNotes?: string;
   recommendedRiskPercent?: number;
+  imageUrl?: string;
+  imageName?: string;
+  imageMimeType?: string;
 }): Promise<SignalItem> {
   try {
     const res = await fetch('/api/signals', {
@@ -98,6 +101,9 @@ export async function createSignalServer(signalData: {
     takeProfit3: signalData.takeProfit3,
     strategyNotes: signalData.strategyNotes || '',
     recommendedRiskPercent: signalData.recommendedRiskPercent || 1.0,
+    imageUrl: signalData.imageUrl,
+    imageName: signalData.imageName,
+    imageMimeType: signalData.imageMimeType,
     status: 'ACTIVE',
     createdAt: pktTimeStr,
     updatedAt: pktTimeStr,
