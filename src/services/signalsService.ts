@@ -49,6 +49,7 @@ export async function fetchSignalsFromServer(): Promise<{ activeSignals: SignalI
 export async function createSignalServer(signalData: {
   pair: string;
   direction: 'BUY' | 'SELL';
+  timeframe?: string;
   entryPrice: number;
   stopLoss: number;
   takeProfit1: number;
@@ -89,6 +90,7 @@ export async function createSignalServer(signalData: {
     id: `sig_local_${Date.now()}`,
     pair: signalData.pair.toUpperCase().trim(),
     direction: signalData.direction,
+    timeframe: signalData.timeframe || 'H1',
     entryPrice: signalData.entryPrice,
     stopLoss: signalData.stopLoss,
     takeProfit1: signalData.takeProfit1,
@@ -160,7 +162,7 @@ export async function updateSignalStatusServer(
         hour12: true,
       }).format(now) + ' PKT';
 
-      found.status = status;
+      found.status = (status === 'TP_HIT' ? 'HIT_TP' : status === 'SL_HIT' ? 'HIT_SL' : status === 'BREAK_EVEN' ? 'BREAK_EVEN' : status) as any;
       found.closeReason = details?.closeReason || (status === 'TP_HIT' ? 'TP_HIT' : status === 'SL_HIT' ? 'SL_HIT' : 'BREAK_EVEN');
       found.closedPrice = details?.closedPrice ?? (status === 'TP_HIT' ? found.takeProfit1 : status === 'SL_HIT' ? found.stopLoss : found.entryPrice);
       found.closedAt = pktTimeStr;

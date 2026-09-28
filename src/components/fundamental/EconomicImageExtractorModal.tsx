@@ -129,9 +129,47 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
     const reader = new FileReader();
     reader.onload = (e) => {
       const result = e.target?.result as string;
-      setImagePreview(result);
-      setExtractedRows([]);
-      setHasScanned(false);
+      if (isPdfFile || !result.startsWith('data:image')) {
+        setImagePreview(result);
+        setExtractedRows([]);
+        setHasScanned(false);
+      } else {
+        // Optimize and downscale image to max 1280px to prevent payload-too-large errors on Vercel/Android
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          const maxDim = 1280;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const optimized = canvas.toDataURL('image/jpeg', 0.85);
+            setImagePreview(optimized);
+            setImageMime('image/jpeg');
+          } else {
+            setImagePreview(result);
+          }
+          setExtractedRows([]);
+          setHasScanned(false);
+        };
+        img.onerror = () => {
+          setImagePreview(result);
+          setExtractedRows([]);
+          setHasScanned(false);
+        };
+        img.src = result;
+      }
     };
     reader.onerror = () => setError('Failed to read file.');
     reader.readAsDataURL(file);

@@ -317,7 +317,7 @@ export interface SignalItem {
   takeProfit3?: number;
   recommendedRiskPercent: number; // e.g. 1.0%
   strategyNotes: string;
-  status: 'PENDING' | 'ACTIVE' | 'HIT_TP' | 'HIT_SL' | 'CANCELLED' | 'FINISHED';
+  status: 'PENDING' | 'ACTIVE' | 'HIT_TP' | 'HIT_SL' | 'CANCELLED' | 'FINISHED' | 'CLOSED' | 'BREAK_EVEN';
   createdAt: string;
   updatedAt: string;
   author: string;
@@ -325,6 +325,7 @@ export interface SignalItem {
   resultPips?: number;
   resultPercent?: number;
   closedAt?: string;
+  closeReason?: string;
 }
 
 export interface TradingRule {

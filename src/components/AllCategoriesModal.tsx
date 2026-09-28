@@ -43,6 +43,7 @@ export interface CategoryItem {
   icon: React.FC<{ className?: string }>;
   highlight?: boolean;
   comingSoon?: boolean;
+  isLive?: boolean;
 }
 
 export const ALL_CATEGORIES_DATA: CategoryItem[] = [

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Calculator,
   ShieldCheck,
@@ -353,7 +353,7 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
               CALCULATION PARAMETERS
             </h2>
             <span className="text-[11px] font-mono-code text-slate-400">
-              {isKnownPair ? `${cleanPair} (Detected)` : 'Manual Pair'}
+              {matchedSpec ? `${cleanPair} (Detected)` : (cleanPair ? `${cleanPair} (Dynamic)` : 'Custom Pair')}
             </span>
           </div>
 

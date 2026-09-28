@@ -18,7 +18,11 @@ import {
   Zap,
   BookOpen,
   ExternalLink,
+  Download,
+  FileText,
+  Image as ImageIcon,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
 import { BacktestSession, AccountSettings } from '../types';
 import { getKarachiDate, getKarachiTime, getKarachiTime12 } from '../utils/time';
 import { formatCurrency } from '../utils/currencyFormatter';
@@ -325,6 +329,263 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
     onBacktestTaskCompleted?.(10);
   };
 
+  const handleDownloadPdf = (session: BacktestSession) => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      // Background
+      doc.setFillColor(11, 15, 25);
+      doc.rect(0, 0, 210, 297, 'F');
+
+      // Header band
+      doc.setFillColor(15, 23, 42);
+      doc.rect(10, 10, 190, 32, 'F');
+      doc.setDrawColor(56, 189, 248);
+      doc.setLineWidth(0.5);
+      doc.rect(10, 10, 190, 32, 'D');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(0, 240, 255);
+      doc.text('PRIME PIP FX — BACKTEST RECORD AUDIT', 15, 22);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Official Backtest Session Audit Record • Generated: ${getKarachiDate()} ${getKarachiTime()} PKT`, 15, 30);
+      doc.text(`Model: ${session.strategy} | Instrument: ${session.pair} | Test Type: ${session.testType}`, 15, 36);
+
+      // Performance Summary Card
+      doc.setFillColor(15, 23, 42);
+      doc.rect(10, 48, 190, 48, 'F');
+      doc.setDrawColor(51, 65, 85);
+      doc.rect(10, 48, 190, 48, 'D');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(245, 158, 11);
+      doc.text('EXECUTION METRICS & OUTCOME SUMMARY', 15, 57);
+
+      doc.setFontSize(10);
+      doc.setTextColor(226, 232, 240);
+      doc.text(`Total Sample Size: ${session.tradesTested} Trades Tested`, 15, 68);
+      doc.text(`Total Wins (TP Hit): ${session.wins}`, 15, 76);
+      doc.text(`Total Losses (SL Hit): ${session.losses}`, 15, 84);
+
+      doc.setTextColor(56, 189, 248);
+      doc.text(`Calculated Win Rate: ${session.winRate}%`, 110, 68);
+      doc.text(`Average Risk-Reward: 1:${session.averageRiskReward} RR`, 110, 76);
+      doc.text(`Timeframe: ${TIMEFRAME_LABELS[session.timeframe] || session.timeframe}`, 110, 84);
+
+      // Historical Period & Setup Details
+      doc.setFillColor(15, 23, 42);
+      doc.rect(10, 102, 190, 60, 'F');
+      doc.setDrawColor(51, 65, 85);
+      doc.rect(10, 102, 190, 60, 'D');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(16, 185, 129);
+      doc.text('SESSION PARAMETERS & HISTORICAL CONTEXT', 15, 111);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(203, 213, 225);
+      doc.text(`Strategy Playbook: ${session.strategy}`, 15, 122);
+      doc.text(`Historical Period Tested: ${session.historicalPeriod}`, 15, 130);
+      doc.text(`Execution Date & Time: ${session.date}`, 15, 138);
+
+      const notesText = session.notes || 'Standard protocol verification completed with zero emotional intervention.';
+      const splitNotes = doc.splitTextToSize(`Trader Notes / Key Learnings: ${notesText}`, 180);
+      doc.text(splitNotes, 15, 148);
+
+      // Institutional Compliance Disclaimer
+      doc.setFillColor(15, 23, 42);
+      doc.rect(10, 168, 190, 24, 'F');
+      doc.setDrawColor(245, 158, 11);
+      doc.setLineWidth(0.3);
+      doc.rect(10, 168, 190, 24, 'D');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(245, 158, 11);
+      doc.text('DISCLAIMER & MATHEMATICAL NOTICE', 15, 175);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text(
+        'Backtesting is a retrospective testing simulation. Past performance and simulated win rates do not guarantee future live execution success. Strictly adhere to risk parameters.',
+        15,
+        182,
+        { maxWidth: 180 }
+      );
+
+      doc.save(`PrimePipFX_Backtest_${session.pair}_${session.id}.pdf`);
+    } catch (e) {
+      console.error('Failed to export PDF:', e);
+    }
+  };
+
+  const handleDownloadImage = (session: BacktestSession) => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1200;
+      canvas.height = 680;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Background
+      const gradient = ctx.createLinearGradient(0, 0, 1200, 680);
+      gradient.addColorStop(0, '#080C15');
+      gradient.addColorStop(1, '#0F172A');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 1200, 680);
+
+      // Border
+      ctx.strokeStyle = '#1E293B';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(16, 16, 1168, 648);
+
+      // Header Title
+      ctx.fillStyle = '#00F0FF';
+      ctx.font = 'bold 36px monospace';
+      ctx.fillText('PRIME PIP FX // BACKTEST SESSION AUDIT', 48, 76);
+
+      ctx.fillStyle = '#94A3B8';
+      ctx.font = '18px monospace';
+      ctx.fillText(`${session.strategy} • ${session.pair} • ${session.testType === 'FORWARD_TEST' ? 'FORWARD TEST' : 'BACKTEST'}`, 48, 116);
+      ctx.fillText(`Recorded: ${session.date} | TF: ${TIMEFRAME_LABELS[session.timeframe] || session.timeframe}`, 48, 146);
+
+      // Metrics Box
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(48, 180, 1104, 210);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(48, 180, 1104, 210);
+
+      // Win Rate
+      ctx.fillStyle = '#38BDF8';
+      ctx.font = 'bold 22px monospace';
+      ctx.fillText('WIN RATE', 80, 230);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 54px monospace';
+      ctx.fillText(`${session.winRate}%`, 80, 290);
+      ctx.fillStyle = '#94A3B8';
+      ctx.font = '16px monospace';
+      ctx.fillText(`1:${session.averageRiskReward} Risk:Reward`, 80, 330);
+
+      // Sample Size & Breakdown
+      ctx.fillStyle = '#38BDF8';
+      ctx.font = 'bold 22px monospace';
+      ctx.fillText('SAMPLE BREAKDOWN', 460, 230);
+      ctx.fillStyle = '#10B981';
+      ctx.font = 'bold 42px monospace';
+      ctx.fillText(`${session.wins} WINS`, 460, 290);
+      ctx.fillStyle = '#F43F5E';
+      ctx.fillText(`${session.losses} LOSSES`, 700, 290);
+      ctx.fillStyle = '#CBD5E1';
+      ctx.font = '18px monospace';
+      ctx.fillText(`Total Tested: ${session.tradesTested} Trades (${session.historicalPeriod})`, 460, 340);
+
+      // Notes Box
+      ctx.fillStyle = '#0B0F19';
+      ctx.fillRect(48, 410, 1104, 180);
+      ctx.strokeStyle = '#1E293B';
+      ctx.strokeRect(48, 410, 1104, 180);
+
+      ctx.fillStyle = '#F59E0B';
+      ctx.font = 'bold 20px monospace';
+      ctx.fillText('TRADER NOTES & KEY LEARNINGS:', 80, 450);
+
+      ctx.fillStyle = '#E2E8F0';
+      ctx.font = '18px monospace';
+      const notes = session.notes || 'Standard protocol verification completed with zero emotional intervention.';
+      ctx.fillText(notes.slice(0, 95), 80, 495);
+      if (notes.length > 95) {
+        ctx.fillText(notes.slice(95, 190), 80, 530);
+      }
+
+      // Footer
+      ctx.fillStyle = '#64748B';
+      ctx.font = '14px monospace';
+      ctx.fillText('Prime Pip FX Macro Terminal • Pure Structure-Based Trading Verification • Not Financial Advice', 48, 635);
+
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `PrimePipFX_Backtest_${session.pair}_${session.id}.png`;
+      a.click();
+    } catch (e) {
+      console.error('Failed to export Image:', e);
+    }
+  };
+
+  const handleDownloadAllPdf = () => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      doc.setFillColor(11, 15, 25);
+      doc.rect(0, 0, 297, 210, 'F');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(0, 240, 255);
+      doc.text('PRIME PIP FX — COMPLETE BACKTEST VAULT REPORT', 15, 20);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Generated: ${getKarachiDate()} ${getKarachiTime()} PKT | Total Sessions: ${sessions.length} | Total Trades: ${totalTradesTested} | Win Rate: ${overallWinRate}%`, 15, 28);
+
+      let y = 40;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(56, 189, 248);
+      doc.text('DATE', 15, y);
+      doc.text('STRATEGY / MODEL', 50, y);
+      doc.text('PAIR', 130, y);
+      doc.text('TF', 155, y);
+      doc.text('TRADES', 175, y);
+      doc.text('W / L', 200, y);
+      doc.text('WIN RATE', 225, y);
+      doc.text('RR', 255, y);
+      doc.text('TYPE', 270, y);
+
+      doc.setDrawColor(51, 65, 85);
+      doc.line(15, y + 2, 285, y + 2);
+      y += 8;
+
+      doc.setFont('helvetica', 'normal');
+      sessions.slice(0, 20).forEach((s) => {
+        doc.setTextColor(203, 213, 225);
+        doc.text(s.date, 15, y);
+        doc.text(s.strategy.slice(0, 40), 50, y);
+        doc.text(s.pair, 130, y);
+        doc.text(s.timeframe, 155, y);
+        doc.text(String(s.tradesTested), 175, y);
+        doc.text(`${s.wins}/${s.losses}`, 200, y);
+        doc.setTextColor(s.winRate >= 50 ? 52 : 244, s.winRate >= 50 ? 211 : 63, s.winRate >= 50 ? 153 : 94);
+        doc.text(`${s.winRate}%`, 225, y);
+        doc.setTextColor(203, 213, 225);
+        doc.text(`1:${s.averageRiskReward}`, 255, y);
+        doc.text(s.testType === 'FORWARD_TEST' ? 'FWD' : 'BACK', 270, y);
+        y += 7;
+      });
+
+      doc.save(`PrimePipFX_All_Backtest_Sessions_${Date.now()}.pdf`);
+    } catch (e) {
+      console.error('Failed to export all PDF:', e);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Separation of Concerns Banner (Requirement 25) */}
@@ -371,6 +632,16 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
             <Zap className="w-3.5 h-3.5 text-sky-400" />
             <span>LOG 10 TRADES TODAY</span>
           </button>
+          {sessions.length > 0 && (
+            <button
+              onClick={handleDownloadAllPdf}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-md"
+              title="Download complete backtesting vault report as PDF"
+            >
+              <Download className="w-3.5 h-3.5 text-cyan-400" />
+              <span>EXPORT SESSIONS PDF</span>
+            </button>
+          )}
           <button
             id="add-backtest-session-btn"
             onClick={handleOpenAddModal}
@@ -582,8 +853,24 @@ export const BacktestingTracker: React.FC<BacktestingTrackerProps> = ({
 
                   <div className="flex items-center gap-1">
                     <button
+                      type="button"
+                      onClick={() => handleDownloadPdf(session)}
+                      className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-cyan-400 transition cursor-pointer"
+                      title="Download Session PDF Audit"
+                    >
+                      <FileText className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadImage(session)}
+                      className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                      title="Download Session Card Image (PNG)"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => handleOpenEditModal(session)}
-                      className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-cyan-400 transition"
+                      className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-cyan-400 transition cursor-pointer"
                       title="Edit"
                     >
                       <Edit2 className="w-4 h-4" />
