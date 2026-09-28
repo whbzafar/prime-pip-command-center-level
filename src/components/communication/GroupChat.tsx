@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { MessageSquare, Plus, Send, UserPlus, Users, X } from 'lucide-react';
 import { UserAccount } from '../../types';
+import { getStoredToken } from '../../utils/authClient';
+
+const communityAuthHeaders = (): Record<string, string> => {
+  const token = getStoredToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 type Friend = { friendId: string; friendUsername: string; friendDisplayName: string };
 
@@ -39,7 +45,7 @@ export const GroupChat: React.FC<GroupChatProps> = ({ currentUser, friends }) =>
 
   const loadGroups = async () => {
     try {
-      const res = await fetch('/api/groups', { credentials: 'include', cache: 'no-store' });
+      const res = await fetch('/api/groups', { credentials: 'include', cache: 'no-store', headers: communityAuthHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       setGroups(data.groups || []);
@@ -54,8 +60,8 @@ export const GroupChat: React.FC<GroupChatProps> = ({ currentUser, friends }) =>
     if (!activeGroup) return;
     try {
       const [messageRes, memberRes] = await Promise.all([
-        fetch('/api/groups/' + encodeURIComponent(activeGroup.id) + '/messages', { credentials: 'include', cache: 'no-store' }),
-        fetch('/api/groups/' + encodeURIComponent(activeGroup.id) + '/members', { credentials: 'include', cache: 'no-store' }),
+        fetch('/api/groups/' + encodeURIComponent(activeGroup.id) + '/messages', { credentials: 'include', cache: 'no-store', headers: communityAuthHeaders() }),
+        fetch('/api/groups/' + encodeURIComponent(activeGroup.id) + '/members', { credentials: 'include', cache: 'no-store', headers: communityAuthHeaders() }),
       ]);
       if (messageRes.ok) {
         const data = await messageRes.json();
@@ -90,7 +96,7 @@ export const GroupChat: React.FC<GroupChatProps> = ({ currentUser, friends }) =>
       const res = await fetch('/api/groups', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...communityAuthHeaders() },
         body: JSON.stringify({ name: name.trim(), memberIds: selected }),
       });
       const data = await res.json().catch(() => ({}));
@@ -115,7 +121,7 @@ export const GroupChat: React.FC<GroupChatProps> = ({ currentUser, friends }) =>
       const res = await fetch('/api/groups/' + encodeURIComponent(activeGroup.id) + '/messages', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...communityAuthHeaders() },
         body: JSON.stringify({ text: value }),
       });
       const data = await res.json().catch(() => ({}));
@@ -132,7 +138,7 @@ export const GroupChat: React.FC<GroupChatProps> = ({ currentUser, friends }) =>
       const res = await fetch('/api/groups/' + encodeURIComponent(activeGroup.id) + '/members', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...communityAuthHeaders() },
         body: JSON.stringify({ userId }),
       });
       const data = await res.json().catch(() => ({}));
