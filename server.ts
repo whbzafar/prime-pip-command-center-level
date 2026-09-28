@@ -4957,52 +4957,74 @@ app.get('/api/admin/gaps', (req, res) => {
 // FRIEND SYSTEM API ENDPOINTS
 // ----------------------------------------------------
 app.get('/api/friends/list', async (req, res) => {
+  // Community friend loading must never fail because one optional presence/profile
+  // lookup failed. Authentication is resolved first; every data source below is
+  // independently fault-tolerant.
   try {
     const token = getAuthToken(req);
     if (!token) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    const user = await getCommunityUser(req);
-    if (!user) return res.status(401).json({ ok: false, error: 'Invalid user' });
+
+    let user: StoredUser | null = null;
+    try {
+      user = await getCommunityUser(req);
+    } catch (error: any) {
+      console.error('[FRIENDS] community authentication failed:', error?.message || error);
+    }
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid or expired community session. Please sign in again.' });
     if (!isActiveCommunityMember(user)) {
       return res.status(403).json({ ok: false, error: 'An active subscription is required for friends.' });
     }
 
-    recordUserHeartbeat(user.id);
+    try { recordUserHeartbeat(user.id); } catch {}
+
     if (isSupabaseCommunityEnabled) {
-      try { await getSupabaseTraderById(user.id); } catch (error: any) {
-        console.warn('[FRIENDS] profile refresh skipped:', error?.message || error);
-      }
       let friends: any[] = [];
       let incomingRequests: any[] = [];
       let outgoingRequests: any[] = [];
-      try { friends = await listSupabaseFriends(user.id); } catch (error: any) {
+
+      try {
+        await getSupabaseTraderById(user.id);
+      } catch (error: any) {
+        console.warn('[FRIENDS] profile refresh skipped:', error?.message || error);
+      }
+
+      try {
+        const rows = await listSupabaseFriends(user.id);
+        friends = Array.isArray(rows) ? rows : [];
+      } catch (error: any) {
         console.error('[FRIENDS] friendship lookup failed:', error?.message || error);
       }
+
       try {
         const requests = await getSupabaseFriendRequests(user.id);
-        incomingRequests = requests.incomingRequests || [];
-        outgoingRequests = requests.outgoingRequests || [];
+        incomingRequests = Array.isArray(requests?.incomingRequests) ? requests.incomingRequests : [];
+        outgoingRequests = Array.isArray(requests?.outgoingRequests) ? requests.outgoingRequests : [];
       } catch (error: any) {
         console.error('[FRIENDS] request lookup failed:', error?.message || error);
       }
+
       return res.json({ ok: true, friends, incomingRequests, outgoingRequests, backend: 'supabase' });
     }
 
-    const data = getUserFriends(user.id);
-    const enrichedFriends = (data.friends || []).map((f) => {
-      const otherUserId = f.friendId;
-      const online = isUserOnline(otherUserId);
-      return { ...f, isOnline: online };
-    });
+    let data: any = { friends: [], incomingRequests: [], outgoingRequests: [] };
+    try { data = getUserFriends(user.id) || data; } catch (error: any) {
+      console.error('[FRIENDS] local friendship lookup failed:', error?.message || error);
+    }
+    const enrichedFriends = (Array.isArray(data.friends) ? data.friends : []).map((f: any) => ({
+      ...f,
+      isOnline: isUserOnline(f.friendId),
+    }));
 
     return res.json({
       ok: true,
       friends: enrichedFriends,
-      incomingRequests: data.incomingRequests || [],
-      outgoingRequests: data.outgoingRequests || [],
+      incomingRequests: Array.isArray(data.incomingRequests) ? data.incomingRequests : [],
+      outgoingRequests: Array.isArray(data.outgoingRequests) ? data.outgoingRequests : [],
       backend: 'local-fallback',
     });
   } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err?.message });
+    console.error('[FRIENDS] unexpected route failure:', err?.message || err);
+    return res.status(500).json({ ok: false, error: 'Community friends service encountered an unexpected server error.' });
   }
 });
 
