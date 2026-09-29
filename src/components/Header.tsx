@@ -43,6 +43,7 @@ import {
   Layers,
   Globe,
   Palette,
+  Smartphone,
   GraduationCap,
   Sun,
   Moon,
@@ -92,7 +93,8 @@ export type MainNavTab =
   | 'PRO_LEARNING'
   | 'SITUATION_SAVER'
   | 'PAIR_SAVER'
-  | 'PRO_TRADING';
+  | 'PRO_TRADING'
+  | 'META5_PREMIUM';
 
 interface HeaderProps {
   activeTab: MainNavTab;
@@ -405,8 +407,9 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: '07. LIVE NEWS CALENDAR', icon: Calendar, highlight: true },
     { id: 'FUNDAMENTAL_INDICATORS' as MainNavTab, label: '08. FUNDAMENTAL INDICATORS', icon: Globe, highlight: true },
     { id: 'SIGNALS' as MainNavTab, label: '09. PREMIUM SIGNALS', icon: Radio, highlight: true, comingSoon: false, locked: false, isLive: true },
-    { id: 'PRO_TRADING' as MainNavTab, label: '10. PRO TRADING', icon: CandlestickChart, highlight: true },
-    { id: 'COMPOUNDING' as MainNavTab, label: '11. COMPOUNDING TOOLS', icon: Calculator },
+    { id: 'PRO_TRADING' as MainNavTab, label: '10. PREMIUM TRADINGVIEW', icon: CandlestickChart, highlight: true },
+    { id: 'META5_PREMIUM' as MainNavTab, label: '11. META5 PREMIUM', icon: Smartphone, highlight: true },
+    { id: 'COMPOUNDING' as MainNavTab, label: '12. COMPOUNDING TOOLS', icon: Calculator },
     { id: 'PERFORMANCE' as MainNavTab, label: '11. PERFORMANCE REPORT', icon: BarChart3 },
     { id: 'DAILY_DEV' as MainNavTab, label: '12. DAILY DEVELOPMENT', icon: Award },
     { id: 'PSYCHOLOGY' as MainNavTab, label: '13. PSYCHOLOGICAL CENTER', icon: Brain, highlight: true },

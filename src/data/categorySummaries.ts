@@ -1,0 +1,293 @@
+export interface CategorySummary {
+  id: string;
+  name: string;
+  shortDesc: string;
+  overview: string;
+  keyFeatures: string[];
+  roleRequired?: string;
+}
+
+export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
+  DASHBOARD: {
+    id: 'DASHBOARD',
+    name: '01. Trade Command Dashboard',
+    shortDesc: 'Live Command Terminal, multi-account equity metrics, and real-time execution telemetry.',
+    overview: 'The central nerve center of your trading operation. Displays real-time account balances, daily drawdown limits, current equity curves, win rate analytics, and active risk telemetry at a glance.',
+    keyFeatures: [
+      'Live equity curve and balance tracking across personal and funded accounts',
+      'Real-time daily loss circuit breaker with automated risk alerts',
+      'Overall institutional trading score and discipline rating',
+      'Quick trade execution launcher and active risk gauges',
+    ],
+  },
+  JOURNAL: {
+    id: 'JOURNAL',
+    name: '02. Trade Journal',
+    shortDesc: 'Institutional trade logging, confluences, screenshots, and automated R:R calculation.',
+    overview: 'The professional trade journal allows you to log every execution with precision. Document entry/exit points, risk-to-reward ratios, confluences, emotional state, and before/after chart screenshots.',
+    keyFeatures: [
+      'Full trade detail capture with automated lot size and risk metrics',
+      'Before & After chart screenshot upload and visual markup',
+      'SMC & Fundamental confluence tagging per setup',
+      'Automated P&L, win/loss ratio, and execution quality auditing',
+    ],
+  },
+  SBT_MODELS: {
+    id: 'SBT_MODELS',
+    name: '03. SBT Institutional Models',
+    shortDesc: 'Order flow confluences, Fair Value Gaps (FVG), Liquidity Sweeps, and kill-zone setups.',
+    overview: 'Proprietary institutional execution frameworks modeled on Smart Money concepts, algorithmic liquidity delivery, liquidity sweeps, and high-probability session kill-zones.',
+    keyFeatures: [
+      'Step-by-step institutional entry validation checklists',
+      'FVG, Order Block, and Liquidity Run confluence matrices',
+      'London and New York kill-zone timing filters',
+      'Mechanical execution rules for high win-rate setups',
+    ],
+  },
+  LOT_SIZE: {
+    id: 'LOT_SIZE',
+    name: '04. Lot Size Calculator',
+    shortDesc: 'Institutional position sizing and risk calculation.',
+    overview: 'Precision position size calculator calibrated for Forex pairs, Gold, Silver, Indices, and Crypto.',
+    keyFeatures: ['Live pip value calculation', 'Cent and Dollar account standards', 'Over-risk safeguard'],
+  },
+  RISK: {
+    id: 'RISK',
+    name: '05. Risk Management Engine',
+    shortDesc: '1% Master Risk Enforcement Engine, daily loss limits, and drawdown protection.',
+    overview: 'The discipline gatekeeper. Enforces maximum risk per trade, limits daily executions, and prevents over-trading or revenge trading with hard circuit breakers.',
+    keyFeatures: [
+      'Strict 1% maximum trade risk enforcement',
+      'Daily trade count circuit breaker (max 2 trades per day)',
+      'Account drawdown threshold protection',
+      'Capital preservation risk audit reports',
+    ],
+  },
+  PRE_TRADE_PLAN: {
+    id: 'PRE_TRADE_PLAN',
+    name: '06. Pre-Trade Plan Gatekeeper',
+    shortDesc: '3-Phase Execution Checklist Gatekeeper and mandatory discipline verification.',
+    overview: 'A mandatory pre-flight checklist that every trader must complete before placing an order. Ensures you never take an impulsive trade without HTF alignment and risk validation.',
+    keyFeatures: [
+      '3-Phase gatekeeper checklist: Macro Context, Technical Model, Risk Rules',
+      'Prevents order entry until all institutional conditions are met',
+      'Automatic risk-reward verification against target levels',
+      'Discipline logging attached to your journal record',
+    ],
+  },
+  FUNDAMENTAL_CALENDAR: {
+    id: 'FUNDAMENTAL_CALENDAR',
+    name: '07. Live News Calendar',
+    shortDesc: 'Macro economic calendar with 8-currency schedule and Pakistan Time live countdowns.',
+    overview: 'Full-year economic calendar covering all 8 major global currencies. Features real-time countdown timers to upcoming releases, high-impact visual folder badges, and zero-lag alert telemetry.',
+    keyFeatures: [
+      'Full-year economic release schedule across all 8 currencies',
+      'Second-by-second countdown to high-impact CPI, NFP, and Interest Rate releases',
+      'Calibrated in Pakistan Standard Time (PKT / UTC+5)',
+      'ForexFactory-style color coded impact hierarchy',
+    ],
+  },
+  FUNDAMENTAL_INDICATORS: {
+    id: 'FUNDAMENTAL_INDICATORS',
+    name: '08. Fundamental Indicators Engine',
+    shortDesc: 'Deterministic 8-currency macro scoring, central bank rates, and currency differentials.',
+    overview: 'The definitive macroeconomic intelligence suite. Calculates currency strength scores from -10 to +10 using central bank policy rates, inflation, GDP growth, employment, and retail sentiment.',
+    keyFeatures: [
+      'Deterministic currency strength scoring across USD, EUR, GBP, JPY, CAD, AUD, CHF, NZD',
+      'Central Bank policy rate and bond yield tracking',
+      'COT institutional positioning and retail sentiment contrarian gauges',
+      'Multi-currency PDF/image data extraction and instant updates',
+    ],
+  },
+  SIGNALS: {
+    id: 'SIGNALS',
+    name: '09. Premium Signals Hub',
+    shortDesc: 'Institutional VIP trade setups, entry/exit notifications, and verified alpha confluences.',
+    overview: 'Direct access to institutional setups curated by verified analysts. Receive real-time notifications with exact entry, stop loss, take profit targets, and confluence breakdowns.',
+    keyFeatures: [
+      'Real-time institutional trade setup dispatches with TP/SL targets',
+      'Technical, Macro, and Sentiment confluence breakdown per signal',
+      'Timeframe and risk parameter specifications',
+      'Live signal status tracking: Active, Hit Target, or Closed',
+    ],
+  },
+  PRO_TRADING: {
+    id: 'PRO_TRADING',
+    name: '10. Premium TradingView',
+    shortDesc: 'Live TradingView interactive charts, broker feeds, drawing tools, and real-time candle timers.',
+    overview: 'Full-featured TradingView terminal with real-time multi-asset quotes, broker selection, indicators, candle countdowns, and collaborative chart sharing.',
+    keyFeatures: ['Full Drawing Suite', 'Candle Close Countdown', 'Fundamental Pairs tab', 'Auto-Save & Sharing'],
+  },
+  COMPOUNDING: {
+    id: 'COMPOUNDING',
+    name: '11. Compounding Engine',
+    shortDesc: 'Long-term equity compounding simulator and growth milestones.',
+    overview: 'Simulate long-term capital compounding and projected equity milestones with risk-adjusted returns.',
+    keyFeatures: ['Custom compound interest periods', 'Milestone target setting', 'Drawdown projections'],
+  },
+  PERFORMANCE: {
+    id: 'PERFORMANCE',
+    name: '11. Performance Report',
+    shortDesc: 'Win rates, risk-reward matrices, equity curves, and performance benchmarking.',
+    overview: 'Deep statistical autopsy of your trading performance. Identifies which pairs, sessions, and setups yield the highest profitability while flagging behavioral leaks.',
+    keyFeatures: [
+      'Comprehensive win/loss ratio and profit factor analysis',
+      'Performance breakdown by currency pair, session, and day of week',
+      'Average win vs. average loss distribution curves',
+      'Actionable recommendations to plug profitability leaks',
+    ],
+  },
+  DAILY_DEV: {
+    id: 'DAILY_DEV',
+    name: '12. Daily Development',
+    shortDesc: 'Trader habit tracker, morning routines, mental state logging, and daily review.',
+    overview: 'Structured daily habits and routines for elite traders. Track your physical, mental, and technical preparation to ensure you enter every trading session in prime mental state.',
+    keyFeatures: [
+      'Morning routine and session preparation checklist',
+      'Sleep, energy, and cognitive focus tracking',
+      'End-of-day trading reflection and lessons learned',
+      'Habit streak counters and consistency scoring',
+    ],
+  },
+  PSYCHOLOGY: {
+    id: 'PSYCHOLOGY',
+    name: '13. Psychological Center',
+    shortDesc: 'Emotional state monitoring, cognitive bias audit, and mental resilience tools.',
+    overview: 'Cognitive defense against FOMO, greed, fear, and revenge trading. Audit your psychological state before taking risk and build iron-clad trading discipline.',
+    keyFeatures: [
+      'Pre-trade emotional state check and tilt detector',
+      'Cognitive bias identification (sunk cost, confirmation bias, recency bias)',
+      'Revenge trading lockout circuit breaker',
+      'Psychological timeline tracking your emotional evolution over time',
+    ],
+  },
+  CALMING_TOOLS: {
+    id: 'CALMING_TOOLS',
+    name: '14. Trading Tool Suite',
+    shortDesc: 'Diaphragmatic breathing timers, cardiac coherence, and emotional reset tools.',
+    overview: 'Scientifically validated physiological regulation tools for traders experiencing elevated heart rates or stress during drawdowns or fast-moving markets.',
+    keyFeatures: [
+      'Box breathing and 4-7-8 diaphragmatic respiration pacing guides',
+      'Cardiac coherence visual pulse guides',
+      'Post-loss emotional reset timer (5-minute cool-down protocol)',
+      'Focus-enhancing audio and ambient frequency generators',
+    ],
+  },
+  RESEARCH: {
+    id: 'RESEARCH',
+    name: '15. Academic Research',
+    shortDesc: 'Academic market research engine and behavioral finance literature.',
+    overview: 'Search verified quantitative and behavioral finance papers to deepen your market knowledge.',
+    keyFeatures: ['OpenAlex academic research engine', 'Peer-reviewed studies', 'Quantitative papers'],
+  },
+  FREEHAND_WORKSPACE: {
+    id: 'FREEHAND_WORKSPACE',
+    name: '16. Freehand Canvas',
+    shortDesc: 'Infinite diagramming workspace for market structure and strategy notes.',
+    overview: 'A free-flowing canvas to draw liquidity pools, map multi-timeframe structures, and brainstorm trade ideas.',
+    keyFeatures: ['Vector drawing tools', 'Chart snapshot pasting', 'Exportable diagram sheets'],
+  },
+  SITUATION_SAVER: {
+    id: 'SITUATION_SAVER',
+    name: '17. Situation Saver',
+    shortDesc: 'Vault of historical market structures, liquidity setups, and playbook situations.',
+    overview: 'Save and categorize unique market situations, unexpected news spikes, and textbook setups so you can study them and recognize them instantly when they recur.',
+    keyFeatures: [
+      'Organize setups by market condition (Trend, Consolidation, News Spike)',
+      'Tag with execution notes and key learning takeaways',
+      'Searchable personal library of recurring market archetypes',
+      'Cloud synchronized and offline accessible',
+    ],
+  },
+  PAIR_SAVER: {
+    id: 'PAIR_SAVER',
+    name: '18. Pair Saver',
+    shortDesc: 'Custom multi-pair watchlist and technical bias tracker.',
+    overview: 'Track your favorite pairs, correlated assets, and key levels across sessions.',
+    keyFeatures: ['Watchlist grouping', 'Live quote tracking', 'Technical bias tags'],
+  },
+  PRO_LEARNING: {
+    id: 'PRO_LEARNING',
+    name: '19. Pro Learning / Academy',
+    shortDesc: 'Complete institutional trading strategies, execution courses, and trading bot library.',
+    overview: 'Comprehensive video and text curriculum covering institutional order flow, macroeconomic analysis, risk engineering, and algorithmic bot automation.',
+    keyFeatures: [
+      'Complete 3-month institutional trading curriculum',
+      'Video breakdowns of high-probability execution models',
+      'Trading bot algorithms and automated execution scripts',
+      'Direct mentor review and homework submission channels',
+    ],
+  },
+  COMMUNITY: {
+    id: 'COMMUNITY',
+    name: '20. Trader Community Feed',
+    shortDesc: 'Live dispatches, verified student network, and real-time market sharing.',
+    overview: 'Connect with verified students and institutional traders. Share analysis, discuss active market conditions, exchange trade ideas, and celebrate milestones together.',
+    keyFeatures: [
+      'Live peer chat feed and setup sharing',
+      'Friend requests and private trader messaging',
+      'Online verified trader presence indicators',
+      'Direct announcements and updates from the mentorship desk',
+    ],
+  },
+  BOOK_SESSION: {
+    id: 'BOOK_SESSION',
+    name: '21. Book a Session',
+    shortDesc: '1-on-1 mentorship consultation and personalized trading roadmap reviews.',
+    overview: 'Schedule a private consultation directly with the lead mentor. Review your trade journal, identify psychological leaks, and formulate a customized path to funded trader status.',
+    keyFeatures: [
+      'Direct calendar booking for 1-on-1 Zoom / Google Meet sessions',
+      'Personal trade journal autopsy and chart audit',
+      'Prop firm challenge preparation strategy',
+      'Priority WhatsApp support channel access',
+    ],
+  },
+  SETTINGS: {
+    id: 'SETTINGS',
+    name: '22. Data Export & Backup',
+    shortDesc: 'Full state export, automated Google Drive sync, and account restoration.',
+    overview: 'Secure your trading data with automatic cloud backups to your personal Google Drive or download encrypted JSON backups to your computer anytime.',
+    keyFeatures: [
+      'One-click full trade journal JSON export',
+      'Automatic background synchronization to personal Google Drive',
+      'Cross-device restoration without server hosting costs',
+      'Complete privacy and data ownership guarantee',
+    ],
+  },
+  ADMIN: {
+    id: 'ADMIN',
+    name: '23. Admin Panel (Owner)',
+    shortDesc: 'Master administrative terminal, student enrollment, credentials, and access control.',
+    overview: 'Authorized administrator panel for platform owners to register new students, generate activation links, verify subscription payments, and manage user accounts.',
+    keyFeatures: [
+      'Student account creation and credential generation',
+      'One-click WhatsApp activation link generator',
+      'Subscription price and expiration date management',
+      'Live student roster and session monitoring',
+    ],
+  },
+  META5_PREMIUM: {
+    id: 'META5_PREMIUM',
+    name: '11. Meta5 Premium Terminal',
+    shortDesc: 'Authentic MetaTrader 5 mobile terminal with live broker & funded account connectivity.',
+    overview: 'Execute trades directly inside the application using a faithful, mobile-first MetaTrader 5 interface. Connect any broker or prop firm (FTMO, FundedNext, IC Markets, Exness), stream live quotes, trade interactive charts, and automatically sync every execution to your Trading Journal.',
+    keyFeatures: [
+      'Authentic mobile MT5 Quotes, Charts, Trade, History, and Settings interface',
+      'Instant connection to 50+ real brokers and top funded account prop firms',
+      'Live Bid/Ask ticking quotes with simple and advanced pip breakdown views',
+      'One-click trading and execution with automatic logging into your Trade Journal',
+    ],
+  },
+  EVOLUTION: {
+    id: 'EVOLUTION',
+    name: '24. Evaluation Engine',
+    shortDesc: 'Proprietary performance grading, prop firm qualification, and edge refinement.',
+    overview: 'Autonomous evaluation engine that audits your trading data against prop firm funded benchmarks to determine whether you are mathematically ready to pass an evaluation.',
+    keyFeatures: [
+      'Prop firm consistency rule compliance audit',
+      'Maximum daily and total loss tolerance stress test',
+      'Algorithmic trading evolution score and readiness certificate',
+      'Personalized risk-calibrated roadmap to full-time funded status',
+    ],
+  },
+};

@@ -29,6 +29,7 @@ import {
   Lock,
   Bookmark,
   CandlestickChart,
+  Smartphone,
 } from 'lucide-react';
 import { MainNavTab } from './Header';
 import { UserAccount } from '../types';
@@ -138,16 +139,27 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'PRO_TRADING',
     num: '10',
-    label: 'Pro Trading',
-    name: 'Pro Trading (Live Charts)',
-    desc: 'Full TradingView charting terminal with real-time multi-asset quotes, broker selection, indicators, and complete drawing toolset.',
+    label: 'Premium TradingView',
+    name: 'Premium TradingView (Live Charts)',
+    desc: 'Full TradingView charting terminal with real-time multi-asset quotes, broker selection, indicators, candle countdowns, and collaborative chart sharing.',
     section: 'Intelligence & Setups',
     icon: CandlestickChart,
     highlight: true,
   },
   {
-    id: 'COMPOUNDING',
+    id: 'META5_PREMIUM',
     num: '11',
+    label: 'Meta5 Premium',
+    name: 'Meta5 Premium Mobile Terminal',
+    desc: 'Full-featured authentic MetaTrader 5 mobile trading terminal. Connect any broker or prop firm account, execute live & demo orders, quotes, depth of market, chart trading, and instant auto-logging to Trade Journal.',
+    section: 'Intelligence & Setups',
+    icon: Smartphone,
+    highlight: true,
+    isLive: true,
+  },
+  {
+    id: 'COMPOUNDING',
+    num: '12',
     label: 'Compounding Tools',
     name: 'Compounding Engine',
     desc: 'Long-term equity compounding simulator, target milestones, and risk-adjusted growth trajectories.',

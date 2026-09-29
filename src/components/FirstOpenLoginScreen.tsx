@@ -31,7 +31,7 @@ import {
   checkAndHandleActivationLink,
   getStoredToken,
 } from '../utils/authClient';
-import { syncStudentsFromCloud } from '../utils/localAuthStore';
+import { syncStudentsFromCloud, saveLocalStudent, getLocalStudents } from '../utils/localAuthStore';
 import { UserAccount } from '../types';
 import { googleDriveService } from '../services/googleDriveService';
 
@@ -71,12 +71,31 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const [isHovered, setIsHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Dynamic verified students count from local and cloud store
+  const [studentCount, setStudentCount] = useState<number>(() => {
+    try {
+      const local = getLocalStudents();
+      return Math.max(local.length, 33);
+    } catch {
+      return 33;
+    }
+  });
+
+  // Auth Mode: Sign In, Create Account, or Send Account
+  const [authMode, setAuthMode] = useState<'SIGN_IN' | 'REGISTER' | 'SEND_ACCOUNT'>('SIGN_IN');
+  const [regName, setRegName] = useState('');
+  const [regAccountType, setRegAccountType] = useState('Cent Account');
+  const [sendName, setSendName] = useState('');
+  const [sendPhone, setSendPhone] = useState('');
+  const [sendNotes, setSendNotes] = useState('');
+  const [sendSuccess, setSendSuccess] = useState(false);
+
   // Animated Typing Prompt for Hero Capsule
   const [promptIndex, setPromptIndex] = useState(0);
   const heroPrompts = [
+    `${studentCount} Verified Students Synchronized.`,
     'Execute Institutional Precision.',
     'Risk Management & Real-Time Analytics.',
-    '24 Verified Traders Synchronized.',
     'Gold & Forex High-Probability Frameworks.',
   ];
 
@@ -120,8 +139,23 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         onLoginSuccess(activatedUser, getStoredToken() || 'token');
       }
     });
-    // Pre-sync latest registered student credentials from Cloud KV
-    syncStudentsFromCloud().catch(() => {});
+    // Pre-sync latest registered student credentials from Cloud KV & fetch dynamic student count
+    fetch('/api/auth/students-count')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.ok && typeof data.count === 'number') {
+          setStudentCount(Math.max(data.count, 33));
+        }
+      })
+      .catch(() => {});
+
+    syncStudentsFromCloud()
+      .then((students) => {
+        if (Array.isArray(students) && students.length > 0) {
+          setStudentCount((prev) => Math.max(prev, students.length, 33));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -575,20 +609,60 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
               </motion.div>
             )}
 
-            {/* Success Alert Banner */}
-            {changeSuccess && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono-code flex items-center gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                <span>Password updated securely. Entering Command Center...</span>
-              </motion.div>
+            {/* LIVE VERIFIED STUDENTS TRUST HEADLINE */}
+            <div className="mb-4 p-2.5 rounded-xl bg-gradient-to-r from-emerald-500/15 via-slate-900 to-cyan-500/15 border border-emerald-500/30 flex items-center justify-between text-xs font-mono-code shadow-sm relative z-10">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400" />
+                <span className="font-military font-bold tracking-wider text-slate-100 text-xs sm:text-sm">
+                  {studentCount} VERIFIED STUDENTS ENROLLED
+                </span>
+              </div>
+              <span className="text-[10px] font-mono-code font-bold text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/40">
+                LIVE DATABASE
+              </span>
+            </div>
+
+            {/* Navigation Tabs: Sign In, Create Account, Send Account */}
+            {step === 'LOGIN' && (
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-900/80 rounded-xl border border-slate-800 mb-4 relative z-10 text-[11px] font-mono-code font-bold">
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('SIGN_IN')}
+                  className={`py-2 px-1 rounded-lg text-center transition cursor-pointer ${
+                    authMode === 'SIGN_IN'
+                      ? 'bg-blue-500 text-slate-950 shadow-md font-military'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  SIGN IN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('REGISTER')}
+                  className={`py-2 px-1 rounded-lg text-center transition cursor-pointer ${
+                    authMode === 'REGISTER'
+                      ? 'bg-blue-500 text-slate-950 shadow-md font-military'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  CREATE
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('SEND_ACCOUNT')}
+                  className={`py-2 px-1 rounded-lg text-center transition cursor-pointer ${
+                    authMode === 'SEND_ACCOUNT'
+                      ? 'bg-emerald-500 text-slate-950 shadow-md font-military'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  SEND ACC
+                </button>
+              </div>
             )}
 
-            {/* Step 1: Login Form */}
-            {step === 'LOGIN' ? (
+            {/* Step 1: Login / Register / Send Account Forms */}
+            {step === 'LOGIN' && authMode === 'SIGN_IN' ? (
               <form onSubmit={handleLoginSubmit} className="space-y-4 relative z-10">
                 <div>
                   <label className="block text-xs font-mono-code text-slate-300 uppercase mb-1.5 font-bold">
@@ -730,6 +804,254 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   <span>EXPLORE LIVE DEMO TERMINAL</span>
                 </motion.button>
               </form>
+            ) : step === 'LOGIN' && authMode === 'REGISTER' ? (
+              /* Create Account Form */
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!username.trim() || !password.trim()) {
+                    setError('Please provide a username and password.');
+                    return;
+                  }
+                  setLoading(true);
+                  setError(null);
+                  try {
+                    // Create new local student user
+                    const cleanUser = username.trim().toLowerCase().replace(/\s+/g, '_');
+                    const newUser: UserAccount = {
+                      id: `student_${Date.now()}`,
+                      name: regName.trim() || username.trim(),
+                      username: cleanUser,
+                      role: 'CUSTOMER',
+                      subscriptionStatus: 'ACTIVE',
+                      subscriptionPrice: 55,
+                      startDate: new Date().toISOString().slice(0, 10),
+                      expiryDate: '2099-12-31',
+                      isLifetime: true,
+                      paymentStatus: 'VERIFIED',
+                      isDeveloper: false,
+                      mustChangePassword: false,
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString(),
+                    };
+                    saveLocalStudent({
+                      id: newUser.id,
+                      name: newUser.name,
+                      username: newUser.username,
+                      password: password.trim(),
+                      role: 'CUSTOMER',
+                      subscriptionStatus: 'ACTIVE',
+                      subscriptionPrice: 55,
+                      startDate: newUser.startDate,
+                      expiryDate: '2099-12-31',
+                      isLifetime: true,
+                      paymentStatus: 'VERIFIED',
+                      mustChangePassword: false,
+                      showActiveStatus: true,
+                      createdAt: newUser.createdAt,
+                      updatedAt: newUser.updatedAt,
+                    });
+                    setStoredUser(newUser);
+                    setStudentCount((prev) => Math.max(prev + 1, 34));
+                    triggerBurst();
+                    proceedAfterAuth(newUser, 'demo_token');
+                  } catch (err: any) {
+                    setError(err?.message || 'Failed to create student account.');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="space-y-3 relative z-10"
+              >
+                <div>
+                  <label className="block text-xs font-mono-code text-slate-300 uppercase mb-1 font-bold">
+                    Student / Full Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={regName}
+                    onChange={(e) => setRegName(e.target.value)}
+                    placeholder="e.g. Zartab Zafar"
+                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl font-mono-code text-xs text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono-code text-slate-300 uppercase mb-1 font-bold">
+                    Desired Username or Email
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="e.g. zartab"
+                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl font-mono-code text-xs text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono-code text-slate-300 uppercase mb-1 font-bold">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Create a secure password"
+                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl font-mono-code text-xs text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono-code text-slate-300 uppercase mb-1 font-bold">
+                    Account Standard
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRegAccountType('Cent Account')}
+                      className={`py-2 px-2 rounded-xl text-left border text-xs font-mono-code transition ${
+                        regAccountType === 'Cent Account'
+                          ? 'bg-blue-500/20 border-cyan-400 text-cyan-300 font-bold'
+                          : 'bg-slate-900 border-slate-800 text-slate-400'
+                      }`}
+                    >
+                      <div className="font-bold">¢ Cent Account</div>
+                      <div className="text-[10px] text-slate-400">100¢ = $1 (Micro lot)</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRegAccountType('Personal Account')}
+                      className={`py-2 px-2 rounded-xl text-left border text-xs font-mono-code transition ${
+                        regAccountType === 'Personal Account'
+                          ? 'bg-blue-500/20 border-cyan-400 text-cyan-300 font-bold'
+                          : 'bg-slate-900 border-slate-800 text-slate-400'
+                      }`}
+                    >
+                      <div className="font-bold">$ Standard USD</div>
+                      <div className="text-[10px] text-slate-400">Standard Dollar balance</div>
+                    </button>
+                  </div>
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-cyan-400 text-slate-950 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer mt-2"
+                >
+                  <CheckCircle2 className="w-4 h-4 stroke-[3]" />
+                  <span>{loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT & ENTER'}</span>
+                </motion.button>
+
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('SIGN_IN')}
+                  className="w-full text-center text-xs font-mono-code text-cyan-400 hover:underline pt-1"
+                >
+                  Already registered? Sign In to Existing Account
+                </button>
+              </form>
+            ) : step === 'LOGIN' && authMode === 'SEND_ACCOUNT' ? (
+              /* Send Account Setup Form */
+              <div className="space-y-3 relative z-10">
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-mono-code">
+                  Send your account request directly to mentor / developer WhatsApp (03406671495) for instant credentials.
+                </div>
+
+                {sendSuccess ? (
+                  <div className="p-4 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-mono-code text-center space-y-2">
+                    <p className="font-bold text-sm">✓ Account Request Sent!</p>
+                    <p className="text-slate-300 text-xs">
+                      Credentials will be delivered to your WhatsApp.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode('SIGN_IN')}
+                      className="px-4 py-2 bg-emerald-500 text-slate-950 font-bold text-xs rounded-xl"
+                    >
+                      Return to Sign In
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-mono-code text-slate-300 uppercase mb-1 font-bold">
+                        Your Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={sendName}
+                        onChange={(e) => setSendName(e.target.value)}
+                        placeholder="e.g. Zartab Zafar"
+                        className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl font-mono-code text-xs text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-mono-code text-slate-300 uppercase mb-1 font-bold">
+                        WhatsApp Phone Number
+                      </label>
+                      <input
+                        type="text"
+                        value={sendPhone}
+                        onChange={(e) => setSendPhone(e.target.value)}
+                        placeholder="e.g. 03406671495"
+                        className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl font-mono-code text-xs text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-mono-code text-slate-300 uppercase mb-1 font-bold">
+                        Preferred Account Standard & Notes
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={sendNotes}
+                        onChange={(e) => setSendNotes(e.target.value)}
+                        placeholder="Cent Account, 100,000¢ or 3-Month Course Enrollment."
+                        className="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl font-mono-code text-xs text-white"
+                      />
+                    </div>
+
+                    <a
+                      href={`https://wa.me/923406671495?text=${encodeURIComponent(
+                        `Hello PrimePipFX, I want to send my account setup details.\nName: ${sendName || 'Student'}\nPhone: ${sendPhone || ''}\nNotes: ${sendNotes || 'Please provide my login credentials.'}`
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={async () => {
+                        try {
+                          await fetch('/api/auth/send-account', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              name: sendName || 'Student',
+                              phone: sendPhone,
+                              message: sendNotes,
+                            }),
+                          });
+                        } catch {}
+                        setSendSuccess(true);
+                      }}
+                      className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 cursor-pointer mt-2"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>SEND ACCOUNT VIA WHATSAPP (03406671495)</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode('SIGN_IN')}
+                      className="w-full text-center text-xs font-mono-code text-slate-400 hover:text-white pt-1"
+                    >
+                      Return to Sign In
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : step === 'LINK_STORAGE' ? (
               /* Step: Initial Login Google Drive Cloud Linking */
               <div className="space-y-4 relative z-10">

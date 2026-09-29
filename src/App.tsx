@@ -43,6 +43,20 @@ import { UserProfileModal } from './components/UserProfileModal';
 import { TraderExperienceProfileModal } from './components/evolution/TraderExperienceProfileModal';
 import { EvolutionCommandCenter } from './components/evolution/EvolutionCommandCenter';
 import { CalmingSuiteMaster } from './components/calming/CalmingSuiteMaster';
+import { CATEGORY_SUMMARIES, CategorySummary } from './data/categorySummaries';
+import { LockedCategoryModal } from './components/LockedCategoryModal';
+import { Meta5PremiumTerminal } from './components/meta5/Meta5PremiumTerminal';
+
+const ALLOWED_DEMO_CATEGORIES: string[] = [
+  'LOT_SIZE',
+  'PRO_TRADING',
+  'SIGNALS',
+  'META5_PREMIUM',
+  'COMPOUNDING',
+  'FREEHAND_WORKSPACE',
+  'RESEARCH',
+  'PAIR_SAVER',
+];
 import { apiRecordTelemetrySignal } from './utils/evolutionClient';
 import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin } from './utils/authClient';
 import {
@@ -105,6 +119,7 @@ export default function App() {
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
+  const [lockedCategoryModal, setLockedCategoryModal] = useState<CategorySummary | null>(null);
 
   // Active Category / Tab State & Main Container Reference
   const activeCategory = activeTab;
@@ -211,7 +226,7 @@ export default function App() {
     } catch {}
     setIsLoginModalOpen(false);
     setIsSubscriptionModalOpen(false);
-    setActiveTab('DASHBOARD');
+    setActiveTab('PRO_TRADING');
 
     // If no account is loaded, provide a demo preview account immediately
     if (!activeAccount || accounts.length === 0) {
@@ -238,6 +253,37 @@ export default function App() {
       await loadAccountData(demoAccount);
     }
   }, [activeAccount, accounts, loadAccountData]);
+
+  // Tab Selection with Strict Demo Guard
+  const handleSelectTab = useCallback(
+    (tab: MainNavTab | string) => {
+      if (isDemoMode && !ALLOWED_DEMO_CATEGORIES.includes(tab)) {
+        const summary = CATEGORY_SUMMARIES[tab] || {
+          id: tab,
+          name: tab,
+          shortDesc: 'Institutional Trading Category',
+          overview: 'This professional module is locked in Demo Mode. Subscribe to unlock full execution capabilities.',
+          keyFeatures: ['Full institutional execution access', 'Cloud backup and offline sync'],
+        };
+        setLockedCategoryModal(summary);
+        return;
+      }
+      if (tab === 'ACCOUNTS') {
+        setIsAccountManagerOpen(true);
+      } else if (tab === 'SETTINGS') {
+        setIsBackupModalOpen(true);
+      } else if (tab === 'ADMIN') {
+        if (isUserAdmin(currentUser)) {
+          setActiveTab('ADMIN');
+        } else {
+          setIsLoginModalOpen(true);
+        }
+      } else {
+        setActiveTab(tab as any);
+      }
+    },
+    [isDemoMode, currentUser]
+  );
 
   // Initial Load from IndexedDB
   const initApp = useCallback(async () => {
@@ -557,6 +603,94 @@ export default function App() {
     }
   };
 
+  // Meta5 Premium Terminal Auto-Log Handler
+  const handleAutoLogMeta5Trade = useCallback(
+    async (partialTrade: Partial<Trade>) => {
+      const targetAccountId = activeAccount?.id || accounts[0]?.id || 'acc-default';
+      const existing = partialTrade.instrument
+        ? trades.find(
+            (t) =>
+              t.instrument === partialTrade.instrument &&
+              t.direction === partialTrade.direction &&
+              t.status === 'OPEN'
+          )
+        : null;
+
+      if (existing && partialTrade.status === 'CLOSED') {
+        const closedTrade: Trade = {
+          ...existing,
+          exitPrice: partialTrade.exitPrice || existing.exitPrice,
+          profitLoss: partialTrade.profitLoss !== undefined ? partialTrade.profitLoss : existing.profitLoss,
+          status: 'CLOSED',
+          result: (partialTrade.profitLoss || 0) > 0 ? 'WIN' : (partialTrade.profitLoss || 0) < 0 ? 'LOSS' : 'BREAKEVEN',
+          notes: partialTrade.notes || existing.notes,
+        };
+        await handleUpdateTrade(closedTrade);
+      } else {
+        const newTrade: Trade = {
+          id: `trade-m5-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          accountId: targetAccountId,
+          tradeNumber: trades.length + 1,
+          date: partialTrade.date || new Date().toISOString().slice(0, 10),
+          time: partialTrade.time || new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+          broker: partialTrade.broker || (activeAccount?.broker || 'Meta5 Terminal'),
+          accountType: activeAccount?.accountType || 'DEMO',
+          accountSize: activeAccount?.startingBalance || 10000,
+          instrument: partialTrade.instrument || 'XAUUSD',
+          direction: (partialTrade.direction as any) || 'BUY',
+          timeframe: (partialTrade.timeframe as any) || 'M15',
+          session: 'NEW_YORK',
+          status: partialTrade.status || 'OPEN',
+          result: partialTrade.result,
+          entryPrice: partialTrade.entryPrice || 0,
+          exitPrice: partialTrade.exitPrice || partialTrade.entryPrice || 0,
+          stopLoss: partialTrade.stopLoss || 0,
+          takeProfit: partialTrade.takeProfit || 0,
+          lotSize: partialTrade.lotSize || 0.1,
+          riskAmount: partialTrade.riskAmount || 100,
+          profitLoss: partialTrade.profitLoss || 0,
+          rMultiple: 0,
+          pips: 0,
+          strategy: partialTrade.strategy || 'Meta5 Direct Execution',
+          htfTrend: 'BULLISH',
+          ltfTrend: 'BULLISH',
+          marketStructure: 'Consolidation',
+          alignmentScore: {
+            htfDirection: 25,
+            marketStructure: 20,
+            entryModel: 20,
+            riskManagement: 20,
+            newsCondition: 15,
+            totalQuality: 100,
+          },
+          preEmotion: 'FOCUSED',
+          postPsychology: {
+            followedPlan: true,
+            movedStopLoss: false,
+            closedEarly: false,
+            overtraded: false,
+            revengeTraded: false,
+            increasedLotSizeEmotionally: false,
+          },
+          ruleViolation: 'NONE',
+          violatedRules: [],
+          mistakeReason: 'None (Flawless)',
+          grade: 'A',
+          screenshots: {},
+          notes: partialTrade.notes || 'Executed via Meta5 Premium Mobile Terminal',
+        };
+        await saveTrade(newTrade);
+        setTrades((prev) => [newTrade, ...prev]);
+        setLastSavedTime(getKarachiTime());
+        const token = getStoredToken();
+        if (token && currentUser && currentUser.role !== 'DEVELOPER') {
+          syncUserDataToServer(token);
+        }
+      }
+    },
+    [activeAccount, accounts, trades, currentUser]
+  );
+
   // Rules Handlers
   const handleToggleRule = async (id: string) => {
     if (!activeAccount) return;
@@ -740,28 +874,20 @@ export default function App() {
       {/* Navigation HUD Header */}
       <Header
         activeTab={activeTab as any}
-        onSelectTab={(tab) => {
-          if (tab === 'ACCOUNTS') {
-            setIsAccountManagerOpen(true);
-          } else if (tab === 'SETTINGS') {
-            setIsBackupModalOpen(true);
-          } else if (tab === 'ADMIN') {
-            if (isUserAdmin(currentUser)) {
-              setActiveTab('ADMIN');
-            } else {
-              setIsLoginModalOpen(true);
-            }
-          } else {
-            setActiveTab(tab as any);
-          }
-        }}
+        onSelectTab={handleSelectTab}
         account={activeAccount}
         tradesToday={metrics.tradesToday}
         maxDailyTrades={activeAccount.maxDailyTrades}
         overallScore={metrics.performanceScores.overallTradingScore}
         lastSavedTime={lastSavedTime}
         isDemoMode={isDemoMode}
-        onOpenNewTrade={() => setIsEntryModalOpen(true)}
+        onOpenNewTrade={() => {
+          if (isDemoMode) {
+            setLockedCategoryModal(CATEGORY_SUMMARIES['JOURNAL']);
+            return;
+          }
+          setIsEntryModalOpen(true);
+        }}
         onOpenAccountManager={() => setIsAccountManagerOpen(true)}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         currentUser={currentUser}
@@ -1004,6 +1130,7 @@ export default function App() {
         {activeTab === 'SIGNALS' && (
           <PremiumSignalsHub
             isAdmin={isUserAdmin(currentUser)}
+            currentUser={currentUser}
             onSelectSignalForTrade={(signal) => {
               setPrefilledTradeData({
                 instrument: signal.pair.replace('/', ''),
@@ -1021,6 +1148,14 @@ export default function App() {
 
         {activeTab === 'PRO_TRADING' && (
           <ProTradingView onOpenNewTrade={() => setIsEntryModalOpen(true)} />
+        )}
+
+        {activeTab === 'META5_PREMIUM' && (
+          <Meta5PremiumTerminal
+            activeAccount={activeAccount}
+            onAutoLogTradeToJournal={handleAutoLogMeta5Trade}
+            onOpenJournal={() => setActiveTab('JOURNAL')}
+          />
         )}
 
         {(activeTab === 'DAILY_DEV' || activeTab === 'IMPROVEMENT' || activeTab === 'BACKTESTING') && (
@@ -1148,10 +1283,16 @@ export default function App() {
       )}
       <MobileBottomNav
         activeTab={activeTab}
-        onSelectTab={(tab) => setActiveTab(tab)}
-        onOpenNewTrade={() => setIsEntryModalOpen(true)}
+        onSelectTab={handleSelectTab}
+        onOpenNewTrade={() => {
+          if (isDemoMode) {
+            setLockedCategoryModal(CATEGORY_SUMMARIES['JOURNAL']);
+            return;
+          }
+          setIsEntryModalOpen(true);
+        }}
         currentUser={currentUser}
-        onOpenEvolution={() => setActiveTab('EVOLUTION')}
+        onOpenEvolution={() => handleSelectTab('EVOLUTION')}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         onOpenAllCategories={() => setIsAllCategoriesOpen(true)}
       />
@@ -1162,8 +1303,8 @@ export default function App() {
         onClose={() => setIsAllCategoriesOpen(false)}
         activeTab={activeTab}
         onSelectTab={(tab) => {
-          setActiveTab(tab);
           setIsAllCategoriesOpen(false);
+          handleSelectTab(tab);
         }}
         currentUser={currentUser}
       />
@@ -1333,6 +1474,19 @@ export default function App() {
         <TraderExperienceProfileModal
           currentUser={currentUser || undefined}
           onClose={() => setIsTraderProfileOpen(false)}
+        />
+      )}
+
+      {/* Locked Category Demo Guard Modal with Category Summary and Subscription Prompt */}
+      {lockedCategoryModal && (
+        <LockedCategoryModal
+          summary={lockedCategoryModal}
+          onClose={() => setLockedCategoryModal(null)}
+          onOpenSubscription={() => {
+            setLockedCategoryModal(null);
+            setIsSubscriptionModalOpen(true);
+          }}
+          onExploreDemo={handleEnterDemoMode}
         />
       )}
 

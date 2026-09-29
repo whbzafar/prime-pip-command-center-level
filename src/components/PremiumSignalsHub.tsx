@@ -122,7 +122,7 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
   // Copy feedback state
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Load signals & announcements from server on mount with polling
+  // Load signals & announcements from server on mount with fast live polling and event listeners
   useEffect(() => {
     let isMounted = true;
     const loadData = async () => {
@@ -144,11 +144,22 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
     };
 
     loadData();
-    // Poll every 15 seconds to ensure live synchronicity for all students
-    const interval = setInterval(loadData, 15000);
+    // Fast polling every 3 seconds ensures near-instant live feed for all students across tabs/devices
+    const interval = setInterval(loadData, 3000);
+    const onSignalCreated = () => loadData();
+    const onAnnouncementCreated = () => loadData();
+    const onStorage = () => loadData();
+
+    window.addEventListener('primepipfx_signal_created', onSignalCreated);
+    window.addEventListener('primepipfx_announcement_created', onAnnouncementCreated);
+    window.addEventListener('storage', onStorage);
+
     return () => {
       isMounted = false;
       clearInterval(interval);
+      window.removeEventListener('primepipfx_signal_created', onSignalCreated);
+      window.removeEventListener('primepipfx_announcement_created', onAnnouncementCreated);
+      window.removeEventListener('storage', onStorage);
     };
   }, []);
 
@@ -220,6 +231,7 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
 
       // Update state immediately
       setActiveSignals((prev) => [newSignal, ...prev.filter((s) => s.id !== newSignal.id)]);
+      window.dispatchEvent(new CustomEvent('primepipfx_signal_created', { detail: newSignal }));
 
       // Auto-post an in-app announcement dispatching this signal
       try {

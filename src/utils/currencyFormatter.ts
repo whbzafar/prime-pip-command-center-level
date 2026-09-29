@@ -18,6 +18,9 @@ export function safeNumber(value: unknown, fallback: number = 0): number {
 export function getCurrencySymbol(currency?: string): string {
   if (!currency) return '$';
   const c = currency.trim().toUpperCase();
+  if (c.includes('CENT') || c.includes('USC')) {
+    return '¢';
+  }
   switch (c) {
     case 'USD':
       return '$';
@@ -27,10 +30,6 @@ export function getCurrencySymbol(currency?: string): string {
       return '£';
     case 'PKR':
       return '₨ ';
-    case 'USC':
-    case 'CENT':
-    case 'USC (CENT)':
-      return '¢';
     case 'JPY':
       return '¥';
     case 'AUD':

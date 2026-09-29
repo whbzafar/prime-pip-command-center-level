@@ -7,11 +7,15 @@ import { safeNumber } from '../utils/currencyFormatter';
 interface AccountOnboardingModalProps {
   onAccountCreated: (account: AccountSettings) => void;
   onExploreDemo?: () => void;
+  onOpenSignIn?: () => void;
+  onOpenSendAccount?: () => void;
 }
 
 export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
   onAccountCreated,
   onExploreDemo,
+  onOpenSignIn,
+  onOpenSendAccount,
 }) => {
   const [accountName, setAccountName] = useState('My Trading Account');
   const [startingBalance, setStartingBalance] = useState<string>('5000');
@@ -20,12 +24,23 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
   const [accountType, setAccountType] = useState<string>('Personal Account');
   const [broker, setBroker] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSendAccountOpen, setIsSendAccountOpen] = useState(false);
+  const [sendName, setSendName] = useState('');
+  const [sendPhone, setSendPhone] = useState('');
+  const [sendNotes, setSendNotes] = useState('');
+  const [sendSuccess, setSendSuccess] = useState(false);
 
   const accountTypeOptions = [
     {
       id: 'Personal Account',
-      label: 'Personal Account',
-      sub: 'Private capital self-directed',
+      label: 'Personal Account (USD)',
+      sub: 'Private capital self-directed standard',
+      mappedType: 'PERSONAL_LIVE' as AccountType,
+    },
+    {
+      id: 'Cent Account',
+      label: 'Cent Account (USC / ¢)',
+      sub: 'Cent balance standard (100¢ = $1.00) micro lot tracking',
       mappedType: 'PERSONAL_LIVE' as AccountType,
     },
     {
@@ -48,7 +63,7 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
     },
   ];
 
-  const currencyOptions = ['USD', 'EUR', 'GBP', 'PKR', 'Custom'];
+  const currencyOptions = ['USD', 'Cent (USC)', 'EUR', 'GBP', 'PKR', 'Custom'];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,8 +173,8 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
                 2. Starting Balance
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono-code text-sm">
-                  {currency === 'PKR' ? '₨' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$'}
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400 font-mono-code text-sm font-bold">
+                  {currency === 'PKR' ? '₨' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency.includes('Cent') || currency === 'USC' ? '¢' : '$'}
                 </span>
                 <input
                   type="number"
@@ -168,12 +183,14 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
                   min="1"
                   value={startingBalance}
                   onChange={(e) => setStartingBalance(e.target.value)}
-                  placeholder="5000"
+                  placeholder={currency.includes('Cent') ? '100000' : '5000'}
                   className="w-full pl-8 pr-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 text-sm font-mono-code transition font-bold"
                 />
               </div>
               <span className="text-[10px] text-slate-400 font-mono-code mt-1 block">
-                Dashboard balance updates automatically with trade P&L
+                {currency.includes('Cent')
+                  ? 'Cent standard: 100¢ = $1.00 USD. 100,000¢ represents $1,000 live equity.'
+                  : 'Dashboard balance updates automatically with trade P&L'}
               </span>
             </div>
 
@@ -181,13 +198,18 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
               <label className="block text-xs font-mono-code uppercase text-slate-300 mb-1.5 font-semibold">
                 3. Account Currency
               </label>
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                 {currencyOptions.map((c) => (
                   <button
                     key={c}
                     type="button"
-                    onClick={() => setCurrency(c)}
-                    className={`py-2 text-xs font-mono-code rounded-lg border transition font-bold text-center ${
+                    onClick={() => {
+                      setCurrency(c);
+                      if (c.includes('Cent')) {
+                        setAccountType('Cent Account');
+                      }
+                    }}
+                    className={`py-2 px-1 text-[11px] font-mono-code rounded-lg border transition font-bold text-center ${
                       currency === c
                         ? 'bg-blue-500 text-slate-950 border-cyan-400 shadow-md shadow-blue-500/20'
                         : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
@@ -221,7 +243,12 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
                   <button
                     key={opt.id}
                     type="button"
-                    onClick={() => setAccountType(opt.id)}
+                    onClick={() => {
+                      setAccountType(opt.id);
+                      if (opt.id === 'Cent Account') {
+                        setCurrency('Cent (USC)');
+                      }
+                    }}
                     className={`p-3 rounded-xl border text-left flex items-start justify-between transition ${
                       isSelected
                         ? 'bg-blue-500/10 border-blue-500 text-slate-100 shadow-lg shadow-blue-500/10'
@@ -254,12 +281,12 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
               type="text"
               value={broker}
               onChange={(e) => setBroker(e.target.value)}
-              placeholder="e.g. FTMO, IC Markets, Exness, FundedNext"
+              placeholder="e.g. FTMO, Exness, IC Markets, Robofx, FundedNext"
               className="w-full px-3.5 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-slate-700 text-xs font-mono-code transition"
             />
           </div>
 
-          {/* Submit Button */}
+          {/* Submit & Secondary Options */}
           <div className="pt-3 space-y-2">
             <button
               type="submit"
@@ -269,6 +296,26 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
               <span>CREATE TRADING ACCOUNT</span>
               <ArrowRight className="w-4 h-4 stroke-[3]" />
             </button>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              {onOpenSignIn && (
+                <button
+                  type="button"
+                  onClick={onOpenSignIn}
+                  className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-300 hover:text-white font-mono-code text-xs font-bold border border-cyan-500/30 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <span>🔑 SIGN IN TO EXISTING ACCOUNT</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsSendAccountOpen(true)}
+                className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-300 hover:text-white font-mono-code text-xs font-bold border border-emerald-500/30 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <span>📤 SEND ACCOUNT FOR SETUP</span>
+              </button>
+            </div>
 
             {onExploreDemo && (
               <button
@@ -281,6 +328,111 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
             )}
           </div>
         </form>
+
+        {/* SEND ACCOUNT MODAL OVERLAY */}
+        {isSendAccountOpen && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in">
+            <div className="w-full max-w-md bg-slate-950 border border-emerald-500/40 rounded-2xl p-5 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    📤
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-military font-bold text-white uppercase">Send Account Details</h3>
+                    <p className="text-[11px] font-mono-code text-slate-400">Direct WhatsApp & Server Dispatch</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSendAccountOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white bg-slate-900 border border-slate-700 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {sendSuccess ? (
+                <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-mono-code space-y-2 text-center">
+                  <p className="font-bold">✓ Account Details Dispatched Successfully!</p>
+                  <p className="text-slate-300 text-[11px]">
+                    Credentials and activation will be confirmed directly on WhatsApp (03406671495).
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSendAccountOpen(false);
+                      setSendSuccess(false);
+                    }}
+                    className="mt-2 px-4 py-2 rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs"
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[11px] font-mono-code text-slate-300 mb-1 uppercase">Student / Trader Name</label>
+                    <input
+                      type="text"
+                      value={sendName}
+                      onChange={(e) => setSendName(e.target.value)}
+                      placeholder="e.g. Zartab Zafar"
+                      className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-mono-code"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-mono-code text-slate-300 mb-1 uppercase">WhatsApp Number</label>
+                    <input
+                      type="text"
+                      value={sendPhone}
+                      onChange={(e) => setSendPhone(e.target.value)}
+                      placeholder="e.g. 03406671495"
+                      className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-mono-code"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-mono-code text-slate-300 mb-1 uppercase">Account Preferences & Notes</label>
+                    <textarea
+                      rows={2}
+                      value={sendNotes}
+                      onChange={(e) => setSendNotes(e.target.value)}
+                      placeholder="Account type: Cent Account, Balance: 100,000¢, or course enrollment."
+                      className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs font-mono-code"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex flex-col gap-2">
+                    <a
+                      href={`https://wa.me/923406671495?text=${encodeURIComponent(
+                        `Hello PrimePipFX, I want to send my account details for setup.\nName: ${sendName || 'Trader'}\nPhone: ${sendPhone || ''}\nType: ${accountType}\nCurrency: ${currency}\nNotes: ${sendNotes || 'Please send my login password.'}`
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={async () => {
+                        try {
+                          await fetch('/api/auth/send-account', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              name: sendName || 'Trader',
+                              phone: sendPhone,
+                              message: `Type: ${accountType} | Currency: ${currency} | ${sendNotes}`,
+                            }),
+                          });
+                        } catch {}
+                        setSendSuccess(true);
+                      }}
+                      className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-military font-bold text-xs tracking-wider uppercase text-center transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/20"
+                    >
+                      <span>SEND ACCOUNT VIA WHATSAPP (03406671495)</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Security & Offline Footnote */}
         <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono-code text-slate-500">

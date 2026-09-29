@@ -30,6 +30,7 @@ import {
   Layers,
   Globe2,
   CandlestickChart,
+  Smartphone,
 } from 'lucide-react';
 import { MainNavTab } from './Header';
 import { UserAccount } from '../types';
@@ -67,8 +68,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: '07. Fundamental Calendar', desc: 'Macro news & high-impact releases', icon: Calendar, highlight: true, section: 'Market Intelligence' },
       { id: 'FUNDAMENTAL_INDICATORS' as MainNavTab, label: '08. Fundamental Indicator', desc: 'Deterministic 8-currency economic scoring & differential intelligence', icon: Globe2, highlight: true, section: 'Market Intelligence' },
       { id: 'SIGNALS' as MainNavTab, label: '09. Premium Signals', desc: 'Institutional VIP trade setups', icon: Radio, comingSoon: false, isLive: true, highlight: true, section: 'Market Intelligence' },
-      { id: 'PRO_TRADING' as MainNavTab, label: '10. Pro Trading', desc: 'Live TradingView interactive charts & real-time quotes', icon: CandlestickChart, highlight: true, section: 'Market Intelligence' },
-      { id: 'COMPOUNDING' as MainNavTab, label: '11. Compounding Tools', desc: 'Long-term growth simulator', icon: Calculator, section: 'Market Intelligence' },
+      { id: 'PRO_TRADING' as MainNavTab, label: '10. Premium TradingView', desc: 'Live TradingView interactive charts & real-time quotes', icon: CandlestickChart, highlight: true, section: 'Market Intelligence' },
+      { id: 'META5_PREMIUM' as MainNavTab, label: '11. Meta5 Premium', desc: 'Authentic mobile MT5 terminal with live broker & prop firm trading', icon: Smartphone, highlight: true, section: 'Market Intelligence' },
+      { id: 'COMPOUNDING' as MainNavTab, label: '12. Compounding Tools', desc: 'Long-term growth simulator', icon: Calculator, section: 'Market Intelligence' },
       { id: 'PERFORMANCE' as MainNavTab, label: '11. Performance Report', desc: 'Win rates, R:R & drawdowns', icon: BarChart3, section: 'Analytics' },
       { id: 'DAILY_DEV' as MainNavTab, label: '12. Daily Development', desc: 'Traders habit tracker & routines', icon: Award, section: 'Mindset & Health' },
       { id: 'PSYCHOLOGY' as MainNavTab, label: '13. Psychological Center', desc: 'Emotional state & cognitive audit', icon: Brain, highlight: true, section: 'Mindset & Health' },

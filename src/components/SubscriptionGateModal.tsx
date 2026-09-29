@@ -10,6 +10,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { UserAccount } from '../types';
+import { CategorySummary } from '../data/categorySummaries';
 
 interface SubscriptionGateModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface SubscriptionGateModalProps {
   user?: UserAccount | null;
   onUpgradeSuccess?: (upgradedUser: UserAccount) => void;
   onContinueDemo?: () => void;
+  lockedCategory?: CategorySummary | null;
 }
 
 export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
@@ -28,6 +30,7 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
   onOpenSubscription,
   user,
   onContinueDemo,
+  lockedCategory,
 }) => {
   if (!isOpen) return null;
 
@@ -35,8 +38,10 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
   const isSuspended = user?.subscriptionStatus === 'SUSPENDED';
   const isPaymentRequired = user?.subscriptionStatus === 'PAYMENT_REQUIRED';
 
-  let title = 'FULL TRADING ACCESS REQUIRED';
-  let subtitle = 'This action requires an active PrimePipFX subscription or verified account.';
+  let title = lockedCategory ? `${lockedCategory.name} IS LOCKED` : 'FULL TRADING ACCESS REQUIRED';
+  let subtitle = lockedCategory
+    ? `This module is locked in Demo Mode. Subscribe to unlock full institutional execution capabilities.`
+    : 'This action requires an active PrimePipFX subscription or verified account.';
   let icon = <Lock className="w-8 h-8 text-cyan-400" />;
   let badgeColor = 'bg-blue-500/10 border-blue-500/30 text-cyan-400';
 
@@ -57,11 +62,13 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
     badgeColor = 'bg-blue-500/10 border-blue-500/30 text-cyan-400';
   }
 
-  const whatsappMessage = isExpired
+  const whatsappMessage = lockedCategory
+    ? `Hello PrimePipFX, I want full access to ${lockedCategory.name} ($55 Lifetime Access Offer) on the PRIMEPIPFX Command Center.`
+    : isExpired
     ? `Hello PrimePipFX, my subscription for username (${user?.username || 'trader'}) has expired. I want to renew access to the PRIMEPIPFX Trading Command Center.`
     : isSuspended
     ? `Hello PrimePipFX, my account (${user?.username || 'trader'}) is suspended. Please assist with my access to the PRIMEPIPFX Trading Command Center.`
-    : `Hello PrimePipFX, I want access to the PRIMEPIPFX Trading Command Center.`;
+    : `Hello PrimePipFX, I want to activate Lifetime Access ($55 Offer) to the PRIMEPIPFX Trading Command Center.`;
 
   const whatsappUrl = `https://wa.me/923406671495?text=${encodeURIComponent(whatsappMessage)}`;
 
@@ -129,29 +136,69 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
           </div>
         )}
 
-        {/* Features Reminder */}
-        <div className="p-3 sm:p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80 mb-4 space-y-2 font-mono-code text-xs">
-          <div className="text-cyan-400 font-bold uppercase text-[11px] mb-2 flex items-center gap-1.5">
-            <Lock className="w-3.5 h-3.5" />
-            WHAT YOU GET WITH FULL ACCESS:
+        {/* Category Specific Summary Box or General Features Reminder */}
+        {lockedCategory ? (
+          <div className="p-3.5 sm:p-4 rounded-xl bg-slate-950/90 border border-cyan-500/30 mb-3.5 space-y-3 font-mono-code text-xs">
+            <div>
+              <div className="text-cyan-400 font-bold uppercase text-[11px] mb-1 flex items-center gap-1.5">
+                <span>📋 MODULE CAPABILITIES & SUMMARY</span>
+              </div>
+              <p className="text-slate-300 text-xs leading-relaxed">
+                {lockedCategory.overview}
+              </p>
+            </div>
+
+            {lockedCategory.keyFeatures?.length > 0 && (
+              <div className="space-y-1.5 pt-2 border-t border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block mb-1">
+                  INCLUDED FEATURES WITH FULL SUBSCRIPTION:
+                </span>
+                {lockedCategory.keyFeatures.map((feat, i) => (
+                  <div key={i} className="flex items-start gap-2 text-slate-200 text-[11px]">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                    <span>{feat}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Special Offer Banner: $55 until Oct 10 2026 or 5 students free */}
+            <div className="p-3 rounded-lg bg-gradient-to-r from-amber-500/15 via-blue-500/15 to-emerald-500/15 border border-amber-500/40 space-y-1 text-slate-200">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-amber-300 text-xs font-military">SPECIAL LIFETIME ACCESS OFFER</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
+                  VALID UNTIL OCT 10, 2026
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300">
+                Lock in lifetime access for <strong>$55</strong> (fee increases after Oct 10, 2026) — OR bring <strong>5 students</strong> to take the 3-month course and receive the <strong>entire platform 100% FREE for life!</strong>
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-slate-300">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>Isolated Cloud & Offline Trading Journal</span>
+        ) : (
+          <div className="p-3 sm:p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80 mb-4 space-y-2 font-mono-code text-xs">
+            <div className="text-cyan-400 font-bold uppercase text-[11px] mb-2 flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" />
+              WHAT YOU GET WITH FULL ACCESS:
+            </div>
+            <div className="flex items-center gap-2 text-slate-300">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>Isolated Cloud & Offline Trading Journal</span>
+            </div>
+            <div className="flex items-center gap-2 text-slate-300">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>Institutional 1% Master Risk Guidance Engine</span>
+            </div>
+            <div className="flex items-center gap-2 text-slate-300">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>Dedicated Lot Size Calculator & Over-Risk Detector</span>
+            </div>
+            <div className="flex items-center gap-2 text-slate-300">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>AI Trading Coach & SMC Chart Auditor</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-slate-300">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>Institutional 1% Master Risk Guidance Engine</span>
-          </div>
-          <div className="flex items-center gap-2 text-slate-300">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>Dedicated Lot Size Calculator & Over-Risk Detector</span>
-          </div>
-          <div className="flex items-center gap-2 text-slate-300">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>AI Trading Coach & SMC Chart Auditor</span>
-          </div>
-        </div>
+        )}
 
         {/* Action Buttons */}
         <div className="space-y-2.5">

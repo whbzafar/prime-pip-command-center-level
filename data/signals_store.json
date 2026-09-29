@@ -1,0 +1,20 @@
+{
+  "activeSignals": [
+    {
+      "id": "sig_1790677734923_1b0j",
+      "pair": "XAUUSD",
+      "direction": "BUY",
+      "timeframe": "H1",
+      "entryPrice": 2924.5,
+      "stopLoss": 2915,
+      "takeProfit1": 2940,
+      "recommendedRiskPercent": 1,
+      "strategyNotes": "",
+      "status": "ACTIVE",
+      "createdAt": "Sep 29, 2026, 03:28 PM PKT",
+      "updatedAt": "Sep 29, 2026, 03:28 PM PKT",
+      "author": "Admin / Chief Institutional Analyst"
+    }
+  ],
+  "closedSignals": []
+}
