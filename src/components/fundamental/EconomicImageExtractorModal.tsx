@@ -212,6 +212,28 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
     }
   };
 
+  const handleAddNewManualRow = () => {
+    const defaultCurr = selectedAsset !== 'ALL' && !['GOLD', 'SILVER', 'CRUDE_OIL'].includes(selectedAsset) ? selectedAsset : 'USD';
+    const newRow: ExtractedIndicatorItem & { selected: boolean } = {
+      name: 'Custom Economic Release',
+      currency: defaultCurr,
+      actual: 0.0,
+      forecast: 0.0,
+      previous: 0.0,
+      revisedPrevious: null,
+      unit: '%',
+      referencePeriod: 'Latest',
+      releaseDate: new Date().toISOString().slice(0, 10),
+      releaseTime: '12:00 GMT',
+      source: 'Verified User Entry',
+      confidence: 100,
+      notes: '100% verified manual data entry',
+      selected: true,
+    };
+    setExtractedRows((prev) => [newRow, ...prev]);
+    setHasScanned(true);
+  };
+
   const handleToggleRow = (index: number) => {
     setExtractedRows((prev) =>
       prev.map((row, i) => (i === index ? { ...row, selected: !row.selected } : row))
@@ -482,6 +504,17 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
                   </>
                 )}
               </button>
+
+              {/* Direct Manual Entry Option Alongside Upload Image */}
+              <button
+                type="button"
+                onClick={handleAddNewManualRow}
+                className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-cyan-500/40 text-cyan-300 font-bold font-military text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer"
+                title="Directly enter indicator data (Actual, Forecast, Previous) with 100% precision"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>+ ADD / RECORD DATA MANUALLY</span>
+              </button>
             </div>
 
             {/* Extraction Information / Instructions */}
@@ -535,6 +568,13 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleAddNewManualRow}
+                    className="px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/40 text-cyan-300 font-bold font-mono-code text-[11px] flex items-center gap-1 transition cursor-pointer"
+                  >
+                    <span>+ Add Row</span>
+                  </button>
                   <div className="text-[11px] text-cyan-400">
                     {extractedRows.filter((r) => r.selected).length} of {extractedRows.length} selected
                   </div>

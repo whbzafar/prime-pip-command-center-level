@@ -50,7 +50,6 @@ import { Meta5PremiumTerminal } from './components/meta5/Meta5PremiumTerminal';
 const ALLOWED_DEMO_CATEGORIES: string[] = [
   'LOT_SIZE',
   'PRO_TRADING',
-  'SIGNALS',
   'META5_PREMIUM',
   'COMPOUNDING',
   'FREEHAND_WORKSPACE',
@@ -95,6 +94,8 @@ export default function App() {
   // Demo Mode State with persistence to prevent repeated login prompts
   const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
     try {
+      const user = getCurrentUser();
+      if (user) return false;
       return localStorage.getItem('primepipfx_demo_mode') === 'true';
     } catch {
       return false;
@@ -1307,6 +1308,8 @@ export default function App() {
           handleSelectTab(tab);
         }}
         currentUser={currentUser}
+        isDemoMode={isDemoMode}
+        onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
       />
 
       <AppearanceControls isOpen={isAppearanceOpen} onClose={() => setIsAppearanceOpen(false)} />

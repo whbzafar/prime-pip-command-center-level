@@ -9,5 +9,31 @@
     "timestamp": 1789118470538,
     "timePkt": "01:30 PM",
     "datePkt": "2026-09-11"
+  },
+  {
+    "userId": "dev-owner-master",
+    "username": "admin",
+    "displayName": "PrimePipFX Lead Analyst",
+    "role": "ADMIN",
+    "text": "📢 **OFFICIAL BROADCAST: Test Announcement**\n\nTesting broadcast to students\n\n*— Dispatched by Admin / Owner*",
+    "userRole": "CUSTOMER",
+    "seenBy": [],
+    "id": "msg-1790762027561-c3ik0",
+    "timestamp": 1790762027561,
+    "datePkt": "2026-09-30",
+    "timePkt": "02:53 PM"
+  },
+  {
+    "userId": "dev-owner-master",
+    "username": "admin",
+    "displayName": "PrimePipFX Lead Analyst",
+    "role": "ADMIN",
+    "text": "📡 **INSTITUTIONAL SIGNAL ALERT**\n\n**EURUSD** BUY (H1)\n• **Entry:** 1.085\n• **Stop Loss:** 1.08\n• **Take Profit 1:** 1.095\n• **Risk:** 1%\n• **Analysis:** Test Verification\n\n*Check the 09. Premium Signals tab to execute or inspect.*",
+    "userRole": "CUSTOMER",
+    "seenBy": [],
+    "id": "msg-1790763461530-31g6w",
+    "timestamp": 1790763461530,
+    "datePkt": "2026-09-30",
+    "timePkt": "03:17 PM"
   }
 ]

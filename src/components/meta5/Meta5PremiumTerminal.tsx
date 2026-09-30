@@ -625,9 +625,9 @@ export const Meta5PremiumTerminal: React.FC<Meta5PremiumTerminalProps> = ({
               <h1 className="text-sm sm:text-base font-military font-black tracking-wider uppercase text-white flex items-center gap-1.5">
                 <span>META5 PREMIUM TERMINAL</span>
               </h1>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-[10px] font-mono-code font-bold text-emerald-400 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                LIVE BRIDGE
+              <span className="px-2.5 py-0.5 rounded-full bg-blue-500/20 border border-blue-400/50 text-[10px] font-mono-code font-bold text-cyan-300 flex items-center gap-1.5 shadow-sm">
+                <Clock className="w-3 h-3 text-cyan-400 animate-pulse" />
+                <span>COMING SOON</span>
               </span>
             </div>
             <p className="text-[11px] text-slate-400 font-mono-code">
@@ -689,6 +689,28 @@ export const Meta5PremiumTerminal: React.FC<Meta5PremiumTerminalProps> = ({
               <span>VIEW JOURNAL</span>
             </button>
           )}
+        </div>
+      </div>
+
+      {/* High-Tech Coming Soon Official Preview Banner */}
+      <div className="w-full max-w-4xl mb-3.5 p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-blue-950/40 via-slate-900 to-slate-950 border border-blue-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-blue-500/20 text-cyan-300 border border-blue-500/30 shrink-0">
+            <Clock className="w-5 h-5 text-cyan-400" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm font-military font-bold text-white uppercase tracking-wider">
+                Meta Premium 5 — Official MT5 Bridge & Broker Integration
+              </span>
+              <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/40 uppercase">
+                COMING SOON
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300 font-mono-code mt-0.5">
+              Full MetaTrader 5 mobile terminal with direct broker execution and journal auto-sync is currently in final rollout. Explore the interactive interface below!
+            </p>
+          </div>
         </div>
       </div>
 

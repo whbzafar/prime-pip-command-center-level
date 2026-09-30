@@ -12,8 +12,8 @@ export interface SignalItem {
   takeProfit3?: number;
   recommendedRiskPercent?: number;
   strategyNotes?: string;
-  status: 'ACTIVE' | 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'FINISHED' | 'CLOSED';
-  closeReason?: 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'MANUAL_CLOSE';
+  status: 'ACTIVE' | 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'DEACTIVATE_LEVEL' | 'FINISHED' | 'CLOSED';
+  closeReason?: 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'DEACTIVATE_LEVEL' | 'MANUAL_CLOSE';
   closedPrice?: number;
   pipsGained?: number;
   resultPips?: number;
@@ -98,12 +98,12 @@ export function createSignal(signalData: Partial<SignalItem>): SignalItem {
 
 export function updateSignalStatus(
   id: string,
-  newStatus: 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'FINISHED' | 'CLOSED',
+  newStatus: 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'DEACTIVATE_LEVEL' | 'FINISHED' | 'CLOSED',
   details?: {
     closedPrice?: number;
     resultPips?: number;
     resultPercent?: number;
-    closeReason?: 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'MANUAL_CLOSE';
+    closeReason?: 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'DEACTIVATE_LEVEL' | 'MANUAL_CLOSE';
     notes?: string;
   }
 ): SignalItem | null {
@@ -132,7 +132,7 @@ export function updateSignalStatus(
   }).format(now) + ' PKT';
 
   signal.status = newStatus;
-  signal.closeReason = details?.closeReason || (newStatus === 'TP_HIT' ? 'TP_HIT' : newStatus === 'SL_HIT' ? 'SL_HIT' : 'BREAK_EVEN');
+  signal.closeReason = details?.closeReason || (newStatus === 'TP_HIT' ? 'TP_HIT' : newStatus === 'SL_HIT' ? 'SL_HIT' : newStatus === 'DEACTIVATE_LEVEL' ? 'DEACTIVATE_LEVEL' : 'BREAK_EVEN');
   signal.closedPrice = details?.closedPrice ?? (newStatus === 'TP_HIT' ? signal.takeProfit1 : newStatus === 'SL_HIT' ? signal.stopLoss : signal.entryPrice);
   signal.closedAt = pktTimeStr;
   signal.updatedAt = pktTimeStr;
@@ -140,11 +140,12 @@ export function updateSignalStatus(
   if (details?.resultPips !== undefined) {
     signal.resultPips = details.resultPips;
   } else {
-    // Calculate pips automatically
+    // Calculate pips automatically (accurate across Forex standard, JPY, and Gold)
+    const isGold = signal.pair.includes('XAU') || signal.pair.includes('GOLD');
     const isJpy = signal.pair.includes('JPY');
-    const pipMultiplier = isJpy ? 100 : 10000;
+    const pipMultiplier = isGold ? 10 : isJpy ? 100 : 10000;
     const diff = (signal.closedPrice - signal.entryPrice) * (signal.direction === 'BUY' ? 1 : -1);
-    signal.resultPips = Math.round(diff * pipMultiplier);
+    signal.resultPips = newStatus === 'DEACTIVATE_LEVEL' ? 0 : Math.round(diff * pipMultiplier);
   }
 
   if (details?.resultPercent !== undefined) {
@@ -171,6 +172,10 @@ export function deleteSignal(id: string): boolean {
   const modified = store.activeSignals.length !== initialActive || store.closedSignals.length !== initialClosed;
   if (modified) saveStoredSignals(store);
   return modified;
+}
+
+export function resetAllSignals(): void {
+  saveStoredSignals({ activeSignals: [], closedSignals: [] });
 }
 
 export function getStoredAnnouncements(): InAppAnnouncement[] {

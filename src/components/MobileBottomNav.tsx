@@ -319,7 +319,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                           </span>
                           {isComingSoon && (
                             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code bg-blue-500/15 text-cyan-400 border border-blue-500/30">
-                              <Lock className="w-2.5 h-2.5" />
+                              <Clock className="w-2.5 h-2.5 text-cyan-400" />
                               <span>COMING SOON</span>
                             </span>
                           )}

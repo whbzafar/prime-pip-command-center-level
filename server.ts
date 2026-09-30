@@ -94,6 +94,7 @@ import {
   createSignal,
   updateSignalStatus,
   deleteSignal,
+  resetAllSignals,
   getStoredAnnouncements,
   createAnnouncement,
   deleteAnnouncement,
@@ -2131,23 +2132,25 @@ Respond STRICTLY with valid JSON (NO MARKDOWN WRAPPERS) matching this format:
       for (const model of candidateModels) {
         try {
           const contents: any[] = [];
+          const effectiveMime = isPdfFile
+            ? 'application/pdf'
+            : (mimeType || (image.startsWith('data:application/pdf') ? 'application/pdf' : 'image/png'));
+
+          contents.push({
+            inlineData: {
+              mimeType: effectiveMime,
+              data: cleanBase64,
+            },
+          });
+
           if (pdfText) {
             contents.push({
-              text: `${extractionPrompt}\n\nRAW EXTRACTED TEXT FROM UPLOADED PDF DOCUMENT:\n"""\n${pdfText.slice(0, 16000)}\n"""`,
+              text: `${extractionPrompt}\n\nRAW EXTRACTED TEXT FROM UPLOADED DOCUMENT:\n"""\n${pdfText.slice(0, 20000)}\n"""`,
             });
           } else {
-            const effectiveMime = mimeType || (image.startsWith('data:application/pdf') ? 'application/pdf' : 'image/png');
-            contents.push(
-              {
-                inlineData: {
-                  mimeType: effectiveMime,
-                  data: cleanBase64,
-                },
-              },
-              {
-                text: extractionPrompt,
-              }
-            );
+            contents.push({
+              text: extractionPrompt,
+            });
           }
           const response = await ai.models.generateContent({
             model,
@@ -2587,9 +2590,10 @@ Respond STRICTLY with valid JSON (NO MARKDOWN WRAPPERS) matching this format:
       const extractedForecast = safeParseNum(item.forecast);
       const extractedPrevious = safeParseNum(item.previous);
 
-      const parsedActual = extractedActual !== null ? extractedActual : (typeof verified.actual === 'number' ? verified.actual : null);
-      const parsedForecast = extractedForecast !== null ? extractedForecast : (typeof verified.forecast === 'number' ? verified.forecast : null);
-      const parsedPrevious = extractedPrevious !== null ? extractedPrevious : (typeof verified.previous === 'number' ? verified.previous : null);
+      // Use strictly the uploaded document values — do not default to old historical baselines
+      const parsedActual = extractedActual !== null ? extractedActual : null;
+      const parsedForecast = extractedForecast !== null ? extractedForecast : null;
+      const parsedPrevious = extractedPrevious !== null ? extractedPrevious : null;
 
       const assignedCurrency = match?.currency || itemCurr;
 
@@ -4964,6 +4968,16 @@ app.delete('/api/signals/:id', (req, res) => {
   } catch (err: any) {
     console.error('[SIGNALS DELETE] Error:', err);
     return res.status(500).json({ ok: false, error: err?.message || 'Failed to delete signal' });
+  }
+});
+
+app.post('/api/signals/reset', (_req, res) => {
+  try {
+    resetAllSignals();
+    return res.json({ ok: true, message: 'All signal records reset successfully.' });
+  } catch (err: any) {
+    console.error('[SIGNALS RESET] Error:', err);
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to reset signals' });
   }
 });
 

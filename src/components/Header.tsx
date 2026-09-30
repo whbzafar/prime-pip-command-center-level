@@ -1128,12 +1128,23 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : item.highlight ? 'text-cyan-400' : 'text-slate-300'}`} />
                   <span className="text-[11px] font-mono-code font-bold tracking-tight uppercase">{item.label}</span>
-                  {isComingSoon && (
+                  {isDemoMode && item.id === 'SIGNALS' && (
+                    <span className="flex items-center gap-1 text-[8px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1 rounded uppercase font-bold shadow-xs">
+                      <Lock className="w-2.5 h-2.5 text-amber-400" />
+                      LOCKED
+                    </span>
+                  )}
+                  {item.id === 'META5_PREMIUM' && (
                     <span className="text-[8px] bg-blue-500/20 text-cyan-300 border border-blue-500/40 px-1 rounded uppercase">
                       SOON
                     </span>
                   )}
-                  {(item as any).isLive && (
+                  {isComingSoon && item.id !== 'META5_PREMIUM' && (
+                    <span className="text-[8px] bg-blue-500/20 text-cyan-300 border border-blue-500/40 px-1 rounded uppercase">
+                      SOON
+                    </span>
+                  )}
+                  {(item as any).isLive && item.id !== 'META5_PREMIUM' && (!isDemoMode || item.id !== 'SIGNALS') && (
                     <span className="flex items-center gap-1 text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-1.5 py-0.5 rounded font-bold uppercase shadow-sm">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       LIVE

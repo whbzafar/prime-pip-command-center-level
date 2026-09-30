@@ -16,7 +16,10 @@ const STORAGE_ANNOUNCEMENTS = 'primepipfx_announcements_v3';
 
 export async function fetchSignalsFromServer(): Promise<{ activeSignals: SignalItem[]; closedSignals: SignalItem[] }> {
   try {
-    const res = await fetch('/api/signals');
+    const res = await fetch(`/api/signals?_t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    });
     if (res.ok) {
       const data = await res.json();
       if (data.ok) {
@@ -70,6 +73,12 @@ export async function createSignalServer(signalData: {
     if (res.ok) {
       const data = await res.json();
       if (data.ok && data.signal) {
+        try {
+          const cached = localStorage.getItem(STORAGE_ACTIVE_SIGNALS);
+          const list: SignalItem[] = cached ? JSON.parse(cached) : [];
+          list.unshift(data.signal);
+          localStorage.setItem(STORAGE_ACTIVE_SIGNALS, JSON.stringify(list));
+        } catch {}
         return data.signal;
       }
     }
@@ -122,12 +131,12 @@ export async function createSignalServer(signalData: {
 
 export async function updateSignalStatusServer(
   id: string,
-  status: 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'FINISHED' | 'CLOSED',
+  status: 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'DEACTIVATE_LEVEL' | 'FINISHED' | 'CLOSED',
   details?: {
     closedPrice?: number;
     resultPips?: number;
     resultPercent?: number;
-    closeReason?: 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'MANUAL_CLOSE';
+    closeReason?: 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'DEACTIVATE_LEVEL' | 'MANUAL_CLOSE';
     notes?: string;
   }
 ): Promise<SignalItem | null> {
@@ -168,8 +177,8 @@ export async function updateSignalStatusServer(
         hour12: true,
       }).format(now) + ' PKT';
 
-      found.status = (status === 'TP_HIT' ? 'HIT_TP' : status === 'SL_HIT' ? 'HIT_SL' : status === 'BREAK_EVEN' ? 'BREAK_EVEN' : status) as any;
-      found.closeReason = details?.closeReason || (status === 'TP_HIT' ? 'TP_HIT' : status === 'SL_HIT' ? 'SL_HIT' : 'BREAK_EVEN');
+      found.status = (status === 'TP_HIT' ? 'HIT_TP' : status === 'SL_HIT' ? 'HIT_SL' : status === 'BREAK_EVEN' ? 'BREAK_EVEN' : status === 'DEACTIVATE_LEVEL' ? 'DEACTIVATE_LEVEL' : status) as any;
+      found.closeReason = details?.closeReason || (status === 'TP_HIT' ? 'TP_HIT' : status === 'SL_HIT' ? 'SL_HIT' : status === 'DEACTIVATE_LEVEL' ? 'DEACTIVATE_LEVEL' : 'BREAK_EVEN');
       found.closedPrice = details?.closedPrice ?? (status === 'TP_HIT' ? found.takeProfit1 : status === 'SL_HIT' ? found.stopLoss : found.entryPrice);
       found.closedAt = pktTimeStr;
       found.updatedAt = pktTimeStr;
@@ -188,7 +197,10 @@ export async function updateSignalStatusServer(
 
 export async function fetchAnnouncementsServer(): Promise<InAppAnnouncement[]> {
   try {
-    const res = await fetch('/api/announcements');
+    const res = await fetch(`/api/announcements?_t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    });
     if (res.ok) {
       const data = await res.json();
       if (data.ok && Array.isArray(data.announcements)) {
@@ -226,6 +238,12 @@ export async function postAnnouncementServer(data: {
     if (res.ok) {
       const resData = await res.json();
       if (resData.ok && resData.announcement) {
+        try {
+          const cached = localStorage.getItem(STORAGE_ANNOUNCEMENTS);
+          const list: InAppAnnouncement[] = cached ? JSON.parse(cached) : [];
+          list.unshift(resData.announcement);
+          localStorage.setItem(STORAGE_ANNOUNCEMENTS, JSON.stringify(list));
+        } catch {}
         return resData.announcement;
       }
     }

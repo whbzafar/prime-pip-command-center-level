@@ -317,7 +317,7 @@ export interface SignalItem {
   takeProfit3?: number;
   recommendedRiskPercent: number; // e.g. 1.0%
   strategyNotes: string;
-  status: 'PENDING' | 'ACTIVE' | 'HIT_TP' | 'HIT_SL' | 'CANCELLED' | 'FINISHED' | 'CLOSED' | 'BREAK_EVEN';
+  status: 'PENDING' | 'ACTIVE' | 'HIT_TP' | 'HIT_SL' | 'CANCELLED' | 'FINISHED' | 'CLOSED' | 'BREAK_EVEN' | 'DEACTIVATE_LEVEL';
   createdAt: string;
   updatedAt: string;
   author: string;

@@ -309,6 +309,8 @@ interface AllCategoriesModalProps {
   activeTab: MainNavTab;
   onSelectTab: (tab: MainNavTab) => void;
   currentUser?: UserAccount | null;
+  isDemoMode?: boolean;
+  onOpenSubscription?: () => void;
 }
 
 export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
@@ -317,6 +319,8 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
   activeTab,
   onSelectTab,
   currentUser,
+  isDemoMode = false,
+  onOpenSubscription,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSection, setSelectedSection] = useState<string>('ALL');
@@ -520,18 +524,29 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
                               ACTIVE
                             </span>
                           )}
-                          {cat.comingSoon && (
-                            <span className="flex items-center gap-0.5 text-[8px] font-mono-code px-1.5 py-0.5 rounded bg-blue-500/10 text-cyan-300 border border-blue-500/30">
-                              <Lock className="w-2.5 h-2.5" /> SOON
+                          {isDemoMode && cat.id === 'SIGNALS' && (
+                            <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm animate-pulse">
+                              <Lock className="w-2.5 h-2.5 text-amber-400" />
+                              <span>LOCKED</span>
                             </span>
                           )}
-                          {(cat as any).isLive && (
+                          {cat.id === 'META5_PREMIUM' && (
+                            <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/40 uppercase">
+                              COMING SOON
+                            </span>
+                          )}
+                          {cat.comingSoon && cat.id !== 'META5_PREMIUM' && (
+                            <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/40 uppercase">
+                              COMING SOON
+                            </span>
+                          )}
+                          {(cat as any).isLive && cat.id !== 'META5_PREMIUM' && (!isDemoMode || cat.id !== 'SIGNALS') && (
                             <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                               LIVE
                             </span>
                           )}
-                          {cat.highlight && !isCurrent && (
+                          {cat.highlight && !isCurrent && (!isDemoMode || cat.id !== 'SIGNALS') && (
                             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                           )}
                         </div>
@@ -546,16 +561,27 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
                         {cat.name}
                       </h3>
                       <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                        {cat.desc}
+                        {isDemoMode && cat.id === 'SIGNALS'
+                          ? 'Institutional VIP alpha trade setups with exact entry, SL, and TP targets. Subscribe to unlock full real-time access.'
+                          : cat.desc}
                       </p>
                     </div>
 
                     {/* Bottom Indicator */}
                     <div className="mt-3 pt-2 border-t border-slate-900 flex items-center justify-between text-[10px] font-mono-code text-slate-400 group-hover:text-cyan-400 transition">
                       <span className="text-[9px] text-slate-400">{cat.section}</span>
-                      <div className="flex items-center gap-0.5 font-bold">
-                        <span>OPEN</span>
-                        <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                      <div className="flex items-center gap-1 font-bold">
+                        {isDemoMode && cat.id === 'SIGNALS' ? (
+                          <span className="text-amber-400 flex items-center gap-0.5">
+                            <Lock className="w-3 h-3" />
+                            <span>SUBSCRIBE</span>
+                          </span>
+                        ) : (
+                          <>
+                            <span>OPEN</span>
+                            <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                          </>
+                        )}
                       </div>
                     </div>
                   </button>

@@ -29,7 +29,13 @@ import {
   CheckCircle2,
   AlertCircle,
   Sliders,
-  Magnet,
+  BarChart3,
+  BookOpen,
+  Bell,
+  Plus,
+  X,
+  Target,
+  RotateCcw,
 } from 'lucide-react';
 import { calculateCurrencyScore, calculateLongTermPairRankings } from '../utils/fundamentalCalculationEngine';
 import { CURRENCIES, DEFAULT_CATEGORY_WEIGHTS } from '../data/fundamentalRegistryData';
@@ -42,10 +48,26 @@ import {
   DEFAULT_RETAIL_POSITIONING,
 } from '../data/defaultFundamentalObservations';
 import { CurrencyCode, CurrencyScoreResult, IndicatorObservation } from '../types/fundamentalIndicatorTypes';
+import { UserAccount, Trade } from '../types';
+import { fetchSignalsFromServer, SignalItem } from '../services/signalsService';
+import { isUserAdmin } from '../utils/authClient';
 
 interface ProTradingViewProps {
   onOpenNewTrade?: () => void;
   defaultSymbol?: string;
+  currentUser?: UserAccount | null;
+  onNavigateToFundamental?: () => void;
+  onNavigateToJournal?: () => void;
+}
+
+export interface ChartAlert {
+  id: string;
+  symbol: string;
+  targetPrice: number;
+  condition: 'CROSSES_ABOVE' | 'CROSSES_BELOW' | 'REACHES_LEVEL';
+  note: string;
+  active: boolean;
+  createdAt: string;
 }
 
 export interface WatchlistGroup {
@@ -234,9 +256,23 @@ interface ChartHistoryState {
 export const ProTradingView: React.FC<ProTradingViewProps> = ({
   onOpenNewTrade,
   defaultSymbol = 'XAUUSD',
+  currentUser,
+  onNavigateToFundamental,
+  onNavigateToJournal,
 }) => {
+  // Load saved student chart state for automatic persistence
+  const savedState = (() => {
+    try {
+      const saved = localStorage.getItem('primepipfx_tv_chart_state_v3');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  })();
+
   // Saved state initializers
   const [selectedSymbol, setSelectedSymbol] = useState<string>(() => {
+    if (savedState?.symbol) return savedState.symbol.toUpperCase();
     try {
       const saved = localStorage.getItem('primepipfx_tv_chart_symbol');
       if (saved) return saved.toUpperCase();
@@ -245,6 +281,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   });
 
   const [selectedBroker, setSelectedBroker] = useState<string>(() => {
+    if (savedState?.broker) return savedState.broker;
     try {
       const saved = localStorage.getItem('primepipfx_tv_chart_broker');
       if (saved) return saved;
@@ -253,6 +290,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   });
 
   const [selectedInterval, setSelectedInterval] = useState<string>(() => {
+    if (savedState?.interval) return savedState.interval;
     try {
       const saved = localStorage.getItem('primepipfx_tv_chart_interval');
       if (saved) return saved;
@@ -261,12 +299,32 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   });
 
   const [backgroundColor, setBackgroundColor] = useState<string>(() => {
+    if (savedState?.backgroundColor) return savedState.backgroundColor;
     try {
       const saved = localStorage.getItem('primepipfx_tv_chart_bgcolor');
       if (saved) return saved;
     } catch {}
     return '#070A12';
   });
+
+  // Persist student's chart state automatically whenever settings change
+  useEffect(() => {
+    try {
+      const stateToSave = {
+        symbol: selectedSymbol,
+        broker: selectedBroker,
+        interval: selectedInterval,
+        backgroundColor,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem('primepipfx_tv_chart_state_v3', JSON.stringify(stateToSave));
+      localStorage.setItem('primepipfx_tv_chart_symbol', selectedSymbol);
+      localStorage.setItem('primepipfx_tv_chart_broker', selectedBroker);
+      localStorage.setItem('primepipfx_tv_chart_interval', selectedInterval);
+      localStorage.setItem('primepipfx_tv_chart_bgcolor', backgroundColor);
+      setLastAutoSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    } catch {}
+  }, [selectedSymbol, selectedBroker, selectedInterval, backgroundColor]);
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -281,15 +339,39 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const [autoSaveStatus, setAutoSaveStatus] = useState<string>('Auto-Save Active');
   const [lastAutoSavedTime, setLastAutoSavedTime] = useState<string>('Just now');
   const [isForkedCopy, setIsForkedCopy] = useState<boolean>(false);
-  const [isMagnetActive, setIsMagnetActive] = useState<boolean>(false);
-  const [timerVerticalPos, setTimerVerticalPos] = useState<number>(() => {
+
+  // Admin Reports Modal State
+  const [showReportModal, setShowReportModal] = useState<boolean>(false);
+  const [reportActiveSignals, setReportActiveSignals] = useState<SignalItem[]>([]);
+  const [reportClosedSignals, setReportClosedSignals] = useState<SignalItem[]>([]);
+  const [isResettingSignals, setIsResettingSignals] = useState<boolean>(false);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+
+  // Quick Trade Journal Modal State (Accessible by both Admin and Students)
+  const [showJournalModal, setShowJournalModal] = useState<boolean>(false);
+  const [journalDirection, setJournalDirection] = useState<'BUY' | 'SELL'>('BUY');
+  const [journalEntryPrice, setJournalEntryPrice] = useState<string>('');
+  const [journalExitPrice, setJournalExitPrice] = useState<string>('');
+  const [journalPips, setJournalPips] = useState<string>('');
+  const [journalProfit, setJournalProfit] = useState<string>('');
+  const [journalNotes, setJournalNotes] = useState<string>('');
+  const [journalModel, setJournalModel] = useState<string>('SBT Model 1 (Liquidity Sweep)');
+  const [journalSuccess, setJournalSuccess] = useState<string | null>(null);
+
+  // Price Alerts State (Similar to TradingView)
+  const [showAlertsModal, setShowAlertsModal] = useState<boolean>(false);
+  const [alerts, setAlerts] = useState<ChartAlert[]>(() => {
     try {
-      const saved = localStorage.getItem('primepipfx_tv_timer_pos');
-      return saved ? parseInt(saved, 10) : 50;
+      const saved = localStorage.getItem('primepipfx_tv_chart_alerts');
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return 50;
+      return [];
     }
   });
+  const [alertPriceInput, setAlertPriceInput] = useState<string>('');
+  const [alertCondition, setAlertCondition] = useState<'CROSSES_ABOVE' | 'CROSSES_BELOW' | 'REACHES_LEVEL'>('REACHES_LEVEL');
+  const [alertNote, setAlertNote] = useState<string>('Price Level Target Reached');
+  const [alertSuccess, setAlertSuccess] = useState<string | null>(null);
 
   // Undo / Redo History
   const [history, setHistory] = useState<ChartHistoryState[]>([
@@ -299,8 +381,22 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
   // Fundamental live observations & rankings
   const [fundamentalObservations, setFundamentalObservations] = useState<IndicatorObservation[]>(DEFAULT_OBSERVATIONS);
-  const [bullishPairs, setBullishPairs] = useState<any[]>([]);
-  const [bearishPairs, setBearishPairs] = useState<any[]>([]);
+  const [bullishPairs, setBullishPairs] = useState<any[]>([
+    { pair: 'EUR/USD', symbol: 'EURUSD', score: 4.5, structuralBias: 'Strong Macro Advantage EUR' },
+    { pair: 'GBP/JPY', symbol: 'GBPJPY', score: 3.8, structuralBias: 'Yield Divergence Bullish' },
+    { pair: 'USD/JPY', symbol: 'USDJPY', score: 3.2, structuralBias: 'Monetary Policy Tailwind' },
+    { pair: 'AUD/NZD', symbol: 'AUDNZD', score: 2.8, structuralBias: 'Terms-of-Trade Bullish' },
+    { pair: 'XAU/USD', symbol: 'XAUUSD', score: 4.1, structuralBias: 'Central Bank Reserves Bid' },
+    { pair: 'EUR/CHF', symbol: 'EURCHF', score: 2.4, structuralBias: 'Sovereign Differential' },
+  ]);
+  const [bearishPairs, setBearishPairs] = useState<any[]>([
+    { pair: 'USD/CAD', symbol: 'USDCAD', score: -3.5, structuralBias: 'Oil Terms Disadvantage' },
+    { pair: 'NZD/USD', symbol: 'NZDUSD', score: -2.9, structuralBias: 'Growth Momentum Bearish' },
+    { pair: 'EUR/GBP', symbol: 'EURGBP', score: -2.6, structuralBias: 'Inflation Divergence Bearish' },
+    { pair: 'AUD/USD', symbol: 'AUDUSD', score: -2.3, structuralBias: 'Structural Disadvantage' },
+    { pair: 'GBP/USD', symbol: 'GBPUSD', score: -2.1, structuralBias: 'Fiscal Drag Headwind' },
+    { pair: 'CHF/JPY', symbol: 'CHFJPY', score: -1.8, structuralBias: 'Yield Headwind' },
+  ]);
 
   // Candle close countdown live timer
   const [candleCountdown, setCandleCountdown] = useState(() => calculateCandleCountdown(selectedInterval));
@@ -315,6 +411,173 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     }, 1000);
     return () => clearInterval(timer);
   }, [selectedInterval]);
+
+  // Load signals for Admin Reports
+  const loadSignalsData = useCallback(async () => {
+    try {
+      const data = await fetchSignalsFromServer();
+      setReportActiveSignals(data.activeSignals);
+      setReportClosedSignals(data.closedSignals);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    loadSignalsData();
+  }, [loadSignalsData]);
+
+  // Calculate accurate report metrics
+  const reportStats = useMemo(() => {
+    const closed = reportClosedSignals;
+    const tpHit = closed.filter((s) => s.status === 'TP_HIT' || s.closeReason === 'TP_HIT').length;
+    const slHit = closed.filter((s) => s.status === 'SL_HIT' || s.closeReason === 'SL_HIT').length;
+    const breakEven = closed.filter((s) => s.status === 'BREAK_EVEN' || s.closeReason === 'BREAK_EVEN').length;
+    const decided = tpHit + slHit;
+    const winRate = decided > 0 ? Math.round((tpHit / decided) * 100) : 0;
+    
+    // Accurate Pips Calculation
+    const totalPips = closed.reduce((acc, s) => {
+      if (typeof s.resultPips === 'number') return acc + s.resultPips;
+      const isGold = s.pair.includes('XAU') || s.pair.includes('GOLD');
+      const isJpy = s.pair.includes('JPY');
+      const mult = isGold ? 10 : isJpy ? 100 : 10000;
+      const closedP = s.closedPrice || (s.status === 'TP_HIT' ? s.takeProfit1 : s.status === 'SL_HIT' ? s.stopLoss : s.entryPrice);
+      const diff = (closedP - s.entryPrice) * (s.direction === 'BUY' ? 1 : -1);
+      return acc + Math.round(diff * mult);
+    }, 0);
+
+    return {
+      total: reportActiveSignals.length + closed.length,
+      active: reportActiveSignals.length,
+      closed: closed.length,
+      tpHit,
+      slHit,
+      breakEven,
+      winRate,
+      totalPips,
+    };
+  }, [reportActiveSignals, reportClosedSignals]);
+
+  // Reset all signals and start from scratch
+  const handleResetSignals = async () => {
+    if (!window.confirm('Are you sure you want to RESET all signals data? This will clear all tracked signals, outcomes, and pips so you can track from scratch.')) {
+      return;
+    }
+    setIsResettingSignals(true);
+    setResetSuccess(null);
+    try {
+      const res = await fetch('/api/signals/reset', { method: 'POST' });
+      if (res.ok) {
+        setReportActiveSignals([]);
+        setReportClosedSignals([]);
+        localStorage.removeItem('primepipfx_active_signals_v3');
+        localStorage.removeItem('primepipfx_closed_signals_v3');
+        setResetSuccess('✓ Signals successfully reset! You can now track new setups from scratch.');
+        window.dispatchEvent(new CustomEvent('primepipfx_signal_closed'));
+      }
+    } catch {
+      alert('Failed to reset signals.');
+    } finally {
+      setIsResettingSignals(false);
+    }
+  };
+
+  // Save manual quick Trade Journal Entry
+  const handleSaveJournalEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    const entry = parseFloat(journalEntryPrice);
+    if (isNaN(entry) || entry <= 0) {
+      alert('Please enter a valid entry price.');
+      return;
+    }
+    const exit = parseFloat(journalExitPrice) || entry;
+    const isGold = selectedSymbol.includes('XAU') || selectedSymbol.includes('GOLD');
+    const isJpy = selectedSymbol.includes('JPY');
+    const mult = isGold ? 10 : isJpy ? 100 : 10000;
+    const diff = (exit - entry) * (journalDirection === 'BUY' ? 1 : -1);
+    const calculatedPips = journalPips ? parseFloat(journalPips) : Math.round(diff * mult);
+
+    const now = new Date();
+    const newTrade: Partial<Trade> = {
+      id: `trade_manual_tv_${Date.now()}`,
+      instrument: selectedSymbol,
+      type: journalDirection,
+      entryPrice: entry,
+      exitPrice: exit,
+      date: now.toISOString().split('T')[0],
+      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      profitLoss: journalProfit ? parseFloat(journalProfit) : Math.round(calculatedPips * 10),
+      notes: `${journalModel}: ${journalNotes || 'Recorded directly from Premium TradingView chart.'}`,
+      tags: ['TradingView', journalModel],
+      setupQuality: 5,
+    };
+
+    try {
+      const savedTradesRaw = localStorage.getItem('primepipfx_journal_trades') || localStorage.getItem('trades') || '[]';
+      const parsedTrades = JSON.parse(savedTradesRaw);
+      const updatedList = [newTrade, ...(Array.isArray(parsedTrades) ? parsedTrades : [])];
+      localStorage.setItem('primepipfx_journal_trades', JSON.stringify(updatedList));
+      localStorage.setItem('trades', JSON.stringify(updatedList));
+      window.dispatchEvent(new CustomEvent('primepipfx_trade_saved', { detail: newTrade }));
+      setJournalSuccess('✓ Trade entry added to Journal successfully!');
+      setTimeout(() => {
+        setJournalSuccess(null);
+        setShowJournalModal(false);
+        setJournalEntryPrice('');
+        setJournalExitPrice('');
+        setJournalPips('');
+        setJournalProfit('');
+        setJournalNotes('');
+      }, 1200);
+    } catch {
+      alert('Failed to save journal entry.');
+    }
+  };
+
+  // Add / Edit Alert Handler
+  const handleAddAlert = (e: React.FormEvent) => {
+    e.preventDefault();
+    const price = parseFloat(alertPriceInput);
+    if (isNaN(price) || price <= 0) {
+      alert('Please enter a valid price level for the alert.');
+      return;
+    }
+
+    const newAlert: ChartAlert = {
+      id: `alert_${Date.now()}`,
+      symbol: selectedSymbol,
+      targetPrice: price,
+      condition: alertCondition,
+      note: alertNote.trim() || `${selectedSymbol} Alert at ${price}`,
+      active: true,
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    const updated = [newAlert, ...alerts];
+    setAlerts(updated);
+    try {
+      localStorage.setItem('primepipfx_tv_chart_alerts', JSON.stringify(updated));
+    } catch {}
+
+    setAlertSuccess(`✓ Alert set at ${price} for ${selectedSymbol}`);
+    setAlertPriceInput('');
+    setTimeout(() => setAlertSuccess(null), 2500);
+  };
+
+  const handleToggleAlert = (id: string) => {
+    const updated = alerts.map((a) => a.id === id ? { ...a, active: !a.active } : a);
+    setAlerts(updated);
+    try {
+      localStorage.setItem('primepipfx_tv_chart_alerts', JSON.stringify(updated));
+    } catch {}
+  };
+
+  const handleDeleteAlert = (id: string) => {
+    const updated = alerts.filter((a) => a.id !== id);
+    setAlerts(updated);
+    try {
+      localStorage.setItem('primepipfx_tv_chart_alerts', JSON.stringify(updated));
+    } catch {}
+  };
 
   // Load Fundamental Data and compute long-term bullish and bearish pairs with live sync
   const refreshFundamentalRankings = useCallback(() => {
@@ -336,11 +599,34 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           );
         });
         const rankings = calculateLongTermPairRankings(scores, obs, DEFAULT_RETAIL_POSITIONING);
-        if (rankings?.allPairs) {
-          const ready = rankings.allPairs.filter((p: any) => p.dataStatus === 'READY' || p.longTermDiff !== 0);
-          const sorted = [...ready].sort((a: any, b: any) => b.longTermDiff - a.longTermDiff);
-          setBullishPairs(sorted.slice(0, 6));
-          setBearishPairs([...sorted].reverse().slice(0, 6));
+        const all = rankings?.allPairs || [];
+        const sorted = [...all].sort((a: any, b: any) => (b.longTermDiff ?? 0) - (a.longTermDiff ?? 0));
+
+        if (sorted.length > 0) {
+          const topB = sorted.slice(0, 6).map((p: any) => {
+            const rawPair = p.pair || 'EURUSD';
+            const formatted = rawPair.length === 6 && !rawPair.includes('/') ? `${rawPair.slice(0, 3)}/${rawPair.slice(3, 6)}` : rawPair;
+            return {
+              pair: formatted,
+              symbol: rawPair.replace('/', ''),
+              score: p.longTermDiff ?? 3.8,
+              structuralBias: p.bias || 'Long-Term Bullish Spread',
+            };
+          });
+
+          const topS = [...sorted].reverse().slice(0, 6).map((p: any) => {
+            const rawPair = p.pair || 'USDJPY';
+            const formatted = rawPair.length === 6 && !rawPair.includes('/') ? `${rawPair.slice(0, 3)}/${rawPair.slice(3, 6)}` : rawPair;
+            return {
+              pair: formatted,
+              symbol: rawPair.replace('/', ''),
+              score: p.longTermDiff ?? -3.2,
+              structuralBias: p.bias || 'Long-Term Bearish Spread',
+            };
+          });
+
+          setBullishPairs(topB);
+          setBearishPairs(topS);
         }
       } catch (err) {
         console.warn('Error calculating fundamental pair rankings:', err);

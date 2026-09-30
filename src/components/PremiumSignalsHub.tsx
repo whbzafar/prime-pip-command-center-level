@@ -75,7 +75,7 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
   const [isCreateSignalModalOpen, setIsCreateSignalModalOpen] = useState<boolean>(false);
   const [isCloseSignalModalOpen, setIsCloseSignalModalOpen] = useState<boolean>(false);
   const [selectedSignalToClose, setSelectedSignalToClose] = useState<SignalItem | null>(null);
-  const [closeStatusChoice, setCloseStatusChoice] = useState<'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN'>('TP_HIT');
+  const [closeStatusChoice, setCloseStatusChoice] = useState<'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'DEACTIVATE_LEVEL'>('TP_HIT');
   const [closePriceInput, setClosePriceInput] = useState<string>('');
   const [closeNotesInput, setCloseNotesInput] = useState<string>('');
 
@@ -306,7 +306,7 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
   };
 
   // Open modal to close signal with status
-  const handleOpenCloseModal = (signal: SignalItem, statusChoice: 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN') => {
+  const handleOpenCloseModal = (signal: SignalItem, statusChoice: 'TP_HIT' | 'SL_HIT' | 'BREAK_EVEN' | 'DEACTIVATE_LEVEL') => {
     setSelectedSignalToClose(signal);
     setCloseStatusChoice(statusChoice);
     setClosePriceInput(
@@ -321,6 +321,8 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
         ? `🎯 Take Profit Target (${signal.takeProfit1}) Reached! Setup closed in profit.`
         : statusChoice === 'SL_HIT'
         ? `🛑 Stop Loss (${signal.stopLoss}) Triggered. Risk strictly controlled.`
+        : statusChoice === 'DEACTIVATE_LEVEL'
+        ? `⚠️ Deactivate Level: Setup deactivated and invalidated before execution.`
         : 'Closed at break-even entry level.'
     );
     setIsCloseSignalModalOpen(true);
@@ -331,10 +333,11 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
     if (!selectedSignalToClose) return;
 
     const closedPrice = parseFloat(closePriceInput) || selectedSignalToClose.entryPrice;
+    const isGold = selectedSignalToClose.pair.includes('XAU') || selectedSignalToClose.pair.includes('GOLD');
     const isJpy = selectedSignalToClose.pair.includes('JPY');
-    const pipMultiplier = isJpy ? 100 : 10000;
+    const pipMultiplier = isGold ? 10 : isJpy ? 100 : 10000;
     const diff = (closedPrice - selectedSignalToClose.entryPrice) * (selectedSignalToClose.direction === 'BUY' ? 1 : -1);
-    const resultPips = Math.round(diff * pipMultiplier);
+    const resultPips = closeStatusChoice === 'DEACTIVATE_LEVEL' ? 0 : Math.round(diff * pipMultiplier);
     const resultPercent =
       closeStatusChoice === 'TP_HIT' ? 2.0 : closeStatusChoice === 'SL_HIT' ? -1.0 : 0.0;
 
@@ -354,9 +357,20 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
       // Broadcast announcement
       try {
         const isWin = closeStatusChoice === 'TP_HIT';
+        const isDeactivated = closeStatusChoice === 'DEACTIVATE_LEVEL';
+        const titleStr = isWin
+          ? `🎯 TARGET REACHED: ${selectedSignalToClose.pair} TP HIT!`
+          : isDeactivated
+          ? `⚠️ LEVEL DEACTIVATED: ${selectedSignalToClose.pair}`
+          : closeStatusChoice === 'SL_HIT'
+          ? `🛑 STOP LOSS HIT: ${selectedSignalToClose.pair}`
+          : `⚖️ BREAK-EVEN: ${selectedSignalToClose.pair}`;
+
         const autoAnn = await postAnnouncementServer({
-          title: isWin ? `🎯 TARGET REACHED: ${selectedSignalToClose.pair} TP HIT!` : `SIGNAL CLOSED: ${selectedSignalToClose.pair}`,
-          message: `${selectedSignalToClose.pair} ${selectedSignalToClose.direction} [${selectedSignalToClose.timeframe || 'H1'}] closed at ${closedPrice} (${resultPips > 0 ? '+' : ''}${resultPips} pips). Status: ${closeStatusChoice}.`,
+          title: titleStr,
+          message: isDeactivated
+            ? `${selectedSignalToClose.pair} level deactivated / cancelled. Setup invalidated before execution.`
+            : `${selectedSignalToClose.pair} ${selectedSignalToClose.direction} [${selectedSignalToClose.timeframe || 'H1'}] closed at ${closedPrice} (${resultPips > 0 ? '+' : ''}${resultPips} pips). Status: ${closeStatusChoice.replace('_', ' ')}.`,
           category: 'SIGNAL_ALERT',
           signalId: selectedSignalToClose.id,
           sender: currentUser?.displayName || currentUser?.email || 'Owner / Chief Institutional Analyst',
@@ -971,7 +985,7 @@ Issued: ${signal.createdAt}`;
                             <span>🎯 TARGET REACHED: CLOSE AT TP1</span>
                           </button>
 
-                          <div className="grid grid-cols-3 gap-1.5">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                             <button
                               type="button"
                               onClick={() => handleOpenCloseModal(signal, 'TP_HIT')}
@@ -994,7 +1008,15 @@ Issued: ${signal.createdAt}`;
                               className="px-2 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-cyan-400 font-military font-bold text-[10px] tracking-wider transition cursor-pointer text-center"
                               title="Close signal at Break-Even"
                             >
-                              BREAK-EVEN
+                              BREAKEVEN
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCloseModal(signal, 'DEACTIVATE_LEVEL')}
+                              className="px-2 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700/90 border border-amber-500/40 text-amber-300 font-military font-bold text-[10px] tracking-wider transition cursor-pointer text-center"
+                              title="Deactivate Level: Mark level invalidated before execution"
+                            >
+                              DEACTIVATE
                             </button>
                           </div>
                         </div>
@@ -1726,7 +1748,7 @@ Issued: ${signal.createdAt}`;
             {/* Status Options */}
             <div className="space-y-1.5">
               <label className="text-xs font-mono-code text-slate-400 block font-bold">Select Outcome Classification</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -1739,7 +1761,7 @@ Issued: ${signal.createdAt}`;
                       : 'bg-slate-900 border border-slate-800 text-emerald-400 hover:border-emerald-500/40'
                   }`}
                 >
-                  TP HIT
+                  CUSTOM TP
                 </button>
                 <button
                   type="button"
@@ -1767,7 +1789,22 @@ Issued: ${signal.createdAt}`;
                       : 'bg-slate-900 border border-slate-800 text-cyan-400 hover:border-blue-500/40'
                   }`}
                 >
-                  BREAK-EVEN
+                  BREAKEVEN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCloseStatusChoice('DEACTIVATE_LEVEL');
+                    setClosePriceInput(String(selectedSignalToClose.entryPrice));
+                    setCloseNotesInput('⚠️ Deactivate Level: Setup invalidated and deactivated.');
+                  }}
+                  className={`py-2 px-2 rounded-xl text-xs font-military font-bold tracking-wider transition cursor-pointer text-center ${
+                    closeStatusChoice === 'DEACTIVATE_LEVEL'
+                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                      : 'bg-slate-900 border border-slate-800 text-amber-400 hover:border-amber-500/40'
+                  }`}
+                >
+                  DEACTIVATE LEVEL
                 </button>
               </div>
             </div>

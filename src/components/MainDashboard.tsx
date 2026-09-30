@@ -109,24 +109,29 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
     };
 
     loadSignalsAndAnnouncements();
-    const interval = setInterval(loadSignalsAndAnnouncements, 12000);
+    const interval = setInterval(loadSignalsAndAnnouncements, 2500);
 
     const onSigCreated = (e: any) => {
       const sig = e?.detail;
       if (sig) setActiveSignals((prev) => [sig, ...prev.filter((s) => s.id !== sig.id)]);
+      loadSignalsAndAnnouncements();
     };
     const onSigClosed = (e: any) => {
       const sig = e?.detail;
       if (sig) setActiveSignals((prev) => prev.filter((s) => s.id !== sig.id));
+      loadSignalsAndAnnouncements();
     };
     const onAnnCreated = (e: any) => {
       const ann = e?.detail;
       if (ann) setAnnouncements((prev) => [ann, ...prev.filter((a) => a.id !== ann.id)]);
+      loadSignalsAndAnnouncements();
     };
+    const onStorage = () => loadSignalsAndAnnouncements();
 
     window.addEventListener('primepipfx_signal_created', onSigCreated);
     window.addEventListener('primepipfx_signal_closed', onSigClosed);
     window.addEventListener('primepipfx_announcement_created', onAnnCreated);
+    window.addEventListener('storage', onStorage);
 
     return () => {
       isMounted = false;
@@ -134,6 +139,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
       window.removeEventListener('primepipfx_signal_created', onSigCreated);
       window.removeEventListener('primepipfx_signal_closed', onSigClosed);
       window.removeEventListener('primepipfx_announcement_created', onAnnCreated);
+      window.removeEventListener('storage', onStorage);
     };
   }, []);
 
