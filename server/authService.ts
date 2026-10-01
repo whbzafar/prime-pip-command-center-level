@@ -697,17 +697,67 @@ export function deleteCustomer(id: string): { success: boolean; error?: string }
   return { success: true };
 }
 
-// Check referral code validity
-export function checkReferralCode(code: string): { valid: boolean; referrerName?: string; price: number } {
-  if (!code || !code.trim()) return { valid: false, price: 50 };
-  const users = readUsers();
-  const clean = code.trim().toUpperCase();
-  const referrer = users.find((u) => (u.referralCode || '').toUpperCase() === clean || u.username.toUpperCase() === clean);
-  
-  if (referrer) {
-    return { valid: true, referrerName: referrer.name || referrer.username, price: 40 };
+// Check referral / discount code validity
+export function checkReferralCode(code: string): {
+  valid: boolean;
+  referrerName?: string;
+  price: number;
+  originalPrice: number;
+  discountPercent: number;
+  discountAmount: number;
+} {
+  const standardPrice = 100;
+  const discountedPrice = 55;
+  const discountPercent = 45;
+  const discountAmount = 45;
+
+  if (!code || !code.trim()) {
+    return {
+      valid: false,
+      price: standardPrice,
+      originalPrice: standardPrice,
+      discountPercent: 0,
+      discountAmount: 0,
+    };
   }
-  return { valid: false, price: 50 };
+
+  const clean = code.trim().toUpperCase();
+
+  // Official discount code requested by user: 'Primepip' (case-insensitive)
+  if (clean === 'PRIMEPIP' || clean === 'PRIMEPIPFX' || clean === 'PPFX-MASTER') {
+    return {
+      valid: true,
+      referrerName: 'Primepip Official Discount Code',
+      price: discountedPrice,
+      originalPrice: standardPrice,
+      discountPercent,
+      discountAmount,
+    };
+  }
+
+  const users = readUsers();
+  const referrer = users.find(
+    (u) => (u.referralCode || '').toUpperCase() === clean || u.username.toUpperCase() === clean
+  );
+
+  if (referrer) {
+    return {
+      valid: true,
+      referrerName: referrer.name || referrer.username,
+      price: discountedPrice,
+      originalPrice: standardPrice,
+      discountPercent,
+      discountAmount,
+    };
+  }
+
+  return {
+    valid: false,
+    price: standardPrice,
+    originalPrice: standardPrice,
+    discountPercent: 0,
+    discountAmount: 0,
+  };
 }
 
 // Get admin stats & referral list

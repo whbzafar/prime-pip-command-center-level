@@ -245,14 +245,38 @@ export async function apiChangePassword(
 
 export async function apiCheckReferral(
   code: string,
-): Promise<{ valid: boolean; referrerName?: string; price: number }> {
+): Promise<{
+  valid: boolean;
+  referrerName?: string;
+  price: number;
+  originalPrice?: number;
+  discountPercent?: number;
+  discountAmount?: number;
+}> {
+  const clean = (code || '').trim().toUpperCase();
+  if (clean === 'PRIMEPIP' || clean === 'PRIMEPIPFX' || clean === 'PPFX-MASTER') {
+    return {
+      valid: true,
+      referrerName: 'Primepip Official Discount Code',
+      price: 55,
+      originalPrice: 100,
+      discountPercent: 45,
+      discountAmount: 45,
+    };
+  }
   try {
     const res = await fetch(`/api/referral/check/${encodeURIComponent(code)}`);
     if (res.ok) return await res.json();
   } catch (err) {
     console.warn('Referral check failed:', err);
   }
-  return { valid: false, price: 50 };
+  return {
+    valid: false,
+    price: 100,
+    originalPrice: 100,
+    discountPercent: 0,
+    discountAmount: 0,
+  };
 }
 
 export async function apiCompleteOnboarding(): Promise<{

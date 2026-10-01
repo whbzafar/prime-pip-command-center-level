@@ -1134,16 +1134,25 @@ export const Header: React.FC<HeaderProps> = ({
                       COMING SOON
                     </span>
                   )}
-                  {isComingSoon && item.id !== 'META5_PREMIUM' && (
-                    <span className="text-[8px] bg-blue-500/20 text-cyan-300 border border-blue-500/40 px-1 rounded uppercase">
-                      SOON
+                  {item.id === 'SIGNALS' && isDemoMode ? (
+                    <span className="flex items-center gap-1 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
+                      <Clock className="w-2.5 h-2.5 text-amber-400" />
+                      COMING SOON
                     </span>
-                  )}
-                  {(item as any).isLive && item.id !== 'META5_PREMIUM' && (
-                    <span className="flex items-center gap-1 text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-1.5 py-0.5 rounded font-bold uppercase shadow-sm">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      LIVE
-                    </span>
+                  ) : (
+                    <>
+                      {isComingSoon && item.id !== 'META5_PREMIUM' && (
+                        <span className="text-[8px] bg-blue-500/20 text-cyan-300 border border-blue-500/40 px-1 rounded uppercase">
+                          SOON
+                        </span>
+                      )}
+                      {(item as any).isLive && item.id !== 'META5_PREMIUM' && (
+                        <span className="flex items-center gap-1 text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-1.5 py-0.5 rounded font-bold uppercase shadow-sm">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          LIVE
+                        </span>
+                      )}
+                    </>
                   )}
                 </button>
               );

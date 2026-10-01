@@ -44,6 +44,7 @@ interface MobileBottomNavProps {
   onOpenEvolution?: () => void;
   onOpenBackupModal?: () => void;
   onOpenAllCategories?: () => void;
+  isDemoMode?: boolean;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -54,9 +55,11 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onOpenEvolution,
   onOpenBackupModal,
   onOpenAllCategories,
+  isDemoMode,
 }) => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const isDemo = isDemoMode || (typeof window !== 'undefined' && localStorage.getItem('primepipfx_demo_mode') === 'true');
 
   const allCategories = useMemo(() => {
     return [
@@ -318,7 +321,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                           <span className="font-military font-bold text-xs tracking-wider">
                             {item.label}
                           </span>
-                          {item.id === 'META5_PREMIUM' ? (
+                          {item.id === 'SIGNALS' && isDemo ? (
+                            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                              <Clock className="w-2.5 h-2.5 text-amber-400" />
+                              <span>COMING SOON</span>
+                            </span>
+                          ) : item.id === 'META5_PREMIUM' ? (
                             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
                               <Lock className="w-2.5 h-2.5 text-amber-400" />
                               <span>COMING SOON</span>

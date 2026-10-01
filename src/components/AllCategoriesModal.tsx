@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Sparkles,
   Lock,
+  Clock,
   Bookmark,
   CandlestickChart,
   Smartphone,
@@ -532,16 +533,25 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
                               <span>COMING SOON</span>
                             </span>
                           )}
-                          {cat.comingSoon && cat.id !== 'META5_PREMIUM' && (
-                            <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/40 uppercase">
-                              COMING SOON
+                          {cat.id === 'SIGNALS' && isDemoMode ? (
+                            <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/50 uppercase shadow-xs">
+                              <Clock className="w-2.5 h-2.5 text-amber-400" />
+                              <span>COMING SOON</span>
                             </span>
-                          )}
-                          {(cat as any).isLive && cat.id !== 'META5_PREMIUM' && (
-                            <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                              LIVE
-                            </span>
+                          ) : (
+                            <>
+                              {cat.comingSoon && cat.id !== 'META5_PREMIUM' && (
+                                <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/40 uppercase">
+                                  COMING SOON
+                                </span>
+                              )}
+                              {(cat as any).isLive && cat.id !== 'META5_PREMIUM' && (
+                                <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                  LIVE
+                                </span>
+                              )}
+                            </>
                           )}
                           {cat.highlight && !isCurrent && (
                             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />

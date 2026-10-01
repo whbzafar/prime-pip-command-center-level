@@ -65,16 +65,18 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
       setDiscountApplied(true);
       setReferrerName(res.referrerName || codeToTest);
       setStoredReferral(codeToTest.trim());
-      setStatusMessage(`Referral verified! You receive the exclusive $40 trader access price (Referred by ${res.referrerName || codeToTest}).`);
+      setStatusMessage(
+        `Code verified! You received a 45% discount ($45 off). The lifetime subscription fee drops from $100 to only $55! (${res.referrerName || codeToTest})`
+      );
     } else {
       setDiscountApplied(false);
-      setStatusMessage('Invalid or unrecognized referral code. Standard $50 rate applies.');
+      setStatusMessage("Invalid code. The standard lifetime fee is $100. Enter 'Primepip' code to get 45% discount ($55 access).");
     }
   };
 
   const whatsappMessage = discountApplied
-    ? `Hello PrimePipFX, I want access to the PRIMEPIPFX Trading Command Center with referral code: ${referralInput.trim()} ($40 discounted access).`
-    : `Hello PrimePipFX, I want access to the PRIMEPIPFX Trading Command Center.`;
+    ? `Hello PrimePipFX, I want lifetime access to the PRIMEPIPFX Trading Command Center with promo code '${referralInput.trim() || 'Primepip'}' ($55 lifetime fee with 45% discount, saving $45 from $100).`
+    : `Hello PrimePipFX, I want lifetime access to the PRIMEPIPFX Trading Command Center ($100 standard lifetime fee).`;
 
   const whatsappUrl = `https://wa.me/923406671495?text=${encodeURIComponent(whatsappMessage)}`;
 
@@ -124,10 +126,10 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
             </div>
             <div>
               <div className="text-xs font-military font-bold tracking-wider text-slate-200 uppercase">
-                HAVE A TRADER REFERRAL CODE?
+                HAVE A PROMO OR REFERRAL CODE?
               </div>
               <p className="text-[11px] font-mono-code text-slate-400">
-                Apply a referral code to unlock the $40 discounted access price!
+                Enter promo code <strong className="text-cyan-300 font-bold">'Primepip'</strong> to get a <strong className="text-emerald-400 font-bold">45% discount ($45 off)</strong> — the lifetime subscription drops from $100 to only <strong className="text-amber-300 font-bold">$55</strong>!
               </p>
             </div>
           </div>
@@ -137,13 +139,13 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
               type="text"
               value={referralInput}
               onChange={(e) => setReferralInput(e.target.value.toUpperCase())}
-              placeholder="ENTER REFERRAL CODE"
-              className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-400 uppercase tracking-wider w-full sm:w-48 font-bold"
+              placeholder="ENTER 'PRIMEPIP' CODE"
+              className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-400 uppercase tracking-wider w-full sm:w-56 font-bold"
             />
             <button
               onClick={() => verifyReferral(referralInput)}
               disabled={verifying}
-              className="px-4 py-2 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs rounded-xl transition-colors shrink-0 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs rounded-xl transition-colors shrink-0 disabled:opacity-50 cursor-pointer"
             >
               {verifying ? 'CHECKING...' : 'APPLY'}
             </button>
@@ -179,12 +181,12 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
             </div>
 
             <div className="flex items-baseline gap-1 mb-4">
-              <span className="text-4xl font-mono-code font-black text-slate-100">$50</span>
+              <span className="text-4xl font-mono-code font-black text-slate-100">$100</span>
               <span className="text-xs font-mono-code text-slate-400">USD</span>
             </div>
 
             <p className="text-xs font-mono-code text-slate-400 mb-6">
-              Complete access to all professional modules. Offline vault + cloud ready.
+              Full lifetime access to all institutional trading modules without discount code.
             </p>
 
             <ul className="space-y-2.5 text-xs font-mono-code text-slate-300">
@@ -216,10 +218,10 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
               href={whatsappUrl}
               target="_blank"
               rel="noreferrer"
-              className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-100 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-colors flex items-center justify-center gap-2 border border-slate-700"
+              className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-100 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-colors flex items-center justify-center gap-2 border border-slate-700 cursor-pointer"
             >
               <MessageCircle className="w-4 h-4 text-emerald-400" />
-              SUBSCRIBE ($50)
+              SUBSCRIBE ($100 LIFETIME)
             </a>
           </div>
         </div>
@@ -227,45 +229,45 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
         {/* Tier 2: Referral Discount Access (Prime Gradient Treatment) */}
         <div className="prime-gradient-box p-6 flex flex-col justify-between relative shadow-2xl">
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-military font-bold text-[10px] uppercase tracking-wider shadow-md">
-            RECOMMENDED FOR TRADERS
+            RECOMMENDED • 45% DISCOUNT
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-4 mt-1">
               <span className="text-xs font-military font-bold text-cyan-400 uppercase tracking-wider">
-                REFERRAL ACCESS
+                'PRIMEPIP' PROMO ACCESS
               </span>
               <span className="text-[10px] font-mono-code px-2 py-0.5 rounded-lg bg-blue-500/20 text-amber-300 font-bold border border-blue-500/30">
-                SAVE $10
+                SAVE $45 (45% OFF)
               </span>
             </div>
 
             <div className="flex items-baseline gap-2 mb-4">
-              <span className="text-4xl font-mono-code font-black text-amber-300">$40</span>
-              <span className="text-xs font-mono-code text-slate-400 line-through">$50</span>
-              <span className="text-xs font-mono-code text-emerald-400 font-bold">20% OFF</span>
+              <span className="text-4xl font-mono-code font-black text-amber-300">$55</span>
+              <span className="text-xs font-mono-code text-slate-400 line-through">$100</span>
+              <span className="text-xs font-mono-code text-emerald-400 font-bold">45% OFF</span>
             </div>
 
             <p className="text-xs font-mono-code text-slate-300 mb-6">
-              Unlocked via valid trader referral code. Full institutional command center access with discount.
+              The subscription fee drops to <strong className="text-amber-300">$55 for lifetime access</strong> when the <strong className="text-cyan-300">'Primepip'</strong> code is used (45% discount).
             </p>
 
             <ul className="space-y-2.5 text-xs font-mono-code text-slate-200">
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>Everything in Standard Access</span>
+                <span>Lifetime Access for only $55 (Remainder 45% Discounted)</span>
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>Discounted $40 Entry Rate</span>
+                <span>Standard $100 Fee Drops by $45 with 'Primepip' Code</span>
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>Personal Referral Code to Earn Lifetime</span>
+                <span>Everything in Standard Access + Future Models</span>
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>Priority Developer Onboarding</span>
+                <span>Personal Referral Code to Earn Lifetime Free Bonuses</span>
               </li>
             </ul>
           </div>
@@ -275,10 +277,10 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
               href={whatsappUrl}
               target="_blank"
               rel="noreferrer"
-              className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25"
+              className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 cursor-pointer"
             >
               <MessageCircle className="w-4 h-4 text-slate-950" />
-              <span>{discountApplied ? 'CLAIM $40 ACCESS ON WHATSAPP' : 'GET ACCESS ($40 VIA REFERRAL)'}</span>
+              <span>{discountApplied ? 'CLAIM $55 LIFETIME ACCESS (45% DISCOUNT)' : "GET ACCESS ($55 WITH 'PRIMEPIP' CODE)"}</span>
             </a>
           </div>
         </div>

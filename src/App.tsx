@@ -187,7 +187,11 @@ export default function App() {
   const loadAccountData = useCallback(async (account: AccountSettings) => {
     try {
       const accountTrades = await getTradesForAccount(account.id);
-      setTrades(accountTrades);
+      // Strictly isolate trades belonging specifically to this account
+      const strictlyIsolated = (accountTrades || []).filter(
+        (t) => !t.accountId || t.accountId === account.id
+      );
+      setTrades(strictlyIsolated);
 
       const accountRules = await getRulesForAccount(account.id);
       if (accountRules && accountRules.length > 0) {
@@ -271,6 +275,22 @@ export default function App() {
           name: '11. Meta 5 Terminal (Coming Soon)',
           shortDesc: '🔒 Category Locked — Coming Soon',
           overview: 'The Meta 5 Mobile Terminal is currently locked and marked Coming Soon. Full broker connectivity and live MT5 bridge capabilities will be unlocked in an upcoming release.',
+        });
+        return;
+      }
+      if (isDemoMode && tab === 'SIGNALS') {
+        const summary = CATEGORY_SUMMARIES['SIGNALS'] || {
+          id: 'SIGNALS',
+          name: '09. Premium Signals',
+          shortDesc: 'Coming Soon in Demo Mode',
+          overview: 'The Premium Signals category is tagged Coming Soon for Demo users. Institutional signals, real-time setups, and live broadcast alpha will be unlocked with full student enrollment ($55 lifetime access with code "Primepip").',
+          keyFeatures: ['Institutional high-probability trade setups', 'Real-time entry, stop loss, and take profit levels', 'Direct broadcast notifications & trade journals'],
+        };
+        setLockedCategoryModal({
+          ...summary,
+          name: '09. Premium Signals (Coming Soon)',
+          shortDesc: '⏳ Category Tagged: Coming Soon',
+          overview: 'The Premium Signals category is currently tagged Coming Soon for demo users. Upgrade to lifetime access for $55 (using code "Primepip" for 45% discount) to unlock live real-time institutional setups and signals.',
         });
         return;
       }
@@ -406,6 +426,7 @@ export default function App() {
   const handleSelectAccount = async (accountId: string) => {
     const target = accounts.find((a) => a.id === accountId);
     if (!target) return;
+    setTrades([]); // Immediately clear trades so previous account metrics do not bleed into target
     setActiveAccount(target);
     const currentUserId = currentUser?.id || 'demo-user';
     localStorage.setItem(`primepipfx_active_account_id_${currentUserId}`, target.id);
@@ -826,6 +847,22 @@ export default function App() {
         maxDailyTrades: 2,
         broker: '',
       });
+
+  // Keep activeAccount financial balance synchronized with calculated metrics balance
+  useEffect(() => {
+    if (activeAccount && metrics && typeof metrics.accountBalance === 'number' && metrics.accountBalance > 0) {
+      if (Math.abs((activeAccount.currentBalance || 0) - metrics.accountBalance) > 0.001) {
+        const synced: AccountSettings = {
+          ...activeAccount,
+          currentBalance: metrics.accountBalance,
+          currentEquity: metrics.currentEquity,
+        };
+        setActiveAccount(synced);
+        setAccounts((prev) => prev.map((a) => (a.id === synced.id ? synced : a)));
+        saveAccount(synced).catch(() => {});
+      }
+    }
+  }, [metrics.accountBalance, metrics.currentEquity, activeAccount?.id]);
 
   // App Loading Spinner
   if (isLoading) {
@@ -1312,6 +1349,7 @@ export default function App() {
         onOpenEvolution={() => handleSelectTab('EVOLUTION')}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         onOpenAllCategories={() => setIsAllCategoriesOpen(true)}
+        isDemoMode={isDemoMode}
       />
 
       {/* All 21 Categories Directory Modal */}

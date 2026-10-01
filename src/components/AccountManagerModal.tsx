@@ -142,6 +142,8 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
       ...editingAccount,
       accountName: name.trim(),
       initialBalance: balanceNum,
+      currentBalance: balanceNum,
+      currentEquity: balanceNum,
       currency: selectedCurrency,
       accountType: mappedType,
       broker: broker.trim() || 'Direct Market Access',
@@ -240,7 +242,10 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                   return (
                     <div
                       key={acc.id}
-                      onClick={() => onSelectAccount(acc.id)}
+                      onClick={() => {
+                        onSelectAccount(acc.id);
+                        onClose();
+                      }}
                       className={`p-4 rounded-xl border cursor-pointer transition flex flex-wrap items-center justify-between gap-3 ${
                         isActive
                           ? 'bg-blue-500/10 border-blue-500/60 shadow-lg shadow-blue-500/5'
@@ -270,7 +275,11 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                           </div>
                           <div className="text-xs text-slate-400 font-mono-code mt-0.5 flex items-center gap-2">
                             <span className="text-cyan-400/90 font-bold">
-                              Starting: {formatCurrency(acc.initialBalance, acc.currency)}
+                              Balance: {formatCurrency(acc.currentBalance ?? acc.initialBalance, acc.currency)}
+                            </span>
+                            <span>•</span>
+                            <span className="text-slate-400">
+                              (Starting: {formatCurrency(acc.initialBalance, acc.currency)})
                             </span>
                             <span>•</span>
                             <span>{acc.accountType.replace(/_/g, ' ')}</span>

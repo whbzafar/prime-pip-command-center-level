@@ -130,7 +130,13 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
   // Sync with activeAccount on load and updates
   useEffect(() => {
     if (activeAccount) {
-      setBalance(activeAccount.currentBalance || activeAccount.initialBalance || 500);
+      const safeBal =
+        activeAccount.currentBalance && activeAccount.currentBalance > 0
+          ? activeAccount.currentBalance
+          : activeAccount.initialBalance && activeAccount.initialBalance > 0
+          ? activeAccount.initialBalance
+          : 5000;
+      setBalance(safeBal);
       setCurrency(activeAccount.currency || 'USD');
     }
   }, [activeAccount?.id, activeAccount?.currentBalance, activeAccount?.initialBalance, activeAccount?.currency]);
@@ -138,7 +144,13 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
   // Sync with active account when requested
   const handleUseActiveBalance = () => {
     if (activeAccount) {
-      setBalance(activeAccount.currentBalance || activeAccount.initialBalance || 500);
+      const safeBal =
+        activeAccount.currentBalance && activeAccount.currentBalance > 0
+          ? activeAccount.currentBalance
+          : activeAccount.initialBalance && activeAccount.initialBalance > 0
+          ? activeAccount.initialBalance
+          : 5000;
+      setBalance(safeBal);
       setCurrency(activeAccount.currency || 'USD');
     }
   };
@@ -691,12 +703,43 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
                 <span className="text-slate-400">Pip Value (per Lot):</span>
                 <span className="font-bold text-slate-300">{formatCurrency(effectivePipValue, 'USD')}</span>
               </div>
-              <div className="flex items-center justify-between py-1 pt-2">
-                <span className="text-rose-400 font-bold">Estimated Loss at SL:</span>
+              <div className="flex items-center justify-between py-1 pt-2 border-t border-slate-800/80">
+                <span className="text-rose-400 font-bold">Stop Loss Risk (SL):</span>
                 <span className="font-black text-rose-400 text-sm">
                   -{formatCurrency(estimatedLossAtSL, currency)} ({actualRiskPercentage.toFixed(1)}%)
                 </span>
               </div>
+              <div className="flex items-center justify-between py-1 border-b border-slate-800/50">
+                <span className="text-emerald-400 font-bold">Take Profit Target (1:2 TP):</span>
+                <span className="font-black text-emerald-400 text-sm">
+                  +{formatCurrency(estimatedLossAtSL * 2, currency)} (+{(actualRiskPercentage * 2).toFixed(1)}%)
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-slate-800/50">
+                <span className="text-emerald-300 font-bold">Take Profit Target (1:3 TP):</span>
+                <span className="font-bold text-emerald-300 text-xs">
+                  +{formatCurrency(estimatedLossAtSL * 3, currency)} (+{(actualRiskPercentage * 3).toFixed(1)}%)
+                </span>
+              </div>
+              {hasValidPriceLevels && (
+                <div className="p-2.5 rounded-lg bg-emerald-950/20 border border-emerald-500/30 text-[11px] font-mono-code text-slate-300 space-y-1">
+                  <div className="text-cyan-400 font-bold uppercase text-[10px]">
+                    Calculated TP Price Levels ({entryPrice > stopLossPrice ? 'BUY DIRECTION' : 'SELL DIRECTION'}):
+                  </div>
+                  <div className="flex justify-between">
+                    <span>1:2 Target Price:</span>
+                    <strong className="text-emerald-400">
+                      {(entryPrice > stopLossPrice ? entryPrice + priceDistance * 2 : entryPrice - priceDistance * 2).toFixed(effectivePipSize < 0.01 ? 5 : 2)}
+                    </strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>1:3 Target Price:</span>
+                    <strong className="text-emerald-300">
+                      {(entryPrice > stopLossPrice ? entryPrice + priceDistance * 3 : entryPrice - priceDistance * 3).toFixed(effectivePipSize < 0.01 ? 5 : 2)}
+                    </strong>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Quick action to populate trade entry */}

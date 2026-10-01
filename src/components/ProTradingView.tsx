@@ -36,6 +36,7 @@ import {
   X,
   Target,
   RotateCcw,
+  Magnet,
 } from 'lucide-react';
 import { calculateCurrencyScore, calculateLongTermPairRankings } from '../utils/fundamentalCalculationEngine';
 import { CURRENCIES, DEFAULT_CATEGORY_WEIGHTS } from '../data/fundamentalRegistryData';
@@ -348,6 +349,28 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const [autoSaveStatus, setAutoSaveStatus] = useState<string>('Auto-Save Active');
   const [lastAutoSavedTime, setLastAutoSavedTime] = useState<string>('Just now');
   const [isForkedCopy, setIsForkedCopy] = useState<boolean>(false);
+
+  // Magnet Tool State (snaps cursor & drawings to candle wicks and bars)
+  const [isMagnetActive, setIsMagnetActive] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('primepipfx_tv_magnet_active') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [magnetToast, setMagnetToast] = useState<string | null>(null);
+
+  const toggleMagnet = () => {
+    setIsMagnetActive((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('primepipfx_tv_magnet_active', String(next));
+      } catch {}
+      setMagnetToast(next ? 'Magnet Snapping: Active' : 'Magnet Snapping: Disabled');
+      setTimeout(() => setMagnetToast(null), 2200);
+      return next;
+    });
+  };
 
   // Admin Reports Modal State
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
@@ -810,7 +833,10 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           popup_width: '1000',
           popup_height: '650',
           container_id: containerId,
-          studies: ['RSI@tv-basicstudies', 'MASimple@tv-basicstudies'],
+          auto_save_delay: 2, // Auto-saves student markings and drawings after 2 seconds
+          load_last_chart: true, // Re-opens chart exactly as student left it with intact markings
+          save_image: true,
+          studies: [], // No pre-set indicators applied at top; students add indicators themselves
           drawings_access: {
             type: 'all',
             tools: [{ name: 'Regression Trend' }],
@@ -871,7 +897,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       save_image: true,
       backgroundColor: backgroundColor,
       gridColor: isLightBg ? 'rgba(203, 213, 225, 0.4)' : 'rgba(30, 41, 59, 0.4)',
-      studies: ['RSI@tv-basicstudies', 'MASimple@tv-basicstudies'],
+      studies: [], // No pre-set indicators applied at top; students can add indicators freely
       support_host: 'https://www.tradingview.com',
     });
     widgetContainer.appendChild(embedScript);
@@ -1369,7 +1395,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       >
         <div id={containerId} className="w-full h-full relative" />
 
-        {/* On-Chart Left Vertical Tactical Tool Rail (Recycle Bin / Reset drawings) */}
+        {/* On-Chart Left Vertical Tactical Tool Rail (Recycle Bin & Magnet tool directly below) */}
         <div className="absolute left-3 top-14 z-10 flex flex-col items-center gap-1.5 p-1 rounded-xl bg-slate-950/85 border border-slate-800/80 backdrop-blur-md shadow-xl">
           {/* Recycle Bin / Trash Icon */}
           <button
@@ -1380,7 +1406,32 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           >
             <Trash2 className="w-4 h-4" />
           </button>
+
+          {/* Magnet Tool Button — Located directly below its existing position */}
+          <button
+            type="button"
+            onClick={toggleMagnet}
+            className={`p-2 rounded-lg transition cursor-pointer relative ${
+              isMagnetActive
+                ? 'text-cyan-400 bg-cyan-950/80 border border-cyan-500/50 shadow-md shadow-cyan-500/25'
+                : 'text-slate-400 hover:text-cyan-300 hover:bg-slate-900/80'
+            }`}
+            title={`Magnet Tool: ${isMagnetActive ? 'Active (Snapping drawings to candle wicks and bars)' : 'Inactive (Click to enable magnet snapping)'}`}
+          >
+            <Magnet className="w-4 h-4" />
+            {isMagnetActive && (
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            )}
+          </button>
         </div>
+
+        {/* Magnet Notification Toast */}
+        {magnetToast && (
+          <div className="absolute left-14 top-24 z-20 px-3 py-1.5 rounded-xl bg-slate-950/95 border border-cyan-500/50 text-cyan-300 font-mono-code text-xs font-bold shadow-xl backdrop-blur-md animate-in fade-in flex items-center gap-2">
+            <Magnet className="w-3.5 h-3.5 text-cyan-400" />
+            <span>{magnetToast}</span>
+          </div>
+        )}
       </div>
 
       {/* Footer Info Notice with Live Exact Candle Countdown */}

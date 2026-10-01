@@ -59,6 +59,7 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
 }) => {
   // Determine if current user has admin rights
   const isAdmin = propIsAdmin || currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER';
+  const isDemo = typeof window !== 'undefined' && localStorage.getItem('primepipfx_demo_mode') === 'true';
 
   // Signals and Announcements State
   const [activeSignals, setActiveSignals] = useState<SignalItem[]>([]);
@@ -645,11 +646,17 @@ Issued: ${signal.createdAt}`;
                 <h1 className="text-xl sm:text-2xl font-military font-bold tracking-wider text-slate-100 uppercase">
                   PREMIUM SIGNALS HUB
                 </h1>
-                {/* User explicitly requested: Remove 'Soon' and show 'LIVE' badge */}
-                <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-[11px] font-mono-code font-bold text-emerald-400 shadow-sm shadow-emerald-500/20">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>LIVE</span>
-                </span>
+                {isDemo ? (
+                  <span className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/50 text-[11px] font-mono-code font-bold text-amber-300 shadow-md shadow-amber-500/20">
+                    <Clock className="w-3 h-3 text-amber-400" />
+                    <span>COMING SOON</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-[11px] font-mono-code font-bold text-emerald-400 shadow-sm shadow-emerald-500/20">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span>LIVE</span>
+                  </span>
+                )}
                 {isAdmin && (
                   <span className="px-2 py-0.5 rounded bg-blue-500/15 border border-blue-500/30 text-[10px] font-mono-code font-bold text-cyan-400">
                     ADMIN COMMAND
@@ -686,6 +693,21 @@ Issued: ${signal.createdAt}`;
             </button>
           </div>
         </div>
+
+        {/* Demo Mode Notice */}
+        {isDemo && (
+          <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono-code text-amber-200">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>
+                <strong>DEMO NOTICE:</strong> The Premium Signals category is tagged <strong>'Coming Soon'</strong> for explore demo accounts. Lifetime access ($55 with code <strong>'Primepip'</strong>, 45% discount) unlocks live verified execution dispatches.
+              </span>
+            </div>
+            <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/40 font-bold uppercase shrink-0 w-fit">
+              COMING SOON
+            </span>
+          </div>
+        )}
 
         {/* 3-Section Navigation Bar: Live Signals, Dedicated Reports (Replaces Running Log), Announcements */}
         <div className="flex items-center gap-2 mt-5 pt-4 border-t border-slate-800/80 overflow-x-auto text-xs font-military font-bold tracking-wider">

@@ -531,7 +531,7 @@ export interface UserAccount {
   email?: string;
   role: UserRole;
   subscriptionStatus: SubscriptionStatus;
-  subscriptionPrice: number; // $50 standard, $40 referral
+  subscriptionPrice: number; // $100 standard, $55 lifetime with 'Primepip' code (45% discount)
   startDate?: string;
   expiryDate?: string;
   isLifetime: boolean;
