@@ -1,5 +1,23 @@
 [
   {
+    "id": "ann_1790843914203_0p6i",
+    "sender": "Admin / Chief Institutional Analyst",
+    "title": "🚨 VIP SIGNAL: EUR/USD BUY [H1]",
+    "message": "EUR/USD BUY (H1) @ Entry: 1.0825 | SL: 1.078 | TP1: 1.092. Setup Notes: Institutional liquidity sweep",
+    "timestamp": "Oct 01, 2026, 01:38 PM PKT",
+    "category": "SIGNAL_ALERT",
+    "signalId": "sig_1790843914203_w2yg"
+  },
+  {
+    "id": "ann_1790843310192_gc9o",
+    "sender": "Admin / Chief Institutional Analyst",
+    "title": "🚨 VIP SIGNAL: GBP/USD SELL [H4]",
+    "message": "GBP/USD SELL (H4) @ Entry: 1.295 | SL: 1.302 | TP1: 1.285. Setup Notes: Test signal",
+    "timestamp": "Oct 01, 2026, 01:28 PM PKT",
+    "category": "SIGNAL_ALERT",
+    "signalId": "sig_1790843310191_ywzu"
+  },
+  {
     "id": "ann_1790763461530_uw98",
     "sender": "Admin / Chief Institutional Analyst",
     "title": "🚨 VIP SIGNAL: EURUSD BUY [H1]",

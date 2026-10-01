@@ -4907,9 +4907,9 @@ app.post('/api/signals', (req, res) => {
         userId: 'dev-owner-master',
         username: 'admin',
         displayName: 'PrimePipFX Lead Analyst',
-        role: 'ADMIN',
+        userRole: 'ADMIN',
         text: `📡 **INSTITUTIONAL SIGNAL ALERT**\n\n**${cleanPair}** ${cleanDir} (${cleanTf})\n• **Entry:** ${entryPrice}\n• **Stop Loss:** ${stopLoss}\n• **Take Profit 1:** ${takeProfit1}${takeProfit2 ? `\n• **Take Profit 2:** ${takeProfit2}` : ''}${takeProfit3 ? `\n• **Take Profit 3:** ${takeProfit3}` : ''}\n• **Risk:** ${recommendedRiskPercent || 1.0}%\n${strategyNotes ? `• **Analysis:** ${strategyNotes}` : ''}\n\n*Check the 09. Premium Signals tab to execute or inspect.*`,
-        photoUrl: imageUrl,
+        photoUrl: imageUrl && imageUrl.length < 50000 ? imageUrl : undefined,
       });
     } catch (e) {
       console.warn('[SIGNALS] Community chat broadcast warning:', e);
@@ -4923,11 +4923,9 @@ app.post('/api/signals', (req, res) => {
           postPrivateMessage({
             senderId: 'dev-owner-master',
             senderUsername: 'admin',
-            senderRole: 'ADMIN',
             receiverId: student.id,
             receiverUsername: student.username,
             text: `🚨 **VIP DIRECT SIGNAL: ${cleanPair} ${cleanDir} (${cleanTf})**\n\n• Entry Price: ${entryPrice}\n• Stop Loss: ${stopLoss}\n• Take Profit 1: ${takeProfit1}${takeProfit2 ? '\n• Take Profit 2: ' + takeProfit2 : ''}${takeProfit3 ? '\n• Take Profit 3: ' + takeProfit3 : ''}\n• Risk: ${recommendedRiskPercent || 1.0}%\n${strategyNotes ? '\nStrategy Notes: ' + strategyNotes : ''}\n\n*Dispatched directly to your terminal by Lead Analyst.*`,
-            photoUrl: imageUrl,
           });
         }
       }
@@ -5012,7 +5010,7 @@ app.post('/api/announcements', (req, res) => {
         userId: 'dev-owner-master',
         username: 'admin',
         displayName: 'PrimePipFX Lead Analyst',
-        role: 'ADMIN',
+        userRole: 'ADMIN',
         text: `📢 **OFFICIAL BROADCAST: ${cleanTitle}**\n\n${message}\n\n*— Dispatched by ${sender || 'Admin / Owner'}*`,
       });
     } catch (e) {
@@ -5027,7 +5025,6 @@ app.post('/api/announcements', (req, res) => {
           postPrivateMessage({
             senderId: 'dev-owner-master',
             senderUsername: 'admin',
-            senderRole: 'ADMIN',
             receiverId: student.id,
             receiverUsername: student.username,
             text: `📢 **OFFICIAL BROADCAST: ${cleanTitle}**\n\n${message}\n\n*— Dispatched by ${sender || 'Admin / Owner'}*`,

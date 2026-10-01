@@ -29,6 +29,7 @@ import {
   fetchSignalsFromServer,
   fetchAnnouncementsServer,
   InAppAnnouncement,
+  subscribeToSignalsSync,
 } from '../services/signalsService';
 import { SignalItem } from '../types';
 import {
@@ -110,6 +111,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
 
     loadSignalsAndAnnouncements();
     const interval = setInterval(loadSignalsAndAnnouncements, 2500);
+    const unsubSync = subscribeToSignalsSync(() => loadSignalsAndAnnouncements());
 
     const onSigCreated = (e: any) => {
       const sig = e?.detail;
@@ -136,6 +138,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
     return () => {
       isMounted = false;
       clearInterval(interval);
+      unsubSync();
       window.removeEventListener('primepipfx_signal_created', onSigCreated);
       window.removeEventListener('primepipfx_signal_closed', onSigClosed);
       window.removeEventListener('primepipfx_announcement_created', onAnnCreated);

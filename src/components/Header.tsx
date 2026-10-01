@@ -408,7 +408,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'FUNDAMENTAL_INDICATORS' as MainNavTab, label: '08. FUNDAMENTAL INDICATORS', icon: Globe, highlight: true },
     { id: 'SIGNALS' as MainNavTab, label: '09. PREMIUM SIGNALS', icon: Radio, highlight: true, comingSoon: false, locked: false, isLive: true },
     { id: 'PRO_TRADING' as MainNavTab, label: '10. PREMIUM TRADINGVIEW', icon: CandlestickChart, highlight: true },
-    { id: 'META5_PREMIUM' as MainNavTab, label: '11. META5 PREMIUM', icon: Smartphone, highlight: true },
+    { id: 'META5_PREMIUM' as MainNavTab, label: '11. META 5', icon: Smartphone, highlight: false, locked: true, comingSoon: true },
     { id: 'COMPOUNDING' as MainNavTab, label: '12. COMPOUNDING TOOLS', icon: Calculator },
     { id: 'PERFORMANCE' as MainNavTab, label: '11. PERFORMANCE REPORT', icon: BarChart3 },
     { id: 'DAILY_DEV' as MainNavTab, label: '12. DAILY DEVELOPMENT', icon: Award },
@@ -1128,15 +1128,10 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : item.highlight ? 'text-cyan-400' : 'text-slate-300'}`} />
                   <span className="text-[11px] font-mono-code font-bold tracking-tight uppercase">{item.label}</span>
-                  {isDemoMode && item.id === 'SIGNALS' && (
-                    <span className="flex items-center gap-1 text-[8px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1 rounded uppercase font-bold shadow-xs">
-                      <Lock className="w-2.5 h-2.5 text-amber-400" />
-                      LOCKED
-                    </span>
-                  )}
                   {item.id === 'META5_PREMIUM' && (
-                    <span className="text-[8px] bg-blue-500/20 text-cyan-300 border border-blue-500/40 px-1 rounded uppercase">
-                      SOON
+                    <span className="flex items-center gap-1 text-[8px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
+                      <Lock className="w-2.5 h-2.5 text-amber-400" />
+                      COMING SOON
                     </span>
                   )}
                   {isComingSoon && item.id !== 'META5_PREMIUM' && (
@@ -1144,7 +1139,7 @@ export const Header: React.FC<HeaderProps> = ({
                       SOON
                     </span>
                   )}
-                  {(item as any).isLive && item.id !== 'META5_PREMIUM' && (!isDemoMode || item.id !== 'SIGNALS') && (
+                  {(item as any).isLive && item.id !== 'META5_PREMIUM' && (
                     <span className="flex items-center gap-1 text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-1.5 py-0.5 rounded font-bold uppercase shadow-sm">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       LIVE

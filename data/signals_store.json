@@ -1,6 +1,36 @@
 {
   "activeSignals": [
     {
+      "id": "sig_1790843914203_w2yg",
+      "pair": "EUR/USD",
+      "direction": "BUY",
+      "timeframe": "H1",
+      "entryPrice": 1.0825,
+      "stopLoss": 1.078,
+      "takeProfit1": 1.092,
+      "recommendedRiskPercent": 1,
+      "strategyNotes": "Institutional liquidity sweep",
+      "status": "ACTIVE",
+      "createdAt": "Oct 01, 2026, 01:38 PM PKT",
+      "updatedAt": "Oct 01, 2026, 01:38 PM PKT",
+      "author": "Admin / Chief Institutional Analyst"
+    },
+    {
+      "id": "sig_1790843310191_ywzu",
+      "pair": "GBP/USD",
+      "direction": "SELL",
+      "timeframe": "H4",
+      "entryPrice": 1.295,
+      "stopLoss": 1.302,
+      "takeProfit1": 1.285,
+      "recommendedRiskPercent": 1,
+      "strategyNotes": "Test signal",
+      "status": "ACTIVE",
+      "createdAt": "Oct 01, 2026, 01:28 PM PKT",
+      "updatedAt": "Oct 01, 2026, 01:28 PM PKT",
+      "author": "Admin / Chief Institutional Analyst"
+    },
+    {
       "id": "sig_1790677734923_1b0j",
       "pair": "XAUUSD",
       "direction": "BUY",

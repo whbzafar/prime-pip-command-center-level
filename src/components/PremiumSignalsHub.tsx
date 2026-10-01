@@ -41,6 +41,7 @@ import {
   fetchAnnouncementsServer,
   postAnnouncementServer,
   InAppAnnouncement,
+  subscribeToSignalsSync,
 } from '../services/signalsService';
 
 interface PremiumSignalsHubProps {
@@ -144,8 +145,9 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
     };
 
     loadData();
-    // Fast polling every 3 seconds ensures near-instant live feed for all students across tabs/devices
+    // Fast polling ensures continuous synchronization across tabs/devices
     const interval = setInterval(loadData, 3000);
+    const unsubSync = subscribeToSignalsSync(() => loadData());
     const onSignalCreated = () => loadData();
     const onAnnouncementCreated = () => loadData();
     const onStorage = () => loadData();
@@ -157,6 +159,7 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
     return () => {
       isMounted = false;
       clearInterval(interval);
+      unsubSync();
       window.removeEventListener('primepipfx_signal_created', onSignalCreated);
       window.removeEventListener('primepipfx_announcement_created', onAnnouncementCreated);
       window.removeEventListener('storage', onStorage);

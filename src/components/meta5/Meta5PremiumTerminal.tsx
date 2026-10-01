@@ -4,6 +4,7 @@ import {
   CandlestickChart,
   TrendingUp,
   Clock,
+  Lock,
   Settings,
   Plus,
   Search,
@@ -623,10 +624,10 @@ export const Meta5PremiumTerminal: React.FC<Meta5PremiumTerminalProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-sm sm:text-base font-military font-black tracking-wider uppercase text-white flex items-center gap-1.5">
-                <span>META5 PREMIUM TERMINAL</span>
+                <span>META 5 MOBILE TERMINAL</span>
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full bg-blue-500/20 border border-blue-400/50 text-[10px] font-mono-code font-bold text-cyan-300 flex items-center gap-1.5 shadow-sm">
-                <Clock className="w-3 h-3 text-cyan-400 animate-pulse" />
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-[10px] font-mono-code font-bold text-amber-300 flex items-center gap-1.5 shadow-sm">
+                <Lock className="w-3 h-3 text-amber-400" />
                 <span>COMING SOON</span>
               </span>
             </div>

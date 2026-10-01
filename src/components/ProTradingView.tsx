@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   CandlestickChart,
   Search,
@@ -48,9 +48,18 @@ import {
   DEFAULT_RETAIL_POSITIONING,
 } from '../data/defaultFundamentalObservations';
 import { CurrencyCode, CurrencyScoreResult, IndicatorObservation } from '../types/fundamentalIndicatorTypes';
-import { UserAccount, Trade } from '../types';
-import { fetchSignalsFromServer, SignalItem } from '../services/signalsService';
+import { UserAccount, Trade, SignalItem } from '../types';
+import { fetchSignalsFromServer } from '../services/signalsService';
 import { isUserAdmin } from '../utils/authClient';
+
+const BG_PRESETS = [
+  { id: '#070A12', label: 'Dark Navy' },
+  { id: '#020617', label: 'Midnight' },
+  { id: '#0F172A', label: 'Slate Dark' },
+  { id: '#000000', label: 'OLED Black' },
+  { id: '#1E293B', label: 'Charcoal' },
+  { id: '#FFFFFF', label: 'Pure White' },
+];
 
 interface ProTradingViewProps {
   onOpenNewTrade?: () => void;
@@ -500,15 +509,15 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     const newTrade: Partial<Trade> = {
       id: `trade_manual_tv_${Date.now()}`,
       instrument: selectedSymbol,
-      type: journalDirection,
+      direction: journalDirection as any,
       entryPrice: entry,
       exitPrice: exit,
       date: now.toISOString().split('T')[0],
       time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       profitLoss: journalProfit ? parseFloat(journalProfit) : Math.round(calculatedPips * 10),
       notes: `${journalModel}: ${journalNotes || 'Recorded directly from Premium TradingView chart.'}`,
-      tags: ['TradingView', journalModel],
-      setupQuality: 5,
+      strategyModel: journalModel,
+      strategy: 'SBT' as any,
     };
 
     try {
@@ -702,10 +711,13 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       script.type = 'text/javascript';
       script.async = true;
       script.onload = () => setIsScriptLoaded(true);
-      script.onerror = () => console.error('Failed to load TradingView script.');
+      script.onerror = () => {
+        console.warn('tv.js load error, triggering embed widget fallback');
+        setIsScriptLoaded(true);
+      };
       document.head.appendChild(script);
     } else {
-      script.addEventListener('load', () => setIsScriptLoaded(true));
+      setIsScriptLoaded(true);
     }
   }, []);
 
@@ -773,59 +785,98 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const isLightBg = backgroundColor === '#FFFFFF' || backgroundColor === '#F8FAFC';
 
   useEffect(() => {
-    if (!isScriptLoaded || typeof (window as any).TradingView === 'undefined') return;
-
     const container = document.getElementById(containerId);
     if (!container) return;
 
     container.innerHTML = '';
 
-    try {
-      new (window as any).TradingView.widget({
-        autosize: true,
-        symbol: formattedSymbol,
-        interval: selectedInterval,
-        timezone: 'Asia/Karachi',
-        theme: isLightBg ? 'light' : 'dark',
-        style: '1', // Candles
-        locale: 'en',
-        toolbar_bg: backgroundColor,
-        enable_publishing: false,
-        hide_top_toolbar: false,
-        hide_side_toolbar: false, // Enables full side toolbar
-        allow_symbol_change: true,
-        show_popup_button: true,
-        popup_width: '1000',
-        popup_height: '650',
-        container_id: containerId,
-        studies: ['RSI@tv-basicstudies', 'MASimple@tv-basicstudies'],
-        drawings_access: {
-          type: 'all',
-          tools: [{ name: 'Regression Trend' }],
-        },
-        overrides: {
-          'scalesProperties.showCountdown': true,
-          'mainSeriesProperties.showCountdown': true,
-          'paneProperties.background': backgroundColor,
-          'paneProperties.vertGridProperties.color': isLightBg ? 'rgba(203, 213, 225, 0.4)' : 'rgba(30, 41, 59, 0.4)',
-          'paneProperties.horzGridProperties.color': isLightBg ? 'rgba(203, 213, 225, 0.4)' : 'rgba(30, 41, 59, 0.4)',
-          'symbolWatermarkProperties.transparency': 90,
-          'scalesProperties.textColor': isLightBg ? '#0F172A' : '#94A3B8',
-          'mainSeriesProperties.candleStyle.upColor': '#10B981',
-          'mainSeriesProperties.candleStyle.downColor': '#F43F5E',
-          'mainSeriesProperties.candleStyle.drawWick': true,
-          'mainSeriesProperties.candleStyle.drawBorder': true,
-          'mainSeriesProperties.candleStyle.borderColor': '#374151',
-          'mainSeriesProperties.candleStyle.borderUpColor': '#10B981',
-          'mainSeriesProperties.candleStyle.borderDownColor': '#F43F5E',
-          'mainSeriesProperties.candleStyle.wickUpColor': '#10B981',
-          'mainSeriesProperties.candleStyle.wickDownColor': '#F43F5E',
-        },
-      });
-    } catch (e) {
-      console.warn('TradingView widget warning:', e);
+    // If window.TradingView widget constructor is loaded, use advanced canvas
+    if (typeof (window as any).TradingView !== 'undefined' && (window as any).TradingView.widget) {
+      try {
+        new (window as any).TradingView.widget({
+          autosize: true,
+          symbol: formattedSymbol,
+          interval: selectedInterval,
+          timezone: 'Asia/Karachi',
+          theme: isLightBg ? 'light' : 'dark',
+          style: '1', // Candles
+          locale: 'en',
+          toolbar_bg: backgroundColor,
+          enable_publishing: false,
+          hide_top_toolbar: false,
+          hide_side_toolbar: false, // Enables full side toolbar
+          allow_symbol_change: true,
+          show_popup_button: true,
+          popup_width: '1000',
+          popup_height: '650',
+          container_id: containerId,
+          studies: ['RSI@tv-basicstudies', 'MASimple@tv-basicstudies'],
+          drawings_access: {
+            type: 'all',
+            tools: [{ name: 'Regression Trend' }],
+          },
+          overrides: {
+            'scalesProperties.showCountdown': true,
+            'mainSeriesProperties.showCountdown': true,
+            'paneProperties.background': backgroundColor,
+            'paneProperties.vertGridProperties.color': isLightBg ? 'rgba(203, 213, 225, 0.4)' : 'rgba(30, 41, 59, 0.4)',
+            'paneProperties.horzGridProperties.color': isLightBg ? 'rgba(203, 213, 225, 0.4)' : 'rgba(30, 41, 59, 0.4)',
+            'symbolWatermarkProperties.transparency': 90,
+            'scalesProperties.textColor': isLightBg ? '#0F172A' : '#94A3B8',
+            'mainSeriesProperties.candleStyle.upColor': '#10B981',
+            'mainSeriesProperties.candleStyle.downColor': '#F43F5E',
+            'mainSeriesProperties.candleStyle.drawWick': true,
+            'mainSeriesProperties.candleStyle.drawBorder': true,
+            'mainSeriesProperties.candleStyle.borderColor': '#374151',
+            'mainSeriesProperties.candleStyle.borderUpColor': '#10B981',
+            'mainSeriesProperties.candleStyle.borderDownColor': '#F43F5E',
+            'mainSeriesProperties.candleStyle.wickUpColor': '#10B981',
+            'mainSeriesProperties.candleStyle.wickDownColor': '#F43F5E',
+          },
+        });
+        return;
+      } catch (e) {
+        console.warn('TradingView direct widget warning, applying embed fallback:', e);
+      }
     }
-  }, [isScriptLoaded, formattedSymbol, selectedInterval, backgroundColor]);
+
+    // Official embed-widget fallback: Works 100% reliably in any browser / iframe
+    const widgetContainer = document.createElement('div');
+    widgetContainer.className = 'tradingview-widget-container';
+    widgetContainer.style.width = '100%';
+    widgetContainer.style.height = '100%';
+
+    const widgetHolder = document.createElement('div');
+    widgetHolder.className = 'tradingview-widget-container__widget';
+    widgetHolder.style.width = '100%';
+    widgetHolder.style.height = '100%';
+    widgetContainer.appendChild(widgetHolder);
+
+    const embedScript = document.createElement('script');
+    embedScript.type = 'text/javascript';
+    embedScript.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    embedScript.async = true;
+    embedScript.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol: formattedSymbol,
+      interval: selectedInterval,
+      timezone: 'Asia/Karachi',
+      theme: isLightBg ? 'light' : 'dark',
+      style: '1',
+      locale: 'en',
+      enable_publishing: false,
+      hide_top_toolbar: false,
+      hide_side_toolbar: false,
+      allow_symbol_change: true,
+      save_image: true,
+      backgroundColor: backgroundColor,
+      gridColor: isLightBg ? 'rgba(203, 213, 225, 0.4)' : 'rgba(30, 41, 59, 0.4)',
+      studies: ['RSI@tv-basicstudies', 'MASimple@tv-basicstudies'],
+      support_host: 'https://www.tradingview.com',
+    });
+    widgetContainer.appendChild(embedScript);
+    container.appendChild(widgetContainer);
+  }, [isScriptLoaded, formattedSymbol, selectedInterval, backgroundColor, isLightBg]);
 
   // Fullscreen Toggle
   const toggleFullscreen = () => {
@@ -1316,28 +1367,15 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         }`}
         style={{ backgroundColor }}
       >
-        <div id={containerId} className="w-full h-full" />
+        <div id={containerId} className="w-full h-full relative" />
 
-        {/* On-Chart Left Vertical Tactical Tool Rail (Magnet & Recycle Bin directly below it) */}
+        {/* On-Chart Left Vertical Tactical Tool Rail (Recycle Bin / Reset drawings) */}
         <div className="absolute left-3 top-14 z-10 flex flex-col items-center gap-1.5 p-1 rounded-xl bg-slate-950/85 border border-slate-800/80 backdrop-blur-md shadow-xl">
-          <button
-            type="button"
-            onClick={() => setIsMagnetActive(!isMagnetActive)}
-            className={`p-2 rounded-lg transition cursor-pointer ${
-              isMagnetActive
-                ? 'bg-blue-500 text-slate-950 font-bold shadow-md shadow-blue-500/30'
-                : 'text-slate-400 hover:text-cyan-300 hover:bg-slate-900'
-            }`}
-            title={isMagnetActive ? 'Magnet Tool Active (Snapping to price candles)' : 'Enable Magnet Tool (Snap drawing anchors to OHLC)'}
-          >
-            <Magnet className="w-4 h-4" />
-          </button>
-
-          {/* Recycle Bin / Trash Icon Placed Directly Below Magnet Tool */}
+          {/* Recycle Bin / Trash Icon */}
           <button
             type="button"
             onClick={() => setShowClearConfirm(true)}
-            className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 border-t border-slate-800 transition cursor-pointer"
+            className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition cursor-pointer"
             title="Recycle Bin: Delete all drawings and written markings on chart"
           >
             <Trash2 className="w-4 h-4" />

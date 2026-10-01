@@ -1,5 +1,7 @@
 import { SignalItem } from '../types';
 
+export type { SignalItem };
+
 export interface InAppAnnouncement {
   id: string;
   sender: string;
@@ -14,11 +16,82 @@ const STORAGE_ACTIVE_SIGNALS = 'primepipfx_active_signals_v3';
 const STORAGE_CLOSED_SIGNALS = 'primepipfx_closed_signals_v3';
 const STORAGE_ANNOUNCEMENTS = 'primepipfx_announcements_v3';
 
+// Cross-tab broadcast channel for immediate synchronization across all student windows
+let signalsBroadcastChannel: BroadcastChannel | null = null;
+try {
+  if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+    signalsBroadcastChannel = new BroadcastChannel('primepipfx_signals_sync_channel');
+  }
+} catch {}
+
+function notifySignalsUpdated() {
+  try {
+    signalsBroadcastChannel?.postMessage({ type: 'SIGNALS_UPDATED', timestamp: Date.now() });
+  } catch {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('primepipfx_signals_sync_event'));
+  }
+}
+
+export function subscribeToSignalsSync(callback: () => void): () => void {
+  const handleBc = (e: MessageEvent) => {
+    if (e.data?.type === 'SIGNALS_UPDATED') {
+      callback();
+    }
+  };
+  const handleCustom = () => callback();
+
+  signalsBroadcastChannel?.addEventListener('message', handleBc);
+  window.addEventListener('primepipfx_signals_sync_event', handleCustom);
+
+  return () => {
+    signalsBroadcastChannel?.removeEventListener('message', handleBc);
+    window.removeEventListener('primepipfx_signals_sync_event', handleCustom);
+  };
+}
+
 export async function fetchSignalsFromServer(): Promise<{ activeSignals: SignalItem[]; closedSignals: SignalItem[] }> {
   try {
+    // Check if there are any orphaned local signals that need auto-syncing to the server
+    try {
+      const cachedActiveRaw = localStorage.getItem(STORAGE_ACTIVE_SIGNALS);
+      if (cachedActiveRaw) {
+        const localList: SignalItem[] = JSON.parse(cachedActiveRaw);
+        const unsynced = localList.filter((s) => s.id?.startsWith('sig_local_'));
+        if (unsynced.length > 0) {
+          for (const s of unsynced) {
+            await fetch('/api/signals', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                pair: s.pair,
+                direction: s.direction,
+                timeframe: s.timeframe,
+                entryPrice: s.entryPrice,
+                stopLoss: s.stopLoss,
+                takeProfit1: s.takeProfit1,
+                takeProfit2: s.takeProfit2,
+                takeProfit3: s.takeProfit3,
+                recommendedRiskPercent: s.recommendedRiskPercent,
+                strategyNotes: s.strategyNotes,
+                imageUrl: s.imageUrl,
+                imageName: s.imageName,
+                imageMimeType: s.imageMimeType,
+              }),
+            }).catch(() => {});
+          }
+        }
+      }
+    } catch {}
+
     const res = await fetch(`/api/signals?_t=${Date.now()}`, {
       cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      credentials: 'include',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
+      },
     });
     if (res.ok) {
       const data = await res.json();
@@ -68,6 +141,7 @@ export async function createSignalServer(signalData: {
     const res = await fetch('/api/signals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(signalData),
     });
     if (res.ok) {
@@ -76,9 +150,10 @@ export async function createSignalServer(signalData: {
         try {
           const cached = localStorage.getItem(STORAGE_ACTIVE_SIGNALS);
           const list: SignalItem[] = cached ? JSON.parse(cached) : [];
-          list.unshift(data.signal);
-          localStorage.setItem(STORAGE_ACTIVE_SIGNALS, JSON.stringify(list));
+          const updated = [data.signal, ...list.filter((s) => s.id !== data.signal.id)];
+          localStorage.setItem(STORAGE_ACTIVE_SIGNALS, JSON.stringify(updated));
         } catch {}
+        notifySignalsUpdated();
         return data.signal;
       }
     }
@@ -116,7 +191,7 @@ export async function createSignalServer(signalData: {
     status: 'ACTIVE',
     createdAt: pktTimeStr,
     updatedAt: pktTimeStr,
-    author: 'Admin / Chief Analyst',
+    author: 'Admin / Chief Institutional Analyst',
   };
 
   try {
@@ -126,6 +201,7 @@ export async function createSignalServer(signalData: {
     localStorage.setItem(STORAGE_ACTIVE_SIGNALS, JSON.stringify(list));
   } catch {}
 
+  notifySignalsUpdated();
   return newSignal;
 }
 
@@ -149,6 +225,7 @@ export async function updateSignalStatusServer(
     if (res.ok) {
       const data = await res.json();
       if (data.ok && data.signal) {
+        notifySignalsUpdated();
         return data.signal;
       }
     }
@@ -188,6 +265,7 @@ export async function updateSignalStatusServer(
       closedList.unshift(found);
       localStorage.setItem(STORAGE_ACTIVE_SIGNALS, JSON.stringify(activeList));
       localStorage.setItem(STORAGE_CLOSED_SIGNALS, JSON.stringify(closedList));
+      notifySignalsUpdated();
       return found;
     }
   } catch {}

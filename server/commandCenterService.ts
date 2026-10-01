@@ -206,7 +206,7 @@ export function writeCommunityMessages(messages: CommunityMessage[]) {
   safeWriteJsonFile(COMMUNITY_FILE, messages);
 }
 
-export function postCommunityMessage(msg: Omit<CommunityMessage, 'id' | 'timestamp'> & { fileBase64?: string }): CommunityMessage {
+export function postCommunityMessage(msg: Omit<CommunityMessage, 'id' | 'timestamp' | 'timePkt' | 'datePkt'> & { fileBase64?: string; timePkt?: string; datePkt?: string }): CommunityMessage {
   const messages = readCommunityMessages();
 
   const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 4000) : '';

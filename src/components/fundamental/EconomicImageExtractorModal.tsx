@@ -227,6 +227,7 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
       releaseTime: '12:00 GMT',
       source: 'Verified User Entry',
       confidence: 100,
+      dataStatus: 'EXTRACTED_FROM_IMAGE',
       notes: '100% verified manual data entry',
       selected: true,
     };

@@ -50,7 +50,7 @@ import { Meta5PremiumTerminal } from './components/meta5/Meta5PremiumTerminal';
 const ALLOWED_DEMO_CATEGORIES: string[] = [
   'LOT_SIZE',
   'PRO_TRADING',
-  'META5_PREMIUM',
+  'SIGNALS',
   'COMPOUNDING',
   'FREEHAND_WORKSPACE',
   'RESEARCH',
@@ -258,6 +258,22 @@ export default function App() {
   // Tab Selection with Strict Demo Guard
   const handleSelectTab = useCallback(
     (tab: MainNavTab | string) => {
+      if (tab === 'META5_PREMIUM') {
+        const summary = CATEGORY_SUMMARIES['META5_PREMIUM'] || {
+          id: 'META5_PREMIUM',
+          name: '11. Meta 5 Terminal',
+          shortDesc: 'Locked — Coming Soon',
+          overview: 'The Meta 5 Mobile Terminal category is currently locked and labeled Coming Soon. Multi-broker MT5 bridges and direct mobile execution are launching soon.',
+          keyFeatures: ['Authentic mobile MT5 interface', 'Prop firm & broker bridge', 'One-click journal auto-log'],
+        };
+        setLockedCategoryModal({
+          ...summary,
+          name: '11. Meta 5 Terminal (Coming Soon)',
+          shortDesc: '🔒 Category Locked — Coming Soon',
+          overview: 'The Meta 5 Mobile Terminal is currently locked and marked Coming Soon. Full broker connectivity and live MT5 bridge capabilities will be unlocked in an upcoming release.',
+        });
+        return;
+      }
       if (isDemoMode && !ALLOWED_DEMO_CATEGORIES.includes(tab)) {
         const summary = CATEGORY_SUMMARIES[tab] || {
           id: tab,

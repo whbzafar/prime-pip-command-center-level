@@ -35,5 +35,30 @@
     "timestamp": 1790763461530,
     "datePkt": "2026-09-30",
     "timePkt": "03:17 PM"
+  },
+  {
+    "userId": "dev-owner-master",
+    "username": "admin",
+    "displayName": "PrimePipFX Lead Analyst",
+    "role": "ADMIN",
+    "text": "📡 **INSTITUTIONAL SIGNAL ALERT**\n\n**GBP/USD** SELL (H4)\n• **Entry:** 1.295\n• **Stop Loss:** 1.302\n• **Take Profit 1:** 1.285\n• **Risk:** 1%\n• **Analysis:** Test signal\n\n*Check the 09. Premium Signals tab to execute or inspect.*",
+    "userRole": "CUSTOMER",
+    "seenBy": [],
+    "id": "msg-1790843310193-oormd",
+    "timestamp": 1790843310193,
+    "datePkt": "2026-10-01",
+    "timePkt": "01:28 PM"
+  },
+  {
+    "userId": "dev-owner-master",
+    "username": "admin",
+    "displayName": "PrimePipFX Lead Analyst",
+    "userRole": "ADMIN",
+    "text": "📡 **INSTITUTIONAL SIGNAL ALERT**\n\n**EUR/USD** BUY (H1)\n• **Entry:** 1.0825\n• **Stop Loss:** 1.078\n• **Take Profit 1:** 1.092\n• **Risk:** 1%\n• **Analysis:** Institutional liquidity sweep\n\n*Check the 09. Premium Signals tab to execute or inspect.*",
+    "seenBy": [],
+    "id": "msg-1790843914204-mvc3q",
+    "timestamp": 1790843914204,
+    "datePkt": "2026-10-01",
+    "timePkt": "01:38 PM"
   }
 ]

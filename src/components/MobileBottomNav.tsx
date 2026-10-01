@@ -26,6 +26,7 @@ import {
   Cpu,
   GraduationCap,
   Lock,
+  Clock,
   ChevronRight,
   Layers,
   Globe2,
@@ -69,7 +70,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'FUNDAMENTAL_INDICATORS' as MainNavTab, label: '08. Fundamental Indicator', desc: 'Deterministic 8-currency economic scoring & differential intelligence', icon: Globe2, highlight: true, section: 'Market Intelligence' },
       { id: 'SIGNALS' as MainNavTab, label: '09. Premium Signals', desc: 'Institutional VIP trade setups', icon: Radio, comingSoon: false, isLive: true, highlight: true, section: 'Market Intelligence' },
       { id: 'PRO_TRADING' as MainNavTab, label: '10. Premium TradingView', desc: 'Live TradingView interactive charts & real-time quotes', icon: CandlestickChart, highlight: true, section: 'Market Intelligence' },
-      { id: 'META5_PREMIUM' as MainNavTab, label: '11. Meta5 Premium', desc: 'Authentic mobile MT5 terminal with live broker & prop firm trading', icon: Smartphone, highlight: true, section: 'Market Intelligence' },
+      { id: 'META5_PREMIUM' as MainNavTab, label: '11. Meta 5', desc: 'Authentic mobile MT5 terminal with live broker & prop firm trading', icon: Smartphone, highlight: false, locked: true, comingSoon: true, section: 'Market Intelligence' },
       { id: 'COMPOUNDING' as MainNavTab, label: '12. Compounding Tools', desc: 'Long-term growth simulator', icon: Calculator, section: 'Market Intelligence' },
       { id: 'PERFORMANCE' as MainNavTab, label: '11. Performance Report', desc: 'Win rates, R:R & drawdowns', icon: BarChart3, section: 'Analytics' },
       { id: 'DAILY_DEV' as MainNavTab, label: '12. Daily Development', desc: 'Traders habit tracker & routines', icon: Award, section: 'Mindset & Health' },
@@ -317,12 +318,17 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                           <span className="font-military font-bold text-xs tracking-wider">
                             {item.label}
                           </span>
-                          {isComingSoon && (
+                          {item.id === 'META5_PREMIUM' ? (
+                            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                              <Lock className="w-2.5 h-2.5 text-amber-400" />
+                              <span>COMING SOON</span>
+                            </span>
+                          ) : isComingSoon ? (
                             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code bg-blue-500/15 text-cyan-400 border border-blue-500/30">
                               <Clock className="w-2.5 h-2.5 text-cyan-400" />
                               <span>COMING SOON</span>
                             </span>
-                          )}
+                          ) : null}
                           {(item as any).isLive && (
                             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
