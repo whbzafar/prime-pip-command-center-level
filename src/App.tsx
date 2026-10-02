@@ -187,11 +187,26 @@ export default function App() {
   const loadAccountData = useCallback(async (account: AccountSettings) => {
     try {
       const accountTrades = await getTradesForAccount(account.id);
-      // Strictly isolate trades belonging specifically to this account
+      // Strictly isolate trades belonging specifically to this account.
+      // Non-default accounts must ONLY see trades explicitly logged with their accountId.
       const strictlyIsolated = (accountTrades || []).filter(
-        (t) => !t.accountId || t.accountId === account.id
+        (t) => (account.id === 'acc-default' ? (!t.accountId || t.accountId === account.id) : t.accountId === account.id)
       );
       setTrades(strictlyIsolated);
+
+      // If this account has no recorded trades, ensure currentBalance & currentEquity match its initialBalance
+      if (strictlyIsolated.length === 0 && account.initialBalance > 0) {
+        if (account.currentBalance !== account.initialBalance || account.currentEquity !== account.initialBalance) {
+          const resetAcc: AccountSettings = {
+            ...account,
+            currentBalance: account.initialBalance,
+            currentEquity: account.initialBalance,
+          };
+          setActiveAccount(resetAcc);
+          setAccounts((prev) => prev.map((a) => (a.id === resetAcc.id ? resetAcc : a)));
+          saveAccount(resetAcc).catch(() => {});
+        }
+      }
 
       const accountRules = await getRulesForAccount(account.id);
       if (accountRules && accountRules.length > 0) {

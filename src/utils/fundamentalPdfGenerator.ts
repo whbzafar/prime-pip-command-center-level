@@ -1716,28 +1716,32 @@ export function generateSentimentReportPdf(sentimentPairs: any[]): void {
 
   y += 8;
 
-  sentimentPairs.forEach((item, idx) => {
+  sentimentPairs.forEach((item: any, idx: number) => {
     checkAddPage(7);
     if (idx % 2 === 1) {
       doc.setFillColor(248, 250, 252);
       doc.rect(14, y - 1, pageWidth - 28, 6.5, 'F');
     }
 
+    const pairLabel = String(item?.pair || item?.instrument || item?.symbol || `PAIR_${idx + 1}`);
+    const nameLabel = String(item?.name || pairLabel).slice(0, 24);
+    const catLabel = String(item?.category || 'FOREX');
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(14, 116, 144);
-    doc.text(item.pair, colX.pair, y + 3.8);
+    doc.text(pairLabel, colX.pair, y + 3.8);
 
     doc.setTextColor(30, 41, 59);
-    doc.text((item.name || item.pair).slice(0, 24), colX.name, y + 3.8);
+    doc.text(nameLabel, colX.name, y + 3.8);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(100, 116, 139);
-    doc.text(item.category || 'FOREX', colX.cat, y + 3.8);
+    doc.text(catLabel, colX.cat, y + 3.8);
 
-    const longVal = typeof item.longPercent === 'number' ? item.longPercent : item.defaultLong || 50;
-    const shortVal = typeof item.shortPercent === 'number' ? item.shortPercent : item.defaultShort || 50;
+    const longVal = typeof item?.longPercent === 'number' ? item.longPercent : (typeof item?.longPercentage === 'number' ? item.longPercentage : item?.defaultLong || 50);
+    const shortVal = typeof item?.shortPercent === 'number' ? item.shortPercent : (typeof item?.shortPercentage === 'number' ? item.shortPercentage : item?.defaultShort || 50);
 
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(longVal > 60 ? 16 : 30, longVal > 60 ? 185 : 41, longVal > 60 ? 129 : 59);
