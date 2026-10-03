@@ -17,6 +17,7 @@ import {
   VERIFIED_31_PAIR_SENTIMENT,
 } from '../data/verifiedFundamentalBaselines';
 import { OFFICIAL_INDICATOR_REGISTRY } from '../data/fundamentalRegistryData';
+import { extractTextFromPdf, parseCurrencyDocumentText, parseRatesDocumentText, parseCotDocumentText, parseSentimentDocumentText } from '../utils/pdfDocumentParser';
 
 export type LiveVerificationStatus = 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND';
 
@@ -490,143 +491,31 @@ export async function patchFundamentalObservations(
 }
 
 export async function extractIndicatorsFromImage(
-  imageBase64: string,
-  mimeType: string = 'image/png',
-  selection: string = 'ALL'
+  imageBase64: string, mimeType: string = 'image/png', selection: string = 'ALL'
 ): Promise<ImageExtractionResponse> {
   try {
-    const res = await postJson<ImageExtractionResponse>('/api/fundamental/extract-from-image', {
-      image: imageBase64,
-      mimeType,
-      selection,
-    });
-    if (res && res.success && Array.isArray(res.indicators) && res.indicators.length > 0) {
-      const cleanSel = (selection || 'ALL').trim().toUpperCase();
-      const enriched = res.indicators.map((ind, idx) => {
-        let itemCurr = (ind.currency || (cleanSel === 'ALL' ? 'USD' : cleanSel)).toUpperCase();
-        let matchedId = ind.matchedIndicatorId;
-        if (!matchedId) {
-          const match = OFFICIAL_INDICATOR_REGISTRY.find((r) => {
-            const norm = (ind.name || '').toLowerCase();
-            return (
-              norm.includes(r.shortLabel.toLowerCase()) ||
-              norm.includes(r.name.toLowerCase()) ||
-              r.name.toLowerCase().includes(norm)
-            );
-          });
-          if (match) {
-            matchedId = match.id;
-            itemCurr = match.currency;
-          }
+    const res=await postJson<ImageExtractionResponse>('/api/fundamental/extract-from-image',{image:imageBase64,mimeType,selection});
+    if(res && res.success && Array.isArray(res.indicators) && res.indicators.length>0){
+      const cleanSel=(selection||'ALL').trim().toUpperCase();
+      const enriched=res.indicators.map((ind,idx)=>{
+        let itemCurr=(ind.currency||(cleanSel==='ALL'?'USD':cleanSel)).toUpperCase();
+        let matchedId=ind.matchedIndicatorId;
+        if(!matchedId){
+          const match=OFFICIAL_INDICATOR_REGISTRY.find(r=>{const n=(ind.name||'').toLowerCase();return n.includes(r.shortLabel.toLowerCase())||n.includes(r.name.toLowerCase())||r.name.toLowerCase().includes(n);});
+          if(match){matchedId=match.id;itemCurr=match.currency;}
         }
-        return {
-          ...ind,
-          id: ind.id || `extracted_${matchedId || itemCurr}_${Date.now()}_${idx}`,
-          currency: itemCurr,
-          matchedIndicatorId: matchedId,
-          dataStatus: 'EXTRACTED_FROM_IMAGE' as const,
-        };
+        return {...ind,id:ind.id||`extracted_${matchedId||itemCurr}_${Date.now()}_${idx}`,currency:itemCurr,matchedIndicatorId:matchedId,dataStatus:'EXTRACTED_FROM_IMAGE' as const};
       });
-      return {
-        ...res,
-        selection: res.selection || cleanSel,
-        indicators: enriched,
-      };
+      return {...res,selection:res.selection||cleanSel,indicators:enriched};
     }
-  } catch (err: any) {
-    console.warn('[LiveResearch] Server image extraction endpoint failed, engaging client fallback:', err?.message || err);
+    throw new Error(res?.error||'No exact indicator rows were extracted.');
+  }catch(err:any){
+    const raw=String(imageBase64), isPdf=mimeType==='application/pdf'||raw.startsWith('data:application/pdf')||raw.replace(/^data:[^;]+;base64,/,'').startsWith('JVBERi0');
+    if(isPdf){
+      try{const local=parseCurrencyDocumentText(extractTextFromPdf(imageBase64),selection);if(local.length>0)return{success:true,selection:(selection||'ALL').toUpperCase(),extractedCount:local.length,indicators:local,source:'CLIENT_PDF_EXACT'};}catch(localErr){console.warn('[LiveResearch] local PDF extraction failed:',localErr);}
+    }
+    throw new Error(err?.message||'Exact document extraction failed. No fallback data was substituted.');
   }
-
-  // Resilient client fallback ensuring previous, actual, and forecast values are 100% captured even on Vercel or Android WebView
-  const cleanSel = (selection || 'ALL').trim().toUpperCase();
-  const isMultiCurrency = cleanSel === 'ALL' || cleanSel === 'ALL_CURRENCIES' || cleanSel === 'MULTI';
-  const isCommodity = cleanSel === 'GOLD' || cleanSel === 'SILVER' || cleanSel === 'CRUDE_OIL' || cleanSel.includes('XAU') || cleanSel.includes('XAG') || cleanSel.includes('WTI');
-
-  if (isCommodity) {
-    const commKey = cleanSel.includes('XAU') || cleanSel.includes('GOLD') ? 'GOLD' : cleanSel.includes('XAG') || cleanSel.includes('SILVER') ? 'SILVER' : 'CRUDE_OIL';
-    const fallbackPrice = commKey === 'GOLD' ? 2924.50 : commKey === 'SILVER' ? 33.45 : 74.80;
-    return {
-      success: true,
-      selection: cleanSel,
-      extractedCount: 2,
-      indicators: [
-        {
-          id: `extracted_${commKey}_price_${Date.now()}`,
-          name: `${commKey === 'GOLD' ? 'Gold (XAU/USD)' : commKey === 'SILVER' ? 'Silver (XAG/USD)' : 'US Oil (WTI)'} Spot Price`,
-          currency: 'USD',
-          actual: fallbackPrice,
-          forecast: fallbackPrice,
-          previous: Math.round(fallbackPrice * 0.99 * 100) / 100,
-          revisedPrevious: null,
-          unit: '$',
-          referencePeriod: 'Spot / Current',
-          releaseDate: new Date().toISOString().slice(0, 10),
-          releaseTime: 'Live Market',
-          source: 'Institutional Commodity Baseline',
-          confidence: 95,
-          dataStatus: 'EXTRACTED_FROM_IMAGE',
-          notes: `Verified spot price calibrated for ${cleanSel}.`,
-        },
-        {
-          id: `extracted_${commKey}_real_yield_${Date.now()}`,
-          name: 'US 10-Year Real Yield',
-          currency: 'USD',
-          actual: 1.95,
-          forecast: 1.95,
-          previous: 2.05,
-          revisedPrevious: null,
-          unit: '%',
-          referencePeriod: 'Daily Benchmark',
-          releaseDate: new Date().toISOString().slice(0, 10),
-          releaseTime: '15:00 EST',
-          source: 'US Treasury',
-          confidence: 95,
-          dataStatus: 'EXTRACTED_FROM_IMAGE',
-          notes: 'US 10Y TIPS real yield driving precious metals valuation.',
-        },
-      ],
-      notice: `Verified indicator metrics calibrated for ${cleanSel}.`,
-    };
-  }
-
-  // Currency extraction fallback: if ALL, return verified indicators across ALL 8 currencies
-  const targetCurrencies = isMultiCurrency
-    ? ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'NZD']
-    : [cleanSel];
-
-  const fallbackList: any[] = [];
-  targetCurrencies.forEach((curr) => {
-    const relevant = OFFICIAL_INDICATOR_REGISTRY.filter((d) => d.currency === curr).slice(0, isMultiCurrency ? 4 : 8);
-    relevant.forEach((d, idx) => {
-      const verified = (VERIFIED_INDICATORS as any)[d.id] || (VERIFIED_INDICATORS as any)[`${d.currency}_${d.shortLabel}`] || {};
-      fallbackList.push({
-        id: `extracted_${d.id}_${Date.now()}_${idx}`,
-        matchedIndicatorId: d.id,
-        name: d.name,
-        currency: d.currency,
-        actual: typeof verified.actual === 'number' ? verified.actual : 2.5,
-        forecast: typeof verified.forecast === 'number' ? verified.forecast : 2.5,
-        previous: typeof verified.previous === 'number' ? verified.previous : 2.5,
-        revisedPrevious: typeof verified.revisedPrevious === 'number' ? verified.revisedPrevious : null,
-        unit: d.unit || verified.unit || '%',
-        referencePeriod: verified.referencePeriod || 'Current Review',
-        releaseDate: verified.releaseDate || new Date().toISOString().slice(0, 10),
-        releaseTime: '08:30 GMT',
-        source: verified.sourceName || 'Document Extraction',
-        confidence: 94,
-        dataStatus: 'EXTRACTED_FROM_IMAGE' as const,
-        notes: verified.notes || `${d.name} parsed from uploaded economic indicators document.`,
-      });
-    });
-  });
-
-  return {
-    success: true,
-    selection: cleanSel,
-    extractedCount: fallbackList.length,
-    indicators: fallbackList,
-    notice: `Verified indicators parsed across ${targetCurrencies.join(', ')}.`,
-  };
 }
 
 export interface RatesImageExtractionResponse {
@@ -638,39 +527,14 @@ export interface RatesImageExtractionResponse {
 }
 
 export async function extractRatesFromImage(
-  imageBase64: string,
-  mimeType: string = 'image/png'
+  imageBase64: string, mimeType: string = 'image/png'
 ): Promise<RatesImageExtractionResponse> {
-  try {
-    const res = await postJson<RatesImageExtractionResponse>('/api/fundamental/extract-rates-from-image', {
-      image: imageBase64,
-      mimeType,
-    });
-    if (res && res.success && Array.isArray(res.rates) && res.rates.length > 0) {
-      return res;
-    }
-  } catch (err: any) {
-    console.warn('[LiveResearch] Server extract-rates endpoint failed, engaging client fallback:', err?.message || err);
+  try{const res=await postJson<RatesImageExtractionResponse>('/api/fundamental/extract-rates-from-image',{image:imageBase64,mimeType});if(res&&res.success&&Array.isArray(res.rates)&&res.rates.length>0)return res;throw new Error(res?.error||'No exact rate rows were extracted.');}
+  catch(err:any){
+    const raw=String(imageBase64),isPdf=mimeType==='application/pdf'||raw.startsWith('data:application/pdf')||raw.replace(/^data:[^;]+;base64,/,'').startsWith('JVBERi0');
+    if(isPdf){try{const local=parseRatesDocumentText(extractTextFromPdf(imageBase64));if(local.length>0)return{success:true,extractedCount:local.length,rates:local,notice:'Exact client-side PDF extraction.'};}catch(localErr){console.warn('[LiveResearch] local rates PDF extraction failed:',localErr);}}
+    throw new Error(err?.message||'Exact rates extraction failed. No fallback data was substituted.');
   }
-
-  // Fallback to verified rates
-  const fallbackRates = Object.entries(VERIFIED_RATES).map(([curr, r]: [string, any]) => ({
-    currency: curr,
-    rate: r.rate,
-    previousRate: r.previousRate,
-    lastChange: r.lastChange,
-    nextMeeting: r.nextMeeting,
-    yield10Y: r.yield10Y,
-    centralBank: r.centralBank,
-    rateDecisionTone: r.rateDecisionTone || 'PAUSE',
-  }));
-
-  return {
-    success: true,
-    extractedCount: fallbackRates.length,
-    rates: fallbackRates,
-    notice: 'Verified G8 sovereign policy rates extracted successfully.',
-  };
 }
 
 export interface SentimentImageExtractionResponse {
@@ -682,17 +546,13 @@ export interface SentimentImageExtractionResponse {
 }
 
 export async function extractSentimentFromImage(
-  imageBase64: string,
-  mimeType: string = 'image/png'
+  imageBase64: string, mimeType: string = 'image/png'
 ): Promise<SentimentImageExtractionResponse> {
-  try {
-    return await postJson<SentimentImageExtractionResponse>('/api/fundamental/extract-sentiment-from-image', {
-      image: imageBase64,
-      mimeType,
-    });
-  } catch (err: any) {
-    console.error('[LiveResearch] extractSentimentFromImage failed:', err);
-    throw new Error(err?.message || 'Failed to extract retail sentiment from screenshot.');
+  try{return await postJson<SentimentImageExtractionResponse>('/api/fundamental/extract-sentiment-from-image',{image:imageBase64,mimeType});}
+  catch(err:any){
+    const raw=String(imageBase64),isPdf=mimeType==='application/pdf'||raw.startsWith('data:application/pdf')||raw.replace(/^data:[^;]+;base64,/,'').startsWith('JVBERi0');
+    if(isPdf){try{const local=parseSentimentDocumentText(extractTextFromPdf(imageBase64));if(local.length>0)return{success:true,extractedCount:local.length,sentiments:local,notice:'Exact client-side PDF extraction.'};}catch(localErr){console.warn('[LiveResearch] local sentiment PDF extraction failed:',localErr);}}
+    throw new Error(err?.message||'Exact sentiment extraction failed. No fallback data was substituted.');
   }
 }
 
@@ -705,6 +565,17 @@ export interface CotImageExtractionResponse {
 }
 
 export async function extractCotFromImage(
+  imageBase64: string, mimeType: string = 'image/png'
+): Promise<CotImageExtractionResponse> {
+  try{return await postJson<CotImageExtractionResponse>('/api/fundamental/extract-cot-from-image',{image:imageBase64,mimeType});}
+  catch(err:any){
+    const raw=String(imageBase64),isPdf=mimeType==='application/pdf'||raw.startsWith('data:application/pdf')||raw.replace(/^data:[^;]+;base64,/,'').startsWith('JVBERi0');
+    if(isPdf){try{const local=parseCotDocumentText(extractTextFromPdf(imageBase64));if(local.length>0)return{success:true,extractedCount:local.length,records:local,notice:'Exact client-side PDF extraction.'};}catch(localErr){console.warn('[LiveResearch] local COT PDF extraction failed:',localErr);}}
+    throw new Error(err?.message||'Exact COT extraction failed. No fallback data was substituted.');
+  }
+}
+
+
   imageBase64: string,
   mimeType: string = 'image/png'
 ): Promise<CotImageExtractionResponse> {
