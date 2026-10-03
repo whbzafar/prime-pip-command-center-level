@@ -127,6 +127,9 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [showTraderFeed, setShowTraderFeed] = useState(true);
+  const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
+  const [pendingFriendIds, setPendingFriendIds] = useState<Set<string>>(new Set());
+  const [friendActionId, setFriendActionId] = useState<string | null>(null);
 
   // Google Drive File Picker Integration State
   const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
@@ -181,6 +184,62 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       webViewLink: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
     });
     setIsDrivePickerOpen(false);
+  };
+
+  useEffect(() => {
+    if (!currentUser?.id) {
+      setFriendIds(new Set());
+      setPendingFriendIds(new Set());
+      return;
+    }
+    let active = true;
+    const loadRelationshipState = async () => {
+      try {
+        const token = getStoredToken();
+        const res = await fetch('/api/friends/list', communityRequest({
+          credentials: 'include',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          cache: 'no-store',
+        }));
+        if (!res.ok || !active) return;
+        const data = await res.json();
+        setFriendIds(new Set((data.friends || []).map((f: any) => String(f.friendId))));
+        setPendingFriendIds(new Set((data.outgoingRequests || []).map((r: any) => String(r.receiverId))));
+      } catch {}
+    };
+    loadRelationshipState();
+    const interval = window.setInterval(loadRelationshipState, 8000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [currentUser?.id]);
+
+  const sendTraderFriendRequest = async (trader: { id: string; username: string; displayName: string }) => {
+    if (!currentUser) {
+      onOpenLogin?.();
+      return;
+    }
+    setFriendActionId(trader.id);
+    try {
+      const token = getStoredToken();
+      const res = await fetch('/api/friends/request', communityRequest({
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          targetUserId: trader.id,
+          targetUsername: trader.username,
+          targetDisplayName: trader.displayName,
+        }),
+      }));
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        setPendingFriendIds((prev) => new Set(prev).add(trader.id));
+      }
+    } catch {} finally {
+      setFriendActionId(null);
+    }
   };
 
   useEffect(() => {
@@ -1312,29 +1371,70 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                   {filteredTraders.map((trader) => {
                     const isActive = trader.presenceStatus === 'ACTIVE' || trader.isOnline;
                     return (
-                      <button
-                        type="button"
+                      <div
                         key={trader.id}
-                        onClick={() => {
-                          if (!currentUser && onOpenLogin) {
-                            onOpenLogin();
-                            return;
-                          }
-                          setActivePrivateContact({ id: trader.id, username: trader.username, displayName: trader.displayName });
-                          setCommMode('FRIENDS');
-                        }}
-                        className="min-w-[160px] text-left p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 transition cursor-pointer"
+                        className="min-w-[180px] p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 transition"
                       >
-                        <div className="flex items-center gap-1.5">
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${isActive ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                          <span className="text-xs font-bold text-slate-200 truncate">{trader.displayName}</span>
-                          {trader.isNewThisWeek && <span className="text-[8px] text-amber-300">NEW</span>}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!currentUser && onOpenLogin) { onOpenLogin(); return; }
+                            if (friendIds.has(trader.id) || trader.role === 'ADMIN') {
+                              setActivePrivateContact({ id: trader.id, username: trader.username, displayName: trader.displayName });
+                              setCommMode('PRIVATE');
+                            }
+                          }}
+                          className="w-full text-left cursor-pointer"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${isActive ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                            <span className="text-xs font-bold text-slate-200 truncate">{trader.displayName}</span>
+                            {trader.isNewThisWeek && <span className="text-[8px] text-amber-300">NEW</span>}
+                          </div>
+                          <span className="block text-[10px] text-slate-500 truncate">@{trader.username}</span>
+                          <span className="block text-[9px] text-slate-500 mt-0.5">
+                            {isActive ? (trader.traderStatus || 'Active now') : formatLastActive(trader.lastSeen)}
+                          </span>
+                        </button>
+                        <div className="mt-1.5">
+                          {friendIds.has(trader.id) ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActivePrivateContact({ id: trader.id, username: trader.username, displayName: trader.displayName });
+                                setCommMode('PRIVATE');
+                              }}
+                              className="w-full px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[9px] font-bold"
+                            >
+                              FRIEND · MESSAGE
+                            </button>
+                          ) : pendingFriendIds.has(trader.id) ? (
+                            <span className="block text-center px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-cyan-300 text-[9px] font-bold">
+                              REQUEST SENT
+                            </span>
+                          ) : trader.role === 'ADMIN' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActivePrivateContact({ id: trader.id, username: trader.username, displayName: trader.displayName });
+                                setCommMode('PRIVATE');
+                              }}
+                              className="w-full px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/25 text-cyan-300 text-[9px] font-bold"
+                            >
+                              MESSAGE ADMIN
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={friendActionId === trader.id}
+                              onClick={() => sendTraderFriendRequest(trader)}
+                              className="w-full px-2 py-1 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-[9px] font-bold disabled:opacity-50"
+                            >
+                              {friendActionId === trader.id ? 'SENDING…' : 'ADD FRIEND'}
+                            </button>
+                          )}
                         </div>
-                        <span className="block text-[10px] text-slate-500 truncate">@{trader.username}</span>
-                        <span className="block text-[9px] text-slate-500 mt-0.5">
-                          {isActive ? (trader.traderStatus || 'Active now') : formatLastActive(trader.lastSeen)}
-                        </span>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
