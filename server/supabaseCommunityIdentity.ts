@@ -80,6 +80,17 @@ export async function listDurableCommunityTraders(currentUserId?: string): Promi
     }));
 }
 
+export async function updateDurablePresencePrivacy(userId: string, showActiveStatus: boolean) {
+  const clean = String(userId || '').trim();
+  if (!clean) return false;
+  await request(`primepipfx_users?legacy_user_id=eq.${encodeURIComponent(clean)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ show_active_status: showActiveStatus, updated_at: new Date().toISOString() }),
+  });
+  return true;
+}
+
 export async function syncDurableCommunityTraders() {
   const traders = await listDurableCommunityTraders();
   if (!traders.length) return traders;
