@@ -127,6 +127,17 @@ export async function readMediaObjectSupabase(id: string) {
   return { response: file, contentType: file.headers.get('content-type') || 'application/octet-stream' };
 }
 
+export async function recordSupabaseHeartbeat(userId: string) {
+  const clean = String(userId || '').trim();
+  if (!clean) return false;
+  await supabaseRequest(`trader_profiles?user_id=eq.${encodeURIComponent(clean)}`, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ last_seen_at: new Date().toISOString() }),
+  });
+  return true;
+}
+
 export async function upsertTraderProfile(user: {
   id: string;
   username: string;
