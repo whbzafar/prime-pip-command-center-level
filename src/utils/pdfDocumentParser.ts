@@ -279,175 +279,46 @@ export function findBestRegistryMatch(rawName: string, currency: string) {
 // ----------------------------------------------------
 export function parseCurrencyDocumentText(rawText: string, selection: string = 'ALL'): any[] {
   if (!rawText || !rawText.trim()) return [];
-  const cleanSel = String(selection || 'ALL').toUpperCase().trim();
-  const isCommodity =
-    cleanSel === 'GOLD' ||
-    cleanSel === 'SILVER' ||
-    cleanSel === 'CRUDE_OIL' ||
-    cleanSel.includes('XAU') ||
-    cleanSel.includes('XAG') ||
-    cleanSel.includes('OIL') ||
-    cleanSel.includes('WTI') ||
-    /COMMODITIES FUNDAMENTAL MACRO REPORT/i.test(rawText);
-
-  if (isCommodity) {
-    return parseCommodityDocumentText(rawText, cleanSel);
-  }
-
-  let detectedCurrency = cleanSel !== 'ALL' && cleanSel !== 'ALL_CURRENCIES' && cleanSel !== 'MULTI' ? cleanSel : null;
-  if (!detectedCurrency) {
-    for (const c of ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD']) {
-      const patterns = [
-        new RegExp(`PRIME\\s+PIP\\s+FX\\s*—\\s*${c}`, 'i'),
-        new RegExp(`Currency Code:\\s*${c}`, 'i'),
-        new RegExp(`${c}\\s+—\\s+(?:US DOLLAR|EURO|BRITISH POUND|JAPANESE YEN|SWISS FRANC|CANADIAN DOLLAR|AUSTRALIAN DOLLAR|NEW ZEALAND DOLLAR)`, 'i'),
-      ];
-      if (patterns.some((p) => p.test(rawText))) {
-        detectedCurrency = c;
-        break;
-      }
+  const cleanSel=String(selection||'ALL').toUpperCase().trim();
+  const isCommodity=cleanSel==='GOLD'||cleanSel==='SILVER'||cleanSel==='CRUDE_OIL'||cleanSel.includes('XAU')||cleanSel.includes('XAG')||cleanSel.includes('OIL')||cleanSel.includes('WTI')||/COMMODITIES FUNDAMENTAL MACRO REPORT/i.test(rawText);
+  if(isCommodity)return parseCommodityDocumentText(rawText,cleanSel);
+  let detectedCurrency=cleanSel!=='ALL'&&cleanSel!=='ALL_CURRENCIES'&&cleanSel!=='MULTI'?cleanSel:null;
+  if(!detectedCurrency){
+    for(const curr of ['USD','EUR','GBP','JPY','CHF','CAD','AUD','NZD']){
+      if(new RegExp(`Currency Code:\\s*${curr}`,'i').test(rawText)||new RegExp(`PRIME\\s+PIP\\s+FX\\s*—\\s*${curr}`,'i').test(rawText)){detectedCurrency=curr;break;}
     }
   }
-
-  const targetCurrencies = detectedCurrency
-    ? [detectedCurrency]
-    : cleanSel === 'ALL' || cleanSel === 'ALL_CURRENCIES' || cleanSel === 'MULTI'
-    ? ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD']
-    : [cleanSel];
-
-  const results: any[] = [];
-  const processedDefs = new Set<string>();
-  const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-
-  for (const targetCurrency of targetCurrencies) {
-    const defs = OFFICIAL_INDICATOR_REGISTRY.filter((d: any) => d.currency === targetCurrency);
-
-    // METHOD 1: 3-line format (Name, Category, Data)
-    for (let i = 0; i < lines.length - 2; i++) {
-      const nameLine = lines[i];
-      const catLine = lines[i + 1];
-      const dataLine = lines[i + 2];
-
-      const isCat = /^(MONETARY POLICY|INFLATION|EMPLOYMENT|GROWTH|BUSINESS ACTIVITY|CONSUMER|RATES YIELDS|TRADE EXTERNAL|COMMODITY DRIVER|COMMODITY_DRIVER)$/i.test(catLine);
-      if (isCat) {
-        const match = findBestRegistryMatch(nameLine, targetCurrency);
-        if (match && match.currency === targetCurrency && !processedDefs.has(match.id)) {
-          const tokens = dataLine.split(/\s+/);
-          const actual = tokens[0] === 'Pending' || tokens[0] === '—' ? null : safeParseNum(tokens[0]);
-          const forecast = tokens.length > 1 && tokens[1] !== '—' ? safeParseNum(tokens[1]) : actual;
-          const previous = tokens.length > 2 && tokens[2] !== '—' ? safeParseNum(tokens[2]) : actual;
-
-          let revisedPrevious: number | null = null;
-          const revMatch = dataLine.match(/\(rev\s+([+-]?\d+(?:\.\d+)?)\)/i);
-          if (revMatch) {
-            revisedPrevious = parseFloat(revMatch[1]);
-          }
-
-          let unit = match.unit || '%';
-          if (dataLine.includes('%')) unit = '%';
-          else if (dataLine.includes(' k ') || dataLine.includes(' k')) unit = 'k';
-          else if (dataLine.includes('Points')) unit = 'Points';
-
-          const periodMatch = dataLine.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Q[1-4]|Latest)[^()]*/i);
-          const period = periodMatch ? periodMatch[0].trim() : 'Latest';
-
-          results.push({
-            id: `extracted_${match.id}_${Date.now()}_${results.length}`,
-            matchedIndicatorId: match.id,
-            name: match.name,
-            currency: targetCurrency,
-            actual: actual !== null ? actual : ((match as any).defaultValue ?? 2.5),
-            forecast: forecast !== null ? forecast : (actual !== null ? actual : ((match as any).defaultValue ?? 2.5)),
-            previous: previous !== null ? previous : (actual !== null ? actual : ((match as any).defaultValue ?? 2.5)),
-            revisedPrevious,
-            unit,
-            referencePeriod: period,
-            releaseDate: new Date().toISOString().slice(0, 10),
-            releaseTime: 'Document Data',
-            source: 'Uploaded PDF / Document Report',
-            confidence: 99,
-            dataStatus: 'EXTRACTED_FROM_IMAGE',
-            notes: `Verified from document table for ${match.shortLabel || match.name}`,
-          });
-          processedDefs.add(match.id);
-        }
-      }
+  const targetCurrencies=detectedCurrency?[detectedCurrency]:(cleanSel==='ALL'||cleanSel==='ALL_CURRENCIES'||cleanSel==='MULTI'?['USD','EUR','GBP','JPY','CHF','CAD','AUD','NZD']:[cleanSel]);
+  const reportDate=rawText.match(/\\bDATE:\\s*(\\d{4}-\\d{2}-\\d{2})\\b/i)?.[1]||new Date().toISOString().slice(0,10);
+  const lines=rawText.split(/\\r?\\n/).map(l=>l.trim()).filter(Boolean);
+  const results:any[]=[];const processed=new Set<string>();
+  const category=/^(MONETARY POLICY|INFLATION|EMPLOYMENT|GROWTH|BUSINESS ACTIVITY|CONSUMER|RATES YIELDS|TRADE EXTERNAL|COMMODITY DRIVER|COMMODITY_DRIVER)$/i;
+  const cadence=/^(Monthly|Weekly|Quarterly|Annual|Daily|Intra-Day)$/i;
+  for(let i=1;i<lines.length-8;i++){
+    if(!category.test(lines[i])||!cadence.test(lines[i+4]))continue;
+    for(const curr of targetCurrencies){
+      const match=findBestRegistryMatch(lines[i-1],curr);if(!match||match.currency!==curr||processed.has(match.id))continue;
+      const actual=safeParseNum(lines[i+1]),forecast=safeParseNum(lines[i+2]),previous=safeParseNum(lines[i+3]);
+      if(actual===null&&forecast===null&&previous===null)continue;
+      results.push({id:`extracted_${match.id}_${Date.now()}_${results.length}`,matchedIndicatorId:match.id,name:match.name,currency:curr,actual,forecast,previous,revisedPrevious:null,unit:lines[i+5]||match.unit||'%',referencePeriod:lines[i+6]||'Uploaded Document',releaseDate:reportDate,releaseTime:'Document Data',source:lines[i+7]||'Uploaded PDF / Document Report',confidence:100,dataStatus:'EXTRACTED_FROM_IMAGE',notes:`Exact deterministic PDF extraction; source status: ${lines[i+8]||'UNSPECIFIED'}.`});
+      processed.add(match.id);
     }
-
-    // METHOD 2: Single-line row parser
-    for (const def of defs) {
-      if (processedDefs.has(def.id)) continue;
-
-      const candidates = [def.shortLabel, def.name, def.code].filter(Boolean) as string[];
-      for (const line of lines) {
-        const foundCand = candidates.find((cand) => line.toLowerCase().includes(cand.toLowerCase()));
-        if (foundCand) {
-          const afterName = line.slice(line.toLowerCase().indexOf(foundCand.toLowerCase()) + foundCand.length);
-          const nums = Array.from(afterName.matchAll(/([+-]?\d+(?:\.\d+)?)(%|[kKmMbB]|\$)?/g)).map((m) => parseFloat(m[1]));
-          if (nums.length >= 1) {
-            results.push({
-              id: `extracted_${def.id}_${Date.now()}_${results.length}`,
-              matchedIndicatorId: def.id,
-              name: def.name,
-              currency: targetCurrency,
-              actual: nums[0],
-              forecast: nums.length > 1 ? nums[1] : nums[0],
-              previous: nums.length > 2 ? nums[2] : nums[0],
-              revisedPrevious: null,
-              unit: def.unit || '%',
-              referencePeriod: 'Uploaded Document',
-              releaseDate: new Date().toISOString().slice(0, 10),
-              releaseTime: 'Document Data',
-              source: 'Uploaded PDF / Document Report',
-              confidence: 98,
-              dataStatus: 'EXTRACTED_FROM_IMAGE',
-              notes: `Extracted from line: ${line.slice(0, 60)}`,
-            });
-            processedDefs.add(def.id);
-            break;
-          }
-        }
-      }
-    }
-
-    // METHOD 3: Continuous stream scanner
-    const normText = rawText.replace(/[\t\r\n]+/g, ' ');
-    for (const def of defs) {
-      if (processedDefs.has(def.id)) continue;
-
-      const candidates = [def.shortLabel, def.name, def.code].filter(Boolean) as string[];
-      for (const cand of candidates) {
-        const idx = normText.toLowerCase().indexOf(cand.toLowerCase());
-        if (idx !== -1 && idx > 25) {
-          const segment = normText.slice(idx + cand.length, idx + cand.length + 120);
-          const nums = Array.from(segment.matchAll(/([+-]?\d+(?:\.\d+)?)/g)).map((m) => parseFloat(m[1]));
-          if (nums.length >= 1 && nums[0] < 1000) {
-            results.push({
-              id: `extracted_${def.id}_${Date.now()}_${results.length}`,
-              matchedIndicatorId: def.id,
-              name: def.name,
-              currency: targetCurrency,
-              actual: nums[0],
-              forecast: nums.length > 1 ? nums[1] : nums[0],
-              previous: nums.length > 2 ? nums[2] : nums[0],
-              revisedPrevious: null,
-              unit: def.unit || '%',
-              referencePeriod: 'Uploaded Document',
-              releaseDate: new Date().toISOString().slice(0, 10),
-              releaseTime: 'Document Data',
-              source: 'Uploaded PDF / Document Report',
-              confidence: 95,
-              dataStatus: 'EXTRACTED_FROM_IMAGE',
-              notes: `Extracted from document context for ${def.shortLabel}`,
-            });
-            processedDefs.add(def.id);
-            break;
-          }
-        }
+  }
+  for(const curr of targetCurrencies){
+    const defs=OFFICIAL_INDICATOR_REGISTRY.filter((d:any)=>d.currency===curr);
+    for(const def of defs){
+      if(processed.has(def.id))continue;
+      const candidates=[def.shortLabel,def.name,def.code].filter(Boolean) as string[];
+      for(const line of lines){
+        const lower=line.toLowerCase(),cand=candidates.find(x=>lower.includes(x.toLowerCase()));if(!cand)continue;
+        const tail=line.slice(lower.indexOf(cand.toLowerCase())+cand.length).trim(),tokens=tail.split(/\\s+/).filter(Boolean);
+        const ci=tokens.findIndex(t=>cadence.test(t));if(ci<3)continue;
+        const vals=tokens.slice(ci-3,ci).map(safeParseNum);if(vals.every(v=>v===null))continue;
+        results.push({id:`extracted_${def.id}_${Date.now()}_${results.length}`,matchedIndicatorId:def.id,name:def.name,currency:curr,actual:vals[0],forecast:vals[1],previous:vals[2],revisedPrevious:null,unit:tokens[ci+1]||def.unit||'%',referencePeriod:tokens.slice(ci+2,ci+6).join(' ')||'Uploaded Document',releaseDate:reportDate,releaseTime:'Document Data',source:'Uploaded PDF / Document Report',confidence:99,dataStatus:'EXTRACTED_FROM_IMAGE',notes:`Exact table-row extraction for ${def.shortLabel||def.name}.`});
+        processed.add(def.id);break;
       }
     }
   }
-
   return results;
 }
 
@@ -455,214 +326,52 @@ export function parseCurrencyDocumentText(rawText: string, selection: string = '
 // COMMODITIES DOCUMENT PARSER
 // ----------------------------------------------------
 export function parseCommodityDocumentText(rawText: string, selection: string = 'GOLD'): any[] {
-  const commKey =
-    selection.includes('XAU') || selection.includes('GOLD')
-      ? 'GOLD'
-      : selection.includes('XAG') || selection.includes('SILVER')
-      ? 'SILVER'
-      : 'CRUDE_OIL';
-
-  const defaultPrice = commKey === 'GOLD' ? 2924.50 : commKey === 'SILVER' ? 33.45 : 74.80;
-  let price = defaultPrice;
-
-  const spotMatch = rawText.match(/Spot Price:\s*\$?([0-9,]+(?:\.\d+)?)/i);
-  if (spotMatch) {
-    price = parseFloat(spotMatch[1].replace(/,/g, ''));
-  } else {
-    const genericPrice = rawText.match(/(?:spot|price|cash|futures)[\s:—–]+(?:\$)?([0-9,]+(?:\.\d+)?)/i);
-    if (genericPrice) {
-      price = parseFloat(genericPrice[1].replace(/,/g, ''));
-    }
-  }
-
-  let realYield = 1.95;
-  const yieldMatch = rawText.match(/(?:US 10Y Real Yield|real yield|tips)[\s:—–]+([+-]?[0-9]+(?:\.\d+)?)/i);
-  if (yieldMatch) {
-    realYield = parseFloat(yieldMatch[1]);
-  }
-
-  return [
-    {
-      id: `extracted_${commKey}_price_${Date.now()}`,
-      name: `${commKey === 'GOLD' ? 'Gold (XAU/USD)' : commKey === 'SILVER' ? 'Silver (XAG/USD)' : 'Crude Oil (WTI)'} Spot Price`,
-      currency: 'USD',
-      actual: price,
-      forecast: price,
-      previous: Math.round(price * 0.99 * 100) / 100,
-      unit: '$',
-      referencePeriod: 'Uploaded Document',
-      releaseDate: new Date().toISOString().slice(0, 10),
-      releaseTime: 'Live Market',
-      source: 'Uploaded PDF / OCR',
-      confidence: 99,
-      dataStatus: 'EXTRACTED_FROM_IMAGE',
-      notes: `Spot price verified from document: $${price}.`,
-    },
-    {
-      id: `extracted_${commKey}_real_yield_${Date.now()}`,
-      name: 'US 10-Year Real Yield',
-      currency: 'USD',
-      actual: realYield,
-      forecast: realYield,
-      previous: Math.round((realYield + 0.1) * 100) / 100,
-      unit: '%',
-      referencePeriod: 'Daily Benchmark',
-      releaseDate: new Date().toISOString().slice(0, 10),
-      releaseTime: '15:00 EST',
-      source: 'US Treasury',
-      confidence: 99,
-      dataStatus: 'EXTRACTED_FROM_IMAGE',
-      notes: `US 10Y TIPS real yield extracted from document: ${realYield}%.`,
-    },
-  ];
+  if(!rawText||!rawText.trim())return [];
+  const commKey=selection.includes('XAU')||selection.includes('GOLD')?'GOLD':selection.includes('XAG')||selection.includes('SILVER')?'SILVER':'CRUDE_OIL';
+  const reportDate=rawText.match(/\\bDATE:\\s*(\\d{4}-\\d{2}-\\d{2})\\b/i)?.[1]||new Date().toISOString().slice(0,10);
+  const rows:any[]=[];const push=(name:string,value:number|null,unit:string,note:string)=>{if(value===null)return;rows.push({id:`extracted_${commKey}_${rows.length}_${Date.now()}`,name,currency:'USD',actual:value,forecast:null,previous:null,revisedPrevious:null,unit,referencePeriod:'Uploaded Document',releaseDate:reportDate,releaseTime:'Document Data',source:'Uploaded PDF / Document Report',confidence:100,dataStatus:'EXTRACTED_FROM_IMAGE',notes:note});};
+  const spot=rawText.match(/Spot Price:\s*\$?([0-9,]+(?:\.\d+)?)/i),real=rawText.match(/US 10Y Real Yield:\s*([+-]?[0-9]+(?:\.[0-9]+)?)%?/i),breakeven=rawText.match(/5Y Inflation Breakeven:\s*([+-]?[0-9]+(?:\.[0-9]+)?)%?/i),inventory=rawText.match(/Weekly Inventory Surprise:\s*([+-]?[0-9]+(?:\.[0-9]+)?)\s*Mb/i);
+  push(`${commKey==='GOLD'?'Gold (XAU/USD)':commKey==='SILVER'?'Silver (XAG/USD)':'Crude Oil (WTI)'} Spot Price`,spot?parseFloat(spot[1].replace(/,/g,'')):null,'$','Exact spot price extracted from uploaded document.');
+  push('US 10-Year Real Yield',real?parseFloat(real[1]):null,'%','Exact real-yield value extracted from uploaded document.');
+  push('5Y Inflation Breakeven',breakeven?parseFloat(breakeven[1]):null,'%','Exact breakeven value extracted from uploaded document.');
+  push('Weekly Inventory Surprise',inventory?parseFloat(inventory[1]):null,'Mb','Exact inventory-surprise value extracted from uploaded document.');
+  return rows;
 }
 
 // ----------------------------------------------------
 // RATES & YIELDS DOCUMENT PARSER
 // ----------------------------------------------------
 export function parseRatesDocumentText(rawText: string): any[] {
-  if (!rawText || !rawText.trim()) return [];
-  const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
-  const rates: any[] = [];
-  const processed = new Set<string>();
-
-  for (const line of lines) {
-    const tokens = line.split(/\s+/);
-    const curr = tokens[0].toUpperCase();
-    if (currencies.includes(curr) && !processed.has(curr)) {
-      const cleanLine = line.replace(/,/g, '');
-      const nums = Array.from(cleanLine.matchAll(/([+-]?\d+(?:\.\d+)?)(%|[kKmMbB]|\$)?/g)).map((m) => parseFloat(m[1]));
-
-      let bias = 'NEUTRAL';
-      if (/HAWKISH/i.test(line)) bias = 'HAWKISH';
-      else if (/DOVISH/i.test(line)) bias = 'DOVISH';
-
-      const meetingMatch = line.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s*\d{4}/i);
-      const nextMeetingDate = meetingMatch ? meetingMatch[0] : (line.includes('—') ? 'Upcoming' : 'Upcoming');
-
-      if (nums.length >= 1) {
-        rates.push({
-          currency: curr,
-          currentPolicyRate: nums[0],
-          rate: nums[0],
-          previousPolicyRate: nums.length > 1 ? nums[1] : nums[0],
-          previousRate: nums.length > 1 ? nums[1] : nums[0],
-          expectedNextRate: nums.length > 2 ? nums[2] : nums[0],
-          expectedRate: nums.length > 2 ? nums[2] : nums[0],
-          yield2Y: nums.length > 3 ? nums[3] : 0,
-          yield5Y: nums.length > 4 ? nums[4] : 0,
-          yield10Y: nums.length > 5 ? nums[5] : 0,
-          realYield10Y: nums.length > 6 ? nums[6] : 0,
-          centralBankBias: bias,
-          nextMeetingDate,
-          recentGuidance: `Policy Rate ${nums[0]}%, 10Y Benchmark Yield ${nums.length > 5 ? nums[5] : 0}%. Verified from uploaded document.`,
-        });
-        processed.add(curr);
-      }
-    }
+  if(!rawText||!rawText.trim())return [];
+  const lines=rawText.split(/\\r?\\n/).map(l=>l.trim()).filter(Boolean),currencies=['USD','EUR','GBP','JPY','CHF','CAD','AUD','NZD'],out:any[]=[],processed=new Set<string>();
+  const reportDate=rawText.match(/\\bDATE:\\s*(\\d{4}-\\d{2}-\\d{2})\\b/i)?.[1]||new Date().toISOString().slice(0,10);
+  for(let i=0;i<lines.length-9;i++){
+    const curr=lines[i].toUpperCase();if(!currencies.includes(curr)||processed.has(curr))continue;
+    const f=lines.slice(i+1,i+10),nums=f.slice(1,7).map(safeParseNum);if(nums.every(v=>v===null))continue;
+    out.push({currency:curr,currentPolicyRate:nums[0],rate:nums[0],previousPolicyRate:nums[1],previousRate:nums[1],expectedNextRate:nums[2],expectedRate:nums[2],yield2Y:nums[4],yield5Y:null,yield10Y:nums[5],realYield10Y:safeParseNum(f[7]),centralBankBias:/HAWKISH/i.test(f[4]||'')?'HAWKISH':/DOVISH/i.test(f[4]||'')?'DOVISH':'NEUTRAL',nextMeetingDate:f[8]||'Unknown',recentGuidance:'Extracted directly from uploaded PDF.',reportDate});processed.add(curr);
   }
-
-  return rates;
+  for(const line of lines){const curr=line.split(/\\s+/)[0]?.toUpperCase();if(!currencies.includes(curr)||processed.has(curr))continue;const nums=Array.from(line.replace(/,/g,'').matchAll(/([+-]?\\d+(?:\\.\\d+)?)(%|[kKmMbB]|\\$)?/g)).map(m=>parseFloat(m[1]));if(!nums.length)continue;out.push({currency:curr,currentPolicyRate:nums[0],rate:nums[0],previousPolicyRate:nums[1]??null,previousRate:nums[1]??null,expectedNextRate:nums[2]??null,expectedRate:nums[2]??null,yield2Y:nums[3]??null,yield5Y:nums[4]??null,yield10Y:nums[5]??null,realYield10Y:nums[6]??null,centralBankBias:/HAWKISH/i.test(line)?'HAWKISH':/DOVISH/i.test(line)?'DOVISH':'NEUTRAL',nextMeetingDate:line.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\s*\\d{4}/i)?.[0]||'Unknown',recentGuidance:'Extracted directly from uploaded document.',reportDate});processed.add(curr);}
+  return out;
 }
 
 // ----------------------------------------------------
 // COT DOCUMENT PARSER
 // ----------------------------------------------------
 export function parseCotDocumentText(rawText: string): any[] {
-  if (!rawText || !rawText.trim()) return [];
-  const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const assets = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD', 'XAU', 'XAG', 'OIL'];
-  const records: any[] = [];
-  const processed = new Set<string>();
-
-  for (const line of lines) {
-    const tokens = line.split(/\s+/);
-    const ast = tokens[0].toUpperCase();
-    if (assets.includes(ast) && !processed.has(ast)) {
-      const cleanLine = line.replace(/,/g, '');
-      const nums = Array.from(cleanLine.matchAll(/([+-]?\d+(?:\.\d+)?)/g)).map((m) => parseFloat(m[1]));
-      const dateMatch = line.match(/\d{4}-\d{2}-\d{2}/);
-      const repDate = dateMatch ? dateMatch[0] : new Date().toISOString().slice(0, 10);
-
-      const isBull = /BULLISH/i.test(line);
-      const isBear = /BEARISH/i.test(line);
-      const stance = isBull ? 'Bullish' : isBear ? 'Bearish' : 'Neutral';
-
-      if (nums.length >= 2) {
-        const nonCommLong = nums[0];
-        const nonCommShort = nums.length > 1 ? nums[1] : 0;
-        const commLong = nums.length > 3 ? nums[3] : 0;
-        const commShort = nums.length > 4 ? nums[4] : 0;
-        const openInterest = nums.length > 5 ? nums[5] : nonCommLong + nonCommShort;
-
-        records.push({
-          currency: ast,
-          contractName:
-            ast === 'XAU'
-              ? 'Gold Futures (COMEX)'
-              : ast === 'XAG'
-              ? 'Silver Futures (COMEX)'
-              : ast === 'OIL'
-              ? 'Crude Oil Light Sweet (NYMEX)'
-              : `${ast} Futures (CME)`,
-          nonCommercialLong: nonCommLong,
-          nonCommercialShort: nonCommShort,
-          commercialLong: commLong,
-          commercialShort: commShort,
-          openInterest,
-          reportDate: repDate,
-          releaseDate: repDate,
-          source: 'CFTC Commitments of Traders',
-          confidence: 99,
-          notes: `Net ${nonCommLong - nonCommShort > 0 ? '+' : ''}${nonCommLong - nonCommShort} contracts. ${stance} positioning verified from document.`,
-        });
-        processed.add(ast);
-      }
-    }
-  }
-
-  return records;
+  if(!rawText||!rawText.trim())return [];
+  const lines=rawText.split(/\\r?\\n/).map(l=>l.trim()).filter(Boolean),assets=['USD','EUR','GBP','JPY','CHF','CAD','AUD','NZD','XAU','XAG','OIL'],out:any[]=[],processed=new Set<string>(),reportDate=rawText.match(/\\bDATE:\\s*(\\d{4}-\\d{2}-\\d{2})\\b/i)?.[1]||new Date().toISOString().slice(0,10);
+  for(let i=0;i<lines.length-8;i++){const asset=lines[i].toUpperCase();if(!assets.includes(asset)||processed.has(asset))continue;const f=lines.slice(i+1,i+9),nums=f.slice(0,6).map(safeParseNum);if(nums.every(v=>v===null))continue;const rep=/^\\d{4}-\\d{2}-\\d{2}$/.test(f[7]||'')?f[7]:reportDate;out.push({currency:asset,contractName:asset==='XAU'?'Gold Futures (COMEX)':asset==='XAG'?'Silver Futures (COMEX)':asset==='OIL'?'Crude Oil Light Sweet (NYMEX)':`${asset} Futures (CME)`,nonCommercialLong:nums[0],nonCommercialShort:nums[1],commercialLong:nums[3]??null,commercialShort:nums[4]??null,openInterest:nums[5]??null,reportDate:rep,releaseDate:rep,source:'Uploaded PDF / COT Report',confidence:100,notes:'Exact deterministic extraction from uploaded COT PDF.'});processed.add(asset);}
+  for(const line of lines){const asset=line.split(/\\s+/)[0]?.toUpperCase();if(!assets.includes(asset)||processed.has(asset))continue;const nums=Array.from(line.replace(/,/g,'').matchAll(/([+-]?\\d+(?:\\.\\d+)?)/g)).map(m=>parseFloat(m[1]));if(nums.length<2)continue;out.push({currency:asset,contractName:asset==='XAU'?'Gold Futures (COMEX)':asset==='XAG'?'Silver Futures (COMEX)':asset==='OIL'?'Crude Oil Light Sweet (NYMEX)':`${asset} Futures (CME)`,nonCommercialLong:nums[0],nonCommercialShort:nums[1],commercialLong:nums[3]??null,commercialShort:nums[4]??null,openInterest:nums[5]??null,reportDate,releaseDate:reportDate,source:'Uploaded PDF / COT Report',confidence:100,notes:'Exact deterministic extraction from uploaded COT document.'});processed.add(asset);}
+  return out;
 }
 
 // ----------------------------------------------------
 // SENTIMENT DOCUMENT PARSER (31 INSTRUMENTS)
 // ----------------------------------------------------
 export function parseSentimentDocumentText(rawText: string): any[] {
-  if (!rawText || !rawText.trim()) return [];
-  const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const pairs = [
-    'EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'USD/CAD', 'AUD/USD', 'NZD/USD',
-    'EUR/GBP', 'EUR/JPY', 'EUR/CHF', 'EUR/CAD', 'EUR/AUD', 'EUR/NZD',
-    'GBP/JPY', 'GBP/CHF', 'GBP/CAD', 'GBP/AUD', 'GBP/NZD',
-    'AUD/JPY', 'CAD/JPY', 'CHF/JPY', 'NZD/JPY',
-    'AUD/CAD', 'AUD/CHF', 'AUD/NZD', 'CAD/CHF', 'NZD/CAD', 'NZD/CHF',
-    'XAU/USD', 'XAG/USD', 'US Oil', 'BRENT',
-  ];
-
-  const sentiments: any[] = [];
-  const processed = new Set<string>();
-
-  for (const line of lines) {
-    for (const pr of pairs) {
-      if (!processed.has(pr) && (line.startsWith(pr) || line.includes(' ' + pr + ' ') || line.includes(pr))) {
-        const cleanLine = line.replace(/,/g, '');
-        const nums = Array.from(cleanLine.matchAll(/([+-]?\d+(?:\.\d+)?)(%|[kKmMbB]|\$)?/g)).map((m) => parseFloat(m[1]));
-        if (nums.length >= 2) {
-          const longPercent = nums[0];
-          const shortPercent = nums[1];
-          sentiments.push({
-            pair: pr,
-            longPercent,
-            shortPercent,
-            notes: `Retail ${shortPercent}% short / ${longPercent}% long (Contrarian: ${shortPercent > 60 ? 'BULLISH' : longPercent > 60 ? 'BEARISH' : 'NEUTRAL'})`,
-          });
-          processed.add(pr);
-          break;
-        }
-      }
-    }
-  }
-
-  return sentiments;
+  if(!rawText||!rawText.trim())return [];
+  const lines=rawText.split(/\\r?\\n/).map(l=>l.trim()).filter(Boolean),pairs=['EUR/USD','GBP/USD','USD/JPY','USD/CHF','USD/CAD','AUD/USD','NZD/USD','EUR/GBP','EUR/JPY','EUR/CHF','EUR/CAD','EUR/AUD','EUR/NZD','GBP/JPY','GBP/CHF','GBP/CAD','GBP/AUD','GBP/NZD','AUD/JPY','CAD/JPY','CHF/JPY','NZD/JPY','AUD/CAD','AUD/CHF','AUD/NZD','CAD/CHF','NZD/CAD','NZD/CHF','XAU/USD','XAG/USD','US Oil','BRENT'],out:any[]=[],processed=new Set<string>();
+  for(let i=0;i<lines.length-7;i++){const pair=pairs.find(p=>lines[i].toUpperCase()===p.toUpperCase());if(!pair||processed.has(pair))continue;const longPercent=safeParseNum(lines[i+3]),shortPercent=safeParseNum(lines[i+4]);if(longPercent===null&&shortPercent===null)continue;out.push({pair,longPercent,shortPercent,notes:lines[i+6]?`Exact deterministic extraction from uploaded sentiment PDF. Source: ${lines[i+6]}`:'Exact deterministic extraction from uploaded sentiment PDF.'});processed.add(pair);}
+  for(const line of lines){for(const pair of pairs){if(processed.has(pair)||!line.includes(pair))continue;const tail=line.slice(line.indexOf(pair)+pair.length),nums=Array.from(tail.replace(/,/g,'').matchAll(/([+-]?\\d+(?:\\.\\d+)?)/g)).map(m=>parseFloat(m[1]));if(nums.length<2)continue;out.push({pair,longPercent:nums[0],shortPercent:nums[1],notes:'Exact deterministic extraction from uploaded sentiment document.'});processed.add(pair);break;}}
+  return out;
 }

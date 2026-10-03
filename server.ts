@@ -2009,19 +2009,20 @@ app.post('/api/fundamental/extract-from-image', async (req, res) => {
 
     // PRIORITY 1: 100% Deterministic extraction if text is extracted from PDF
     if (pdfText) {
-      const extractedFromPdf = parseCurrencyDocumentText(pdfText, cleanSelection);
-      if (extractedFromPdf && extractedFromPdf.length > 0) {
-        console.log(`[FUNDAMENTAL OCR] Successfully extracted ${extractedFromPdf.length} items directly from document with 100% fidelity.`);
+      const extracted = parseCurrencyDocumentText(pdfText, cleanSelection);
+      if (extracted && extracted.length > 0) {
+        console.log(`[FUNDAMENTAL OCR] Deterministically extracted ${extracted.length} item(s) directly from PDF text.`);
         return res.json({
-          success: true,
-          selection: cleanSelection,
-          extractedCount: extractedFromPdf.length,
-          indicators: extractedFromPdf,
-          source: 'DOCUMENT_PDF_EXACT',
+          success: true, selection: cleanSelection, extractedCount: extracted.length,
+          indicators: extracted, source: 'DOCUMENT_PDF_EXACT',
         });
       }
+      return res.status(422).json({
+        success: false,
+        error: 'PDF text was readable, but no supported rows could be mapped exactly. No baseline or guessed values were substituted.',
+        source: 'DOCUMENT_PDF_UNMAPPED',
+      });
     }
-
     // PRIORITY 2: If image (e.g. screenshot or photo), use Gemini Vision OCR
     let parsedResult: any = null;
     const ai = getGeminiClient();
@@ -2140,9 +2141,9 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
           matchedIndicatorId: match?.id,
           name: match?.name || item.name,
           currency: match?.currency || itemCurr,
-          actual: extractedActual !== null ? extractedActual : ((match as any)?.defaultValue ?? 2.5),
-          forecast: extractedForecast !== null ? extractedForecast : (extractedActual !== null ? extractedActual : ((match as any)?.defaultValue ?? 2.5)),
-          previous: extractedPrevious !== null ? extractedPrevious : (extractedActual !== null ? extractedActual : ((match as any)?.defaultValue ?? 2.5)),
+          actual: extractedActual,
+          forecast: extractedForecast,
+          previous: extractedPrevious,
           revisedPrevious: null,
           unit: item.unit || match?.unit || '%',
           referencePeriod: item.referencePeriod || 'Uploaded Document',
@@ -2163,40 +2164,13 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
       });
     }
 
-    // Fallback: If OCR could not discern rows, return baseline definitions
-    const targetCurrs = isMultiCurrency ? ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'NZD'] : [cleanSelection];
-    const fallbackList: any[] = [];
-    targetCurrs.forEach((curr) => {
-      const relevant = OFFICIAL_INDICATOR_REGISTRY.filter((d: any) => d.currency === curr);
-      relevant.forEach((d: any, idx: number) => {
-        const verified = (VERIFIED_INDICATORS as any)[d.id] || {};
-        fallbackList.push({
-          id: `extracted_${d.id}_${Date.now()}_${idx}`,
-          matchedIndicatorId: d.id,
-          name: d.name,
-          currency: d.currency,
-          actual: typeof verified.actual === 'number' ? verified.actual : ((d as any).defaultValue ?? 2.5),
-          forecast: typeof verified.forecast === 'number' ? verified.forecast : ((d as any).defaultValue ?? 2.5),
-          previous: typeof verified.previous === 'number' ? verified.previous : ((d as any).defaultValue ?? 2.5),
-          revisedPrevious: null,
-          unit: d.unit || '%',
-          referencePeriod: 'Uploaded Document',
-          releaseDate: new Date().toISOString().slice(0, 10),
-          releaseTime: 'Document Data',
-          source: 'Document OCR Table',
-          confidence: 90,
-          dataStatus: 'EXTRACTED_FROM_IMAGE',
-          notes: `Verified ${d.currency} parameters calibrated.`,
-        });
-      });
+        return res.status(422).json({
+      success: false,
+      error: 'Exact OCR extraction could not be completed. No baseline, default, or guessed values were substituted.',
+      source: 'EXTRACTION_UNVERIFIED',
     });
 
-    return res.json({
-      success: true,
-      selection: cleanSelection,
-      extractedCount: fallbackList.length,
-      indicators: fallbackList,
-    });
+
   } catch (error: any) {
     console.error('[IMAGE OCR] Error in extract-from-image:', error);
     return res.status(500).json({ success: false, error: error?.message });
@@ -2235,18 +2209,19 @@ app.post('/api/fundamental/extract-rates-from-image', async (req, res) => {
 
     // Priority 1: Deterministic rates extraction from PDF text
     if (pdfText) {
-      const extractedRates = parseRatesDocumentText(pdfText);
-      if (extractedRates && extractedRates.length > 0) {
-        console.log(`[RATES OCR] parseRatesDocumentText successfully extracted ${extractedRates.length} rates directly from document.`);
+      const extracted = parseRatesDocumentText(pdfText);
+      if (extracted && extracted.length > 0) {
+        console.log(`[RATES OCR] Deterministically extracted ${extracted.length} item(s) directly from PDF text.`);
         return res.json({
-          success: true,
-          extractedCount: extractedRates.length,
-          rates: extractedRates,
-          source: 'DOCUMENT_PDF_EXACT',
+          success: true, extractedCount: extracted.length, rates: extracted, source: 'DOCUMENT_PDF_EXACT',
         });
       }
+      return res.status(422).json({
+        success: false,
+        error: 'PDF text was readable, but no supported rows could be mapped exactly. No baseline or guessed values were substituted.',
+        source: 'DOCUMENT_PDF_UNMAPPED',
+      });
     }
-
     // Priority 2: Gemini Vision for screenshots
     let parsedResult: any = null;
     const ai = getGeminiClient();
@@ -2333,29 +2308,13 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
       });
     }
 
-    // Fallback: verified rates
-    const fallbackRates = Object.entries(VERIFIED_RATES).map(([curr, r]: [string, any]) => ({
-      currency: curr,
-      currentPolicyRate: r.rate,
-      rate: r.rate,
-      previousPolicyRate: r.previousRate,
-      previousRate: r.previousRate,
-      expectedNextRate: r.rate,
-      expectedRate: r.rate,
-      yield2Y: r.yield10Y ? r.yield10Y - 0.2 : 4.0,
-      yield5Y: r.yield10Y ? r.yield10Y - 0.1 : 4.1,
-      yield10Y: r.yield10Y,
-      centralBankBias: r.rateDecisionTone || 'NEUTRAL',
-      nextMeetingDate: r.nextMeeting || 'Upcoming',
-      recentGuidance: `Official benchmark for ${curr}.`,
-    }));
-
-    return res.json({
-      success: true,
-      extractedCount: fallbackRates.length,
-      rates: fallbackRates,
-      notice: 'Verified baseline rates loaded for review.',
+        return res.status(422).json({
+      success: false,
+      error: 'Exact OCR extraction could not be completed. No baseline, default, or guessed values were substituted.',
+      source: 'EXTRACTION_UNVERIFIED',
     });
+
+
   } catch (error: any) {
     console.error('[RATES OCR] Error:', error);
     return res.status(500).json({ success: false, error: error?.message });
@@ -2394,18 +2353,19 @@ app.post('/api/fundamental/extract-cot-from-image', async (req, res) => {
 
     // Priority 1: Deterministic COT extraction from PDF
     if (pdfText) {
-      const extractedRecords = parseCotDocumentText(pdfText);
-      if (extractedRecords && extractedRecords.length > 0) {
-        console.log(`[COT OCR] parseCotDocumentText successfully extracted ${extractedRecords.length} records directly from document.`);
+      const extracted = parseCotDocumentText(pdfText);
+      if (extracted && extracted.length > 0) {
+        console.log(`[COT OCR] Deterministically extracted ${extracted.length} item(s) directly from PDF text.`);
         return res.json({
-          success: true,
-          extractedCount: extractedRecords.length,
-          records: extractedRecords,
-          source: 'DOCUMENT_PDF_EXACT',
+          success: true, extractedCount: extracted.length, records: extracted, source: 'DOCUMENT_PDF_EXACT',
         });
       }
+      return res.status(422).json({
+        success: false,
+        error: 'PDF text was readable, but no supported rows could be mapped exactly. No baseline or guessed values were substituted.',
+        source: 'DOCUMENT_PDF_UNMAPPED',
+      });
     }
-
     // Priority 2: Gemini Vision for screenshots
     let parsedResult: any = null;
     const ai = getGeminiClient();
@@ -2490,28 +2450,13 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
       });
     }
 
-    // Fallback: verified COT baseline
-    const fallbackRecords = Object.entries(VERIFIED_COT).map(([curr, rec]: [string, any]) => ({
-      currency: curr,
-      contractName: rec.contractName,
-      openInterest: rec.openInterest,
-      nonCommercialLong: rec.nonCommercialLong,
-      nonCommercialShort: rec.nonCommercialShort,
-      commercialLong: rec.commercialLong,
-      commercialShort: rec.commercialShort,
-      reportDate: rec.reportDate,
-      releaseDate: rec.releaseDate,
-      source: 'CFTC Commitments of Traders',
-      confidence: 95,
-      notes: rec.notes,
-    }));
-
-    return res.json({
-      success: true,
-      extractedCount: fallbackRecords.length,
-      records: fallbackRecords,
-      notice: 'Verified COT baseline loaded for review.',
+        return res.status(422).json({
+      success: false,
+      error: 'Exact OCR extraction could not be completed. No baseline, default, or guessed values were substituted.',
+      source: 'EXTRACTION_UNVERIFIED',
     });
+
+
   } catch (error: any) {
     console.error('[COT OCR] Error:', error);
     return res.status(500).json({ success: false, error: error?.message });
@@ -2550,18 +2495,19 @@ app.post('/api/fundamental/extract-sentiment-from-image', async (req, res) => {
 
     // Priority 1: Deterministic sentiment extraction from PDF
     if (pdfText) {
-      const extractedSentiments = parseSentimentDocumentText(pdfText);
-      if (extractedSentiments && extractedSentiments.length > 0) {
-        console.log(`[SENTIMENT OCR] parseSentimentDocumentText successfully extracted ${extractedSentiments.length} instruments directly from document.`);
+      const extracted = parseSentimentDocumentText(pdfText);
+      if (extracted && extracted.length > 0) {
+        console.log(`[SENTIMENT OCR] Deterministically extracted ${extracted.length} item(s) directly from PDF text.`);
         return res.json({
-          success: true,
-          extractedCount: extractedSentiments.length,
-          sentiments: extractedSentiments,
-          source: 'DOCUMENT_PDF_EXACT',
+          success: true, extractedCount: extracted.length, sentiments: extracted, source: 'DOCUMENT_PDF_EXACT',
         });
       }
+      return res.status(422).json({
+        success: false,
+        error: 'PDF text was readable, but no supported rows could be mapped exactly. No baseline or guessed values were substituted.',
+        source: 'DOCUMENT_PDF_UNMAPPED',
+      });
     }
-
     // Priority 2: Gemini Vision for screenshots
     let parsedResult: any = null;
     const ai = getGeminiClient();
@@ -2634,20 +2580,13 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
       });
     }
 
-    // Fallback: verified 31-pair sentiment baselines
-    const fallbackSentiments = Object.entries(VERIFIED_31_PAIR_SENTIMENT).map(([pair, s]: [string, any]) => ({
-      pair,
-      longPercent: s.longPercent,
-      shortPercent: s.shortPercent,
-      notes: `${s.name} retail positioning calibrated.`,
-    }));
-
-    return res.json({
-      success: true,
-      extractedCount: fallbackSentiments.length,
-      sentiments: fallbackSentiments,
-      notice: 'Verified sentiment baselines loaded for review.',
+        return res.status(422).json({
+      success: false,
+      error: 'Exact OCR extraction could not be completed. No baseline, default, or guessed values were substituted.',
+      source: 'EXTRACTION_UNVERIFIED',
     });
+
+
   } catch (error: any) {
     console.error('[SENTIMENT OCR] Error:', error);
     return res.status(500).json({ success: false, error: error?.message });
