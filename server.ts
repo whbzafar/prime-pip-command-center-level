@@ -127,6 +127,7 @@ import {
   isSupabaseCommunityEnabled,
   upsertTraderProfile,
   syncTraderProfiles,
+  recordSupabaseHeartbeat,
   readCommunityMessagesSupabase,
   postCommunityMessageSupabase,
   markCommunityMessagesSeenSupabase,
@@ -164,6 +165,7 @@ import {
   uploadMediaSupabase,
   readMediaObjectSupabase,
 } from "./server/supabaseCommunityService.js";
+import { listDurableCommunityTraders, updateDurablePresencePrivacy } from "./server/supabaseCommunityIdentity.js";
 
 dotenv.config();
 
@@ -4408,6 +4410,7 @@ app.post('/api/user/heartbeat', async (req, res) => {
         displayName: user.name || user.username,
         role: user.role,
       });
+      await recordSupabaseHeartbeat(user.id);
     }
     return res.json({ ok: true, userId: user.id, isOnline: true });
   } catch (err: any) {
@@ -4424,9 +4427,13 @@ app.patch('/api/user/presence-privacy', async (req, res) => {
     if (typeof req.body?.showActiveStatus !== 'boolean') {
       return res.status(400).json({ ok: false, error: 'showActiveStatus must be a boolean' });
     }
+    if (isSupabaseCommunityEnabled) {
+      await updateDurablePresencePrivacy(user.id, req.body.showActiveStatus);
+      return res.json({ ok: true, showActiveStatus: req.body.showActiveStatus, backend: 'supabase' });
+    }
     const updated = updatePresencePrivacy(user.id, req.body.showActiveStatus);
     return updated
-      ? res.json({ ok: true, showActiveStatus: req.body.showActiveStatus })
+      ? res.json({ ok: true, showActiveStatus: req.body.showActiveStatus, backend: 'local-fallback' })
       : res.status(404).json({ ok: false, error: 'User not found' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
@@ -4927,28 +4934,25 @@ app.get('/api/friends/all-traders', async (req, res) => {
     }
 
     if (isSupabaseCommunityEnabled) {
-      let rows = await getCommunityTradersSupabase();
-      if (!Array.isArray(rows) || rows.length === 0) {
-        rows = await getSupabaseTraderDirectory(currentUserId);
-      }
+      const durable = await listDurableCommunityTraders(currentUserId);
+      const profiles = await getCommunityTradersSupabase();
+      const profileMap = new Map((Array.isArray(profiles) ? profiles : []).map((p: any) => [String(p.user_id), p]));
       const now = Date.now();
-      const traders = (Array.isArray(rows) ? rows : [])
-        .filter((row: any) => !currentUserId || String(row.user_id) !== String(currentUserId))
-        .map((row: any) => {
-          const lastSeen = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0;
-          const online = Boolean(lastSeen && now - lastSeen < 2 * 60 * 1000);
-          return {
-            id: row.user_id,
-            username: row.username,
-            displayName: row.display_name || row.username,
-            role: row.role === 'ADMIN' ? 'ADMIN' : 'STUDENT',
-            isOnline: online,
-            presenceStatus: online ? 'ACTIVE' : 'OFFLINE',
-            lastSeen,
-            createdAt: row.created_at,
-          };
-        })
-        .sort((a: any, b: any) => Number(b.isOnline) - Number(a.isOnline));
+      const traders = durable.map((u: any) => {
+        const profile = profileMap.get(String(u.id));
+        const lastSeen = profile?.last_seen_at ? new Date(profile.last_seen_at).getTime() : 0;
+        const online = Boolean(lastSeen && now - lastSeen < 2 * 60 * 1000 && u.showActiveStatus !== false);
+        return {
+          id: u.id,
+          username: u.username,
+          displayName: u.name || u.username,
+          role: u.role === 'ADMIN' || u.isDeveloper ? 'ADMIN' : 'STUDENT',
+          isOnline: online,
+          presenceStatus: u.showActiveStatus === false ? 'HIDDEN' : online ? 'ACTIVE' : 'OFFLINE',
+          lastSeen,
+          createdAt: u.createdAt,
+        };
+      }).sort((a: any, b: any) => Number(b.isOnline) - Number(a.isOnline));
       return res.json({ ok: true, traders, backend: 'supabase' });
     }
 
@@ -4976,25 +4980,20 @@ app.get('/api/friends/search', async (req, res) => {
     if (isSupabaseCommunityEnabled) {
       let rows: any[] = [];
       try {
-        const profileRows = await getCommunityTradersSupabase();
-        rows = Array.isArray(profileRows) ? profileRows : [];
-      } catch (error: any) {
-        console.warn('[FRIENDS SEARCH] profile directory unavailable:', error?.message || error);
-      }
-      if (!rows.length) {
-        try {
-          const directoryRows = await getSupabaseTraderDirectory(currentUser.id);
-          rows = Array.isArray(directoryRows) ? directoryRows : [];
-        } catch (error: any) {
-          console.warn('[FRIENDS SEARCH] durable directory unavailable:', error?.message || error);
-        }
-      }
-      if (!rows.length) {
-        rows = getAllRegisteredTraders(currentUser.id).map((trader: any) => ({
-          user_id: trader.id, username: trader.username,
-          display_name: trader.displayName || trader.username,
-          role: trader.role, last_seen_at: null, created_at: null,
+        const durable = await listDurableCommunityTraders(currentUser.id);
+        const profiles = await getCommunityTradersSupabase();
+        const profileMap = new Map((Array.isArray(profiles) ? profiles : []).map((p: any) => [String(p.user_id), p]));
+        rows = durable.map((u: any) => ({
+          user_id: u.id,
+          username: u.username,
+          display_name: u.name || u.username,
+          role: u.role,
+          last_seen_at: profileMap.get(String(u.id))?.last_seen_at || null,
+          created_at: u.createdAt,
+          show_active_status: u.showActiveStatus !== false,
         }));
+      } catch (error: any) {
+        console.warn('[FRIENDS SEARCH] durable directory unavailable:', error?.message || error);
       }
       const now = Date.now();
       const results = rows.map((row: any) => {
