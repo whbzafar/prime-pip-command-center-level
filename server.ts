@@ -2009,19 +2009,20 @@ app.post('/api/fundamental/extract-from-image', async (req, res) => {
 
     // PRIORITY 1: 100% Deterministic extraction if text is extracted from PDF
     if (pdfText) {
-      const extractedFromPdf = parseCurrencyDocumentText(pdfText, cleanSelection);
-      if (extractedFromPdf && extractedFromPdf.length > 0) {
-        console.log(`[FUNDAMENTAL OCR] Successfully extracted ${extractedFromPdf.length} items directly from document with 100% fidelity.`);
+      const extracted = parseCurrencyDocumentText(pdfText, cleanSelection);
+      if (extracted && extracted.length > 0) {
+        console.log(`[FUNDAMENTAL OCR] Deterministically extracted ${extracted.length} item(s) directly from PDF text.`);
         return res.json({
-          success: true,
-          selection: cleanSelection,
-          extractedCount: extractedFromPdf.length,
-          indicators: extractedFromPdf,
-          source: 'DOCUMENT_PDF_EXACT',
+          success: true, selection: cleanSelection, extractedCount: extracted.length,
+          indicators: extracted, source: 'DOCUMENT_PDF_EXACT',
         });
       }
+      return res.status(422).json({
+        success: false,
+        error: 'PDF text was readable, but no supported rows could be mapped exactly. No baseline or guessed values were substituted.',
+        source: 'DOCUMENT_PDF_UNMAPPED',
+      });
     }
-
     // PRIORITY 2: If image (e.g. screenshot or photo), use Gemini Vision OCR
     let parsedResult: any = null;
     const ai = getGeminiClient();
@@ -2235,18 +2236,19 @@ app.post('/api/fundamental/extract-rates-from-image', async (req, res) => {
 
     // Priority 1: Deterministic rates extraction from PDF text
     if (pdfText) {
-      const extractedRates = parseRatesDocumentText(pdfText);
-      if (extractedRates && extractedRates.length > 0) {
-        console.log(`[RATES OCR] parseRatesDocumentText successfully extracted ${extractedRates.length} rates directly from document.`);
+      const extracted = parseRatesDocumentText(pdfText);
+      if (extracted && extracted.length > 0) {
+        console.log(`[RATES OCR] Deterministically extracted ${extracted.length} item(s) directly from PDF text.`);
         return res.json({
-          success: true,
-          extractedCount: extractedRates.length,
-          rates: extractedRates,
-          source: 'DOCUMENT_PDF_EXACT',
+          success: true, extractedCount: extracted.length, rates: extracted, source: 'DOCUMENT_PDF_EXACT',
         });
       }
+      return res.status(422).json({
+        success: false,
+        error: 'PDF text was readable, but no supported rows could be mapped exactly. No baseline or guessed values were substituted.',
+        source: 'DOCUMENT_PDF_UNMAPPED',
+      });
     }
-
     // Priority 2: Gemini Vision for screenshots
     let parsedResult: any = null;
     const ai = getGeminiClient();
@@ -2394,18 +2396,19 @@ app.post('/api/fundamental/extract-cot-from-image', async (req, res) => {
 
     // Priority 1: Deterministic COT extraction from PDF
     if (pdfText) {
-      const extractedRecords = parseCotDocumentText(pdfText);
-      if (extractedRecords && extractedRecords.length > 0) {
-        console.log(`[COT OCR] parseCotDocumentText successfully extracted ${extractedRecords.length} records directly from document.`);
+      const extracted = parseCotDocumentText(pdfText);
+      if (extracted && extracted.length > 0) {
+        console.log(`[COT OCR] Deterministically extracted ${extracted.length} item(s) directly from PDF text.`);
         return res.json({
-          success: true,
-          extractedCount: extractedRecords.length,
-          records: extractedRecords,
-          source: 'DOCUMENT_PDF_EXACT',
+          success: true, extractedCount: extracted.length, records: extracted, source: 'DOCUMENT_PDF_EXACT',
         });
       }
+      return res.status(422).json({
+        success: false,
+        error: 'PDF text was readable, but no supported rows could be mapped exactly. No baseline or guessed values were substituted.',
+        source: 'DOCUMENT_PDF_UNMAPPED',
+      });
     }
-
     // Priority 2: Gemini Vision for screenshots
     let parsedResult: any = null;
     const ai = getGeminiClient();
@@ -2550,18 +2553,19 @@ app.post('/api/fundamental/extract-sentiment-from-image', async (req, res) => {
 
     // Priority 1: Deterministic sentiment extraction from PDF
     if (pdfText) {
-      const extractedSentiments = parseSentimentDocumentText(pdfText);
-      if (extractedSentiments && extractedSentiments.length > 0) {
-        console.log(`[SENTIMENT OCR] parseSentimentDocumentText successfully extracted ${extractedSentiments.length} instruments directly from document.`);
+      const extracted = parseSentimentDocumentText(pdfText);
+      if (extracted && extracted.length > 0) {
+        console.log(`[SENTIMENT OCR] Deterministically extracted ${extracted.length} item(s) directly from PDF text.`);
         return res.json({
-          success: true,
-          extractedCount: extractedSentiments.length,
-          sentiments: extractedSentiments,
-          source: 'DOCUMENT_PDF_EXACT',
+          success: true, extractedCount: extracted.length, sentiments: extracted, source: 'DOCUMENT_PDF_EXACT',
         });
       }
+      return res.status(422).json({
+        success: false,
+        error: 'PDF text was readable, but no supported rows could be mapped exactly. No baseline or guessed values were substituted.',
+        source: 'DOCUMENT_PDF_UNMAPPED',
+      });
     }
-
     // Priority 2: Gemini Vision for screenshots
     let parsedResult: any = null;
     const ai = getGeminiClient();
