@@ -4936,23 +4936,41 @@ app.get('/api/friends/all-traders', async (req, res) => {
     if (isSupabaseCommunityEnabled) {
       const durable = await listDurableCommunityTraders(currentUserId);
       const profiles = await getCommunityTradersSupabase();
-      const profileMap = new Map((Array.isArray(profiles) ? profiles : []).map((p: any) => [String(p.user_id), p]));
+      const byId = new Map<string, any>();
+      for (const p of Array.isArray(profiles) ? profiles : []) byId.set(String(p.user_id), p);
+      // Preserve every existing community profile. Durable identity rows are
+      // merged in only when a profile has not yet been projected.
+      for (const u of durable) {
+        if (!byId.has(String(u.id))) {
+          byId.set(String(u.id), {
+            user_id: u.id, username: u.username, display_name: u.name || u.username,
+            role: u.role === 'ADMIN' || u.isDeveloper ? 'ADMIN' : 'CUSTOMER',
+            last_seen_at: null, created_at: u.createdAt,
+            show_active_status: u.showActiveStatus !== false,
+          });
+        }
+      }
+      const durableById = new Map(durable.map((u: any) => [String(u.id), u]));
       const now = Date.now();
-      const traders = durable.map((u: any) => {
-        const profile = profileMap.get(String(u.id));
-        const lastSeen = profile?.last_seen_at ? new Date(profile.last_seen_at).getTime() : 0;
-        const online = Boolean(lastSeen && now - lastSeen < 2 * 60 * 1000 && u.showActiveStatus !== false);
-        return {
-          id: u.id,
-          username: u.username,
-          displayName: u.name || u.username,
-          role: u.role === 'ADMIN' || u.isDeveloper ? 'ADMIN' : 'STUDENT',
-          isOnline: online,
-          presenceStatus: u.showActiveStatus === false ? 'HIDDEN' : online ? 'ACTIVE' : 'OFFLINE',
-          lastSeen,
-          createdAt: u.createdAt,
-        };
-      }).sort((a: any, b: any) => Number(b.isOnline) - Number(a.isOnline));
+      const traders = Array.from(byId.values())
+        .filter((row: any) => !currentUserId || String(row.user_id) !== String(currentUserId))
+        .map((row: any) => {
+          const durableUser = durableById.get(String(row.user_id));
+          const showActive = durableUser ? durableUser.showActiveStatus !== false : row.show_active_status !== false;
+          const lastSeen = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0;
+          const online = Boolean(lastSeen && now - lastSeen < 2 * 60 * 1000 && showActive);
+          return {
+            id: row.user_id,
+            username: row.username,
+            displayName: row.display_name || row.username,
+            role: row.role === 'ADMIN' ? 'ADMIN' : 'STUDENT',
+            isOnline: online,
+            presenceStatus: showActive ? (online ? 'ACTIVE' : 'OFFLINE') : 'HIDDEN',
+            lastSeen,
+            createdAt: row.created_at,
+          };
+        })
+        .sort((a: any, b: any) => Number(b.isOnline) - Number(a.isOnline));
       return res.json({ ok: true, traders, backend: 'supabase' });
     }
 
@@ -4982,16 +5000,23 @@ app.get('/api/friends/search', async (req, res) => {
       try {
         const durable = await listDurableCommunityTraders(currentUser.id);
         const profiles = await getCommunityTradersSupabase();
-        const profileMap = new Map((Array.isArray(profiles) ? profiles : []).map((p: any) => [String(p.user_id), p]));
-        rows = durable.map((u: any) => ({
-          user_id: u.id,
-          username: u.username,
-          display_name: u.name || u.username,
-          role: u.role,
-          last_seen_at: profileMap.get(String(u.id))?.last_seen_at || null,
-          created_at: u.createdAt,
-          show_active_status: u.showActiveStatus !== false,
-        }));
+        const durableById = new Map(durable.map((u: any) => [String(u.id), u]));
+        const merged = new Map<string, any>();
+        for (const p of Array.isArray(profiles) ? profiles : []) merged.set(String(p.user_id), p);
+        for (const u of durable) if (!merged.has(String(u.id))) {
+          merged.set(String(u.id), {
+            user_id: u.id, username: u.username, display_name: u.name || u.username,
+            role: u.role, last_seen_at: null, created_at: u.createdAt,
+            show_active_status: u.showActiveStatus !== false,
+          });
+        }
+        rows = Array.from(merged.values()).map((row: any) => {
+          const u = durableById.get(String(row.user_id));
+          return {
+            ...row,
+            show_active_status: u ? u.showActiveStatus !== false : row.show_active_status !== false,
+          };
+        });
       } catch (error: any) {
         console.warn('[FRIENDS SEARCH] durable directory unavailable:', error?.message || error);
       }
