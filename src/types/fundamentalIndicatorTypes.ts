@@ -102,7 +102,7 @@ export interface IndicatorObservation {
   referencePeriod: string;
   releaseDate: string;
   releaseTime?: string;
-  actual: number;
+  actual: number | null;
   forecast: number | null;
   previous: number | null;
   revisedPrevious?: number | null;
@@ -310,6 +310,8 @@ export interface CurrencyScoreResult {
   currencyName: string;
   score: number; // -100 to +100
   finalCompositeScore?: number;
+  bias?: 'STRONGLY_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONGLY_BEARISH' | 'BULLISH / EXPANSIONARY' | 'BEARISH / CONTRACTIONARY' | 'NEUTRAL / BALANCED';
+  activeIndicatorCount?: number;
   categoryScores: Record<IndicatorCategory, CategoryScoreResult>;
   dataCoveragePercent: number;
   completedIndicators: number;
@@ -344,6 +346,7 @@ export interface PairDifferentialResult {
   bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL_MIXED' | 'BEARISH' | 'STRONG_BEARISH' | 'INSUFFICIENT_DATA';
   biasLabel: string;
   fundamentalBias?: string;
+  direction?: string;
   shortTermDirection?: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'INSUFFICIENT DATA';
   mediumTermDirection?: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'INSUFFICIENT DATA';
   longTermDirection?: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'INSUFFICIENT DATA';

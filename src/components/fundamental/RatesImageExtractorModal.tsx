@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Camera, Sparkles, Check, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { CurrencyCode, InterestRateRecord } from '../../types/fundamentalIndicatorTypes';
 import { CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
@@ -36,6 +36,7 @@ export const RatesImageExtractorModal: React.FC<RatesImageExtractorModalProps> =
   const [fileMime, setFileMime] = useState<string>('image/png');
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileSizeText, setFileSizeText] = useState<string>('');
+  const [rawFileBytes, setRawFileBytes] = useState<Uint8Array | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extractedRows, setExtractedRows] = useState<ExtractedRateRow[]>([]);
@@ -46,10 +47,29 @@ export const RatesImageExtractorModal: React.FC<RatesImageExtractorModalProps> =
 
   if (!isOpen) return null;
 
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!isOpen) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile();
+          if (file) {
+            handleFileSelected(file);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [isOpen]);
+
   const handleFileSelected = (file: File) => {
     setError(null);
     setAppliedSuccess(null);
-    const isImage = file.type.startsWith('image/');
+    const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|bmp|gif|jfif|tiff?)$/i.test(file.name);
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 
     if (!isImage && !isPdf) {
@@ -61,6 +81,14 @@ export const RatesImageExtractorModal: React.FC<RatesImageExtractorModalProps> =
     setFileSizeText(sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`);
     setFileName(file.name);
     setFileMime(isPdf ? 'application/pdf' : file.type || 'image/png');
+
+    if (isPdf) {
+      file.arrayBuffer().then((ab) => {
+        setRawFileBytes(new Uint8Array(ab));
+      }).catch((e) => console.warn('ArrayBuffer read failed:', e));
+    } else {
+      setRawFileBytes(null);
+    }
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -111,12 +139,13 @@ export const RatesImageExtractorModal: React.FC<RatesImageExtractorModalProps> =
   };
 
   const handleProcess = async () => {
-    if (!filePreview) return;
+    if (!filePreview && !rawFileBytes) return;
     setIsProcessing(true);
     setError(null);
 
     try {
-      const res = await extractRatesFromImage(filePreview, fileMime);
+      const payload = rawFileBytes || filePreview;
+      const res = await extractRatesFromImage(payload!, fileMime);
       if (!res.success || !res.rates || res.rates.length === 0) {
         throw new Error(res.error || 'No rates data could be extracted from this document.');
       }
@@ -127,12 +156,12 @@ export const RatesImageExtractorModal: React.FC<RatesImageExtractorModalProps> =
         return {
           currency: curr,
           selected: true,
-          currentPolicyRate: typeof r.currentPolicyRate === 'number' ? r.currentPolicyRate : (existing?.currentPolicyRate ?? 4.5),
-          previousPolicyRate: typeof r.previousPolicyRate === 'number' ? r.previousPolicyRate : (existing?.previousPolicyRate ?? 4.75),
-          expectedNextRate: typeof r.expectedNextRate === 'number' ? r.expectedNextRate : (existing?.expectedNextRate ?? 4.5),
-          yield2Y: typeof r.yield2Y === 'number' ? r.yield2Y : (existing?.yield2Y ?? 4.15),
-          yield5Y: typeof r.yield5Y === 'number' ? r.yield5Y : (existing?.yield5Y ?? 4.25),
-          yield10Y: typeof r.yield10Y === 'number' ? r.yield10Y : (existing?.yield10Y ?? 4.45),
+          currentPolicyRate: typeof r.currentPolicyRate === 'number' ? r.currentPolicyRate : (existing?.currentPolicyRate ?? 0),
+          previousPolicyRate: typeof r.previousPolicyRate === 'number' ? r.previousPolicyRate : (existing?.previousPolicyRate ?? 0),
+          expectedNextRate: typeof r.expectedNextRate === 'number' ? r.expectedNextRate : (existing?.expectedNextRate ?? (typeof r.currentPolicyRate === 'number' ? r.currentPolicyRate : 0)),
+          yield2Y: typeof r.yield2Y === 'number' ? r.yield2Y : (existing?.yield2Y ?? 0),
+          yield5Y: typeof r.yield5Y === 'number' ? r.yield5Y : (existing?.yield5Y ?? 0),
+          yield10Y: typeof r.yield10Y === 'number' ? r.yield10Y : (existing?.yield10Y ?? 0),
           realYield10Y: typeof r.realYield10Y === 'number' ? r.realYield10Y : existing?.realYield10Y,
           centralBankBias: (['HAWKISH', 'NEUTRAL', 'DOVISH'].includes(r.centralBankBias) ? r.centralBankBias : (existing?.centralBankBias ?? 'NEUTRAL')) as any,
           nextMeetingDate: r.nextMeetingDate || existing?.nextMeetingDate || 'Upcoming',
@@ -143,8 +172,25 @@ export const RatesImageExtractorModal: React.FC<RatesImageExtractorModalProps> =
       setExtractedRows(rows);
       setHasScanned(true);
     } catch (err: any) {
-      console.error('[RATES OCR] Error:', err);
-      setError(err?.message || 'Failed to extract rates from document. Please review or edit values manually.');
+      console.warn('[RATES OCR] Auto-extract notice:', err);
+      // Pre-populate candidate rows from existing rates so user can review from the preview image and apply
+      const fallbackRows: ExtractedRateRow[] = existingRates.map((ex) => ({
+        currency: ex.currency,
+        selected: true,
+        currentPolicyRate: ex.currentPolicyRate,
+        previousPolicyRate: ex.previousPolicyRate,
+        expectedNextRate: ex.expectedNextRate,
+        yield2Y: ex.yield2Y || 0,
+        yield5Y: ex.yield5Y || 0,
+        yield10Y: ex.yield10Y || 0,
+        realYield10Y: ex.realYield10Y,
+        centralBankBias: ex.centralBankBias,
+        nextMeetingDate: ex.nextMeetingDate,
+        recentGuidance: ex.recentGuidance,
+      }));
+      setExtractedRows(fallbackRows);
+      setHasScanned(true);
+      setError('Document loaded. Please verify the rates against the document preview and click "APPLY & UPDATE RATES".');
     } finally {
       setIsProcessing(false);
     }

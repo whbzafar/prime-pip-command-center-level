@@ -32,6 +32,7 @@ interface RatesAndYieldsViewProps {
   onSelectCurrency?: (curr: CurrencyCode) => void;
   interestRates?: InterestRateRecord[];
   onUpdateInterestRate?: (updated: InterestRateRecord) => void;
+  onUpdateAllInterestRates?: (updated: InterestRateRecord[]) => void;
 }
 
 export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
@@ -39,6 +40,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
   onSelectCurrency,
   interestRates,
   onUpdateInterestRate,
+  onUpdateAllInterestRates,
 }) => {
   const rateRecords = interestRates || DEFAULT_INTEREST_RATES;
   const [editingRecord, setEditingRecord] = useState<InterestRateRecord | null>(null);
@@ -731,7 +733,11 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
           onClose={() => setIsImageExtractorOpen(false)}
           existingRates={rateRecords}
           onApplyRates={(newRates) => {
-            newRates.forEach((nr) => onUpdateInterestRate?.(nr));
+            if (onUpdateAllInterestRates) {
+              onUpdateAllInterestRates(newRates);
+            } else {
+              newRates.forEach((nr) => onUpdateInterestRate?.(nr));
+            }
             setRatesMessage(`✓ Successfully extracted and updated ${newRates.length} Central Bank rates.`);
           }}
         />

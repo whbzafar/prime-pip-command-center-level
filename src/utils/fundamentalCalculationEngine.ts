@@ -207,15 +207,15 @@ export function calculateIndicatorScore(
 
 export function calculateCategoryScores(
   currency: CurrencyCode,
-  observations: IndicatorObservation[],
+  observations: IndicatorObservation[] = [],
   customWeights: ModelCategoryWeights = DEFAULT_CATEGORY_WEIGHTS,
   cotRecords: CotPositioningRecord[] = [],
-  sentimentRecords: MarketSentimentRecord[],
-  interestRateRecords: InterestRateRecord[],
+  sentimentRecords: MarketSentimentRecord[] = [],
+  interestRateRecords: InterestRateRecord[] = [],
   retailPositioning: RetailPositioningRecord[] = []
 ): Record<IndicatorCategory, CategoryScoreResult> {
   const definitions = OFFICIAL_INDICATOR_REGISTRY.filter((d) => d.currency === currency && d.isActive);
-  const obsMap = new Map<string, IndicatorObservation>(observations.filter((o) => o.currency === currency).map((o) => [o.indicatorId, o]));
+  const obsMap = new Map<string, IndicatorObservation>((observations || []).filter((o) => o && o.currency === currency).map((o) => [o.indicatorId, o]));
 
   const categoryLabels: Record<IndicatorCategory, string> = {
     MONETARY_POLICY: 'Monetary Policy & Central Bank',
@@ -522,18 +522,25 @@ export function calculateCurrencyScore(
   }
 
   let assessmentLabel = 'NEUTRAL / MIXED';
+  let canonicalBias: 'STRONGLY_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONGLY_BEARISH' = 'NEUTRAL';
   if (totalApplicableWeight === 0 && completedIndicators === 0) {
     assessmentLabel = 'NEUTRAL / MIXED';
+    canonicalBias = 'NEUTRAL';
   } else if (compositeScore >= 40) {
     assessmentLabel = 'STRONGLY BULLISH';
+    canonicalBias = 'STRONGLY_BULLISH';
   } else if (compositeScore >= 12) {
     assessmentLabel = 'BULLISH';
+    canonicalBias = 'BULLISH';
   } else if (compositeScore <= -40) {
     assessmentLabel = 'STRONGLY BEARISH';
+    canonicalBias = 'STRONGLY_BEARISH';
   } else if (compositeScore <= -12) {
     assessmentLabel = 'BEARISH';
+    canonicalBias = 'BEARISH';
   } else {
     assessmentLabel = 'NEUTRAL / MIXED';
+    canonicalBias = 'NEUTRAL';
   }
 
   return {
@@ -541,6 +548,8 @@ export function calculateCurrencyScore(
     currencyName,
     score: compositeScore,
     finalCompositeScore: compositeScore,
+    bias: canonicalBias,
+    activeIndicatorCount: completedIndicators,
     primaryDrivers: primarySupport,
     interestRateLevel: interestRateRecords.find((r) => r.currency === currency && Number.isFinite(r.currentPolicyRate))?.currentPolicyRate
       ?? observations.find((o) => o.currency === currency && o.indicatorId.includes('POLICY'))?.actual,
@@ -691,6 +700,7 @@ export function calculatePairDifferential(
     bias,
     biasLabel,
     fundamentalBias: biasLabel,
+    direction: shortTermDirection || biasLabel,
     shortTermDirection,
     mediumTermDirection,
     longTermDirection,

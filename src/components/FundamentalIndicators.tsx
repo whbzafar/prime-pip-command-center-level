@@ -148,6 +148,64 @@ export const FundamentalIndicators: React.FC = () => {
       return updated;
     });
 
+    // If commodity observations were uploaded, update commodityObservations
+    const commoditySymbols: ('GOLD' | 'SILVER' | 'CRUDE_OIL')[] = ['GOLD', 'SILVER', 'CRUDE_OIL'];
+    const activeCommSymbols = commoditySymbols.filter(
+      (sym) =>
+        selection === sym ||
+        updatedObservations.some((o) =>
+          o.indicatorName.toUpperCase().includes(sym) ||
+          o.indicatorId.toUpperCase().includes(sym) ||
+          (sym === 'GOLD' && (o.indicatorName.toUpperCase().includes('XAU') || o.indicatorName.toLowerCase().includes('gold'))) ||
+          (sym === 'SILVER' && (o.indicatorName.toUpperCase().includes('XAG') || o.indicatorName.toLowerCase().includes('silver'))) ||
+          (sym === 'CRUDE_OIL' && (o.indicatorName.toUpperCase().includes('OIL') || o.indicatorName.toLowerCase().includes('wti') || o.indicatorName.toLowerCase().includes('crude')))
+        )
+    );
+
+    if (activeCommSymbols.length > 0) {
+      setCommodityObservations((prev) => {
+        let next = [...prev];
+        for (const sym of activeCommSymbols) {
+          const symRows = updatedObservations.filter((o) =>
+            selection === sym ||
+            o.indicatorName.toUpperCase().includes(sym) ||
+            o.indicatorId.toUpperCase().includes(sym) ||
+            (sym === 'GOLD' && (o.indicatorName.toUpperCase().includes('XAU') || o.indicatorName.toLowerCase().includes('gold'))) ||
+            (sym === 'SILVER' && (o.indicatorName.toUpperCase().includes('XAG') || o.indicatorName.toLowerCase().includes('silver'))) ||
+            (sym === 'CRUDE_OIL' && (o.indicatorName.toUpperCase().includes('OIL') || o.indicatorName.toLowerCase().includes('wti') || o.indicatorName.toLowerCase().includes('crude')))
+          );
+
+          const priceRow = symRows.find((r) => r.indicatorName.toLowerCase().includes('price') || r.unit === '$' || (typeof r.actual === 'number' && r.actual > 20)) || symRows[0];
+          const yieldRow = symRows.find((r) => r.indicatorName.toLowerCase().includes('yield') || r.indicatorName.toLowerCase().includes('tips'));
+          const breakevenRow = symRows.find((r) => r.indicatorName.toLowerCase().includes('breakeven'));
+          const inventoryRow = symRows.find((r) => r.indicatorName.toLowerCase().includes('inventor'));
+
+          const priceVal = priceRow && typeof priceRow.actual === 'number' && !isNaN(priceRow.actual) ? priceRow.actual : undefined;
+
+          next = next.map((comm) => {
+            if (comm.symbol === sym) {
+              return {
+                ...comm,
+                price: priceVal !== undefined ? priceVal : comm.price,
+                usRealYield10Y: yieldRow && typeof yieldRow.actual === 'number' ? yieldRow.actual : comm.usRealYield10Y,
+                inflationBreakeven5Y: breakevenRow && typeof breakevenRow.actual === 'number' ? breakevenRow.actual : comm.inflationBreakeven5Y,
+                inventoriesWeeklySurpriseMb: inventoryRow && typeof inventoryRow.actual === 'number' ? inventoryRow.actual : comm.inventoriesWeeklySurpriseMb,
+                referenceDate: priceRow?.referencePeriod || new Date().toISOString().slice(0, 10),
+                updatedAt: new Date().toISOString(),
+                notes: priceRow?.notes || 'Extracted from uploaded economic document',
+              };
+            }
+            return comm;
+          });
+        }
+        try {
+          localStorage.setItem('primepip_fundamental_commodities_v2', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+      window.dispatchEvent(new CustomEvent('primepipfx_fundamental_updated', { detail: { type: 'COMMODITIES' } }));
+    }
+
     // Mandatory server-side patching into persistent institutional storage
     void patchFundamentalObservations(updatedObservations, 'Uploaded Economic Document').then((res) => {
       if (res?.ok) {
@@ -156,16 +214,54 @@ export const FundamentalIndicators: React.FC = () => {
     });
   };
 
-  // Mandatory Initial Data Fetch from Persistent Server Database
+  // Safe Initial Data Fetch & Sync with Persistent Server Database
   useEffect(() => {
     let isMounted = true;
     void fetchFundamentalObservations().then((data) => {
       if (!isMounted || !data || !Array.isArray(data.observations) || data.observations.length === 0) return;
-      setObservations(data.observations);
-      try {
-        localStorage.setItem(LOCAL_STORAGE_OBSERVATIONS_KEY, JSON.stringify(data.observations));
-      } catch {}
-      console.log(`[Fundamental] Synced ${data.observations.length} indicators from persistent database.`);
+
+      setObservations((currentLocal) => {
+        // Check if current local observations have user-entered or extracted document data
+        const hasCustomData = currentLocal.some(
+          (o) => o.dataStatus === 'EXTRACTED_FROM_IMAGE' || o.verificationStatus === 'MANUAL'
+        );
+
+        // If local has custom data and server has no user patches yet (cold start on serverless/Vercel)
+        if (hasCustomData && (!data.meta || data.meta.totalPatches === 0)) {
+          // Keep the local observations and push them to the server so server is patched!
+          void patchFundamentalObservations(currentLocal, 'Sync from Client Persistent Cache');
+          return currentLocal;
+        }
+
+        // If server has patches or local is default, merge cleanly
+        const serverMap = new Map<string, IndicatorObservation>();
+        for (const s of data.observations) {
+          serverMap.set(s.indicatorId, s);
+        }
+
+        const merged = currentLocal.map((localItem) => {
+          const serverItem = serverMap.get(localItem.indicatorId);
+          if (!serverItem) return localItem;
+          // If local has an uncommitted extracted/manual item and server is baseline, keep local
+          if (localItem.dataStatus === 'EXTRACTED_FROM_IMAGE' && serverItem.dataStatus !== 'EXTRACTED_FROM_IMAGE') {
+            return localItem;
+          }
+          return serverItem;
+        });
+
+        // Add any server items not in local
+        for (const s of data.observations) {
+          if (!currentLocal.some((l) => l.indicatorId === s.indicatorId)) {
+            merged.push(s);
+          }
+        }
+
+        try {
+          localStorage.setItem(LOCAL_STORAGE_OBSERVATIONS_KEY, JSON.stringify(merged));
+        } catch {}
+        return merged;
+      });
+      console.log(`[Fundamental] Synced ${data.observations.length} indicators with persistent database.`);
     });
 
     const handlePatchReceived = (e: any) => {
@@ -443,36 +539,80 @@ export const FundamentalIndicators: React.FC = () => {
 
   // Observation Update Handler
   const handleUpdateObservation = (updated: IndicatorObservation) => {
+    const enriched: IndicatorObservation = {
+      ...updated,
+      verificationStatus: (updated.verificationStatus || 'MANUAL') as any,
+      updatedAt: new Date().toISOString(),
+    };
     setObservations((prev) => {
       const idx = prev.findIndex((o) => o.indicatorId === updated.indicatorId);
+      let next: IndicatorObservation[];
       if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = updated;
-        return next;
+        next = [...prev];
+        next[idx] = enriched;
+      } else {
+        next = [...prev, enriched];
       }
-      return [...prev, updated];
+      try {
+        localStorage.setItem(LOCAL_STORAGE_OBSERVATIONS_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
     });
+    void patchFundamentalObservations([enriched], 'User Manual Entry');
   };
 
   // Retail positioning update handler
   const handleUpdateRetailPositioning = (records: RetailPositioningRecord[]) => setRetailPositioning(records);
 
-  // Interest Rate Update Handler
-  const handleUpdateCommodity = (updated: (typeof DEFAULT_COMMODITY_OBSERVATIONS)[number]) => {
-    setCommodityObservations((prev) => prev.map((item) => item.symbol === updated.symbol ? updated : item));
+  // Interest Rate & Commodity Update Handlers
+  const handleUpdateCommodity = (updated: Partial<(typeof DEFAULT_COMMODITY_OBSERVATIONS)[number]>) => {
+    setCommodityObservations((prev) => {
+      const next = prev.map((item) => (item.symbol === updated.symbol ? { ...item, ...updated } : item));
+      try {
+        localStorage.setItem('primepip_fundamental_commodities_v2', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   };
 
   const handleUpdateInterestRate = (updated: InterestRateRecord) => {
     setInterestRates((prev) => {
       const exists = prev.some((r) => r.currency === updated.currency);
-      return exists ? prev.map((r) => (r.currency === updated.currency ? updated : r)) : [...prev, updated];
+      const next = exists ? prev.map((r) => (r.currency === updated.currency ? { ...r, ...updated } : r)) : [...prev, updated];
+      try {
+        localStorage.setItem(LOCAL_STORAGE_RATES_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
     });
+  };
+
+  const handleUpdateAllInterestRates = (updatedList: InterestRateRecord[]) => {
+    setInterestRates((prev) => {
+      const next = [...prev];
+      for (const updated of updatedList) {
+        const idx = next.findIndex((r) => r.currency === updated.currency);
+        if (idx >= 0) {
+          next[idx] = { ...next[idx], ...updated };
+        } else {
+          next.push(updated);
+        }
+      }
+      try {
+        localStorage.setItem(LOCAL_STORAGE_RATES_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    window.dispatchEvent(new CustomEvent('primepipfx_fundamental_updated', { detail: { type: 'RATES' } }));
   };
 
   const handleUpdateSentimentRecord = (updated: MarketSentimentRecord) => {
     setSentimentRecords((prev) => {
       const exists = prev.some((r) => r.currency === updated.currency);
-      return exists ? prev.map((r) => (r.currency === updated.currency ? updated : r)) : [...prev, updated];
+      const next = exists ? prev.map((r) => (r.currency === updated.currency ? { ...r, ...updated } : r)) : [...prev, updated];
+      try {
+        localStorage.setItem(LOCAL_STORAGE_SENTIMENT_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
     });
   };
 
@@ -998,6 +1138,7 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
         <RatesAndYieldsView
           interestRates={interestRates}
           onUpdateInterestRate={handleUpdateInterestRate}
+          onUpdateAllInterestRates={handleUpdateAllInterestRates}
           currencyScores={currencyScores}
           onSelectCurrency={(c) => {
             setActiveCurrency(c);

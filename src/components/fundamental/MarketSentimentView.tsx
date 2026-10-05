@@ -144,42 +144,33 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
     setPairsData((prev) => {
       const next = { ...prev };
       for (const item of extracted) {
-        const pKey = item.pair;
-        const long = item.longPercent;
-        const short = item.shortPercent;
+        const rawKey = String(item.pair || '').trim();
+        const def = PAIRS_31_DEFINITIONS.find(
+          (d) =>
+            d.pair.replace(/[\s\-_/]/g, '').toUpperCase() ===
+            rawKey.replace(/[\s\-_/]/g, '').toUpperCase()
+        );
+        const canonicalKey = def?.pair || (rawKey.includes('/') ? rawKey.toUpperCase() : (rawKey.length === 6 ? `${rawKey.slice(0, 3)}/${rawKey.slice(3)}`.toUpperCase() : rawKey));
+        const long = Math.min(100, Math.max(0, typeof item.longPercent === 'number' ? item.longPercent : 50));
+        const short = Math.min(100, Math.max(0, typeof item.shortPercent === 'number' ? item.shortPercent : 100 - long));
         const bias = long > short ? 'BULLISH' : long < short ? 'BEARISH' : 'NEUTRAL';
         const contrarianSignal = long > short ? 'BEARISH' : long < short ? 'BULLISH' : 'NEUTRAL';
-        if (next[pKey]) {
-          next[pKey] = {
-            ...next[pKey],
-            longPercent: long,
-            shortPercent: short,
-            bias,
-            contrarianSignal,
-            notes: item.notes || next[pKey].notes,
-            updatedAt: new Date().toISOString(),
-            isEntered: true,
-          };
-        } else {
-          const def = PAIRS_31_DEFINITIONS.find(
-            (d) => d.pair.replace(/\//g, '').toUpperCase() === pKey.replace(/\//g, '').toUpperCase()
-          );
-          next[pKey] = {
-            pair: def?.pair || pKey,
-            name: def?.name || pKey,
-            category: def?.category || 'MAJOR',
-            flags: def?.flags || '🌐',
-            longPercent: long,
-            shortPercent: short,
-            bias,
-            contrarianSignal,
-            sampleSize: def?.sampleSize || 'Broker Network',
-            source: 'Uploaded Screenshot / PDF Extraction',
-            notes: item.notes || 'Extracted via optical intelligence.',
-            updatedAt: new Date().toISOString(),
-            isEntered: true,
-          };
-        }
+
+        next[canonicalKey] = {
+          pair: canonicalKey,
+          name: def?.name || canonicalKey,
+          category: def?.category || 'MAJOR',
+          flags: def?.flags || '🌐',
+          longPercent: long,
+          shortPercent: short,
+          bias,
+          contrarianSignal,
+          sampleSize: def?.sampleSize || 'Broker Network',
+          source: 'Uploaded Screenshot / PDF Extraction',
+          notes: item.notes || next[canonicalKey]?.notes || 'Extracted via optical intelligence.',
+          updatedAt: new Date().toISOString(),
+          isEntered: true,
+        };
       }
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -187,6 +178,7 @@ export const MarketSentimentView: React.FC<MarketSentimentViewProps> = ({
       return next;
     });
     setSentimentMessage(`✓ Applied ${extracted.length} sentiment positions extracted from document.`);
+    window.dispatchEvent(new CustomEvent('primepipfx_fundamental_updated', { detail: { type: 'SENTIMENT' } }));
     setIsUploadModalOpen(false);
   };
 

@@ -635,14 +635,14 @@ export function generateSingleCurrencyReportPdf(
     doc.setTextColor(30, 41, 59);
 
     const shortName = def.shortLabel || def.name;
-    const displayName = shortName.length > 22 ? shortName.slice(0, 21) + '…' : shortName;
-    doc.text(displayName, colX.name, y + 3);
+    const cleanLabel = shortName.length > 26 ? shortName.slice(0, 26).trim() : shortName;
+    doc.text(cleanLabel, colX.name, y + 4);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
+    doc.setFontSize(5.8);
     doc.setTextColor(100, 116, 139);
     const catText = def.category.replace('_', ' ');
-    doc.text(catText, colX.name, y + 6.5);
+    doc.text(catText, colX.name, y + 7.2);
 
     // Actual
     doc.setFont('helvetica', 'bold');
@@ -820,7 +820,7 @@ export function generateCommodityReportPdf(
 
     doc.setFontSize(9);
     doc.setTextColor(14, 116, 144);
-    doc.text(`Spot Price: $${comm.price > 0 ? comm.price.toLocaleString() : 'N/A'} USD`, 120, y + 8);
+    doc.text(`Spot Price: USD ${comm.price > 0 ? comm.price.toLocaleString() : 'N/A'}`, 120, y + 8);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
@@ -1414,16 +1414,20 @@ export function generateRatesAndYieldsReportPdf(interestRates: InterestRateRecor
     doc.text(rec.currency, colX.curr, y + 4);
 
     doc.setTextColor(30, 41, 59);
-    doc.text(rec.centralBankName.slice(0, 28), colX.cb, y + 4);
+    const cbName = String(rec.centralBankName || (rec as any).centralBank || 'Central Bank');
+    doc.text(cbName.slice(0, 28), colX.cb, y + 4);
 
-    doc.text(`${rec.currentPolicyRate.toFixed(2)}%`, colX.rate, y + 4);
+    const currRate = typeof rec.currentPolicyRate === 'number' ? rec.currentPolicyRate : typeof (rec as any).rate === 'number' ? (rec as any).rate : 0;
+    doc.text(`${currRate.toFixed(2)}%`, colX.rate, y + 4);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(100, 116, 139);
-    doc.text(`${rec.previousPolicyRate.toFixed(2)}%`, colX.prevRate, y + 4);
+    const prevRate = typeof rec.previousPolicyRate === 'number' ? rec.previousPolicyRate : typeof (rec as any).previousRate === 'number' ? (rec as any).previousRate : currRate;
+    doc.text(`${prevRate.toFixed(2)}%`, colX.prevRate, y + 4);
 
-    doc.text(`${rec.expectedNextRate.toFixed(2)}%`, colX.expected, y + 4);
+    const expRate = typeof rec.expectedNextRate === 'number' ? rec.expectedNextRate : currRate;
+    doc.text(`${expRate.toFixed(2)}%`, colX.expected, y + 4);
 
     // Bias
     doc.setFont('helvetica', 'bold');

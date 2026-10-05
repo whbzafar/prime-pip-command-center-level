@@ -127,7 +127,6 @@ import {
   isSupabaseCommunityEnabled,
   upsertTraderProfile,
   syncTraderProfiles,
-  recordSupabaseHeartbeat,
   readCommunityMessagesSupabase,
   postCommunityMessageSupabase,
   markCommunityMessagesSeenSupabase,
@@ -165,7 +164,6 @@ import {
   uploadMediaSupabase,
   readMediaObjectSupabase,
 } from "./server/supabaseCommunityService.js";
-import { listDurableCommunityTraders, updateDurablePresencePrivacy } from "./server/supabaseCommunityIdentity.js";
 
 dotenv.config();
 
@@ -1961,6 +1959,10 @@ function safeParseNum(val: any): number | null {
 }
 
 import {
+  extractTextFromPdf,
+  extractTextFromPdfAsync,
+  isPdfPayload,
+  getCleanBase64,
   parseCurrencyDocumentText,
   parseCommodityDocumentText,
   parseRatesDocumentText,
@@ -1976,7 +1978,7 @@ app.post('/api/fundamental/extract-from-image', async (req, res) => {
       return res.status(400).json({ success: false, error: 'No image or PDF data provided for extraction.' });
     }
 
-    const cleanBase64 = String(image).replace(/^data:[^;]+;base64,/, '').trim();
+    const cleanBase64 = getCleanBase64(String(image));
     const cleanSelection = String(selection || 'ALL').toUpperCase().trim();
     const isMultiCurrency = cleanSelection === 'ALL' || cleanSelection === 'ALL_CURRENCIES' || cleanSelection === 'MULTI' || !cleanSelection;
     const isCommodity =
@@ -1989,45 +1991,49 @@ app.post('/api/fundamental/extract-from-image', async (req, res) => {
       cleanSelection.includes('WTI');
 
     let pdfText = '';
-    const isPdfFile =
-      mimeType === 'application/pdf' ||
-      image.startsWith('data:application/pdf') ||
-      cleanBase64.startsWith('JVBERi0');
+    const isPdfFile = isPdfPayload(image, mimeType);
 
     if (isPdfFile) {
       try {
-        const pdfBuf = Buffer.from(cleanBase64, 'base64');
-        const parser = new PDFParse({ data: pdfBuf });
-        const parsedPdf = await parser.getText();
-        await parser.destroy();
-        pdfText = (parsedPdf?.text || '').trim();
-        console.log(`[FUNDAMENTAL OCR] Extracted ${pdfText.length} characters from PDF.`);
+        pdfText = (await extractTextFromPdfAsync(cleanBase64)).trim();
+        console.log(`[FUNDAMENTAL OCR] Extracted ${pdfText.length} characters from PDF via extractTextFromPdfAsync.`);
       } catch (err: any) {
-        console.warn('[FUNDAMENTAL OCR] pdf-parse failed:', err?.message || err);
+        console.warn('[FUNDAMENTAL OCR] extractTextFromPdfAsync failed:', err?.message || err);
+      }
+      if (!pdfText) {
+        try {
+          const pdfBuf = Buffer.from(cleanBase64, 'base64');
+          const parser = new PDFParse({ data: pdfBuf });
+          const parsedPdf = await parser.getText();
+          await parser.destroy();
+          pdfText = (parsedPdf?.text || '').trim();
+          console.log(`[FUNDAMENTAL OCR] Extracted ${pdfText.length} characters from PDF via pdf-parse.`);
+        } catch (err: any) {
+          console.warn('[FUNDAMENTAL OCR] pdf-parse failed:', err?.message || err);
+        }
       }
     }
 
     // PRIORITY 1: 100% Deterministic extraction if text is extracted from PDF
     if (pdfText) {
-      const extracted = parseCurrencyDocumentText(pdfText, cleanSelection);
-      if (extracted && extracted.length > 0) {
-        console.log(`[FUNDAMENTAL OCR] Deterministically extracted ${extracted.length} item(s) directly from PDF text.`);
+      const extractedFromPdf = parseCurrencyDocumentText(pdfText, cleanSelection);
+      if (extractedFromPdf && extractedFromPdf.length > 0) {
+        console.log(`[FUNDAMENTAL OCR] Successfully extracted ${extractedFromPdf.length} items directly from document with 100% fidelity.`);
         return res.json({
-          success: true, selection: cleanSelection, extractedCount: extracted.length,
-          indicators: extracted, source: 'DOCUMENT_PDF_EXACT',
+          success: true,
+          selection: cleanSelection,
+          extractedCount: extractedFromPdf.length,
+          indicators: extractedFromPdf,
+          source: 'DOCUMENT_PDF_EXACT',
         });
       }
-      return res.status(422).json({
-        success: false,
-        error: 'PDF text was readable, but no supported rows could be mapped exactly. No baseline or guessed values were substituted.',
-        source: 'DOCUMENT_PDF_UNMAPPED',
-      });
     }
+
     // PRIORITY 2: If image (e.g. screenshot or photo), use Gemini Vision OCR
     let parsedResult: any = null;
     const ai = getGeminiClient();
     if (ai) {
-      const candidateModels = ['gemini-3.8-flash'];
+      const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
       let extractionPrompt = '';
 
       if (isCommodity) {
@@ -2101,21 +2107,25 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
           });
           contents.push({ text: extractionPrompt });
 
-          const response = await ai.models.generateContent({
-            model,
-            contents,
-            config: {
-              temperature: 0.1,
-              responseMimeType: 'application/json',
-            },
-          });
+          const response = await withTimeout(
+            ai.models.generateContent({
+              model,
+              contents,
+              config: {
+                temperature: 0.1,
+                responseMimeType: 'application/json',
+              },
+            }),
+            20000
+          );
 
-          const text = (response.text || '').trim();
-          if (text) {
-            const first = text.indexOf('{');
-            const last = text.lastIndexOf('}');
+          const rawText = (response.text || '').trim();
+          const cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+          if (cleanText) {
+            const first = cleanText.indexOf('{');
+            const last = cleanText.lastIndexOf('}');
             if (first >= 0 && last > first) {
-              parsedResult = JSON.parse(text.slice(first, last + 1));
+              parsedResult = JSON.parse(cleanText.slice(first, last + 1));
               if (parsedResult && (Array.isArray(parsedResult.indicators) || typeof parsedResult.commodityPrice === 'number')) {
                 break;
               }
@@ -2164,13 +2174,11 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
       });
     }
 
-        return res.status(422).json({
+    // CRITICAL: NEVER INVENT DATA OR USE FAKE DEFAULTS
+    return res.status(422).json({
       success: false,
-      error: 'Exact OCR extraction could not be completed. No baseline, default, or guessed values were substituted.',
-      source: 'EXTRACTION_UNVERIFIED',
+      error: 'Unable to reliably extract the Actual / Forecast / Previous values from this document. No values were substituted.',
     });
-
-
   } catch (error: any) {
     console.error('[IMAGE OCR] Error in extract-from-image:', error);
     return res.status(500).json({ success: false, error: error?.message });
@@ -2187,46 +2195,50 @@ app.post('/api/fundamental/extract-rates-from-image', async (req, res) => {
       return res.status(400).json({ success: false, error: 'No image or PDF data provided for rates extraction.' });
     }
 
-    const cleanBase64 = String(image).replace(/^data:[^;]+;base64,/, '').trim();
-    const isPdfFile =
-      mimeType === 'application/pdf' ||
-      image.startsWith('data:application/pdf') ||
-      cleanBase64.startsWith('JVBERi0');
+    const cleanBase64 = getCleanBase64(String(image));
+    const isPdfFile = isPdfPayload(image, mimeType);
 
     let pdfText = '';
     if (isPdfFile) {
       try {
-        const pdfBuf = Buffer.from(cleanBase64, 'base64');
-        const parser = new PDFParse({ data: pdfBuf });
-        const parsedPdf = await parser.getText();
-        await parser.destroy();
-        pdfText = (parsedPdf?.text || '').trim();
-        console.log(`[RATES OCR] Extracted ${pdfText.length} characters from PDF.`);
+        pdfText = (await extractTextFromPdfAsync(cleanBase64)).trim();
+        console.log(`[RATES OCR] Extracted ${pdfText.length} characters from PDF via extractTextFromPdfAsync.`);
       } catch (err: any) {
-        console.warn('[RATES OCR] pdf-parse failed:', err?.message || err);
+        console.warn('[RATES OCR] extractTextFromPdfAsync failed:', err?.message || err);
+      }
+      if (!pdfText) {
+        try {
+          const pdfBuf = Buffer.from(cleanBase64, 'base64');
+          const parser = new PDFParse({ data: pdfBuf });
+          const parsedPdf = await parser.getText();
+          await parser.destroy();
+          pdfText = (parsedPdf?.text || '').trim();
+          console.log(`[RATES OCR] Extracted ${pdfText.length} characters from PDF via pdf-parse.`);
+        } catch (err: any) {
+          console.warn('[RATES OCR] pdf-parse failed:', err?.message || err);
+        }
       }
     }
 
     // Priority 1: Deterministic rates extraction from PDF text
     if (pdfText) {
-      const extracted = parseRatesDocumentText(pdfText);
-      if (extracted && extracted.length > 0) {
-        console.log(`[RATES OCR] Deterministically extracted ${extracted.length} item(s) directly from PDF text.`);
+      const extractedRates = parseRatesDocumentText(pdfText);
+      if (extractedRates && extractedRates.length > 0) {
+        console.log(`[RATES OCR] parseRatesDocumentText successfully extracted ${extractedRates.length} rates directly from document.`);
         return res.json({
-          success: true, extractedCount: extracted.length, rates: extracted, source: 'DOCUMENT_PDF_EXACT',
+          success: true,
+          extractedCount: extractedRates.length,
+          rates: extractedRates,
+          source: 'DOCUMENT_PDF_EXACT',
         });
       }
-      return res.status(422).json({
-        success: false,
-        error: 'PDF text was readable, but no supported rows could be mapped exactly. No baseline or guessed values were substituted.',
-        source: 'DOCUMENT_PDF_UNMAPPED',
-      });
     }
+
     // Priority 2: Gemini Vision for screenshots
     let parsedResult: any = null;
     const ai = getGeminiClient();
     if (ai) {
-      const candidateModels = ['gemini-3.8-flash'];
+      const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
       const ratesPrompt = `You are an institutional macro bond and central bank interest rate parser.
 Scan this screenshot of central bank policy rates, sovereign bond yields (2Y, 5Y, 10Y), and rate guidance.
 Extract the data for all visible currencies (USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD):
@@ -2272,21 +2284,25 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
           });
           contents.push({ text: ratesPrompt });
 
-          const response = await ai.models.generateContent({
-            model,
-            contents,
-            config: {
-              temperature: 0.1,
-              responseMimeType: 'application/json',
-            },
-          });
+          const response = await withTimeout(
+            ai.models.generateContent({
+              model,
+              contents,
+              config: {
+                temperature: 0.1,
+                responseMimeType: 'application/json',
+              },
+            }),
+            20000
+          );
 
-          const text = (response.text || '').trim();
-          if (text) {
-            const first = text.indexOf('{');
-            const last = text.lastIndexOf('}');
+          const rawText = (response.text || '').trim();
+          const cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+          if (cleanText) {
+            const first = cleanText.indexOf('{');
+            const last = cleanText.lastIndexOf('}');
             if (first >= 0 && last > first) {
-              const aiParsed = JSON.parse(text.slice(first, last + 1));
+              const aiParsed = JSON.parse(cleanText.slice(first, last + 1));
               if (aiParsed && Array.isArray(aiParsed.rates) && aiParsed.rates.length > 0) {
                 parsedResult = aiParsed;
                 break;
@@ -2308,13 +2324,11 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
       });
     }
 
-        return res.status(422).json({
+    // CRITICAL: NEVER INVENT DATA OR USE FAKE DEFAULTS
+    return res.status(422).json({
       success: false,
-      error: 'Exact OCR extraction could not be completed. No baseline, default, or guessed values were substituted.',
-      source: 'EXTRACTION_UNVERIFIED',
+      error: 'Unable to reliably extract policy rates from this document. No values were substituted.',
     });
-
-
   } catch (error: any) {
     console.error('[RATES OCR] Error:', error);
     return res.status(500).json({ success: false, error: error?.message });
@@ -2331,46 +2345,50 @@ app.post('/api/fundamental/extract-cot-from-image', async (req, res) => {
       return res.status(400).json({ success: false, error: 'No image or PDF data provided for COT extraction.' });
     }
 
-    const cleanBase64 = String(image).replace(/^data:[^;]+;base64,/, '').trim();
-    const isPdfFile =
-      mimeType === 'application/pdf' ||
-      image.startsWith('data:application/pdf') ||
-      cleanBase64.startsWith('JVBERi0');
+    const cleanBase64 = getCleanBase64(String(image));
+    const isPdfFile = isPdfPayload(image, mimeType);
 
     let pdfText = '';
     if (isPdfFile) {
       try {
-        const pdfBuf = Buffer.from(cleanBase64, 'base64');
-        const parser = new PDFParse({ data: pdfBuf });
-        const parsedPdf = await parser.getText();
-        await parser.destroy();
-        pdfText = (parsedPdf?.text || '').trim();
-        console.log(`[COT OCR] Extracted ${pdfText.length} characters from PDF.`);
+        pdfText = (await extractTextFromPdfAsync(cleanBase64)).trim();
+        console.log(`[COT OCR] Extracted ${pdfText.length} characters from PDF via extractTextFromPdfAsync.`);
       } catch (err: any) {
-        console.warn('[COT OCR] pdf-parse failed:', err?.message || err);
+        console.warn('[COT OCR] extractTextFromPdfAsync failed:', err?.message || err);
+      }
+      if (!pdfText) {
+        try {
+          const pdfBuf = Buffer.from(cleanBase64, 'base64');
+          const parser = new PDFParse({ data: pdfBuf });
+          const parsedPdf = await parser.getText();
+          await parser.destroy();
+          pdfText = (parsedPdf?.text || '').trim();
+          console.log(`[COT OCR] Extracted ${pdfText.length} characters from PDF via pdf-parse.`);
+        } catch (err: any) {
+          console.warn('[COT OCR] pdf-parse failed:', err?.message || err);
+        }
       }
     }
 
     // Priority 1: Deterministic COT extraction from PDF
     if (pdfText) {
-      const extracted = parseCotDocumentText(pdfText);
-      if (extracted && extracted.length > 0) {
-        console.log(`[COT OCR] Deterministically extracted ${extracted.length} item(s) directly from PDF text.`);
+      const extractedRecords = parseCotDocumentText(pdfText);
+      if (extractedRecords && extractedRecords.length > 0) {
+        console.log(`[COT OCR] parseCotDocumentText successfully extracted ${extractedRecords.length} records directly from document.`);
         return res.json({
-          success: true, extractedCount: extracted.length, records: extracted, source: 'DOCUMENT_PDF_EXACT',
+          success: true,
+          extractedCount: extractedRecords.length,
+          records: extractedRecords,
+          source: 'DOCUMENT_PDF_EXACT',
         });
       }
-      return res.status(422).json({
-        success: false,
-        error: 'PDF text was readable, but no supported rows could be mapped exactly. No baseline or guessed values were substituted.',
-        source: 'DOCUMENT_PDF_UNMAPPED',
-      });
     }
+
     // Priority 2: Gemini Vision for screenshots
     let parsedResult: any = null;
     const ai = getGeminiClient();
     if (ai) {
-      const candidateModels = ['gemini-3.8-flash'];
+      const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
       const cotPrompt = `You are an institutional CFTC Commitments of Traders (COT) report parser.
 Scan this screenshot of the CFTC Commitments of Traders report for currencies (USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD) or commodities (XAU / Gold, XAG / Silver, OIL / Crude Oil).
 Extract:
@@ -2414,21 +2432,25 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
           });
           contents.push({ text: cotPrompt });
 
-          const response = await ai.models.generateContent({
-            model,
-            contents,
-            config: {
-              temperature: 0.1,
-              responseMimeType: 'application/json',
-            },
-          });
+          const response = await withTimeout(
+            ai.models.generateContent({
+              model,
+              contents,
+              config: {
+                temperature: 0.1,
+                responseMimeType: 'application/json',
+              },
+            }),
+            20000
+          );
 
-          const text = (response.text || '').trim();
-          if (text) {
-            const first = text.indexOf('{');
-            const last = text.lastIndexOf('}');
+          const rawText = (response.text || '').trim();
+          const cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+          if (cleanText) {
+            const first = cleanText.indexOf('{');
+            const last = cleanText.lastIndexOf('}');
             if (first >= 0 && last > first) {
-              const aiParsed = JSON.parse(text.slice(first, last + 1));
+              const aiParsed = JSON.parse(cleanText.slice(first, last + 1));
               if (aiParsed && Array.isArray(aiParsed.records) && aiParsed.records.length > 0) {
                 parsedResult = aiParsed;
                 break;
@@ -2450,13 +2472,11 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
       });
     }
 
-        return res.status(422).json({
+    // CRITICAL: NEVER INVENT DATA OR USE FAKE DEFAULTS
+    return res.status(422).json({
       success: false,
-      error: 'Exact OCR extraction could not be completed. No baseline, default, or guessed values were substituted.',
-      source: 'EXTRACTION_UNVERIFIED',
+      error: 'Unable to reliably extract COT positioning records from this document. No values were substituted.',
     });
-
-
   } catch (error: any) {
     console.error('[COT OCR] Error:', error);
     return res.status(500).json({ success: false, error: error?.message });
@@ -2473,46 +2493,50 @@ app.post('/api/fundamental/extract-sentiment-from-image', async (req, res) => {
       return res.status(400).json({ success: false, error: 'No image or PDF data provided for sentiment extraction.' });
     }
 
-    const cleanBase64 = String(image).replace(/^data:[^;]+;base64,/, '').trim();
-    const isPdfFile =
-      mimeType === 'application/pdf' ||
-      image.startsWith('data:application/pdf') ||
-      cleanBase64.startsWith('JVBERi0');
+    const cleanBase64 = getCleanBase64(String(image));
+    const isPdfFile = isPdfPayload(image, mimeType);
 
     let pdfText = '';
     if (isPdfFile) {
       try {
-        const pdfBuf = Buffer.from(cleanBase64, 'base64');
-        const parser = new PDFParse({ data: pdfBuf });
-        const parsedPdf = await parser.getText();
-        await parser.destroy();
-        pdfText = (parsedPdf?.text || '').trim();
-        console.log(`[SENTIMENT OCR] Extracted ${pdfText.length} characters from PDF.`);
+        pdfText = (await extractTextFromPdfAsync(cleanBase64)).trim();
+        console.log(`[SENTIMENT OCR] Extracted ${pdfText.length} characters from PDF via extractTextFromPdfAsync.`);
       } catch (err: any) {
-        console.warn('[SENTIMENT OCR] pdf-parse failed:', err?.message || err);
+        console.warn('[SENTIMENT OCR] extractTextFromPdfAsync failed:', err?.message || err);
+      }
+      if (!pdfText) {
+        try {
+          const pdfBuf = Buffer.from(cleanBase64, 'base64');
+          const parser = new PDFParse({ data: pdfBuf });
+          const parsedPdf = await parser.getText();
+          await parser.destroy();
+          pdfText = (parsedPdf?.text || '').trim();
+          console.log(`[SENTIMENT OCR] Extracted ${pdfText.length} characters from PDF via pdf-parse.`);
+        } catch (err: any) {
+          console.warn('[SENTIMENT OCR] pdf-parse failed:', err?.message || err);
+        }
       }
     }
 
     // Priority 1: Deterministic sentiment extraction from PDF
     if (pdfText) {
-      const extracted = parseSentimentDocumentText(pdfText);
-      if (extracted && extracted.length > 0) {
-        console.log(`[SENTIMENT OCR] Deterministically extracted ${extracted.length} item(s) directly from PDF text.`);
+      const extractedSentiments = parseSentimentDocumentText(pdfText);
+      if (extractedSentiments && extractedSentiments.length > 0) {
+        console.log(`[SENTIMENT OCR] parseSentimentDocumentText successfully extracted ${extractedSentiments.length} instruments directly from document.`);
         return res.json({
-          success: true, extractedCount: extracted.length, sentiments: extracted, source: 'DOCUMENT_PDF_EXACT',
+          success: true,
+          extractedCount: extractedSentiments.length,
+          sentiments: extractedSentiments,
+          source: 'DOCUMENT_PDF_EXACT',
         });
       }
-      return res.status(422).json({
-        success: false,
-        error: 'PDF text was readable, but no supported rows could be mapped exactly. No baseline or guessed values were substituted.',
-        source: 'DOCUMENT_PDF_UNMAPPED',
-      });
     }
+
     // Priority 2: Gemini Vision for screenshots
     let parsedResult: any = null;
     const ai = getGeminiClient();
     if (ai) {
-      const candidateModels = ['gemini-3.8-flash'];
+      const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
       const sentimentPrompt = `You are an institutional retail sentiment parser for Forex and commodities (Myfxbook, OANDA, IG).
 Scan this screenshot of retail long/short positioning ratios across currency pairs and commodities.
 Extract:
@@ -2544,21 +2568,25 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
           });
           contents.push({ text: sentimentPrompt });
 
-          const response = await ai.models.generateContent({
-            model,
-            contents,
-            config: {
-              temperature: 0.1,
-              responseMimeType: 'application/json',
-            },
-          });
+          const response = await withTimeout(
+            ai.models.generateContent({
+              model,
+              contents,
+              config: {
+                temperature: 0.1,
+                responseMimeType: 'application/json',
+              },
+            }),
+            20000
+          );
 
-          const text = (response.text || '').trim();
-          if (text) {
-            const first = text.indexOf('{');
-            const last = text.lastIndexOf('}');
+          const rawText = (response.text || '').trim();
+          const cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+          if (cleanText) {
+            const first = cleanText.indexOf('{');
+            const last = cleanText.lastIndexOf('}');
             if (first >= 0 && last > first) {
-              const aiParsed = JSON.parse(text.slice(first, last + 1));
+              const aiParsed = JSON.parse(cleanText.slice(first, last + 1));
               if (aiParsed && Array.isArray(aiParsed.sentiments) && aiParsed.sentiments.length > 0) {
                 parsedResult = aiParsed;
                 break;
@@ -2580,13 +2608,11 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
       });
     }
 
-        return res.status(422).json({
+    // CRITICAL: NEVER INVENT DATA OR USE FAKE DEFAULTS
+    return res.status(422).json({
       success: false,
-      error: 'Exact OCR extraction could not be completed. No baseline, default, or guessed values were substituted.',
-      source: 'EXTRACTION_UNVERIFIED',
+      error: 'Unable to reliably extract market sentiment from this document. No values were substituted.',
     });
-
-
   } catch (error: any) {
     console.error('[SENTIMENT OCR] Error:', error);
     return res.status(500).json({ success: false, error: error?.message });
@@ -4349,7 +4375,6 @@ app.post('/api/user/heartbeat', async (req, res) => {
         displayName: user.name || user.username,
         role: user.role,
       });
-      await recordSupabaseHeartbeat(user.id);
     }
     return res.json({ ok: true, userId: user.id, isOnline: true });
   } catch (err: any) {
@@ -4366,13 +4391,9 @@ app.patch('/api/user/presence-privacy', async (req, res) => {
     if (typeof req.body?.showActiveStatus !== 'boolean') {
       return res.status(400).json({ ok: false, error: 'showActiveStatus must be a boolean' });
     }
-    if (isSupabaseCommunityEnabled) {
-      await updateDurablePresencePrivacy(user.id, req.body.showActiveStatus);
-      return res.json({ ok: true, showActiveStatus: req.body.showActiveStatus, backend: 'supabase' });
-    }
     const updated = updatePresencePrivacy(user.id, req.body.showActiveStatus);
     return updated
-      ? res.json({ ok: true, showActiveStatus: req.body.showActiveStatus, backend: 'local-fallback' })
+      ? res.json({ ok: true, showActiveStatus: req.body.showActiveStatus })
       : res.status(404).json({ ok: false, error: 'User not found' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
@@ -4873,38 +4894,23 @@ app.get('/api/friends/all-traders', async (req, res) => {
     }
 
     if (isSupabaseCommunityEnabled) {
-      const durable = await listDurableCommunityTraders(currentUserId);
-      const profiles = await getCommunityTradersSupabase();
-      const byId = new Map<string, any>();
-      for (const p of Array.isArray(profiles) ? profiles : []) byId.set(String(p.user_id), p);
-      // Preserve every existing community profile. Durable identity rows are
-      // merged in only when a profile has not yet been projected.
-      for (const u of durable) {
-        if (!byId.has(String(u.id))) {
-          byId.set(String(u.id), {
-            user_id: u.id, username: u.username, display_name: u.name || u.username,
-            role: u.role === 'ADMIN' || u.isDeveloper ? 'ADMIN' : 'CUSTOMER',
-            last_seen_at: null, created_at: u.createdAt,
-            show_active_status: u.showActiveStatus !== false,
-          });
-        }
+      let rows = await getCommunityTradersSupabase();
+      if (!Array.isArray(rows) || rows.length === 0) {
+        rows = await getSupabaseTraderDirectory(currentUserId);
       }
-      const durableById = new Map(durable.map((u: any) => [String(u.id), u]));
       const now = Date.now();
-      const traders = Array.from(byId.values())
+      const traders = (Array.isArray(rows) ? rows : [])
         .filter((row: any) => !currentUserId || String(row.user_id) !== String(currentUserId))
         .map((row: any) => {
-          const durableUser = durableById.get(String(row.user_id));
-          const showActive = durableUser ? durableUser.showActiveStatus !== false : row.show_active_status !== false;
           const lastSeen = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0;
-          const online = Boolean(lastSeen && now - lastSeen < 2 * 60 * 1000 && showActive);
+          const online = Boolean(lastSeen && now - lastSeen < 2 * 60 * 1000);
           return {
             id: row.user_id,
             username: row.username,
             displayName: row.display_name || row.username,
             role: row.role === 'ADMIN' ? 'ADMIN' : 'STUDENT',
             isOnline: online,
-            presenceStatus: showActive ? (online ? 'ACTIVE' : 'OFFLINE') : 'HIDDEN',
+            presenceStatus: online ? 'ACTIVE' : 'OFFLINE',
             lastSeen,
             createdAt: row.created_at,
           };
@@ -4937,27 +4943,25 @@ app.get('/api/friends/search', async (req, res) => {
     if (isSupabaseCommunityEnabled) {
       let rows: any[] = [];
       try {
-        const durable = await listDurableCommunityTraders(currentUser.id);
-        const profiles = await getCommunityTradersSupabase();
-        const durableById = new Map(durable.map((u: any) => [String(u.id), u]));
-        const merged = new Map<string, any>();
-        for (const p of Array.isArray(profiles) ? profiles : []) merged.set(String(p.user_id), p);
-        for (const u of durable) if (!merged.has(String(u.id))) {
-          merged.set(String(u.id), {
-            user_id: u.id, username: u.username, display_name: u.name || u.username,
-            role: u.role, last_seen_at: null, created_at: u.createdAt,
-            show_active_status: u.showActiveStatus !== false,
-          });
-        }
-        rows = Array.from(merged.values()).map((row: any) => {
-          const u = durableById.get(String(row.user_id));
-          return {
-            ...row,
-            show_active_status: u ? u.showActiveStatus !== false : row.show_active_status !== false,
-          };
-        });
+        const profileRows = await getCommunityTradersSupabase();
+        rows = Array.isArray(profileRows) ? profileRows : [];
       } catch (error: any) {
-        console.warn('[FRIENDS SEARCH] durable directory unavailable:', error?.message || error);
+        console.warn('[FRIENDS SEARCH] profile directory unavailable:', error?.message || error);
+      }
+      if (!rows.length) {
+        try {
+          const directoryRows = await getSupabaseTraderDirectory(currentUser.id);
+          rows = Array.isArray(directoryRows) ? directoryRows : [];
+        } catch (error: any) {
+          console.warn('[FRIENDS SEARCH] durable directory unavailable:', error?.message || error);
+        }
+      }
+      if (!rows.length) {
+        rows = getAllRegisteredTraders(currentUser.id).map((trader: any) => ({
+          user_id: trader.id, username: trader.username,
+          display_name: trader.displayName || trader.username,
+          role: trader.role, last_seen_at: null, created_at: null,
+        }));
       }
       const now = Date.now();
       const results = rows.map((row: any) => {

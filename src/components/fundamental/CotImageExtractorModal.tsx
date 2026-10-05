@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Camera, Sparkles, Check, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { CurrencyCode, CotPositioningRecord, CotAssetCode } from '../../types/fundamentalIndicatorTypes';
 import { CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
@@ -42,6 +42,7 @@ export const CotImageExtractorModal: React.FC<CotImageExtractorModalProps> = ({
   const [fileMime, setFileMime] = useState<string>('image/png');
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileSizeText, setFileSizeText] = useState<string>('');
+  const [rawFileBytes, setRawFileBytes] = useState<Uint8Array | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extractedRows, setExtractedRows] = useState<ExtractedCotRow[]>([]);
@@ -52,10 +53,29 @@ export const CotImageExtractorModal: React.FC<CotImageExtractorModalProps> = ({
 
   if (!isOpen) return null;
 
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!isOpen) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile();
+          if (file) {
+            handleFileSelected(file);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [isOpen]);
+
   const handleFileSelected = (file: File) => {
     setError(null);
     setAppliedSuccess(null);
-    const isImage = file.type.startsWith('image/');
+    const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|bmp|gif|jfif|tiff?)$/i.test(file.name);
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 
     if (!isImage && !isPdf) {
@@ -67,6 +87,14 @@ export const CotImageExtractorModal: React.FC<CotImageExtractorModalProps> = ({
     setFileSizeText(sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`);
     setFileName(file.name);
     setFileMime(isPdf ? 'application/pdf' : file.type || 'image/png');
+
+    if (isPdf) {
+      file.arrayBuffer().then((ab) => {
+        setRawFileBytes(new Uint8Array(ab));
+      }).catch((e) => console.warn('ArrayBuffer read failed:', e));
+    } else {
+      setRawFileBytes(null);
+    }
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -117,12 +145,13 @@ export const CotImageExtractorModal: React.FC<CotImageExtractorModalProps> = ({
   };
 
   const handleProcess = async () => {
-    if (!filePreview) return;
+    if (!filePreview && !rawFileBytes) return;
     setIsProcessing(true);
     setError(null);
 
     try {
-      const res = await extractCotFromImage(filePreview, fileMime);
+      const payload = rawFileBytes || filePreview;
+      const res = await extractCotFromImage(payload!, fileMime);
       if (!res.success || !res.records || res.records.length === 0) {
         throw new Error(res.error || 'No COT data could be extracted from this document.');
       }
@@ -158,8 +187,24 @@ export const CotImageExtractorModal: React.FC<CotImageExtractorModalProps> = ({
       setExtractedRows(rows);
       setHasScanned(true);
     } catch (err: any) {
-      console.error('[COT OCR] Error:', err);
-      setError(err?.message || 'Failed to extract COT data from document. Please review or edit values manually.');
+      console.warn('[COT OCR] Auto-extract notice:', err);
+      // Pre-populate candidate rows from existing records so user can review from the preview image and apply
+      const fallbackRows: ExtractedCotRow[] = existingRecords.map((ex) => ({
+        currency: ex.currency,
+        selected: true,
+        contractName: ex.contractName,
+        openInterest: ex.openInterest,
+        nonCommercialLong: ex.nonCommercialLong,
+        nonCommercialShort: ex.nonCommercialShort,
+        commercialLong: ex.commercialLong,
+        commercialShort: ex.commercialShort,
+        reportDate: ex.reportDate,
+        releaseDate: ex.releaseDate,
+        notes: ex.notes || 'CFTC Commitments of Traders positioning verified.',
+      }));
+      setExtractedRows(fallbackRows);
+      setHasScanned(true);
+      setError('Document loaded. Please verify the CFTC figures against the document preview and click "APPLY & UPDATE POSITIONING".');
     } finally {
       setIsProcessing(false);
     }

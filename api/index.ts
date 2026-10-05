@@ -24,3 +24,13 @@ export default function handler(req: Request, res: Response) {
     if (!res.headersSent) return res.status(500).json({ ok: false, error: err?.message || 'Server initialization error' });
   }
 }
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '25mb',
+    },
+    responseLimit: '25mb',
+  },
+  maxDuration: 60,
+};
