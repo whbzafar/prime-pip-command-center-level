@@ -100,6 +100,7 @@ import {
   deleteAnnouncement,
 } from "./server/signalService.js";
 import { getFundamentalStrengthDashboard } from "./server/fundamentalStrengthService.js";
+import { fundamentalDataStatusRoute, fundamentalDataSyncRoute } from "./server/fundamentalDataRoutes.js";
 import { OFFICIAL_INDICATOR_REGISTRY } from "./src/data/fundamentalRegistryData.js";
 import {
   getVerifiedIndicatorFallback,
@@ -3273,6 +3274,11 @@ app.get('/api/fundamental-indicators/dashboard', async (_req, res) => {
     return res.status(502).json({ error: 'Fundamental strength data is temporarily unavailable.' });
   }
 });
+
+// Verified Fundamental Data Control Center.
+// This layer is source-controlled and deliberately separate from the existing scoring engine.
+app.get('/api/fundamental-data/status', fundamentalDataStatusRoute);
+app.post('/api/fundamental-data/sync', fundamentalDataSyncRoute);
 
 // Route: Get current user
 app.get('/api/auth/me', (req, res) => {
