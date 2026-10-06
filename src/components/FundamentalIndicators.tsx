@@ -91,7 +91,7 @@ import {
   fetchFundamentalObservations,
   patchFundamentalObservations,
 } from '../services/fundamentalLiveResearchService';
-import { getVerifiedFundamentalStatus, syncVerifiedFundamentalData, VerifiedFundamentalStatus } from '../services/verifiedFundamentalDataClient';
+import { getVerifiedFundamentalStatus, syncVerifiedFundamentalData, type VerifiedFundamentalStatus } from '../services/verifiedFundamentalDataClient';
 
 export type FundamentalDashboardTab =
   | 'OVERVIEW'
