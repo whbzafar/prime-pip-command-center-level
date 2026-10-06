@@ -45,6 +45,7 @@ import { calculateNextTradeReadiness } from '../utils/readinessEngine';
 import { evaluateFundedAccountRisk, isFundedAccount } from '../utils/fundedRiskEngine';
 import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
 import { FundamentalNotificationBanner } from './fundamental/FundamentalNotificationBanner';
+import { TradeApprovalModal } from './TradeApprovalModal';
 
 
 
@@ -92,6 +93,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   const [announcements, setAnnouncements] = useState<InAppAnnouncement[]>([]);
   const [dismissedSignalIds, setDismissedSignalIds] = useState<string[]>([]);
   const [dismissedAnnIds, setDismissedAnnIds] = useState<string[]>([]);
+  const [isTradeApprovalOpen, setIsTradeApprovalOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -551,104 +553,284 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
         </div>
       </div>
 
-      {/* Funded Account Risk Engine Command Strip */}
+      {/* FUNDED ACCOUNT COMMAND CENTER */}
       {(() => {
         const fundedEval = evaluateFundedAccountRisk(account, trades);
         const fundedMode = isFundedAccount(account);
         return (
-          <div className="rounded-2xl bg-slate-950/90 border border-cyan-500/35 p-4 sm:p-5 shadow-xl space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-cyan-400">
-                  <ShieldCheck className="w-4 h-4" />
+          <div className="rounded-2xl bg-slate-950/95 border border-cyan-500/35 p-4 sm:p-6 shadow-2xl space-y-4">
+            {/* Command Center Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3.5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0">
+                  <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs sm:text-sm font-military font-bold text-slate-100 uppercase tracking-wider">
-                      FUNDED ACCOUNT RISK COMMAND ENGINE
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[10px] font-mono-code font-bold uppercase">
+                    <h3 className="text-sm sm:text-base font-military font-bold text-slate-100 uppercase tracking-wider">
+                      FUNDED ACCOUNT COMMAND CENTER
+                    </h3>
+                    <span className="px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 text-[10px] font-mono-code font-bold uppercase">
                       {fundedMode ? `${fundedEval.firmName} • ${fundedEval.phaseLabel}` : 'PERSONAL / PROP READY'}
                     </span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-mono-code font-bold uppercase">
+                      HEALTH: {fundedEval.healthScore.score}/100 ({fundedEval.healthScore.status})
+                    </span>
                   </div>
-                  <p className="text-[11px] font-mono-code text-slate-400">
-                    {fundedEval.shouldTakeTradeQuestionAnswer}
+                  <p className="text-xs font-mono-code text-slate-400 mt-0.5">
+                    Real-time prop firm rule enforcement • Trailing & daily drawdown defense • Auditable next-trade sizing
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setIsTradeApprovalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 text-xs font-military font-bold tracking-wider uppercase flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 cursor-pointer"
+                >
+                  <Crosshair className="w-3.5 h-3.5" />
+                  <span>CAN I TAKE THIS TRADE?</span>
+                </button>
+
                 {onOpenAccountModal && (
                   <button
                     type="button"
                     onClick={onOpenAccountModal}
-                    className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-mono-code cursor-pointer"
+                    className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-mono-code cursor-pointer"
                   >
-                    Account Type: {fundedMode ? 'Funded' : 'Personal'}
+                    Type: {fundedMode ? 'Funded' : 'Personal'}
                   </button>
                 )}
+
                 <button
                   type="button"
                   onClick={() => onNavigateToTab('RISK')}
-                  className="px-3.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-military font-bold tracking-wider uppercase cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-cyan-500/40 text-cyan-300 text-xs font-military font-bold tracking-wider uppercase cursor-pointer"
                 >
-                  Open Risk Command →
+                  Risk Center →
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 font-mono-code text-xs">
-              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-cyan-500/30">
-                <span className="text-[10px] text-cyan-300 uppercase font-bold block">
-                  SAFE NEXT TRADE RISK
+            {/* Section 28 Grid Cards: 8 Primary Telemetry Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 font-mono-code text-xs">
+              {/* 1. Account Balance */}
+              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase block font-medium">Account Balance</span>
+                <span className="text-sm sm:text-base font-bold text-cyan-300 mt-0.5 block">
+                  {formatCurrency(fundedEval.currentBalance, account.currency)}
                 </span>
-                <span className="text-sm sm:text-base font-black text-white mt-0.5 block">
-                  {formatCurrency(fundedEval.recommendedRiskDollars, account.currency)} ({fundedEval.recommendedRiskPercent}%)
+                <span className="text-[9px] text-slate-500 block truncate">Start: {formatCurrency(fundedEval.startingBalance, account.currency)}</span>
+              </div>
+
+              {/* 2. Equity */}
+              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase block font-medium">Live Equity</span>
+                <span className="text-sm sm:text-base font-bold text-emerald-300 mt-0.5 block">
+                  {formatCurrency(fundedEval.currentEquity, account.currency)}
+                </span>
+                <span className="text-[9px] text-slate-500 block">
+                  Float: {fundedEval.todayUnrealizedPnL >= 0 ? '+' : ''}{formatCurrency(fundedEval.todayUnrealizedPnL, account.currency)}
                 </span>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                  DAILY DD REMAINING
-                </span>
-                <span className="text-sm sm:text-base font-bold text-cyan-400 mt-0.5 block">
-                  {formatCurrency(fundedEval.remainingDailyDrawdown, account.currency)}
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                  OVERALL DD REMAINING
-                </span>
-                <span className="text-sm sm:text-base font-bold text-amber-300 mt-0.5 block">
-                  {formatCurrency(fundedEval.remainingOverallDrawdown, account.currency)}
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                  PROFIT TARGET PROGRESS
-                </span>
-                <span className="text-sm sm:text-base font-bold text-emerald-400 mt-0.5 block">
-                  {fundedEval.profitProgressPercent}% (Rem: {formatCurrency(fundedEval.remainingProfitTarget, account.currency)})
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                  DECISION VERDICT
-                </span>
+              {/* 3. Today's P&L */}
+              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase block font-medium">Today's P&L</span>
                 <span
-                  className={`text-xs sm:text-sm font-black mt-0.5 block ${
-                    fundedEval.verdict === 'TAKE_TRADE'
-                      ? 'text-emerald-400'
-                      : fundedEval.verdict === 'REDUCE_RISK'
-                      ? 'text-amber-300'
-                      : 'text-rose-400'
+                  className={`text-sm sm:text-base font-bold mt-0.5 block ${
+                    fundedEval.todayRealizedPnL >= 0 ? 'text-emerald-400' : 'text-rose-400'
                   }`}
                 >
-                  {fundedEval.verdict.replace('_', ' ')}
+                  {fundedEval.todayRealizedPnL >= 0 ? '+' : ''}
+                  {formatCurrency(fundedEval.todayRealizedPnL, account.currency)}
                 </span>
+                <span className="text-[9px] text-slate-500 block">{fundedEval.tradesToday} Trade{fundedEval.tradesToday === 1 ? '' : 's'} Today</span>
+              </div>
+
+              {/* 4. Daily DD Remaining */}
+              <div className="p-3 rounded-xl bg-slate-900/80 border border-cyan-500/30">
+                <span className="text-[10px] text-cyan-300 uppercase block font-bold">Daily DD Remaining</span>
+                <span className="text-sm sm:text-base font-black text-cyan-400 mt-0.5 block">
+                  {formatCurrency(fundedEval.remainingDailyDrawdown, account.currency)}
+                </span>
+                <span className="text-[9px] text-slate-400 block truncate">
+                  Limit: {formatCurrency(fundedEval.dailyDrawdownLimitDollars, account.currency)} ({fundedEval.dailyDrawdownUsedPercent}% Used)
+                </span>
+              </div>
+
+              {/* 5. Overall DD Remaining */}
+              <div className="p-3 rounded-xl bg-slate-900/80 border border-amber-500/30">
+                <span className="text-[10px] text-amber-300 uppercase block font-bold">Overall DD Remaining</span>
+                <span className="text-sm sm:text-base font-black text-amber-300 mt-0.5 block">
+                  {formatCurrency(fundedEval.remainingOverallDrawdown, account.currency)}
+                </span>
+                <span className="text-[9px] text-slate-400 block truncate">
+                  Floor: {formatCurrency(fundedEval.activeLiquidationThreshold, account.currency)}
+                </span>
+              </div>
+
+              {/* 6. Phase Progress */}
+              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase block font-medium">Phase Progress</span>
+                <span className="text-sm sm:text-base font-bold text-emerald-400 mt-0.5 block">
+                  {fundedEval.profitProgressPercent}%
+                </span>
+                <span className="text-[9px] text-slate-400 block truncate">
+                  Rem: {formatCurrency(fundedEval.remainingProfitTarget, account.currency)}
+                </span>
+              </div>
+
+              {/* 7. Risk Per Trade */}
+              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase block font-medium">Risk Per Trade</span>
+                <span className="text-sm sm:text-base font-bold text-white mt-0.5 block">
+                  {formatCurrency(fundedEval.recommendedRiskDollars, account.currency)}
+                </span>
+                <span className="text-[9px] text-cyan-400 block truncate">
+                  {fundedEval.recommendedRiskPercent}% (Rec) vs {fundedEval.maxRiskPerTradePercent}% (Max)
+                </span>
+              </div>
+
+              {/* 8. Consecutive Losses */}
+              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase block font-medium">Streak / Today</span>
+                <span
+                  className={`text-sm sm:text-base font-bold mt-0.5 block ${
+                    fundedEval.consecutiveLosses > 0 ? 'text-amber-400' : 'text-slate-200'
+                  }`}
+                >
+                  {fundedEval.consecutiveLosses > 0
+                    ? `${fundedEval.consecutiveLosses} Loss${fundedEval.consecutiveLosses > 1 ? 'es' : ''}`
+                    : fundedEval.consecutiveWins > 0
+                    ? `${fundedEval.consecutiveWins} Wins`
+                    : '0 Streak'}
+                </span>
+                <span className="text-[9px] text-slate-500 block truncate">
+                  Cap: {fundedEval.tradesToday}/{account.maxDailyTrades || 2} Trades
+                </span>
+              </div>
+            </div>
+
+            {/* Section 28: Large NEXT TRADE Card */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-1">
+              {/* Left 8 Cols: NEXT TRADE Execution Command */}
+              <div className="lg:col-span-8 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-slate-900/90 via-slate-950 to-[#0A0F1D] border border-cyan-500/40 shadow-xl space-y-3 font-mono-code">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Crosshair className="w-4 h-4 text-cyan-400" />
+                    <span className="text-xs font-military font-bold text-slate-100 uppercase tracking-wider">
+                      NEXT TRADE RECOMMENDATION
+                    </span>
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-lg text-xs font-military font-bold uppercase tracking-wider ${
+                      fundedEval.verdict === 'TAKE_TRADE'
+                        ? 'bg-emerald-500 text-slate-950 font-black'
+                        : fundedEval.verdict === 'REDUCE_RISK'
+                        ? 'bg-amber-400 text-slate-950 font-black'
+                        : fundedEval.verdict === 'TARGET_PASSED'
+                        ? 'bg-cyan-400 text-slate-950 font-black'
+                        : 'bg-rose-500 text-slate-950 font-black'
+                    }`}
+                  >
+                    STATUS: {fundedEval.verdict === 'TAKE_TRADE' ? '🟢 SAFE TO TRADE' : fundedEval.verdict === 'REDUCE_RISK' ? '🟡 REDUCE RISK' : fundedEval.verdict === 'TARGET_PASSED' ? '🏆 TARGET PASSED' : '🔴 STOP TRADING'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-cyan-500/30">
+                    <span className="text-[10px] text-cyan-300 uppercase block font-bold">RECOMMENDED RISK</span>
+                    <span className="text-2xl sm:text-3xl font-military font-black text-white mt-1 block">
+                      {formatCurrency(fundedEval.recommendedRiskDollars, account.currency)}
+                    </span>
+                    <span className="text-xs font-bold text-cyan-400 block mt-0.5">
+                      {fundedEval.recommendedRiskPercent}% of Balance
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+                    <span className="text-[10px] text-slate-400 uppercase block font-bold">MAX PERMITTED LOSS</span>
+                    <span className="text-2xl sm:text-3xl font-military font-black text-rose-400 mt-1 block">
+                      {formatCurrency(fundedEval.hardCeilingRiskDollars, account.currency)}
+                    </span>
+                    <span className="text-xs font-bold text-slate-400 block mt-0.5">
+                      Firm Hard Ceiling
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase block font-bold">EXECUTION CUSHION</span>
+                      <span className="text-xs text-slate-200 mt-1 block">
+                        Loss Buffer: <strong>{fundedEval.tradesToDailyBreachAtRecommended} trades</strong> before Daily DD
+                      </span>
+                      <span className="text-xs text-slate-200 block">
+                        Safety Buffer: <strong>{fundedEval.safetyBufferPercent}%</strong> applied
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsTradeApprovalOpen(true)}
+                      className="mt-2 w-full py-1.5 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-military font-bold text-[11px] tracking-wider uppercase transition cursor-pointer"
+                    >
+                      Verify Trade Setup →
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                  <strong>Controlling Constraint:</strong> <span className="text-amber-300">{fundedEval.limitingFactor}</span>. {fundedEval.nextTradeRiskQuestionAnswer}
+                </div>
+              </div>
+
+              {/* Right 4 Cols: Phase Target Progress & Health Breakdown */}
+              <div className="lg:col-span-4 p-4 rounded-2xl bg-slate-950/90 border border-slate-800 space-y-3 font-mono-code text-xs flex flex-col justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span className="text-xs font-military font-bold text-slate-200 uppercase tracking-wider">
+                      {fundedEval.phaseLabel}
+                    </span>
+                    <span className="font-bold text-emerald-400">{fundedEval.profitProgressPercent}% Done</span>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full h-2.5 rounded-full bg-slate-900 border border-slate-800 overflow-hidden p-0.5">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-300"
+                      style={{ width: `${Math.min(100, Math.max(0, fundedEval.profitProgressPercent))}%` }}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 text-[11px] pt-1">
+                    <div className="flex justify-between text-slate-300">
+                      <span>Target:</span>
+                      <span className="font-bold text-emerald-400">+{formatCurrency(fundedEval.activeProfitTargetDollars, account.currency)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Current P&L:</span>
+                      <span className={`font-bold ${fundedEval.currentProfitLoss >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {fundedEval.currentProfitLoss >= 0 ? '+' : ''}{formatCurrency(fundedEval.currentProfitLoss, account.currency)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Remaining:</span>
+                      <span className="font-bold text-amber-300">{formatCurrency(fundedEval.remainingProfitTarget, account.currency)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+                  <span>Drawdown Rule: <strong className="text-slate-200">{fundedEval.drawdownTypeLabel}</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => onNavigateToTab('RISK')}
+                    className="text-cyan-400 hover:underline font-bold"
+                  >
+                    Details →
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1503,6 +1685,20 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Interactive "CAN I TAKE THIS TRADE?" Trade Approval Modal */}
+      {isTradeApprovalOpen && (
+        <TradeApprovalModal
+          isOpen={isTradeApprovalOpen}
+          onClose={() => setIsTradeApprovalOpen(false)}
+          account={account}
+          trades={trades}
+          onApplyTradeToJournal={() => {
+            setIsTradeApprovalOpen(false);
+            onOpenNewTrade();
+          }}
+        />
+      )}
     </div>
   );
 };

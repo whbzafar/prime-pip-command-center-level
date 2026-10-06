@@ -147,6 +147,9 @@ interface Props {
   onOpenCot?: (currency: CurrencyCode) => void;
   onOpenSentiment?: (currency: CurrencyCode) => void;
   onOpenCommodities?: () => void;
+  onOpenIndices?: () => void;
+  onOpenStocks?: () => void;
+  onOpenCrypto?: () => void;
   onOpenImageExtractor?: (selection?: string) => void;
 }
 
@@ -164,6 +167,9 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
   onOpenCot,
   onOpenSentiment,
   onOpenCommodities,
+  onOpenIndices,
+  onOpenStocks,
+  onOpenCrypto,
   onOpenImageExtractor,
 }) => {
   const [loading, setLoading] = useState<string | null>(null);
@@ -765,12 +771,24 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
       {/* SECTION 2: MAJOR INDICES (US30, NAS100, S&P500) */}
       {(assetCategoryFilter === 'ALL' || assetCategoryFilter === 'INDEX') && (
         <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-military font-bold text-blue-300 uppercase tracking-wider flex items-center gap-2">
-              <Landmark className="w-4 h-4 text-cyan-400" />
-              <span>Major US Equity Indices (US30 • NAS100 • S&P500) — Fundamental Status</span>
-            </h3>
-            <span className="text-xs font-mono-code text-slate-400">Earnings Growth, Forward P/E & Real Yield Sensitivity</span>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-military font-bold text-blue-300 uppercase tracking-wider flex items-center gap-2">
+                <Landmark className="w-4 h-4 text-cyan-400" />
+                <span>Major US Equity Indices (US30 • NAS100 • S&P500) — Fundamental Status</span>
+              </h3>
+              <p className="text-xs font-mono-code text-slate-400">Earnings Growth, Forward P/E & Real Yield Sensitivity</p>
+            </div>
+            {onOpenIndices && (
+              <button
+                type="button"
+                onClick={() => onOpenIndices()}
+                className="px-3 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-xs font-mono-code font-bold uppercase transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <Landmark className="w-3.5 h-3.5" />
+                <span>Open Indices Macro Terminal</span>
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {indexAssets.map(renderMultiAssetCard)}
@@ -781,12 +799,24 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
       {/* SECTION 3: TOP STOCKS (NVDA, AAPL, MSFT, AMZN, GOOGL, META, TSLA) */}
       {(assetCategoryFilter === 'ALL' || assetCategoryFilter === 'STOCK') && (
         <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-military font-bold text-purple-300 uppercase tracking-wider flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-purple-400" />
-              <span>Top Institutional Equities (NVDA • AAPL • MSFT • AMZN • GOOGL • META • TSLA)</span>
-            </h3>
-            <span className="text-xs font-mono-code text-slate-400">Verified SEC 10-Q/10-K Revenue, EPS & Operating Margins</span>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-military font-bold text-purple-300 uppercase tracking-wider flex items-center gap-2">
+                <Cpu className="w-4 h-4 text-purple-400" />
+                <span>Top Institutional Equities (NVDA • AAPL • MSFT • AMZN • GOOGL • META • TSLA)</span>
+              </h3>
+              <p className="text-xs font-mono-code text-slate-400">Verified SEC 10-Q/10-K Revenue, EPS & Operating Margins</p>
+            </div>
+            {onOpenStocks && (
+              <button
+                type="button"
+                onClick={() => onOpenStocks()}
+                className="px-3 py-1.5 rounded-lg border border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-mono-code font-bold uppercase transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <Cpu className="w-3.5 h-3.5" />
+                <span>Open Equities 10-K Terminal</span>
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {stockAssets.map(renderMultiAssetCard)}
@@ -797,12 +827,24 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
       {/* SECTION 4: TOP 5 CRYPTOCURRENCIES (BTC/USDT, ETH/USDT, BNB/USDT, SOL/USDT, XRP/USDT) */}
       {(assetCategoryFilter === 'ALL' || assetCategoryFilter === 'CRYPTO') && (
         <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-military font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2">
-              <Coins className="w-4 h-4 text-amber-400" />
-              <span>Top 5 Cryptocurrencies (BTC/USDT • ETH/USDT • BNB/USDT • SOL/USDT • XRP/USDT)</span>
-            </h3>
-            <span className="text-xs font-mono-code text-slate-400">Live Institutional Spot Feeds, ETF Flows & On-Chain Fundamentals</span>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-military font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                <Coins className="w-4 h-4 text-amber-400" />
+                <span>Top 5 Cryptocurrencies (BTC/USDT • ETH/USDT • BNB/USDT • SOL/USDT • XRP/USDT)</span>
+              </h3>
+              <p className="text-xs font-mono-code text-slate-400">Live Institutional Spot Feeds, ETF Flows & On-Chain Fundamentals</p>
+            </div>
+            {onOpenCrypto && (
+              <button
+                type="button"
+                onClick={() => onOpenCrypto()}
+                className="px-3 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-mono-code font-bold uppercase transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <Coins className="w-3.5 h-3.5" />
+                <span>Open Crypto & ETF Terminal</span>
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {cryptoAssets.map(renderMultiAssetCard)}

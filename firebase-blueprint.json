@@ -1,0 +1,612 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role-based permissions in the Prime PIP FX Command Center.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "role": {
+          "type": "string",
+          "enum": ["USER", "TRADER", "ANALYST", "ADMIN", "DEVELOPER"],
+          "description": "Role determining access level"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ACTIVE", "SUSPENDED", "PENDING"],
+          "description": "Account status"
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "email", "role", "status", "createdAt", "updatedAt"]
+    },
+    "Asset": {
+      "title": "Asset",
+      "description": "Tradable instrument or asset across Forex, Commodities, Indices, Crypto, and Stocks.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Deterministic asset ID (e.g., asset_usd, asset_xau)" },
+        "symbol": { "type": "string", "description": "Ticker symbol (e.g., USD, XAU, US30, BTCUSDT, NVDA)" },
+        "name": { "type": "string", "description": "Full asset name" },
+        "assetType": {
+          "type": "string",
+          "enum": ["CURRENCY", "COMMODITY", "INDEX", "CRYPTO", "STOCK"],
+          "description": "Asset class category"
+        },
+        "currency": { "type": "string", "description": "Base or quote currency" },
+        "country": { "type": "string", "description": "Jurisdiction or country code" },
+        "exchange": { "type": "string", "description": "Primary exchange or reporting venue" },
+        "status": {
+          "type": "string",
+          "enum": ["ACTIVE", "INACTIVE", "DELISTED"],
+          "description": "Trading availability status"
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "symbol", "name", "assetType", "status", "createdAt", "updatedAt"]
+    },
+    "Currency": {
+      "title": "Currency",
+      "description": "Sovereign currency definition with central bank and benchmark metadata.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Currency ID (e.g., curr_usd)" },
+        "code": { "type": "string", "description": "ISO 4217 Currency Code (e.g., USD, EUR)" },
+        "name": { "type": "string", "description": "Currency name" },
+        "country": { "type": "string", "description": "Issuing country or monetary union" },
+        "centralBank": { "type": "string", "description": "Central bank name" },
+        "policyRateKey": { "type": "string", "description": "Primary policy rate series identifier" },
+        "benchmark10YRateKey": { "type": "string", "description": "Benchmark 10Y sovereign yield identifier" },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "name", "country", "centralBank", "status", "createdAt", "updatedAt"]
+    },
+    "Indicator": {
+      "title": "Indicator",
+      "description": "Fundamental economic indicator registry definition.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Deterministic indicator ID (e.g., ind_us_cpi_yoy)" },
+        "name": { "type": "string", "description": "Full formal indicator title" },
+        "shortName": { "type": "string", "description": "Standard short code" },
+        "category": {
+          "type": "string",
+          "enum": [
+            "MONETARY_POLICY",
+            "INFLATION",
+            "GROWTH",
+            "EMPLOYMENT",
+            "WAGES",
+            "INTEREST_RATES",
+            "BOND_YIELDS",
+            "TRADE",
+            "CONSUMPTION",
+            "BUSINESS_ACTIVITY",
+            "HOUSING",
+            "FISCAL",
+            "COMMODITIES",
+            "SENTIMENT",
+            "POSITIONING"
+          ]
+        },
+        "asset": { "type": "string", "description": "Associated asset symbol" },
+        "currency": { "type": "string", "description": "Associated currency code" },
+        "country": { "type": "string", "description": "Country of release" },
+        "description": { "type": "string", "description": "Methodology description" },
+        "unit": { "type": "string", "description": "Measurement unit (e.g., %, Index, bps, USD)" },
+        "frequency": {
+          "type": "string",
+          "enum": ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "ANNUAL", "IRREGULAR"]
+        },
+        "sourceProvider": { "type": "string", "description": "Primary API provider code" },
+        "sourceIdentifier": { "type": "string", "description": "Series identifier at the official source" },
+        "sourceUrl": { "type": "string", "description": "Official reference URL" },
+        "releaseSchedule": { "type": "string", "description": "Release timing description" },
+        "importance": { "type": "string", "enum": ["HIGH", "MEDIUM", "LOW"] },
+        "directionRule": { "type": "string", "enum": ["HIGHER_IS_BULLISH", "HIGHER_IS_BEARISH", "RANGE_BOUND"] },
+        "status": { "type": "string", "enum": ["ACTIVE", "DEPRECATED", "INACTIVE"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "category", "currency", "country", "unit", "frequency", "importance", "directionRule", "status", "createdAt", "updatedAt"]
+    },
+    "DataSource": {
+      "title": "DataSource",
+      "description": "Authoritative statistical or governmental institution producing financial data.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Source identifier (e.g., src_fed, src_bls, src_ecb)" },
+        "name": { "type": "string", "description": "Organization name" },
+        "organization": { "type": "string", "description": "Parent institutional agency" },
+        "country": { "type": "string", "description": "Country jurisdiction" },
+        "sourceType": {
+          "type": "string",
+          "enum": [
+            "CENTRAL_BANK",
+            "STATISTICAL_AGENCY",
+            "GOVERNMENT_TREASURY",
+            "INTERNATIONAL_ORGANIZATION",
+            "FINANCIAL_EXCHANGE",
+            "COMMERCIAL_VENDOR"
+          ]
+        },
+        "official": { "type": "boolean", "description": "Whether source is an official government agency" },
+        "website": { "type": "string", "description": "Official institutional website" },
+        "apiUrl": { "type": "string", "description": "Official API endpoint" },
+        "documentationUrl": { "type": "string", "description": "Technical documentation URL" },
+        "status": { "type": "string", "enum": ["ACTIVE", "MAINTENANCE", "DEPRECATED"] },
+        "lastSuccessfulSync": { "type": "string" },
+        "lastAttemptedSync": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "organization", "sourceType", "official", "status", "createdAt", "updatedAt"]
+    },
+    "DataProvider": {
+      "title": "DataProvider",
+      "description": "External data pipeline connector integration.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Provider ID (e.g., prov_fred, prov_alpha_vantage)" },
+        "name": { "type": "string", "description": "Service name" },
+        "providerCode": { "type": "string", "description": "Unique provider code" },
+        "baseUrl": { "type": "string", "description": "API base endpoint" },
+        "authType": { "type": "string", "enum": ["API_KEY", "OAUTH", "PUBLIC_NO_AUTH", "MANUAL_VERIFIED"] },
+        "status": { "type": "string", "enum": ["ACTIVE", "MAINTENANCE", "OFFLINE"] },
+        "rateLimitPerMin": { "type": "number", "description": "Requests per minute limit" },
+        "supportedAssetClasses": { "type": "string", "description": "Serialized asset classes supported" },
+        "lastHealthCheck": { "type": "string", "format": "date-time" },
+        "isHealthOk": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "providerCode", "baseUrl", "authType", "status", "createdAt", "updatedAt"]
+    },
+    "Observation": {
+      "title": "Observation",
+      "description": "Official economic indicator observation record. Missing values strictly preserved as null.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Observation ID" },
+        "indicatorId": { "type": "string", "description": "Referenced indicator ID" },
+        "assetId": { "type": "string", "description": "Referenced asset ID" },
+        "currency": { "type": "string", "description": "Currency code" },
+        "country": { "type": "string", "description": "Country code" },
+        "period": { "type": "string", "description": "Reporting period (e.g. 2026-09)" },
+        "periodType": { "type": "string", "enum": ["MONTHLY", "WEEKLY", "DAILY", "QUARTERLY", "ANNUAL"] },
+        "releaseDate": { "type": "string", "description": "Official release date" },
+        "value": { "type": "number", "description": "Realized observation value or null" },
+        "unit": { "type": "string", "description": "Measurement unit" },
+        "previousValue": { "type": "number", "description": "Preceding period value" },
+        "forecastValue": { "type": "number", "description": "Consensus forecast or null" },
+        "actualValue": { "type": "number", "description": "Published actual or null" },
+        "revisionValue": { "type": "number", "description": "Revised value or null" },
+        "isRevision": { "type": "boolean", "description": "Whether observation is a revision" },
+        "sourceId": { "type": "string", "description": "Originating source ID" },
+        "providerId": { "type": "string", "description": "Retrieval provider ID" },
+        "sourceUrl": { "type": "string", "description": "Official release URL" },
+        "retrievedAt": { "type": "string", "format": "date-time" },
+        "validationStatus": {
+          "type": "string",
+          "enum": [
+            "VERIFIED",
+            "PENDING_VALIDATION",
+            "DATA_UNAVAILABLE",
+            "SOURCE_ERROR",
+            "VALIDATION_ERROR",
+            "NEEDS_REVIEW",
+            "SUPERSEDED"
+          ]
+        },
+        "validationReason": { "type": "string" },
+        "dataQuality": { "type": "string", "enum": ["HIGH", "MEDIUM", "LOW", "UNKNOWN"] },
+        "confidence": { "type": "number", "description": "0-100 verification confidence score" },
+        "freshness": { "type": "string", "enum": ["LIVE", "RECENT", "HISTORICAL", "STALE", "UNAVAILABLE"] },
+        "isSyntheticTest": { "type": "boolean", "description": "Must not be true in production" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "indicatorId", "currency", "country", "period", "unit", "isRevision", "sourceId", "providerId", "retrievedAt", "validationStatus", "dataQuality", "confidence", "createdAt", "updatedAt"]
+    },
+    "EconomicRelease": {
+      "title": "EconomicRelease",
+      "description": "Calendar schedule and actual publication record for economic events.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "indicatorId": { "type": "string" },
+        "scheduledReleaseDate": { "type": "string", "format": "date-time" },
+        "actualReleaseDate": { "type": "string" },
+        "period": { "type": "string" },
+        "previous": { "type": "number" },
+        "forecast": { "type": "number" },
+        "actual": { "type": "number" },
+        "revision": { "type": "number" },
+        "source": { "type": "string" },
+        "sourceUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["SCHEDULED", "RELEASED", "DELAYED", "CANCELLED", "DATA_UNAVAILABLE"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "indicatorId", "scheduledReleaseDate", "period", "source", "status", "createdAt", "updatedAt"]
+    },
+    "Revision": {
+      "title": "Revision",
+      "description": "Historical audit of revision changes published by official statistical agencies.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "observationId": { "type": "string" },
+        "originalValue": { "type": "number" },
+        "revisedValue": { "type": "number" },
+        "revisionDate": { "type": "string", "format": "date-time" },
+        "source": { "type": "string" },
+        "reason": { "type": "string" },
+        "sourceUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "observationId", "revisionDate", "source", "sourceUrl", "createdAt"]
+    },
+    "ValidationResult": {
+      "title": "ValidationResult",
+      "description": "Individual verification rule check result evaluating observation authenticity.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "observationId": { "type": "string" },
+        "check": {
+          "type": "string",
+          "enum": [
+            "SOURCE_AUTHENTICITY",
+            "INDICATOR_IDENTITY",
+            "SERIES_IDENTIFIER",
+            "DATE_FORMAT",
+            "PERIOD_FORMAT",
+            "UNIT_VALIDITY",
+            "NUMERICAL_FORMAT",
+            "DUPLICATE_CHECK",
+            "REVISION_CONSISTENCY",
+            "PREVIOUS_VALUE",
+            "ACTUAL_VALUE",
+            "FORECAST_VALUE",
+            "SOURCE_URL",
+            "RETRIEVAL_TIMESTAMP"
+          ]
+        },
+        "status": { "type": "string", "enum": ["PASSED", "FAILED", "WARNING"] },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "observationId", "check", "status", "message", "createdAt"]
+    },
+    "SyncJob": {
+      "title": "SyncJob",
+      "description": "Data synchronization batch job record tracking data pipeline execution.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "provider": { "type": "string" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["RUNNING", "SUCCESS", "PARTIAL_SUCCESS", "FAILED"] },
+        "recordsRequested": { "type": "number" },
+        "recordsReceived": { "type": "number" },
+        "recordsAccepted": { "type": "number" },
+        "recordsRejected": { "type": "number" },
+        "recordsUpdated": { "type": "number" },
+        "recordsSkipped": { "type": "number" },
+        "errorCount": { "type": "number" },
+        "errorMessage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "provider", "startedAt", "status", "recordsRequested", "recordsReceived", "recordsAccepted", "recordsRejected", "recordsUpdated", "recordsSkipped", "errorCount", "createdAt"]
+    },
+    "MarketScore": {
+      "title": "MarketScore",
+      "description": "Calculated algorithmic score for cross-asset markets (Strictly isolated from raw data).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assetId": { "type": "string" },
+        "scoreType": { "type": "string" },
+        "compositeScore": { "type": "number" },
+        "assessmentLabel": { "type": "string" },
+        "calculationTimestamp": { "type": "string", "format": "date-time" },
+        "modelVersion": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "assetId", "compositeScore", "assessmentLabel", "calculationTimestamp", "modelVersion", "createdAt", "updatedAt"]
+    },
+    "CurrencyScore": {
+      "title": "CurrencyScore",
+      "description": "Calculated deterministic macro score for sovereign currencies.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "currency": { "type": "string" },
+        "finalCompositeScore": { "type": "number" },
+        "assessmentLabel": { "type": "string" },
+        "calculationTimestamp": { "type": "string", "format": "date-time" },
+        "modelVersion": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "currency", "finalCompositeScore", "assessmentLabel", "calculationTimestamp", "modelVersion", "createdAt", "updatedAt"]
+    },
+    "PairScore": {
+      "title": "PairScore",
+      "description": "Calculated fundamental divergence score between currency pairs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "pair": { "type": "string" },
+        "baseCurrency": { "type": "string" },
+        "quoteCurrency": { "type": "string" },
+        "netDifferential": { "type": "number" },
+        "fundamentalBias": { "type": "string", "enum": ["BULLISH", "BEARISH", "NEUTRAL"] },
+        "biasLabel": { "type": "string" },
+        "calculationTimestamp": { "type": "string", "format": "date-time" },
+        "modelVersion": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "pair", "baseCurrency", "quoteCurrency", "netDifferential", "fundamentalBias", "biasLabel", "calculationTimestamp", "modelVersion", "createdAt", "updatedAt"]
+    },
+    "CommodityScore": {
+      "title": "CommodityScore",
+      "description": "Calculated macro score for commodities (Gold, Silver, WTI Oil).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "symbol": { "type": "string" },
+        "score": { "type": "number" },
+        "bias": { "type": "string", "enum": ["BULLISH", "BEARISH", "NEUTRAL"] },
+        "calculationTimestamp": { "type": "string", "format": "date-time" },
+        "modelVersion": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "symbol", "score", "bias", "calculationTimestamp", "modelVersion", "createdAt", "updatedAt"]
+    },
+    "IndexScore": {
+      "title": "IndexScore",
+      "description": "Calculated valuation score for major indices (US30, NAS100, S&P500).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "symbol": { "type": "string" },
+        "valuationScore": { "type": "number" },
+        "valuationStatus": { "type": "string", "enum": ["OVERVALUED", "FAIR_VALUE", "UNDERVALUED", "DATA_UNAVAILABLE"] },
+        "calculationTimestamp": { "type": "string", "format": "date-time" },
+        "modelVersion": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "symbol", "valuationScore", "valuationStatus", "calculationTimestamp", "modelVersion", "createdAt", "updatedAt"]
+    },
+    "CryptoScore": {
+      "title": "CryptoScore",
+      "description": "Calculated macro liquidity score for institutional cryptocurrencies.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "symbol": { "type": "string" },
+        "macroScore": { "type": "number" },
+        "macroBias": { "type": "string", "enum": ["BULLISH", "BEARISH", "NEUTRAL"] },
+        "calculationTimestamp": { "type": "string", "format": "date-time" },
+        "modelVersion": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "symbol", "macroScore", "macroBias", "calculationTimestamp", "modelVersion", "createdAt", "updatedAt"]
+    },
+    "StockScore": {
+      "title": "StockScore",
+      "description": "Calculated institutional valuation score for major equities.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "symbol": { "type": "string" },
+        "valuationScore": { "type": "number" },
+        "valuationStatus": { "type": "string", "enum": ["OVERVALUED", "FAIR_VALUE", "UNDERVALUED", "DATA_UNAVAILABLE"] },
+        "calculationTimestamp": { "type": "string", "format": "date-time" },
+        "modelVersion": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "symbol", "valuationScore", "valuationStatus", "calculationTimestamp", "modelVersion", "createdAt", "updatedAt"]
+    },
+    "CrossAssetRelationship": {
+      "title": "CrossAssetRelationship",
+      "description": "Macro relationship and correlation linkages between asset classes.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "baseAssetId": { "type": "string" },
+        "relatedAssetId": { "type": "string" },
+        "relationshipType": { "type": "string", "enum": ["INVERSE", "DIRECT", "LEAD_LAG", "SPREAD"] },
+        "correlationCoefficient": { "type": "number" },
+        "description": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "baseAssetId", "relatedAssetId", "relationshipType", "description", "updatedAt"]
+    },
+    "AiAnalysis": {
+      "title": "AiAnalysis",
+      "description": "AI-generated qualitative macro interpretation. Strictly isolated from raw data.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["CURRENCY", "PAIR", "COMMODITY", "GLOBAL_REGIME", "INDEX", "STOCK", "CRYPTO"] },
+        "targetId": { "type": "string" },
+        "promptSummary": { "type": "string" },
+        "analysisText": { "type": "string" },
+        "engineSource": { "type": "string" },
+        "confidenceScore": { "type": "number" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "targetType", "targetId", "analysisText", "engineSource", "confidenceScore", "generatedAt", "expiresAt", "createdAt"]
+    },
+    "UserPreferences": {
+      "title": "UserPreferences",
+      "description": "User-specific settings and UI configuration.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "defaultCurrency": { "type": "string" },
+        "defaultAssetCategory": { "type": "string" },
+        "theme": { "type": "string", "enum": ["dark", "midnight", "matrix", "terminal"] },
+        "riskProfile": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "defaultCurrency", "theme", "updatedAt"]
+    },
+    "Watchlist": {
+      "title": "Watchlist",
+      "description": "Personalized trader watchlist containing favored assets.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "isDefault": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "name", "isDefault", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable security and data governance audit trail.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "role": { "type": "string", "enum": ["USER", "TRADER", "ANALYST", "ADMIN", "DEVELOPER"] },
+        "action": {
+          "type": "string",
+          "enum": [
+            "DATA_CREATION",
+            "DATA_MODIFICATION",
+            "DATA_REJECTION",
+            "DATA_VALIDATION",
+            "PROVIDER_CONFIGURATION_CHANGE",
+            "SYNC_EXECUTION",
+            "ROLE_CHANGE",
+            "ADMIN_ACTION",
+            "SYSTEM_INITIALIZATION"
+          ]
+        },
+        "resource": { "type": "string" },
+        "resourceId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "result": { "type": "string", "enum": ["SUCCESS", "FAILURE", "DENIED"] }
+      },
+      "required": ["id", "userId", "role", "action", "resource", "resourceId", "timestamp", "result"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and permission assignments"
+    },
+    "/assets/{assetId}": {
+      "schema": "Asset",
+      "description": "Universe of financial assets across Forex, Commodities, Indices, Crypto, and Stocks"
+    },
+    "/currencies/{currencyId}": {
+      "schema": "Currency",
+      "description": "Sovereign currency registry and central bank metadata"
+    },
+    "/indicators/{indicatorId}": {
+      "schema": "Indicator",
+      "description": "Economic indicator registry definitions across 15 categories"
+    },
+    "/dataSources/{sourceId}": {
+      "schema": "DataSource",
+      "description": "Authoritative institutional statistical agencies"
+    },
+    "/dataProviders/{providerId}": {
+      "schema": "DataProvider",
+      "description": "External data provider connectors"
+    },
+    "/observations/{observationId}": {
+      "schema": "Observation",
+      "description": "Official economic indicator observations with verified status"
+    },
+    "/economicReleases/{releaseId}": {
+      "schema": "EconomicRelease",
+      "description": "Economic calendar releases and scheduled events"
+    },
+    "/revisions/{revisionId}": {
+      "schema": "Revision",
+      "description": "Official statistical revisions history"
+    },
+    "/validationResults/{resultId}": {
+      "schema": "ValidationResult",
+      "description": "Results of 14-point validation checks on observations"
+    },
+    "/syncJobs/{jobId}": {
+      "schema": "SyncJob",
+      "description": "Execution status of data synchronization batches"
+    },
+    "/marketScores/{scoreId}": {
+      "schema": "MarketScore",
+      "description": "Algorithmic market scoring (Separated from raw data)"
+    },
+    "/currencyScores/{scoreId}": {
+      "schema": "CurrencyScore",
+      "description": "Algorithmic currency composite scoring"
+    },
+    "/pairScores/{scoreId}": {
+      "schema": "PairScore",
+      "description": "Algorithmic pair divergence scoring"
+    },
+    "/commodityScores/{scoreId}": {
+      "schema": "CommodityScore",
+      "description": "Algorithmic commodity macro scoring"
+    },
+    "/indexScores/{scoreId}": {
+      "schema": "IndexScore",
+      "description": "Algorithmic index valuation scoring"
+    },
+    "/cryptoScores/{scoreId}": {
+      "schema": "CryptoScore",
+      "description": "Algorithmic crypto liquidity scoring"
+    },
+    "/stockScores/{scoreId}": {
+      "schema": "StockScore",
+      "description": "Algorithmic equity valuation scoring"
+    },
+    "/crossAssetRelationships/{relId}": {
+      "schema": "CrossAssetRelationship",
+      "description": "Inter-market macro correlations"
+    },
+    "/aiAnalysis/{analysisId}": {
+      "schema": "AiAnalysis",
+      "description": "AI-generated qualitative intelligence (Separated from raw data)"
+    },
+    "/userPreferences/{userId}": {
+      "schema": "UserPreferences",
+      "description": "User-specific settings and UI state"
+    },
+    "/watchlists/{watchlistId}": {
+      "schema": "Watchlist",
+      "description": "User custom asset watchlists"
+    },
+    "/auditLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Immutable security and data modification audit trail"
+    }
+  }
+}

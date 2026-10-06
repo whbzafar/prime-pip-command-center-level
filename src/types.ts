@@ -397,10 +397,10 @@ export interface FundedPhaseTargetConfig {
 }
 
 export interface FundedTrailingConfig {
-  trailingBasis: TrailingBasis;
-  activationLevelProfitDollars: number;
-  unrealizedProfitAffectsTrailing: boolean;
-  lockAtStartingBalance: boolean;
+  trailingBasis?: TrailingBasis;
+  activationLevelProfitDollars?: number;
+  unrealizedProfitAffectsTrailing?: boolean;
+  lockAtStartingBalance?: boolean;
   customLockBalanceLevel?: number | null;
   manualHighWaterMark?: number | null;
 }
@@ -408,6 +408,7 @@ export interface FundedTrailingConfig {
 export interface FundedAccountConfig {
   enabled: boolean;
   firmName: string;
+  accountName?: string;
   accountSize: number;
   phase: FundedPhase;
   startingBalance: number;
@@ -417,13 +418,120 @@ export interface FundedAccountConfig {
   overallDrawdownDollars: number;
   overallDrawdownPercent: number;
   drawdownType: FundedDrawdownType;
-  trailingConfig: FundedTrailingConfig;
+  trailingConfig?: FundedTrailingConfig;
   preferredRiskPercent: number;
   maxRiskPerTradePercent: number;
+  maxRiskPerTradeDollars?: number;
   riskMode: FundedRiskMode;
+  safetyBufferPercent?: number; // Default 20% drawdown buffer
+  maxConsecutiveLossesThreshold?: number; // Default 3
+  newsRestriction?: boolean;
+  weekendHoldingRestriction?: boolean;
+  minimumTradingDays?: number;
+  consistencyRule?: string;
+  dailyResetTime?: string; // Timezone or reset hour (e.g. "PKT / 00:00")
+  rulesProfileName?: string;
   todayStartingBalanceOverride?: number | null;
   todayStartingEquityOverride?: number | null;
   openFloatingPnL?: number;
+}
+
+export interface FundedRuleViolation {
+  id: string;
+  accountId: string;
+  timestamp: number;
+  date: string;
+  time: string;
+  ruleType:
+    | 'DAILY_DRAWDOWN'
+    | 'OVERALL_DRAWDOWN'
+    | 'MAX_RISK_PER_TRADE'
+    | 'DAILY_TRADES_CAP'
+    | 'NEWS_WINDOW'
+    | 'WEEKEND_HOLDING'
+    | 'CONSECUTIVE_LOSS_LIMIT'
+    | 'MINIMUM_TRADING_DAYS';
+  severity: 'CRITICAL' | 'WARNING';
+  title: string;
+  description: string;
+  details?: Record<string, any>;
+}
+
+export interface TradeEvaluationInput {
+  symbol: string;
+  direction: 'BUY' | 'SELL';
+  entryPrice: number;
+  stopLossPrice: number;
+  takeProfitPrice?: number;
+  commission?: number;
+  spreadPips?: number;
+  swap?: number;
+  lotSizeOverride?: number;
+  proposedRiskDollars?: number;
+}
+
+export interface TradeEvaluationResult {
+  symbol: string;
+  direction: 'BUY' | 'SELL';
+  entryPrice: number;
+  stopLossPrice: number;
+  takeProfitPrice: number;
+  stopDistancePips: number;
+  stopDistancePrice: number;
+  recommendedLotSize: number;
+  riskAmountDollars: number;
+  riskPercent: number;
+  potentialProfitDollars: number;
+  riskRewardRatio: number;
+  dailyDdAfterStopLoss: number;
+  remainingDailyDdAfterStopLoss: number;
+  overallDdAfterStopLoss: number;
+  remainingOverallDdAfterStopLoss: number;
+  status: 'APPROVED' | 'REDUCE_RISK' | 'REJECTED';
+  verdictBadge: string;
+  verdictColor: 'GREEN' | 'YELLOW' | 'ORANGE' | 'RED';
+  isAllowed: boolean;
+  violations: string[];
+  warnings: string[];
+  explanation: string;
+}
+
+export interface AccountHealthEvaluation {
+  score: number; // 0 - 100
+  status: 'HEALTHY' | 'GOOD' | 'CAUTION' | 'DEFENSIVE' | 'CRITICAL';
+  color: 'EMERALD' | 'BLUE' | 'AMBER' | 'ORANGE' | 'ROSE';
+  factors: {
+    dailyDrawdownDistanceScore: number;
+    overallDrawdownDistanceScore: number;
+    consecutiveLossPenalty: number;
+    riskComplianceScore: number;
+    phaseProgressBonus: number;
+    ruleViolationPenalty: number;
+  };
+  summary: string;
+}
+
+export interface FundedRulesProfile {
+  id: string;
+  name: string;
+  firmName: string;
+  accountSize: number;
+  dailyDrawdownPercent: number;
+  overallDrawdownPercent: number;
+  phase1TargetPercent: number;
+  phase2TargetPercent: number;
+  phase3TargetPercent?: number;
+  drawdownType: FundedDrawdownType;
+  trailingBasis: TrailingBasis;
+  maxRiskPerTradePercent: number;
+  safetyBufferPercent: number;
+  maxConsecutiveLosses: number;
+  minimumTradingDays?: number;
+  newsRestriction: boolean;
+  weekendHoldingRestriction: boolean;
+  consistencyRule?: string;
+  description?: string;
+  isCustom?: boolean;
 }
 
 export interface AccountSettings {

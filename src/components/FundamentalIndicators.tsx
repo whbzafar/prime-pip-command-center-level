@@ -43,6 +43,9 @@ import { RatesAndYieldsView } from './fundamental/RatesAndYieldsView';
 import { CotTradingView } from './fundamental/CotTradingView';
 import { MarketSentimentView } from './fundamental/MarketSentimentView';
 import { CommoditiesMacroView } from './fundamental/CommoditiesMacroView';
+import { IndicesIntelligenceView } from './fundamental/IndicesIntelligenceView';
+import { StockIntelligenceView } from './fundamental/StockIntelligenceView';
+import { CryptoIntelligenceView } from './fundamental/CryptoIntelligenceView';
 import { LongTermPairRankingsView } from './fundamental/LongTermPairRankingsView';
 import { HistoricalSnapshotsView } from './fundamental/HistoricalSnapshotsView';
 import { DataQualityAuditView } from './fundamental/DataQualityAuditView';
@@ -52,6 +55,7 @@ import { FundamentalLiveSearch } from './fundamental/FundamentalLiveSearch';
 import { FundamentalAssetCommandCenter } from './fundamental/FundamentalAssetCommandCenter';
 import { FundamentalSentimentMeter } from './fundamental/FundamentalSentimentMeter';
 import { DataControlCenterView } from './fundamental/DataControlCenterView';
+import { VerifiedDataArchitectureView } from './fundamental/VerifiedDataArchitectureView';
 import { LiquidGlassThemeToggle } from './LiquidGlassThemeToggle';
 
 // Modals
@@ -88,6 +92,8 @@ import {
   ExternalLink,
   Camera,
   RefreshCw,
+  Building2,
+  Coins,
 } from 'lucide-react';
 import {
   fetchFundamentalObservations,
@@ -102,6 +108,7 @@ import {
 export type FundamentalDashboardTab =
   | 'OVERVIEW'
   | 'DATA_CONTROL_CENTER'
+  | 'VERIFIED_DATABASE'
   | 'WORKSPACES'
   | 'ECONOMIC_DATA_MASTER'
   | 'MATRIX'
@@ -110,6 +117,9 @@ export type FundamentalDashboardTab =
   | 'COT_REPORT'
   | 'MARKET_SENTIMENT'
   | 'COMMODITIES'
+  | 'INDICES'
+  | 'STOCKS'
+  | 'CRYPTO'
   | 'LONG_TERM_RANKINGS'
   | 'HISTORICAL_SNAPSHOTS'
   | 'DATA_QUALITY'
@@ -916,6 +926,7 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
   const navTabs: { id: FundamentalDashboardTab; label: string; icon: any }[] = [
     { id: 'OVERVIEW', label: '11 Assets', icon: Landmark },
     { id: 'DATA_CONTROL_CENTER', label: 'Control Center', icon: ShieldCheck },
+    { id: 'VERIFIED_DATABASE', label: 'Verified Database', icon: Database },
     { id: 'WORKSPACES', label: 'Workspaces', icon: Layers },
     { id: 'ECONOMIC_DATA_MASTER', label: 'Data Master', icon: Database },
     { id: 'MATRIX', label: 'Matrix', icon: BarChart3 },
@@ -924,6 +935,9 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
     { id: 'COT_REPORT', label: 'COT Report', icon: Users },
     { id: 'MARKET_SENTIMENT', label: 'Sentiment', icon: Activity },
     { id: 'COMMODITIES', label: 'Commodities', icon: Gem },
+    { id: 'INDICES', label: 'Indices', icon: BarChart3 },
+    { id: 'STOCKS', label: 'Equities', icon: Building2 },
+    { id: 'CRYPTO', label: 'Crypto', icon: Coins },
     { id: 'LONG_TERM_RANKINGS', label: 'Long-Term', icon: Clock },
     { id: 'HISTORICAL_SNAPSHOTS', label: 'Snapshots', icon: History },
     { id: 'DATA_QUALITY', label: 'Quality Audit', icon: ShieldAlert },
@@ -1190,6 +1204,9 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
           onOpenCot={(currency) => { setActiveCurrency(currency); setActiveTab('COT_REPORT'); }}
           onOpenSentiment={(currency) => { setActiveCurrency(currency); setActiveTab('MARKET_SENTIMENT'); }}
           onOpenCommodities={() => setActiveTab('COMMODITIES')}
+          onOpenIndices={() => setActiveTab('INDICES')}
+          onOpenStocks={() => setActiveTab('STOCKS')}
+          onOpenCrypto={() => setActiveTab('CRYPTO')}
           onOpenImageExtractor={(sel) => handleOpenImageExtractor((sel as SupportedSelection) || 'USD')}
         />
       )}
@@ -1200,6 +1217,10 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
           onUpdateObservation={handleUpdateObservation}
           onNotify={showNotification}
         />
+      )}
+
+      {activeTab === 'VERIFIED_DATABASE' && (
+        <VerifiedDataArchitectureView />
       )}
 
       {activeTab === 'WORKSPACES' && (
@@ -1295,6 +1316,18 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
           onRequestAiExplanation={(comm) => handleRequestAiExplanation(comm as any)}
           onOpenImageExtractor={(comm) => handleOpenImageExtractor((comm as SupportedSelection) || 'GOLD')}
         />
+      )}
+
+      {activeTab === 'INDICES' && (
+        <IndicesIntelligenceView />
+      )}
+
+      {activeTab === 'STOCKS' && (
+        <StockIntelligenceView />
+      )}
+
+      {activeTab === 'CRYPTO' && (
+        <CryptoIntelligenceView />
       )}
 
       {activeTab === 'LONG_TERM_RANKINGS' && (

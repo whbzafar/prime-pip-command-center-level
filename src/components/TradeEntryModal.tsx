@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
@@ -39,6 +39,11 @@ import {
 } from '../types';
 import { InstrumentCombobox } from './InstrumentCombobox';
 import { calculateTradeQualityScore, calculateNextTradeReadiness } from '../utils/readinessEngine';
+import {
+  evaluateFundedAccountRisk,
+  isFundedAccount,
+  calculateLotSize as calculateFundedLotSize,
+} from '../utils/fundedRiskEngine';
 import { formatCurrency } from '../utils/currencyFormatter';
 import {
   getKarachiDate,
@@ -249,6 +254,38 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
   const todayTradesCount = (existingTrades || []).filter((t) => t.date === tradeEntryDate).length;
   const isRiskExceeded = calculatedRiskPercent > 1.001;
   const isDailyLimitReached = todayTradesCount >= 2;
+
+  // Funded Risk Engine integration
+  const isFunded = isFundedAccount(account);
+  const fundedRiskEval = useMemo(() => {
+    if (!isFunded) return null;
+    return evaluateFundedAccountRisk(account, existingTrades || []);
+  }, [isFunded, account, existingTrades]);
+
+  const safeFundedLot = useMemo(() => {
+    if (!fundedRiskEval || entryPrice <= 0 || stopLoss <= 0 || entryPrice === stopLoss) return 0;
+    const res = calculateFundedLotSize(
+      instrument,
+      entryPrice,
+      stopLoss,
+      fundedRiskEval.recommendedRiskDollars,
+      account.currency
+    );
+    return res.lotSize;
+  }, [fundedRiskEval, instrument, entryPrice, stopLoss, account.currency]);
+
+  const isFundedDailyBreachRisk =
+    isFunded &&
+    fundedRiskEval &&
+    riskAmount > fundedRiskEval.remainingDailyDrawdown;
+  const isFundedOverallBreachRisk =
+    isFunded &&
+    fundedRiskEval &&
+    riskAmount > fundedRiskEval.remainingOverallDrawdown;
+  const isFundedLocked =
+    isFunded &&
+    fundedRiskEval &&
+    fundedRiskEval.tradingStatus === 'LOCKED';
 
   const qualityScoreResult = calculateTradeQualityScore({
     htfAlignment: (htfTrend === 'BULLISH' && direction === 'BUY') || (htfTrend === 'BEARISH' && direction === 'SELL'),
@@ -598,6 +635,86 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
               <ExternalLink className="w-3.5 h-3.5 stroke-[2.5]" />
             </button>
           </div>
+
+          {/* Funded Account Risk Defense Banner */}
+          {isFunded && fundedRiskEval && (
+            <div className={`p-4 rounded-xl border font-mono-code text-xs space-y-3 transition ${
+              isFundedLocked || isFundedDailyBreachRisk || isFundedOverallBreachRisk
+                ? 'bg-rose-950/40 border-rose-500/50 shadow-lg shadow-rose-950/30'
+                : 'bg-slate-900/90 border-cyan-500/40 shadow-lg'
+            }`}>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-military font-bold text-cyan-300 uppercase text-xs flex items-center gap-1.5">
+                    <Shield className="w-4 h-4 text-cyan-400" />
+                    <span>FUNDED RISK GUARD — {fundedRiskEval.firmName} ({fundedRiskEval.phaseLabel})</span>
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                    fundedRiskEval.verdictColor === 'EMERALD'
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      : fundedRiskEval.verdictColor === 'AMBER'
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                  }`}>
+                    {fundedRiskEval.verdictBadge}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3 text-[11px] text-slate-400">
+                  <span>Daily DD Rem: <strong className="text-cyan-400">{formatCurrency(fundedRiskEval.remainingDailyDrawdown, account.currency)}</strong></span>
+                  <span>•</span>
+                  <span>Overall DD Rem: <strong className="text-amber-400">{formatCurrency(fundedRiskEval.remainingOverallDrawdown, account.currency)}</strong></span>
+                </div>
+              </div>
+
+              {/* Status details & Safe lot action */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="space-y-1">
+                  <div className="text-slate-300">
+                    Safe Recommended Risk:{' '}
+                    <strong className="text-emerald-400">
+                      {formatCurrency(fundedRiskEval.recommendedRiskDollars, account.currency)} ({fundedRiskEval.recommendedRiskPercent}%)
+                    </strong>
+                    {' '}• Hard Ceiling: <span className="text-slate-400">{formatCurrency(fundedRiskEval.hardCeilingRiskDollars, account.currency)}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    {fundedRiskEval.limitingFactor ? `Limiting Factor: ${fundedRiskEval.limitingFactor}` : fundedRiskEval.explanation}
+                  </div>
+                </div>
+
+                {safeFundedLot > 0 && safeFundedLot !== lotSize && (
+                  <button
+                    type="button"
+                    onClick={() => setLotSize(safeFundedLot)}
+                    className="px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer self-start sm:self-auto shrink-0"
+                    title="Scale position size to match prop firm safe risk"
+                  >
+                    <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>SCALE LOT TO SAFE ({safeFundedLot} LOTS)</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Critical Breach Alert if proposed trade exceeds drawdown */}
+              {(isFundedDailyBreachRisk || isFundedOverallBreachRisk || isFundedLocked) && (
+                <div className="p-3 rounded-lg bg-rose-950/80 border border-rose-500/60 text-rose-200 text-xs flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <strong className="font-bold text-rose-300 block">
+                      ⚠️ PROP FIRM DRAWDOWN BREACH ALERT
+                    </strong>
+                    <p className="text-[11px] text-rose-200">
+                      {isFundedLocked
+                        ? 'Trading is currently LOCKED on this account due to prop firm limits. Taking this trade risks account termination.'
+                        : `Your planned trade risks $${Math.round(riskAmount).toLocaleString()} which exceeds your remaining ${
+                            isFundedDailyBreachRisk ? 'Daily Drawdown' : 'Maximum Drawdown'
+                          }. If this trade hits Stop Loss, your account will be breached!`}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Section 1: Basic Information */}
           <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">

@@ -1,0 +1,219 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==========================================
+    // SECURITY HELPER FUNCTIONS
+    // ==========================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function userExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserRole() {
+      return isAuthenticated() && userExists() ? getUserDoc().role : 'USER';
+    }
+
+    function isAdminOrDeveloper() {
+      return isAuthenticated() && (getUserRole() == 'ADMIN' || getUserRole() == 'DEVELOPER');
+    }
+
+    function isAnalystOrAbove() {
+      return isAuthenticated() && (
+        getUserRole() == 'ANALYST' ||
+        getUserRole() == 'ADMIN' ||
+        getUserRole() == 'DEVELOPER'
+      );
+    }
+
+    function isTraderOrAbove() {
+      return isAuthenticated() && (
+        getUserRole() == 'TRADER' ||
+        getUserRole() == 'ANALYST' ||
+        getUserRole() == 'ADMIN' ||
+        getUserRole() == 'DEVELOPER'
+      );
+    }
+
+    function isValidId(docId) {
+      return docId is string && docId.size() > 0 && docId.size() <= 128 && docId.matches('^[a-zA-Z0-9_\\-\\.]+$');
+    }
+
+    // ==========================================
+    // 1. USERS & ROLES
+    // ==========================================
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdminOrDeveloper());
+      allow create: if isAuthenticated() && isOwner(userId) && isValidId(userId);
+      allow update: if isAuthenticated() && (
+        (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])) ||
+        isAdminOrDeveloper()
+      );
+      allow delete: if isAdminOrDeveloper();
+    }
+
+    // ==========================================
+    // 2. REFERENCE REGISTRIES (Assets, Currencies, Indicators, Sources, Providers)
+    // Read: Permitted to all traders; Write: Strictly Admin & Developer
+    // ==========================================
+    match /assets/{assetId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(assetId);
+    }
+
+    match /currencies/{currencyId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(currencyId);
+    }
+
+    match /indicators/{indicatorId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(indicatorId);
+    }
+
+    match /dataSources/{sourceId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(sourceId);
+    }
+
+    match /dataProviders/{providerId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(providerId);
+    }
+
+    match /crossAssetRelationships/{relId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(relId);
+    }
+
+    // ==========================================
+    // 3. OFFICIAL OBSERVATIONS, RELEASES & REVISIONS
+    // Read: All verified data readable; Write: Strictly Admin & Developer (No raw mutations by normal users)
+    // ==========================================
+    match /observations/{observationId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(observationId);
+    }
+
+    match /economicReleases/{releaseId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(releaseId);
+    }
+
+    match /revisions/{revisionId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(revisionId);
+    }
+
+    // ==========================================
+    // 4. VALIDATION RESULTS & SYNC JOBS
+    // Internal data pipeline verification records
+    // ==========================================
+    match /validationResults/{resultId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrDeveloper() && isValidId(resultId);
+    }
+
+    match /syncJobs/{jobId} {
+      allow read: if isAnalystOrAbove();
+      allow write: if isAdminOrDeveloper() && isValidId(jobId);
+    }
+
+    // ==========================================
+    // 5. CALCULATED SCORES (Separated from Raw Data)
+    // Read: Public/Traders; Write: Strictly Admin/Engine
+    // ==========================================
+    match /marketScores/{scoreId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(scoreId);
+    }
+
+    match /currencyScores/{scoreId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(scoreId);
+    }
+
+    match /pairScores/{scoreId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(scoreId);
+    }
+
+    match /commodityScores/{scoreId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(scoreId);
+    }
+
+    match /indexScores/{scoreId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(scoreId);
+    }
+
+    match /cryptoScores/{scoreId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(scoreId);
+    }
+
+    match /stockScores/{scoreId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(scoreId);
+    }
+
+    // ==========================================
+    // 6. AI ANALYSIS (Separated from Raw Data)
+    // ==========================================
+    match /aiAnalysis/{analysisId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper() && isValidId(analysisId);
+    }
+
+    // ==========================================
+    // 7. USER PREFERENCES & WATCHLISTS
+    // Private user-owned collections
+    // ==========================================
+    match /userPreferences/{userId} {
+      allow read: if isOwner(userId) || isAdminOrDeveloper();
+      allow write: if isOwner(userId) && isValidId(userId);
+    }
+
+    match /watchlists/{watchlistId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdminOrDeveloper()
+      );
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        isValidId(watchlistId);
+      allow update: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // ==========================================
+    // 8. AUDIT LOGS (Append-Only Immutable Security Ledger)
+    // ==========================================
+    match /auditLogs/{logId} {
+      allow read: if isAdminOrDeveloper();
+      allow create: if isAuthenticated() && isValidId(logId);
+      allow update, delete: if false; // Immutable audit trail
+    }
+
+    // System health check ping document
+    match /_system/{docId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper();
+    }
+  }
+}

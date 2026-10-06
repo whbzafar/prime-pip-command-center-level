@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Building2,
   Target,
@@ -9,18 +9,29 @@ import {
   Check,
   Lock,
   Layers,
+  Save,
+  FolderOpen,
+  Trash2,
+  AlertTriangle,
+  Clock,
+  Shield,
+  HelpCircle,
 } from 'lucide-react';
 import {
   FundedAccountConfig,
   FundedDrawdownType,
   FundedPhase,
   FundedRiskMode,
+  FundedRulesProfile,
   TrailingBasis,
 } from '../types';
 import {
   PROP_FIRM_PRESETS,
   PropFirmPreset,
   getDrawdownTypeLabel,
+  getStoredRulesProfiles,
+  saveCustomRulesProfile,
+  deleteCustomRulesProfile,
 } from '../utils/fundedRiskEngine';
 import { formatCurrency, safeNumber } from '../utils/currencyFormatter';
 
@@ -713,15 +724,26 @@ export const FundedAccountConfigPanel: React.FC<FundedAccountConfigPanelProps> =
         </div>
       )}
 
-      {/* Section 10: Next Trade Risk Engine Preferences */}
+      {/* Validation Warning Alert */}
+      {config.overallDrawdownDollars > 0 && config.dailyDrawdownDollars > 0 && config.overallDrawdownDollars < config.dailyDrawdownDollars && (
+        <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs font-mono-code flex items-start gap-2.5">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <strong className="font-bold block text-amber-300">CONFIGURATION WARNING</strong>
+            Overall Maximum Drawdown ({formatCurrency(config.overallDrawdownDollars, currency)}) is smaller than Daily Drawdown ({formatCurrency(config.dailyDrawdownDollars, currency)}). For standard prop firms, Overall Drawdown is typically equal to or larger than Daily Drawdown.
+          </div>
+        </div>
+      )}
+
+      {/* Section 10: Next Trade Risk Engine Preferences & Safety Buffer */}
       {!compact && (
-        <div className="space-y-3 pt-3 border-t border-slate-800/80">
+        <div className="space-y-4 pt-3 border-t border-slate-800/80">
           <div className="text-[11px] font-military font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
             <Sliders className="w-3.5 h-3.5" />
             <span>4. Funded Risk Engine Mode & Per-Trade Risk Limits</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div>
               <label className="block text-[10px] font-mono-code text-slate-300 mb-1 uppercase">
                 Preferred Risk Per Trade (%)
@@ -735,7 +757,7 @@ export const FundedAccountConfigPanel: React.FC<FundedAccountConfigPanelProps> =
                 onChange={(e) =>
                   onChange({
                     ...config,
-                    preferredRiskPercent: Math.max(0.1, parseFloat(e.target.value) || 1.0),
+                    preferredRiskPercent: Math.max(0.1, parseFloat(e.target.value) || 0.5),
                   })
                 }
                 className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-cyan-300 font-bold text-xs font-mono-code"
@@ -764,9 +786,32 @@ export const FundedAccountConfigPanel: React.FC<FundedAccountConfigPanelProps> =
 
             <div>
               <label className="block text-[10px] font-mono-code text-slate-300 mb-1 uppercase">
+                Drawdown Safety Buffer (%)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="80"
+                step="5"
+                value={config.safetyBufferPercent ?? 20}
+                onChange={(e) =>
+                  onChange({
+                    ...config,
+                    safetyBufferPercent: Math.max(0, Math.min(80, parseFloat(e.target.value) || 20)),
+                  })
+                }
+                className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-emerald-400 font-bold text-xs font-mono-code"
+              />
+              <span className="text-[9px] text-slate-400 font-mono-code mt-0.5 block">
+                Standard: 20% safe buffer
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-mono-code text-slate-300 mb-1 uppercase">
                 Funded Risk Mode
               </label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-3 gap-1">
                 {(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE'] as FundedRiskMode[]).map((mode) => (
                   <button
                     key={mode}
@@ -782,11 +827,79 @@ export const FundedAccountConfigPanel: React.FC<FundedAccountConfigPanelProps> =
                         : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
                     }`}
                   >
-                    {mode}
+                    {mode.slice(0, 4)}
                   </button>
                 ))}
               </div>
             </div>
+          </div>
+
+          {/* Additional Prop Firm Guardrails: Streak Breaker, News Window, Weekend Holding */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-slate-950/80 border border-slate-800">
+            <div>
+              <label className="block text-[10px] font-mono-code text-slate-300 mb-1 uppercase">
+                Consecutive Loss Circuit Breaker
+              </label>
+              <select
+                value={config.maxConsecutiveLossesThreshold || 3}
+                onChange={(e) =>
+                  onChange({
+                    ...config,
+                    maxConsecutiveLossesThreshold: parseInt(e.target.value) || 3,
+                  })
+                }
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs font-mono-code"
+              >
+                <option value="2">Stop after 2 Consecutive Losses</option>
+                <option value="3">Stop after 3 Consecutive Losses (Standard)</option>
+                <option value="4">Stop after 4 Consecutive Losses</option>
+                <option value="5">Stop after 5 Consecutive Losses</option>
+              </select>
+            </div>
+
+            <label className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800/80 cursor-pointer">
+              <div>
+                <span className="text-xs font-mono-code font-bold text-slate-200 block">
+                  News Window Restriction
+                </span>
+                <span className="text-[10px] font-mono-code text-slate-400">
+                  Restrict trading ±15m of High-Impact News
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={Boolean(config.newsRestriction)}
+                onChange={(e) =>
+                  onChange({
+                    ...config,
+                    newsRestriction: e.target.checked,
+                  })
+                }
+                className="w-4 h-4 accent-cyan-400"
+              />
+            </label>
+
+            <label className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800/80 cursor-pointer">
+              <div>
+                <span className="text-xs font-mono-code font-bold text-slate-200 block">
+                  Weekend Holding Restriction
+                </span>
+                <span className="text-[10px] font-mono-code text-slate-400">
+                  Mandate closing trades before Friday session close
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={Boolean(config.weekendHoldingRestriction)}
+                onChange={(e) =>
+                  onChange({
+                    ...config,
+                    weekendHoldingRestriction: e.target.checked,
+                  })
+                }
+                className="w-4 h-4 accent-cyan-400"
+              />
+            </label>
           </div>
         </div>
       )}

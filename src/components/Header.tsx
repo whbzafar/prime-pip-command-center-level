@@ -836,7 +836,13 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="text-[9px] uppercase font-mono-code text-slate-400 flex items-center gap-1">
                 <span>{account.accountName}</span>
-                <span className="text-cyan-400/80 text-[8px] font-bold">[{account.accountType.replace(/_/g, ' ')}]</span>
+                {account.accountCategory === 'FUNDED' || account.fundedConfig?.enabled ? (
+                  <span className="text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1 rounded text-[8px] font-bold">
+                    PROP: {account.fundedConfig?.firmName || 'FUNDED'}
+                  </span>
+                ) : (
+                  <span className="text-cyan-400/80 text-[8px] font-bold">[{account.accountType.replace(/_/g, ' ')}]</span>
+                )}
               </div>
               <div className="text-xs font-bold font-mono-code text-slate-100 flex items-center gap-1.5">
                 <span>

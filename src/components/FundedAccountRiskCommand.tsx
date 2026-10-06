@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Shield,
+  ShieldAlert,
   Target,
   TrendingDown,
   TrendingUp,
@@ -33,12 +34,14 @@ import {
 } from '../utils/fundedRiskEngine';
 import { formatCurrency } from '../utils/currencyFormatter';
 import { FundedAccountConfigPanel } from './FundedAccountConfigPanel';
+import { TradeApprovalModal } from './TradeApprovalModal';
 
 interface FundedAccountRiskCommandProps {
   account: AccountSettings;
   trades: Trade[];
   onUpdateAccount: (updated: AccountSettings) => void;
   onNavigateToTab?: (tab: any) => void;
+  onOpenNewTrade?: (prefill?: Partial<Trade>) => void;
 }
 
 const QUICK_PAIR_PIP_VALUES: Record<string, { pipVal: number; label: string }> = {
@@ -57,8 +60,12 @@ export const FundedAccountRiskCommand: React.FC<FundedAccountRiskCommandProps> =
   trades,
   onUpdateAccount,
   onNavigateToTab,
+  onOpenNewTrade,
 }) => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [isHealthOpen, setIsHealthOpen] = useState(false);
+  const [isViolationsOpen, setIsViolationsOpen] = useState(false);
   const [quickInstrument, setQuickInstrument] = useState<string>('XAUUSD');
   const [quickStopLossPips, setQuickStopLossPips] = useState<number>(30);
 
@@ -272,6 +279,160 @@ export const FundedAccountRiskCommand: React.FC<FundedAccountRiskCommandProps> =
             </select>
           </div>
         </div>
+
+        {/* Tactical Action Strip: "CAN I TAKE THIS TRADE?", Health Score & Phase Advance */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsApprovalModalOpen(true)}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 text-xs font-military font-bold tracking-wider uppercase flex items-center gap-2 shadow-lg shadow-cyan-500/20 cursor-pointer"
+            >
+              <Crosshair className="w-4 h-4" />
+              <span>CAN I TAKE THIS TRADE? (CALCULATOR)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsHealthOpen(!isHealthOpen)}
+              className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-mono-code flex items-center gap-2 cursor-pointer transition"
+            >
+              <Activity className="w-3.5 h-3.5 text-cyan-400" />
+              <span>
+                HEALTH:{' '}
+                <strong
+                  className={
+                    evaluation.healthScore.color === 'EMERALD'
+                      ? 'text-emerald-400'
+                      : evaluation.healthScore.color === 'BLUE'
+                      ? 'text-blue-400'
+                      : evaluation.healthScore.color === 'AMBER'
+                      ? 'text-amber-400'
+                      : 'text-rose-400'
+                  }
+                >
+                  {evaluation.healthScore.score}/100 ({evaluation.healthScore.status})
+                </strong>
+              </span>
+              {isHealthOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsViolationsOpen(!isViolationsOpen)}
+              className={`px-3 py-2 rounded-xl border text-xs font-mono-code flex items-center gap-1.5 cursor-pointer transition ${
+                evaluation.violations.length > 0
+                  ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Shield
+                className={`w-3.5 h-3.5 ${
+                  evaluation.violations.length > 0 ? 'text-rose-400 animate-pulse' : 'text-slate-400'
+                }`}
+              />
+              <span>VIOLATIONS ({evaluation.violations.length})</span>
+              {isViolationsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+
+          {/* Phase Advancement Celebration Action */}
+          {evaluation.isTargetPassed && evaluation.phase !== 'FUNDED_LIVE' && (
+            <button
+              type="button"
+              onClick={() => {
+                if (evaluation.phase === 'PHASE_1') handleChangePhase('PHASE_2');
+                else if (evaluation.phase === 'PHASE_2') handleChangePhase('FUNDED_LIVE');
+              }}
+              className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-military font-bold text-xs tracking-wider uppercase flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 cursor-pointer animate-pulse"
+            >
+              <span>🎉 {evaluation.phase === 'PHASE_1' ? 'ADVANCE TO PHASE 2' : 'CLAIM LIVE FUNDED STAGE'}</span>
+            </button>
+          )}
+        </div>
+
+        {/* Expandable Health Score Diagnostics Panel */}
+        {isHealthOpen && (
+          <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-700 space-y-3 font-mono-code text-xs animate-in fade-in duration-200">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <span className="font-military font-bold text-slate-200 uppercase tracking-wider text-xs flex items-center gap-1.5">
+                <Activity className="w-4 h-4 text-cyan-400" />
+                <span>Account Health Audit Breakdown (0 - 100)</span>
+              </span>
+              <span className="font-bold text-cyan-300">
+                Score: {evaluation.healthScore.score}/100 • {evaluation.healthScore.status}
+              </span>
+            </div>
+            <p className="text-slate-300 text-xs leading-relaxed">{evaluation.healthScore.summary}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
+              <div className="p-2 rounded bg-slate-950 border border-slate-800">
+                <span className="text-slate-400 block">Daily DD Distance:</span>
+                <span className="font-bold text-cyan-400">
+                  {evaluation.healthScore.factors.dailyDrawdownDistanceScore}/25 Pts
+                </span>
+              </div>
+              <div className="p-2 rounded bg-slate-950 border border-slate-800">
+                <span className="text-slate-400 block">Overall DD Distance:</span>
+                <span className="font-bold text-amber-400">
+                  {evaluation.healthScore.factors.overallDrawdownDistanceScore}/25 Pts
+                </span>
+              </div>
+              <div className="p-2 rounded bg-slate-950 border border-slate-800">
+                <span className="text-slate-400 block">Loss Streak Hygiene:</span>
+                <span className="font-bold text-slate-200">
+                  {evaluation.healthScore.factors.consecutiveLossPenalty}/20 Pts
+                </span>
+              </div>
+              <div className="p-2 rounded bg-slate-950 border border-slate-800">
+                <span className="text-slate-400 block">Risk Compliance:</span>
+                <span className="font-bold text-emerald-400">
+                  {evaluation.healthScore.factors.riskComplianceScore}/15 Pts
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Expandable Rule Violations Panel */}
+        {isViolationsOpen && (
+          <div className="p-4 rounded-xl bg-slate-900/90 border border-rose-500/30 space-y-3 font-mono-code text-xs animate-in fade-in duration-200">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <span className="font-military font-bold text-rose-300 uppercase tracking-wider text-xs flex items-center gap-1.5">
+                <ShieldAlert className="w-4 h-4 text-rose-400" />
+                <span>Audited Rule Violations Log</span>
+              </span>
+              <span className="text-slate-400 text-[11px]">
+                {evaluation.violations.length} Violation{evaluation.violations.length === 1 ? '' : 's'} Logged
+              </span>
+            </div>
+            {evaluation.violations.length === 0 ? (
+              <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-emerald-400 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Zero rule violations detected. Account is in full compliance with prop guidelines.</span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {evaluation.violations.map((v) => (
+                  <div
+                    key={v.id}
+                    className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5"
+                  >
+                    <AlertOctagon className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <strong className="text-rose-300 font-bold">{v.title}</strong>
+                        <span className="text-[10px] text-slate-400">
+                          {v.date} {v.time}
+                        </span>
+                      </div>
+                      <p className="text-slate-300 text-[11px] mt-0.5 leading-relaxed">{v.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ===================================================================== */}
@@ -808,6 +969,24 @@ export const FundedAccountRiskCommand: React.FC<FundedAccountRiskCommandProps> =
           </div>
         </div>
       </div>
+
+      {/* Interactive "CAN I TAKE THIS TRADE?" Trade Approval Modal */}
+      {isApprovalModalOpen && (
+        <TradeApprovalModal
+          isOpen={isApprovalModalOpen}
+          onClose={() => setIsApprovalModalOpen(false)}
+          account={account}
+          trades={trades}
+          onApplyTradeToJournal={(prefill) => {
+            setIsApprovalModalOpen(false);
+            if (onOpenNewTrade) {
+              onOpenNewTrade(prefill);
+            } else if (onNavigateToTab) {
+              onNavigateToTab('JOURNAL');
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
