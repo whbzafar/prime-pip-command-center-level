@@ -91,6 +91,7 @@ import {
   fetchFundamentalObservations,
   patchFundamentalObservations,
 } from '../services/fundamentalLiveResearchService';
+import { getVerifiedFundamentalStatus, syncVerifiedFundamentalData, VerifiedFundamentalStatus } from '../services/verifiedFundamentalDataClient';
 
 export type FundamentalDashboardTab =
   | 'OVERVIEW'
@@ -505,11 +506,48 @@ export const FundamentalIndicators: React.FC = () => {
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
   const [aiEngineSource, setAiEngineSource] = useState<string>('GEMINI-2.5-FLASH');
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+  const [verifiedStatus, setVerifiedStatus] = useState<VerifiedFundamentalStatus | null>(null);
+  const [verifiedSyncing, setVerifiedSyncing] = useState(false);
+  const [verifiedSyncError, setVerifiedSyncError] = useState<string | null>(null);
+  const refreshVerifiedStatus = useCallback(async (scope = activeCurrency) => {
+    try { setVerifiedSyncError(null); setVerifiedStatus(await getVerifiedFundamentalStatus(scope)); }
+    catch (error) { setVerifiedSyncError(error instanceof Error ? error.message : 'Unable to load verified data status.'); }
+  }, [activeCurrency]);
+  useEffect(() => { void refreshVerifiedStatus(activeCurrency); }, [activeCurrency, refreshVerifiedStatus]);
+  const handleVerifiedSync = async () => {
+    setVerifiedSyncing(true); setVerifiedSyncError(null);
+    try {
+      const result = await syncVerifiedFundamentalData(activeCurrency);
+      await refreshVerifiedStatus(activeCurrency);
+      showNotification(`✓ Verified ${activeCurrency} data synchronized: ${result.received} observations processed.`);
+    } catch (error) {
+      setVerifiedSyncError(error instanceof Error ? error.message : 'Verified synchronization failed.');
+      showNotification('Verified data synchronization failed.');
+    } finally { setVerifiedSyncing(false); }
+  };
+
 
   const showNotification = (msg: string) => {
     setNotificationMsg(msg);
     setTimeout(() => setNotificationMsg(null), 3500);
   };
+
+  const verifiedDataPanel = (
+    <div className="mb-5 rounded-2xl border border-white/10 bg-black/20 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Verified Data Control</div><div className="mt-1 text-sm text-white/70">Official source data • validation required • no invented values</div></div>
+        <button type="button" onClick={() => void handleVerifiedSync()} disabled={verifiedSyncing} className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200 disabled:opacity-50">{verifiedSyncing ? 'Synchronizing…' : `Sync ${activeCurrency}`}</button>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className="rounded-xl bg-white/5 p-3"><div className="text-[10px] uppercase text-white/40">Indicators</div><div className="mt-1 text-lg font-bold">{verifiedStatus?.registry.length ?? '—'}</div></div>
+        <div className="rounded-xl bg-white/5 p-3"><div className="text-[10px] uppercase text-white/40">Observations</div><div className="mt-1 text-lg font-bold">{verifiedStatus?.observations.length ?? '—'}</div></div>
+        <div className="rounded-xl bg-white/5 p-3"><div className="text-[10px] uppercase text-white/40">Valid</div><div className="mt-1 text-lg font-bold">{verifiedStatus?.observations.filter(o => o.validation_status === 'VALID').length ?? '—'}</div></div>
+        <div className="rounded-xl bg-white/5 p-3"><div className="text-[10px] uppercase text-white/40">Sources</div><div className="mt-1 text-lg font-bold">{new Set((verifiedStatus?.registry || []).map(r => r.source?.source_key).filter(Boolean)).size || '—'}</div></div>
+      </div>
+      {verifiedSyncError && <div className="mt-3 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-xs text-red-200">{verifiedSyncError}</div>}
+      {verifiedStatus?.observations.length ? <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-xs"><thead><tr className="border-b border-white/10 text-white/40"><th className="p-2">Indicator</th><th className="p-2">Previous</th><th className="p-2">Actual</th><th className="p-2">Period</th><th className="p-2">Status</th></tr></thead><tbody>{verifiedStatus.observations.slice(0,12).map(row => { const reg=verifiedStatus.registry.find(r=>r.id===row.indicator_id); return <tr key={row.id} className="border-b border-white/5"><td className="p-2 text-white/80">{reg?.indicator_name || row.indicator_id}</td><td className="p-2">{row.previous_value ?? '—'}</td><td className="p-2 font-semibold">{row.actual_value ?? '—'}</td><td className="p-2">{row.observation_period}</td><td className="p-2">{row.validation_status}</td></tr>; })}</tbody></table></div> : null}
+    </div>
+  );
 
   // Deterministically compute currency scores for all 8 currencies
   const currencyScores = useMemo(() => {
@@ -1068,6 +1106,8 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
         }}
         onSelectTab={(tab) => setActiveTab(tab)}
       />
+
+      {verifiedDataPanel}
 
       {activeTab === 'OVERVIEW' && (
         <FundamentalAssetCommandCenter
