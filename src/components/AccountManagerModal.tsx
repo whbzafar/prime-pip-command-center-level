@@ -14,8 +14,14 @@ import {
   Settings,
   DollarSign,
 } from 'lucide-react';
-import { AccountSettings, AccountType } from '../types';
+import { AccountSettings, AccountType, FundedAccountConfig } from '../types';
 import { formatCurrency, safeNumber } from '../utils/currencyFormatter';
+import {
+  createDefaultFundedConfig,
+  getEffectiveFundedConfig,
+  isFundedAccount,
+} from '../utils/fundedRiskEngine';
+import { FundedAccountConfigPanel } from './FundedAccountConfigPanel';
 
 interface AccountManagerModalProps {
   isOpen: boolean;
@@ -47,17 +53,22 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
   const [balance, setBalance] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [customCurrency, setCustomCurrency] = useState('');
+  const [accountCategory, setAccountCategory] = useState<'PERSONAL' | 'FUNDED'>('PERSONAL');
   const [accountType, setAccountType] = useState<string>('Personal Account');
   const [broker, setBroker] = useState('');
+  const [fundedConfig, setFundedConfig] = useState<FundedAccountConfig>(() =>
+    createDefaultFundedConfig(5000, 'My Prop Firm')
+  );
   const [error, setError] = useState<string | null>(null);
 
   const currencyOptions = ['USD', 'EUR', 'GBP', 'PKR', 'Cent', 'USC', 'Custom'];
   const accountTypeOptions = [
-    { id: 'Personal Account', label: 'Personal Account', mappedType: 'PERSONAL_LIVE' as AccountType },
-    { id: 'Cent Account', label: 'Cent Account (USC / ¢)', mappedType: 'PERSONAL_LIVE' as AccountType },
-    { id: 'Prop Firm Challenge', label: 'Prop Firm Challenge', mappedType: 'PROP_FIRM_EVALUATION' as AccountType },
-    { id: 'Live Funded Account', label: 'Live Funded Account', mappedType: 'PROP_FIRM_FUNDED' as AccountType },
-    { id: 'Demo Account', label: 'Demo Account', mappedType: 'DEMO' as AccountType },
+    { id: 'Personal Account', label: 'Personal Account', mappedType: 'PERSONAL_LIVE' as AccountType, category: 'PERSONAL' as const },
+    { id: 'Cent Account', label: 'Cent Account (USC / ¢)', mappedType: 'PERSONAL_LIVE' as AccountType, category: 'PERSONAL' as const },
+    { id: 'Funded Account', label: 'Funded Account (Prop Evaluation / Live)', mappedType: 'PROP_FIRM_EVALUATION' as AccountType, category: 'FUNDED' as const },
+    { id: 'Prop Firm Challenge', label: 'Prop Firm Challenge', mappedType: 'PROP_FIRM_EVALUATION' as AccountType, category: 'FUNDED' as const },
+    { id: 'Live Funded Account', label: 'Live Funded Account', mappedType: 'PROP_FIRM_FUNDED' as AccountType, category: 'FUNDED' as const },
+    { id: 'Demo Account', label: 'Demo Account', mappedType: 'DEMO' as AccountType, category: 'PERSONAL' as const },
   ];
 
   const handleStartCreate = () => {
@@ -65,8 +76,10 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
     setBalance('5000');
     setCurrency('USD');
     setCustomCurrency('');
+    setAccountCategory('PERSONAL');
     setAccountType('Personal Account');
     setBroker('');
+    setFundedConfig(createDefaultFundedConfig(5000, 'My Prop Firm'));
     setError(null);
     setView('CREATE');
   };
@@ -77,16 +90,24 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
     setBalance(acc.initialBalance.toString());
     setCurrency(currencyOptions.includes(acc.currency) ? acc.currency : 'Custom');
     setCustomCurrency(currencyOptions.includes(acc.currency) ? '' : acc.currency);
-    const matched = accountTypeOptions.find((o) => o.mappedType === acc.accountType)?.id || 'Personal Account';
+    const isFunded = isFundedAccount(acc);
+    setAccountCategory(isFunded ? 'FUNDED' : 'PERSONAL');
+    const matched =
+      accountTypeOptions.find((o) => o.mappedType === acc.accountType)?.id ||
+      (isFunded ? 'Funded Account' : 'Personal Account');
     setAccountType(matched);
     setBroker(acc.broker || '');
+    setFundedConfig(getEffectiveFundedConfig(acc));
     setError(null);
     setView('EDIT');
   };
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const balanceNum = safeNumber(balance, -1);
+    const isFunded = accountCategory === 'FUNDED';
+    const balanceNum = isFunded
+      ? safeNumber(fundedConfig.startingBalance, safeNumber(balance, -1))
+      : safeNumber(balance, -1);
     if (balanceNum <= 0) {
       setError('Please enter a valid positive starting balance.');
       return;
@@ -98,22 +119,41 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
 
     const selectedCurrency =
       currency === 'Custom' ? (customCurrency.trim().toUpperCase() || 'USD') : currency;
-    const mappedType = accountTypeOptions.find((o) => o.id === accountType)?.mappedType || 'PERSONAL_LIVE';
+    const mappedType: AccountType = isFunded
+      ? fundedConfig.phase === 'FUNDED_LIVE' || fundedConfig.phase === 'INSTANT_FUNDED'
+        ? 'PROP_FIRM_FUNDED'
+        : 'PROP_FIRM_EVALUATION'
+      : accountTypeOptions.find((o) => o.id === accountType)?.mappedType || 'PERSONAL_LIVE';
+
+    const finalizedFundedConfig: FundedAccountConfig | undefined = isFunded
+      ? {
+          ...fundedConfig,
+          enabled: true,
+          startingBalance: balanceNum,
+          accountSize: fundedConfig.accountSize || balanceNum,
+          firmName: fundedConfig.firmName || broker.trim() || 'My Prop Firm',
+        }
+      : undefined;
 
     const newAcc: AccountSettings = {
       id: `acc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       traderName: activeAccount.traderName || 'TRADER VIPER',
       accountName: name.trim(),
       accountType: mappedType,
+      accountCategory: isFunded ? 'FUNDED' : 'PERSONAL',
+      fundedConfig: finalizedFundedConfig,
       initialBalance: balanceNum,
       currentBalance: balanceNum,
       currentEquity: balanceNum,
-      broker: broker.trim() || 'Direct Market Access',
+      broker: isFunded
+        ? finalizedFundedConfig?.firmName || broker.trim() || 'My Prop Firm'
+        : broker.trim() || 'Direct Market Access',
       currency: selectedCurrency,
-      maxDailyLossPercent: 4.0,
-      maxDrawdownPercent: 5.0,
+      maxDailyLossPercent: isFunded ? finalizedFundedConfig?.dailyDrawdownPercent || 4.0 : 4.0,
+      maxDrawdownPercent: isFunded ? finalizedFundedConfig?.overallDrawdownPercent || 10.0 : 5.0,
       maxDailyTrades: 2,
-      maxRiskPerTradePercent: 1.0,
+      targetRiskPerTradePercent: isFunded ? finalizedFundedConfig?.preferredRiskPercent || 1.0 : 1.0,
+      maxRiskPerTradePercent: isFunded ? finalizedFundedConfig?.maxRiskPerTradePercent || 1.0 : 1.0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -124,7 +164,10 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const balanceNum = safeNumber(balance, -1);
+    const isFunded = accountCategory === 'FUNDED';
+    const balanceNum = isFunded
+      ? safeNumber(fundedConfig.startingBalance, safeNumber(balance, -1))
+      : safeNumber(balance, -1);
     if (balanceNum <= 0) {
       setError('Please enter a valid starting balance.');
       return;
@@ -136,7 +179,24 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
 
     const selectedCurrency =
       currency === 'Custom' ? (customCurrency.trim().toUpperCase() || 'USD') : currency;
-    const mappedType = accountTypeOptions.find((o) => o.id === accountType)?.mappedType || 'PERSONAL_LIVE';
+    const mappedType: AccountType = isFunded
+      ? fundedConfig.phase === 'FUNDED_LIVE' || fundedConfig.phase === 'INSTANT_FUNDED'
+        ? 'PROP_FIRM_FUNDED'
+        : 'PROP_FIRM_EVALUATION'
+      : accountTypeOptions.find((o) => o.id === accountType)?.mappedType || 'PERSONAL_LIVE';
+
+    const finalizedFundedConfig: FundedAccountConfig | undefined = isFunded
+      ? {
+          ...fundedConfig,
+          enabled: true,
+          startingBalance: balanceNum,
+          accountSize: fundedConfig.accountSize || balanceNum,
+          firmName: fundedConfig.firmName || broker.trim() || 'My Prop Firm',
+        }
+      : {
+          ...fundedConfig,
+          enabled: false,
+        };
 
     const updated: AccountSettings = {
       ...editingAccount,
@@ -146,7 +206,23 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
       currentEquity: balanceNum,
       currency: selectedCurrency,
       accountType: mappedType,
-      broker: broker.trim() || 'Direct Market Access',
+      accountCategory: isFunded ? 'FUNDED' : 'PERSONAL',
+      fundedConfig: finalizedFundedConfig,
+      maxDailyLossPercent: isFunded
+        ? finalizedFundedConfig?.dailyDrawdownPercent || editingAccount.maxDailyLossPercent
+        : editingAccount.maxDailyLossPercent,
+      maxDrawdownPercent: isFunded
+        ? finalizedFundedConfig?.overallDrawdownPercent || editingAccount.maxDrawdownPercent
+        : editingAccount.maxDrawdownPercent,
+      targetRiskPerTradePercent: isFunded
+        ? finalizedFundedConfig?.preferredRiskPercent || editingAccount.targetRiskPerTradePercent
+        : editingAccount.targetRiskPerTradePercent,
+      maxRiskPerTradePercent: isFunded
+        ? finalizedFundedConfig?.maxRiskPerTradePercent || editingAccount.maxRiskPerTradePercent
+        : editingAccount.maxRiskPerTradePercent,
+      broker: isFunded
+        ? finalizedFundedConfig?.firmName || broker.trim() || 'My Prop Firm'
+        : broker.trim() || 'Direct Market Access',
       updatedAt: new Date().toISOString(),
     };
 
@@ -399,42 +475,123 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                 </div>
               </div>
 
-              {/* Account Type */}
-              <div>
-                <label className="block text-xs font-mono-code uppercase text-slate-300 mb-1.5 font-semibold">
-                  Account Type
+              {/* Account Type: Personal vs Funded */}
+              <div className="space-y-3">
+                <label className="block text-xs font-mono-code uppercase text-slate-300 font-semibold">
+                  Account Type (Personal / Funded)
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {accountTypeOptions.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setAccountType(opt.id)}
-                      className={`p-2.5 rounded-lg border text-left text-xs font-mono-code transition ${
-                        accountType === opt.id
-                          ? 'bg-blue-500/10 border-blue-500 text-amber-300 font-bold'
-                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountCategory('PERSONAL');
+                      setAccountType('Personal Account');
+                    }}
+                    className={`p-3.5 rounded-xl border text-left transition cursor-pointer flex items-center justify-between ${
+                      accountCategory === 'PERSONAL'
+                        ? 'bg-blue-500/15 border-blue-500 text-slate-100 shadow-lg shadow-blue-500/10'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div>
+                      <div className="text-xs sm:text-sm font-military font-bold text-cyan-300 uppercase">
+                        1. PERSONAL ACCOUNT
+                      </div>
+                      <div className="text-[11px] font-mono-code text-slate-400 mt-0.5">
+                        Standard personal live, cent, or demo trading account
+                      </div>
+                    </div>
+                    {accountCategory === 'PERSONAL' && (
+                      <div className="w-5 h-5 rounded-full bg-blue-500 text-slate-950 flex items-center justify-center shrink-0">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountCategory('FUNDED');
+                      setAccountType('Funded Account');
+                      const balNum = safeNumber(balance, 5000);
+                      if (balNum > 0 && fundedConfig.startingBalance !== balNum) {
+                        setFundedConfig((prev) => ({
+                          ...prev,
+                          enabled: true,
+                          startingBalance: balNum,
+                          accountSize: balNum,
+                        }));
+                      }
+                    }}
+                    className={`p-3.5 rounded-xl border text-left transition cursor-pointer flex items-center justify-between ${
+                      accountCategory === 'FUNDED'
+                        ? 'bg-cyan-500/15 border-cyan-400 text-slate-100 shadow-lg shadow-cyan-500/10'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div>
+                      <div className="text-xs sm:text-sm font-military font-bold text-amber-300 uppercase">
+                        2. FUNDED ACCOUNT
+                      </div>
+                      <div className="text-[11px] font-mono-code text-slate-400 mt-0.5">
+                        Prop firm challenge or funded account with full Risk Engine
+                      </div>
+                    </div>
+                    {accountCategory === 'FUNDED' && (
+                      <div className="w-5 h-5 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center shrink-0">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    )}
+                  </button>
                 </div>
+
+                {/* Personal Account Sub-Options */}
+                {accountCategory === 'PERSONAL' && (
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    {accountTypeOptions
+                      .filter((o) => o.category === 'PERSONAL')
+                      .map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setAccountType(opt.id)}
+                          className={`p-2 rounded-lg border text-left text-xs font-mono-code transition cursor-pointer ${
+                            accountType === opt.id
+                              ? 'bg-blue-500/10 border-blue-500 text-amber-300 font-bold'
+                              : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                  </div>
+                )}
               </div>
 
-              {/* Broker */}
-              <div>
-                <label className="block text-xs font-mono-code uppercase text-slate-400 mb-1">
-                  Broker / Prop Firm Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={broker}
-                  onChange={(e) => setBroker(e.target.value)}
-                  placeholder="e.g. Eightcap, IC Markets, FTMO"
-                  className="w-full px-3.5 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 placeholder-slate-600 text-xs font-mono-code"
+              {/* Funded Account Configuration Section (Sections 4, 5, 6, 7, 10) */}
+              {accountCategory === 'FUNDED' ? (
+                <FundedAccountConfigPanel
+                  config={fundedConfig}
+                  currency={currency === 'Custom' ? customCurrency || 'USD' : currency}
+                  onChange={setFundedConfig}
+                  onSyncStartingBalance={(val) => setBalance(String(val))}
+                  onSyncBroker={(firm) => setBroker(firm)}
                 />
-              </div>
+              ) : (
+                /* Personal Broker Input */
+                <div>
+                  <label className="block text-xs font-mono-code uppercase text-slate-400 mb-1">
+                    Broker Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={broker}
+                    onChange={(e) => setBroker(e.target.value)}
+                    placeholder="e.g. Eightcap, IC Markets, Exness"
+                    className="w-full px-3.5 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 placeholder-slate-600 text-xs font-mono-code"
+                  />
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-800">

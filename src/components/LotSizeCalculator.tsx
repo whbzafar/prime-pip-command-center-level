@@ -18,6 +18,7 @@ import {
 import { AccountSettings, LotCalculationHistoryItem } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
 import { getKarachiDate, getKarachiTime } from '../utils/time';
+import { evaluateFundedAccountRisk, isFundedAccount } from '../utils/fundedRiskEngine';
 import { StandardCalculator } from './StandardCalculator';
 
 interface LotSizeCalculatorProps {
@@ -283,6 +284,11 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  const fundedEval = useMemo(
+    () => (activeAccount ? evaluateFundedAccountRisk(activeAccount, []) : null),
+    [activeAccount]
+  );
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -306,7 +312,29 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {fundedEval && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBalance(fundedEval.currentBalance);
+                  setCurrency(fundedEval.currency);
+                  if (fundedEval.recommendedRiskPercent > 0) {
+                    setRiskPercent(fundedEval.recommendedRiskPercent);
+                  }
+                }}
+                className="px-3.5 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-mono-code font-bold flex items-center gap-2 transition cursor-pointer"
+                title="Sync balance and safe next-trade risk % from Funded Account Risk Engine"
+              >
+                <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                <span>
+                  USE FUNDED SAFE RISK:{' '}
+                  {formatCurrency(fundedEval.recommendedRiskDollars, fundedEval.currency)} (
+                  {fundedEval.recommendedRiskPercent}%) • DAILY DD REM:{' '}
+                  {formatCurrency(fundedEval.remainingDailyDrawdown, fundedEval.currency)}
+                </span>
+              </button>
+            )}
             {/* Mode Switcher */}
             <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
               <button

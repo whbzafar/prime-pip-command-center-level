@@ -33,6 +33,8 @@ import {
   DEFAULT_INTEREST_RATES,
   DEFAULT_COMMODITY_OBSERVATIONS,
   DEFAULT_RETAIL_POSITIONING,
+  DEFAULT_MULTI_ASSET_FUNDAMENTALS,
+  MultiAssetFundamentalRecord,
 } from '../../data/defaultFundamentalObservations';
 
 interface FundamentalNotificationBannerProps {
@@ -46,29 +48,76 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
 }) => {
   // Toggle state: click to reveal, click again to hide
   const [isRevealed, setIsRevealed] = useState<boolean>(false);
+  const [showAll28Pairs, setShowAll28Pairs] = useState<boolean>(true);
   const [localScores, setLocalScores] = useState<Record<CurrencyCode, CurrencyScoreResult> | null>(null);
+  const [liveObservations, setLiveObservations] = useState<IndicatorObservation[]>(DEFAULT_OBSERVATIONS);
+  const [liveRetail, setLiveRetail] = useState<RetailPositioningRecord[]>(DEFAULT_RETAIL_POSITIONING);
+  const [liveCommodities, setLiveCommodities] = useState(DEFAULT_COMMODITY_OBSERVATIONS);
+  const [liveMultiAssets, setLiveMultiAssets] = useState<MultiAssetFundamentalRecord[]>(DEFAULT_MULTI_ASSET_FUNDAMENTALS);
 
-  // Compute live scores from storage if not supplied from props, with live sync listeners
+  // Compute live scores from storage and backend if not supplied from props, with live sync listeners
   useEffect(() => {
-    const computeScores = () => {
-      if (propCurrencyScores && Object.keys(propCurrencyScores).length > 0) {
-        setLocalScores(propCurrencyScores);
-        return;
-      }
+    let isMounted = true;
 
+    const computeScoresFromData = (obsSource?: IndicatorObservation[]) => {
       try {
         const rawObs = localStorage.getItem('primepip_fundamental_observations_v2');
-        const observations: IndicatorObservation[] = rawObs ? JSON.parse(rawObs) : DEFAULT_OBSERVATIONS;
+        const parsedObs: IndicatorObservation[] = obsSource?.length
+          ? obsSource
+          : rawObs
+          ? JSON.parse(rawObs)
+          : DEFAULT_OBSERVATIONS;
+        const observations = parsedObs.length > 0 ? parsedObs : DEFAULT_OBSERVATIONS;
+
         const rawWeights = localStorage.getItem('primepip_fundamental_weights_v2');
         const categoryWeights = rawWeights ? JSON.parse(rawWeights) : DEFAULT_CATEGORY_WEIGHTS;
+
         const rawRates = localStorage.getItem('primepip_fundamental_rates_v2');
-        const interestRates = rawRates ? JSON.parse(rawRates) : DEFAULT_INTEREST_RATES;
+        const parsedRates = rawRates ? JSON.parse(rawRates) : DEFAULT_INTEREST_RATES;
+        const interestRates = Array.isArray(parsedRates) && parsedRates.some((r: any) => r.currentPolicyRate > 0)
+          ? parsedRates
+          : DEFAULT_INTEREST_RATES;
+
         const rawCot = localStorage.getItem('primepip_fundamental_cot_v2');
-        const cotRecords = rawCot ? JSON.parse(rawCot) : DEFAULT_COT_RECORDS;
+        const parsedCot = rawCot ? JSON.parse(rawCot) : DEFAULT_COT_RECORDS;
+        const cotRecords = Array.isArray(parsedCot) && parsedCot.some((c: any) => c.openInterest > 0)
+          ? parsedCot
+          : DEFAULT_COT_RECORDS;
+
         const rawSentiment = localStorage.getItem('primepip_fundamental_sentiment_v2');
-        const sentimentRecords = rawSentiment ? JSON.parse(rawSentiment) : DEFAULT_SENTIMENT_RECORDS;
-        const rawRetail = localStorage.getItem('primepip_fundamental_retail_v1');
-        const retailPositioning: RetailPositioningRecord[] = rawRetail ? JSON.parse(rawRetail) : DEFAULT_RETAIL_POSITIONING;
+        const parsedSent = rawSentiment ? JSON.parse(rawSentiment) : DEFAULT_SENTIMENT_RECORDS;
+        const sentimentRecords = Array.isArray(parsedSent) && parsedSent.some((s: any) => s.sentimentConfidence > 0)
+          ? parsedSent
+          : DEFAULT_SENTIMENT_RECORDS;
+
+        const rawRetail =
+          localStorage.getItem('primepip_fundamental_retail_positioning_v1') ||
+          localStorage.getItem('primepip_fundamental_retail_v1');
+        const parsedRetail: RetailPositioningRecord[] = rawRetail ? JSON.parse(rawRetail) : DEFAULT_RETAIL_POSITIONING;
+        const retailPositioning = Array.isArray(parsedRetail) && parsedRetail.some((r: any) => r.longPercent > 0)
+          ? parsedRetail
+          : DEFAULT_RETAIL_POSITIONING;
+
+        const rawComm = localStorage.getItem('primepip_fundamental_commodities_v2');
+        const parsedComm = rawComm ? JSON.parse(rawComm) : DEFAULT_COMMODITY_OBSERVATIONS;
+        const commObs = Array.isArray(parsedComm) && parsedComm.some((c: any) => c.price > 0)
+          ? parsedComm
+          : DEFAULT_COMMODITY_OBSERVATIONS;
+
+        const rawMulti = localStorage.getItem('primepip_fundamental_multi_assets_v1');
+        const parsedMulti: MultiAssetFundamentalRecord[] = rawMulti ? JSON.parse(rawMulti) : DEFAULT_MULTI_ASSET_FUNDAMENTALS;
+        const multiObs = Array.isArray(parsedMulti) && parsedMulti.length > 0 ? parsedMulti : DEFAULT_MULTI_ASSET_FUNDAMENTALS;
+
+        if (!isMounted) return;
+        setLiveObservations(observations);
+        setLiveRetail(retailPositioning);
+        setLiveCommodities(commObs);
+        setLiveMultiAssets(multiObs);
+
+        if (propCurrencyScores && Object.keys(propCurrencyScores).length > 0) {
+          setLocalScores(propCurrencyScores);
+          return;
+        }
 
         const currencies = Object.keys(CURRENCY_METADATA) as CurrencyCode[];
         const computed: Record<CurrencyCode, CurrencyScoreResult> = {} as any;
@@ -89,14 +138,35 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
       }
     };
 
-    computeScores();
+    const syncFromBackendAndStorage = async () => {
+      computeScoresFromData();
+      try {
+        const res = await fetch('/api/fundamental/observations', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.observations && Array.isArray(data.observations) && data.observations.length > 0) {
+            try {
+              localStorage.setItem('primepip_fundamental_observations_v2', JSON.stringify(data.observations));
+            } catch {}
+            computeScoresFromData(data.observations);
+          }
+        }
+      } catch {}
+    };
 
-    const handleDataUpdate = () => computeScores();
+    void syncFromBackendAndStorage();
+
+    const handleDataUpdate = () => void syncFromBackendAndStorage();
     window.addEventListener('primepipfx_fundamental_data_updated', handleDataUpdate);
+    window.addEventListener('primepipfx_fundamental_updated', handleDataUpdate);
+    window.addEventListener('primepipfx_fundamental_patch_received', handleDataUpdate);
     window.addEventListener('storage', handleDataUpdate);
 
     return () => {
+      isMounted = false;
       window.removeEventListener('primepipfx_fundamental_data_updated', handleDataUpdate);
+      window.removeEventListener('primepipfx_fundamental_updated', handleDataUpdate);
+      window.removeEventListener('primepipfx_fundamental_patch_received', handleDataUpdate);
       window.removeEventListener('storage', handleDataUpdate);
     };
   }, [propCurrencyScores]);
@@ -105,79 +175,40 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
     ? propCurrencyScores
     : localScores || ({} as Record<CurrencyCode, CurrencyScoreResult>);
 
-  // Compute live long-term ranked pairs
+  // Compute live long-term ranked pairs across all 28 pairs in Fundamental Intelligence
   const rankedData = useMemo(() => {
-    const list: Array<{
-      pair: string;
-      baseCurrency: string;
-      quoteCurrency: string;
-      score: number;
-      strengthPercent: number;
-      isBullish: boolean;
-      isBearish: boolean;
-      bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONG_BEARISH';
-      biasLabel: string;
-      rationale: string;
-      actionTag: 'BUY' | 'SELL' | 'HOLD';
-      horizon: string;
-    }> = [];
-
-    // Use 20 canonical FX pairs
-    for (const [base, quote] of PRIMARY_PAIR_MATRIX_20) {
-      const diffResult = calculatePairDifferential(base, quote, activeCurrencyScores);
-      const score = diffResult.differential;
+    const ltRankings = calculateLongTermPairRankings(activeCurrencyScores, liveObservations, liveRetail);
+    const all28Pairs = (ltRankings.allPairs || []).map((p) => {
+      const score = p.longTermDiff;
       const isBullish = score > 0;
       const isBearish = score < 0;
       const strengthPercent = Math.min(100, Math.max(50, Math.round(50 + Math.abs(score) / 2)));
+      const actionTag: 'BUY' | 'SELL' | 'HOLD' = score >= 5 ? 'BUY' : score <= -5 ? 'SELL' : score > 0 ? 'BUY' : score < 0 ? 'SELL' : 'HOLD';
 
-      let bias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONG_BEARISH' = 'NEUTRAL';
-      let actionTag: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
-
-      if (score >= 25) {
-        bias = 'STRONG_BULLISH';
-        actionTag = 'BUY';
-      } else if (score >= 10) {
-        bias = 'BULLISH';
-        actionTag = 'BUY';
-      } else if (score <= -25) {
-        bias = 'STRONG_BEARISH';
-        actionTag = 'SELL';
-      } else if (score <= -10) {
-        bias = 'BEARISH';
-        actionTag = 'SELL';
-      } else if (score > 0) {
-        bias = 'BULLISH';
-        actionTag = 'BUY';
-      } else if (score < 0) {
-        bias = 'BEARISH';
-        actionTag = 'SELL';
-      }
-
-      const rationale = score >= 12
-        ? `Long-term macroeconomic edge favors ${base} yield differentials, terms of trade & structural positioning over ${quote}.`
-        : score <= -12
-        ? `Structural headwind: ${quote} yields and monetary momentum significantly outpace ${base}.`
-        : `Balanced structural macroeconomic equilibrium between ${base} and ${quote}.`;
-
-      list.push({
-        pair: `${base}/${quote}`,
-        baseCurrency: base,
-        quoteCurrency: quote,
+      return {
+        pair: p.pair,
+        baseCurrency: p.baseCurrency,
+        quoteCurrency: p.quoteCurrency,
         score,
         strengthPercent,
         isBullish,
         isBearish,
-        bias,
-        biasLabel: bias.replace('_', ' '),
-        rationale,
+        bias: p.bias,
+        biasLabel: p.bias.replace(/_/g, ' '),
+        rationale: p.structuralRationale,
         actionTag,
-        horizon: 'Long-Term Structural (Macro + COT)',
-      });
-    }
+        horizon: 'Long-Term Structural (28-Pair Matrix)',
+        rateSpread: (p as any).rateSpread ?? p.structuralFactors?.monetaryPolicyRegime,
+        yield10YSpread: (p as any).yield10YSpread ?? p.structuralFactors?.realRateDifferential,
+      };
+    });
+
+    const list = [...all28Pairs];
 
     // Add Key Commodities (XAU/USD, XAG/USD, US Oil)
-    for (const comm of DEFAULT_COMMODITY_OBSERVATIONS) {
-      const commCalc = calculateCommodityFundamentalScore(comm);
+    for (const comm of liveCommodities) {
+      const commRetail = liveRetail.find((r) => r.asset === comm.symbol);
+      const commCalc = calculateCommodityFundamentalScore(comm, commRetail);
       const score = commCalc.score;
       const isBullish = score > 0;
       const isBearish = score < 0;
@@ -187,8 +218,8 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
 
       list.push({
         pair: assetTicker,
-        baseCurrency: comm.symbol,
-        quoteCurrency: 'USD',
+        baseCurrency: comm.symbol as any,
+        quoteCurrency: 'USD' as any,
         score,
         strengthPercent,
         isBullish,
@@ -197,22 +228,30 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
         biasLabel: score >= 20 ? 'STRONG BULLISH' : score <= -20 ? 'STRONG BEARISH' : score > 0 ? 'BULLISH' : 'BEARISH',
         rationale: typeof commCalc.drivers[0] === 'string' ? commCalc.drivers[0] : (commCalc.drivers[0]?.label || 'Commodity macro yield & supply/demand driver'),
         actionTag,
-        horizon: 'Long-Term Structural',
+        horizon: 'Long-Term Structural Commodity',
+        rateSpread: 0,
+        yield10YSpread: 0,
       });
     }
 
-    // Sort by score descending for Bullish, ascending for Bearish
+    // Sort 28 FX pairs by score descending for Bullish, ascending for Bearish
+    const bullish28 = [...all28Pairs].filter((i) => i.score >= 0).sort((a, b) => b.score - a.score);
+    const bearish28 = [...all28Pairs].filter((i) => i.score < 0).sort((a, b) => a.score - b.score);
+
     const bullishSorted = [...list].filter((i) => i.score > 0).sort((a, b) => b.score - a.score);
     const bearishSorted = [...list].filter((i) => i.score < 0).sort((a, b) => a.score - b.score);
 
     return {
       all: list,
-      topBullish: bullishSorted.slice(0, 4),
-      topBearish: bearishSorted.slice(0, 4),
-      bestBullish: bullishSorted[0] || list[0],
-      bestBearish: bearishSorted[0] || list[list.length - 1],
+      all28Pairs,
+      bullish28,
+      bearish28,
+      topBullish: showAll28Pairs ? bullish28 : bullishSorted.slice(0, 6),
+      topBearish: showAll28Pairs ? bearish28 : bearishSorted.slice(0, 6),
+      bestBullish: bullish28[0] || bullishSorted[0] || list[0],
+      bestBearish: bearish28[0] || bearishSorted[0] || list[list.length - 1],
     };
-  }, [activeCurrencyScores]);
+  }, [activeCurrencyScores, liveObservations, liveRetail, liveCommodities, showAll28Pairs]);
 
   const todayStr = new Date().toLocaleDateString('en-US', {
     weekday: 'short',
@@ -357,14 +396,29 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setIsRevealed(false)}
-              className="self-end sm:self-center px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-[11px] font-mono-code border border-slate-800 transition flex items-center gap-1 cursor-pointer"
-            >
-              <EyeOff className="w-3 h-3" />
-              <span>Hide Details</span>
-            </button>
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              <button
+                type="button"
+                onClick={() => setShowAll28Pairs(!showAll28Pairs)}
+                className={`px-3 py-1 rounded-lg text-[11px] font-mono-code font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                  showAll28Pairs
+                    ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow'
+                    : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/40'
+                }`}
+              >
+                <Layers className="w-3 h-3" />
+                <span>{showAll28Pairs ? 'SHOWING ALL 28 PAIRS (CLICK FOR TOP)' : 'VIEW ALL 28 PAIRS MATRIX'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsRevealed(false)}
+                className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-[11px] font-mono-code border border-slate-800 transition flex items-center gap-1 cursor-pointer"
+              >
+                <EyeOff className="w-3 h-3" />
+                <span>Hide Details</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -506,6 +560,51 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
                 <span>Confidence: Structural Macro Deterioration</span>
                 <span className="text-slate-400">Click any pair to inspect</span>
               </div>
+            </div>
+          </div>
+
+          {/* Multi-Asset Coverage: Indices, Stocks, Crypto & Commodities */}
+          <div className="mt-4 pt-4 border-t border-slate-800/80 space-y-2.5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-[11px] font-military font-bold text-cyan-300 uppercase tracking-wider">
+                MULTI-ASSET FUNDAMENTAL STATUS (INDICES • TOP STOCKS • TOP 5 CRYPTO)
+              </span>
+              <span className="text-[10px] font-mono-code text-slate-400">
+                Synced with Fundamental Intelligence Engine
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              {liveMultiAssets.map((asset) => {
+                const isBull = asset.score >= 0;
+                return (
+                  <div
+                    key={asset.id}
+                    onClick={() => handleSelectAsset(asset.symbol)}
+                    className={`p-2 rounded-xl border text-xs font-mono-code cursor-pointer transition flex items-center justify-between gap-2 ${
+                      isBull
+                        ? 'bg-emerald-950/20 border-emerald-500/30 hover:border-emerald-400 text-emerald-200'
+                        : 'bg-rose-950/20 border-rose-500/30 hover:border-rose-400 text-rose-200'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-100 truncate">{asset.symbol}</div>
+                      <div className="text-[9px] text-slate-400 uppercase">{asset.category}</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className={`font-bold ${isBull ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {isBull ? `+${asset.score}` : asset.score}
+                      </div>
+                      <span
+                        className={`text-[8px] px-1 py-0.2 rounded font-bold ${
+                          isBull ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
+                        }`}
+                      >
+                        {isBull ? 'BULLISH' : 'BEARISH'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

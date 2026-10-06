@@ -21,10 +21,10 @@ import { CURRENCIES, OFFICIAL_INDICATOR_REGISTRY, DEFAULT_CATEGORY_WEIGHTS } fro
 const CURRENT_TIMESTAMP_MS = Date.now();
 
 /**
- * Canonical 20-pair universe shared by the pair differential engine and
- * the long-term structural matrix.
+ * Canonical 28-pair universe shared by the pair differential engine and
+ * the long-term structural matrix (7 Majors + 21 Crosses).
  */
-export const PRIMARY_PAIR_MATRIX_20: [CurrencyCode, CurrencyCode][] = [
+export const PRIMARY_PAIR_MATRIX_28: [CurrencyCode, CurrencyCode][] = [
   ['EUR', 'USD'],
   ['GBP', 'USD'],
   ['USD', 'JPY'],
@@ -38,14 +38,24 @@ export const PRIMARY_PAIR_MATRIX_20: [CurrencyCode, CurrencyCode][] = [
   ['AUD', 'JPY'],
   ['CAD', 'JPY'],
   ['CHF', 'JPY'],
+  ['NZD', 'JPY'],
   ['EUR', 'AUD'],
   ['EUR', 'CAD'],
   ['EUR', 'CHF'],
+  ['EUR', 'NZD'],
   ['GBP', 'AUD'],
   ['GBP', 'CAD'],
   ['GBP', 'CHF'],
+  ['GBP', 'NZD'],
   ['AUD', 'CAD'],
+  ['AUD', 'CHF'],
+  ['AUD', 'NZD'],
+  ['CAD', 'CHF'],
+  ['NZD', 'CAD'],
+  ['NZD', 'CHF'],
 ];
+
+export const PRIMARY_PAIR_MATRIX_20: [CurrencyCode, CurrencyCode][] = PRIMARY_PAIR_MATRIX_28;
 
 export function calculateIndicatorScore(
   definition: IndicatorDefinition,

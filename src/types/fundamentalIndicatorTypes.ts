@@ -88,6 +88,7 @@ export interface BacktestRuleConfig {
 export type IndicatorDataStatus =
   | 'LIVE_VERIFIED'
   | 'OFFICIAL_PUBLISHED'
+  | 'COMPLETE'
   | 'DELAYED'
   | 'REVISED'
   | 'EXTRACTED_FROM_IMAGE'
@@ -99,6 +100,8 @@ export interface IndicatorObservation {
   indicatorId: string;
   indicatorName?: string;
   currency: CurrencyCode;
+  category?: IndicatorCategory;
+  frequency?: MeasurementFrequency;
   referencePeriod: string;
   releaseDate: string;
   releaseTime?: string;
@@ -109,13 +112,16 @@ export interface IndicatorObservation {
   unit?: string;
   isSeasonallyAdjusted?: boolean;
   dataSource?: string;
+  sourceName?: string;
   sourceUrl?: string;
+  sourceType?: string;
   notes?: string;
   updatedAt: string;
   dataRetrievalTimestamp?: string;
   dataStatus?: IndicatorDataStatus;
   verificationStatus?: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' | 'MANUAL';
   confidence?: number;
+  isEntered?: boolean;
   researchRetrievedAt?: string;
   researchSourceName?: string;
   revisions?: {

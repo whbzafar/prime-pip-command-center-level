@@ -371,12 +371,69 @@ export interface DisciplineAlarms {
   soundEnabled: boolean;
 }
 
+export type FundedPhase = 'PHASE_1' | 'PHASE_2' | 'PHASE_3' | 'FUNDED_LIVE' | 'INSTANT_FUNDED';
+
+export type FundedDrawdownType =
+  | 'STATIC'
+  | 'TRAILING'
+  | 'EQUITY_BASED'
+  | 'BALANCE_BASED'
+  | 'END_OF_DAY'
+  | 'INTRADAY'
+  | 'CUSTOM';
+
+export type TrailingBasis = 'BALANCE' | 'EQUITY' | 'END_OF_DAY_BALANCE';
+
+export type FundedRiskMode = 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE';
+
+export interface FundedPhaseTargetConfig {
+  phase1TargetDollars: number;
+  phase1TargetPercent: number;
+  phase2TargetDollars: number;
+  phase2TargetPercent: number;
+  phase3TargetDollars?: number;
+  phase3TargetPercent?: number;
+  fundedMilestoneTargetDollars?: number;
+}
+
+export interface FundedTrailingConfig {
+  trailingBasis: TrailingBasis;
+  activationLevelProfitDollars: number;
+  unrealizedProfitAffectsTrailing: boolean;
+  lockAtStartingBalance: boolean;
+  customLockBalanceLevel?: number | null;
+  manualHighWaterMark?: number | null;
+}
+
+export interface FundedAccountConfig {
+  enabled: boolean;
+  firmName: string;
+  accountSize: number;
+  phase: FundedPhase;
+  startingBalance: number;
+  profitTargets: FundedPhaseTargetConfig;
+  dailyDrawdownDollars: number;
+  dailyDrawdownPercent: number;
+  overallDrawdownDollars: number;
+  overallDrawdownPercent: number;
+  drawdownType: FundedDrawdownType;
+  trailingConfig: FundedTrailingConfig;
+  preferredRiskPercent: number;
+  maxRiskPerTradePercent: number;
+  riskMode: FundedRiskMode;
+  todayStartingBalanceOverride?: number | null;
+  todayStartingEquityOverride?: number | null;
+  openFloatingPnL?: number;
+}
+
 export interface AccountSettings {
   id: string;
   userId?: string;
   traderName: string;
   accountName: string;
   accountType: AccountType | string;
+  accountCategory?: 'PERSONAL' | 'FUNDED';
+  fundedConfig?: FundedAccountConfig;
   initialBalance: number;
   currentBalance: number;
   currentEquity: number;

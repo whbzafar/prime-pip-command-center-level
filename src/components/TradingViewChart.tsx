@@ -78,40 +78,30 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
     const container = containerRef.current;
     container.innerHTML = '';
 
-    const widgetDiv = document.createElement('div');
-    widgetDiv.className = 'tradingview-widget-container__widget';
-    widgetDiv.style.width = '100%';
-    widgetDiv.style.height = '100%';
-    container.appendChild(widgetDiv);
-
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    script.type = 'text/javascript';
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      autosize: true,
+    const params = new URLSearchParams({
       symbol: activeTvSymbol,
       interval: timeframe,
       timezone: 'Asia/Karachi',
       theme: 'dark',
       style: '1',
       locale: 'en',
-      enable_publishing: false,
-      backgroundColor: 'rgba(3, 7, 18, 1)',
-      gridColor: 'rgba(30, 41, 59, 0.4)',
-      hide_top_toolbar: false,
-      hide_legend: false,
-      save_image: true,
-      calendar: false,
-      hide_volume: false,
-      support_host: 'https://www.tradingview.com',
-      studies: [
-        'MASimple@tv-basicstudies',
-        'RSI@tv-basicstudies',
-      ],
+      enable_publishing: 'false',
+      hide_top_toolbar: 'false',
+      hide_side_toolbar: 'false',
+      allow_symbol_change: 'true',
+      save_image: 'true',
+      hideideas: 'true',
     });
 
-    container.appendChild(script);
+    const iframe = document.createElement('iframe');
+    iframe.src = `https://s.tradingview.com/widgetembed/?${params.toString()}`;
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = '0';
+    iframe.setAttribute('allowtransparency', 'true');
+    iframe.setAttribute('allowfullscreen', 'true');
+    iframe.setAttribute('title', `${activeTvSymbol} TradingView Chart`);
+    container.appendChild(iframe);
 
     return () => {
       container.innerHTML = '';

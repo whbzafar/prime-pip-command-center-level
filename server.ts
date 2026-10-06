@@ -100,6 +100,16 @@ import {
   deleteAnnouncement,
 } from "./server/signalService.js";
 import { getFundamentalStrengthDashboard } from "./server/fundamentalStrengthService.js";
+import {
+  getFundamentalArchitectureOverview,
+  syncFundamentalProfile,
+  verifyArchitectureObservation,
+  createManualVerifiedObservation,
+} from "./server/fundamentalDataArchitecture.js";
+import {
+  getProviderStatuses,
+  syncAndVerifyFundamentalData,
+} from "./server/fundamentalProviderSyncService.js";
 import { OFFICIAL_INDICATOR_REGISTRY } from "./src/data/fundamentalRegistryData.js";
 import {
   getVerifiedIndicatorFallback,
@@ -5732,6 +5742,91 @@ app.put('/api/evolution/profile', (req, res) => {
     return res.json(result);
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+// ----------------------------------------------------------------------------
+// STEP 1: FUNDAMENTAL DATA ARCHITECTURE & PRE-CONFIGURED CONTROL CENTER ROUTES
+// ----------------------------------------------------------------------------
+app.get('/api/fundamental-architecture/overview', (_req, res) => {
+  try {
+    const overview = getFundamentalArchitectureOverview();
+    return res.json({ ok: true, ...overview });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to load data architecture overview' });
+  }
+});
+
+app.post('/api/fundamental-architecture/sync', async (req, res) => {
+  try {
+    const profileTarget = String(req.body?.profileTarget || 'USD').toUpperCase();
+    const result = await syncFundamentalProfile(profileTarget);
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Synchronization failed' });
+  }
+});
+
+app.post('/api/fundamental-architecture/verify', (req, res) => {
+  try {
+    const { observationId, verifiedBy } = req.body || {};
+    if (!observationId) {
+      return res.status(400).json({ ok: false, error: 'observationId is required' });
+    }
+    const result = verifyArchitectureObservation(String(observationId), String(verifiedBy || 'Analyst Operator'));
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Verification failed' });
+  }
+});
+
+app.post('/api/fundamental-architecture/manual-entry', (req, res) => {
+  try {
+    const body = req.body || {};
+    if (!body.indicator_id || !body.observation_period) {
+      return res.status(400).json({ ok: false, error: 'indicator_id and observation_period are required' });
+    }
+    const result = createManualVerifiedObservation({
+      indicator_id: String(body.indicator_id),
+      observation_period: String(body.observation_period),
+      previous_value: body.previous_value !== undefined && body.previous_value !== '' ? Number(body.previous_value) : null,
+      forecast_value: body.forecast_value !== undefined && body.forecast_value !== '' ? Number(body.forecast_value) : null,
+      actual_value: body.actual_value !== undefined && body.actual_value !== '' ? Number(body.actual_value) : null,
+      source_name: String(body.source_name || 'MANUAL (Operator Verified)'),
+      source_url: String(body.source_url || 'internal://manual-verified-entry'),
+      release_date: String(body.release_date || new Date().toISOString().slice(0, 10)),
+      notes: String(body.notes || ''),
+      entered_by: String(body.entered_by || 'Analyst Operator'),
+    });
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Manual entry failed' });
+  }
+});
+
+// ----------------------------------------------------------------------------
+// MULTI-PROVIDER FUNDAMENTAL SYNC & VERIFICATION ENDPOINTS (FRED, ALPHA VANTAGE, TWELVE DATA)
+// ----------------------------------------------------------------------------
+app.get('/api/fundamental/provider-status', (_req, res) => {
+  try {
+    return res.json({
+      ok: true,
+      providers: getProviderStatuses(),
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to get provider status' });
+  }
+});
+
+app.post('/api/fundamental/sync-live-providers', async (req, res) => {
+  try {
+    const currency = String(req.body?.currency || 'ALL').toUpperCase();
+    const action = req.body?.action === 'VERIFY' ? 'VERIFY' : 'SYNC';
+    const result = await syncAndVerifyFundamentalData({ currency, action });
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Live provider synchronization failed' });
   }
 });
 

@@ -1,5 +1,6 @@
 import { Trade, AccountSettings, EmotionState, TradeIntention } from '../types';
 import { getKarachiDate, getKarachiEpoch } from './time';
+import { evaluateFundedAccountRisk, isFundedAccount } from './fundedRiskEngine';
 
 export type ReadinessStatus = 'GREEN' | 'YELLOW' | 'RED';
 
@@ -259,6 +260,36 @@ export function calculateNextTradeReadiness(
   } else {
     recommendedRiskDollars = Math.min(recommendedRiskDollars, remainingDailyRiskDollars);
     recommendedRiskPercent = Number(((recommendedRiskDollars / balance) * 100).toFixed(2));
+  }
+
+  // If account is a Funded Account, synchronize with the Funded Account Risk Engine
+  if (isFundedAccount(account)) {
+    const fundedEval = evaluateFundedAccountRisk(account, trades);
+    if (fundedEval.verdict === 'STOP_TRADING' || fundedEval.verdict === 'TARGET_PASSED') {
+      status = 'RED';
+      headline = fundedEval.verdictBadge;
+      recommendation = fundedEval.shouldTakeTradeQuestionAnswer;
+      recommendedRiskDollars = 0;
+      recommendedRiskPercent = 0;
+      if (fundedEval.reasons.length > 0) {
+        reasons.unshift(...fundedEval.reasons);
+      }
+    } else if (fundedEval.verdict === 'REDUCE_RISK') {
+      if (status === 'GREEN') status = 'YELLOW';
+      headline = fundedEval.verdictBadge;
+      recommendation = fundedEval.shouldTakeTradeQuestionAnswer;
+      recommendedRiskDollars = Math.min(recommendedRiskDollars, fundedEval.recommendedRiskDollars);
+      recommendedRiskPercent = Number(((recommendedRiskDollars / balance) * 100).toFixed(2));
+      isAdaptiveRiskActive = true;
+      adaptiveRecommendedRiskPercent = recommendedRiskPercent;
+      adaptiveRiskGuidance = fundedEval.nextTradeRiskQuestionAnswer;
+      if (fundedEval.reasons.length > 0) {
+        reasons.unshift(...fundedEval.reasons);
+      }
+    } else {
+      recommendedRiskDollars = Math.min(recommendedRiskDollars, fundedEval.recommendedRiskDollars);
+      recommendedRiskPercent = Number(((recommendedRiskDollars / balance) * 100).toFixed(2));
+    }
   }
 
   const riskStatus =

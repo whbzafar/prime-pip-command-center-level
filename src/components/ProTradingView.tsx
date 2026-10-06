@@ -47,6 +47,8 @@ import {
   DEFAULT_SENTIMENT_RECORDS,
   DEFAULT_INTEREST_RATES,
   DEFAULT_RETAIL_POSITIONING,
+  DEFAULT_MULTI_ASSET_FUNDAMENTALS,
+  MultiAssetFundamentalRecord,
 } from '../data/defaultFundamentalObservations';
 import { CurrencyCode, CurrencyScoreResult, IndicatorObservation } from '../types/fundamentalIndicatorTypes';
 import { UserAccount, Trade, SignalItem } from '../types';
@@ -140,19 +142,33 @@ const WATCHLIST_GROUPS: WatchlistGroup[] = [
   {
     name: 'INDICES',
     symbols: [
-      { symbol: 'US30', label: 'Dow Jones 30', broker: 'TVC' },
-      { symbol: 'NAS100', label: 'Nasdaq 100', broker: 'TVC' },
-      { symbol: 'SPX500', label: 'S&P 500 Index', broker: 'TVC' },
+      { symbol: 'US30', label: 'US30 (Dow Jones)', broker: 'TVC' },
+      { symbol: 'NAS100', label: 'NAS100 (Nasdaq 100)', broker: 'TVC' },
+      { symbol: 'SPX500', label: 'S&P500 Index', broker: 'TVC' },
       { symbol: 'GER40', label: 'DAX 40 (Germany)', broker: 'TVC' },
       { symbol: 'DXY', label: 'US Dollar Index', broker: 'TVC' },
     ],
   },
   {
-    name: 'CRYPTO',
+    name: 'TOP STOCKS',
+    symbols: [
+      { symbol: 'NVDA', label: 'NVDA (NVIDIA)', broker: 'NASDAQ' },
+      { symbol: 'AAPL', label: 'AAPL (Apple)', broker: 'NASDAQ' },
+      { symbol: 'MSFT', label: 'MSFT (Microsoft)', broker: 'NASDAQ' },
+      { symbol: 'AMZN', label: 'AMZN (Amazon)', broker: 'NASDAQ' },
+      { symbol: 'GOOGL', label: 'GOOGL (Alphabet)', broker: 'NASDAQ' },
+      { symbol: 'META', label: 'META (Meta)', broker: 'NASDAQ' },
+      { symbol: 'TSLA', label: 'TSLA (Tesla)', broker: 'NASDAQ' },
+    ],
+  },
+  {
+    name: 'TOP 5 CRYPTO',
     symbols: [
       { symbol: 'BTCUSDT', label: 'BTC/USDT', broker: 'BINANCE' },
       { symbol: 'ETHUSDT', label: 'ETH/USDT', broker: 'BINANCE' },
+      { symbol: 'BNBUSDT', label: 'BNB/USDT', broker: 'BINANCE' },
       { symbol: 'SOLUSDT', label: 'SOL/USDT', broker: 'BINANCE' },
+      { symbol: 'XRPUSDT', label: 'XRP/USDT', broker: 'BINANCE' },
     ],
   },
 ];
@@ -411,24 +427,11 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   ]);
   const [historyIndex, setHistoryIndex] = useState<number>(0);
 
-  // Fundamental live observations & rankings
+  // Fundamental live observations & rankings (28 FX pairs + commodities)
   const [fundamentalObservations, setFundamentalObservations] = useState<IndicatorObservation[]>(DEFAULT_OBSERVATIONS);
-  const [bullishPairs, setBullishPairs] = useState<any[]>([
-    { pair: 'EUR/USD', symbol: 'EURUSD', score: 4.5, structuralBias: 'Strong Macro Advantage EUR' },
-    { pair: 'GBP/JPY', symbol: 'GBPJPY', score: 3.8, structuralBias: 'Yield Divergence Bullish' },
-    { pair: 'USD/JPY', symbol: 'USDJPY', score: 3.2, structuralBias: 'Monetary Policy Tailwind' },
-    { pair: 'AUD/NZD', symbol: 'AUDNZD', score: 2.8, structuralBias: 'Terms-of-Trade Bullish' },
-    { pair: 'XAU/USD', symbol: 'XAUUSD', score: 4.1, structuralBias: 'Central Bank Reserves Bid' },
-    { pair: 'EUR/CHF', symbol: 'EURCHF', score: 2.4, structuralBias: 'Sovereign Differential' },
-  ]);
-  const [bearishPairs, setBearishPairs] = useState<any[]>([
-    { pair: 'USD/CAD', symbol: 'USDCAD', score: -3.5, structuralBias: 'Oil Terms Disadvantage' },
-    { pair: 'NZD/USD', symbol: 'NZDUSD', score: -2.9, structuralBias: 'Growth Momentum Bearish' },
-    { pair: 'EUR/GBP', symbol: 'EURGBP', score: -2.6, structuralBias: 'Inflation Divergence Bearish' },
-    { pair: 'AUD/USD', symbol: 'AUDUSD', score: -2.3, structuralBias: 'Structural Disadvantage' },
-    { pair: 'GBP/USD', symbol: 'GBPUSD', score: -2.1, structuralBias: 'Fiscal Drag Headwind' },
-    { pair: 'CHF/JPY', symbol: 'CHFJPY', score: -1.8, structuralBias: 'Yield Headwind' },
-  ]);
+  const [bullishPairs, setBullishPairs] = useState<any[]>([]);
+  const [bearishPairs, setBearishPairs] = useState<any[]>([]);
+  const [all28FundamentalPairs, setAll28FundamentalPairs] = useState<any[]>([]);
 
   // Candle close countdown live timer
   const [candleCountdown, setCandleCountdown] = useState(() => calculateCandleCountdown(selectedInterval));
@@ -611,59 +614,100 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     } catch {}
   };
 
-  // Load Fundamental Data and compute long-term bullish and bearish pairs with live sync
+  // Load Fundamental Data and compute long-term bullish and bearish pairs for all 28 pairs with live sync
   const refreshFundamentalRankings = useCallback(() => {
-    fetchFundamentalObservations().then((data) => {
-      const obs = data?.observations?.length ? data.observations : DEFAULT_OBSERVATIONS;
-      setFundamentalObservations(obs);
-
+    const computeFromData = (serverObs?: IndicatorObservation[]) => {
       try {
+        const rawObs = localStorage.getItem('primepip_fundamental_observations_v2');
+        const parsedObs: IndicatorObservation[] = serverObs?.length
+          ? serverObs
+          : rawObs
+          ? JSON.parse(rawObs)
+          : DEFAULT_OBSERVATIONS;
+        const obs = parsedObs.length > 0 ? parsedObs : DEFAULT_OBSERVATIONS;
+        setFundamentalObservations(obs);
+
+        const rawWeights = localStorage.getItem('primepip_fundamental_weights_v2');
+        const categoryWeights = rawWeights ? JSON.parse(rawWeights) : DEFAULT_CATEGORY_WEIGHTS;
+
+        const rawRates = localStorage.getItem('primepip_fundamental_rates_v2');
+        const parsedRates = rawRates ? JSON.parse(rawRates) : DEFAULT_INTEREST_RATES;
+        const interestRates = Array.isArray(parsedRates) && parsedRates.some((r: any) => r.currentPolicyRate > 0)
+          ? parsedRates
+          : DEFAULT_INTEREST_RATES;
+
+        const rawCot = localStorage.getItem('primepip_fundamental_cot_v2');
+        const parsedCot = rawCot ? JSON.parse(rawCot) : DEFAULT_COT_RECORDS;
+        const cotRecords = Array.isArray(parsedCot) && parsedCot.some((c: any) => c.openInterest > 0)
+          ? parsedCot
+          : DEFAULT_COT_RECORDS;
+
+        const rawSentiment = localStorage.getItem('primepip_fundamental_sentiment_v2');
+        const parsedSent = rawSentiment ? JSON.parse(rawSentiment) : DEFAULT_SENTIMENT_RECORDS;
+        const sentimentRecords = Array.isArray(parsedSent) && parsedSent.some((s: any) => s.sentimentConfidence > 0)
+          ? parsedSent
+          : DEFAULT_SENTIMENT_RECORDS;
+
+        const rawRetail =
+          localStorage.getItem('primepip_fundamental_retail_positioning_v1') ||
+          localStorage.getItem('primepip_fundamental_retail_v1');
+        const parsedRetail = rawRetail ? JSON.parse(rawRetail) : DEFAULT_RETAIL_POSITIONING;
+        const retailPositioning = Array.isArray(parsedRetail) && parsedRetail.some((r: any) => r.longPercent > 0)
+          ? parsedRetail
+          : DEFAULT_RETAIL_POSITIONING;
+
         const scores: Record<CurrencyCode, CurrencyScoreResult> = {} as any;
         CURRENCIES.forEach((c) => {
           scores[c.code] = calculateCurrencyScore(
             c.code,
             obs,
-            DEFAULT_CATEGORY_WEIGHTS,
-            DEFAULT_COT_RECORDS,
-            DEFAULT_SENTIMENT_RECORDS,
-            DEFAULT_INTEREST_RATES,
-            DEFAULT_RETAIL_POSITIONING
+            categoryWeights,
+            cotRecords,
+            sentimentRecords,
+            interestRates,
+            retailPositioning
           );
         });
-        const rankings = calculateLongTermPairRankings(scores, obs, DEFAULT_RETAIL_POSITIONING);
+
+        const rankings = calculateLongTermPairRankings(scores, obs, retailPositioning);
         const all = rankings?.allPairs || [];
         const sorted = [...all].sort((a: any, b: any) => (b.longTermDiff ?? 0) - (a.longTermDiff ?? 0));
 
-        if (sorted.length > 0) {
-          const topB = sorted.slice(0, 6).map((p: any) => {
-            const rawPair = p.pair || 'EURUSD';
-            const formatted = rawPair.length === 6 && !rawPair.includes('/') ? `${rawPair.slice(0, 3)}/${rawPair.slice(3, 6)}` : rawPair;
-            return {
-              pair: formatted,
-              symbol: rawPair.replace('/', ''),
-              score: p.longTermDiff ?? 3.8,
-              structuralBias: p.bias || 'Long-Term Bullish Spread',
-            };
-          });
+        const formattedAll = sorted.map((p: any) => {
+          const rawPair = p.pair || 'EUR/USD';
+          const formatted = rawPair.length === 6 && !rawPair.includes('/') ? `${rawPair.slice(0, 3)}/${rawPair.slice(3, 6)}` : rawPair;
+          const diff = p.longTermDiff ?? 0;
+          return {
+            pair: formatted,
+            symbol: rawPair.replace('/', ''),
+            score: diff,
+            longTermDiff: diff,
+            structuralBias: p.bias ? p.bias.replace(/_/g, ' ') : (diff >= 0 ? 'LONG-TERM BULLISH' : 'LONG-TERM BEARISH'),
+            rationale: p.structuralRationale || '',
+            rateSpread: p.rateSpread ?? 0,
+            yield10YSpread: p.yield10YSpread ?? 0,
+          };
+        });
 
-          const topS = [...sorted].reverse().slice(0, 6).map((p: any) => {
-            const rawPair = p.pair || 'USDJPY';
-            const formatted = rawPair.length === 6 && !rawPair.includes('/') ? `${rawPair.slice(0, 3)}/${rawPair.slice(3, 6)}` : rawPair;
-            return {
-              pair: formatted,
-              symbol: rawPair.replace('/', ''),
-              score: p.longTermDiff ?? -3.2,
-              structuralBias: p.bias || 'Long-Term Bearish Spread',
-            };
-          });
-
-          setBullishPairs(topB);
-          setBearishPairs(topS);
-        }
+        setAll28FundamentalPairs(formattedAll);
+        setBullishPairs(formattedAll.filter((p) => p.score >= 0).sort((a, b) => b.score - a.score));
+        setBearishPairs(formattedAll.filter((p) => p.score < 0).sort((a, b) => a.score - b.score));
       } catch (err) {
         console.warn('Error calculating fundamental pair rankings:', err);
       }
-    });
+    };
+
+    computeFromData();
+    fetchFundamentalObservations()
+      .then((data) => {
+        if (data?.observations?.length) {
+          try {
+            localStorage.setItem('primepip_fundamental_observations_v2', JSON.stringify(data.observations));
+          } catch {}
+          computeFromData(data.observations);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -671,9 +715,13 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     const handleUpdate = () => refreshFundamentalRankings();
     window.addEventListener('storage', handleUpdate);
     window.addEventListener('primepipfx_fundamental_updated', handleUpdate);
+    window.addEventListener('primepipfx_fundamental_data_updated', handleUpdate);
+    window.addEventListener('primepipfx_fundamental_patch_received', handleUpdate);
     return () => {
       window.removeEventListener('storage', handleUpdate);
       window.removeEventListener('primepipfx_fundamental_updated', handleUpdate);
+      window.removeEventListener('primepipfx_fundamental_data_updated', handleUpdate);
+      window.removeEventListener('primepipfx_fundamental_patch_received', handleUpdate);
     };
   }, [refreshFundamentalRankings]);
 
@@ -717,31 +765,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [historyIndex, history]);
 
-  // Load TradingView official library script once
+  // Load TradingView widget cleanly without external script race conditions
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if ((window as any).TradingView) {
-      setIsScriptLoaded(true);
-      return;
-    }
-
-    const scriptId = 'tradingview-advanced-widget-script';
-    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
-    if (!script) {
-      script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://s3.tradingview.com/tv.js';
-      script.type = 'text/javascript';
-      script.async = true;
-      script.onload = () => setIsScriptLoaded(true);
-      script.onerror = () => {
-        console.warn('tv.js load error, triggering embed widget fallback');
-        setIsScriptLoaded(true);
-      };
-      document.head.appendChild(script);
-    } else {
-      setIsScriptLoaded(true);
-    }
+    setIsScriptLoaded(true);
   }, []);
 
   // Push state to Undo History and trigger Auto-Save
@@ -811,97 +837,35 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    container.innerHTML = '';
-
-    // If window.TradingView widget constructor is loaded, use advanced canvas
-    if (typeof (window as any).TradingView !== 'undefined' && (window as any).TradingView.widget) {
-      try {
-        new (window as any).TradingView.widget({
-          autosize: true,
-          symbol: formattedSymbol,
-          interval: selectedInterval,
-          timezone: 'Asia/Karachi',
-          theme: isLightBg ? 'light' : 'dark',
-          style: '1', // Candles
-          locale: 'en',
-          toolbar_bg: backgroundColor,
-          enable_publishing: false,
-          hide_top_toolbar: false,
-          hide_side_toolbar: false, // Enables full side toolbar
-          allow_symbol_change: true,
-          show_popup_button: true,
-          popup_width: '1000',
-          popup_height: '650',
-          container_id: containerId,
-          auto_save_delay: 2, // Auto-saves student markings and drawings after 2 seconds
-          load_last_chart: true, // Re-opens chart exactly as student left it with intact markings
-          save_image: true,
-          studies: [], // No pre-set indicators applied at top; students add indicators themselves
-          drawings_access: {
-            type: 'all',
-            tools: [{ name: 'Regression Trend' }],
-          },
-          overrides: {
-            'scalesProperties.showCountdown': true,
-            'mainSeriesProperties.showCountdown': true,
-            'paneProperties.background': backgroundColor,
-            'paneProperties.vertGridProperties.color': isLightBg ? 'rgba(203, 213, 225, 0.4)' : 'rgba(30, 41, 59, 0.4)',
-            'paneProperties.horzGridProperties.color': isLightBg ? 'rgba(203, 213, 225, 0.4)' : 'rgba(30, 41, 59, 0.4)',
-            'symbolWatermarkProperties.transparency': 90,
-            'scalesProperties.textColor': isLightBg ? '#0F172A' : '#94A3B8',
-            'mainSeriesProperties.candleStyle.upColor': '#10B981',
-            'mainSeriesProperties.candleStyle.downColor': '#F43F5E',
-            'mainSeriesProperties.candleStyle.drawWick': true,
-            'mainSeriesProperties.candleStyle.drawBorder': true,
-            'mainSeriesProperties.candleStyle.borderColor': '#374151',
-            'mainSeriesProperties.candleStyle.borderUpColor': '#10B981',
-            'mainSeriesProperties.candleStyle.borderDownColor': '#F43F5E',
-            'mainSeriesProperties.candleStyle.wickUpColor': '#10B981',
-            'mainSeriesProperties.candleStyle.wickDownColor': '#F43F5E',
-          },
-        });
-        return;
-      } catch (e) {
-        console.warn('TradingView direct widget warning, applying embed fallback:', e);
-      }
-    }
-
-    // Official embed-widget fallback: Works 100% reliably in any browser / iframe
-    const widgetContainer = document.createElement('div');
-    widgetContainer.className = 'tradingview-widget-container';
-    widgetContainer.style.width = '100%';
-    widgetContainer.style.height = '100%';
-
-    const widgetHolder = document.createElement('div');
-    widgetHolder.className = 'tradingview-widget-container__widget';
-    widgetHolder.style.width = '100%';
-    widgetHolder.style.height = '100%';
-    widgetContainer.appendChild(widgetHolder);
-
-    const embedScript = document.createElement('script');
-    embedScript.type = 'text/javascript';
-    embedScript.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    embedScript.async = true;
-    embedScript.innerHTML = JSON.stringify({
-      autosize: true,
+    const params = new URLSearchParams({
       symbol: formattedSymbol,
       interval: selectedInterval,
       timezone: 'Asia/Karachi',
       theme: isLightBg ? 'light' : 'dark',
       style: '1',
       locale: 'en',
-      enable_publishing: false,
-      hide_top_toolbar: false,
-      hide_side_toolbar: false,
-      allow_symbol_change: true,
-      save_image: true,
-      backgroundColor: backgroundColor,
-      gridColor: isLightBg ? 'rgba(203, 213, 225, 0.4)' : 'rgba(30, 41, 59, 0.4)',
-      studies: [], // No pre-set indicators applied at top; students can add indicators freely
-      support_host: 'https://www.tradingview.com',
+      toolbar_bg: backgroundColor,
+      enable_publishing: 'false',
+      hide_top_toolbar: 'false',
+      hide_side_toolbar: 'false',
+      allow_symbol_change: 'true',
+      save_image: 'true',
+      hideideas: 'true',
+      show_popup_button: 'true',
+      popup_width: '1000',
+      popup_height: '650',
     });
-    widgetContainer.appendChild(embedScript);
-    container.appendChild(widgetContainer);
+
+    container.innerHTML = '';
+    const iframe = document.createElement('iframe');
+    iframe.src = `https://s.tradingview.com/widgetembed/?${params.toString()}`;
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = '0';
+    iframe.setAttribute('allowtransparency', 'true');
+    iframe.setAttribute('allowfullscreen', 'true');
+    iframe.setAttribute('title', `${formattedSymbol} TradingView Advanced Chart`);
+    container.appendChild(iframe);
   }, [isScriptLoaded, formattedSymbol, selectedInterval, backgroundColor, isLightBg]);
 
   // Fullscreen Toggle
@@ -1247,32 +1211,35 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           </div>
         </div>
 
-        {/* FUNDAMENTAL PAIRS LIVE DRAWER: Bullish and Bearish Pairs */}
+        {/* FUNDAMENTAL PAIRS LIVE DRAWER: All 28 Bullish and Bearish Pairs from Fundamental Intelligence */}
         {showFundamentalPairs && (
           <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-purple-500/40 space-y-2.5 animate-in slide-in-from-top-2">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse" />
                 <span className="font-military font-bold text-xs text-white uppercase tracking-wider">
-                  Live Fundamental Structural Pair Rankings
+                  Live 28-Pair Fundamental Intelligence Matrix ({all28FundamentalPairs.length} Pairs)
                 </span>
                 <span className="text-[10px] text-purple-300 font-mono-code bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
                   REAL-TIME MACRO SYNC
                 </span>
               </div>
               <span className="text-[11px] font-mono-code text-slate-400">
-                Click any pair below to load its chart instantly
+                Driven by Fundamental Intelligence • Click any of the 28 pairs to load chart
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Bullish Pairs Column */}
               <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-mono-code font-bold text-emerald-400">
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  <span>LONG-TERM BULLISH PAIRS (STRONGEST MACRO SPREAD)</span>
+                <div className="flex items-center justify-between text-xs font-mono-code font-bold text-emerald-400">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>LONG-TERM BULLISH PAIRS ({bullishPairs.length})</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-300/80">BUY BIAS</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5 max-h-64 overflow-y-auto pr-1">
                   {bullishPairs.map((p) => {
                     const cleanCode = p.pair?.replace('/', '') || p.symbol || 'XAUUSD';
                     return (
@@ -1289,7 +1256,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-xs">{p.pair || cleanCode}</span>
                           <span className="text-[9px] px-1 rounded bg-emerald-500/20 text-emerald-300 font-bold">
-                            +{Math.abs(p.longTermDiff || p.score || 4.2).toFixed(1)}
+                            +{Math.abs(p.longTermDiff ?? p.score ?? 0).toFixed(0)}
                           </span>
                         </div>
                         <div className="text-[10px] text-emerald-400 mt-0.5 truncate">
@@ -1303,11 +1270,14 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
               {/* Bearish Pairs Column */}
               <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-mono-code font-bold text-rose-400">
-                  <TrendingDown className="w-3.5 h-3.5" />
-                  <span>LONG-TERM BEARISH PAIRS (WEAKEST MACRO SPREAD)</span>
+                <div className="flex items-center justify-between text-xs font-mono-code font-bold text-rose-400">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingDown className="w-3.5 h-3.5" />
+                    <span>LONG-TERM BEARISH PAIRS ({bearishPairs.length})</span>
+                  </div>
+                  <span className="text-[10px] text-rose-300/80">SELL BIAS</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5 max-h-64 overflow-y-auto pr-1">
                   {bearishPairs.map((p) => {
                     const cleanCode = p.pair?.replace('/', '') || p.symbol || 'NZDUSD';
                     return (
@@ -1324,7 +1294,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-xs">{p.pair || cleanCode}</span>
                           <span className="text-[9px] px-1 rounded bg-rose-500/20 text-rose-300 font-bold">
-                            -{Math.abs(p.longTermDiff || p.score || 3.8).toFixed(1)}
+                            -{Math.abs(p.longTermDiff ?? p.score ?? 0).toFixed(0)}
                           </span>
                         </div>
                         <div className="text-[10px] text-rose-400 mt-0.5 truncate">
@@ -1334,6 +1304,63 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                     );
                   })}
                 </div>
+              </div>
+            </div>
+
+            {/* Multi-Asset Fundamental Status: Indices, Top Stocks & Top 5 Cryptos */}
+            <div className="pt-2.5 border-t border-slate-800/80 space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-mono-code">
+                <span className="font-military font-bold text-cyan-400 uppercase tracking-wider">
+                  MULTI-ASSET FUNDAMENTAL STATUS (INDICES • TOP STOCKS • TOP 5 CRYPTO)
+                </span>
+                <span className="text-[10px] text-slate-400">Click any asset to load chart</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
+                {(() => {
+                  let multiAssets: MultiAssetFundamentalRecord[] = DEFAULT_MULTI_ASSET_FUNDAMENTALS;
+                  try {
+                    const raw = localStorage.getItem('primepip_fundamental_multi_assets_v1');
+                    if (raw) {
+                      const parsed = JSON.parse(raw);
+                      if (Array.isArray(parsed) && parsed.length > 0) multiAssets = parsed;
+                    }
+                  } catch {}
+                  return multiAssets.map((asset) => {
+                    const isBull = asset.score >= 0;
+                    const tvSym = asset.symbol === 'S&P500' ? 'SPX500' : asset.symbol.replace('/', '');
+                    const tvBroker = asset.category === 'INDEX' ? 'TVC' : asset.category === 'STOCK' ? 'NASDAQ' : 'BINANCE';
+                    return (
+                      <button
+                        key={asset.id}
+                        type="button"
+                        onClick={() => handleSelectSymbol(tvSym, tvBroker)}
+                        className={`p-2 rounded-xl border text-left font-mono-code transition cursor-pointer ${
+                          selectedSymbol === tvSym
+                            ? isBull
+                              ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold shadow'
+                              : 'bg-rose-500 text-slate-950 border-rose-400 font-bold shadow'
+                            : isBull
+                            ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-emerald-500/30'
+                            : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-rose-500/30'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs">{asset.symbol}</span>
+                          <span
+                            className={`text-[9px] px-1 rounded font-bold ${
+                              isBull ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
+                            }`}
+                          >
+                            {isBull ? `+${asset.score}` : asset.score}
+                          </span>
+                        </div>
+                        <div className={`text-[10px] mt-0.5 truncate ${isBull ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {isBull ? 'BULLISH' : 'BEARISH'} • {asset.category}
+                        </div>
+                      </button>
+                    );
+                  });
+                })()}
               </div>
             </div>
           </div>

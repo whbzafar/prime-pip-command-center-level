@@ -42,6 +42,7 @@ import { Trade, AccountSettings, UserAccount } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
 import { getKarachiEpoch } from '../utils/time';
 import { calculateNextTradeReadiness } from '../utils/readinessEngine';
+import { evaluateFundedAccountRisk, isFundedAccount } from '../utils/fundedRiskEngine';
 import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
 import { FundamentalNotificationBanner } from './fundamental/FundamentalNotificationBanner';
 
@@ -549,6 +550,110 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Funded Account Risk Engine Command Strip */}
+      {(() => {
+        const fundedEval = evaluateFundedAccountRisk(account, trades);
+        const fundedMode = isFundedAccount(account);
+        return (
+          <div className="rounded-2xl bg-slate-950/90 border border-cyan-500/35 p-4 sm:p-5 shadow-xl space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-cyan-400">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs sm:text-sm font-military font-bold text-slate-100 uppercase tracking-wider">
+                      FUNDED ACCOUNT RISK COMMAND ENGINE
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[10px] font-mono-code font-bold uppercase">
+                      {fundedMode ? `${fundedEval.firmName} • ${fundedEval.phaseLabel}` : 'PERSONAL / PROP READY'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-mono-code text-slate-400">
+                    {fundedEval.shouldTakeTradeQuestionAnswer}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {onOpenAccountModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenAccountModal}
+                    className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-mono-code cursor-pointer"
+                  >
+                    Account Type: {fundedMode ? 'Funded' : 'Personal'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onNavigateToTab('RISK')}
+                  className="px-3.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-military font-bold tracking-wider uppercase cursor-pointer"
+                >
+                  Open Risk Command →
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 font-mono-code text-xs">
+              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-cyan-500/30">
+                <span className="text-[10px] text-cyan-300 uppercase font-bold block">
+                  SAFE NEXT TRADE RISK
+                </span>
+                <span className="text-sm sm:text-base font-black text-white mt-0.5 block">
+                  {formatCurrency(fundedEval.recommendedRiskDollars, account.currency)} ({fundedEval.recommendedRiskPercent}%)
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                  DAILY DD REMAINING
+                </span>
+                <span className="text-sm sm:text-base font-bold text-cyan-400 mt-0.5 block">
+                  {formatCurrency(fundedEval.remainingDailyDrawdown, account.currency)}
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                  OVERALL DD REMAINING
+                </span>
+                <span className="text-sm sm:text-base font-bold text-amber-300 mt-0.5 block">
+                  {formatCurrency(fundedEval.remainingOverallDrawdown, account.currency)}
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                  PROFIT TARGET PROGRESS
+                </span>
+                <span className="text-sm sm:text-base font-bold text-emerald-400 mt-0.5 block">
+                  {fundedEval.profitProgressPercent}% (Rem: {formatCurrency(fundedEval.remainingProfitTarget, account.currency)})
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                  DECISION VERDICT
+                </span>
+                <span
+                  className={`text-xs sm:text-sm font-black mt-0.5 block ${
+                    fundedEval.verdict === 'TAKE_TRADE'
+                      ? 'text-emerald-400'
+                      : fundedEval.verdict === 'REDUCE_RISK'
+                      ? 'text-amber-300'
+                      : 'text-rose-400'
+                  }`}
+                >
+                  {fundedEval.verdict.replace('_', ' ')}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Next Trade Readiness Check & Risk Guidance Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

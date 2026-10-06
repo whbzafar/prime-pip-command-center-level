@@ -6,6 +6,24 @@ import './community-layout-fix.css';
 import './styles/liquid-glass-ui-kit.css';
 import { applyInterfaceTemplate } from './data/interfaceTemplates';
 
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'error',
+    (event) => {
+      const msg = String(event?.message || event?.error?.message || '');
+      if (
+        msg.includes('contentWindow is not available') ||
+        msg.includes('Cannot listen to the event from the provided iframe')
+      ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return false;
+      }
+    },
+    true
+  );
+}
+
 try {
   const savedTheme = localStorage.getItem('primepipfx_theme') || 'liquid-glass-neon';
   const rawBrightness = localStorage.getItem('primepipfx_brightness');

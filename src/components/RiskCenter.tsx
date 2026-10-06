@@ -25,6 +25,7 @@ import { getKarachiDate, getKarachiTime } from '../utils/time';
 import { formatCurrency } from '../utils/currencyFormatter';
 import { calculateNextTradeReadiness } from '../utils/readinessEngine';
 import { RISK_WARNING_CONFIG } from '../config/riskWarningConfig';
+import { FundedAccountRiskCommand } from './FundedAccountRiskCommand';
 
 export interface TradeLimitAlertSystemProps {
   account: AccountSettings | null;
@@ -371,6 +372,14 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
           onNavigateToTab={onNavigateToTab}
         />
       )}
+
+      {/* FUNDED ACCOUNT RISK ENGINE COMMAND CENTER */}
+      <FundedAccountRiskCommand
+        account={account}
+        trades={trades}
+        onUpdateAccount={onUpdateAccount}
+        onNavigateToTab={onNavigateToTab}
+      />
 
       {/* Real-time Defense Warnings */}
       <div className="space-y-3">

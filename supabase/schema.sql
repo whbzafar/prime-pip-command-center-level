@@ -184,3 +184,135 @@ revoke all on table public.primepipfx_users from anon, authenticated;
 grant select, insert, update, delete on table public.primepipfx_users to service_role;
 create index if not exists idx_primepipfx_users_username on public.primepipfx_users(username);
 create index if not exists idx_primepipfx_users_legacy_user_id on public.primepipfx_users(legacy_user_id);
+
+-- ============================================================================
+-- STEP 1: FUNDAMENTAL INTELLIGENCE DATA ARCHITECTURE TABLES
+-- ============================================================================
+
+create table if not exists public.data_sources (
+  id text primary key,
+  source_name text not null,
+  provider text not null,
+  source_type text not null,
+  official_url text not null,
+  api_endpoint text,
+  asset_classes text[] not null default '{}',
+  reliability_level integer not null default 1,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.assets (
+  id text primary key,
+  symbol text not null unique,
+  name text not null,
+  asset_class text not null,
+  base_currency text,
+  quote_currency text,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.economic_indicators (
+  id text primary key,
+  indicator_code text not null unique,
+  indicator_name text not null,
+  asset_currency text not null references public.assets(id) on delete restrict,
+  category text not null,
+  frequency text not null,
+  source_id text not null references public.data_sources(id) on delete restrict,
+  source_series_id text not null,
+  expected_unit text not null default '%',
+  transformation text not null default 'LEVEL',
+  importance_level text not null,
+  base_weight numeric(6,2) not null default 1.00,
+  direction_rule text not null,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.indicator_regime_weights (
+  id uuid primary key default gen_random_uuid(),
+  indicator_id text not null references public.economic_indicators(id) on delete cascade,
+  asset_id text not null references public.assets(id) on delete cascade,
+  regime_type text not null default 'NORMAL',
+  weight numeric(6,2) not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(indicator_id, asset_id, regime_type)
+);
+
+create table if not exists public.economic_observations (
+  id uuid primary key default gen_random_uuid(),
+  indicator_id text not null references public.economic_indicators(id) on delete cascade,
+  observation_period text not null,
+  previous_value numeric(18,6),
+  forecast_value numeric(18,6),
+  actual_value numeric(18,6),
+  revised_previous_value numeric(18,6),
+  surprise_value numeric(18,6),
+  surprise_score numeric(8,4),
+  source_id text not null references public.data_sources(id) on delete restrict,
+  source_url text not null,
+  source_timestamp timestamptz,
+  retrieved_at timestamptz not null default now(),
+  release_timestamp timestamptz,
+  validation_status text not null default 'PENDING_VALIDATION',
+  verification_status text not null default 'API_RETRIEVED',
+  entered_by text,
+  entered_at timestamptz,
+  notes text,
+  data_quality_score integer not null default 100,
+  raw_payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(indicator_id, observation_period, source_id)
+);
+
+create table if not exists public.market_prices (
+  id uuid primary key default gen_random_uuid(),
+  asset_id text not null references public.assets(id) on delete cascade,
+  timestamp timestamptz not null,
+  open numeric(20,8),
+  high numeric(20,8),
+  low numeric(20,8),
+  close numeric(20,8),
+  volume numeric(24,4),
+  timeframe text not null default '1D',
+  source_id text not null references public.data_sources(id) on delete restrict,
+  retrieved_at timestamptz not null default now(),
+  validation_status text not null default 'VALID',
+  unique(asset_id, timeframe, timestamp, source_id)
+);
+
+create table if not exists public.data_quality_logs (
+  id uuid primary key default gen_random_uuid(),
+  source_id text references public.data_sources(id) on delete set null,
+  endpoint text not null,
+  request_time timestamptz not null default now(),
+  response_status integer,
+  validation_result text not null,
+  missing_fields text[] not null default '{}',
+  stale_data boolean not null default false,
+  duplicate_data boolean not null default false,
+  conflicting_data boolean not null default false,
+  error_message text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.sync_logs (
+  id uuid primary key default gen_random_uuid(),
+  source_id text references public.data_sources(id) on delete set null,
+  function_name text not null,
+  started_at timestamptz not null default now(),
+  completed_at timestamptz,
+  status text not null,
+  records_received integer not null default 0,
+  records_inserted integer not null default 0,
+  records_updated integer not null default 0,
+  records_rejected integer not null default 0,
+  error_message text
+);
