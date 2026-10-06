@@ -17,13 +17,13 @@ import {
 import rawConfig from '../../firebase-applet-config.json';
 
 const firebaseConfig = {
-  projectId: rawConfig.projectId || "gen-lang-client-0614685896",
-  appId: rawConfig.appId || "1:1029893687203:web:45c853356df1ffb8c6fc16",
-  apiKey: rawConfig.apiKey || "AIzaSyA7PXXovKilWuxQaLxvt8QSMGvAq68me_c",
-  authDomain: rawConfig.authDomain || "gen-lang-client-0614685896.firebaseapp.com",
-  storageBucket: rawConfig.storageBucket || "gen-lang-client-0614685896.firebasestorage.app",
-  messagingSenderId: rawConfig.messagingSenderId || "1029893687203",
-  oAuthClientId: rawConfig.oAuthClientId || "1029893687203-ciiijm331240ik7gcel2n488o8cnoftq.apps.googleusercontent.com",
+  projectId: rawConfig.projectId,
+  appId: rawConfig.appId,
+  apiKey: rawConfig.apiKey,
+  authDomain: rawConfig.authDomain,
+  storageBucket: rawConfig.storageBucket,
+  messagingSenderId: rawConfig.messagingSenderId,
+  oAuthClientId: rawConfig.oAuthClientId,
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
