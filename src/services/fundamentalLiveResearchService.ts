@@ -38,6 +38,7 @@ export interface LiveIndicatorResult {
   sourceName?: string;
   dataSource?: string;
   sourceUrl?: string;
+  releaseDate?: string;
   retrievedAt: string;
   dataRetrievalTimestamp?: string;
   confidence: number;
