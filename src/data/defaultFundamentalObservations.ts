@@ -58,7 +58,7 @@ export const DEFAULT_INTEREST_RATES: InterestRateRecord[] = Object.values(VERIFI
   realYield10Y: r.realYield10Y,
   sourceUrl: r.sourceUrl,
   updatedAt: '2025-02-22T08:00:00.000Z',
-  isEntered: true,
+  isEntered: false,
 }));
 
 export const DEFAULT_COMMODITY_OBSERVATIONS: CommodityObservation[] = [
