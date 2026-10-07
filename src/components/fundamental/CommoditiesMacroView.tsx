@@ -123,7 +123,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
         const results = await generateAllCommodities(mode);
         const verifiedResults = results.filter(isVerifiedQuote);
         if (verifiedResults.length === 0) {
-          setCommodityLiveMessage('Google Search could not verify a recent quote for these commodities. Existing values were left unchanged.');
+          setCommodityLiveMessage('No mapped fresh official commodity quote was available. Existing values were left unchanged. Existing values were left unchanged.');
           return;
         }
         const nextCommodities = commodityData.map((item) => {
@@ -136,12 +136,12 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
           localStorage.setItem('primepip_fundamental_commodity_observations_v1', JSON.stringify(nextCommodities));
         } catch {}
         window.dispatchEvent(new CustomEvent('primepipfx_fundamental_updated', { detail: { type: 'COMMODITIES' } }));
-        setCommodityLiveMessage('Google Search verified recent quotes for ' + verifiedResults.length + ' of 3 commodities. Unverified items were left unchanged.');
+        setCommodityLiveMessage('Official public feeds returned recent observations for ' + verifiedResults.length + ' of 3 commodities. Unsupported items were left unchanged.');
       } else {
         if (!currentObs) return;
         const result = await generateCommodity(currentObs.symbol, currentObs, mode);
         if (!isVerifiedQuote(result)) {
-          setCommodityLiveMessage(result.notes || 'Google Search could not verify a recent quote. The existing value was left unchanged.');
+          setCommodityLiveMessage(result.notes || 'No fresh official quote was available. The existing value was left unchanged.');
           return;
         }
         const updated = applyVerifiedQuote(currentObs, result);
@@ -151,7 +151,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
           localStorage.setItem('primepip_fundamental_commodities_v2', JSON.stringify(nextCommodities));
         } catch {}
         window.dispatchEvent(new CustomEvent('primepipfx_fundamental_updated', { detail: { type: 'COMMODITIES' } }));
-        setCommodityLiveMessage(currentObs.name + ': Google Search verified a recent quote dated ' + result.priceAsOf + '.');
+        setCommodityLiveMessage(currentObs.name + ': Official public feed returned an observation dated ' + result.priceAsOf + '.');
       }
     } catch (error) {
       setCommodityLiveMessage(error instanceof Error ? error.message : 'Live commodity research failed; existing values were preserved.');
@@ -349,7 +349,7 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                 </span>
                 {currentObs.priceAsOf && currentObs.priceSourceUrl ? (
                   <a href={currentObs.priceSourceUrl} target="_blank" rel="noreferrer" className="text-xs font-mono-code text-cyan-300 hover:underline">
-                    Google source · {currentObs.priceAsOf}
+                    Official source · {currentObs.priceAsOf}
                   </a>
                 ) : (
                   <span className="text-xs font-mono-code text-amber-300">Saved value · source date not verified</span>
