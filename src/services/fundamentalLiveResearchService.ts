@@ -19,7 +19,7 @@ import {
   getCleanBase64,
 } from '../utils/pdfDocumentParser';
 
-export type LiveVerificationStatus = 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND';
+export type LiveVerificationStatus = 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' | 'UNAVAILABLE';
 
 export interface LiveIndicatorResult {
   status: LiveVerificationStatus;
@@ -136,6 +136,8 @@ export interface LiveRateResult {
   realYield10Y?: number;
   sourceUrl?: string;
   releaseDate?: string;
+  sourceDate?: string;
+  notes?: string;
   retrievedAt: string;
   confidence: number;
   liveNotes?: string;
@@ -279,7 +281,7 @@ export async function generateAllCommodities(
         symbol,
         retrievedAt: new Date().toISOString(),
         confidence: 0,
-        notes: 'Google Search could not verify a current quote. Existing values were left unchanged.',
+        notes: 'No fresh official quote feed was available. Existing values were left unchanged.',
       });
     }
   }
