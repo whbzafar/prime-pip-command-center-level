@@ -6,16 +6,6 @@ import {
   IndicatorDefinition,
   IndicatorObservation,
 } from '../types/fundamentalIndicatorTypes';
-import {
-  getVerifiedIndicatorFallback,
-  getVerifiedCotFallback,
-  getVerifiedCommodityFallback,
-  getVerifiedRatesFallback,
-  getVerifiedPairSentimentFallback,
-  VERIFIED_INDICATORS,
-  VERIFIED_RATES,
-  VERIFIED_31_PAIR_SENTIMENT,
-} from '../data/verifiedFundamentalBaselines';
 import { OFFICIAL_INDICATOR_REGISTRY } from '../data/fundamentalRegistryData';
 import {
   extractTextFromPdf,
@@ -174,6 +164,25 @@ export interface AdminFundamentalRecord {
   updatedAt: string;
 }
 
+function unavailableIndicator(definition: IndicatorDefinition | CustomFundamentalIndicator): LiveIndicatorResult {
+  return {
+    status: 'NOT_FOUND',
+    dataStatus: 'UNAVAILABLE',
+    indicatorId: definition.id,
+    indicatorName: definition.name,
+    currency: definition.currency,
+    actual: null,
+    forecast: null,
+    previous: null,
+    referencePeriod: '',
+    releaseDate: '',
+    unit: definition.unit,
+    retrievedAt: new Date().toISOString(),
+    confidence: 0,
+    notes: 'No provider data was retrieved. Value left blank to avoid fabricated data.',
+  };
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 45000);
@@ -214,7 +223,7 @@ export async function generateIndicator(
     });
   } catch (err) {
     console.warn(`[LiveResearch] generateIndicator fallback for ${definition.id}:`, err);
-    return getVerifiedIndicatorFallback(definition.currency, definition.id, definition, existingObservation) as LiveIndicatorResult;
+    return unavailableIndicator(definition);
   }
 }
 
@@ -231,7 +240,7 @@ export async function generateCot(
     });
   } catch (err) {
     console.warn(`[LiveResearch] generateCot fallback for ${currency}:`, err);
-    return getVerifiedCotFallback(currency, existingRecord) as LiveCotResult;
+    throw err;
   }
 }
 
@@ -248,7 +257,7 @@ export async function generateCommodity(
     });
   } catch (err) {
     console.warn(`[LiveResearch] generateCommodity fallback for ${symbol}:`, err);
-    return getVerifiedCommodityFallback(symbol, existingObservation) as LiveCommodityResult;
+    throw err;
   }
 }
 
@@ -261,9 +270,7 @@ export async function generateAllCommodities(
     throw new Error('Empty commodities payload');
   } catch (err) {
     console.warn('[LiveResearch] generateAllCommodities fallback:', err);
-    return (['GOLD', 'SILVER', 'CRUDE_OIL'] as CommodityObservation['symbol'][]).map(
-      (sym) => getVerifiedCommodityFallback(sym, null) as LiveCommodityResult
-    );
+    throw err;
   }
 }
 
@@ -276,9 +283,7 @@ export async function generateAllCotRecords(
     throw new Error('Empty COT records payload');
   } catch (err) {
     console.warn('[LiveResearch] generateAllCotRecords fallback:', err);
-    return (['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'] as CurrencyCode[]).map(
-      (c) => getVerifiedCotFallback(c, null) as LiveCotResult
-    );
+    throw err;
   }
 }
 
@@ -295,9 +300,9 @@ export async function generateIndicatorsBatch(
     const filtered = OFFICIAL_INDICATOR_REGISTRY.filter(
       (d) => (currency === 'ALL' || d.currency === currency) && (!indicatorIds || indicatorIds.includes(d.id))
     );
-    const indicators = filtered.map((d) => getVerifiedIndicatorFallback(d.currency, d.id, d, null) as LiveIndicatorResult);
+    const indicators = filtered.map((d) => unavailableIndicator(d));
     return {
-      status: 'VERIFIED_BATCH',
+      status: 'UNAVAILABLE',
       count: indicators.length,
       indicators,
     };
@@ -318,15 +323,9 @@ export async function generateRates(
   } catch (err) {
     console.warn(`[LiveResearch] generateRates fallback for ${currency}:`, err);
     if (currency === 'ALL' || !currency) {
-      return {
-        rates: VERIFIED_RATES as any,
-        confidence: 96,
-      };
+      return { confidence: 0 };
     }
-    return {
-      rate: getVerifiedRatesFallback(currency) as any,
-      confidence: 96,
-    };
+    return { confidence: 0 };
   }
 }
 
@@ -344,15 +343,9 @@ export async function generateSentiment(
   } catch (err) {
     console.warn(`[LiveResearch] generateSentiment fallback for ${pair}:`, err);
     if (pair === 'ALL') {
-      return {
-        pairs: VERIFIED_31_PAIR_SENTIMENT as any,
-        confidence: 95,
-      };
+      return { confidence: 0 };
     }
-    return {
-      sentiment: getVerifiedPairSentimentFallback(pair) as any,
-      confidence: 95,
-    };
+    return { confidence: 0 };
   }
 }
 
