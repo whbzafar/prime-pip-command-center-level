@@ -8,7 +8,7 @@ import { syncFundamentalProfile } from './fundamentalDataArchitecture.js';
 const CURRENCY_POLICY_SERIES: Record<string, { id: string; name: string; source: string }> = {
   USD: { id: 'DFEDTARU', name: 'Federal Reserve', source: 'https://www.federalreserve.gov/monetarypolicy/openmarket.htm' },
   EUR: { id: 'ECBDFR', name: 'European Central Bank', source: 'https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html' },
-  GBP: { id: 'BOERUKM', name: 'Bank of England', source: 'https://www.bankofengland.co.uk/boeapps/database/Bank-Rate.asp' },
+  GBP: { id: 'IRSTCI01GBM156N', name: 'Bank of England', source: 'https://www.bankofengland.co.uk/boeapps/database/Bank-Rate.asp' },
   JPY: { id: 'IRSTCI01JPM156N', name: 'Bank of Japan', source: 'https://www.boj.or.jp/en/statistics/boj/other/discount/' },
   CHF: { id: 'IRSTCI01CHM156N', name: 'Swiss National Bank', source: 'https://data.snb.ch/' },
   CAD: { id: 'IRSTCI01CAM156N', name: 'Bank of Canada', source: 'https://www.bankofcanada.ca/core-functions/monetary-policy/key-interest-rate/' },
@@ -367,7 +367,6 @@ export async function syncAndVerifyFundamentalData(options: {
     Object.entries(CURRENCY_POLICY_SERIES)
       .filter(([currency]) => targetCurrency === 'ALL' || targetCurrency === currency)
       .map(async ([currency, mapping]) => {
-        const series = await fetchFredSeriesPoints(mapping.id);
         const values = series && transformSeriesPoints(series.points, 'LEVEL');
         if (!series || !values) return null;
         providersUsed.add(series.sourceLabel);
@@ -543,10 +542,11 @@ export async function syncAndVerifyFundamentalData(options: {
 
   const previousRates = safeReadJsonFile<any[]>('fundamental_rates_store.json', []);
   const previousRateMap = new Map(previousRates.map((r: any) => [r.currency, r]));
-  const updatedInterestRates = policyResults.filter(Boolean).map((result: any) => {
+  const updatedInterestRates = policyResults.filter(Boolean).flatMap((result: any) => {
+    if (result.values === undefined) return [];
     const { currency, mapping, values, series } = result;
     const old: any = previousRateMap.get(currency) || {};
-    return {
+    return [{
       ...old,
       currency,
       centralBankName: mapping.name,
@@ -559,7 +559,7 @@ export async function syncAndVerifyFundamentalData(options: {
       dataStatus: 'LIVE_VERIFIED',
       verificationStatus: 'VERIFIED',
       isEntered: true,
-    };
+    }];
   });
 
   // 4. Build updated Commodities (GOLD, SILVER, CRUDE_OIL)
