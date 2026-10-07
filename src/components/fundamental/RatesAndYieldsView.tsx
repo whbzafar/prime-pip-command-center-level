@@ -554,7 +554,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
                     diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-rose-400' : 'text-slate-400'
                   }`}
                 >
-                  {diff === null ? 'INPUT' : diff > 0 ? `+${diff}%` : `${diff}%`}
+                  {diff === null ? '—' : diff > 0 ? `+${diff}%` : `${diff}%`}
                 </span>
               </div>
             );
