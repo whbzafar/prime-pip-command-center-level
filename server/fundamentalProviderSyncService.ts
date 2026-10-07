@@ -526,7 +526,7 @@ export async function syncAndVerifyFundamentalData(options: {
         ...existing,
         dataStatus: existing.actual == null ? 'UNAVAILABLE' : 'DELAYED',
         verificationStatus: existing.actual == null ? 'NOT_FOUND' : 'REVIEW_REQUIRED',
-        isEntered: existing.actual != null,
+        isEntered: existing.actual != null && existing.verificationStatus === 'MANUAL',
       });
       continue;
     }
@@ -553,7 +553,7 @@ export async function syncAndVerifyFundamentalData(options: {
       notes: `FRED observation date: ${liveMatch.date}. Retrieved from ${liveMatch.sourceLabel} (Series: ${liveMatch.seriesId}); no forecast or release timestamp was supplied.`,
       updatedAt: nowIso,
       dataRetrievalTimestamp: nowIso,
-      dataStatus: 'LIVE_VERIFIED',
+      dataStatus: 'OFFICIAL_PUBLISHED',
       verificationStatus: 'VERIFIED',
       confidence: 100,
       isEntered: true,
