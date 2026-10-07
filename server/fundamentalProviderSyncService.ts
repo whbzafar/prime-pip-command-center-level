@@ -420,27 +420,16 @@ export async function syncAndVerifyFundamentalData(options: {
       (VERIFIED_INDICATORS as any)[def.code] ||
       (VERIFIED_INDICATORS as any)[`${def.currency}_${def.shortLabel}`];
 
-    const rateFallback = (VERIFIED_RATES as any)[def.currency];
-    const fallbackActual =
-      verifiedBaseline?.actual ??
-      existing?.actual ??
-      (def.category === 'MONETARY_POLICY'
-        ? rateFallback?.currentPolicyRate ?? 3.5
-        : def.category === 'RATES_YIELDS'
-        ? def.id.includes('2Y')
-          ? rateFallback?.yield2Y ?? 3.5
-          : rateFallback?.yield10Y ?? 3.8
-        : 2.5);
-
-    const actual = liveMatch ? liveMatch.actual : Number(fallbackActual);
-    const previous = liveMatch
-      ? liveMatch.previous
-      : Number(verifiedBaseline?.previous ?? existing?.previous ?? actual);
-    const forecast = Number(verifiedBaseline?.forecast ?? existing?.forecast ?? previous);
-
+    // Only data returned by a mapped live provider is current. Preserve prior
+    // observations without refreshing timestamps or claiming fresh verification.
     if (!liveMatch) {
-      verifiedFallbackHits += 1;
-      providersUsed.add(verifiedBaseline?.sourceName || def.officialSourceName || 'Official Statistical Office');
+      if (existing) updatedObservations.push({
+        ...existing,
+        dataStatus: existing.actual == null ? 'UNAVAILABLE' : 'DELAYED',
+        verificationStatus: existing.actual == null ? 'NOT_FOUND' : 'REVIEW_REQUIRED',
+        isEntered: existing.actual != null,
+      });
+      continue;
     }
 
     const obsRecord = {
@@ -450,34 +439,24 @@ export async function syncAndVerifyFundamentalData(options: {
       currency: def.currency,
       category: def.category,
       frequency: def.frequency,
-      referencePeriod: liveMatch
-        ? `Release ${liveMatch.date}`
-        : verifiedBaseline?.referencePeriod || existing?.referencePeriod || 'Latest Verified Release',
-      releaseDate: liveMatch ? liveMatch.date : verifiedBaseline?.releaseDate || existing?.releaseDate || todayStr,
-      releaseTime: '08:30 GMT',
-      actual,
-      forecast,
-      previous,
-      revisedPrevious: verifiedBaseline?.revisedPrevious ?? existing?.revisedPrevious ?? null,
-      unit: def.unit || verifiedBaseline?.unit || '%',
-      dataSource: liveMatch
-        ? liveMatch.sourceLabel
-        : verifiedBaseline?.sourceName || def.officialSourceName || 'Official Statistical Office',
-      sourceName: liveMatch
-        ? liveMatch.sourceLabel
-        : verifiedBaseline?.sourceName || def.officialSourceName || 'Official Statistical Office',
-      sourceUrl: liveMatch
-        ? `https://fred.stlouisfed.org/series/${liveMatch.seriesId}`
-        : verifiedBaseline?.sourceUrl || def.officialSourceUrl || 'https://fred.stlouisfed.org',
+      referencePeriod: `Release ${liveMatch.date}`,
+      releaseDate: liveMatch.date,
+      releaseTime: null,
+      actual: liveMatch.actual,
+      forecast: existing?.forecast ?? null,
+      previous: liveMatch.previous,
+      revisedPrevious: null,
+      unit: def.unit || '%',
+      dataSource: liveMatch.sourceLabel,
+      sourceName: liveMatch.sourceLabel,
+      sourceUrl: `https://fred.stlouisfed.org/series/${liveMatch.seriesId}`,
       sourceType: 'OFFICIAL',
-      notes: liveMatch
-        ? `Verified live via ${liveMatch.sourceLabel} (Series: ${liveMatch.seriesId}) on ${todayStr}`
-        : verifiedBaseline?.notes || `${def.name} verified official release.`,
+      notes: `Retrieved from ${liveMatch.sourceLabel} (Series: ${liveMatch.seriesId})`,
       updatedAt: nowIso,
       dataRetrievalTimestamp: nowIso,
       dataStatus: 'LIVE_VERIFIED',
       verificationStatus: 'VERIFIED',
-      confidence: liveMatch ? 99 : 96,
+      confidence: 100,
       isEntered: true,
     };
 
