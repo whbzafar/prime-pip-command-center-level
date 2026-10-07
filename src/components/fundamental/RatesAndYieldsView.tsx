@@ -90,6 +90,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
           realYield10Y: rateData.realYield10Y ?? existing?.realYield10Y ?? 0,
           recentGuidance: rateData.recentGuidance || existing?.recentGuidance || '',
           sourceUrl: rateData.sourceUrl || existing?.sourceUrl || '',
+          sourceDate: rateData.sourceDate || existing?.sourceDate,
           updatedAt: new Date().toISOString(),
           isEntered: true,
         };
@@ -131,6 +132,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
           realYield10Y: existing?.realYield10Y ?? 0,
           recentGuidance: existing?.recentGuidance || '',
           sourceUrl: rateData.sourceUrl || existing?.sourceUrl || '',
+          sourceDate: rateData.sourceDate || existing?.sourceDate,
           updatedAt: new Date().toISOString(),
           isEntered: true,
         });
