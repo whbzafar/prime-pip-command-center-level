@@ -33,7 +33,7 @@ const SCHEDULED_INDICATOR_SERIES: Record<string, { seriesId: string; transform: 
 
 
 export interface ProviderStatusInfo {
-  provider: 'FRED' | 'ALPHA_VANTAGE' | 'TWELVE_DATA' | 'BLS' | 'BEA' | 'FMP';
+  provider: 'FRED' | 'BANK_OF_CANADA';
   name: string;
   configured: boolean;
   mode: 'API_KEY_ACTIVE' | 'PUBLIC_FEED_FALLBACK';
@@ -90,46 +90,17 @@ export function getProviderStatuses(): ProviderStatusInfo[] {
       name: 'Federal Reserve Economic Data (FRED)',
       configured: Boolean(process.env.FRED_API_KEY && process.env.FRED_API_KEY.trim()),
       mode: process.env.FRED_API_KEY?.trim() ? 'API_KEY_ACTIVE' : 'PUBLIC_FEED_FALLBACK',
-      coverage: ['US Macro Series', 'Treasury Yields (2Y/10Y/TIPS)', 'G8 Sovereign Yields', 'WTI Crude'],
+      coverage: ['Selected U.S. macro series', 'Treasury yields', 'Daily WTI spot-price observations'],
     },
     {
-      provider: 'ALPHA_VANTAGE',
-      name: 'Alpha Vantage Macro & Equities API',
-      configured: Boolean(process.env.ALPHA_VANTAGE_API_KEY && process.env.ALPHA_VANTAGE_API_KEY.trim()),
-      mode: process.env.ALPHA_VANTAGE_API_KEY?.trim() ? 'API_KEY_ACTIVE' : 'PUBLIC_FEED_FALLBACK',
-      coverage: ['US Economic Indicators', 'FX Exchange Rates', 'Top Stocks Fundamentals (NVDA, AAPL, MSFT, etc.)'],
-    },
-    {
-      provider: 'TWELVE_DATA',
-      name: 'Twelve Data Real-Time Market API',
-      configured: Boolean(process.env.TWELVE_DATA_API_KEY && process.env.TWELVE_DATA_API_KEY.trim()),
-      mode: process.env.TWELVE_DATA_API_KEY?.trim() ? 'API_KEY_ACTIVE' : 'PUBLIC_FEED_FALLBACK',
-      coverage: ['28 FX Pairs', 'XAU/USD & XAG/USD', 'US30, NAS100, S&P500', 'Top 5 Cryptocurrencies'],
-    },
-    {
-      provider: 'BLS',
-      name: 'U.S. Bureau of Labor Statistics (BLS)',
-      configured: Boolean(process.env.BLS_API_KEY && process.env.BLS_API_KEY.trim()),
-      mode: process.env.BLS_API_KEY?.trim() ? 'API_KEY_ACTIVE' : 'PUBLIC_FEED_FALLBACK',
-      coverage: ['CPI', 'Core CPI', 'PPI', 'Non-Farm Payrolls', 'Unemployment Rate'],
-    },
-    {
-      provider: 'BEA',
-      name: 'U.S. Bureau of Economic Analysis (BEA)',
-      configured: Boolean(process.env.BEA_API_KEY && process.env.BEA_API_KEY.trim()),
-      mode: process.env.BEA_API_KEY?.trim() ? 'API_KEY_ACTIVE' : 'PUBLIC_FEED_FALLBACK',
-      coverage: ['Real GDP', 'PCE Inflation', 'Core PCE', 'Trade Balance'],
-    },
-    {
-      provider: 'FMP',
-      name: 'Financial Modeling Prep (FMP)',
-      configured: Boolean(process.env.FMP_API_KEY && process.env.FMP_API_KEY.trim()),
-      mode: process.env.FMP_API_KEY?.trim() ? 'API_KEY_ACTIVE' : 'PUBLIC_FEED_FALLBACK',
-      coverage: ['Equity Valuation Multiples', 'Index Constituents', 'Economic Calendar Releases'],
+      provider: 'BANK_OF_CANADA',
+      name: 'Bank of Canada Valet API',
+      configured: true,
+      mode: 'PUBLIC_FEED_FALLBACK',
+      coverage: ['Canadian policy-rate observations'],
     },
   ];
 }
-
 async function fetchWithTimeout(url: string, timeoutMs = 4500): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -265,7 +236,7 @@ export interface PublicOfficialObservation {
 }
 
 function isRecentObservation(dateValue: string, maxAgeDays: number): boolean {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dateValue)) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) return false;
   const date = new Date(dateValue + 'T00:00:00.000Z');
   if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== dateValue) return false;
   const ageDays = (Date.now() - date.getTime()) / 86400000;
@@ -391,64 +362,14 @@ export async function fetchPublicCommodityPrice(symbol: string): Promise<PublicO
 /**
  * Fetch macro series or quote from Alpha Vantage if ALPHA_VANTAGE_API_KEY is configured in .env
  */
-async function fetchAlphaVantageMacro(
-  fnName: string
-): Promise<{ actual: number; previous: number; date: string; sourceLabel: string } | null> {
-  const apiKey = (process.env.ALPHA_VANTAGE_API_KEY || '').trim();
-  if (!apiKey) return null;
-
-  try {
-    const url = `https://www.alphavantage.co/query?function=${encodeURIComponent(fnName)}&apikey=${encodeURIComponent(
-      apiKey
-    )}`;
-    const res = await fetchWithTimeout(url, 4000);
-    if (!res.ok) return null;
-    const json: any = await res.json();
-    if (Array.isArray(json?.data) && json.data.length >= 2) {
-      const v0 = parseFloat(String(json.data[0]?.value));
-      const v1 = parseFloat(String(json.data[1]?.value));
-      if (Number.isFinite(v0)) {
-        return {
-          actual: Number(v0.toFixed(2)),
-          previous: Number.isFinite(v1) ? Number(v1.toFixed(2)) : Number(v0.toFixed(2)),
-          date: String(json.data[0]?.date || new Date().toISOString().slice(0, 10)),
-          sourceLabel: 'Alpha Vantage Economic API (ALPHA_VANTAGE_API_KEY)',
-        };
-      }
-    }
-  } catch {
-    // Ignore timeout or rate limit
-  }
+async function fetchAlphaVantageMacro(_fnName: string): Promise<null> {
+  // Disabled in the no-budget public-feed mode: never call a credentialed provider.
   return null;
 }
 
-/**
- * Fetch real-time market price from Twelve Data if TWELVE_DATA_API_KEY is configured in .env
- */
-async function fetchTwelveDataPrices(symbols: string[]): Promise<Record<string, number>> {
-  const apiKey = (process.env.TWELVE_DATA_API_KEY || '').trim();
-  const result: Record<string, number> = {};
-  if (!apiKey || symbols.length === 0) return result;
-
-  try {
-    const joined = symbols.join(',');
-    const url = `https://api.twelvedata.com/price?symbol=${encodeURIComponent(joined)}&apikey=${encodeURIComponent(
-      apiKey
-    )}`;
-    const res = await fetchWithTimeout(url, 4500);
-    if (res.ok) {
-      const data: any = await res.json();
-      for (const sym of symbols) {
-        const val = parseFloat(String(data?.[sym]?.price ?? data?.price));
-        if (Number.isFinite(val) && val > 0) {
-          result[sym] = val;
-        }
-      }
-    }
-  } catch {
-    // Fallback handled by caller
-  }
-  return result;
+async function fetchTwelveDataPrices(_symbols: string[]): Promise<Record<string, number>> {
+  // Disabled in the no-budget public-feed mode: never call a credentialed provider.
+  return {};
 }
 
 /**
@@ -497,7 +418,7 @@ export async function syncAndVerifyFundamentalData(options: {
       .map(async ([currency, mapping]) => {
         const series = await fetchFredSeriesPoints(mapping.id);
         const values = series && transformSeriesPoints(series.points, 'LEVEL');
-        if (!series || !values) return null;
+        if (!series || !values || !isRecentObservation(values.date, 14)) return null;
         providersUsed.add(series.sourceLabel);
         liveApiHits += 1;
         return { currency, mapping, series, values };
@@ -519,7 +440,9 @@ export async function syncAndVerifyFundamentalData(options: {
       const fredData = await fetchFredSeriesPoints(mapping.fredSeriesId);
       if (fredData) {
         const transformed = transformSeriesPoints(fredData.points, mapping.transform);
-        if (transformed && Number.isFinite(transformed.actual)) {
+        const definition = OFFICIAL_INDICATOR_REGISTRY.find((item: any) => item.id === mapping.indicatorId);
+        const maxAgeDays = maxObservationAgeDays(String(definition?.frequency || 'monthly'));
+        if (transformed && Number.isFinite(transformed.actual) && isRecentObservation(transformed.date, maxAgeDays)) {
           liveFredResults.set(mapping.indicatorId, {
             ...transformed,
             sourceLabel: fredData.sourceLabel,
@@ -570,7 +493,9 @@ export async function syncAndVerifyFundamentalData(options: {
         if (liveFredResults.has(indicatorId)) return;
         const series = await fetchFredSeriesPoints(mapping.seriesId);
         const values = series && transformSeriesPoints(series.points, mapping.transform);
-        if (!series || !values) return;
+        const definition = OFFICIAL_INDICATOR_REGISTRY.find((item: any) => item.id === indicatorId);
+        const maxAgeDays = maxObservationAgeDays(String(definition?.frequency || 'monthly'));
+        if (!series || !values || !isRecentObservation(values.date, maxAgeDays)) return;
         liveFredResults.set(indicatorId, { ...values, sourceLabel: series.sourceLabel, seriesId: mapping.seriesId });
         providersUsed.add(series.sourceLabel);
         liveApiHits += 1;
@@ -620,11 +545,11 @@ export async function syncAndVerifyFundamentalData(options: {
       currency: def.currency,
       category: def.category,
       frequency: def.frequency,
-      referencePeriod: `Release ${liveMatch.date}`,
-      releaseDate: liveMatch.date,
+      referencePeriod: liveMatch.date,
+      releaseDate: '',
       releaseTime: null,
       actual: liveMatch.actual,
-      forecast: existing?.forecast ?? null,
+      forecast: null,
       previous: liveMatch.previous,
       revisedPrevious: null,
       unit: def.unit || '%',
@@ -632,7 +557,7 @@ export async function syncAndVerifyFundamentalData(options: {
       sourceName: liveMatch.sourceLabel,
       sourceUrl: `https://fred.stlouisfed.org/series/${liveMatch.seriesId}`,
       sourceType: 'OFFICIAL',
-      notes: `Retrieved from ${liveMatch.sourceLabel} (Series: ${liveMatch.seriesId})`,
+      notes: `FRED observation date: ${liveMatch.date}. Retrieved from ${liveMatch.sourceLabel} (Series: ${liveMatch.seriesId}); no forecast or release timestamp was supplied.`,
       updatedAt: nowIso,
       dataRetrievalTimestamp: nowIso,
       dataStatus: 'LIVE_VERIFIED',
