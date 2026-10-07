@@ -1106,7 +1106,7 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
           <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
           <div className="leading-relaxed">
             <span className="font-bold text-amber-300 uppercase tracking-wide mr-1.5">Fundamental Intelligence Disclaimer:</span>
-            <span>Clicking &apos;Generate&apos; or &apos;Regenerate&apos; might yield fabricated data; it is recommended that users upload or verify their own official economic indicator data.</span>
+            <span>Generate uses live Google Search research. A value is saved only when a recent citation from the indicator&apos;s official source supports it; unsupported results leave existing data unchanged. No automated source can guarantee perfect accuracy, so use the linked source to review important releases.</span>
           </div>
         </div>
 
