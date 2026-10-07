@@ -672,7 +672,7 @@ Structure: ${tradeData?.structure || "N/A"}`;
 // ----------------------------------------------------
 // FUNDAMENTAL INTELLIGENCE — VERIFIED GROUNDED RESEARCH ENGINE
 // ----------------------------------------------------
-type GroundedResearchSource = { title?: string; uri: string };
+type GroundedResearchSource = { title?: string; uri: string; chunkIndex?: number };
 
 function uniqueGroundedSources(response: any): GroundedResearchSource[] {
   const chunks = Array.isArray(response?.candidates?.[0]?.groundingMetadata?.groundingChunks)
@@ -683,7 +683,7 @@ function uniqueGroundedSources(response: any): GroundedResearchSource[] {
     const web = chunk?.web;
     if (!web?.uri || typeof web.uri !== 'string') continue;
     if (!sources.some((source) => source.uri === web.uri)) {
-      sources.push({ title: typeof web.title === 'string' ? web.title : undefined, uri: web.uri });
+      sources.push({ title: typeof web.title === 'string' ? web.title : undefined, uri: web.uri, chunkIndex });
     }
   }
   return sources.slice(0, 12);
@@ -693,6 +693,13 @@ function safeHostname(value: string): string {
   try { return new URL(value).hostname.toLowerCase().replace(/^www\./, ''); } catch { return ''; }
 }
 
+function isOfficialCitation(sourceUrl: string, officialSourceUrl: string): boolean {
+  const sourceHost = safeHostname(sourceUrl);
+  const officialHost = safeHostname(officialSourceUrl);
+  return !!sourceUrl.startsWith('https://') && !!sourceHost && !!officialHost &&
+    (sourceHost === officialHost || sourceHost.endsWith('.' + officialHost));
+}
+
 function sourceMatchesGrounding(sourceUrl: string, sources: GroundedResearchSource[]): boolean {
   const target = safeHostname(sourceUrl);
   if (!target) return false;
@@ -700,6 +707,25 @@ function sourceMatchesGrounding(sourceUrl: string, sources: GroundedResearchSour
     const host = safeHostname(source.uri);
     return host && (host === target || host.endsWith('.' + target) || target.endsWith('.' + host));
   });
+}
+
+type GroundingSupport = { text: string; chunkIndices: number[] };
+
+function isValidRecentReleaseDate(value: string, frequency: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + 'T00:00:00.000Z');
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) return false;
+  const ageDays = (Date.now() - date.getTime()) / 86400000;
+  if (ageDays < 0) return false;
+  const normalized = frequency.toLowerCase();
+  const maxAgeDays = normalized.includes('daily') ? 14
+    : normalized.includes('weekly') ? 28
+    : normalized.includes('bi-weekly') ? 45
+    : normalized.includes('monthly') ? 90
+    : normalized.includes('quarterly') ? 180
+    : normalized.includes('annual') ? 450
+    : 180;
+  return ageDays <= maxAgeDays;
 }
 
 function finiteOrNull(value: unknown): number | null {
@@ -776,14 +802,15 @@ function setCachedResearch(cacheKey: string, payload: any): void {
 async function groundedJsonResearch(
   researchBriefPrompt: string,
   extractionPromptFn: (researchText: string, sources: GroundedResearchSource[], searchQueries: string[]) => string,
-  searchQueryHint?: string
-): Promise<{ parsed: any; sources: GroundedResearchSource[]; searchQueries: string[]; researchText: string }> {
+  searchQueryHint?: string,
+  options: { requireGoogleGrounding?: boolean } = {},
+): Promise<{ parsed: any; sources: GroundedResearchSource[]; searchQueries: string[]; researchText: string; groundingSupports: GroundingSupport[] }> {
   const ai = getGeminiClient();
   if (!ai) throw new Error('Live research requires GEMINI_API_KEY.');
 
   // STEP 1: Attempt Gemini with Google Search Grounding tool
   // Prioritize gemini-3.8-flash for superior search query reasoning and data extraction
-  const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
+  const candidateModels = options.requireGoogleGrounding ? ['gemini-3.8-flash'] : ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
   let lastError: any = null;
 
   const briefWithSearchHints = [
@@ -793,7 +820,7 @@ async function groundedJsonResearch(
     '',
     'MANDATORY SEARCH DIRECTIVE:',
     '1. Use Google Search grounding to search across official primary statistical agencies and premier economic calendars (Trading Economics, ForexFactory, Investing.com, Reuters, Bloomberg, Fed, BLS, BEA, ECB, BoE, BoJ, SNB, BoC, RBA, RBNZ, CFTC, EIA).',
-    '2. For economic indicators, you MUST find and state all three values: ACTUAL, FORECAST (market survey/consensus), and PREVIOUS (prior reporting period). If a survey was conducted, do not omit the forecast.',
+    '2. Never infer a value. Report values, dates, and periods only when directly supported by a retrieved citation; otherwise mark that field unavailable.',
     '3. For commodities, search and state live spot price in USD, macroeconomic bullish/bearish sentiment, 10Y real yield, 5Y inflation breakeven, central bank flows, industrial demand, and EIA/OPEC crude balances.',
     '4. Return a fact-dense, complete research brief in plain text with exact figures, dates, periods, and verified source URLs.',
   ].filter(Boolean).join('\n');
@@ -806,7 +833,7 @@ async function groundedJsonResearch(
           contents: briefWithSearchHints,
           config: {
             systemInstruction:
-              'You are the world-class PrimePipFX institutional economic-data and commodity research engine. You MUST execute Google Search grounding to find 100% current, up-to-the-minute data. Answer strictly from retrieved verified evidence. Always capture Actual, Forecast (consensus), and Previous readings wherever published.',
+              'Research only the requested target. Use current Google Search results, cite the source for each reported fact, and never infer a number or date. Return unavailable for anything not supported by retrieved evidence.',
             tools: [{ googleSearch: {} }],
             temperature: 0.1,
           },
@@ -820,19 +847,31 @@ async function groundedJsonResearch(
         ? groundingMetadata.groundingChunks
         : [];
       const sources: GroundedResearchSource[] = [];
-      for (const chunk of rawChunks) {
+      for (const [chunkIndex, chunk] of rawChunks.entries()) {
         const web = chunk?.web;
         if (!web?.uri || typeof web.uri !== 'string') continue;
-        if (!sources.some((source) => source.uri === web.uri)) {
-          sources.push({
-            title: typeof web.title === 'string' ? web.title : undefined,
-            uri: web.uri,
-          });
-        }
+        sources.push({
+          title: typeof web.title === 'string' ? web.title : undefined,
+          uri: web.uri,
+          chunkIndex,
+        });
       }
+      const groundingSupports: GroundingSupport[] = Array.isArray(groundingMetadata?.groundingSupports)
+        ? groundingMetadata.groundingSupports.map((support: any) => ({
+          text: typeof support?.segment?.text === 'string' ? support.segment.text : '',
+          chunkIndices: Array.isArray(support?.groundingChunkIndices)
+            ? support.groundingChunkIndices.filter((index: unknown): index is number => Number.isInteger(index))
+            : [],
+        })).filter((support: GroundingSupport) => support.text.length > 0 && support.chunkIndices.length > 0)
+        : [];
       const searchQueries = Array.isArray(groundingMetadata?.webSearchQueries)
         ? groundingMetadata.webSearchQueries.filter((item: unknown): item is string => typeof item === 'string')
         : [];
+
+      if (options.requireGoogleGrounding && (!sources.length || !searchQueries.length || !groundingSupports.length)) {
+        lastError = new Error('Google Search did not provide usable search citations for this result.');
+        break;
+      }
 
       if (researchText) {
         // Fast-path: Check if search-grounded text itself already returned valid JSON matching the schema
@@ -854,7 +893,7 @@ async function groundedJsonResearch(
         if (!parsed) {
           const extractionPrompt = extractionPromptFn(researchText, sources, searchQueries);
           let extractionResponse: any = null;
-          for (const extractModel of ['gemini-3.8-flash', 'gemini-3.1-flash-lite']) {
+          for (const extractModel of options.requireGoogleGrounding ? ['gemini-3.8-flash'] : ['gemini-3.8-flash', 'gemini-3.1-flash-lite']) {
             try {
               extractionResponse = await withTimeout(
                 ai.models.generateContent({
@@ -887,7 +926,7 @@ async function groundedJsonResearch(
           }
         }
 
-        return { parsed, sources, searchQueries, researchText };
+        return { parsed, sources, searchQueries, researchText, groundingSupports };
       }
     } catch (error: any) {
       lastError = error;
@@ -896,6 +935,10 @@ async function groundedJsonResearch(
         throw error;
       }
     }
+  }
+
+  if (options.requireGoogleGrounding) {
+    throw lastError || new Error('Google Search grounding is unavailable for this request.');
   }
 
   // STEP 2: Resilient Fallback - Live Web Search + Knowledge Extraction with Gemini
@@ -958,6 +1001,7 @@ async function groundedJsonResearch(
           sources: webResult.sources.length > 0 ? webResult.sources : [{ uri: parsed.sourceUrl || 'https://www.google.com/search?q=' + encodeURIComponent(query), title: parsed.sourceName || 'Official Source' }],
           searchQueries: webResult.searchQueries,
           researchText: webResult.snippets.join('\n'),
+          groundingSupports: [],
         };
       }
     } catch (err: any) {
@@ -1023,6 +1067,56 @@ function extractNumericFromBrief(text: string, patterns: RegExp[]): number | nul
   return null;
 }
 
+function groundedSourceForNumber(
+  value: number | null,
+  sources: GroundedResearchSource[],
+  supports: GroundingSupport[],
+  sourceFilter: (source: GroundedResearchSource) => boolean = () => true,
+): GroundedResearchSource | null {
+  if (value === null) return null;
+  for (const support of supports) {
+    const tokens = support.text.replace(/[−–]/g, '-').match(/[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g) || [];
+    if (!tokens.some((token) => Number(token.replace(/,/g, '')) === value)) continue;
+    const source = support.chunkIndices
+      .map((index) => sources.find((item) => item.chunkIndex === index))
+      .find((item): item is GroundedResearchSource => !!item && sourceFilter(item));
+    if (source) return source;
+  }
+  return null;
+}
+
+function groundedNumberHasSupport(
+  value: number | null,
+  sources: GroundedResearchSource[],
+  supports: GroundingSupport[],
+  sourceFilter: (source: GroundedResearchSource) => boolean = () => true,
+): boolean {
+  return groundedSourceForNumber(value, sources, supports, sourceFilter) !== null;
+}
+
+function groundedDateHasSupport(
+  value: string,
+  sources: GroundedResearchSource[],
+  supports: GroundingSupport[],
+  sourceFilter: (source: GroundedResearchSource) => boolean,
+): boolean {
+  const date = new Date(value + 'T00:00:00.000Z');
+  if (!Number.isFinite(date.getTime())) return false;
+  const year = date.getUTCFullYear();
+  const month = date.toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
+  const shortMonth = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
+  const day = date.getUTCDate();
+  const variants = [value, month + ' ' + day + ', ' + year, shortMonth + ' ' + day + ', ' + year, day + ' ' + shortMonth + ' ' + year]
+    .map((item) => item.toLowerCase());
+  return supports.some((support) =>
+    variants.some((variant) => support.text.toLowerCase().includes(variant)) &&
+    support.chunkIndices.some((index) => {
+      const source = sources.find((item) => item.chunkIndex === index);
+      return !!source && sourceFilter(source);
+    })
+  );
+}
+
 function getIndicatorResearchPrompts(definition: any, mode: string) {
   const currentYear = new Date().getFullYear();
   const currentDate = new Date().toISOString().slice(0, 10);
@@ -1039,7 +1133,7 @@ function getIndicatorResearchPrompts(definition: any, mode: string) {
     'Do not infer, estimate, or fill missing values from memory. If a field is not explicitly available in sources, return null.',
     'Actual must be the latest published official value. Previous is the prior period’s published value. Forecast is the pre-release consensus only when an identified calendar source publishes it.',
     'Include the exact source URLs and concise notes. Do not call search snippets proof unless their cited sources support the value.',
-  ].join('\\n');
+  ].join('\n');
 
   const extractionPromptFn = (researchText: string, sources: GroundedResearchSource[]) => [
     'Extract only facts explicitly supported by this Google Search grounded brief and its citation list. Never infer or complete missing fields.',
@@ -1052,9 +1146,65 @@ function getIndicatorResearchPrompts(definition: any, mode: string) {
     researchText,
     'Grounded citations:',
     JSON.stringify(sources),
-  ].join('\\n');
+  ].join('\n');
 
   return { searchHint, briefPrompt, extractionPromptFn };
+}
+
+async function researchOfficialIndicator(definition: any, mode: string) {
+  const { searchHint, briefPrompt, extractionPromptFn } = getIndicatorResearchPrompts(definition, mode);
+  const { parsed, sources, searchQueries, groundingSupports } = await groundedJsonResearch(
+    briefPrompt,
+    extractionPromptFn,
+    searchHint,
+    { requireGoogleGrounding: true },
+  );
+
+  const officialSourceFilter = (source: GroundedResearchSource) =>
+    isOfficialCitation(source.uri, definition.officialSourceUrl);
+  const actual = finiteOrNull(parsed.actual);
+  const forecast = finiteOrNull(parsed.forecast);
+  const previous = finiteOrNull(parsed.previous);
+  const revisedPrevious = finiteOrNull(parsed.revisedPrevious);
+  const releaseDate = typeof parsed.releaseDate === 'string' ? parsed.releaseDate.trim() : '';
+  const referencePeriod = typeof parsed.referencePeriod === 'string' ? parsed.referencePeriod.trim() : '';
+  const reportedUnit = typeof parsed.unit === 'string' ? parsed.unit.trim() : '';
+  const unitMatches = !reportedUnit || normalizeUnit(reportedUnit) === normalizeUnit(definition.unit);
+
+  const actualSource = groundedSourceForNumber(actual, sources, groundingSupports, officialSourceFilter);
+  const actualDateSupported = groundedDateHasSupport(releaseDate, sources, groundingSupports, officialSourceFilter);
+  const periodSupported = groundedTextHasSupport(referencePeriod, sources, groundingSupports, officialSourceFilter);
+  const recent = isValidRecentReleaseDate(releaseDate, definition.frequency || '');
+  const verified = actual !== null && !!actualSource && actualDateSupported && periodSupported && recent && unitMatches;
+  const supportedForecast = groundedNumberHasSupport(forecast, sources, groundingSupports) ? forecast : null;
+  const supportedPrevious = groundedNumberHasSupport(previous, sources, groundingSupports, officialSourceFilter) ? previous : null;
+  const supportedRevision = groundedNumberHasSupport(revisedPrevious, sources, groundingSupports, officialSourceFilter) ? revisedPrevious : null;
+  const publicSources = sources.map(({ title, uri }) => ({ title, uri }));
+
+  return {
+    status: verified ? 'VERIFIED' : actual !== null ? 'REVIEW_REQUIRED' : 'NOT_FOUND',
+    dataStatus: verified ? 'OFFICIAL_PUBLISHED' : 'UNAVAILABLE',
+    indicatorId: definition.id,
+    currency: definition.currency,
+    actual: verified ? actual : null,
+    forecast: verified ? supportedForecast : null,
+    previous: verified ? supportedPrevious : null,
+    revisedPrevious: verified ? supportedRevision : null,
+    referencePeriod: verified ? referencePeriod : '',
+    releaseDate: verified ? releaseDate : '',
+    unit: definition.unit,
+    sourceName: verified ? (actualSource.title || definition.officialSourceName) : '',
+    sourceUrl: verified ? actualSource.uri : '',
+    retrievedAt: new Date().toISOString(),
+    confidence: verified ? Math.max(0, Math.min(100, finiteOrNull(parsed.confidence) ?? 0)) : 0,
+    notes: verified
+      ? 'Latest actual verified using Google Search citations from the official source. Forecast and prior values are included only when separately citation-supported.'
+      : actual !== null && !recent
+        ? 'Google returned an older release, which was not saved as current data. Existing values were left unchanged.'
+        : 'Google Search did not provide enough official citation evidence to verify this release. Existing values were left unchanged.',
+    sources: publicSources,
+    searchQueries,
+  };
 }
 
 app.post('/api/fundamental/generate-indicator', async (req, res) => {
@@ -1071,7 +1221,7 @@ app.post('/api/fundamental/generate-indicator', async (req, res) => {
 
     const official = OFFICIAL_INDICATOR_REGISTRY.find((item: any) => item.id === id && item.currency === currency);
     if (!official) {
-      return res.status(404).json({
+      return res.status(200).json({
         status: 'NOT_FOUND',
         indicatorId: id,
         currency,
@@ -1089,62 +1239,13 @@ app.post('/api/fundamental/generate-indicator', async (req, res) => {
       });
     }
 
-    const cacheKey = `indicator_${currency}_${id}`;
-    if (mode !== 'REGENERATE') {
-      const cached = getCachedResearch(cacheKey);
-      if (cached?.status === 'VERIFIED' && cached?.currency === currency && cached?.indicatorId === id &&
-          cached?.actual !== null && cached?.sources?.length > 0 &&
-          Date.now() - Date.parse(cached.retrievedAt || '') < 5 * 60 * 1000) {
-        return res.json(cached);
-      }
-    }
-
-    const { searchHint, briefPrompt, extractionPromptFn } = getIndicatorResearchPrompts(official, mode);
-    const { parsed, sources, searchQueries } = await groundedJsonResearch(briefPrompt, extractionPromptFn, searchHint);
-    const validSource = (value: unknown) => typeof value === 'string' && /^https:\/\//i.test(value) && sources.some((source) => source.uri === value);
-    const actual = finiteOrNull(parsed.actual);
-    const forecast = finiteOrNull(parsed.forecast);
-    const previous = finiteOrNull(parsed.previous);
-    const revisedPrevious = finiteOrNull(parsed.revisedPrevious);
-    const releaseDate = typeof parsed.releaseDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(parsed.releaseDate) ? parsed.releaseDate : '';
-    const referencePeriod = typeof parsed.referencePeriod === 'string' ? parsed.referencePeriod.trim() : '';
-    const unit = typeof parsed.unit === 'string' ? parsed.unit.trim() : '';
-    const sourceUrl = validSource(parsed.sourceUrl) ? parsed.sourceUrl.trim() : '';
-    const sourceName = typeof parsed.sourceName === 'string' ? parsed.sourceName.trim() : '';
-    const officialSourceRetrieved = sources.some((source) =>
-      isGroundedSourceUrl(official.officialSourceUrl, [{ uri: source.uri, title: source.title }])
-    );
-    const actualSupported = actual !== null && releaseDate.length > 0 && referencePeriod.length > 0 &&
-      normalizeUnit(unit) === normalizeUnit(official.unit) && !!sourceUrl && officialSourceRetrieved;
-    const status = actualSupported ? 'VERIFIED' : actual !== null ? 'REVIEW_REQUIRED' : 'NOT_FOUND';
-    const payload = {
-      status,
-      indicatorId: id,
-      currency,
-      actual: actualSupported ? actual : null,
-      forecast: actualSupported ? forecast : null,
-      previous: actualSupported ? previous : null,
-      revisedPrevious: actualSupported ? revisedPrevious : null,
-      referencePeriod: actualSupported ? referencePeriod : '',
-      releaseDate: actualSupported ? releaseDate : '',
-      unit: actualSupported ? unit : official.unit,
-      sourceName: actualSupported ? (sourceName || official.officialSourceName) : '',
-      sourceUrl: actualSupported ? sourceUrl : '',
-      retrievedAt: new Date().toISOString(),
-      confidence: actualSupported ? Math.max(0, Math.min(100, finiteOrNull(parsed.confidence) ?? 0)) : 0,
-      notes: actualSupported ? (typeof parsed.notes === 'string' ? parsed.notes : 'Verified against a Google Search citation from the indicator’s official source.') :
-        (actual !== null ? 'Google returned a value, but it did not meet the source, unit, date, and period checks. Nothing was saved.' :
-          'Google Search did not return a verifiable latest official release. Nothing was saved.'),
-      sources,
-      searchQueries,
-    };
-
-    if (actualSupported) setCachedResearch(cacheKey, payload);
+    const payload = await researchOfficialIndicator(official, mode);
     return res.json(payload);
   } catch (error: any) {
     console.warn('[FUNDAMENTAL GENERATE INDICATOR] Google-backed research unavailable:', error?.message || error);
     return res.status(200).json({
       status: 'UNAVAILABLE',
+      dataStatus: 'UNAVAILABLE',
       indicatorId: String(req.body?.definition?.id || ''),
       currency: String(req.body?.definition?.currency || '').toUpperCase(),
       actual: null,
@@ -1158,12 +1259,14 @@ app.post('/api/fundamental/generate-indicator', async (req, res) => {
       sourceUrl: '',
       retrievedAt: new Date().toISOString(),
       confidence: 0,
-      notes: 'Google Search verification is unavailable right now. Existing values were left unchanged.',
+      notes: 'Google Search could not complete this live lookup. Existing values were left unchanged.',
       sources: [],
     });
   }
 });
 
+// The hosted endpoint has a 60-second execution limit. A request must stay focused on
+// one indicator; the UI performs "generate all" as separate live, citation-checked calls.
 app.post('/api/fundamental/generate-indicators-batch', async (req, res) => {
   try {
     const currency = String(req.body?.currency || 'ALL').toUpperCase();
@@ -1173,86 +1276,25 @@ app.post('/api/fundamental/generate-indicators-batch', async (req, res) => {
       return res.status(400).json({ error: 'Valid currency or ALL is required.' });
     }
 
-    const definitions = OFFICIAL_INDICATOR_REGISTRY.filter((item: any) =>
+    let definitions = OFFICIAL_INDICATOR_REGISTRY.filter((item: any) =>
       (currency === 'ALL' || item.currency === currency) &&
       (!requestedIds || requestedIds.includes(item.id))
     );
-    const indicators = [];
-    for (const definition of definitions) {
-      try {
-        const cacheKey = `indicator_${definition.currency}_${definition.id}`;
-        const cached = mode !== 'REGENERATE' ? getCachedResearch(cacheKey) : null;
-        if (cached?.status === 'VERIFIED' && cached?.actual !== null && cached?.sources?.length > 0 &&
-            Date.now() - Date.parse(cached.retrievedAt || '') < 5 * 60 * 1000) {
-          indicators.push(cached);
-          continue;
-        }
-
-        const { searchHint, briefPrompt, extractionPromptFn } = getIndicatorResearchPrompts(definition, mode);
-        const { parsed, sources, searchQueries } = await groundedJsonResearch(briefPrompt, extractionPromptFn, searchHint);
-        const value = finiteOrNull(parsed.actual);
-        const unit = typeof parsed.unit === 'string' ? parsed.unit.trim() : '';
-        const sourceUrl = typeof parsed.sourceUrl === 'string' && /^https:\/\//i.test(parsed.sourceUrl) &&
-          sources.some((source) => source.uri === parsed.sourceUrl) ? parsed.sourceUrl : '';
-        const officialSourceRetrieved = sources.some((source) =>
-          isGroundedSourceUrl(definition.officialSourceUrl, [{ uri: source.uri, title: source.title }])
-        );
-        const referencePeriod = typeof parsed.referencePeriod === 'string' ? parsed.referencePeriod.trim() : '';
-        const releaseDate = typeof parsed.releaseDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(parsed.releaseDate) ? parsed.releaseDate : '';
-        const verified = value !== null && !!sourceUrl && officialSourceRetrieved && !!referencePeriod &&
-          !!releaseDate && normalizeUnit(unit) === normalizeUnit(definition.unit);
-        const item = {
-          status: verified ? 'VERIFIED' : value !== null ? 'REVIEW_REQUIRED' : 'NOT_FOUND',
-          indicatorId: definition.id,
-          currency: definition.currency,
-          actual: verified ? value : null,
-          forecast: verified ? finiteOrNull(parsed.forecast) : null,
-          previous: verified ? finiteOrNull(parsed.previous) : null,
-          revisedPrevious: verified ? finiteOrNull(parsed.revisedPrevious) : null,
-          referencePeriod: verified ? referencePeriod : '',
-          releaseDate: verified ? releaseDate : '',
-          unit: verified ? unit : definition.unit,
-          sourceName: verified && typeof parsed.sourceName === 'string' ? parsed.sourceName : '',
-          sourceUrl: verified ? sourceUrl : '',
-          retrievedAt: new Date().toISOString(),
-          confidence: verified ? Math.max(0, Math.min(100, finiteOrNull(parsed.confidence) ?? 0)) : 0,
-          notes: verified ? (typeof parsed.notes === 'string' ? parsed.notes : '') :
-            'No value was returned as verified. Google Search citations did not support every required field.',
-          sources,
-          searchQueries,
-        };
-        if (verified) setCachedResearch(cacheKey, item);
-        indicators.push(item);
-      } catch (error: any) {
-        indicators.push({
-          status: 'UNAVAILABLE',
-          indicatorId: definition.id,
-          currency: definition.currency,
-          actual: null,
-          forecast: null,
-          previous: null,
-          revisedPrevious: null,
-          referencePeriod: '',
-          releaseDate: '',
-          unit: definition.unit,
-          retrievedAt: new Date().toISOString(),
-          confidence: 0,
-          notes: 'Google Search was unavailable. Existing values were left unchanged.',
-          sources: [],
-        });
-      }
+    if (definitions.length !== 1) {
+      return res.status(400).json({ error: 'Generate one indicator at a time so each live Google lookup can finish and be verified.' });
     }
+    const indicator = await researchOfficialIndicator(definitions[0], mode);
     return res.json({
-      status: indicators.some((item: any) => item.status !== 'VERIFIED') ? 'PARTIAL' : 'VERIFIED',
-      count: indicators.length,
+      status: indicator.status,
+      count: 1,
       currency,
       mode,
-      indicators,
+      indicators: [indicator],
       retrievedAt: new Date().toISOString(),
     });
   } catch (error: any) {
     console.warn('[BATCH INDICATORS] Google Search research unavailable:', error?.message || error);
-    return res.status(500).json({ error: 'Google Search research is unavailable.' });
+    return res.status(200).json({ status: 'UNAVAILABLE', count: 0, currency: 'ALL', indicators: [], notes: 'Google Search research is unavailable.' });
   }
 });
 
