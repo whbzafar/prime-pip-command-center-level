@@ -1830,8 +1830,11 @@ function buildDefaultFundamentalObservations(): any[] {
   return result;
 }
 
-app.get('/api/fundamental/observations', (_req, res) => {
+app.get('/api/fundamental/observations', async (_req, res) => {
   try {
+    // Vercel serverless may suspend timers; refresh when an authenticated app requests
+    // observations and the free public-feed cache has exceeded its refresh interval.
+    if (isFundamentalSyncDue()) await runAutomaticFundamentalSync();
     let stored = safeReadJsonFile<any[]>('fundamental_observations_store.json', []);
     if (!stored || !Array.isArray(stored) || stored.length === 0) {
       stored = buildDefaultFundamentalObservations();
