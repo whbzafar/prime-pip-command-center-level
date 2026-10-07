@@ -1648,7 +1648,7 @@ app.post('/api/fundamental/generate-rates', async (req, res) => {
     const officialSourceFilter = (source: GroundedResearchSource) => isOfficialCitation(source.uri, official.url);
     const valueSource = groundedSourceForNumber(currentPolicyRate, sources, groundingSupports, officialSourceFilter);
     const valueHasPercentUnit = currentPolicyRate !== null && groundingSupports.some((support) => {
-      const hasValue = (support.text.replace(/[−–]/g, '-').match(/[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\\.\d+)?/g) || [])
+      const hasValue = (support.text.replace(/[−–]/g, '-').match(/[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g) || [])
         .some((token) => Number(token.replace(/,/g, '')) === currentPolicyRate);
       const hasPercent = /%|percent|per cent/i.test(support.text);
       return hasValue && hasPercent && support.chunkIndices.some((index) => {
