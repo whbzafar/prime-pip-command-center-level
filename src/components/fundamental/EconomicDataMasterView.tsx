@@ -207,7 +207,7 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
     try {
       const existing = obsMap.get(def.id);
       const result = await generateIndicator(def, existing, mode);
-      if (result.actual === null) {
+      if (result.status !== 'VERIFIED' || result.actual === null) {
         const errorMsg = result.notes || `${def.shortLabel}: No published data found on Google/official source.`;
         setLiveMessage(errorMsg);
         setRowFeedbackMap((prev) => ({ ...prev, [def.id]: { type: 'error', text: errorMsg } }));
@@ -224,18 +224,18 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
         id: existing?.id || `obs_${def.id}_${Date.now()}`,
         indicatorId: def.id,
         currency: def.currency,
-        referencePeriod: result.referencePeriod || existing?.referencePeriod || 'Latest',
-        releaseDate: result.releaseDate || existing?.releaseDate || new Date().toISOString().split('T')[0],
+        referencePeriod: result.referencePeriod,
+        releaseDate: result.releaseDate,
         actual: result.actual,
-        forecast: result.forecast !== null && result.forecast !== undefined ? result.forecast : (existing?.forecast ?? null),
-        previous: result.previous !== null && result.previous !== undefined ? result.previous : (existing?.previous ?? null),
-        revisedPrevious: result.revisedPrevious ?? existing?.revisedPrevious ?? null,
+        forecast: result.forecast ?? null,
+        previous: result.previous ?? null,
+        revisedPrevious: result.revisedPrevious ?? null,
         unit: def.unit,
-        sourceUrl: result.sourceUrl || def.officialSourceUrl,
+        sourceUrl: result.sourceUrl || '',
         notes: result.notes || existing?.notes,
         updatedAt: result.retrievedAt || new Date().toISOString(),
         verificationStatus: 'VERIFIED',
-        confidence: result.confidence || 90,
+        confidence: result.confidence,
         researchRetrievedAt: result.retrievedAt,
         researchSourceName: result.sourceName,
       });
@@ -280,19 +280,19 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
         try {
           const existing = obsMap.get(def.id);
           const result = await generateIndicator(def, existing, mode);
-          if (result.status === 'VERIFIED' && result.actual !== null) {
+          if (result.status === 'VERIFIED' && result.actual !== null && !!result.sourceUrl && !!result.releaseDate && !!result.referencePeriod) {
             onUpdateObservation({
               id: existing?.id || `obs_${def.id}_${Date.now()}`,
               indicatorId: def.id,
               currency: def.currency,
-              referencePeriod: result.referencePeriod || existing?.referencePeriod || 'Latest',
-              releaseDate: result.releaseDate || existing?.releaseDate || new Date().toISOString().split('T')[0],
+              referencePeriod: result.referencePeriod,
+              releaseDate: result.releaseDate,
               actual: result.actual,
-              forecast: result.forecast !== null && result.forecast !== undefined ? result.forecast : (existing?.forecast ?? null),
-              previous: result.previous !== null && result.previous !== undefined ? result.previous : (existing?.previous ?? null),
-              revisedPrevious: result.revisedPrevious ?? existing?.revisedPrevious ?? null,
+              forecast: result.forecast ?? null,
+              previous: result.previous ?? null,
+              revisedPrevious: result.revisedPrevious ?? null,
               unit: def.unit,
-              sourceUrl: result.sourceUrl || def.officialSourceUrl,
+              sourceUrl: result.sourceUrl || '',
               notes: result.notes || existing?.notes,
               updatedAt: result.retrievedAt || new Date().toISOString(),
               verificationStatus: 'VERIFIED',
