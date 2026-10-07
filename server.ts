@@ -107,6 +107,9 @@ import {
   createManualVerifiedObservation,
 } from "./server/fundamentalDataArchitecture.js";
 import {
+  fetchPublicCommodityPrice,
+  fetchPublicFredIndicator,
+  fetchPublicPolicyRate,
   getProviderStatuses,
   syncAndVerifyFundamentalData,
 } from "./server/fundamentalProviderSyncService.js";
@@ -1242,94 +1245,143 @@ async function researchOfficialIndicator(definition: any, mode: string) {
   };
 }
 
-app.post('/api/fundamental/generate-indicator', async (req, res) => {
-  try {
-    const supplied = req.body?.definition || {};
-    const currency = String(supplied.currency || '').toUpperCase();
-    const id = String(supplied.id || '');
-    const mode = req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE';
-
-    if (!/^(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD)$/.test(currency)) {
-      return res.status(400).json({ error: 'A valid workspace currency is required.' });
-    }
-    if (!id) return res.status(400).json({ error: 'Indicator ID is required.' });
-
-    const official = OFFICIAL_INDICATOR_REGISTRY.find((item: any) => item.id === id && item.currency === currency);
-    if (!official) {
-      return res.status(200).json({
-        status: 'NOT_FOUND',
-        indicatorId: id,
-        currency,
-        actual: null,
-        forecast: null,
-        previous: null,
-        revisedPrevious: null,
-        referencePeriod: '',
-        releaseDate: '',
-        unit: supplied.unit || '',
-        retrievedAt: new Date().toISOString(),
-        confidence: 0,
-        notes: 'This indicator and currency pair is not in the official registry, so it cannot be verified automatically.',
-        sources: [],
-      });
-    }
-
-    const payload = await researchOfficialIndicator(official, mode);
-    return res.json(payload);
-  } catch (error: any) {
-    console.warn('[FUNDAMENTAL GENERATE INDICATOR] Google-backed research unavailable:', error?.message || error);
-    return res.status(200).json({
+async function getOfficialIndicatorResult(definition: any) {
+  const observation = await fetchPublicFredIndicator(
+    String(definition.id || ''),
+    String(definition.currency || ''),
+    String(definition.frequency || ''),
+  );
+  const retrievedAt = new Date().toISOString();
+  const base = {
+    indicatorId: definition.id,
+    indicatorName: definition.name,
+    currency: definition.currency,
+    unit: definition.unit || '',
+    retrievedAt,
+    confidence: 100,
+  };
+  if (!observation) {
+    return {
+      ...base,
       status: 'UNAVAILABLE',
       dataStatus: 'UNAVAILABLE',
-      indicatorId: String(req.body?.definition?.id || ''),
-      currency: String(req.body?.definition?.currency || '').toUpperCase(),
       actual: null,
       forecast: null,
       previous: null,
       revisedPrevious: null,
       referencePeriod: '',
       releaseDate: '',
-      unit: String(req.body?.definition?.unit || ''),
       sourceName: '',
       sourceUrl: '',
+      notes: 'No fresh, directly mapped free official series is available for this indicator and currency. No estimate or fallback value was returned.',
+      sources: [],
+    };
+  }
+  return {
+    ...base,
+    status: 'VERIFIED',
+    dataStatus: 'OFFICIAL_PUBLISHED',
+    actual: observation.actual,
+    forecast: null,
+    previous: observation.previous,
+    revisedPrevious: null,
+    referencePeriod: observation.date,
+    releaseDate: '',
+    sourceName: observation.sourceName,
+    sourceUrl: observation.sourceUrl,
+    retrievedAt: observation.retrievedAt,
+    dataRetrievalTimestamp: observation.retrievedAt,
+    notes: `Direct official FRED observation dated ${observation.date}. This feed does not provide a publication timestamp, forecast, or revised-previous value for this lookup.`,
+    sources: [{ title: `FRED series ${observation.seriesId}`, uri: observation.sourceUrl }],
+  };
+}
+
+app.post('/api/fundamental/generate-indicator', async (req, res) => {
+  const supplied = req.body?.definition || {};
+  const currency = String(supplied.currency || '').toUpperCase();
+  const id = String(supplied.id || '');
+  if (!/^(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD)$/.test(currency)) {
+    return res.status(400).json({ error: 'A valid workspace currency is required.' });
+  }
+  if (!id) return res.status(400).json({ error: 'Indicator ID is required.' });
+  const official = OFFICIAL_INDICATOR_REGISTRY.find((item: any) => item.id === id && item.currency === currency);
+  if (!official) {
+    return res.status(200).json({
+      status: 'UNAVAILABLE',
+      dataStatus: 'UNAVAILABLE',
+      indicatorId: id,
+      currency,
+      actual: null,
+      forecast: null,
+      previous: null,
+      revisedPrevious: null,
+      referencePeriod: '',
+      releaseDate: '',
+      unit: supplied.unit || '',
       retrievedAt: new Date().toISOString(),
       confidence: 0,
-      notes: 'Google Search could not complete this live lookup. Existing values were left unchanged.',
+      notes: 'This indicator and currency is not in the official registry. No value was generated.',
+      sources: [],
+    });
+  }
+  try {
+    return res.json(await getOfficialIndicatorResult(official));
+  } catch (error: any) {
+    console.warn('[FUNDAMENTAL GENERATE INDICATOR] Official public feed unavailable:', error?.message || error);
+    return res.status(200).json({
+      status: 'UNAVAILABLE',
+      dataStatus: 'UNAVAILABLE',
+      indicatorId: id,
+      currency,
+      actual: null,
+      forecast: null,
+      previous: null,
+      revisedPrevious: null,
+      referencePeriod: '',
+      releaseDate: '',
+      unit: official.unit || '',
+      retrievedAt: new Date().toISOString(),
+      confidence: 0,
+      notes: 'The official public feed could not be reached. Existing values were left unchanged.',
       sources: [],
     });
   }
 });
 
-// The hosted endpoint has a 60-second execution limit. A request must stay focused on
-// one indicator; the UI performs "generate all" as separate live, citation-checked calls.
+// "Generate all" uses one official public-feed lookup per indicator so each source date
+// can be checked independently without using a paid search service.
 app.post('/api/fundamental/generate-indicators-batch', async (req, res) => {
+  const currency = String(req.body?.currency || 'ALL').toUpperCase();
+  const requestedIds = Array.isArray(req.body?.indicatorIds) ? req.body.indicatorIds : null;
+  if (currency !== 'ALL' && !/^(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD)$/.test(currency)) {
+    return res.status(400).json({ error: 'Valid currency or ALL is required.' });
+  }
+  const definitions = OFFICIAL_INDICATOR_REGISTRY.filter((item: any) =>
+    (currency === 'ALL' || item.currency === currency) &&
+    (!requestedIds || requestedIds.includes(item.id))
+  );
+  if (definitions.length !== 1) {
+    return res.status(400).json({ error: 'Generate one indicator at a time so its official feed can be checked.' });
+  }
   try {
-    const currency = String(req.body?.currency || 'ALL').toUpperCase();
-    const mode = req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE';
-    const requestedIds = Array.isArray(req.body?.indicatorIds) ? req.body.indicatorIds : null;
-    if (currency !== 'ALL' && !/^(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD)$/.test(currency)) {
-      return res.status(400).json({ error: 'Valid currency or ALL is required.' });
-    }
-
-    let definitions = OFFICIAL_INDICATOR_REGISTRY.filter((item: any) =>
-      (currency === 'ALL' || item.currency === currency) &&
-      (!requestedIds || requestedIds.includes(item.id))
-    );
-    if (definitions.length !== 1) {
-      return res.status(400).json({ error: 'Generate one indicator at a time so each live Google lookup can finish and be verified.' });
-    }
-    const indicator = await researchOfficialIndicator(definitions[0], mode);
+    const indicator = await getOfficialIndicatorResult(definitions[0]);
     return res.json({
       status: indicator.status,
-      count: 1,
+      count: indicator.status === 'VERIFIED' ? 1 : 0,
       currency,
-      mode,
+      mode: req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE',
       indicators: [indicator],
       retrievedAt: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.warn('[BATCH INDICATORS] Google Search research unavailable:', error?.message || error);
-    return res.status(200).json({ status: 'UNAVAILABLE', count: 0, currency: 'ALL', indicators: [], notes: 'Google Search research is unavailable.' });
+    console.warn('[BATCH INDICATORS] Official public feed unavailable:', error?.message || error);
+    return res.status(200).json({
+      status: 'UNAVAILABLE',
+      count: 0,
+      currency,
+      indicators: [],
+      notes: 'The official public feed could not be reached. No values were generated.',
+    });
   }
 });
 
@@ -1344,140 +1396,14 @@ const COT_CONTRACTS: Record<string, string> = {
   NZD: 'New Zealand Dollar',
 };
 
-function getCotResearchPrompts(currency: string, existingRecord: any, mode: string) {
-  const contractName = COT_CONTRACTS[currency] || currency;
-  const currentYear = new Date().getFullYear();
-  const currentDate = new Date().toISOString().slice(0, 10);
-
-  const searchHint = `${currency} ${contractName} CFTC Commitment of Traders report latest open interest non-commercial positions ${currentYear}`;
-
-  const briefPrompt = [
-    `CRITICAL MISSION: Research the latest official CFTC Commitment of Traders (COT) report for ${currency} (${contractName}).`,
-    `Current System Date: ${currentDate}`,
-    `Mode: ${mode}`,
-    `Currency: ${currency}`,
-    `Contract: ${contractName}`,
-    existingRecord ? `Existing record: Long=${existingRecord.nonCommercialLong}, Short=${existingRecord.nonCommercialShort}` : '',
-    '',
-    'SEARCH AND REPORT THE FOLLOWING DATA POINTS FROM THE LATEST CFTC REPORT:',
-    '1. REPORT DATE: The Tuesday date of the data snapshot (YYYY-MM-DD).',
-    '2. RELEASE DATE: The Friday release date (YYYY-MM-DD).',
-    '3. TOTAL OPEN INTEREST: Total contracts open.',
-    '4. NON-COMMERCIAL (SPECULATOR) LONG POSITIONS: Total long contracts.',
-    '5. NON-COMMERCIAL (SPECULATOR) SHORT POSITIONS: Total short contracts.',
-    '6. COMMERCIAL LONG POSITIONS: Total commercial long contracts.',
-    '7. COMMERCIAL SHORT POSITIONS: Total commercial short contracts.',
-    '8. PREVIOUS NET POSITION: Net non-commercial position from prior week.',
-    '9. PREVIOUS OPEN INTEREST: Open interest from prior week.',
-  ].join('\n');
-
-  const extractionPromptFn = (researchText: string, sources: GroundedResearchSource[]) => [
-    'Convert the following grounded CFTC COT research brief into the requested JSON schema.',
-    'Extract exact contract numbers for non-commercial and commercial positioning.',
-    'REQUIRED JSON OUTPUT SHAPE (NO MARKDOWN, VALID JSON ONLY):',
-    '{',
-    '  "contractName": string,',
-    '  "reportDate": string,',
-    '  "releaseDate": string,',
-    '  "openInterest": number|null,',
-    '  "nonCommercialLong": number|null,',
-    '  "nonCommercialShort": number|null,',
-    '  "commercialLong": number|null,',
-    '  "commercialShort": number|null,',
-    '  "previousNetPosition": number|null,',
-    '  "previousOpenInterest": number|null,',
-    '  "sourceName": string,',
-    '  "sourceUrl": string,',
-    '  "confidence": number,',
-    '  "notes": string',
-    '}',
-    '',
-    'GROUNDED RESEARCH BRIEF:',
-    researchText,
-    '',
-    'SOURCES:',
-    JSON.stringify(sources),
-  ].join('\n');
-
-  return { searchHint, briefPrompt, extractionPromptFn };
-}
-
-app.post('/api/fundamental/generate-cot', async (req, res) => {
-  try {
-    const rawCurrency = String(req.body?.currency || '').toUpperCase();
-    if (rawCurrency === 'ALL') {
-      const allCurrencies = Object.keys(COT_CONTRACTS);
-      const allRecords = allCurrencies.map((c) => getVerifiedCotFallback(c, null));
-      return res.json({
-        status: 'VERIFIED',
-        mode: req.body?.mode || 'GENERATE',
-        records: allRecords,
-        retrievedAt: new Date().toISOString(),
-      });
-    }
-
-    const currency = rawCurrency;
-    if (!COT_CONTRACTS[currency]) return res.status(400).json({ error: 'Valid COT currency is required.' });
-
-    const mode = req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE';
-    const existing = req.body?.existingRecord || null;
-    const { searchHint, briefPrompt, extractionPromptFn } = getCotResearchPrompts(currency, existing, mode);
-
-    const { parsed, sources, searchQueries } = await groundedJsonResearch(briefPrompt, extractionPromptFn, searchHint);
-    let openInterest = finiteOrNull(parsed.openInterest);
-    let nonCommercialLong = finiteOrNull(parsed.nonCommercialLong);
-    let nonCommercialShort = finiteOrNull(parsed.nonCommercialShort);
-    let commercialLong = finiteOrNull(parsed.commercialLong);
-    let commercialShort = finiteOrNull(parsed.commercialShort);
-    let sourceUrl = typeof parsed.sourceUrl === 'string' ? parsed.sourceUrl.trim() : '';
-    let reportDate = typeof parsed.reportDate === 'string' ? parsed.reportDate.trim() : '';
-    let releaseDate = typeof parsed.releaseDate === 'string' ? parsed.releaseDate.trim() : '';
-    const sourceGrounded = isGroundedSourceUrl(sourceUrl, sources);
-    const complete = [openInterest, nonCommercialLong, nonCommercialShort, commercialLong, commercialShort].every((value) => value !== null && value > 0);
-    const datesValid = /^\d{4}-\d{2}-\d{2}$/.test(reportDate) && /^\d{4}-\d{2}-\d{2}$/.test(releaseDate);
-
-    // If research missed complete positioning or returned zero, seamlessly fallback to verified baseline
-    if (!complete || !datesValid || (typeof parsed.notes === 'string' && parsed.notes.toLowerCase().includes('no research brief'))) {
-      const fallback = getVerifiedCotFallback(currency, existing);
-      openInterest = fallback.openInterest;
-      nonCommercialLong = fallback.nonCommercialLong;
-      nonCommercialShort = fallback.nonCommercialShort;
-      commercialLong = fallback.commercialLong;
-      commercialShort = fallback.commercialShort;
-      if (!datesValid) {
-        reportDate = fallback.reportDate;
-        releaseDate = fallback.releaseDate;
-      }
-      if (!sourceUrl) sourceUrl = fallback.sourceUrl;
-    }
-
-    return res.json({
-      status: 'VERIFIED',
-      currency,
-      contractName: typeof parsed.contractName === 'string' && parsed.contractName.trim() ? parsed.contractName.trim() : COT_CONTRACTS[currency],
-      reportDate,
-      releaseDate,
-      openInterest: openInterest || 100000,
-      nonCommercialLong: nonCommercialLong || 40000,
-      nonCommercialShort: nonCommercialShort || 35000,
-      commercialLong: commercialLong || 50000,
-      commercialShort: commercialShort || 55000,
-      previousNetPosition: finiteOrNull(parsed.previousNetPosition) ?? undefined,
-      previousOpenInterest: finiteOrNull(parsed.previousOpenInterest) ?? undefined,
-      sourceUrl: sourceUrl || sources[0]?.uri || 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm',
-      retrievedAt: new Date().toISOString(),
-      confidence: Math.max(90, Math.min(100, finiteOrNull(parsed.confidence) ?? 95)),
-      notes: typeof parsed.notes === 'string' ? parsed.notes : `Verified CFTC Commitment of Traders report for ${currency}.`,
-      sources,
-      searchQueries,
-    });
-  } catch (error: any) {
-    console.warn('[FUNDAMENTAL GENERATE COT] Live research fell back to verified COT data:', error?.message || error);
-    const currency = String(req.body?.currency || 'USD').toUpperCase();
-    const existing = req.body?.existingRecord || null;
-    const fallback = getVerifiedCotFallback(currency, existing);
-    return res.json(fallback);
-  }
+app.post('/api/fundamental/generate-cot', (_req, res) => {
+  return res.status(503).json({
+    status: 'UNAVAILABLE',
+    records: [],
+    retrievedAt: new Date().toISOString(),
+    confidence: 0,
+    notes: 'A current free direct CFTC feed is not configured. No search, estimate, or saved baseline was used.',
+  });
 });
 
 const COMMODITY_NAMES: Record<string, string> = {
@@ -1501,274 +1427,118 @@ function normalizeCommoditySymbol(raw: string): 'GOLD' | 'SILVER' | 'CRUDE_OIL' 
   return 'CRUDE_OIL';
 }
 
-function getCommodityResearchPrompts(symbol: string, _existingObservation: any, mode: string) {
-  const name = COMMODITY_NAMES[symbol] || symbol;
-  const currentYear = new Date().getFullYear();
-  const currentDate = new Date().toISOString().slice(0, 10);
-  const expectedUnit = symbol === 'CRUDE_OIL' ? 'USD/bbl' : 'USD/oz';
-  const searchHint = name + ' latest market quote ' + expectedUnit + ' quote date ' + currentYear;
-
-  const briefPrompt = [
-    'Find the newest available market quote for ' + name + ' in ' + expectedUnit + '.',
-    'Today is ' + currentDate + '. Mode: ' + mode + '.',
-    'Use Google Search grounding. Report the quote, exact source publication date, quote unit, and the citation URL.',
-    'Do not infer, estimate, copy an old value, or invent a quote. Report null for anything not directly supported by a citation.',
-    'A quote is acceptable only if its source date is within the last four calendar days. Do not call an undated or older quote live.',
-    'Report sentiment or other macro fields only if they are explicitly supported by separate cited sources; otherwise null.',
-  ].join('\n');
-
-  const extractionPromptFn = (researchText: string, sources: GroundedResearchSource[]) => [
-    'Extract only facts directly stated in this Google Search grounded brief. Do not fill values from memory or from prior records.',
-    'The target is ' + name + ', expected quote unit ' + expectedUnit + '.',
-    'priceAsOf must be the citation-supported quote publication date in YYYY-MM-DD format. priceUnit must be explicitly stated.',
-    'Return null for missing, ambiguous, stale, or unsupported values. Exact schema:',
-    '{"price":number|null,"priceAsOf":"YYYY-MM-DD"|null,"priceUnit":string|null,"sentiment":"BULLISH"|"NEUTRAL"|"BEARISH"|null,"sentimentConfidence":number|null}',
-    'Grounded brief:',
-    researchText,
-    'Google citations:',
-    JSON.stringify(sources),
-  ].join('\n');
-
-  return { searchHint, briefPrompt, extractionPromptFn };
-}
-
 app.post('/api/fundamental/generate-commodity', async (req, res) => {
   const rawSymbol = String(req.body?.symbol || '').toUpperCase();
   if (rawSymbol === 'ALL') {
-    return res.status(400).json({ error: 'Generate one commodity at a time so each quote can be verified.' });
+    return res.status(400).json({ error: 'Generate one commodity at a time.' });
   }
   if (!COMMODITY_NAMES[rawSymbol]) {
     return res.status(400).json({ error: 'Valid commodity symbol is required.' });
   }
   const symbol = normalizeCommoditySymbol(rawSymbol);
-  const mode = req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE';
   try {
-    const { searchHint, briefPrompt, extractionPromptFn } = getCommodityResearchPrompts(symbol, null, mode);
-    const { parsed, sources, searchQueries, groundingSupports } = await groundedJsonResearch(
-      briefPrompt,
-      extractionPromptFn,
-      searchHint,
-      { requireGoogleGrounding: true },
-    );
-    const price = finiteOrNull(parsed.price);
-    const priceAsOf = typeof parsed.priceAsOf === 'string' ? parsed.priceAsOf.trim() : '';
-    const priceUnit = typeof parsed.priceUnit === 'string' ? parsed.priceUnit.trim() : '';
-    const expectedUnit = symbol === 'CRUDE_OIL' ? 'usd/bbl' : 'usd/oz';
-    const unit = priceUnit.toLowerCase().replace(/per\s+/g, '').replace(/troy\s+/g, '').replace(/barrel/g, 'bbl').replace(/ounce/g, 'oz').replace(/\s+/g, '');
-    const unitMatches = unit === expectedUnit;
-    const priceSource = groundedSourceForNumber(price, sources, groundingSupports);
-    const priceDateSupported = !!priceSource && groundedDateHasSupport(priceAsOf, sources, groundingSupports, (source) => source.uri === priceSource.uri);
-    const priceDate = new Date(priceAsOf + 'T00:00:00.000Z');
-    const quoteAgeDays = (Date.now() - priceDate.getTime()) / 86400000;
-    const quoteIsRecent = /^\d{4}-\d{2}-\d{2}$/.test(priceAsOf) &&
-      Number.isFinite(priceDate.getTime()) && priceDate.toISOString().slice(0, 10) === priceAsOf &&
-      quoteAgeDays >= 0 && quoteAgeDays <= 4;
-    const verified = price !== null && price > 0 && !!priceSource && priceDateSupported && quoteIsRecent && unitMatches;
-    const sentimentSource = ['BULLISH', 'BEARISH', 'NEUTRAL'].includes(parsed.sentiment)
-      ? groundedSourceForText(String(parsed.sentiment), sources, groundingSupports)
-      : null;
-    const sentiment = sentimentSource ? parsed.sentiment : undefined;
-    const publicSources = sources.map(({ title, uri }) => ({ title, uri }));
+    const observation = await fetchPublicCommodityPrice(symbol);
+    if (!observation) {
+      return res.json({
+        status: 'UNAVAILABLE',
+        symbol,
+        retrievedAt: new Date().toISOString(),
+        confidence: 0,
+        notes: symbol === 'CRUDE_OIL'
+          ? 'No fresh daily official WTI observation was available. No market estimate or fallback price was returned.'
+          : 'A free direct official spot-price feed is not configured for this commodity. No estimate or fallback price was returned.',
+        sources: [],
+      });
+    }
     return res.json({
-      status: verified ? 'VERIFIED' : price !== null ? 'REVIEW_REQUIRED' : 'NOT_FOUND',
+      status: 'VERIFIED',
       symbol,
-      price: verified ? price : undefined,
-      priceAsOf: verified ? priceAsOf : undefined,
-      priceSourceUrl: verified ? priceSource.uri : undefined,
-      sentiment,
-      sentimentConfidence: sentiment ? finiteOrNull(parsed.sentimentConfidence) ?? undefined : undefined,
-      sentimentSourceUrl: sentiment ? sentimentSource?.uri : undefined,
-      retrievedAt: new Date().toISOString(),
-      confidence: 0,
-      notes: verified
-        ? 'Quote saved from a Google Search citation with a recent publication date.'
-        : 'No current quote was saved because Google Search did not verify the price, quote date, unit, and source together.',
-      sources: publicSources,
-      searchQueries,
+      price: observation.actual,
+      priceAsOf: observation.date,
+      priceSourceUrl: observation.sourceUrl,
+      retrievedAt: observation.retrievedAt,
+      confidence: 100,
+      notes: `Latest published daily WTI spot-price observation from EIA via FRED, dated ${observation.date}. This is a delayed published observation, not an intraday quote; no sentiment was inferred.`,
+      sources: [{ title: observation.sourceName, uri: observation.sourceUrl }],
     });
   } catch (error: any) {
-    console.warn('[FUNDAMENTAL GENERATE COMMODITY] Google Search verification unavailable:', error?.message || error);
-    return res.status(200).json({
-      status: 'NOT_FOUND',
+    console.warn('[FUNDAMENTAL GENERATE COMMODITY] Official feed unavailable:', error?.message || error);
+    return res.json({
+      status: 'UNAVAILABLE',
       symbol,
       retrievedAt: new Date().toISOString(),
       confidence: 0,
-      notes: 'Google Search could not verify a current commodity quote. Existing values were left unchanged.',
+      notes: 'The official public feed could not be reached. Existing values were left unchanged.',
       sources: [],
     });
   }
 });
 
-const OFFICIAL_POLICY_RATE_SOURCES: Record<string, { centralBankName: string; url: string }> = {
-  USD: { centralBankName: 'Federal Reserve', url: 'https://www.federalreserve.gov/monetarypolicy/openmarket.htm' },
-  EUR: { centralBankName: 'European Central Bank', url: 'https://www.ecb.europa.eu/press/govcdec/mopo/html/index.en.html' },
-  GBP: { centralBankName: 'Bank of England', url: 'https://www.bankofengland.co.uk/monetary-policy/the-interest-rate-bank-rate' },
-  JPY: { centralBankName: 'Bank of Japan', url: 'https://www.boj.or.jp/en/mopo/mpmdeci/index.htm' },
-  CHF: { centralBankName: 'Swiss National Bank', url: 'https://www.snb.ch/en/the-snb/mandates-goals/monetary-policy' },
-  CAD: { centralBankName: 'Bank of Canada', url: 'https://www.bankofcanada.ca/core-functions/monetary-policy/key-interest-rate/' },
-  AUD: { centralBankName: 'Reserve Bank of Australia', url: 'https://www.rba.gov.au/monetary-policy/' },
-  NZD: { centralBankName: 'Reserve Bank of New Zealand', url: 'https://www.rbnz.govt.nz/monetary-policy/about-monetary-policy/the-official-cash-rate' },
-};
-
 app.post('/api/fundamental/generate-rates', async (req, res) => {
   const currency = String(req.body?.currency || '').toUpperCase();
-  const official = OFFICIAL_POLICY_RATE_SOURCES[currency];
-  if (!official) {
-    return res.status(400).json({ status: 'UNAVAILABLE', error: 'Generate one supported currency policy rate at a time.' });
+  if (!/^(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD)$/.test(currency)) {
+    return res.status(400).json({ status: 'UNAVAILABLE', error: 'Valid currency is required.' });
   }
-
   try {
-    const currentDate = new Date().toISOString().slice(0, 10);
-    const briefPrompt = [
-      `Find the latest published monetary policy decision for ${currency} from ${official.centralBankName}.`,
-      `Today is ${currentDate}. Source page: ${official.url}`,
-      'Return the current policy rate exactly as published in percent, the date of the latest decision or official rate publication, and the official source title and URL.',
-      'Do not use a search snippet as proof. Do not infer, estimate, or convert a value. If the official source does not explicitly support a field, return null.',
-    ].join('\n');
-    const extractionPromptFn = (researchText: string, sources: GroundedResearchSource[]) => [
-      'Extract only facts directly supported by this Google Search grounded research brief.',
-      `Currency: ${currency}; central bank: ${official.centralBankName}; expected source host: ${safeHostname(official.url)}.`,
-      'The current policy rate must be expressed as a percent, not a basis-point change or a market expectation.',
-      'Return null for missing or ambiguous fields. JSON only:',
-      '{"currentPolicyRate":number|null,"releaseDate":"YYYY-MM-DD"|null,"sourceName":string|null,"sourceUrl":string|null}',
-      'Research brief:',
-      researchText,
-      'Grounded citations:',
-      JSON.stringify(sources),
-    ].join('\n');
-
-    const { parsed, sources, searchQueries, groundingSupports } = await groundedJsonResearch(
-      briefPrompt,
-      extractionPromptFn,
-      `${currency} ${official.centralBankName} latest official policy interest rate ${currentDate}`,
-      { requireGoogleGrounding: true },
-    );
-    const currentPolicyRate = finiteOrNull(parsed.currentPolicyRate);
-    const releaseDate = typeof parsed.releaseDate === 'string' ? parsed.releaseDate.trim() : '';
-    const officialSourceFilter = (source: GroundedResearchSource) => isOfficialCitation(source.uri, official.url);
-    const valueSource = groundedSourceForNumber(currentPolicyRate, sources, groundingSupports, officialSourceFilter);
-    const valueHasPercentUnit = currentPolicyRate !== null && groundingSupports.some((support) => {
-      const hasValue = (support.text.replace(/[−–]/g, '-').match(/[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g) || [])
-        .some((token) => Number(token.replace(/,/g, '')) === currentPolicyRate);
-      const hasPercent = /%|percent|per cent/i.test(support.text);
-      return hasValue && hasPercent && support.chunkIndices.some((index) => {
-        const source = sources.find((item) => item.chunkIndex === index);
-        return !!source && officialSourceFilter(source);
-      });
-    });
-    const dateSupported = groundedDateHasSupport(releaseDate, sources, groundingSupports, officialSourceFilter);
-    const freshDecision = isValidRecentReleaseDate(releaseDate, 'quarterly');
-    const verified = currentPolicyRate !== null && currentPolicyRate >= 0 && currentPolicyRate <= 100 &&
-      !!valueSource && valueHasPercentUnit && dateSupported && freshDecision;
-
-    if (!verified) {
+    const observation = await fetchPublicPolicyRate(currency);
+    if (!observation) {
       return res.json({
-        status: currentPolicyRate !== null ? 'REVIEW_REQUIRED' : 'NOT_FOUND',
+        status: 'UNAVAILABLE',
         currency,
         retrievedAt: new Date().toISOString(),
         confidence: 0,
-        notes: 'Google Search did not verify a recent policy rate, percent unit, decision date, and official central-bank citation together. Saved rates were left unchanged.',
-        sources: sources.map(({ title, uri }) => ({ title, uri })),
-        searchQueries,
+        notes: `No fresh free official policy-rate feed is mapped for ${currency}. Saved values were left unchanged.`,
+        sources: [],
       });
     }
-
+    const rateDescription = currency === 'USD'
+      ? 'Federal Reserve target-range upper limit'
+      : currency === 'CAD'
+        ? 'Bank of Canada target for the overnight rate'
+        : 'ECB deposit facility rate';
     return res.json({
       status: 'VERIFIED',
       currency,
       rate: {
         currency,
-        centralBankName: official.centralBankName,
-        currentPolicyRate,
-        releaseDate,
-        confidence: 0,
-        sourceUrl: valueSource.uri,
-        retrievedAt: new Date().toISOString(),
+        centralBankName: observation.sourceName,
+        currentPolicyRate: observation.actual,
+        sourceDate: observation.date,
+        sourceUrl: observation.sourceUrl,
+        retrievedAt: observation.retrievedAt,
+        notes: `Official ${rateDescription} observation dated ${observation.date}.`,
       },
-      retrievedAt: new Date().toISOString(),
-      confidence: 0,
-      notes: 'Only the current policy rate was verified. Forecasts, meeting expectations, and sovereign yields were left unchanged.',
-      sources: sources.map(({ title, uri }) => ({ title, uri })),
-      searchQueries,
+      retrievedAt: observation.retrievedAt,
+      confidence: 100,
+      notes: `Retrieved directly from the official public feed: ${rateDescription}. Only this current rate value was updated; no forecast, prior decision, or sovereign yield was inferred.`,
+      sources: [{ title: observation.sourceName, uri: observation.sourceUrl }],
     });
   } catch (error: any) {
-    console.warn('[FUNDAMENTAL GENERATE RATES] Google Search verification unavailable:', error?.message || error);
-    return res.status(200).json({
+    console.warn('[FUNDAMENTAL GENERATE RATES] Official feed unavailable:', error?.message || error);
+    return res.json({
       status: 'UNAVAILABLE',
       currency,
       retrievedAt: new Date().toISOString(),
       confidence: 0,
-      notes: 'Google Search could not complete and verify this policy-rate lookup. Saved values were left unchanged.',
+      notes: 'The official public feed could not be reached. Saved values were left unchanged.',
       sources: [],
     });
   }
 });
 
-// ----------------------------------------------------
 // FUNDAMENTAL INTELLIGENCE — 31-PAIR SENTIMENT REGENERATE API
 // ----------------------------------------------------
-app.post('/api/fundamental/generate-sentiment', async (req, res) => {
-  try {
-    const pair = String(req.body?.pair || '').trim();
-    const mode = req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE';
-
-    if (!pair || pair.toUpperCase() === 'ALL') {
-      return res.json({
-        pairs: VERIFIED_31_PAIR_SENTIMENT,
-        retrievedAt: new Date().toISOString(),
-        confidence: 95,
-      });
-    }
-
-    const ai = getGeminiClient();
-    if (ai && mode === 'REGENERATE') {
-      try {
-        const prompt = `Research latest retail sentiment long/short ratio from Myfxbook Community Outlook, OANDA, or IG for ${pair}. Output plain text report with long% and short%.`;
-        const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest'];
-        for (const model of candidateModels) {
-          try {
-            const result = await withTimeout(
-              ai.models.generateContent({
-                model,
-                contents: prompt,
-                config: { tools: [{ googleSearch: {} }], temperature: 12000 },
-              }),
-              12000
-            );
-            if (result.text) {
-              const base = getVerifiedPairSentimentFallback(pair);
-              return res.json({
-                sentiment: {
-                  ...base,
-                  updatedAt: new Date().toISOString(),
-                },
-                retrievedAt: new Date().toISOString(),
-                confidence: 98,
-              });
-            }
-          } catch {}
-        }
-      } catch {}
-    }
-
-    const sentiment = getVerifiedPairSentimentFallback(pair);
-    return res.json({
-      sentiment,
-      retrievedAt: new Date().toISOString(),
-      confidence: 95,
-    });
-  } catch (error: any) {
-    const pair = String(req.body?.pair || 'EUR/USD').trim();
-    return res.json({
-      sentiment: getVerifiedPairSentimentFallback(pair),
-      retrievedAt: new Date().toISOString(),
-      confidence: 95,
-    });
-  }
+app.post('/api/fundamental/generate-sentiment', (_req, res) => {
+  return res.status(503).json({
+    status: 'UNAVAILABLE',
+    retrievedAt: new Date().toISOString(),
+    confidence: 0,
+    notes: 'There is no free direct official source for retail FX sentiment configured here. No search-generated or saved baseline sentiment was returned.',
+  });
 });
 
 // ----------------------------------------------------
-// FUNDAMENTAL INTELLIGENCE — PERSISTENT OBSERVATIONS STORE & PATCHING
+// // FUNDAMENTAL INTELLIGENCE — PERSISTENT OBSERVATIONS STORE & PATCHING
 // ----------------------------------------------------
 function buildDefaultFundamentalObservations(): any[] {
   const result: any[] = [];
