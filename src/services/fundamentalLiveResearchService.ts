@@ -100,8 +100,10 @@ export interface LiveCommodityResult {
   status: LiveVerificationStatus;
   symbol: CommodityObservation['symbol'];
   price?: number;
-  sentiment: 'BULLISH' | 'NEUTRAL' | 'BEARISH';
-  sentimentConfidence: number;
+  priceAsOf?: string;
+  priceSourceUrl?: string;
+  sentiment?: 'BULLISH' | 'NEUTRAL' | 'BEARISH';
+  sentimentConfidence?: number;
   sentimentSourceUrl?: string;
   retrievedAt: string;
   confidence: number;
@@ -264,14 +266,23 @@ export async function generateCommodity(
 export async function generateAllCommodities(
   mode: 'GENERATE' | 'REGENERATE' = 'GENERATE'
 ): Promise<LiveCommodityResult[]> {
-  try {
-    const res = await postJson<{ status: string; commodities: LiveCommodityResult[] }>('/api/fundamental/generate-commodity', { symbol: 'ALL', mode });
-    if (res.commodities && res.commodities.length > 0) return res.commodities;
-    throw new Error('Empty commodities payload');
-  } catch (err) {
-    console.warn('[LiveResearch] generateAllCommodities fallback:', err);
-    throw err;
+  const symbols: CommodityObservation['symbol'][] = ['GOLD', 'SILVER', 'CRUDE_OIL'];
+  const results: LiveCommodityResult[] = [];
+  for (const symbol of symbols) {
+    try {
+      results.push(await generateCommodity(symbol, undefined, mode));
+    } catch (err) {
+      console.warn('[LiveResearch] commodity lookup unavailable for ' + symbol + ':', err);
+      results.push({
+        status: 'NOT_FOUND',
+        symbol,
+        retrievedAt: new Date().toISOString(),
+        confidence: 0,
+        notes: 'Google Search could not verify a current quote. Existing values were left unchanged.',
+      });
+    }
   }
+  return results;
 }
 
 export async function generateAllCotRecords(
