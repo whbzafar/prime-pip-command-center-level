@@ -108,11 +108,20 @@ export async function syncFundamentalMarketData(options: {
       credentials: 'include',
       body: JSON.stringify({ currency, action }),
     });
-    if (res.ok) {
-      serverData = await res.json();
-    }
+    if (res.ok) serverData = await res.json();
   } catch (err) {
     console.warn('[FundamentalMarketSyncService] Server sync fallback:', err);
+  }
+
+  // Vercel serverless writes are ephemeral. On page load use the live GET response
+  // (which includes rates/commodities from the same provider sync) when POST fails.
+  if (!serverData) {
+    try {
+      const res = await fetch('/api/fundamental/observations', { credentials: 'include' });
+      if (res.ok) serverData = await res.json();
+    } catch (err) {
+      console.warn('[FundamentalMarketSyncService] Live read fallback:', err);
+    }
   }
 
   const observations: IndicatorObservation[] =
@@ -125,7 +134,8 @@ export async function syncFundamentalMarketData(options: {
     } catch { return []; }
   })();
   const incomingRates: InterestRateRecord[] =
-    Array.isArray(serverData?.interestRates) ? serverData.interestRates : [];
+    Array.isArray(serverData?.interestRates) ? serverData.interestRates :
+    Array.isArray(serverData?.rates) ? serverData.rates : [];
   const incomingRateCurrencies = new Set(incomingRates.map((rate) => rate.currency));
   const interestRates: InterestRateRecord[] = [
     ...cachedRates.filter((rate) => !incomingRateCurrencies.has(rate.currency)),
