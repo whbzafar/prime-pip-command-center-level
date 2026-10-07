@@ -38,7 +38,6 @@ export interface LiveIndicatorResult {
   sourceName?: string;
   dataSource?: string;
   sourceUrl?: string;
-  releaseDate?: string;
   retrievedAt: string;
   dataRetrievalTimestamp?: string;
   confidence: number;
@@ -136,6 +135,7 @@ export interface LiveRateResult {
   yield10Y?: number;
   realYield10Y?: number;
   sourceUrl?: string;
+  releaseDate?: string;
   retrievedAt: string;
   confidence: number;
   liveNotes?: string;
