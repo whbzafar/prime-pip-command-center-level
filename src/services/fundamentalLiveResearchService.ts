@@ -373,7 +373,7 @@ export async function generateCurrencyIndicators(
         return result;
       } catch {
         completedCount += 1;
-        const fallback = getVerifiedIndicatorFallback(definition.currency, definition.id, definition, existing) as LiveIndicatorResult;
+        const fallback = unavailableIndicator(definition);
         onResult?.(fallback, completedCount, scoped.length);
         return fallback;
       }
