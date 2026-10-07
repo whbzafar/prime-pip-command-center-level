@@ -208,7 +208,7 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
       const existing = obsMap.get(def.id);
       const result = await generateIndicator(def, existing, mode);
       if (result.status !== 'VERIFIED' || result.actual === null) {
-        const errorMsg = result.notes || `${def.shortLabel}: No published data found on Google/official source.`;
+        const errorMsg = result.notes || `${def.shortLabel}: No fresh data is available from a mapped free official feed.`;
         setLiveMessage(errorMsg);
         setRowFeedbackMap((prev) => ({ ...prev, [def.id]: { type: 'error', text: errorMsg } }));
         setTimeout(() => {
@@ -276,11 +276,11 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
       const errors: string[] = [];
       for (let index = 0; index < scoped.length; index += 1) {
         const def = scoped[index];
-        setLiveMessage(`Live Google research: ${index + 1}/${scoped.length} — ${def.shortLabel}`);
+        setLiveMessage(`Checking official public feed: ${index + 1}/${scoped.length} — ${def.shortLabel}`);
         try {
           const existing = obsMap.get(def.id);
           const result = await generateIndicator(def, existing, mode);
-          if (result.status === 'VERIFIED' && result.actual !== null && !!result.sourceUrl && !!result.releaseDate && !!result.referencePeriod) {
+          if (result.status === 'VERIFIED' && result.actual !== null && !!result.sourceUrl && !!result.referencePeriod) {
             onUpdateObservation({
               id: existing?.id || `obs_${def.id}_${Date.now()}`,
               indicatorId: def.id,
@@ -573,7 +573,7 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
             {batchState.running && <Loader2 className="w-4 h-4 text-cyan-300 animate-spin shrink-0" />}
             <span className="text-cyan-200 break-words">
               {batchState.running
-                ? `Live Google research in progress: ${batchState.completed}/${batchState.total}`
+                ? `Checking official public feed: ${batchState.completed}/${batchState.total}`
                 : liveMessage}
             </span>
           </div>
@@ -792,7 +792,7 @@ export const EconomicDataMasterView: React.FC<EconomicDataMasterViewProps> = ({
                           onClick={() => handleGenerateOfficial(def, 'GENERATE')}
                           disabled={generatingId === def.id || batchState.running}
                           className="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 active:scale-95 disabled:opacity-40 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold transition cursor-pointer flex items-center gap-1 min-w-[78px] justify-center"
-                          title="Generate latest verified release from Google and official sources"
+                          title="Fetch the latest observation from an official public feed"
                         >
                           {generatingId === def.id ? (
                             <>
