@@ -418,7 +418,7 @@ export async function syncAndVerifyFundamentalData(options: {
     fetchFredSeriesPoints('DFII10'),
     fetchFredSeriesPoints('T5YIE'),
     fetchFredSeriesPoints('DCOILWTICO'),
-    fetchTwelveDataPrices(['XAU/USD', 'XAG/USD', 'WTI/USD', 'NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA']),
+    fetchTwelveDataPrices(['XAU/USD', 'XAG/USD', 'WTI/USD', 'NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA', 'US30', 'NAS100', 'SPX']),
     fetchCoinGeckoCryptoSpot(),
   ]);
 
@@ -560,26 +560,24 @@ export async function syncAndVerifyFundamentalData(options: {
 
   // 4. Build updated Commodities (GOLD, SILVER, CRUDE_OIL)
   const previousCommodities = safeReadJsonFile<any[]>('fundamental_commodities_store.json', []);
-  const updatedCommodities = previousCommodities.map((r: any) => {
+  const updatedCommodities = previousCommodities.flatMap((r: any) => {
     const priceBySymbol: Record<string, number | undefined> = {
       GOLD: twelveQuotes['XAU/USD'],
       SILVER: twelveQuotes['XAG/USD'],
       CRUDE_OIL: liveWtiPrice,
     };
     const price = priceBySymbol[r.symbol];
-    const realYield = liveReal10Y;
-    const breakeven = liveBreakeven5Y;
-    if (price === undefined && realYield === undefined && breakeven === undefined) {
-      return { ...r, dataStatus: 'DELAYED' };
-    }
-    return {
+    const realYield = r.symbol === 'CRUDE_OIL' ? undefined : liveReal10Y;
+    const breakeven = r.symbol === 'CRUDE_OIL' ? undefined : liveBreakeven5Y;
+    if (price === undefined && realYield === undefined && breakeven === undefined) return [];
+    return [{
       ...r,
       ...(price !== undefined ? { price, referenceDate: todayStr } : {}),
       ...(realYield !== undefined ? { usRealYield10Y: Number(realYield.toFixed(2)) } : {}),
       ...(breakeven !== undefined ? { inflationBreakeven5Y: Number(breakeven.toFixed(2)) } : {}),
       dataStatus: 'LIVE_VERIFIED',
       updatedAt: nowIso,
-    };
+    }];
   });
 
   const report: LiveSyncProviderReport = {
@@ -601,8 +599,8 @@ export async function syncAndVerifyFundamentalData(options: {
     observations: updatedObservations,
     interestRates: updatedInterestRates,
     commodities: updatedCommodities,
-    cotRecords: Object.values(VERIFIED_COT),
-    pairSentiments: Object.values(VERIFIED_31_PAIR_SENTIMENT),
+    cotRecords: [],
+    pairSentiments: [],
     twelveQuotes,
     cryptoSpot,
     meta: updatedMeta,
