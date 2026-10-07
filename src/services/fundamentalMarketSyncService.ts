@@ -118,12 +118,33 @@ export async function syncFundamentalMarketData(options: {
   const observations: IndicatorObservation[] =
     Array.isArray(serverData?.observations) ? serverData.observations : [];
 
-  // A failed server request cannot turn seed records into fresh observations.
-  const interestRates: InterestRateRecord[] =
+  const cachedRates: InterestRateRecord[] = (() => {
+    try {
+      const value = JSON.parse(localStorage.getItem('primepip_fundamental_rates_v2') || '[]');
+      return Array.isArray(value) ? value : [];
+    } catch { return []; }
+  })();
+  const incomingRates: InterestRateRecord[] =
     Array.isArray(serverData?.interestRates) ? serverData.interestRates : [];
+  const incomingRateCurrencies = new Set(incomingRates.map((rate) => rate.currency));
+  const interestRates: InterestRateRecord[] = [
+    ...cachedRates.filter((rate) => !incomingRateCurrencies.has(rate.currency)),
+    ...incomingRates,
+  ];
 
-  const commodities: CommodityObservation[] =
+  const cachedCommodities: CommodityObservation[] = (() => {
+    try {
+      const value = JSON.parse(localStorage.getItem('primepip_fundamental_commodities_v2') || '[]');
+      return Array.isArray(value) ? value : [];
+    } catch { return []; }
+  })();
+  const incomingCommodities: CommodityObservation[] =
     Array.isArray(serverData?.commodities) ? serverData.commodities : [];
+  const incomingCommoditySymbols = new Set(incomingCommodities.map((item) => item.symbol));
+  const commodities: CommodityObservation[] = [
+    ...cachedCommodities.filter((item) => !incomingCommoditySymbols.has(item.symbol)),
+    ...incomingCommodities,
+  ];
 
   const cotRecords: CotPositioningRecord[] = Array.isArray(serverData?.cotRecords) ? serverData.cotRecords : [];
 
