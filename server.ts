@@ -2517,90 +2517,14 @@ app.get('/api/cloud-vault/status', (req, res) => {
 // ----------------------------------------------------
 // FUNDAMENTAL INTELLIGENCE — LIVE WEB SEARCH API
 // ----------------------------------------------------
-app.post("/api/fundamental/live-search", async (req, res) => {
-  try {
-    const query = typeof req.body?.query === "string" ? req.body.query.trim() : "";
-    if (!query) return res.status(400).json({ error: "Search query is required." });
-    if (query.length > 500) return res.status(400).json({ error: "Search query is too long." });
-
-    const ai = getGeminiClient();
-    if (!ai) {
-      return res.status(503).json({
-        error: "Live search requires GEMINI_API_KEY. No fabricated market data is shown.",
-      });
-    }
-
-    const systemInstruction = `You are the live research assistant inside the Prime Pip FX Fundamental Intelligence Dashboard.
-Answer the user's query using current web-grounded information.
-Rules:
-- Prefer official primary sources for economic data: central banks, national statistics agencies, government releases, CFTC, EIA, BIS, IMF, OECD, etc.
-- For a request such as CPI or inflation "this year", identify the latest available release and state its release/reference period and country.
-- Give exact figures with units and dates when available.
-- Distinguish current published facts from forecasts or commentary.
-- Never invent a number. If the web evidence is insufficient, say so.
-- Keep the answer concise but useful for a trading research dashboard.
-- Include a short "Source date" or "Reference period" where relevant.`;
-
-    let answer = '';
-    let sources: GroundedResearchSource[] = [];
-
-    try {
-      const response = await withTimeout(
-        ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
-          contents: query,
-          config: {
-            systemInstruction,
-            tools: [{ googleSearch: {} }],
-          },
-        }),
-        12000,
-      );
-
-      const raw: any = response as any;
-      const grounding = raw?.candidates?.[0]?.groundingMetadata;
-      const chunks = Array.isArray(grounding?.groundingChunks) ? grounding.groundingChunks : [];
-      sources = chunks
-        .map((chunk: any) => chunk?.web)
-        .filter((web: any) => web?.uri)
-        .map((web: any) => ({ title: web.title, uri: web.uri }))
-        .filter((source: any, index: number, list: any[]) => list.findIndex((x) => x.uri === source.uri) === index)
-        .slice(0, 8);
-      answer = response.text || '';
-    } catch (searchToolError: any) {
-      console.warn('[FUNDAMENTAL LIVE SEARCH] Google Search tool failed, using web search fallback:', searchToolError?.message || searchToolError);
-      const webResult = await fetchLiveWebSearch(query);
-      sources = webResult.sources;
-
-      const fallbackPrompt = [
-        'User Query: ' + query,
-        webResult.snippets.length > 0 ? 'Verified Search Evidence:\n' + webResult.snippets.join('\n') : '',
-        'Answer the question accurately based on current economic data and the provided search evidence.',
-      ].join('\n\n');
-
-      const fallbackResponse = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-lite',
-        contents: fallbackPrompt,
-        config: { systemInstruction, temperature: 0.1 },
-      });
-      answer = fallbackResponse.text || 'No live answer was returned.';
-    }
-
-    return res.json({
-      answer: answer || "No live answer was returned.",
-      sources,
-      grounded: sources.length > 0,
-    });
-  } catch (error: any) {
-    console.warn("[FUNDAMENTAL LIVE SEARCH] failed:", error?.message || error);
-    return res.status(500).json({
-      error: "Live fundamental search failed. Please try again.",
-    });
-  }
+app.post("/api/fundamental/live-search", (_req, res) => {
+  return res.status(503).json({
+    error: "Google Search grounding can incur charges and is disabled in the no-budget fundamental-data mode. Use the official-source Generate buttons instead.",
+  });
 });
 
 // ----------------------------------------------------
-// FUNDAMENTAL INTELLIGENCE — MASTER AI MACRO ANALYSIS API
+// // FUNDAMENTAL INTELLIGENCE — MASTER AI MACRO ANALYSIS API
 // Guided by the Master AI Analysis Prompt & Institutional Macro Framework
 // ----------------------------------------------------
 const MASTER_AI_SYSTEM_INSTRUCTION = `You are an advanced institutional-style macroeconomic and cross-asset research analyst at Prime Pip FX Command Center.
