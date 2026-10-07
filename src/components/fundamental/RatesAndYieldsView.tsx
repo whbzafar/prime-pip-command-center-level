@@ -68,6 +68,10 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
     try {
       const res = await generateRates(curr, 'REGENERATE');
       const rateData = res.rate;
+      if (res.status !== 'VERIFIED' || !rateData) {
+        setRatesMessage(res.notes || `${curr}: Google Search did not verify this rate; saved values were left unchanged.`);
+        return;
+      }
       if (rateData && onUpdateInterestRate) {
         const existing = rateRecords.find((r) => r.currency === curr);
         const updated: InterestRateRecord = {
@@ -90,7 +94,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
           isEntered: true,
         };
         onUpdateInterestRate(updated);
-        setRatesMessage(`${curr}: Verified official rates & sovereign yields updated.`);
+        setRatesMessage(`${curr}: Official current policy rate verified. Other rate expectations and yields were left unchanged.`);
       }
     } catch (err: any) {
       setRatesMessage(`${curr}: ${err?.message || 'Failed to regenerate rates.'}`);
@@ -102,39 +106,41 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
   const handleRegenerateAllRates = async () => {
     setRegeneratingCurrency('ALL');
     setRatesMessage(null);
+    const currencies: CurrencyCode[] = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
+    let verifiedCount = 0;
     try {
-      const res = await generateRates('ALL', 'REGENERATE');
-      const ratesMap = res.rates;
-      const currencies: CurrencyCode[] = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
       for (const curr of currencies) {
-        const rateData = ratesMap?.[curr] || (await generateRates(curr, 'REGENERATE')).rate;
-        if (rateData && onUpdateInterestRate) {
-          const existing = rateRecords.find((r) => r.currency === curr);
-          const updated: InterestRateRecord = {
-            currency: curr,
-            centralBankName: rateData.centralBankName || existing?.centralBankName || 'Central Bank',
-            currentPolicyRate: rateData.currentPolicyRate ?? existing?.currentPolicyRate ?? 0,
-            previousPolicyRate: rateData.previousPolicyRate ?? existing?.previousPolicyRate ?? 0,
-            expectedNextRate: rateData.expectedNextRate ?? existing?.expectedNextRate ?? rateData.currentPolicyRate,
-            expectedRateChangeBps: rateData.expectedRateChangeBps ?? existing?.expectedRateChangeBps ?? 0,
-            nextMeetingDate: rateData.nextMeetingDate || existing?.nextMeetingDate || 'Upcoming',
-            centralBankBias: rateData.centralBankBias || existing?.centralBankBias || 'NEUTRAL',
-            balanceSheetDirection: existing?.balanceSheetDirection || 'NEUTRAL',
-            yield2Y: rateData.yield2Y ?? existing?.yield2Y ?? 0,
-            yield5Y: rateData.yield5Y ?? existing?.yield5Y ?? 0,
-            yield10Y: rateData.yield10Y ?? existing?.yield10Y ?? 0,
-            realYield10Y: rateData.realYield10Y ?? existing?.realYield10Y ?? 0,
-            recentGuidance: rateData.recentGuidance || existing?.recentGuidance || '',
-            sourceUrl: rateData.sourceUrl || existing?.sourceUrl || '',
-            updatedAt: new Date().toISOString(),
-            isEntered: true,
-          };
-          onUpdateInterestRate(updated);
-        }
+        setRatesMessage(`Checking official policy rate for ${curr}…`);
+        const res = await generateRates(curr, 'REGENERATE');
+        const rateData = res.rate;
+        if (res.status !== 'VERIFIED' || !rateData || !onUpdateInterestRate) continue;
+        const existing = rateRecords.find((r) => r.currency === curr);
+        onUpdateInterestRate({
+          currency: curr,
+          centralBankName: rateData.centralBankName || existing?.centralBankName || 'Central Bank',
+          currentPolicyRate: rateData.currentPolicyRate,
+          previousPolicyRate: existing?.previousPolicyRate ?? 0,
+          expectedNextRate: existing?.expectedNextRate ?? rateData.currentPolicyRate,
+          expectedRateChangeBps: existing?.expectedRateChangeBps ?? 0,
+          nextMeetingDate: existing?.nextMeetingDate || 'Upcoming',
+          centralBankBias: existing?.centralBankBias || 'NEUTRAL',
+          balanceSheetDirection: existing?.balanceSheetDirection || 'NEUTRAL',
+          yield2Y: existing?.yield2Y ?? 0,
+          yield5Y: existing?.yield5Y ?? 0,
+          yield10Y: existing?.yield10Y ?? 0,
+          realYield10Y: existing?.realYield10Y ?? 0,
+          recentGuidance: existing?.recentGuidance || '',
+          sourceUrl: rateData.sourceUrl || existing?.sourceUrl || '',
+          updatedAt: new Date().toISOString(),
+          isEntered: true,
+        });
+        verifiedCount += 1;
       }
-      setRatesMessage('Live provider rates retrieved where available. Missing currencies remain unchanged and are not marked current.');
+      setRatesMessage(verifiedCount > 0
+        ? `Google verified ${verifiedCount} of 8 current policy rates. Forecasts and yield values were left unchanged.`
+        : 'Google Search could not verify any current policy rates. Saved values were left unchanged.');
     } catch (err: any) {
-      setRatesMessage(err?.message || 'Live rate provider is unavailable. Existing values were not refreshed.');
+      setRatesMessage(err?.message || 'Google Search could not verify current policy rates. Saved values were left unchanged.');
     } finally {
       setRegeneratingCurrency(null);
     }
