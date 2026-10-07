@@ -213,6 +213,7 @@ export interface InterestRateRecord {
   yield10Y: number;
   realYield10Y?: number;
   sourceUrl: string;
+  sourceDate?: string;
   updatedAt: string;
   /** False means the row is a blank input template and must not affect scoring. */
   isEntered?: boolean;
