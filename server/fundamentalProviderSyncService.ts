@@ -6,14 +6,8 @@ import {
 import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
 import { syncFundamentalProfile } from './fundamentalDataArchitecture.js';
 const CURRENCY_POLICY_SERIES: Record<string, { id: string; name: string; source: string }> = {
-  USD: { id: 'DFEDTARU', name: 'Federal Reserve', source: 'https://www.federalreserve.gov/monetarypolicy/openmarket.htm' },
-  EUR: { id: 'ECBDFR', name: 'European Central Bank', source: 'https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html' },
-  GBP: { id: 'IRSTCI01GBM156N', name: 'Bank of England', source: 'https://www.bankofengland.co.uk/boeapps/database/Bank-Rate.asp' },
-  JPY: { id: 'IRSTCI01JPM156N', name: 'Bank of Japan', source: 'https://www.boj.or.jp/en/statistics/boj/other/discount/' },
-  CHF: { id: 'IRSTCI01CHM156N', name: 'Swiss National Bank', source: 'https://data.snb.ch/' },
-  CAD: { id: 'IRSTCI01CAM156N', name: 'Bank of Canada', source: 'https://www.bankofcanada.ca/core-functions/monetary-policy/key-interest-rate/' },
-  AUD: { id: 'IRSTCI01AUM156N', name: 'Reserve Bank of Australia', source: 'https://www.rba.gov.au/statistics/cash-rate/' },
-  NZD: { id: 'IRSTCI01NZM156N', name: 'Reserve Bank of New Zealand', source: 'https://www.rbnz.govt.nz/monetary-policy/about-monetary-policy/the-official-cash-rate' },
+  USD: { id: 'DFEDTARU', name: 'Federal Reserve', source: 'https://fred.stlouisfed.org/series/DFEDTARU' },
+  EUR: { id: 'ECBDFR', name: 'European Central Bank', source: 'https://fred.stlouisfed.org/series/ECBDFR' },
 };
 
 const SCHEDULED_INDICATOR_SERIES: Record<string, { seriesId: string; transform: FredSeriesMapping['transform'] }> = {
@@ -258,6 +252,140 @@ function transformSeriesPoints(
   }
 
   return null;
+}
+
+export interface PublicOfficialObservation {
+  actual: number;
+  previous: number | null;
+  date: string;
+  sourceName: string;
+  sourceUrl: string;
+  seriesId: string;
+  retrievedAt: string;
+}
+
+function isRecentObservation(dateValue: string, maxAgeDays: number): boolean {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dateValue)) return false;
+  const date = new Date(dateValue + 'T00:00:00.000Z');
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== dateValue) return false;
+  const ageDays = (Date.now() - date.getTime()) / 86400000;
+  return ageDays >= 0 && ageDays <= maxAgeDays;
+}
+
+function maxObservationAgeDays(frequency: string): number {
+  const normalized = frequency.toLowerCase();
+  if (normalized.includes('daily')) return 14;
+  if (normalized.includes('weekly')) return 30;
+  if (normalized.includes('bi-weekly')) return 45;
+  if (normalized.includes('monthly')) return 100;
+  if (normalized.includes('quarterly')) return 200;
+  if (normalized.includes('annual')) return 450;
+  return 180;
+}
+
+const OFFICIAL_FRED_INDICATOR_ALIASES: Record<string, string> = {
+  usd_policy_rate: 'usd_fed_funds_rate',
+  eur_policy_rate: 'eur_ecb_rate',
+  usd_10y_yield: 'usd_10y_yield',
+  usd_2y_yield: 'usd_2y_yield',
+  eur_10y_bund_yield: 'eur_10y_bund_yield',
+  gbp_10y_gilt_yield: 'gbp_10y_gilt_yield',
+  jpy_10y_jgb_yield: 'jpy_10y_jgb_yield',
+  cad_10y_yield: 'cad_10y_yield',
+  aud_10y_acgb_yield: 'aud_10y_yield',
+};
+
+export async function fetchPublicFredIndicator(
+  indicatorId: string,
+  currency: string,
+  frequency: string,
+): Promise<PublicOfficialObservation | null> {
+  const normalizedId = indicatorId.toLowerCase();
+  const mappedId = OFFICIAL_FRED_INDICATOR_ALIASES[normalizedId] || normalizedId;
+  const mapping = FRED_INDICATOR_MAPPINGS.find((item) =>
+    item.indicatorId.toLowerCase() === mappedId && item.currency === currency.toUpperCase()
+  );
+  if (!mapping) return null;
+
+  const series = await fetchFredSeriesPoints(mapping.fredSeriesId);
+  if (!series) return null;
+  const values = transformSeriesPoints(series.points, mapping.transform);
+  if (!values || !Number.isFinite(values.actual) || !isRecentObservation(values.date, maxObservationAgeDays(frequency))) {
+    return null;
+  }
+
+  return {
+    ...values,
+    sourceName: series.sourceLabel,
+    sourceUrl: `https://fred.stlouisfed.org/series/${mapping.fredSeriesId}`,
+    seriesId: mapping.fredSeriesId,
+    retrievedAt: new Date().toISOString(),
+  };
+}
+
+export async function fetchPublicPolicyRate(currency: string): Promise<PublicOfficialObservation | null> {
+  const normalizedCurrency = currency.toUpperCase();
+  if (normalizedCurrency === 'CAD') {
+    try {
+      const seriesId = 'V39079';
+      const sourceUrl = 'https://www.bankofcanada.ca/rates/interest-rates/canadian-interest-rates/';
+      const response = await fetchWithTimeout(
+        'https://www.bankofcanada.ca/valet/observations/V39079/json?recent=2',
+        4500,
+      );
+      if (!response.ok) return null;
+      const payload: any = await response.json();
+      const observations = Array.isArray(payload?.observations) ? payload.observations : [];
+      const rows = observations.map((row: any) => ({
+        date: String(row?.d || ''),
+        value: Number(row?.V39079?.v),
+      })).filter((row: { date: string; value: number }) => Number.isFinite(row.value));
+      const latest = rows[rows.length - 1];
+      const previous = rows[rows.length - 2];
+      if (!latest || !isRecentObservation(latest.date, 7)) return null;
+      return {
+        actual: Number(latest.value.toFixed(2)),
+        previous: previous ? Number(previous.value.toFixed(2)) : null,
+        date: latest.date,
+        sourceName: 'Bank of Canada Valet API',
+        sourceUrl,
+        seriesId,
+        retrievedAt: new Date().toISOString(),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  const mapping = CURRENCY_POLICY_SERIES[normalizedCurrency];
+  if (!mapping) return null;
+  const series = await fetchFredSeriesPoints(mapping.id);
+  const values = series && transformSeriesPoints(series.points, 'LEVEL');
+  if (!series || !values || !isRecentObservation(values.date, 14)) return null;
+  return {
+    ...values,
+    sourceName: mapping.name + ' data via ' + series.sourceLabel,
+    sourceUrl: mapping.source,
+    seriesId: mapping.id,
+    retrievedAt: new Date().toISOString(),
+  };
+}
+
+export async function fetchPublicCommodityPrice(symbol: string): Promise<PublicOfficialObservation | null> {
+  if (symbol.toUpperCase() !== 'CRUDE_OIL') return null;
+  const seriesId = 'DCOILWTICO';
+  const series = await fetchFredSeriesPoints(seriesId);
+  const latest = series?.points[0];
+  if (!latest || !isRecentObservation(latest.date, 14)) return null;
+  return {
+    actual: Number(latest.value.toFixed(2)),
+    previous: series?.points[1] ? Number(series.points[1].value.toFixed(2)) : null,
+    date: latest.date,
+    sourceName: 'U.S. Energy Information Administration via FRED',
+    sourceUrl: `https://fred.stlouisfed.org/series/${seriesId}`,
+    seriesId,
+    retrievedAt: new Date().toISOString(),
+  };
 }
 
 /**
