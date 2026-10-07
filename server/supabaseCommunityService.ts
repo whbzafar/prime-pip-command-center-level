@@ -188,10 +188,10 @@ export async function readCommunityMessagesSupabase(): Promise<CommunityMessage[
   // Keep the primary feed query independent from optional read/listen receipts.
   // A receipt/profile problem must never make the whole Community feed fail.
   const rows = await supabaseRequest(
-    "community_messages?select=id,user_id,text_content,message_type,attachment_path,attachment_name,attachment_mime_type,attachment_size,created_at,trader_profiles!community_messages_user_id_fkey(username,display_name,role)&message_type=in.(TEXT,VOICE,IMAGE,FILE)&order=created_at.asc&limit=500"
+    "community_messages?select=id,user_id,text_content,message_type,attachment_path,attachment_name,attachment_mime_type,attachment_size,created_at,trader_profiles!community_messages_user_id_fkey(username,display_name,role)&message_type=in.(TEXT,VOICE,IMAGE,FILE)&order=created_at.desc&limit=500"
   );
 
-  const messages: CommunityMessage[] = (Array.isArray(rows) ? rows : []).map((row: any) => ({
+  const messages: CommunityMessage[] = (Array.isArray(rows) ? [...rows].reverse() : []).map((row: any) => ({
     id: String(row.id),
     userId: row.user_id,
     username: row.trader_profiles?.username || row.user_id,
