@@ -1094,6 +1094,24 @@ function groundedNumberHasSupport(
   return groundedSourceForNumber(value, sources, supports, sourceFilter) !== null;
 }
 
+function groundedSourceForText(
+  value: string,
+  sources: GroundedResearchSource[],
+  supports: GroundingSupport[],
+  sourceFilter: (source: GroundedResearchSource) => boolean = () => true,
+): GroundedResearchSource | null {
+  const expected = value.trim().toLocaleLowerCase();
+  if (!expected) return null;
+  for (const support of supports) {
+    if (!support.text.toLocaleLowerCase().includes(expected)) continue;
+    const source = support.chunkIndices
+      .map((index) => sources.find((item) => item.chunkIndex === index))
+      .find((item): item is GroundedResearchSource => !!item && sourceFilter(item));
+    if (source) return source;
+  }
+  return null;
+}
+
 function groundedTextHasSupport(
   value: string,
   sources: GroundedResearchSource[],
@@ -1483,211 +1501,104 @@ function normalizeCommoditySymbol(raw: string): 'GOLD' | 'SILVER' | 'CRUDE_OIL' 
   return 'CRUDE_OIL';
 }
 
-function getCommodityResearchPrompts(symbol: string, existingObservation: any, mode: string) {
+function getCommodityResearchPrompts(symbol: string, _existingObservation: any, mode: string) {
   const name = COMMODITY_NAMES[symbol] || symbol;
   const currentYear = new Date().getFullYear();
   const currentDate = new Date().toISOString().slice(0, 10);
-
-  const searchHint = `${name} spot price USD current market sentiment macro drivers real yield inventories ${currentYear}`;
+  const expectedUnit = symbol === 'CRUDE_OIL' ? 'USD/bbl' : 'USD/oz';
+  const searchHint = name + ' latest market quote ' + expectedUnit + ' quote date ' + currentYear;
 
   const briefPrompt = [
-    `CRITICAL MISSION: Research the latest live spot price, market drivers, and macroeconomic sentiment for ${name}.`,
-    `Current System Date: ${currentDate}`,
-    `Mode: ${mode}`,
-    `Commodity: ${name} (${symbol})`,
-    existingObservation ? `Existing record: Price=${existingObservation.price}, Sentiment=${existingObservation.sentiment}` : '',
-    '',
-    'SEARCH AND REPORT THE FOLLOWING EXACT DATA POINTS:',
-    '1. CURRENT SPOT PRICE: Live market price in USD (e.g. Gold spot $/oz, Silver spot $/oz, WTI crude $/bbl).',
-    '2. MACROECONOMIC SENTIMENT: Explicitly determine whether the fundamental setup is BULLISH, BEARISH, or NEUTRAL.',
-    '3. US 10Y REAL YIELD (TIPS %): Current 10-year US TIPS yield (e.g. 1.85%).',
-    '4. 5Y INFLATION BREAKEVEN (%): Current 5-year breakeven inflation rate (e.g. 2.25%).',
-    '5. CENTRAL BANK DEMAND (for Gold): State if AGGRESSIVE_BUYING, STEADY, or SLOW.',
-    '6. INDUSTRIAL DEMAND (for Silver): State if STRONG, NEUTRAL, or WEAK.',
-    '7. GEOPOLITICAL RISK REGIME: State if HIGH, MODERATE, or LOW.',
-    '8. PHYSICAL SUPPLY/DEMAND BALANCE (for Crude): State if DEFICIT, BALANCED, or SURPLUS.',
-    '9. EIA WEEKLY INVENTORY SURPRISE (for Crude): Net draw/build in million barrels (negative for draw, positive for build).',
-    '10. OPEC+ POLICY STANCE (for Crude): State if DEFENDING_FLOOR, STEADY_PRODUCTION, or EXPANDING_SUPPLY.',
-    '11. 3 to 5 key institutional catalyst bullets.',
-    '12. Source URLs from official or premier financial portals (EIA, World Gold Council, Silver Institute, Federal Reserve, Bloomberg, Reuters).',
+    'Find the newest available market quote for ' + name + ' in ' + expectedUnit + '.',
+    'Today is ' + currentDate + '. Mode: ' + mode + '.',
+    'Use Google Search grounding. Report the quote, exact source publication date, quote unit, and the citation URL.',
+    'Do not infer, estimate, copy an old value, or invent a quote. Report null for anything not directly supported by a citation.',
+    'A quote is acceptable only if its source date is within the last four calendar days. Do not call an undated or older quote live.',
+    'Report sentiment or other macro fields only if they are explicitly supported by separate cited sources; otherwise null.',
   ].join('\n');
 
   const extractionPromptFn = (researchText: string, sources: GroundedResearchSource[]) => [
-    'Convert the following grounded commodity research brief into the requested JSON schema.',
-    'CRITICAL EXTRACTION MANDATES:',
-    '1. "price": live numeric spot price in USD (e.g. 2930.50 for Gold, 32.40 for Silver, 71.20 for WTI).',
-    '2. "sentiment": MUST be one of "BULLISH", "BEARISH", "NEUTRAL" based on the macro fundamentals.',
-    '3. "sentimentConfidence": number from 50 to 95.',
-    '4. "usRealYield10Y": number (e.g. 1.85) or null.',
-    '5. "inflationBreakeven5Y": number (e.g. 2.25) or null.',
-    '6. "centralBankDemandTone": "AGGRESSIVE_BUYING" | "STEADY" | "SLOW" | null.',
-    '7. "industrialDemandTone": "STRONG" | "NEUTRAL" | "WEAK" | null.',
-    '8. "geopoliticalRiskLevel": "HIGH" | "MODERATE" | "LOW" | null.',
-    '9. "supplyDemandBalance": "DEFICIT" | "BALANCED" | "SURPLUS" | null.',
-    '10. "inventoriesWeeklySurpriseMb": number (in Mb, e.g. -2.5 for draw, 3.1 for build) or null.',
-    '11. "opecPolicyTone": "DEFENDING_FLOOR" | "STEADY_PRODUCTION" | "EXPANDING_SUPPLY" | null.',
-    '12. "drivers": array of 3-5 concise institutional driver strings.',
-    '13. "sourceName" and "sourceUrl": primary source details.',
-    '',
-    'GROUNDED RESEARCH BRIEF:',
+    'Extract only facts directly stated in this Google Search grounded brief. Do not fill values from memory or from prior records.',
+    'The target is ' + name + ', expected quote unit ' + expectedUnit + '.',
+    'priceAsOf must be the citation-supported quote publication date in YYYY-MM-DD format. priceUnit must be explicitly stated.',
+    'Return null for missing, ambiguous, stale, or unsupported values. Exact schema:',
+    '{"price":number|null,"priceAsOf":"YYYY-MM-DD"|null,"priceUnit":string|null,"sentiment":"BULLISH"|"NEUTRAL"|"BEARISH"|null,"sentimentConfidence":number|null}',
+    'Grounded brief:',
     researchText,
-    '',
-    'SOURCES:',
+    'Google citations:',
     JSON.stringify(sources),
-    '',
-    'REQUIRED JSON OUTPUT SHAPE (NO MARKDOWN, VALID JSON ONLY):',
-    '{',
-    '  "price": number|null,',
-    '  "sentiment": "BULLISH"|"NEUTRAL"|"BEARISH",',
-    '  "sentimentConfidence": number,',
-    '  "sourceName": string,',
-    '  "sourceUrl": string,',
-    '  "drivers": string[],',
-    '  "notes": string,',
-    '  "usRealYield10Y": number|null,',
-    '  "inflationBreakeven5Y": number|null,',
-    '  "centralBankDemandTone": "AGGRESSIVE_BUYING"|"STEADY"|"SLOW"|null,',
-    '  "industrialDemandTone": "STRONG"|"NEUTRAL"|"WEAK"|null,',
-    '  "geopoliticalRiskLevel": "HIGH"|"MODERATE"|"LOW"|null,',
-    '  "supplyDemandBalance": "DEFICIT"|"BALANCED"|"SURPLUS"|null,',
-    '  "inventoriesWeeklySurpriseMb": number|null,',
-    '  "opecPolicyTone": "DEFENDING_FLOOR"|"STEADY_PRODUCTION"|"EXPANDING_SUPPLY"|null,',
-    '  "confidence": number',
-    '}',
   ].join('\n');
 
   return { searchHint, briefPrompt, extractionPromptFn };
 }
 
 app.post('/api/fundamental/generate-commodity', async (req, res) => {
+  const rawSymbol = String(req.body?.symbol || '').toUpperCase();
+  if (rawSymbol === 'ALL') {
+    return res.status(400).json({ error: 'Generate one commodity at a time so each quote can be verified.' });
+  }
+  if (!COMMODITY_NAMES[rawSymbol]) {
+    return res.status(400).json({ error: 'Valid commodity symbol is required.' });
+  }
+  const symbol = normalizeCommoditySymbol(rawSymbol);
+  const mode = req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE';
   try {
-    const rawSymbol = String(req.body?.symbol || '').toUpperCase();
-    if (rawSymbol === 'ALL') {
-      const allSyms: Array<'GOLD' | 'SILVER' | 'CRUDE_OIL'> = ['GOLD', 'SILVER', 'CRUDE_OIL'];
-      const commodities = allSyms.map((s) => getVerifiedCommodityFallback(s, null));
-      return res.json({
-        status: 'VERIFIED',
-        mode: req.body?.mode || 'GENERATE',
-        commodities,
-        retrievedAt: new Date().toISOString(),
-      });
-    }
-
-    if (!COMMODITY_NAMES[rawSymbol]) return res.status(400).json({ error: 'Valid commodity symbol is required.' });
-    const symbol = normalizeCommoditySymbol(rawSymbol);
-
-    const existing = req.body?.existingObservation || null;
-    const mode = req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE';
-
-    const cacheKey = `commodity_${symbol}`;
-    if (mode !== 'REGENERATE') {
-      const cached = getCachedResearch(cacheKey);
-      if (cached) {
-        return res.json(cached);
-      }
-    }
-
-    const { searchHint, briefPrompt, extractionPromptFn } = getCommodityResearchPrompts(symbol, existing, mode);
-
-    const { parsed, sources, searchQueries, researchText } = await groundedJsonResearch(
+    const { searchHint, briefPrompt, extractionPromptFn } = getCommodityResearchPrompts(symbol, null, mode);
+    const { parsed, sources, searchQueries, groundingSupports } = await groundedJsonResearch(
       briefPrompt,
       extractionPromptFn,
       searchHint,
+      { requireGoogleGrounding: true },
     );
-
-    let price = finiteOrNull(parsed.price);
-    if (price === null && researchText) {
-      price = extractNumericFromBrief(researchText, [
-        /CURRENT SPOT PRICE:\s*\$?([0-9]{2,5}(?:\.[0-9]+)?)/i,
-        /(?:spot price|trading at|currently trading at|current price)\s*(?:of|is|at|:)?\s*\$?([0-9]{2,5}(?:\.[0-9]+)?)/i,
-        /\$([0-9]{2,5}(?:\.[0-9]+)?)\s*(?:per ounce|\/oz|per barrel|\/bbl)/i,
-      ]);
-    }
-    if (price === null && existing?.price) {
-      price = existing.price;
-    }
-
-    let sourceUrl = typeof parsed.sourceUrl === 'string' ? parsed.sourceUrl.trim() : '';
-    let sentiment = ['BULLISH', 'NEUTRAL', 'BEARISH'].includes(parsed.sentiment) ? parsed.sentiment : null;
-    if (!sentiment && researchText) {
-      if (/\b(?:strongly bullish|bullish bias|bullish momentum|safe-haven demand lifts|deficit driving prices up)\b/i.test(researchText)) {
-        sentiment = 'BULLISH';
-      } else if (/\b(?:strongly bearish|bearish bias|bearish momentum|oversupply weighing|surplus pressuring)\b/i.test(researchText)) {
-        sentiment = 'BEARISH';
-      }
-    }
-    if (!sentiment) sentiment = existing?.sentiment || 'NEUTRAL';
-
-    // If price is missing or prompt missed research brief, seamlessly fallback to verified baseline
-    const isNotesInvalid = typeof parsed.notes === 'string' && (
-      parsed.notes.toLowerCase().includes('no research brief') ||
-      parsed.notes.toLowerCase().includes('no data') ||
-      parsed.notes.toLowerCase().includes('insufficient')
-    );
-    const areDriversInvalid = Array.isArray(parsed.drivers) && parsed.drivers.some((d: any) => typeof d === 'string' && d.toLowerCase().includes('insufficient'));
-
-    if (price === null || price <= 0 || isNotesInvalid || areDriversInvalid) {
-      const fallback = getVerifiedCommodityFallback(symbol, existing);
-      price = fallback.price;
-      sentiment = fallback.sentiment;
-      if (!sourceUrl) sourceUrl = fallback.sentimentSourceUrl || '';
-    }
-
-    const sourceGrounded = isGroundedSourceUrl(sourceUrl, sources);
-    const status: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' = 'VERIFIED';
-
-    const fallbackBaseline = getVerifiedCommodityFallback(symbol, existing);
-
-    const commodityPayload = {
-      status,
+    const price = finiteOrNull(parsed.price);
+    const priceAsOf = typeof parsed.priceAsOf === 'string' ? parsed.priceAsOf.trim() : '';
+    const priceUnit = typeof parsed.priceUnit === 'string' ? parsed.priceUnit.trim() : '';
+    const expectedUnit = symbol === 'CRUDE_OIL' ? 'usd/bbl' : 'usd/oz';
+    const unit = priceUnit.toLowerCase().replace(/per\s+/g, '').replace(/troy\s+/g, '').replace(/barrel/g, 'bbl').replace(/ounce/g, 'oz').replace(/\s+/g, '');
+    const unitMatches = unit === expectedUnit;
+    const priceSource = groundedSourceForNumber(price, sources, groundingSupports);
+    const priceDateSupported = !!priceSource && groundedDateHasSupport(priceAsOf, sources, groundingSupports, (source) => source.uri === priceSource.uri);
+    const priceDate = new Date(priceAsOf + 'T00:00:00.000Z');
+    const quoteAgeDays = (Date.now() - priceDate.getTime()) / 86400000;
+    const quoteIsRecent = /^\d{4}-\d{2}-\d{2}$/.test(priceAsOf) &&
+      Number.isFinite(priceDate.getTime()) && priceDate.toISOString().slice(0, 10) === priceAsOf &&
+      quoteAgeDays >= 0 && quoteAgeDays <= 4;
+    const verified = price !== null && price > 0 && !!priceSource && priceDateSupported && quoteIsRecent && unitMatches;
+    const sentimentSource = ['BULLISH', 'BEARISH', 'NEUTRAL'].includes(parsed.sentiment)
+      ? groundedSourceForText(String(parsed.sentiment), sources, groundingSupports)
+      : null;
+    const sentiment = sentimentSource ? parsed.sentiment : undefined;
+    const publicSources = sources.map(({ title, uri }) => ({ title, uri }));
+    return res.json({
+      status: verified ? 'VERIFIED' : price !== null ? 'REVIEW_REQUIRED' : 'NOT_FOUND',
       symbol,
-      price: price || fallbackBaseline.price,
-      sentiment: sentiment || fallbackBaseline.sentiment,
-      sentimentConfidence: Math.max(90, Math.min(100, finiteOrNull(parsed.sentimentConfidence) ?? 92)),
-      sentimentSourceUrl: sourceUrl || fallbackBaseline.sentimentSourceUrl || undefined,
+      price: verified ? price : undefined,
+      priceAsOf: verified ? priceAsOf : undefined,
+      priceSourceUrl: verified ? priceSource.uri : undefined,
+      sentiment,
+      sentimentConfidence: sentiment ? finiteOrNull(parsed.sentimentConfidence) ?? undefined : undefined,
+      sentimentSourceUrl: sentiment ? sentimentSource?.uri : undefined,
       retrievedAt: new Date().toISOString(),
-      confidence: Math.max(90, Math.min(100, finiteOrNull(parsed.confidence) ?? 95)),
-      notes: (!isNotesInvalid && typeof parsed.notes === 'string') ? parsed.notes : fallbackBaseline.notes,
-      drivers: (!areDriversInvalid && Array.isArray(parsed.drivers) && parsed.drivers.length > 0)
-        ? parsed.drivers.filter((item: any) => typeof item === 'string').slice(0, 8)
-        : ((fallbackBaseline as any).drivers || []),
-      usRealYield10Y: finiteOrNull(parsed.usRealYield10Y) ?? existing?.usRealYield10Y ?? fallbackBaseline.usRealYield10Y,
-      inflationBreakeven5Y: finiteOrNull(parsed.inflationBreakeven5Y) ?? existing?.inflationBreakeven5Y ?? fallbackBaseline.inflationBreakeven5Y,
-      centralBankDemandTone: ['AGGRESSIVE_BUYING', 'STEADY', 'SLOW'].includes(parsed.centralBankDemandTone)
-        ? parsed.centralBankDemandTone
-        : (existing?.centralBankDemandTone || fallbackBaseline.centralBankDemandTone),
-      industrialDemandTone: ['STRONG', 'NEUTRAL', 'WEAK'].includes(parsed.industrialDemandTone)
-        ? parsed.industrialDemandTone
-        : (existing?.industrialDemandTone || fallbackBaseline.industrialDemandTone),
-      geopoliticalRiskLevel: ['HIGH', 'MODERATE', 'LOW'].includes(parsed.geopoliticalRiskLevel)
-        ? parsed.geopoliticalRiskLevel
-        : (existing?.geopoliticalRiskLevel || fallbackBaseline.geopoliticalRiskLevel),
-      supplyDemandBalance: ['SURPLUS', 'BALANCED', 'DEFICIT'].includes(parsed.supplyDemandBalance)
-        ? parsed.supplyDemandBalance
-        : (existing?.supplyDemandBalance || fallbackBaseline.supplyDemandBalance),
-      inventoriesWeeklySurpriseMb: finiteOrNull(parsed.inventoriesWeeklySurpriseMb) ?? existing?.inventoriesWeeklySurpriseMb ?? fallbackBaseline.inventoriesWeeklySurpriseMb,
-      opecPolicyTone: ['DEFENDING_FLOOR', 'STEADY_PRODUCTION', 'EXPANDING_SUPPLY'].includes(parsed.opecPolicyTone)
-        ? parsed.opecPolicyTone
-        : (existing?.opecPolicyTone || fallbackBaseline.opecPolicyTone),
-      sources,
+      confidence: 0,
+      notes: verified
+        ? 'Quote saved from a Google Search citation with a recent publication date.'
+        : 'No current quote was saved because Google Search did not verify the price, quote date, unit, and source together.',
+      sources: publicSources,
       searchQueries,
-    };
-
-    setCachedResearch(cacheKey, commodityPayload);
-    return res.json(commodityPayload);
+    });
   } catch (error: any) {
-    console.warn('[FUNDAMENTAL GENERATE COMMODITY] Live research fell back to verified data:', error?.message || error);
-    const rawSymbol = String(req.body?.symbol || 'GOLD').toUpperCase();
-    const symbol = normalizeCommoditySymbol(rawSymbol);
-    const existing = req.body?.existingObservation || null;
-    const fallback = getVerifiedCommodityFallback(symbol, existing);
-    return res.json(fallback);
+    console.warn('[FUNDAMENTAL GENERATE COMMODITY] Google Search verification unavailable:', error?.message || error);
+    return res.status(200).json({
+      status: 'NOT_FOUND',
+      symbol,
+      retrievedAt: new Date().toISOString(),
+      confidence: 0,
+      notes: 'Google Search could not verify a current commodity quote. Existing values were left unchanged.',
+      sources: [],
+    });
   }
 });
 
-// ----------------------------------------------------
-// FUNDAMENTAL INTELLIGENCE — RATES & YIELDS REGENERATE API
-// ----------------------------------------------------
 app.post('/api/fundamental/generate-rates', async (req, res) => {
   try {
     const currency = String(req.body?.currency || '').toUpperCase();
