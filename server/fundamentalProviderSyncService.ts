@@ -17,6 +17,11 @@ const CURRENCY_POLICY_SERIES: Record<string, { id: string; name: string; source:
 };
 
 const SCHEDULED_INDICATOR_SERIES: Record<string, { seriesId: string; transform: FredSeriesMapping['transform'] }> = {
+  usd_nfp_change: { seriesId: 'PAYEMS', transform: 'MOM_DIFF' },
+  usd_unemployment_rate: { seriesId: 'UNRATE', transform: 'LEVEL' },
+  usd_gdp_qoq: { seriesId: 'A191RL1Q225SBEA', transform: 'LEVEL' },
+  usd_retail_sales_mom: { seriesId: 'RSAFS', transform: 'MOM_PCT' },
+  usd_initial_claims: { seriesId: 'ICSA', transform: 'LEVEL' },
   usd_nfp: { seriesId: 'PAYEMS', transform: 'MOM_DIFF' },
   usd_unemployment: { seriesId: 'UNRATE', transform: 'LEVEL' },
   usd_gdp_annualized: { seriesId: 'A191RL1Q225SBEA', transform: 'LEVEL' },
@@ -65,7 +70,7 @@ interface FredSeriesMapping {
 }
 
 const FRED_INDICATOR_MAPPINGS: FredSeriesMapping[] = [
-  { indicatorId: 'usd_fed_funds_rate', currency: 'USD', fredSeriesId: 'DFF', transform: 'LEVEL', alphaVantageFunction: 'FEDERAL_FUNDS_RATE' },
+  { indicatorId: 'usd_fed_funds_rate', currency: 'USD', fredSeriesId: 'DFEDTARU', transform: 'LEVEL', alphaVantageFunction: 'FEDERAL_FUNDS_RATE' },
   { indicatorId: 'usd_cpi_yoy', currency: 'USD', fredSeriesId: 'CPIAUCSL', transform: 'YOY_PCT', alphaVantageFunction: 'CPI' },
   { indicatorId: 'usd_core_cpi_yoy', currency: 'USD', fredSeriesId: 'CPILFESL', transform: 'YOY_PCT' },
   { indicatorId: 'usd_pce_yoy', currency: 'USD', fredSeriesId: 'PCEPI', transform: 'YOY_PCT' },
