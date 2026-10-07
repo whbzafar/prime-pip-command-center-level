@@ -27,6 +27,12 @@ import {
 import { generateRatesAndYieldsReportPdf } from '../../utils/fundamentalPdfGenerator';
 import { RatesImageExtractorModal } from './RatesImageExtractorModal';
 
+function hasVerifiedRateField(record: InterestRateRecord, field: string): boolean {
+  return record.verifiedFields
+    ? record.verifiedFields.includes(field)
+    : record.isEntered !== false;
+}
+
 interface RatesAndYieldsViewProps {
   currencyScores?: Record<CurrencyCode, CurrencyScoreResult>;
   onSelectCurrency?: (curr: CurrencyCode) => void;
@@ -81,7 +87,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
           previousPolicyRate: rateData.previousPolicyRate ?? existing?.previousPolicyRate ?? 0,
           expectedNextRate: rateData.expectedNextRate ?? existing?.expectedNextRate ?? rateData.currentPolicyRate,
           expectedRateChangeBps: rateData.expectedRateChangeBps ?? existing?.expectedRateChangeBps ?? 0,
-          nextMeetingDate: rateData.nextMeetingDate || existing?.nextMeetingDate || 'Upcoming',
+          nextMeetingDate: rateData.nextMeetingDate || existing?.nextMeetingDate || '',
           centralBankBias: rateData.centralBankBias || existing?.centralBankBias || 'NEUTRAL',
           balanceSheetDirection: existing?.balanceSheetDirection || 'NEUTRAL',
           yield2Y: rateData.yield2Y ?? existing?.yield2Y ?? 0,
@@ -92,7 +98,8 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
           sourceUrl: rateData.sourceUrl || existing?.sourceUrl || '',
           sourceDate: rateData.sourceDate || existing?.sourceDate,
           updatedAt: new Date().toISOString(),
-          isEntered: true,
+          verifiedFields: ['currentPolicyRate'],
+          isEntered: false,
         };
         onUpdateInterestRate(updated);
         setRatesMessage(`${curr}: Official current policy rate verified${rateData.sourceDate ? ` (source date ${rateData.sourceDate})` : ''}. Other rate expectations and yields were left unchanged.`);
@@ -134,7 +141,8 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
           sourceUrl: rateData.sourceUrl || existing?.sourceUrl || '',
           sourceDate: rateData.sourceDate || existing?.sourceDate,
           updatedAt: new Date().toISOString(),
-          isEntered: true,
+          verifiedFields: ['currentPolicyRate'],
+          isEntered: false,
         });
         verifiedCount += 1;
       }
@@ -201,6 +209,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
       realYield10Y: realY !== undefined && !isNaN(realY) ? realY : editingRecord.realYield10Y,
       recentGuidance: rateForm.recentGuidance,
       updatedAt: new Date().toISOString(),
+      verifiedFields: ['currentPolicyRate', 'previousPolicyRate', 'expectedNextRate', 'expectedRateChangeBps', 'nextMeetingDate', 'centralBankBias', 'balanceSheetDirection', 'yield2Y', 'yield5Y', 'yield10Y', 'recentGuidance'],
       isEntered: true,
     };
 
@@ -224,7 +233,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
     { base: 'GBP', quote: 'JPY', pair: 'GBPJPY' },
     { base: 'AUD', quote: 'JPY', pair: 'AUDJPY' },
     { base: 'CAD', quote: 'JPY', pair: 'CADJPY' },
-    { base: 'CHF', quote: 'JPY', quoteRate: 0.25, pair: 'CHFJPY' } as any,
+    { base: 'CHF', quote: 'JPY', pair: 'CHFJPY' },
     { base: 'NZD', quote: 'JPY', pair: 'NZDJPY' },
     { base: 'EUR', quote: 'AUD', pair: 'EURAUD' },
     { base: 'EUR', quote: 'CAD', pair: 'EURCAD' },
@@ -341,25 +350,25 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
 
                     <td className="p-3 text-right">
                       <span className="text-sm font-military font-bold text-cyan-300">
-                        {r.isEntered === false ? '—' : `${r.currentPolicyRate.toFixed(2)}%`}
+                        {hasVerifiedRateField(r, 'currentPolicyRate') ? `${r.currentPolicyRate.toFixed(2)}%` : '—'}
                       </span>
                     </td>
 
                     <td className="p-3 text-right text-slate-400">
-                      {r.isEntered === false ? '—' : `${r.previousPolicyRate.toFixed(2)}%`}
+                      {hasVerifiedRateField(r, 'previousPolicyRate') ? `${r.previousPolicyRate.toFixed(2)}%` : '—'}
                     </td>
 
                     <td className="p-3 text-right">
                       <span className="text-slate-200 font-bold">
-                        {r.isEntered === false ? '—' : `${r.expectedNextRate.toFixed(2)}%`}
+                        {hasVerifiedRateField(r, 'expectedNextRate') ? `${r.expectedNextRate.toFixed(2)}%` : '—'}
                       </span>
                       <span className="text-[10px] text-slate-500 block">
-                        {r.expectedRateChangeBps > 0 ? `+${r.expectedRateChangeBps} bps` : r.expectedRateChangeBps < 0 ? `${r.expectedRateChangeBps} bps` : 'Hold'}
+                        {hasVerifiedRateField(r, 'expectedRateChangeBps') ? (r.expectedRateChangeBps > 0 ? `+${r.expectedRateChangeBps} bps` : r.expectedRateChangeBps < 0 ? `${r.expectedRateChangeBps} bps` : 'Hold') : '—'}
                       </span>
                     </td>
 
                     <td className="p-3 text-center text-cyan-300 font-bold">
-                      {r.nextMeetingDate}
+                      {hasVerifiedRateField(r, 'nextMeetingDate') ? r.nextMeetingDate : '—'}
                     </td>
 
                     <td className="p-3 text-center">
@@ -372,24 +381,29 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
                             : 'bg-slate-800 text-slate-300'
                         }`}
                       >
-                        {r.centralBankBias}
+                        {hasVerifiedRateField(r, 'centralBankBias') ? r.centralBankBias : '—'}
                       </span>
                     </td>
 
                     <td className="p-3 text-center text-[10px] text-slate-400">
-                      {r.balanceSheetDirection.replace('_', ' ')}
+                      {hasVerifiedRateField(r, 'balanceSheetDirection') ? r.balanceSheetDirection.replace('_', ' ') : '—'}
                     </td>
 
                     <td className="p-3 text-center">
-                      <a
-                        href={r.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 underline font-semibold transition"
-                      >
-                        <span>Agency Portal</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                      {r.sourceUrl && hasVerifiedRateField(r, 'currentPolicyRate') ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <a
+                            href={r.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 underline font-semibold transition"
+                          >
+                            <span>Official source</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                          {r.sourceDate ? <span className="text-[10px] text-slate-500">As of {r.sourceDate}</span> : null}
+                        </div>
+                      ) : <span className="text-xs text-slate-500">—</span>}
                     </td>
 
                     <td className="p-3 text-center">
@@ -399,7 +413,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
                           disabled={regeneratingCurrency === r.currency || regeneratingCurrency === 'ALL'}
                           onClick={() => handleRegenerateRate(r.currency)}
                           className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition cursor-pointer text-[10px] font-military font-bold disabled:opacity-50"
-                          title={`Regenerate official rate and yields for ${r.currency}`}
+                          title={`Fetch the latest official policy rate for ${r.currency}`}
                         >
                           <RefreshCw className={`w-3 h-3 ${regeneratingCurrency === r.currency ? 'animate-spin' : ''}`} />
                           <span>REGENERATE</span>
@@ -518,7 +532,11 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
           {matrixPairs.map((p) => {
             const baseRec = rateRecords.find((r) => r.currency === p.base);
             const quoteRec = rateRecords.find((r) => r.currency === p.quote);
-            const diff = Number(((baseRec?.currentPolicyRate || 0) - (quoteRec?.currentPolicyRate || 0)).toFixed(2));
+            const baseRateAvailable = !!baseRec && hasVerifiedRateField(baseRec, 'currentPolicyRate');
+            const quoteRateAvailable = !!quoteRec && hasVerifiedRateField(quoteRec, 'currentPolicyRate');
+            const diff = baseRateAvailable && quoteRateAvailable
+              ? Number(((baseRec!.currentPolicyRate - quoteRec!.currentPolicyRate).toFixed(2)))
+              : null;
 
             return (
               <div
@@ -528,7 +546,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
                 <div>
                   <span className="font-military font-bold text-slate-200">{p.pair}</span>
                   <span className="text-[10px] text-slate-500 block">
-                    {p.base} ({baseRec?.isEntered === false ? '—' : baseRec?.currentPolicyRate + '%'}) vs {p.quote} ({quoteRec?.isEntered === false ? '—' : quoteRec?.currentPolicyRate + '%'})
+                    {p.base} ({baseRateAvailable ? baseRec!.currentPolicyRate + '%' : '—'}) vs {p.quote} ({quoteRateAvailable ? quoteRec!.currentPolicyRate + '%' : '—'})
                   </span>
                 </div>
                 <span
