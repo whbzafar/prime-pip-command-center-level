@@ -1599,71 +1599,105 @@ app.post('/api/fundamental/generate-commodity', async (req, res) => {
   }
 });
 
-app.post('/api/fundamental/generate-rates', async (req, res) => {
-  try {
-    const currency = String(req.body?.currency || '').toUpperCase();
-    const mode = req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE';
+const OFFICIAL_POLICY_RATE_SOURCES: Record<string, { centralBankName: string; url: string }> = {
+  USD: { centralBankName: 'Federal Reserve', url: 'https://www.federalreserve.gov/monetarypolicy/openmarket.htm' },
+  EUR: { centralBankName: 'European Central Bank', url: 'https://www.ecb.europa.eu/press/govcdec/mopo/html/index.en.html' },
+  GBP: { centralBankName: 'Bank of England', url: 'https://www.bankofengland.co.uk/monetary-policy/the-interest-rate-bank-rate' },
+  JPY: { centralBankName: 'Bank of Japan', url: 'https://www.boj.or.jp/en/mopo/mpmdeci/index.htm' },
+  CHF: { centralBankName: 'Swiss National Bank', url: 'https://www.snb.ch/en/the-snb/mandates-goals/monetary-policy' },
+  CAD: { centralBankName: 'Bank of Canada', url: 'https://www.bankofcanada.ca/core-functions/monetary-policy/key-interest-rate/' },
+  AUD: { centralBankName: 'Reserve Bank of Australia', url: 'https://www.rba.gov.au/monetary-policy/' },
+  NZD: { centralBankName: 'Reserve Bank of New Zealand', url: 'https://www.rbnz.govt.nz/monetary-policy/about-monetary-policy/the-official-cash-rate' },
+};
 
-    if (!currency || currency === 'ALL') {
+app.post('/api/fundamental/generate-rates', async (req, res) => {
+  const currency = String(req.body?.currency || '').toUpperCase();
+  const official = OFFICIAL_POLICY_RATE_SOURCES[currency];
+  if (!official) {
+    return res.status(400).json({ status: 'UNAVAILABLE', error: 'Generate one supported currency policy rate at a time.' });
+  }
+
+  try {
+    const currentDate = new Date().toISOString().slice(0, 10);
+    const briefPrompt = [
+      `Find the latest published monetary policy decision for ${currency} from ${official.centralBankName}.`,
+      `Today is ${currentDate}. Source page: ${official.url}`,
+      'Return the current policy rate exactly as published in percent, the date of the latest decision or official rate publication, and the official source title and URL.',
+      'Do not use a search snippet as proof. Do not infer, estimate, or convert a value. If the official source does not explicitly support a field, return null.',
+    ].join('\\n');
+    const extractionPromptFn = (researchText: string, sources: GroundedResearchSource[]) => [
+      'Extract only facts directly supported by this Google Search grounded research brief.',
+      `Currency: ${currency}; central bank: ${official.centralBankName}; expected source host: ${safeHostname(official.url)}.`,
+      'The current policy rate must be expressed as a percent, not a basis-point change or a market expectation.',
+      'Return null for missing or ambiguous fields. JSON only:',
+      '{"currentPolicyRate":number|null,"releaseDate":"YYYY-MM-DD"|null,"sourceName":string|null,"sourceUrl":string|null}',
+      'Research brief:',
+      researchText,
+      'Grounded citations:',
+      JSON.stringify(sources),
+    ].join('\\n');
+
+    const { parsed, sources, searchQueries, groundingSupports } = await groundedJsonResearch(
+      briefPrompt,
+      extractionPromptFn,
+      `${currency} ${official.centralBankName} latest official policy interest rate ${currentDate}`,
+      { requireGoogleGrounding: true },
+    );
+    const currentPolicyRate = finiteOrNull(parsed.currentPolicyRate);
+    const releaseDate = typeof parsed.releaseDate === 'string' ? parsed.releaseDate.trim() : '';
+    const officialSourceFilter = (source: GroundedResearchSource) => isOfficialCitation(source.uri, official.url);
+    const valueSource = groundedSourceForNumber(currentPolicyRate, sources, groundingSupports, officialSourceFilter);
+    const valueHasPercentUnit = currentPolicyRate !== null && groundingSupports.some((support) => {
+      const hasValue = (support.text.replace(/[−–]/g, '-').match(/[+-]?(?:\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.\\d+)?/g) || [])
+        .some((token) => Number(token.replace(/,/g, '')) === currentPolicyRate);
+      const hasPercent = /%|percent|per cent/i.test(support.text);
+      return hasValue && hasPercent && support.chunkIndices.some((index) => {
+        const source = sources.find((item) => item.chunkIndex === index);
+        return !!source && officialSourceFilter(source);
+      });
+    });
+    const dateSupported = groundedDateHasSupport(releaseDate, sources, groundingSupports, officialSourceFilter);
+    const freshDecision = isValidRecentReleaseDate(releaseDate, 'quarterly');
+    const verified = currentPolicyRate !== null && currentPolicyRate >= 0 && currentPolicyRate <= 100 &&
+      !!valueSource && valueHasPercentUnit && dateSupported && freshDecision;
+
+    if (!verified) {
       return res.json({
-        rates: VERIFIED_RATES,
+        status: currentPolicyRate !== null ? 'REVIEW_REQUIRED' : 'NOT_FOUND',
+        currency,
         retrievedAt: new Date().toISOString(),
-        confidence: 96,
+        confidence: 0,
+        notes: 'Google Search did not verify a recent policy rate, percent unit, decision date, and official central-bank citation together. Saved rates were left unchanged.',
+        sources: sources.map(({ title, uri }) => ({ title, uri })),
+        searchQueries,
       });
     }
 
-    const ai = getGeminiClient();
-    if (ai && mode === 'REGENERATE') {
-      try {
-        const query = `${currency} central bank policy rate 2Y yield 10Y yield meeting date current guidance`;
-        const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest'];
-        for (const model of candidateModels) {
-          try {
-            const prompt = `Research current official primary central bank data for currency ${currency}:
-1. Policy interest rate (%)
-2. Next meeting date
-3. 2-year sovereign yield (%)
-4. 10-year sovereign yield (%)
-5. Policy bias (HAWKISH / NEUTRAL / DOVISH)
-Output concise plain text report.`;
-            const result = await withTimeout(
-              ai.models.generateContent({
-                model,
-                contents: prompt,
-                config: { tools: [{ googleSearch: {} }], temperature: 0.1 },
-              }),
-              12000
-            );
-            if (result.text) {
-              // Successfully retrieved live search evidence
-              const base = getVerifiedRatesFallback(currency);
-              return res.json({
-                rate: {
-                  ...base,
-                  retrievedAt: new Date().toISOString(),
-                },
-                liveNotes: result.text.slice(0, 300),
-                retrievedAt: new Date().toISOString(),
-                confidence: 98,
-              });
-            }
-          } catch {}
-        }
-      } catch {}
-    }
-
-    const rate = getVerifiedRatesFallback(currency);
     return res.json({
-      rate,
+      status: 'VERIFIED',
+      currency,
+      rate: {
+        currency,
+        centralBankName: official.centralBankName,
+        currentPolicyRate,
+        sourceUrl: valueSource.uri,
+        retrievedAt: new Date().toISOString(),
+      },
       retrievedAt: new Date().toISOString(),
-      confidence: 96,
+      confidence: 0,
+      notes: 'Only the current policy rate was verified. Forecasts, meeting expectations, and sovereign yields were left unchanged.',
+      sources: sources.map(({ title, uri }) => ({ title, uri })),
+      searchQueries,
     });
   } catch (error: any) {
-    const currency = String(req.body?.currency || 'USD').toUpperCase();
-    return res.json({
-      rate: getVerifiedRatesFallback(currency),
+    console.warn('[FUNDAMENTAL GENERATE RATES] Google Search verification unavailable:', error?.message || error);
+    return res.status(200).json({
+      status: 'UNAVAILABLE',
+      currency,
       retrievedAt: new Date().toISOString(),
-      confidence: 95,
+      confidence: 0,
+      notes: 'Google Search could not complete and verify this policy-rate lookup. Saved values were left unchanged.',
+      sources: [],
     });
   }
 });
