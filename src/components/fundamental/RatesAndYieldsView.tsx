@@ -94,7 +94,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
           isEntered: true,
         };
         onUpdateInterestRate(updated);
-        setRatesMessage(`${curr}: Official current policy rate verified. Other rate expectations and yields were left unchanged.`);
+        setRatesMessage(`${curr}: Official current policy rate verified${rateData.releaseDate ? ` (decision date ${rateData.releaseDate})` : ''}. Other rate expectations and yields were left unchanged.`);
       }
     } catch (err: any) {
       setRatesMessage(`${curr}: ${err?.message || 'Failed to regenerate rates.'}`);
