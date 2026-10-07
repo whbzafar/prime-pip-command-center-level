@@ -33,8 +33,8 @@ export default async function handler(req: Request, res: Response) {
       if (previewHealthCheck) {
         const name = String(err?.name || 'Error').slice(0, 40);
         const message = String(err?.message || 'Unknown startup error')
-          .replace(/(?:[A-Za-z]:\\|\\/var\\/(?:task|runtime)\\/)[^\\s:]+/g, '[path]')
-          .replace(/https?:\\/\\/[^\\s]+/g, '[url]')
+          .replace(/\/var\/(?:task|runtime)\/[^\s:]+/g, '[path]')
+          .replace(/https?:\/\/[^\s]+/g, '[url]')
           .slice(0, 240);
         response.diagnostic = name + ': ' + message;
       }
