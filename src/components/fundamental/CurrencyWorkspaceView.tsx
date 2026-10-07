@@ -41,7 +41,7 @@ import { OFFICIAL_INDICATOR_REGISTRY, CURRENCY_METADATA } from '../../data/funda
 import { DEFAULT_INTEREST_RATES, DEFAULT_COT_RECORDS } from '../../data/defaultFundamentalObservations';
 import { calculateCotMetrics } from '../../utils/fundamentalCalculationEngine';
 import { InterestRateRecord } from '../../types/fundamentalIndicatorTypes';
-import { generateIndicator, generateRates } from '../../services/fundamentalLiveResearchService';
+import { generateIndicator } from '../../services/fundamentalLiveResearchService';
 import { RadialSentimentGauge } from './RadialSentimentGauge';
 import { generateSingleCurrencyReportPdf } from '../../utils/fundamentalPdfGenerator';
 
@@ -400,7 +400,7 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
     setGenerateAllState({ running: true, completed: 0, total: scoped.length, mode });
     setLiveResearchMessage(null);
     try {
-      const BATCH_SIZE = 3;
+      const BATCH_SIZE = 1;
       let completedCount = 0;
       for (let i = 0; i < scoped.length; i += BATCH_SIZE) {
         const batch = scoped.slice(i, i + BATCH_SIZE);
@@ -439,34 +439,6 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
           })
         );
       }
-
-      // Also regenerate the rates & yields for this currency
-      try {
-        const rateRes = await generateRates(activeCurrency, mode);
-        if (rateRes.rate && onUpdateInterestRate) {
-          const r = rateRes.rate;
-          const existingRate = interestRates?.find((item) => item.currency === activeCurrency);
-          onUpdateInterestRate({
-            currency: activeCurrency,
-            centralBankName: r.centralBankName || existingRate?.centralBankName || 'Central Bank',
-            currentPolicyRate: r.currentPolicyRate ?? existingRate?.currentPolicyRate ?? 0,
-            previousPolicyRate: r.previousPolicyRate ?? existingRate?.previousPolicyRate ?? 0,
-            expectedNextRate: r.expectedNextRate ?? existingRate?.expectedNextRate ?? r.currentPolicyRate,
-            expectedRateChangeBps: r.expectedRateChangeBps ?? existingRate?.expectedRateChangeBps ?? 0,
-            nextMeetingDate: r.nextMeetingDate || existingRate?.nextMeetingDate || 'Upcoming',
-            centralBankBias: r.centralBankBias || existingRate?.centralBankBias || 'NEUTRAL',
-            balanceSheetDirection: existingRate?.balanceSheetDirection || 'NEUTRAL',
-            yield2Y: r.yield2Y ?? existingRate?.yield2Y ?? 0,
-            yield5Y: r.yield5Y ?? existingRate?.yield5Y ?? 0,
-            yield10Y: r.yield10Y ?? existingRate?.yield10Y ?? 0,
-            realYield10Y: r.realYield10Y ?? existingRate?.realYield10Y ?? 0,
-            recentGuidance: r.recentGuidance || existingRate?.recentGuidance || '',
-            sourceUrl: r.sourceUrl || existingRate?.sourceUrl || '',
-            updatedAt: new Date().toISOString(),
-            isEntered: true,
-          });
-        }
-      } catch {}
 
       setLiveResearchMessage(`${activeCurrency}: Google Search research finished. Only values with an official source citation were saved; unverified results were left unchanged.`);
     } finally {
