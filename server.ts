@@ -683,7 +683,7 @@ function uniqueGroundedSources(response: any): GroundedResearchSource[] {
     const web = chunk?.web;
     if (!web?.uri || typeof web.uri !== 'string') continue;
     if (!sources.some((source) => source.uri === web.uri)) {
-      sources.push({ title: typeof web.title === 'string' ? web.title : undefined, uri: web.uri, chunkIndex });
+      sources.push({ title: typeof web.title === 'string' ? web.title : undefined, uri: web.uri });
     }
   }
   return sources.slice(0, 12);
@@ -1092,6 +1092,23 @@ function groundedNumberHasSupport(
   sourceFilter: (source: GroundedResearchSource) => boolean = () => true,
 ): boolean {
   return groundedSourceForNumber(value, sources, supports, sourceFilter) !== null;
+}
+
+function groundedTextHasSupport(
+  value: string,
+  sources: GroundedResearchSource[],
+  supports: GroundingSupport[],
+  sourceFilter: (source: GroundedResearchSource) => boolean = () => true,
+): boolean {
+  const expected = value.trim().toLocaleLowerCase();
+  if (!expected) return false;
+  return supports.some((support) =>
+    support.text.toLocaleLowerCase().includes(expected) &&
+    support.chunkIndices.some((index) => {
+      const source = sources.find((item) => item.chunkIndex === index);
+      return !!source && sourceFilter(source);
+    })
+  );
 }
 
 function groundedDateHasSupport(
