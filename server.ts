@@ -1541,37 +1541,33 @@ app.post('/api/fundamental/generate-sentiment', (_req, res) => {
 // // FUNDAMENTAL INTELLIGENCE — PERSISTENT OBSERVATIONS STORE & PATCHING
 // ----------------------------------------------------
 function buildDefaultFundamentalObservations(): any[] {
-  const result: any[] = [];
-  const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
-  for (const curr of currencies) {
-    const list = OFFICIAL_INDICATOR_REGISTRY.filter((d: any) => d.currency === curr);
-    list.forEach((d: any, idx: number) => {
-      const verified = (VERIFIED_INDICATORS as any)[d.id] || (VERIFIED_INDICATORS as any)[`${d.currency}_${d.shortLabel}`] || {};
-      result.push({
-        id: `obs_${d.id}`,
-        indicatorId: d.id,
-        indicatorName: d.name,
-        currency: d.currency,
-        referencePeriod: verified.referencePeriod || 'Current Period',
-        releaseDate: verified.releaseDate || new Date().toISOString().slice(0, 10),
-        releaseTime: '08:30 GMT',
-        actual: typeof verified.actual === 'number' ? verified.actual : (d.defaultValue ?? 2.5),
-        forecast: typeof verified.forecast === 'number' ? verified.forecast : (d.defaultValue ?? 2.5),
-        previous: typeof verified.previous === 'number' ? verified.previous : (d.defaultValue ?? 2.5),
-        revisedPrevious: typeof verified.revisedPrevious === 'number' ? verified.revisedPrevious : null,
-        unit: d.unit || verified.unit || '%',
-        dataSource: verified.sourceName || d.officialSourceName || 'Official Statistical Office',
-        sourceUrl: d.officialSourceUrl || 'https://www.tradingeconomics.com',
-        notes: verified.notes || `${d.name} baseline data point.`,
-        updatedAt: new Date().toISOString(),
-        dataRetrievalTimestamp: new Date().toISOString(),
-        dataStatus: 'OFFICIAL_SOURCE',
-        verificationStatus: 'VERIFIED',
-        confidence: 96,
-      });
-    });
-  }
-  return result;
+  return OFFICIAL_INDICATOR_REGISTRY.map((definition: any) => ({
+    id: `obs_${definition.id}`,
+    indicatorId: definition.id,
+    indicatorName: definition.name,
+    currency: definition.currency,
+    category: definition.category,
+    frequency: definition.frequency,
+    referencePeriod: '',
+    releaseDate: '',
+    releaseTime: '',
+    actual: null,
+    forecast: null,
+    previous: null,
+    revisedPrevious: null,
+    unit: definition.unit || '',
+    dataSource: '',
+    sourceName: '',
+    sourceUrl: '',
+    sourceType: '',
+    notes: 'No fresh official observation has been retrieved yet.',
+    updatedAt: '',
+    dataRetrievalTimestamp: '',
+    dataStatus: 'UNAVAILABLE',
+    verificationStatus: 'NOT_FOUND',
+    confidence: 0,
+    isEntered: false,
+  }));
 }
 
 app.get('/api/fundamental/observations', async (_req, res) => {
@@ -1599,7 +1595,7 @@ app.get('/api/fundamental/observations', async (_req, res) => {
     }
     const meta = safeReadJsonFile<any>('fundamental_observations_meta.json', {
       lastPatchedAt: new Date().toISOString(),
-      lastPatchedSource: 'Verified Institutional Baseline',
+      lastPatchedSource: 'No fresh official observations retrieved',
       totalPatches: 0,
     });
     return res.json({
@@ -1622,7 +1618,7 @@ app.post('/api/fundamental/patch-observations', (req, res) => {
       safeWriteJsonFile('fundamental_observations_store.json', resetList);
       const meta = {
         lastPatchedAt: new Date().toISOString(),
-        lastPatchedSource: 'Reset to Verified Institutional Baseline',
+        lastPatchedSource: 'Reset to empty, unverified observations',
         totalPatches: 0,
       };
       safeWriteJsonFile('fundamental_observations_meta.json', meta);
