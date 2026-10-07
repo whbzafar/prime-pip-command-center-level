@@ -69,7 +69,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
       const res = await generateRates(curr, 'REGENERATE');
       const rateData = res.rate;
       if (res.status !== 'VERIFIED' || !rateData) {
-        setRatesMessage(res.notes || `${curr}: Google Search did not verify this rate; saved values were left unchanged.`);
+        setRatesMessage(res.notes || `${curr}: No fresh official rate feed was available; saved values were left unchanged.`);
         return;
       }
       if (rateData && onUpdateInterestRate) {
@@ -94,7 +94,7 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
           isEntered: true,
         };
         onUpdateInterestRate(updated);
-        setRatesMessage(`${curr}: Official current policy rate verified${rateData.releaseDate ? ` (decision date ${rateData.releaseDate})` : ''}. Other rate expectations and yields were left unchanged.`);
+        setRatesMessage(`${curr}: Official current policy rate verified${rateData.sourceDate ? ` (source date ${rateData.sourceDate})` : ''}. Other rate expectations and yields were left unchanged.`);
       }
     } catch (err: any) {
       setRatesMessage(`${curr}: ${err?.message || 'Failed to regenerate rates.'}`);
@@ -137,10 +137,10 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
         verifiedCount += 1;
       }
       setRatesMessage(verifiedCount > 0
-        ? `Google verified ${verifiedCount} of 8 current policy rates. Forecasts and yield values were left unchanged.`
-        : 'Google Search could not verify any current policy rates. Saved values were left unchanged.');
+        ? `Official free feeds returned ${verifiedCount} of 8 current policy rates. Forecasts and yield values were left unchanged.`
+        : 'No mapped free official policy-rate feeds returned current values. Saved values were left unchanged.');
     } catch (err: any) {
-      setRatesMessage(err?.message || 'Google Search could not verify current policy rates. Saved values were left unchanged.');
+      setRatesMessage(err?.message || 'Official public policy-rate feeds could not be reached. Saved values were left unchanged.');
     } finally {
       setRegeneratingCurrency(null);
     }
