@@ -6,11 +6,7 @@ import {
   InterestRateRecord,
 } from '../types/fundamentalIndicatorTypes';
 import {
-  DEFAULT_OBSERVATIONS,
-  DEFAULT_COMMODITY_OBSERVATIONS,
-  DEFAULT_INTEREST_RATES,
   DEFAULT_COT_RECORDS,
-  DEFAULT_MULTI_ASSET_FUNDAMENTALS,
   MultiAssetFundamentalRecord,
 } from '../data/defaultFundamentalObservations';
 
@@ -129,7 +125,7 @@ export async function syncFundamentalMarketData(options: {
   const commodities: CommodityObservation[] =
     Array.isArray(serverData?.commodities) ? serverData.commodities : [];
 
-  const cotRecords: CotPositioningRecord[] = DEFAULT_COT_RECORDS;
+  const cotRecords: CotPositioningRecord[] = Array.isArray(serverData?.cotRecords) ? serverData.cotRecords : [];
 
   // Merge live Twelve Data & CoinGecko quotes into Multi-Asset Fundamentals (Indices, Top Stocks, Top 5 Cryptos)
   const twelveQuotes: Record<string, number> = serverData?.twelveQuotes || {};
