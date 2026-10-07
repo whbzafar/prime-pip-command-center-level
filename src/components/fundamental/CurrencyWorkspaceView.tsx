@@ -334,8 +334,8 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
     try {
       const existing = observations.find((observation) => observation.indicatorId === def.id);
       const result = await generateIndicator(def, existing, mode);
-      if (result.status !== 'VERIFIED' || result.actual === null || !result.sourceUrl || !result.releaseDate || !result.referencePeriod) {
-        const errorMsg = result.notes || `${def.shortLabel}: No published data found on Google/official source.`;
+      if (result.status !== 'VERIFIED' || result.actual === null || !result.sourceUrl || !result.referencePeriod) {
+        const errorMsg = result.notes || `${def.shortLabel}: No fresh data is available from a mapped free official feed.`;
         setLiveResearchMessage(errorMsg);
         setRowFeedbackMap((prev) => ({ ...prev, [def.id]: { type: 'error', text: errorMsg } }));
         setTimeout(() => {
@@ -409,7 +409,7 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
             try {
               const existing = observations.find((observation) => observation.indicatorId === def.id);
               const result = await generateIndicator(def, existing, mode);
-              if (result?.status === 'VERIFIED' && result.actual !== null && !!result.sourceUrl && !!result.releaseDate && !!result.referencePeriod) {
+              if (result?.status === 'VERIFIED' && result.actual !== null && !!result.sourceUrl && !!result.referencePeriod) {
                 onUpdateObservation({
                   id: existing?.id || `obs_${def.id}_${Date.now()}`,
                   indicatorId: def.id,
@@ -440,7 +440,7 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
         );
       }
 
-      setLiveResearchMessage(`${activeCurrency}: Google Search research finished. Only values with an official source citation were saved; unverified results were left unchanged.`);
+      setLiveResearchMessage(`${activeCurrency}: Official public-feed lookups finished. Only fresh mapped observations were saved; unavailable indicators were left unchanged.`);
     } finally {
       setGenerateAllState((prev) => ({ ...prev, running: false }));
     }
@@ -1105,7 +1105,7 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                                   <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-500">
                                     <span>{def.currency}</span>
                                     <span>•</span>
-                                    <span>Rel: {obs?.releaseDate || 'Latest'} {obs?.releaseTime ? `(${obs.releaseTime})` : ''}</span>
+                                    <span>{obs?.releaseDate ? `Rel: ${obs.releaseDate}` : `Observation: ${obs?.referencePeriod || 'date unavailable'}`}</span>
                                     <span>•</span>
                                     <span
                                       className={`px-1.5 py-0.2 rounded font-bold text-[9px] ${
