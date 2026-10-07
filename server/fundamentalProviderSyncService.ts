@@ -5,6 +5,34 @@ import {
 } from './verifiedFundamentalBaselines.js';
 import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
 import { syncFundamentalProfile } from './fundamentalDataArchitecture.js';
+const CURRENCY_POLICY_SERIES: Record<string, { id: string; name: string; source: string }> = {
+  USD: { id: 'DFEDTARU', name: 'Federal Reserve', source: 'https://www.federalreserve.gov/monetarypolicy/openmarket.htm' },
+  EUR: { id: 'ECBDFR', name: 'European Central Bank', source: 'https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html' },
+  GBP: { id: 'BOERUKM', name: 'Bank of England', source: 'https://www.bankofengland.co.uk/boeapps/database/Bank-Rate.asp' },
+  JPY: { id: 'IRSTCI01JPM156N', name: 'Bank of Japan', source: 'https://www.boj.or.jp/en/statistics/boj/other/discount/' },
+  CHF: { id: 'IRSTCI01CHM156N', name: 'Swiss National Bank', source: 'https://data.snb.ch/' },
+  CAD: { id: 'IRSTCI01CAM156N', name: 'Bank of Canada', source: 'https://www.bankofcanada.ca/core-functions/monetary-policy/key-interest-rate/' },
+  AUD: { id: 'IRSTCI01AUM156N', name: 'Reserve Bank of Australia', source: 'https://www.rba.gov.au/statistics/cash-rate/' },
+  NZD: { id: 'IRSTCI01NZM156N', name: 'Reserve Bank of New Zealand', source: 'https://www.rbnz.govt.nz/monetary-policy/about-monetary-policy/the-official-cash-rate' },
+};
+
+const SCHEDULED_INDICATOR_SERIES: Record<string, { seriesId: string; transform: FredSeriesMapping['transform'] }> = {
+  usd_nfp: { seriesId: 'PAYEMS', transform: 'MOM_DIFF' },
+  usd_unemployment: { seriesId: 'UNRATE', transform: 'LEVEL' },
+  usd_gdp_annualized: { seriesId: 'A191RL1Q225SBEA', transform: 'LEVEL' },
+  usd_retail_sales: { seriesId: 'RSAFS', transform: 'MOM_PCT' },
+  usd_initial_claims: { seriesId: 'ICSA', transform: 'LEVEL' },
+  usd_ism_manufacturing_pmi: { seriesId: 'NAPM', transform: 'LEVEL' },
+  usd_pce_yoy: { seriesId: 'PCEPI', transform: 'YOY_PCT' },
+  usd_core_pce_yoy: { seriesId: 'PCEPILFE', transform: 'YOY_PCT' },
+  eur_10y_bund_yield: { seriesId: 'IRLTLT01DEM156N', transform: 'LEVEL' },
+  gbp_10y_gilt_yield: { seriesId: 'IRLTLT01GBM156N', transform: 'LEVEL' },
+  jpy_10y_jgb_yield: { seriesId: 'IRLTLT01JPM156N', transform: 'LEVEL' },
+  cad_10y_yield: { seriesId: 'IRLTLT01CAM156N', transform: 'LEVEL' },
+  aud_10y_yield: { seriesId: 'IRLTLT01AUM156N', transform: 'LEVEL' },
+};
+
+
 
 export interface ProviderStatusInfo {
   provider: 'FRED' | 'ALPHA_VANTAGE' | 'TWELVE_DATA' | 'BLS' | 'BEA' | 'FMP';
@@ -331,6 +359,19 @@ export async function syncAndVerifyFundamentalData(options: {
   let liveApiHits = 0;
   const verifiedFallbackHits = 0;
 
+  const policyResults = await Promise.all(
+    Object.entries(CURRENCY_POLICY_SERIES)
+      .filter(([currency]) => targetCurrency === 'ALL' || targetCurrency === currency)
+      .map(async ([currency, mapping]) => {
+        const series = await fetchFredSeriesPoints(mapping.id);
+        const values = series && transformSeriesPoints(series.points, 'LEVEL');
+        if (!series || !values) return null;
+        providersUsed.add(series.sourceLabel);
+        liveApiHits += 1;
+        return { currency, mapping, series, values };
+      })
+  );
+
   // 1. Pull live FRED series in parallel for mapped indicators + yields + WTI
   const activeMappings = FRED_INDICATOR_MAPPINGS.filter(
     (m) => targetCurrency === 'ALL' || m.currency === targetCurrency
@@ -389,6 +430,20 @@ export async function syncAndVerifyFundamentalData(options: {
     providersUsed.add('CoinGecko Real-Time Crypto Feed');
     liveApiHits += Object.keys(cryptoSpot).length;
   }
+
+  const additionalResults = await Promise.all(
+    Object.entries(SCHEDULED_INDICATOR_SERIES)
+      .filter(([indicatorId]) => targetCurrency === 'ALL' || indicatorId.startsWith(targetCurrency.toLowerCase()))
+      .map(async ([indicatorId, mapping]) => {
+        if (liveFredResults.has(indicatorId)) return;
+        const series = await fetchFredSeriesPoints(mapping.seriesId);
+        const values = series && transformSeriesPoints(series.points, mapping.transform);
+        if (!series || !values) return;
+        liveFredResults.set(indicatorId, { ...values, sourceLabel: series.sourceLabel, seriesId: mapping.seriesId });
+        providersUsed.add(series.sourceLabel);
+        liveApiHits += 1;
+      })
+  );
 
   // 2. Build / update all 81 indicator observations
   const existingStore = safeReadJsonFile<any[]>('fundamental_observations_store.json', []);
@@ -483,30 +538,22 @@ export async function syncAndVerifyFundamentalData(options: {
   const liveWtiPrice = twelveQuotes['WTI/USD'] ?? wtiFredData?.points?.[0]?.value;
 
   const previousRates = safeReadJsonFile<any[]>('fundamental_rates_store.json', []);
-  const updatedInterestRates = previousRates.map((r: any) => {
-    const isUsd = r.currency === 'USD';
+  const previousRateMap = new Map(previousRates.map((r: any) => [r.currency, r]));
+  const updatedInterestRates = policyResults.filter(Boolean).map((result: any) => {
+    const { currency, mapping, values, series } = result;
+    const old: any = previousRateMap.get(currency) || {};
     return {
-      currency: r.currency,
-      centralBankName: r.centralBankName,
-      currentPolicyRate: isUsd && liveUsPolicy !== undefined ? liveUsPolicy : r.currentPolicyRate,
-      previousPolicyRate: r.previousPolicyRate,
-      expectedNextRate: r.expectedNextRate,
-      expectedRateChangeBps: r.expectedRateChangeBps,
-      nextMeetingDate: r.nextMeetingDate,
-      centralBankBias: r.centralBankBias,
-      recentGuidance: r.recentGuidance,
-      balanceSheetDirection:
-        r.centralBankBias === 'HAWKISH'
-          ? 'CONTRACTING_QT'
-          : r.centralBankBias === 'DOVISH'
-          ? 'EXPANDING'
-          : 'NEUTRAL',
-      yield2Y: isUsd && liveUs2Y !== undefined ? liveUs2Y : r.yield2Y,
-      yield5Y: r.yield5Y,
-      yield10Y: isUsd && liveUs10Y !== undefined ? liveUs10Y : r.yield10Y,
-      realYield10Y: isUsd && liveReal10Y !== undefined ? Number(liveReal10Y.toFixed(2)) : r.realYield10Y,
-      sourceUrl: r.sourceUrl,
+      ...old,
+      currency,
+      centralBankName: mapping.name,
+      currentPolicyRate: values.actual,
+      previousPolicyRate: values.previous,
+      sourceUrl: mapping.source,
+      dataSource: series.sourceLabel,
+      referenceDate: values.date,
       updatedAt: nowIso,
+      dataStatus: 'LIVE_VERIFIED',
+      verificationStatus: 'VERIFIED',
       isEntered: true,
     };
   });
