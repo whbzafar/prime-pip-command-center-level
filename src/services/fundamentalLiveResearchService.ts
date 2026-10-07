@@ -323,20 +323,21 @@ export async function generateIndicatorsBatch(
 export async function generateRates(
   currency: CurrencyCode | 'ALL',
   mode: 'GENERATE' | 'REGENERATE' = 'GENERATE'
-): Promise<{ rate?: LiveRateResult; rates?: Record<string, LiveRateResult>; confidence: number }> {
+): Promise<{ status?: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' | 'UNAVAILABLE'; notes?: string; rate?: LiveRateResult; rates?: Record<string, LiveRateResult>; confidence: number }> {
   try {
-    const res = await postJson<{ rate?: LiveRateResult; rates?: Record<string, LiveRateResult>; confidence: number }>(
+    const res = await postJson<{ status?: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' | 'UNAVAILABLE'; notes?: string; rate?: LiveRateResult; rates?: Record<string, LiveRateResult>; confidence: number }>(
       '/api/fundamental/generate-rates',
       { currency, mode }
     );
-    if (res && (res.rate || res.rates)) return res;
+    if (res && (res.rate || res.rates || res.status)) return res;
     throw new Error('Empty rates response from server.');
   } catch (err) {
-    console.warn(`[LiveResearch] generateRates fallback for ${currency}:`, err);
-    if (currency === 'ALL' || !currency) {
-      return { confidence: 0 };
-    }
-    return { confidence: 0 };
+    console.warn(`[LiveResearch] generateRates unavailable for ${currency}:`, err);
+    return {
+      status: 'UNAVAILABLE',
+      confidence: 0,
+      notes: 'Live policy-rate verification is unavailable. Saved values were left unchanged.',
+    };
   }
 }
 
