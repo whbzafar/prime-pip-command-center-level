@@ -469,18 +469,11 @@ export async function syncAndVerifyFundamentalData(options: {
   );
 
   // Also fetch 10Y Real Yield (DFII10), 5Y Breakeven (T5YIE), and WTI Crude (DCOILWTICO)
-  const [tips10YData, breakeven5YData, wtiFredData, twelveQuotes, cryptoSpot] = await Promise.all([
-    fetchFredSeriesPoints('DFII10'),
-    fetchFredSeriesPoints('T5YIE'),
+  const [wtiFredData, cryptoSpot] = await Promise.all([
     fetchFredSeriesPoints('DCOILWTICO'),
-    fetchTwelveDataPrices(['XAU/USD', 'XAG/USD', 'WTI/USD', 'NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA', 'US30', 'NAS100', 'SPX']),
     fetchCoinGeckoCryptoSpot(),
   ]);
-
-  if (Object.keys(twelveQuotes).length > 0) {
-    providersUsed.add('Twelve Data API (TWELVE_DATA_API_KEY)');
-    liveApiHits += Object.keys(twelveQuotes).length;
-  }
+  const twelveQuotes: Record<string, number> = {};
   if (Object.keys(cryptoSpot).length > 0) {
     providersUsed.add('CoinGecko Real-Time Crypto Feed');
     liveApiHits += Object.keys(cryptoSpot).length;
@@ -587,53 +580,56 @@ export async function syncAndVerifyFundamentalData(options: {
   } catch {}
 
   // 3. Build updated Interest Rates across all 8 G8 Currencies
-  const liveUsPolicy = liveFredResults.get('usd_fed_funds_rate')?.actual;
   const liveUs2Y = liveFredResults.get('usd_2y_yield')?.actual;
   const liveUs10Y = liveFredResults.get('usd_10y_yield')?.actual;
-  const liveReal10Y = tips10YData?.points?.[0]?.value;
-  const liveBreakeven5Y = breakeven5YData?.points?.[0]?.value;
-  const liveWtiPrice = twelveQuotes['WTI/USD'] ?? wtiFredData?.points?.[0]?.value;
+  const wtiLatest = wtiFredData?.points?.[0];
+  const liveWtiPrice = wtiLatest && isRecentObservation(wtiLatest.date, 14) ? wtiLatest.value : undefined;
 
-  const previousRates = safeReadJsonFile<any[]>('fundamental_rates_store.json', []);
-  const previousRateMap = new Map(previousRates.map((r: any) => [r.currency, r]));
   const updatedInterestRates = policyResults.filter(Boolean).flatMap((result: any) => {
     if (result.values === undefined) return [];
     const { currency, mapping, values, series } = result;
-    const old: any = previousRateMap.get(currency) || {};
+    const verifiedFields = [
+      'currentPolicyRate',
+      ...(currency === 'USD' && liveUs2Y !== undefined ? ['yield2Y'] : []),
+      ...(currency === 'USD' && liveUs10Y !== undefined ? ['yield10Y'] : []),
+    ];
     return [{
-      ...old,
       currency,
       centralBankName: mapping.name,
       currentPolicyRate: values.actual,
-      previousPolicyRate: values.previous,
+      previousPolicyRate: 0,
+      expectedNextRate: 0,
+      expectedRateChangeBps: 0,
+      nextMeetingDate: '',
+      centralBankBias: 'NEUTRAL',
+      balanceSheetDirection: 'NEUTRAL',
+      yield2Y: currency === 'USD' ? liveUs2Y ?? 0 : 0,
+      yield5Y: 0,
+      yield10Y: currency === 'USD' ? liveUs10Y ?? 0 : 0,
       sourceUrl: mapping.source,
+      sourceDate: values.date,
+      verifiedFields,
       dataSource: series.sourceLabel,
       referenceDate: values.date,
       updatedAt: nowIso,
-      dataStatus: 'LIVE_VERIFIED',
+      dataStatus: 'OFFICIAL_PUBLISHED',
       verificationStatus: 'VERIFIED',
-      isEntered: true,
+      isEntered: false,
     }];
   });
 
   // 4. Build updated Commodities (GOLD, SILVER, CRUDE_OIL)
   const previousCommodities = safeReadJsonFile<any[]>('fundamental_commodities_store.json', []);
   const updatedCommodities = previousCommodities.flatMap((r: any) => {
-    const priceBySymbol: Record<string, number | undefined> = {
-      GOLD: twelveQuotes['XAU/USD'],
-      SILVER: twelveQuotes['XAG/USD'],
-      CRUDE_OIL: liveWtiPrice,
-    };
-    const price = priceBySymbol[r.symbol];
-    const realYield = r.symbol === 'CRUDE_OIL' ? undefined : liveReal10Y;
-    const breakeven = r.symbol === 'CRUDE_OIL' ? undefined : liveBreakeven5Y;
-    if (price === undefined && realYield === undefined && breakeven === undefined) return [];
+    if (r.symbol !== 'CRUDE_OIL' || liveWtiPrice === undefined || !wtiLatest) return [];
+    const sourceUrl = 'https://fred.stlouisfed.org/series/DCOILWTICO';
     return [{
       ...r,
-      ...(price !== undefined ? { price, referenceDate: todayStr } : {}),
-      ...(realYield !== undefined ? { usRealYield10Y: Number(realYield.toFixed(2)) } : {}),
-      ...(breakeven !== undefined ? { inflationBreakeven5Y: Number(breakeven.toFixed(2)) } : {}),
-      dataStatus: 'LIVE_VERIFIED',
+      price: Number(liveWtiPrice.toFixed(2)),
+      referenceDate: wtiLatest.date,
+      priceAsOf: wtiLatest.date,
+      priceSourceUrl: sourceUrl,
+      dataStatus: 'OFFICIAL_PUBLISHED',
       updatedAt: nowIso,
     }];
   });
@@ -647,7 +643,7 @@ export async function syncAndVerifyFundamentalData(options: {
     indicatorsUpdated,
     ratesUpdated: updatedInterestRates.length,
     commoditiesUpdated: updatedCommodities.length,
-    multiAssetsUpdated: 15,
+    multiAssetsUpdated: Object.keys(cryptoSpot).length,
     liveApiHits,
     verifiedFallbackHits,
   };
