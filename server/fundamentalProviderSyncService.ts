@@ -362,7 +362,7 @@ export async function fetchPublicCommodityPrice(symbol: string): Promise<PublicO
 /**
  * Fetch macro series or quote from Alpha Vantage if ALPHA_VANTAGE_API_KEY is configured in .env
  */
-async function fetchAlphaVantageMacro(_fnName: string): Promise<null> {
+async function fetchAlphaVantageMacro(_fnName: string): Promise<{ actual: number; previous: number; date: string; sourceLabel: string } | null> {
   // Disabled in the no-budget public-feed mode: never call a credentialed provider.
   return null;
 }
