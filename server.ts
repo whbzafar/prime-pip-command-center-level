@@ -1832,9 +1832,22 @@ function buildDefaultFundamentalObservations(): any[] {
 
 app.get('/api/fundamental/observations', async (_req, res) => {
   try {
-    // Vercel serverless may suspend timers; refresh when an authenticated app requests
-    // observations and the free public-feed cache has exceeded its refresh interval.
-    if (isFundamentalSyncDue()) await runAutomaticFundamentalSync();
+    // Vercel filesystem writes are ephemeral, so return a fresh provider payload
+    // directly to the browser on every request instead of depending on local disk.
+    if (process.env.VERCEL) {
+      const live = await runAutomaticFundamentalSync();
+      if (live) return res.json({
+        ok: true,
+        count: live.observations?.length || 0,
+        observations: live.observations || [],
+        meta: live.meta || { lastPatchedAt: live.report?.timestamp, lastPatchedSource: live.report?.providersUsed?.join(', ') || 'Public official feeds', totalPatches: 0 },
+        rates: live.interestRates || [],
+        commodities: live.commodities || [],
+        report: live.report,
+      });
+    } else if (isFundamentalSyncDue()) {
+      await runAutomaticFundamentalSync();
+    }
     let stored = safeReadJsonFile<any[]>('fundamental_observations_store.json', []);
     if (!stored || !Array.isArray(stored) || stored.length === 0) {
       stored = buildDefaultFundamentalObservations();
