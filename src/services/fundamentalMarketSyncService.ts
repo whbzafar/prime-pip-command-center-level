@@ -169,10 +169,7 @@ export async function syncFundamentalMarketData(options: {
       };
     }
 
-    return {
-      ...item,
-      updatedAt: nowIso,
-    };
+    return item;
   });
 
   // Persist all synced stores to localStorage and broadcast update events
@@ -194,11 +191,7 @@ export async function syncFundamentalMarketData(options: {
     timestamp: nowIso,
     action,
     targetCurrency: currency,
-    providersUsed: [
-      'FRED Official API (FRED_API_KEY)',
-      'Alpha Vantage Economic API (ALPHA_VANTAGE_API_KEY)',
-      'Twelve Data API (TWELVE_DATA_API_KEY)',
-    ],
+    providersUsed: [],
     providerStatuses: await getFundamentalProviderStatuses(),
     indicatorsUpdated: observations.length,
     ratesUpdated: interestRates.length,
