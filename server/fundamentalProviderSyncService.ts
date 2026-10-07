@@ -21,7 +21,6 @@ const SCHEDULED_INDICATOR_SERIES: Record<string, { seriesId: string; transform: 
   usd_unemployment_rate: { seriesId: 'UNRATE', transform: 'LEVEL' },
   usd_gdp_qoq: { seriesId: 'A191RL1Q225SBEA', transform: 'LEVEL' },
   usd_retail_sales_mom: { seriesId: 'RSAFS', transform: 'MOM_PCT' },
-  usd_initial_claims: { seriesId: 'ICSA', transform: 'LEVEL' },
   usd_nfp: { seriesId: 'PAYEMS', transform: 'MOM_DIFF' },
   usd_unemployment: { seriesId: 'UNRATE', transform: 'LEVEL' },
   usd_gdp_annualized: { seriesId: 'A191RL1Q225SBEA', transform: 'LEVEL' },
