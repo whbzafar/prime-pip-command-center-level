@@ -120,24 +120,14 @@ export async function syncFundamentalMarketData(options: {
   }
 
   const observations: IndicatorObservation[] =
-    Array.isArray(serverData?.observations) && serverData.observations.length > 0
-      ? serverData.observations
-      : DEFAULT_OBSERVATIONS.map((obs) => ({
-          ...obs,
-          updatedAt: nowIso,
-          dataStatus: 'LIVE_VERIFIED' as const,
-          verificationStatus: 'VERIFIED' as const,
-        }));
+    Array.isArray(serverData?.observations) ? serverData.observations : [];
 
+  // A failed server request cannot turn seed records into fresh observations.
   const interestRates: InterestRateRecord[] =
-    Array.isArray(serverData?.interestRates) && serverData.interestRates.length > 0
-      ? serverData.interestRates
-      : DEFAULT_INTEREST_RATES.map((r) => ({ ...r, updatedAt: nowIso }));
+    Array.isArray(serverData?.interestRates) ? serverData.interestRates : [];
 
   const commodities: CommodityObservation[] =
-    Array.isArray(serverData?.commodities) && serverData.commodities.length > 0
-      ? serverData.commodities
-      : DEFAULT_COMMODITY_OBSERVATIONS.map((c) => ({ ...c, updatedAt: nowIso }));
+    Array.isArray(serverData?.commodities) ? serverData.commodities : [];
 
   const cotRecords: CotPositioningRecord[] = DEFAULT_COT_RECORDS;
 
@@ -145,12 +135,12 @@ export async function syncFundamentalMarketData(options: {
   const twelveQuotes: Record<string, number> = serverData?.twelveQuotes || {};
   const cryptoSpot: Record<string, { price: number; change24h: number }> = serverData?.cryptoSpot || {};
 
-  let existingMultiAssets: MultiAssetFundamentalRecord[] = DEFAULT_MULTI_ASSET_FUNDAMENTALS;
+  let existingMultiAssets: MultiAssetFundamentalRecord[] = [];
   try {
     const rawMulti = localStorage.getItem('primepip_fundamental_multi_assets_v1');
     if (rawMulti) {
       const parsed = JSON.parse(rawMulti);
-      if (Array.isArray(parsed) && parsed.length > 0) existingMultiAssets = parsed;
+      if (Array.isArray(parsed)) existingMultiAssets = parsed;
     }
   } catch {}
 
@@ -214,8 +204,8 @@ export async function syncFundamentalMarketData(options: {
     ratesUpdated: interestRates.length,
     commoditiesUpdated: commodities.length,
     multiAssetsUpdated: multiAssets.length,
-    liveApiHits: 18,
-    verifiedFallbackHits: observations.length - 18,
+    liveApiHits: 0,
+    verifiedFallbackHits: 0,
   };
 
   return {
