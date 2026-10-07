@@ -860,7 +860,7 @@ async function groundedJsonResearch(
         ? groundingMetadata.groundingSupports.map((support: any) => ({
           text: typeof support?.segment?.text === 'string' ? support.segment.text : '',
           chunkIndices: Array.isArray(support?.groundingChunkIndices)
-            ? support.groundingChunkIndices.filter((index: unknown): index is number => Number.isInteger(index))
+            ? support.groundingChunkIndices.filter((index: unknown): index is number => typeof index === 'number' && Number.isInteger(index))
             : [],
         })).filter((support: GroundingSupport) => support.text.length > 0 && support.chunkIndices.length > 0)
         : [];
