@@ -102,73 +102,59 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
     setCommodityLiveLoading(true);
     setCommodityLiveMessage(null);
     try {
+      const isVerifiedQuote = (result: Awaited<ReturnType<typeof generateCommodity>>) =>
+        result.status === 'VERIFIED' && result.price !== undefined && result.price > 0 &&
+        !!result.priceSourceUrl && !!result.priceAsOf;
+      const applyVerifiedQuote = (item: CommodityObservation, result: Awaited<ReturnType<typeof generateCommodity>>): CommodityObservation => ({
+        ...item,
+        price: result.price!,
+        priceAsOf: result.priceAsOf,
+        priceSourceUrl: result.priceSourceUrl,
+        referenceDate: result.priceAsOf!,
+        ...(result.sentiment ? {
+          sentiment: result.sentiment,
+          sentimentConfidence: result.sentimentConfidence,
+          sentimentSourceUrl: result.sentimentSourceUrl,
+          sentimentUpdatedAt: result.retrievedAt,
+        } : {}),
+      });
+
       if (scope === 'ALL') {
         const results = await generateAllCommodities(mode);
-        if (results && results.length > 0) {
-          const nextCommodities = commodityData.map((item) => {
-            const res = results.find((r) => r.symbol === item.symbol);
-            if (!res) return item;
-            return {
-              ...item,
-              price: res.price ?? item.price,
-              sentiment: res.sentiment,
-              sentimentConfidence: res.sentimentConfidence,
-              sentimentSourceUrl: res.sentimentSourceUrl || item.sentimentSourceUrl,
-              sentimentUpdatedAt: res.retrievedAt,
-              notes: res.notes || item.notes,
-              usRealYield10Y: res.usRealYield10Y ?? item.usRealYield10Y,
-              inflationBreakeven5Y: res.inflationBreakeven5Y ?? item.inflationBreakeven5Y,
-              centralBankDemandTone: res.centralBankDemandTone ?? item.centralBankDemandTone,
-              industrialDemandTone: res.industrialDemandTone ?? item.industrialDemandTone,
-              geopoliticalRiskLevel: res.geopoliticalRiskLevel ?? item.geopoliticalRiskLevel,
-              supplyDemandBalance: res.supplyDemandBalance ?? item.supplyDemandBalance,
-              inventoriesWeeklySurpriseMb: res.inventoriesWeeklySurpriseMb ?? item.inventoriesWeeklySurpriseMb,
-              opecPolicyTone: res.opecPolicyTone ?? item.opecPolicyTone,
-              updatedAt: res.retrievedAt,
-            };
-          });
-          updateCommodityData(nextCommodities);
-          try {
-            localStorage.setItem('primepip_fundamental_commodities_v2', JSON.stringify(nextCommodities));
-            localStorage.setItem('primepip_fundamental_commodity_observations_v1', JSON.stringify(nextCommodities));
-          } catch {}
-          window.dispatchEvent(new CustomEvent('primepipfx_fundamental_updated', { detail: { type: 'COMMODITIES' } }));
-          const gold = results.find((r) => r.symbol === 'GOLD');
-          const silver = results.find((r) => r.symbol === 'SILVER');
-          const oil = results.find((r) => r.symbol === 'CRUDE_OIL');
-          setCommodityLiveMessage(`✓ All 3 commodities successfully regenerated: Gold ($${gold?.price?.toFixed(2) || '2924.50'}), Silver ($${silver?.price?.toFixed(2) || '33.45'}), Crude Oil ($${oil?.price?.toFixed(2) || '74.80'}).`);
+        const verifiedResults = results.filter(isVerifiedQuote);
+        if (verifiedResults.length === 0) {
+          setCommodityLiveMessage('Google Search could not verify a recent quote for these commodities. Existing values were left unchanged.');
+          return;
         }
+        const nextCommodities = commodityData.map((item) => {
+          const result = verifiedResults.find((entry) => entry.symbol === item.symbol);
+          return result ? applyVerifiedQuote(item, result) : item;
+        });
+        updateCommodityData(nextCommodities);
+        try {
+          localStorage.setItem('primepip_fundamental_commodities_v2', JSON.stringify(nextCommodities));
+          localStorage.setItem('primepip_fundamental_commodity_observations_v1', JSON.stringify(nextCommodities));
+        } catch {}
+        window.dispatchEvent(new CustomEvent('primepipfx_fundamental_updated', { detail: { type: 'COMMODITIES' } }));
+        setCommodityLiveMessage('Google Search verified recent quotes for ' + verifiedResults.length + ' of 3 commodities. Unverified items were left unchanged.');
       } else {
         if (!currentObs) return;
         const result = await generateCommodity(currentObs.symbol, currentObs, mode);
-        const updated: CommodityObservation = {
-          ...currentObs,
-          price: result.price ?? currentObs.price,
-          sentiment: result.sentiment,
-          sentimentConfidence: result.sentimentConfidence,
-          sentimentSourceUrl: result.sentimentSourceUrl || currentObs.sentimentSourceUrl,
-          sentimentUpdatedAt: result.retrievedAt,
-          notes: result.notes || currentObs.notes,
-          usRealYield10Y: result.usRealYield10Y ?? currentObs.usRealYield10Y,
-          inflationBreakeven5Y: result.inflationBreakeven5Y ?? currentObs.inflationBreakeven5Y,
-          centralBankDemandTone: result.centralBankDemandTone ?? currentObs.centralBankDemandTone,
-          industrialDemandTone: result.industrialDemandTone ?? currentObs.industrialDemandTone,
-          geopoliticalRiskLevel: result.geopoliticalRiskLevel ?? currentObs.geopoliticalRiskLevel,
-          supplyDemandBalance: result.supplyDemandBalance ?? currentObs.supplyDemandBalance,
-          inventoriesWeeklySurpriseMb: result.inventoriesWeeklySurpriseMb ?? currentObs.inventoriesWeeklySurpriseMb,
-          opecPolicyTone: result.opecPolicyTone ?? currentObs.opecPolicyTone,
-          updatedAt: result.retrievedAt,
-        };
+        if (!isVerifiedQuote(result)) {
+          setCommodityLiveMessage(result.notes || 'Google Search could not verify a recent quote. The existing value was left unchanged.');
+          return;
+        }
+        const updated = applyVerifiedQuote(currentObs, result);
         const nextCommodities = commodityData.map((item) => item.symbol === currentObs.symbol ? updated : item);
         updateCommodityData(nextCommodities);
         try {
           localStorage.setItem('primepip_fundamental_commodities_v2', JSON.stringify(nextCommodities));
         } catch {}
         window.dispatchEvent(new CustomEvent('primepipfx_fundamental_updated', { detail: { type: 'COMMODITIES' } }));
-        setCommodityLiveMessage(`${currentObs.name}: sentiment and price ($${updated.price}) verified.`);
+        setCommodityLiveMessage(currentObs.name + ': Google Search verified a recent quote dated ' + result.priceAsOf + '.');
       }
     } catch (error) {
-      setCommodityLiveMessage(error instanceof Error ? error.message : 'Live commodity research failed; existing data was preserved.');
+      setCommodityLiveMessage(error instanceof Error ? error.message : 'Live commodity research failed; existing values were preserved.');
     } finally {
       setCommodityLiveLoading(false);
     }
@@ -361,7 +347,13 @@ export const CommoditiesMacroView: React.FC<CommoditiesMacroViewProps> = ({
                 <span className="text-3xl font-military font-bold text-slate-100">
                   ${currentObs.price > 0 ? currentObs.price.toLocaleString() : 'Not entered'}
                 </span>
-                <span className="text-xs font-mono-code text-slate-400">USD Spot</span>
+                {currentObs.priceAsOf && currentObs.priceSourceUrl ? (
+                  <a href={currentObs.priceSourceUrl} target="_blank" rel="noreferrer" className="text-xs font-mono-code text-cyan-300 hover:underline">
+                    Google source · {currentObs.priceAsOf}
+                  </a>
+                ) : (
+                  <span className="text-xs font-mono-code text-amber-300">Saved value · source date not verified</span>
+                )}
               </div>
             </div>
 
