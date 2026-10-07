@@ -213,6 +213,8 @@ export interface InterestRateRecord {
   yield10Y: number;
   realYield10Y?: number;
   sourceUrl: string;
+  sourceDate?: string;
+  verifiedFields?: string[];
   updatedAt: string;
   /** False means the row is a blank input template and must not affect scoring. */
   isEntered?: boolean;
@@ -226,6 +228,8 @@ export interface CommodityObservation {
   sentimentConfidence?: number;
   sentimentSourceUrl?: string;
   sentimentUpdatedAt?: string;
+  priceSourceUrl?: string;
+  priceAsOf?: string;
   referenceDate: string;
   price: number;
   // Specific drivers:

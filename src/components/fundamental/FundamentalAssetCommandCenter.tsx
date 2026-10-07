@@ -293,28 +293,27 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
     setMessage(null);
     try {
       const existing = commodityObservations.find((o) => o.symbol === symbol);
-      const result = await generateCommodity(symbol, existing, existing?.updatedAt ? 'REGENERATE' : 'GENERATE');
+      const result = await generateCommodity(symbol, existing, 'REGENERATE');
+      if (result.status !== 'VERIFIED' || result.price === undefined || !result.priceSourceUrl || !result.priceAsOf) {
+        setMessage(result.notes || code + ': Google Search could not verify a recent quote. Existing values were left unchanged.');
+        return;
+      }
       onCommodityUpdate({
-        ...(existing || { id: 'comm_' + symbol.toLowerCase(), symbol, name: symbol === 'GOLD' ? 'Gold (XAU/USD)' : symbol === 'SILVER' ? 'Silver (XAG/USD)' : 'Crude Oil (WTI)', referenceDate: '', price: 0, updatedAt: '' }),
-        price: result.price ?? existing?.price ?? 0,
-        sentiment: result.sentiment,
-        sentimentConfidence: result.sentimentConfidence,
-        sentimentSourceUrl: result.sentimentSourceUrl,
-        sentimentUpdatedAt: result.retrievedAt,
-        notes: result.notes || existing?.notes,
-        usRealYield10Y: result.usRealYield10Y ?? existing?.usRealYield10Y,
-        inflationBreakeven5Y: result.inflationBreakeven5Y ?? existing?.inflationBreakeven5Y,
-        centralBankDemandTone: result.centralBankDemandTone ?? existing?.centralBankDemandTone,
-        industrialDemandTone: result.industrialDemandTone ?? existing?.industrialDemandTone,
-        geopoliticalRiskLevel: result.geopoliticalRiskLevel ?? existing?.geopoliticalRiskLevel,
-        supplyDemandBalance: result.supplyDemandBalance ?? existing?.supplyDemandBalance,
-        inventoriesWeeklySurpriseMb: result.inventoriesWeeklySurpriseMb ?? existing?.inventoriesWeeklySurpriseMb,
-        opecPolicyTone: result.opecPolicyTone ?? existing?.opecPolicyTone,
-        updatedAt: result.retrievedAt,
+        ...(existing || { id: 'comm_' + symbol.toLowerCase(), symbol, name: symbol === 'GOLD' ? 'Gold (XAU/USD)' : symbol === 'SILVER' ? 'Silver (XAG/USD)' : 'Crude Oil (WTI)', referenceDate: result.priceAsOf, price: result.price, updatedAt: '' }),
+        price: result.price,
+        priceAsOf: result.priceAsOf,
+        priceSourceUrl: result.priceSourceUrl,
+        referenceDate: result.priceAsOf,
+        ...(result.sentiment ? {
+          sentiment: result.sentiment,
+          sentimentConfidence: result.sentimentConfidence,
+          sentimentSourceUrl: result.sentimentSourceUrl,
+          sentimentUpdatedAt: result.retrievedAt,
+        } : {}),
       });
-      setMessage(result.status === 'VERIFIED' ? `${code}: Verified primary data updated.` : `${code}: Live research refreshed.`);
+      setMessage(code + ': Google Search verified a quote dated ' + result.priceAsOf + '.');
     } catch (error) {
-      setMessage(`${code}: Refreshed with grounded institutional benchmark.`);
+      setMessage(error instanceof Error ? error.message : code + ': Google Search could not verify a recent quote. Existing values were left unchanged.');
     } finally {
       setLoading(null);
     }

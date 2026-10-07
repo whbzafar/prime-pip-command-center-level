@@ -6,16 +6,6 @@ import {
   IndicatorDefinition,
   IndicatorObservation,
 } from '../types/fundamentalIndicatorTypes';
-import {
-  getVerifiedIndicatorFallback,
-  getVerifiedCotFallback,
-  getVerifiedCommodityFallback,
-  getVerifiedRatesFallback,
-  getVerifiedPairSentimentFallback,
-  VERIFIED_INDICATORS,
-  VERIFIED_RATES,
-  VERIFIED_31_PAIR_SENTIMENT,
-} from '../data/verifiedFundamentalBaselines';
 import { OFFICIAL_INDICATOR_REGISTRY } from '../data/fundamentalRegistryData';
 import {
   extractTextFromPdf,
@@ -29,7 +19,7 @@ import {
   getCleanBase64,
 } from '../utils/pdfDocumentParser';
 
-export type LiveVerificationStatus = 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND';
+export type LiveVerificationStatus = 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' | 'UNAVAILABLE';
 
 export interface LiveIndicatorResult {
   status: LiveVerificationStatus;
@@ -110,8 +100,10 @@ export interface LiveCommodityResult {
   status: LiveVerificationStatus;
   symbol: CommodityObservation['symbol'];
   price?: number;
-  sentiment: 'BULLISH' | 'NEUTRAL' | 'BEARISH';
-  sentimentConfidence: number;
+  priceAsOf?: string;
+  priceSourceUrl?: string;
+  sentiment?: 'BULLISH' | 'NEUTRAL' | 'BEARISH';
+  sentimentConfidence?: number;
   sentimentSourceUrl?: string;
   retrievedAt: string;
   confidence: number;
@@ -143,6 +135,9 @@ export interface LiveRateResult {
   yield10Y?: number;
   realYield10Y?: number;
   sourceUrl?: string;
+  releaseDate?: string;
+  sourceDate?: string;
+  notes?: string;
   retrievedAt: string;
   confidence: number;
   liveNotes?: string;
@@ -174,9 +169,28 @@ export interface AdminFundamentalRecord {
   updatedAt: string;
 }
 
+function unavailableIndicator(definition: IndicatorDefinition | CustomFundamentalIndicator): LiveIndicatorResult {
+  return {
+    status: 'NOT_FOUND',
+    dataStatus: 'UNAVAILABLE',
+    indicatorId: definition.id,
+    indicatorName: definition.name,
+    currency: definition.currency,
+    actual: null,
+    forecast: null,
+    previous: null,
+    referencePeriod: '',
+    releaseDate: '',
+    unit: definition.unit,
+    retrievedAt: new Date().toISOString(),
+    confidence: 0,
+    notes: 'No provider data was retrieved. Value left blank to avoid fabricated data.',
+  };
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 45000);
+  const timeout = window.setTimeout(() => controller.abort(), 58000);
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -214,7 +228,7 @@ export async function generateIndicator(
     });
   } catch (err) {
     console.warn(`[LiveResearch] generateIndicator fallback for ${definition.id}:`, err);
-    return getVerifiedIndicatorFallback(definition.currency, definition.id, definition, existingObservation) as LiveIndicatorResult;
+    return unavailableIndicator(definition);
   }
 }
 
@@ -231,7 +245,7 @@ export async function generateCot(
     });
   } catch (err) {
     console.warn(`[LiveResearch] generateCot fallback for ${currency}:`, err);
-    return getVerifiedCotFallback(currency, existingRecord) as LiveCotResult;
+    throw err;
   }
 }
 
@@ -248,23 +262,30 @@ export async function generateCommodity(
     });
   } catch (err) {
     console.warn(`[LiveResearch] generateCommodity fallback for ${symbol}:`, err);
-    return getVerifiedCommodityFallback(symbol, existingObservation) as LiveCommodityResult;
+    throw err;
   }
 }
 
 export async function generateAllCommodities(
   mode: 'GENERATE' | 'REGENERATE' = 'GENERATE'
 ): Promise<LiveCommodityResult[]> {
-  try {
-    const res = await postJson<{ status: string; commodities: LiveCommodityResult[] }>('/api/fundamental/generate-commodity', { symbol: 'ALL', mode });
-    if (res.commodities && res.commodities.length > 0) return res.commodities;
-    throw new Error('Empty commodities payload');
-  } catch (err) {
-    console.warn('[LiveResearch] generateAllCommodities fallback:', err);
-    return (['GOLD', 'SILVER', 'CRUDE_OIL'] as CommodityObservation['symbol'][]).map(
-      (sym) => getVerifiedCommodityFallback(sym, null) as LiveCommodityResult
-    );
+  const symbols: CommodityObservation['symbol'][] = ['GOLD', 'SILVER', 'CRUDE_OIL'];
+  const results: LiveCommodityResult[] = [];
+  for (const symbol of symbols) {
+    try {
+      results.push(await generateCommodity(symbol, undefined, mode));
+    } catch (err) {
+      console.warn('[LiveResearch] commodity lookup unavailable for ' + symbol + ':', err);
+      results.push({
+        status: 'NOT_FOUND',
+        symbol,
+        retrievedAt: new Date().toISOString(),
+        confidence: 0,
+        notes: 'No fresh official quote feed was available. Existing values were left unchanged.',
+      });
+    }
   }
+  return results;
 }
 
 export async function generateAllCotRecords(
@@ -276,9 +297,7 @@ export async function generateAllCotRecords(
     throw new Error('Empty COT records payload');
   } catch (err) {
     console.warn('[LiveResearch] generateAllCotRecords fallback:', err);
-    return (['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'] as CurrencyCode[]).map(
-      (c) => getVerifiedCotFallback(c, null) as LiveCotResult
-    );
+    throw err;
   }
 }
 
@@ -295,9 +314,9 @@ export async function generateIndicatorsBatch(
     const filtered = OFFICIAL_INDICATOR_REGISTRY.filter(
       (d) => (currency === 'ALL' || d.currency === currency) && (!indicatorIds || indicatorIds.includes(d.id))
     );
-    const indicators = filtered.map((d) => getVerifiedIndicatorFallback(d.currency, d.id, d, null) as LiveIndicatorResult);
+    const indicators = filtered.map((d) => unavailableIndicator(d));
     return {
-      status: 'VERIFIED_BATCH',
+      status: 'UNAVAILABLE',
       count: indicators.length,
       indicators,
     };
@@ -307,25 +326,20 @@ export async function generateIndicatorsBatch(
 export async function generateRates(
   currency: CurrencyCode | 'ALL',
   mode: 'GENERATE' | 'REGENERATE' = 'GENERATE'
-): Promise<{ rate?: LiveRateResult; rates?: Record<string, LiveRateResult>; confidence: number }> {
+): Promise<{ status?: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' | 'UNAVAILABLE'; notes?: string; rate?: LiveRateResult; rates?: Record<string, LiveRateResult>; confidence: number }> {
   try {
-    const res = await postJson<{ rate?: LiveRateResult; rates?: Record<string, LiveRateResult>; confidence: number }>(
+    const res = await postJson<{ status?: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' | 'UNAVAILABLE'; notes?: string; rate?: LiveRateResult; rates?: Record<string, LiveRateResult>; confidence: number }>(
       '/api/fundamental/generate-rates',
       { currency, mode }
     );
-    if (res && (res.rate || res.rates)) return res;
+    if (res && (res.rate || res.rates || res.status)) return res;
     throw new Error('Empty rates response from server.');
   } catch (err) {
-    console.warn(`[LiveResearch] generateRates fallback for ${currency}:`, err);
-    if (currency === 'ALL' || !currency) {
-      return {
-        rates: VERIFIED_RATES as any,
-        confidence: 96,
-      };
-    }
+    console.warn(`[LiveResearch] generateRates unavailable for ${currency}:`, err);
     return {
-      rate: getVerifiedRatesFallback(currency) as any,
-      confidence: 96,
+      status: 'UNAVAILABLE',
+      confidence: 0,
+      notes: 'Live policy-rate verification is unavailable. Saved values were left unchanged.',
     };
   }
 }
@@ -344,15 +358,9 @@ export async function generateSentiment(
   } catch (err) {
     console.warn(`[LiveResearch] generateSentiment fallback for ${pair}:`, err);
     if (pair === 'ALL') {
-      return {
-        pairs: VERIFIED_31_PAIR_SENTIMENT as any,
-        confidence: 95,
-      };
+      return { confidence: 0 };
     }
-    return {
-      sentiment: getVerifiedPairSentimentFallback(pair) as any,
-      confidence: 95,
-    };
+    return { confidence: 0 };
   }
 }
 
@@ -380,7 +388,7 @@ export async function generateCurrencyIndicators(
         return result;
       } catch {
         completedCount += 1;
-        const fallback = getVerifiedIndicatorFallback(definition.currency, definition.id, definition, existing) as LiveIndicatorResult;
+        const fallback = unavailableIndicator(definition);
         onResult?.(fallback, completedCount, scoped.length);
         return fallback;
       }

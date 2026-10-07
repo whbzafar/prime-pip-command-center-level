@@ -6,11 +6,7 @@ import {
   InterestRateRecord,
 } from '../types/fundamentalIndicatorTypes';
 import {
-  DEFAULT_OBSERVATIONS,
-  DEFAULT_COMMODITY_OBSERVATIONS,
-  DEFAULT_INTEREST_RATES,
   DEFAULT_COT_RECORDS,
-  DEFAULT_MULTI_ASSET_FUNDAMENTALS,
   MultiAssetFundamentalRecord,
 } from '../data/defaultFundamentalObservations';
 
@@ -112,45 +108,66 @@ export async function syncFundamentalMarketData(options: {
       credentials: 'include',
       body: JSON.stringify({ currency, action }),
     });
-    if (res.ok) {
-      serverData = await res.json();
-    }
+    if (res.ok) serverData = await res.json();
   } catch (err) {
     console.warn('[FundamentalMarketSyncService] Server sync fallback:', err);
   }
 
+  // Vercel serverless writes are ephemeral. On page load use the live GET response
+  // (which includes rates/commodities from the same provider sync) when POST fails.
+  if (!serverData) {
+    try {
+      const res = await fetch('/api/fundamental/observations', { credentials: 'include' });
+      if (res.ok) serverData = await res.json();
+    } catch (err) {
+      console.warn('[FundamentalMarketSyncService] Live read fallback:', err);
+    }
+  }
+
   const observations: IndicatorObservation[] =
-    Array.isArray(serverData?.observations) && serverData.observations.length > 0
-      ? serverData.observations
-      : DEFAULT_OBSERVATIONS.map((obs) => ({
-          ...obs,
-          updatedAt: nowIso,
-          dataStatus: 'LIVE_VERIFIED' as const,
-          verificationStatus: 'VERIFIED' as const,
-        }));
+    Array.isArray(serverData?.observations) ? serverData.observations : [];
 
-  const interestRates: InterestRateRecord[] =
-    Array.isArray(serverData?.interestRates) && serverData.interestRates.length > 0
-      ? serverData.interestRates
-      : DEFAULT_INTEREST_RATES.map((r) => ({ ...r, updatedAt: nowIso }));
+  const cachedRates: InterestRateRecord[] = (() => {
+    try {
+      const value = JSON.parse(localStorage.getItem('primepip_fundamental_rates_v2') || '[]');
+      return Array.isArray(value) ? value : [];
+    } catch { return []; }
+  })();
+  const incomingRates: InterestRateRecord[] =
+    Array.isArray(serverData?.interestRates) ? serverData.interestRates :
+    Array.isArray(serverData?.rates) ? serverData.rates : [];
+  const incomingRateCurrencies = new Set(incomingRates.map((rate) => rate.currency));
+  const interestRates: InterestRateRecord[] = [
+    ...cachedRates.filter((rate) => !incomingRateCurrencies.has(rate.currency)),
+    ...incomingRates,
+  ];
 
-  const commodities: CommodityObservation[] =
-    Array.isArray(serverData?.commodities) && serverData.commodities.length > 0
-      ? serverData.commodities
-      : DEFAULT_COMMODITY_OBSERVATIONS.map((c) => ({ ...c, updatedAt: nowIso }));
+  const cachedCommodities: CommodityObservation[] = (() => {
+    try {
+      const value = JSON.parse(localStorage.getItem('primepip_fundamental_commodities_v2') || '[]');
+      return Array.isArray(value) ? value : [];
+    } catch { return []; }
+  })();
+  const incomingCommodities: CommodityObservation[] =
+    Array.isArray(serverData?.commodities) ? serverData.commodities : [];
+  const incomingCommoditySymbols = new Set(incomingCommodities.map((item) => item.symbol));
+  const commodities: CommodityObservation[] = [
+    ...cachedCommodities.filter((item) => !incomingCommoditySymbols.has(item.symbol)),
+    ...incomingCommodities,
+  ];
 
-  const cotRecords: CotPositioningRecord[] = DEFAULT_COT_RECORDS;
+  const cotRecords: CotPositioningRecord[] = Array.isArray(serverData?.cotRecords) ? serverData.cotRecords : [];
 
   // Merge live Twelve Data & CoinGecko quotes into Multi-Asset Fundamentals (Indices, Top Stocks, Top 5 Cryptos)
   const twelveQuotes: Record<string, number> = serverData?.twelveQuotes || {};
   const cryptoSpot: Record<string, { price: number; change24h: number }> = serverData?.cryptoSpot || {};
 
-  let existingMultiAssets: MultiAssetFundamentalRecord[] = DEFAULT_MULTI_ASSET_FUNDAMENTALS;
+  let existingMultiAssets: MultiAssetFundamentalRecord[] = [];
   try {
     const rawMulti = localStorage.getItem('primepip_fundamental_multi_assets_v1');
     if (rawMulti) {
       const parsed = JSON.parse(rawMulti);
-      if (Array.isArray(parsed) && parsed.length > 0) existingMultiAssets = parsed;
+      if (Array.isArray(parsed)) existingMultiAssets = parsed;
     }
   } catch {}
 
@@ -179,10 +196,7 @@ export async function syncFundamentalMarketData(options: {
       };
     }
 
-    return {
-      ...item,
-      updatedAt: nowIso,
-    };
+    return item;
   });
 
   // Persist all synced stores to localStorage and broadcast update events
@@ -204,18 +218,14 @@ export async function syncFundamentalMarketData(options: {
     timestamp: nowIso,
     action,
     targetCurrency: currency,
-    providersUsed: [
-      'FRED Official API (FRED_API_KEY)',
-      'Alpha Vantage Economic API (ALPHA_VANTAGE_API_KEY)',
-      'Twelve Data API (TWELVE_DATA_API_KEY)',
-    ],
+    providersUsed: [],
     providerStatuses: await getFundamentalProviderStatuses(),
     indicatorsUpdated: observations.length,
     ratesUpdated: interestRates.length,
     commoditiesUpdated: commodities.length,
     multiAssetsUpdated: multiAssets.length,
-    liveApiHits: 18,
-    verifiedFallbackHits: observations.length - 18,
+    liveApiHits: 0,
+    verifiedFallbackHits: 0,
   };
 
   return {

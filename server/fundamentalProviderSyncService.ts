@@ -1,16 +1,39 @@
 import { OFFICIAL_INDICATOR_REGISTRY } from '../src/data/fundamentalRegistryData.js';
 import {
-  VERIFIED_INDICATORS,
-  VERIFIED_RATES,
   VERIFIED_COMMODITIES,
   VERIFIED_COT,
-  VERIFIED_31_PAIR_SENTIMENT,
 } from './verifiedFundamentalBaselines.js';
 import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
 import { syncFundamentalProfile } from './fundamentalDataArchitecture.js';
+const CURRENCY_POLICY_SERIES: Record<string, { id: string; name: string; source: string }> = {
+  USD: { id: 'DFEDTARU', name: 'Federal Reserve', source: 'https://fred.stlouisfed.org/series/DFEDTARU' },
+  EUR: { id: 'ECBDFR', name: 'European Central Bank', source: 'https://fred.stlouisfed.org/series/ECBDFR' },
+};
+
+const SCHEDULED_INDICATOR_SERIES: Record<string, { seriesId: string; transform: FredSeriesMapping['transform'] }> = {
+  usd_nfp_change: { seriesId: 'PAYEMS', transform: 'MOM_DIFF' },
+  usd_unemployment_rate: { seriesId: 'UNRATE', transform: 'LEVEL' },
+  usd_gdp_qoq: { seriesId: 'A191RL1Q225SBEA', transform: 'LEVEL' },
+  usd_retail_sales_mom: { seriesId: 'RSAFS', transform: 'MOM_PCT' },
+  usd_nfp: { seriesId: 'PAYEMS', transform: 'MOM_DIFF' },
+  usd_unemployment: { seriesId: 'UNRATE', transform: 'LEVEL' },
+  usd_gdp_annualized: { seriesId: 'A191RL1Q225SBEA', transform: 'LEVEL' },
+  usd_retail_sales: { seriesId: 'RSAFS', transform: 'MOM_PCT' },
+  usd_initial_claims: { seriesId: 'ICSA', transform: 'LEVEL' },
+  usd_ism_manufacturing_pmi: { seriesId: 'NAPM', transform: 'LEVEL' },
+  usd_pce_yoy: { seriesId: 'PCEPI', transform: 'YOY_PCT' },
+  usd_core_pce_yoy: { seriesId: 'PCEPILFE', transform: 'YOY_PCT' },
+  eur_10y_bund_yield: { seriesId: 'IRLTLT01DEM156N', transform: 'LEVEL' },
+  gbp_10y_gilt_yield: { seriesId: 'IRLTLT01GBM156N', transform: 'LEVEL' },
+  jpy_10y_jgb_yield: { seriesId: 'IRLTLT01JPM156N', transform: 'LEVEL' },
+  cad_10y_yield: { seriesId: 'IRLTLT01CAM156N', transform: 'LEVEL' },
+  aud_10y_yield: { seriesId: 'IRLTLT01AUM156N', transform: 'LEVEL' },
+};
+
+
 
 export interface ProviderStatusInfo {
-  provider: 'FRED' | 'ALPHA_VANTAGE' | 'TWELVE_DATA' | 'BLS' | 'BEA' | 'FMP';
+  provider: 'FRED' | 'BANK_OF_CANADA';
   name: string;
   configured: boolean;
   mode: 'API_KEY_ACTIVE' | 'PUBLIC_FEED_FALLBACK';
@@ -40,7 +63,7 @@ interface FredSeriesMapping {
 }
 
 const FRED_INDICATOR_MAPPINGS: FredSeriesMapping[] = [
-  { indicatorId: 'usd_fed_funds_rate', currency: 'USD', fredSeriesId: 'DFF', transform: 'LEVEL', alphaVantageFunction: 'FEDERAL_FUNDS_RATE' },
+  { indicatorId: 'usd_fed_funds_rate', currency: 'USD', fredSeriesId: 'DFEDTARU', transform: 'LEVEL', alphaVantageFunction: 'FEDERAL_FUNDS_RATE' },
   { indicatorId: 'usd_cpi_yoy', currency: 'USD', fredSeriesId: 'CPIAUCSL', transform: 'YOY_PCT', alphaVantageFunction: 'CPI' },
   { indicatorId: 'usd_core_cpi_yoy', currency: 'USD', fredSeriesId: 'CPILFESL', transform: 'YOY_PCT' },
   { indicatorId: 'usd_pce_yoy', currency: 'USD', fredSeriesId: 'PCEPI', transform: 'YOY_PCT' },
@@ -67,46 +90,17 @@ export function getProviderStatuses(): ProviderStatusInfo[] {
       name: 'Federal Reserve Economic Data (FRED)',
       configured: Boolean(process.env.FRED_API_KEY && process.env.FRED_API_KEY.trim()),
       mode: process.env.FRED_API_KEY?.trim() ? 'API_KEY_ACTIVE' : 'PUBLIC_FEED_FALLBACK',
-      coverage: ['US Macro Series', 'Treasury Yields (2Y/10Y/TIPS)', 'G8 Sovereign Yields', 'WTI Crude'],
+      coverage: ['Selected U.S. macro series', 'Treasury yields', 'Daily WTI spot-price observations'],
     },
     {
-      provider: 'ALPHA_VANTAGE',
-      name: 'Alpha Vantage Macro & Equities API',
-      configured: Boolean(process.env.ALPHA_VANTAGE_API_KEY && process.env.ALPHA_VANTAGE_API_KEY.trim()),
-      mode: process.env.ALPHA_VANTAGE_API_KEY?.trim() ? 'API_KEY_ACTIVE' : 'PUBLIC_FEED_FALLBACK',
-      coverage: ['US Economic Indicators', 'FX Exchange Rates', 'Top Stocks Fundamentals (NVDA, AAPL, MSFT, etc.)'],
-    },
-    {
-      provider: 'TWELVE_DATA',
-      name: 'Twelve Data Real-Time Market API',
-      configured: Boolean(process.env.TWELVE_DATA_API_KEY && process.env.TWELVE_DATA_API_KEY.trim()),
-      mode: process.env.TWELVE_DATA_API_KEY?.trim() ? 'API_KEY_ACTIVE' : 'PUBLIC_FEED_FALLBACK',
-      coverage: ['28 FX Pairs', 'XAU/USD & XAG/USD', 'US30, NAS100, S&P500', 'Top 5 Cryptocurrencies'],
-    },
-    {
-      provider: 'BLS',
-      name: 'U.S. Bureau of Labor Statistics (BLS)',
-      configured: Boolean(process.env.BLS_API_KEY && process.env.BLS_API_KEY.trim()),
-      mode: process.env.BLS_API_KEY?.trim() ? 'API_KEY_ACTIVE' : 'PUBLIC_FEED_FALLBACK',
-      coverage: ['CPI', 'Core CPI', 'PPI', 'Non-Farm Payrolls', 'Unemployment Rate'],
-    },
-    {
-      provider: 'BEA',
-      name: 'U.S. Bureau of Economic Analysis (BEA)',
-      configured: Boolean(process.env.BEA_API_KEY && process.env.BEA_API_KEY.trim()),
-      mode: process.env.BEA_API_KEY?.trim() ? 'API_KEY_ACTIVE' : 'PUBLIC_FEED_FALLBACK',
-      coverage: ['Real GDP', 'PCE Inflation', 'Core PCE', 'Trade Balance'],
-    },
-    {
-      provider: 'FMP',
-      name: 'Financial Modeling Prep (FMP)',
-      configured: Boolean(process.env.FMP_API_KEY && process.env.FMP_API_KEY.trim()),
-      mode: process.env.FMP_API_KEY?.trim() ? 'API_KEY_ACTIVE' : 'PUBLIC_FEED_FALLBACK',
-      coverage: ['Equity Valuation Multiples', 'Index Constituents', 'Economic Calendar Releases'],
+      provider: 'BANK_OF_CANADA',
+      name: 'Bank of Canada Valet API',
+      configured: true,
+      mode: 'PUBLIC_FEED_FALLBACK',
+      coverage: ['Canadian policy-rate observations'],
     },
   ];
 }
-
 async function fetchWithTimeout(url: string, timeoutMs = 4500): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -231,67 +225,151 @@ function transformSeriesPoints(
   return null;
 }
 
-/**
- * Fetch macro series or quote from Alpha Vantage if ALPHA_VANTAGE_API_KEY is configured in .env
- */
-async function fetchAlphaVantageMacro(
-  fnName: string
-): Promise<{ actual: number; previous: number; date: string; sourceLabel: string } | null> {
-  const apiKey = (process.env.ALPHA_VANTAGE_API_KEY || '').trim();
-  if (!apiKey) return null;
+export interface PublicOfficialObservation {
+  actual: number;
+  previous: number | null;
+  date: string;
+  sourceName: string;
+  sourceUrl: string;
+  seriesId: string;
+  retrievedAt: string;
+}
 
-  try {
-    const url = `https://www.alphavantage.co/query?function=${encodeURIComponent(fnName)}&apikey=${encodeURIComponent(
-      apiKey
-    )}`;
-    const res = await fetchWithTimeout(url, 4000);
-    if (!res.ok) return null;
-    const json: any = await res.json();
-    if (Array.isArray(json?.data) && json.data.length >= 2) {
-      const v0 = parseFloat(String(json.data[0]?.value));
-      const v1 = parseFloat(String(json.data[1]?.value));
-      if (Number.isFinite(v0)) {
-        return {
-          actual: Number(v0.toFixed(2)),
-          previous: Number.isFinite(v1) ? Number(v1.toFixed(2)) : Number(v0.toFixed(2)),
-          date: String(json.data[0]?.date || new Date().toISOString().slice(0, 10)),
-          sourceLabel: 'Alpha Vantage Economic API (ALPHA_VANTAGE_API_KEY)',
-        };
-      }
-    }
-  } catch {
-    // Ignore timeout or rate limit
+function isRecentObservation(dateValue: string, maxAgeDays: number): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) return false;
+  const date = new Date(dateValue + 'T00:00:00.000Z');
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== dateValue) return false;
+  const ageDays = (Date.now() - date.getTime()) / 86400000;
+  return ageDays >= 0 && ageDays <= maxAgeDays;
+}
+
+function maxObservationAgeDays(frequency: string): number {
+  const normalized = frequency.toLowerCase();
+  if (normalized.includes('daily')) return 14;
+  if (normalized.includes('weekly')) return 30;
+  if (normalized.includes('bi-weekly')) return 45;
+  if (normalized.includes('monthly')) return 100;
+  if (normalized.includes('quarterly')) return 200;
+  if (normalized.includes('annual')) return 450;
+  return 180;
+}
+
+const OFFICIAL_FRED_INDICATOR_ALIASES: Record<string, string> = {
+  usd_policy_rate: 'usd_fed_funds_rate',
+  eur_policy_rate: 'eur_ecb_rate',
+  usd_10y_yield: 'usd_10y_yield',
+  usd_2y_yield: 'usd_2y_yield',
+  eur_10y_bund_yield: 'eur_10y_bund_yield',
+  gbp_10y_gilt_yield: 'gbp_10y_gilt_yield',
+  jpy_10y_jgb_yield: 'jpy_10y_jgb_yield',
+  cad_10y_yield: 'cad_10y_yield',
+  aud_10y_acgb_yield: 'aud_10y_yield',
+};
+
+export async function fetchPublicFredIndicator(
+  indicatorId: string,
+  currency: string,
+  frequency: string,
+): Promise<PublicOfficialObservation | null> {
+  const normalizedId = indicatorId.toLowerCase();
+  const mappedId = OFFICIAL_FRED_INDICATOR_ALIASES[normalizedId] || normalizedId;
+  const mapping = FRED_INDICATOR_MAPPINGS.find((item) =>
+    item.indicatorId.toLowerCase() === mappedId && item.currency === currency.toUpperCase()
+  );
+  if (!mapping) return null;
+
+  const series = await fetchFredSeriesPoints(mapping.fredSeriesId);
+  if (!series) return null;
+  const values = transformSeriesPoints(series.points, mapping.transform);
+  if (!values || !Number.isFinite(values.actual) || !isRecentObservation(values.date, maxObservationAgeDays(frequency))) {
+    return null;
   }
-  return null;
+
+  return {
+    ...values,
+    sourceName: series.sourceLabel,
+    sourceUrl: `https://fred.stlouisfed.org/series/${mapping.fredSeriesId}`,
+    seriesId: mapping.fredSeriesId,
+    retrievedAt: new Date().toISOString(),
+  };
+}
+
+export async function fetchPublicPolicyRate(currency: string): Promise<PublicOfficialObservation | null> {
+  const normalizedCurrency = currency.toUpperCase();
+  if (normalizedCurrency === 'CAD') {
+    try {
+      const seriesId = 'V39079';
+      const sourceUrl = 'https://www.bankofcanada.ca/rates/interest-rates/canadian-interest-rates/';
+      const response = await fetchWithTimeout(
+        'https://www.bankofcanada.ca/valet/observations/V39079/json?recent=2',
+        4500,
+      );
+      if (!response.ok) return null;
+      const payload: any = await response.json();
+      const observations = Array.isArray(payload?.observations) ? payload.observations : [];
+      const rows = observations.map((row: any) => ({
+        date: String(row?.d || ''),
+        value: Number(row?.V39079?.v),
+      })).filter((row: { date: string; value: number }) => Number.isFinite(row.value));
+      const latest = rows[rows.length - 1];
+      const previous = rows[rows.length - 2];
+      if (!latest || !isRecentObservation(latest.date, 7)) return null;
+      return {
+        actual: Number(latest.value.toFixed(2)),
+        previous: previous ? Number(previous.value.toFixed(2)) : null,
+        date: latest.date,
+        sourceName: 'Bank of Canada Valet API',
+        sourceUrl,
+        seriesId,
+        retrievedAt: new Date().toISOString(),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  const mapping = CURRENCY_POLICY_SERIES[normalizedCurrency];
+  if (!mapping) return null;
+  const series = await fetchFredSeriesPoints(mapping.id);
+  const values = series && transformSeriesPoints(series.points, 'LEVEL');
+  if (!series || !values || !isRecentObservation(values.date, 14)) return null;
+  return {
+    ...values,
+    sourceName: mapping.name + ' data via ' + series.sourceLabel,
+    sourceUrl: mapping.source,
+    seriesId: mapping.id,
+    retrievedAt: new Date().toISOString(),
+  };
+}
+
+export async function fetchPublicCommodityPrice(symbol: string): Promise<PublicOfficialObservation | null> {
+  if (symbol.toUpperCase() !== 'CRUDE_OIL') return null;
+  const seriesId = 'DCOILWTICO';
+  const series = await fetchFredSeriesPoints(seriesId);
+  const latest = series?.points[0];
+  if (!latest || !isRecentObservation(latest.date, 14)) return null;
+  return {
+    actual: Number(latest.value.toFixed(2)),
+    previous: series?.points[1] ? Number(series.points[1].value.toFixed(2)) : null,
+    date: latest.date,
+    sourceName: 'U.S. Energy Information Administration via FRED',
+    sourceUrl: `https://fred.stlouisfed.org/series/${seriesId}`,
+    seriesId,
+    retrievedAt: new Date().toISOString(),
+  };
 }
 
 /**
- * Fetch real-time market price from Twelve Data if TWELVE_DATA_API_KEY is configured in .env
+ * Fetch macro series or quote from Alpha Vantage if ALPHA_VANTAGE_API_KEY is configured in .env
  */
-async function fetchTwelveDataPrices(symbols: string[]): Promise<Record<string, number>> {
-  const apiKey = (process.env.TWELVE_DATA_API_KEY || '').trim();
-  const result: Record<string, number> = {};
-  if (!apiKey || symbols.length === 0) return result;
+async function fetchAlphaVantageMacro(_fnName: string): Promise<{ actual: number; previous: number; date: string; sourceLabel: string } | null> {
+  // Disabled in the no-budget public-feed mode: never call a credentialed provider.
+  return null;
+}
 
-  try {
-    const joined = symbols.join(',');
-    const url = `https://api.twelvedata.com/price?symbol=${encodeURIComponent(joined)}&apikey=${encodeURIComponent(
-      apiKey
-    )}`;
-    const res = await fetchWithTimeout(url, 4500);
-    if (res.ok) {
-      const data: any = await res.json();
-      for (const sym of symbols) {
-        const val = parseFloat(String(data?.[sym]?.price ?? data?.price));
-        if (Number.isFinite(val) && val > 0) {
-          result[sym] = val;
-        }
-      }
-    }
-  } catch {
-    // Fallback handled by caller
-  }
-  return result;
+async function fetchTwelveDataPrices(_symbols: string[]): Promise<Record<string, number>> {
+  // Disabled in the no-budget public-feed mode: never call a credentialed provider.
+  return {};
 }
 
 /**
@@ -332,7 +410,20 @@ export async function syncAndVerifyFundamentalData(options: {
 
   const providersUsed = new Set<string>();
   let liveApiHits = 0;
-  let verifiedFallbackHits = 0;
+  const verifiedFallbackHits = 0;
+
+  const policyResults = await Promise.all(
+    Object.entries(CURRENCY_POLICY_SERIES)
+      .filter(([currency]) => targetCurrency === 'ALL' || targetCurrency === currency)
+      .map(async ([currency, mapping]) => {
+        const series = await fetchFredSeriesPoints(mapping.id);
+        const values = series && transformSeriesPoints(series.points, 'LEVEL');
+        if (!series || !values || !isRecentObservation(values.date, 14)) return null;
+        providersUsed.add(series.sourceLabel);
+        liveApiHits += 1;
+        return { currency, mapping, series, values };
+      })
+  );
 
   // 1. Pull live FRED series in parallel for mapped indicators + yields + WTI
   const activeMappings = FRED_INDICATOR_MAPPINGS.filter(
@@ -349,7 +440,9 @@ export async function syncAndVerifyFundamentalData(options: {
       const fredData = await fetchFredSeriesPoints(mapping.fredSeriesId);
       if (fredData) {
         const transformed = transformSeriesPoints(fredData.points, mapping.transform);
-        if (transformed && Number.isFinite(transformed.actual)) {
+        const definition = OFFICIAL_INDICATOR_REGISTRY.find((item: any) => item.id === mapping.indicatorId);
+        const maxAgeDays = maxObservationAgeDays(String(definition?.frequency || 'monthly'));
+        if (transformed && Number.isFinite(transformed.actual) && isRecentObservation(transformed.date, maxAgeDays)) {
           liveFredResults.set(mapping.indicatorId, {
             ...transformed,
             sourceLabel: fredData.sourceLabel,
@@ -376,22 +469,31 @@ export async function syncAndVerifyFundamentalData(options: {
   );
 
   // Also fetch 10Y Real Yield (DFII10), 5Y Breakeven (T5YIE), and WTI Crude (DCOILWTICO)
-  const [tips10YData, breakeven5YData, wtiFredData, twelveQuotes, cryptoSpot] = await Promise.all([
-    fetchFredSeriesPoints('DFII10'),
-    fetchFredSeriesPoints('T5YIE'),
+  const [wtiFredData, cryptoSpot] = await Promise.all([
     fetchFredSeriesPoints('DCOILWTICO'),
-    fetchTwelveDataPrices(['XAU/USD', 'XAG/USD', 'WTI/USD', 'NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA']),
     fetchCoinGeckoCryptoSpot(),
   ]);
-
-  if (Object.keys(twelveQuotes).length > 0) {
-    providersUsed.add('Twelve Data API (TWELVE_DATA_API_KEY)');
-    liveApiHits += Object.keys(twelveQuotes).length;
-  }
+  const twelveQuotes: Record<string, number> = {};
   if (Object.keys(cryptoSpot).length > 0) {
     providersUsed.add('CoinGecko Real-Time Crypto Feed');
     liveApiHits += Object.keys(cryptoSpot).length;
   }
+
+  const additionalResults = await Promise.all(
+    Object.entries(SCHEDULED_INDICATOR_SERIES)
+      .filter(([indicatorId]) => targetCurrency === 'ALL' || indicatorId.startsWith(targetCurrency.toLowerCase()))
+      .map(async ([indicatorId, mapping]) => {
+        if (liveFredResults.has(indicatorId)) return;
+        const series = await fetchFredSeriesPoints(mapping.seriesId);
+        const values = series && transformSeriesPoints(series.points, mapping.transform);
+        const definition = OFFICIAL_INDICATOR_REGISTRY.find((item: any) => item.id === indicatorId);
+        const maxAgeDays = maxObservationAgeDays(String(definition?.frequency || 'monthly'));
+        if (!series || !values || !isRecentObservation(values.date, maxAgeDays)) return;
+        liveFredResults.set(indicatorId, { ...values, sourceLabel: series.sourceLabel, seriesId: mapping.seriesId });
+        providersUsed.add(series.sourceLabel);
+        liveApiHits += 1;
+      })
+  );
 
   // 2. Build / update all 81 indicator observations
   const existingStore = safeReadJsonFile<any[]>('fundamental_observations_store.json', []);
@@ -415,32 +517,18 @@ export async function syncAndVerifyFundamentalData(options: {
     }
 
     const liveMatch = liveFredResults.get(def.id);
-    const verifiedBaseline =
-      (VERIFIED_INDICATORS as any)[def.id] ||
-      (VERIFIED_INDICATORS as any)[def.code] ||
-      (VERIFIED_INDICATORS as any)[`${def.currency}_${def.shortLabel}`];
+    const verifiedBaseline = null;
 
-    const rateFallback = (VERIFIED_RATES as any)[def.currency];
-    const fallbackActual =
-      verifiedBaseline?.actual ??
-      existing?.actual ??
-      (def.category === 'MONETARY_POLICY'
-        ? rateFallback?.currentPolicyRate ?? 3.5
-        : def.category === 'RATES_YIELDS'
-        ? def.id.includes('2Y')
-          ? rateFallback?.yield2Y ?? 3.5
-          : rateFallback?.yield10Y ?? 3.8
-        : 2.5);
-
-    const actual = liveMatch ? liveMatch.actual : Number(fallbackActual);
-    const previous = liveMatch
-      ? liveMatch.previous
-      : Number(verifiedBaseline?.previous ?? existing?.previous ?? actual);
-    const forecast = Number(verifiedBaseline?.forecast ?? existing?.forecast ?? previous);
-
+    // Only data returned by a mapped live provider is current. Preserve prior
+    // observations without refreshing timestamps or claiming fresh verification.
     if (!liveMatch) {
-      verifiedFallbackHits += 1;
-      providersUsed.add(verifiedBaseline?.sourceName || def.officialSourceName || 'Official Statistical Office');
+      if (existing) updatedObservations.push({
+        ...existing,
+        dataStatus: existing.actual == null ? 'UNAVAILABLE' : 'DELAYED',
+        verificationStatus: existing.actual == null ? 'NOT_FOUND' : 'REVIEW_REQUIRED',
+        isEntered: existing.actual != null && existing.verificationStatus === 'MANUAL',
+      });
+      continue;
     }
 
     const obsRecord = {
@@ -450,34 +538,24 @@ export async function syncAndVerifyFundamentalData(options: {
       currency: def.currency,
       category: def.category,
       frequency: def.frequency,
-      referencePeriod: liveMatch
-        ? `Release ${liveMatch.date}`
-        : verifiedBaseline?.referencePeriod || existing?.referencePeriod || 'Latest Verified Release',
-      releaseDate: liveMatch ? liveMatch.date : verifiedBaseline?.releaseDate || existing?.releaseDate || todayStr,
-      releaseTime: '08:30 GMT',
-      actual,
-      forecast,
-      previous,
-      revisedPrevious: verifiedBaseline?.revisedPrevious ?? existing?.revisedPrevious ?? null,
-      unit: def.unit || verifiedBaseline?.unit || '%',
-      dataSource: liveMatch
-        ? liveMatch.sourceLabel
-        : verifiedBaseline?.sourceName || def.officialSourceName || 'Official Statistical Office',
-      sourceName: liveMatch
-        ? liveMatch.sourceLabel
-        : verifiedBaseline?.sourceName || def.officialSourceName || 'Official Statistical Office',
-      sourceUrl: liveMatch
-        ? `https://fred.stlouisfed.org/series/${liveMatch.seriesId}`
-        : verifiedBaseline?.sourceUrl || def.officialSourceUrl || 'https://fred.stlouisfed.org',
+      referencePeriod: liveMatch.date,
+      releaseDate: '',
+      releaseTime: null,
+      actual: liveMatch.actual,
+      forecast: null,
+      previous: liveMatch.previous,
+      revisedPrevious: null,
+      unit: def.unit || '%',
+      dataSource: liveMatch.sourceLabel,
+      sourceName: liveMatch.sourceLabel,
+      sourceUrl: `https://fred.stlouisfed.org/series/${liveMatch.seriesId}`,
       sourceType: 'OFFICIAL',
-      notes: liveMatch
-        ? `Verified live via ${liveMatch.sourceLabel} (Series: ${liveMatch.seriesId}) on ${todayStr}`
-        : verifiedBaseline?.notes || `${def.name} verified official release.`,
+      notes: `FRED observation date: ${liveMatch.date}. Retrieved from ${liveMatch.sourceLabel} (Series: ${liveMatch.seriesId}); no forecast or release timestamp was supplied.`,
       updatedAt: nowIso,
       dataRetrievalTimestamp: nowIso,
-      dataStatus: 'LIVE_VERIFIED',
+      dataStatus: 'OFFICIAL_PUBLISHED',
       verificationStatus: 'VERIFIED',
-      confidence: liveMatch ? 99 : 96,
+      confidence: 100,
       isEntered: true,
     };
 
@@ -502,101 +580,59 @@ export async function syncAndVerifyFundamentalData(options: {
   } catch {}
 
   // 3. Build updated Interest Rates across all 8 G8 Currencies
-  const liveUsPolicy = liveFredResults.get('usd_fed_funds_rate')?.actual;
   const liveUs2Y = liveFredResults.get('usd_2y_yield')?.actual;
   const liveUs10Y = liveFredResults.get('usd_10y_yield')?.actual;
-  const liveReal10Y = tips10YData?.points?.[0]?.value;
-  const liveBreakeven5Y = breakeven5YData?.points?.[0]?.value;
-  const liveWtiPrice = twelveQuotes['WTI/USD'] ?? wtiFredData?.points?.[0]?.value;
+  const wtiLatest = wtiFredData?.points?.[0];
+  const liveWtiPrice = wtiLatest && isRecentObservation(wtiLatest.date, 14) ? wtiLatest.value : undefined;
 
-  const updatedInterestRates = Object.values(VERIFIED_RATES).map((r: any) => {
-    const isUsd = r.currency === 'USD';
-    return {
-      currency: r.currency,
-      centralBankName: r.centralBankName,
-      currentPolicyRate: isUsd && liveUsPolicy !== undefined ? liveUsPolicy : r.currentPolicyRate,
-      previousPolicyRate: r.previousPolicyRate,
-      expectedNextRate: r.expectedNextRate,
-      expectedRateChangeBps: r.expectedRateChangeBps,
-      nextMeetingDate: r.nextMeetingDate,
-      centralBankBias: r.centralBankBias,
-      recentGuidance: r.recentGuidance,
-      balanceSheetDirection:
-        r.centralBankBias === 'HAWKISH'
-          ? 'CONTRACTING_QT'
-          : r.centralBankBias === 'DOVISH'
-          ? 'EXPANDING'
-          : 'NEUTRAL',
-      yield2Y: isUsd && liveUs2Y !== undefined ? liveUs2Y : r.yield2Y,
-      yield5Y: r.yield5Y,
-      yield10Y: isUsd && liveUs10Y !== undefined ? liveUs10Y : r.yield10Y,
-      realYield10Y: isUsd && liveReal10Y !== undefined ? Number(liveReal10Y.toFixed(2)) : r.realYield10Y,
-      sourceUrl: r.sourceUrl,
+  const updatedInterestRates = policyResults.filter(Boolean).flatMap((result: any) => {
+    if (result.values === undefined) return [];
+    const { currency, mapping, values, series } = result;
+    const verifiedFields = [
+      'currentPolicyRate',
+      ...(currency === 'USD' && liveUs2Y !== undefined ? ['yield2Y'] : []),
+      ...(currency === 'USD' && liveUs10Y !== undefined ? ['yield10Y'] : []),
+    ];
+    return [{
+      currency,
+      centralBankName: mapping.name,
+      currentPolicyRate: values.actual,
+      previousPolicyRate: 0,
+      expectedNextRate: 0,
+      expectedRateChangeBps: 0,
+      nextMeetingDate: '',
+      centralBankBias: 'NEUTRAL',
+      balanceSheetDirection: 'NEUTRAL',
+      yield2Y: currency === 'USD' ? liveUs2Y ?? 0 : 0,
+      yield5Y: 0,
+      yield10Y: currency === 'USD' ? liveUs10Y ?? 0 : 0,
+      sourceUrl: mapping.source,
+      sourceDate: values.date,
+      verifiedFields,
+      dataSource: series.sourceLabel,
+      referenceDate: values.date,
       updatedAt: nowIso,
-      isEntered: true,
-    };
+      dataStatus: 'OFFICIAL_PUBLISHED',
+      verificationStatus: 'VERIFIED',
+      isEntered: false,
+    }];
   });
 
   // 4. Build updated Commodities (GOLD, SILVER, CRUDE_OIL)
-  const updatedCommodities = [
-    {
-      id: 'comm_gold',
-      symbol: 'GOLD',
-      name: 'Gold (XAU/USD)',
-      referenceDate: todayStr,
-      price: twelveQuotes['XAU/USD'] ?? VERIFIED_COMMODITIES.GOLD.price,
-      sentiment: VERIFIED_COMMODITIES.GOLD.sentiment,
-      sentimentConfidence: 96,
-      sentimentSourceUrl: VERIFIED_COMMODITIES.GOLD.sentimentSourceUrl,
-      usRealYield10Y: liveReal10Y !== undefined ? Number(liveReal10Y.toFixed(2)) : VERIFIED_COMMODITIES.GOLD.usRealYield10Y,
-      inflationBreakeven5Y:
-        liveBreakeven5Y !== undefined ? Number(liveBreakeven5Y.toFixed(2)) : VERIFIED_COMMODITIES.GOLD.inflationBreakeven5Y,
-      centralBankDemandTone: VERIFIED_COMMODITIES.GOLD.centralBankDemandTone,
-      industrialDemandTone: VERIFIED_COMMODITIES.GOLD.industrialDemandTone,
-      geopoliticalRiskLevel: VERIFIED_COMMODITIES.GOLD.geopoliticalRiskLevel,
-      supplyDemandBalance: VERIFIED_COMMODITIES.GOLD.supplyDemandBalance,
-      notes: VERIFIED_COMMODITIES.GOLD.notes,
+  const previousCommodities = safeReadJsonFile<any[]>('fundamental_commodities_store.json', []);
+  const updatedCommodities = previousCommodities.flatMap((r: any) => {
+    if (r.symbol !== 'CRUDE_OIL' || liveWtiPrice === undefined || !wtiLatest) return [];
+    const sourceUrl = 'https://fred.stlouisfed.org/series/DCOILWTICO';
+    return [{
+      ...r,
+      price: Number(liveWtiPrice.toFixed(2)),
+      referenceDate: wtiLatest.date,
+      priceAsOf: wtiLatest.date,
+      priceSourceUrl: sourceUrl,
+      dataStatus: 'OFFICIAL_PUBLISHED',
       updatedAt: nowIso,
-    },
-    {
-      id: 'comm_silver',
-      symbol: 'SILVER',
-      name: 'Silver (XAG/USD)',
-      referenceDate: todayStr,
-      price: twelveQuotes['XAG/USD'] ?? VERIFIED_COMMODITIES.SILVER.price,
-      sentiment: VERIFIED_COMMODITIES.SILVER.sentiment,
-      sentimentConfidence: 94,
-      sentimentSourceUrl: VERIFIED_COMMODITIES.SILVER.sentimentSourceUrl,
-      usRealYield10Y: liveReal10Y !== undefined ? Number(liveReal10Y.toFixed(2)) : VERIFIED_COMMODITIES.SILVER.usRealYield10Y,
-      inflationBreakeven5Y:
-        liveBreakeven5Y !== undefined ? Number(liveBreakeven5Y.toFixed(2)) : VERIFIED_COMMODITIES.SILVER.inflationBreakeven5Y,
-      centralBankDemandTone: VERIFIED_COMMODITIES.SILVER.centralBankDemandTone,
-      industrialDemandTone: VERIFIED_COMMODITIES.SILVER.industrialDemandTone,
-      geopoliticalRiskLevel: VERIFIED_COMMODITIES.SILVER.geopoliticalRiskLevel,
-      supplyDemandBalance: VERIFIED_COMMODITIES.SILVER.supplyDemandBalance,
-      notes: VERIFIED_COMMODITIES.SILVER.notes,
-      updatedAt: nowIso,
-    },
-    {
-      id: 'comm_oil',
-      symbol: 'CRUDE_OIL',
-      name: 'Crude Oil (WTI / USOIL)',
-      referenceDate: todayStr,
-      price: liveWtiPrice !== undefined ? Number(liveWtiPrice.toFixed(2)) : VERIFIED_COMMODITIES.CRUDE_OIL.price,
-      sentiment: VERIFIED_COMMODITIES.CRUDE_OIL.sentiment,
-      sentimentConfidence: 92,
-      sentimentSourceUrl: VERIFIED_COMMODITIES.CRUDE_OIL.sentimentSourceUrl,
-      usRealYield10Y: liveReal10Y !== undefined ? Number(liveReal10Y.toFixed(2)) : VERIFIED_COMMODITIES.CRUDE_OIL.usRealYield10Y,
-      inflationBreakeven5Y:
-        liveBreakeven5Y !== undefined ? Number(liveBreakeven5Y.toFixed(2)) : VERIFIED_COMMODITIES.CRUDE_OIL.inflationBreakeven5Y,
-      inventoriesWeeklySurpriseMb: VERIFIED_COMMODITIES.CRUDE_OIL.inventoriesWeeklySurpriseMb,
-      opecPolicyTone: VERIFIED_COMMODITIES.CRUDE_OIL.opecPolicyTone,
-      geopoliticalRiskLevel: VERIFIED_COMMODITIES.CRUDE_OIL.geopoliticalRiskLevel,
-      supplyDemandBalance: VERIFIED_COMMODITIES.CRUDE_OIL.supplyDemandBalance,
-      notes: VERIFIED_COMMODITIES.CRUDE_OIL.notes,
-      updatedAt: nowIso,
-    },
-  ];
+    }];
+  });
 
   const report: LiveSyncProviderReport = {
     timestamp: nowIso,
@@ -607,7 +643,7 @@ export async function syncAndVerifyFundamentalData(options: {
     indicatorsUpdated,
     ratesUpdated: updatedInterestRates.length,
     commoditiesUpdated: updatedCommodities.length,
-    multiAssetsUpdated: 15,
+    multiAssetsUpdated: Object.keys(cryptoSpot).length,
     liveApiHits,
     verifiedFallbackHits,
   };
@@ -617,8 +653,8 @@ export async function syncAndVerifyFundamentalData(options: {
     observations: updatedObservations,
     interestRates: updatedInterestRates,
     commodities: updatedCommodities,
-    cotRecords: Object.values(VERIFIED_COT),
-    pairSentiments: Object.values(VERIFIED_31_PAIR_SENTIMENT),
+    cotRecords: [],
+    pairSentiments: [],
     twelveQuotes,
     cryptoSpot,
     meta: updatedMeta,

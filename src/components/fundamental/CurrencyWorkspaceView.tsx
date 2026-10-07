@@ -41,7 +41,7 @@ import { OFFICIAL_INDICATOR_REGISTRY, CURRENCY_METADATA } from '../../data/funda
 import { DEFAULT_INTEREST_RATES, DEFAULT_COT_RECORDS } from '../../data/defaultFundamentalObservations';
 import { calculateCotMetrics } from '../../utils/fundamentalCalculationEngine';
 import { InterestRateRecord } from '../../types/fundamentalIndicatorTypes';
-import { generateIndicator, generateRates } from '../../services/fundamentalLiveResearchService';
+import { generateIndicator } from '../../services/fundamentalLiveResearchService';
 import { RadialSentimentGauge } from './RadialSentimentGauge';
 import { generateSingleCurrencyReportPdf } from '../../utils/fundamentalPdfGenerator';
 
@@ -334,8 +334,8 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
     try {
       const existing = observations.find((observation) => observation.indicatorId === def.id);
       const result = await generateIndicator(def, existing, mode);
-      if (result.actual === null) {
-        const errorMsg = result.notes || `${def.shortLabel}: No published data found on Google/official source.`;
+      if (result.status !== 'VERIFIED' || result.actual === null || !result.sourceUrl || !result.referencePeriod) {
+        const errorMsg = result.notes || `${def.shortLabel}: No fresh data is available from a mapped free official feed.`;
         setLiveResearchMessage(errorMsg);
         setRowFeedbackMap((prev) => ({ ...prev, [def.id]: { type: 'error', text: errorMsg } }));
         setTimeout(() => {
@@ -352,18 +352,18 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
         id: existing?.id || `obs_${def.id}_${Date.now()}`,
         indicatorId: def.id,
         currency: activeCurrency,
-        referencePeriod: result.referencePeriod || existing?.referencePeriod || 'Latest',
-        releaseDate: result.releaseDate || existing?.releaseDate || new Date().toISOString().split('T')[0],
+        referencePeriod: result.referencePeriod,
+        releaseDate: result.releaseDate,
         actual: result.actual,
-        forecast: result.forecast !== null && result.forecast !== undefined ? result.forecast : (existing?.forecast ?? null),
-        previous: result.previous !== null && result.previous !== undefined ? result.previous : (existing?.previous ?? null),
-        revisedPrevious: result.revisedPrevious ?? existing?.revisedPrevious ?? null,
+        forecast: result.forecast ?? null,
+        previous: result.previous ?? null,
+        revisedPrevious: result.revisedPrevious ?? null,
         unit: def.unit,
-        sourceUrl: result.sourceUrl || def.officialSourceUrl,
+        sourceUrl: result.sourceUrl || '',
         notes: result.notes || existing?.notes,
         updatedAt: result.retrievedAt || new Date().toISOString(),
         verificationStatus: 'VERIFIED',
-        confidence: result.confidence || 90,
+        confidence: result.confidence,
         researchRetrievedAt: result.retrievedAt,
         researchSourceName: result.sourceName,
       };
@@ -400,7 +400,7 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
     setGenerateAllState({ running: true, completed: 0, total: scoped.length, mode });
     setLiveResearchMessage(null);
     try {
-      const BATCH_SIZE = 3;
+      const BATCH_SIZE = 1;
       let completedCount = 0;
       for (let i = 0; i < scoped.length; i += BATCH_SIZE) {
         const batch = scoped.slice(i, i + BATCH_SIZE);
@@ -409,25 +409,25 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
             try {
               const existing = observations.find((observation) => observation.indicatorId === def.id);
               const result = await generateIndicator(def, existing, mode);
-              if (result && result.actual !== null && result.actual !== undefined) {
+              if (result?.status === 'VERIFIED' && result.actual !== null && !!result.sourceUrl && !!result.referencePeriod) {
                 onUpdateObservation({
                   id: existing?.id || `obs_${def.id}_${Date.now()}`,
                   indicatorId: def.id,
                   currency: activeCurrency,
-                  referencePeriod: result.referencePeriod || existing?.referencePeriod || 'Latest',
-                  releaseDate: result.releaseDate || existing?.releaseDate || new Date().toISOString().split('T')[0],
+                  referencePeriod: result.referencePeriod,
+                  releaseDate: result.releaseDate,
                   actual: result.actual,
-                  forecast: result.forecast !== null && result.forecast !== undefined ? result.forecast : (existing?.forecast ?? null),
-                  previous: result.previous !== null && result.previous !== undefined ? result.previous : (existing?.previous ?? null),
-                  revisedPrevious: result.revisedPrevious ?? existing?.revisedPrevious ?? null,
+                  forecast: result.forecast ?? null,
+                  previous: result.previous ?? null,
+                  revisedPrevious: result.revisedPrevious ?? null,
                   unit: def.unit,
-                  sourceUrl: result.sourceUrl || def.officialSourceUrl,
+                  sourceUrl: result.sourceUrl || '',
                   notes: result.notes || existing?.notes,
                   updatedAt: result.retrievedAt || new Date().toISOString(),
                   verificationStatus: 'VERIFIED',
-                  confidence: result.confidence || 90,
+                  confidence: result.confidence,
                   researchRetrievedAt: result.retrievedAt,
-                  researchSourceName: result.sourceName || def.officialSourceName,
+                  researchSourceName: result.sourceName,
                 });
               }
             } catch {
@@ -440,35 +440,7 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
         );
       }
 
-      // Also regenerate the rates & yields for this currency
-      try {
-        const rateRes = await generateRates(activeCurrency, mode);
-        if (rateRes.rate && onUpdateInterestRate) {
-          const r = rateRes.rate;
-          const existingRate = interestRates?.find((item) => item.currency === activeCurrency);
-          onUpdateInterestRate({
-            currency: activeCurrency,
-            centralBankName: r.centralBankName || existingRate?.centralBankName || 'Central Bank',
-            currentPolicyRate: r.currentPolicyRate ?? existingRate?.currentPolicyRate ?? 0,
-            previousPolicyRate: r.previousPolicyRate ?? existingRate?.previousPolicyRate ?? 0,
-            expectedNextRate: r.expectedNextRate ?? existingRate?.expectedNextRate ?? r.currentPolicyRate,
-            expectedRateChangeBps: r.expectedRateChangeBps ?? existingRate?.expectedRateChangeBps ?? 0,
-            nextMeetingDate: r.nextMeetingDate || existingRate?.nextMeetingDate || 'Upcoming',
-            centralBankBias: r.centralBankBias || existingRate?.centralBankBias || 'NEUTRAL',
-            balanceSheetDirection: existingRate?.balanceSheetDirection || 'NEUTRAL',
-            yield2Y: r.yield2Y ?? existingRate?.yield2Y ?? 0,
-            yield5Y: r.yield5Y ?? existingRate?.yield5Y ?? 0,
-            yield10Y: r.yield10Y ?? existingRate?.yield10Y ?? 0,
-            realYield10Y: r.realYield10Y ?? existingRate?.realYield10Y ?? 0,
-            recentGuidance: r.recentGuidance || existingRate?.recentGuidance || '',
-            sourceUrl: r.sourceUrl || existingRate?.sourceUrl || '',
-            updatedAt: new Date().toISOString(),
-            isEntered: true,
-          });
-        }
-      } catch {}
-
-      setLiveResearchMessage(`${activeCurrency}: Grounded research completed. Indicators and central bank rates populated with 100% verified data.`);
+      setLiveResearchMessage(`${activeCurrency}: Official public-feed lookups finished. Only fresh mapped observations were saved; unavailable indicators were left unchanged.`);
     } finally {
       setGenerateAllState((prev) => ({ ...prev, running: false }));
     }
@@ -1133,7 +1105,7 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
                                   <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-500">
                                     <span>{def.currency}</span>
                                     <span>•</span>
-                                    <span>Rel: {obs?.releaseDate || 'Latest'} {obs?.releaseTime ? `(${obs.releaseTime})` : ''}</span>
+                                    <span>{obs?.releaseDate ? `Rel: ${obs.releaseDate}` : `Observation: ${obs?.referencePeriod || 'date unavailable'}`}</span>
                                     <span>•</span>
                                     <span
                                       className={`px-1.5 py-0.2 rounded font-bold text-[9px] ${
