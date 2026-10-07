@@ -1023,90 +1023,46 @@ function extractNumericFromBrief(text: string, patterns: RegExp[]): number | nul
   return null;
 }
 
-function getIndicatorResearchPrompts(definition: any, existingObservation: any, mode: string) {
+function getIndicatorResearchPrompts(definition: any, mode: string) {
   const currentYear = new Date().getFullYear();
   const currentDate = new Date().toISOString().slice(0, 10);
   const indicatorLabel = `${definition.currency} ${definition.name} (${definition.shortLabel || ''})`;
   const officialAgency = definition.officialSourceName || 'Official Statistical Agency / Central Bank';
   const officialUrl = definition.officialSourceUrl || '';
-
-  const searchHint = `${definition.currency} ${definition.name} ${definition.shortLabel || ''} economic calendar latest release actual forecast previous ${currentYear}`;
+  const searchHint = `${definition.currency} ${definition.name} ${definition.shortLabel || ''} latest official release ${currentYear}`;
 
   const briefPrompt = [
-    `CRITICAL MISSION: Research the latest published official economic release and calendar data for: ${indicatorLabel}.`,
-    `Current System Date: ${currentDate}`,
-    `Mode: ${mode}`,
-    `Currency: ${definition.currency}`,
-    `Indicator Name: ${definition.name}`,
-    `Short Label: ${definition.shortLabel || ''}`,
-    `Frequency: ${definition.frequency || 'Monthly'}`,
-    `Expected Unit: ${definition.unit}`,
-    `Primary Official Agency: ${officialAgency} (${officialUrl})`,
-    existingObservation ? `Existing prior record: Actual=${existingObservation.actual}, Forecast=${existingObservation.forecast}, Previous=${existingObservation.previous}, Period=${existingObservation.referencePeriod}` : '',
-    '',
-    'MANDATORY EXTRACTION OBJECTIVES — locate and report ALL THREE core calendar figures:',
-    '1. ACTUAL: The latest official published release number.',
-    '2. FORECAST: The consensus expectation or economist survey figure published before the release on economic calendars (Trading Economics, ForexFactory, Investing.com, Reuters, Bloomberg). If an economic calendar had an expectation, you MUST locate and state it.',
-    '3. PREVIOUS: The prior reporting period value (e.g., last month\'s or last quarter\'s figure).',
-    '4. REVISED PREVIOUS: If the previous period value was revised in this release, state both original and revised.',
-    '5. REFERENCE PERIOD: The exact time period of the data (e.g., "Jan 2025", "Feb 2025", "Q4 2024", etc.).',
-    '6. RELEASE DATE: The exact date this data was published (YYYY-MM-DD).',
-    '7. SOURCES: The exact URLs of the primary agency and calendar sources retrieved.',
-    '',
-    'Write down each value clearly in your brief:',
-    'ACTUAL: [number]',
-    'FORECAST: [number or survey consensus]',
-    'PREVIOUS: [number]',
-    'REVISED PREVIOUS: [number or none]',
-    'REFERENCE PERIOD: [period]',
-    'RELEASE DATE: [YYYY-MM-DD]',
-  ].join('\n');
+    `Find the newest published release for the exact indicator ${indicatorLabel}.`,
+    `Today: ${currentDate}. Currency: ${definition.currency}. Unit: ${definition.unit}. Frequency: ${definition.frequency || 'Monthly'}.`,
+    `Use the primary agency first: ${officialAgency} — ${officialUrl}`,
+    `Mode: ${mode}. Search for the actual release, reference period and release date. Report actual, previous and forecast only when directly supported by retrieved sources.`,
+    'Do not infer, estimate, or fill missing values from memory. If a field is not explicitly available in sources, return null.',
+    'Actual must be the latest published official value. Previous is the prior period’s published value. Forecast is the pre-release consensus only when an identified calendar source publishes it.',
+    'Include the exact source URLs and concise notes. Do not call search snippets proof unless their cited sources support the value.',
+  ].join('\\n');
 
   const extractionPromptFn = (researchText: string, sources: GroundedResearchSource[]) => [
-    'Convert the following grounded economic research brief into the requested JSON schema.',
-    'CRITICAL EXTRACTION RULES:',
-    '1. Extract "actual" as a valid number.',
-    '2. Extract "forecast" (market consensus / expected). Look for "FORECAST:", "consensus", "expected", "est", "survey". If present in the brief, you MUST populate it as a number. Only use null if absolutely no forecast was ever published for this series.',
-    '3. Extract "previous" (prior period reading). Look for "PREVIOUS:", "prior", "last month", "last period", "previous reading". If present in the brief, you MUST populate it as a number.',
-    '4. Extract "revisedPrevious" as a number if the previous reading was revised in this report.',
-    '5. Extract "referencePeriod" (e.g., "Jan 2025", "Q4 2024").',
-    '6. Extract "releaseDate" in YYYY-MM-DD format.',
-    '7. Extract "unit" matching the indicator (e.g., "%", "thousands", "index").',
-    '8. Extract "sourceName" and "sourceUrl" from the grounded sources.',
-    '9. Provide concise institutional "notes" summarizing the release vs consensus.',
-    '',
-    'GROUNDED RESEARCH BRIEF:',
+    'Extract only facts explicitly supported by this Google Search grounded brief and its citation list. Never infer or complete missing fields.',
+    `Target: ${indicatorLabel}; expected unit: ${definition.unit}; primary agency: ${officialAgency} (${officialUrl}).`,
+    'Return null for any unavailable or ambiguous number, date, release period, or unit. Actual requires a source from the primary agency or a source explicitly identified as official for this series. Forecast may use a named economic calendar source.',
+    'Preserve the number and unit exactly as published; do not convert unless the source states the conversion.',
+    'JSON only:',
+    '{"actual":number|null,"forecast":number|null,"previous":number|null,"revisedPrevious":number|null,"referencePeriod":string|null,"releaseDate":"YYYY-MM-DD"|null,"unit":string|null,"sourceName":string|null,"sourceUrl":string|null,"confidence":number|null,"notes":string|null}',
+    'Research brief:',
     researchText,
-    '',
-    'SOURCES:',
+    'Grounded citations:',
     JSON.stringify(sources),
-    '',
-    'REQUIRED JSON OUTPUT SHAPE (NO MARKDOWN, VALID JSON ONLY):',
-    '{',
-    '  "actual": number|null,',
-    '  "forecast": number|null,',
-    '  "previous": number|null,',
-    '  "revisedPrevious": number|null,',
-    '  "referencePeriod": string,',
-    '  "releaseDate": string,',
-    '  "unit": string,',
-    '  "sourceName": string,',
-    '  "sourceUrl": string,',
-    '  "confidence": number,',
-    '  "notes": string',
-    '}',
-  ].join('\n');
+  ].join('\\n');
 
   return { searchHint, briefPrompt, extractionPromptFn };
 }
 
 app.post('/api/fundamental/generate-indicator', async (req, res) => {
   try {
-    const definition = req.body?.definition || {};
-    const existingObservation = req.body?.existingObservation || null;
+    const supplied = req.body?.definition || {};
+    const currency = String(supplied.currency || '').toUpperCase();
+    const id = String(supplied.id || '');
     const mode = req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE';
-    const currency = String(definition.currency || '').toUpperCase();
-    const id = String(definition.id || '');
 
     if (!/^(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD)$/.test(currency)) {
       return res.status(400).json({ error: 'A valid workspace currency is required.' });
@@ -1114,177 +1070,189 @@ app.post('/api/fundamental/generate-indicator', async (req, res) => {
     if (!id) return res.status(400).json({ error: 'Indicator ID is required.' });
 
     const official = OFFICIAL_INDICATOR_REGISTRY.find((item: any) => item.id === id && item.currency === currency);
-    const resolved = official || definition;
-    if (!official && (!resolved.name || !resolved.unit)) {
-      return res.status(400).json({ error: 'Indicator definition is incomplete.' });
+    if (!official) {
+      return res.status(404).json({
+        status: 'NOT_FOUND',
+        indicatorId: id,
+        currency,
+        actual: null,
+        forecast: null,
+        previous: null,
+        revisedPrevious: null,
+        referencePeriod: '',
+        releaseDate: '',
+        unit: supplied.unit || '',
+        retrievedAt: new Date().toISOString(),
+        confidence: 0,
+        notes: 'This indicator and currency pair is not in the official registry, so it cannot be verified automatically.',
+        sources: [],
+      });
     }
 
     const cacheKey = `indicator_${currency}_${id}`;
     if (mode !== 'REGENERATE') {
       const cached = getCachedResearch(cacheKey);
-      if (cached) {
+      if (cached?.status === 'VERIFIED' && cached?.currency === currency && cached?.indicatorId === id &&
+          cached?.actual !== null && cached?.sources?.length > 0 &&
+          Date.now() - Date.parse(cached.retrievedAt || '') < 5 * 60 * 1000) {
         return res.json(cached);
       }
     }
 
-    const { searchHint, briefPrompt, extractionPromptFn } = getIndicatorResearchPrompts(resolved, existingObservation, mode);
-
-    const { parsed, sources, searchQueries, researchText } = await groundedJsonResearch(
-      briefPrompt,
-      extractionPromptFn,
-      searchHint,
-    );
-
-    let actual = finiteOrNull(parsed.actual);
-    let forecast = finiteOrNull(parsed.forecast);
-    let previous = finiteOrNull(parsed.previous);
-    let revisedPrevious = finiteOrNull(parsed.revisedPrevious);
-
-    // Deep text regex extraction safety fallback if JSON missed a figure present in researchText
-    if (actual === null && researchText) {
-      actual = extractNumericFromBrief(researchText, [
-        /ACTUAL:\s*([+-]?\d+(?:\.\d+)?)/i,
-        /(?:actual|released|came in at|reported at|rose to|fell to)\s*(?:of|was|is|:|at)?\s*([+-]?\d+(?:\.\d+)?%?)/i,
-      ]);
-    }
-    if (forecast === null && researchText) {
-      forecast = extractNumericFromBrief(researchText, [
-        /FORECAST:\s*([+-]?\d+(?:\.\d+)?)/i,
-        /(?:forecast|consensus|expected|estimate|est\.?)\s*(?:of|was|is|:|at)?\s*([+-]?\d+(?:\.\d+)?%?)/i,
-        /(?:expected|projected)\s+to\s+(?:be|rise|fall|come in at)?\s*([+-]?\d+(?:\.\d+)?%?)/i,
-      ]);
-    }
-    if (previous === null && researchText) {
-      previous = extractNumericFromBrief(researchText, [
-        /PREVIOUS:\s*([+-]?\d+(?:\.\d+)?)/i,
-        /(?:previous|prior|revised\s+from|down\s+from|up\s+from)\s*(?:of|was|is|:|at)?\s*([+-]?\d+(?:\.\d+)?%?)/i,
-        /(?:compared\s+to|vs\.?)\s*([+-]?\d+(?:\.\d+)?%?)\s*(?:previously|prior|last\s+month)/i,
-      ]);
-    }
-
-    // Continuity preservation: if research missed previous or forecast but existing observation has them, preserve
-    if (existingObservation) {
-      if (forecast === null && finiteOrNull(existingObservation.forecast) !== null) {
-        forecast = finiteOrNull(existingObservation.forecast);
-      }
-      if (previous === null && finiteOrNull(existingObservation.previous) !== null) {
-        previous = finiteOrNull(existingObservation.previous);
-      }
-      if (actual === null && finiteOrNull(existingObservation.actual) !== null) {
-        actual = finiteOrNull(existingObservation.actual);
-      }
-    }
-
-    const currentYear = new Date().getFullYear();
-    let sourceUrl = typeof parsed.sourceUrl === 'string' && parsed.sourceUrl.trim() ? parsed.sourceUrl.trim() : (sources[0]?.uri || '');
-    const referencePeriod = typeof parsed.referencePeriod === 'string' && parsed.referencePeriod.trim()
-      ? parsed.referencePeriod.trim()
-      : (existingObservation?.referencePeriod || `${currentYear} Latest`);
-    let releaseDate = typeof parsed.releaseDate === 'string' ? parsed.releaseDate.trim() : '';
-
-    if (releaseDate && !/^\d{4}-\d{2}-\d{2}$/.test(releaseDate)) {
-      const parsedTs = Date.parse(releaseDate);
-      if (!isNaN(parsedTs)) {
-        releaseDate = new Date(parsedTs).toISOString().slice(0, 10);
-      } else {
-        releaseDate = existingObservation?.releaseDate || new Date().toISOString().slice(0, 10);
-      }
-    }
-    if (!releaseDate) releaseDate = existingObservation?.releaseDate || new Date().toISOString().slice(0, 10);
-
+    const { searchHint, briefPrompt, extractionPromptFn } = getIndicatorResearchPrompts(official, mode);
+    const { parsed, sources, searchQueries } = await groundedJsonResearch(briefPrompt, extractionPromptFn, searchHint);
+    const validSource = (value: unknown) => typeof value === 'string' && /^https:\/\//i.test(value) && sources.some((source) => source.uri === value);
+    const actual = finiteOrNull(parsed.actual);
+    const forecast = finiteOrNull(parsed.forecast);
+    const previous = finiteOrNull(parsed.previous);
+    const revisedPrevious = finiteOrNull(parsed.revisedPrevious);
+    const releaseDate = typeof parsed.releaseDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(parsed.releaseDate) ? parsed.releaseDate : '';
+    const referencePeriod = typeof parsed.referencePeriod === 'string' ? parsed.referencePeriod.trim() : '';
     const unit = typeof parsed.unit === 'string' ? parsed.unit.trim() : '';
-    const confidenceRaw = finiteOrNull(parsed.confidence);
-    let confidence = confidenceRaw === null ? (actual !== null ? 95 : 0) : Math.max(0, Math.min(100, confidenceRaw));
-    const sourceGrounded = sources.length > 0 && isGroundedSourceUrl(sourceUrl, sources);
-    const unitMatches = normalizeUnit(unit) === normalizeUnit(resolved.unit);
-
-    let status: 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND' = 'VERIFIED';
-    if (actual === null || (typeof parsed.notes === 'string' && parsed.notes.toLowerCase().includes('no research brief'))) {
-      const fallback = getVerifiedIndicatorFallback(currency, id, resolved, existingObservation);
-      actual = fallback.actual;
-      if (forecast === null) forecast = fallback.forecast;
-      if (previous === null) previous = fallback.previous;
-      if (!sourceUrl) sourceUrl = fallback.sourceUrl;
-      confidence = Math.max(confidence, 95);
-      status = 'VERIFIED';
-    } else if (!unitMatches && !sourceGrounded && !sourceUrl) {
-      status = 'REVIEW_REQUIRED';
-    } else {
-      status = 'VERIFIED';
-    }
-
-    const responsePayload = {
+    const sourceUrl = validSource(parsed.sourceUrl) ? parsed.sourceUrl.trim() : '';
+    const sourceName = typeof parsed.sourceName === 'string' ? parsed.sourceName.trim() : '';
+    const officialSourceRetrieved = sources.some((source) =>
+      isGroundedSourceUrl(official.officialSourceUrl, [{ uri: source.uri, title: source.title }])
+    );
+    const actualSupported = actual !== null && releaseDate.length > 0 && referencePeriod.length > 0 &&
+      normalizeUnit(unit) === normalizeUnit(official.unit) && !!sourceUrl && officialSourceRetrieved;
+    const status = actualSupported ? 'VERIFIED' : actual !== null ? 'REVIEW_REQUIRED' : 'NOT_FOUND';
+    const payload = {
       status,
       indicatorId: id,
       currency,
-      actual,
-      forecast,
-      previous,
-      revisedPrevious,
-      referencePeriod,
-      releaseDate,
-      unit: unit || resolved.unit,
-      sourceName: typeof parsed.sourceName === 'string' && parsed.sourceName.trim() ? parsed.sourceName.trim() : resolved.officialSourceName,
-      sourceUrl: sourceUrl || sources[0]?.uri || resolved.officialSourceUrl,
+      actual: actualSupported ? actual : null,
+      forecast: actualSupported ? forecast : null,
+      previous: actualSupported ? previous : null,
+      revisedPrevious: actualSupported ? revisedPrevious : null,
+      referencePeriod: actualSupported ? referencePeriod : '',
+      releaseDate: actualSupported ? releaseDate : '',
+      unit: actualSupported ? unit : official.unit,
+      sourceName: actualSupported ? (sourceName || official.officialSourceName) : '',
+      sourceUrl: actualSupported ? sourceUrl : '',
       retrievedAt: new Date().toISOString(),
-      confidence,
-      notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
+      confidence: actualSupported ? Math.max(0, Math.min(100, finiteOrNull(parsed.confidence) ?? 0)) : 0,
+      notes: actualSupported ? (typeof parsed.notes === 'string' ? parsed.notes : 'Verified against a Google Search citation from the indicator’s official source.') :
+        (actual !== null ? 'Google returned a value, but it did not meet the source, unit, date, and period checks. Nothing was saved.' :
+          'Google Search did not return a verifiable latest official release. Nothing was saved.'),
       sources,
       searchQueries,
     };
 
-    setCachedResearch(cacheKey, responsePayload);
-    return res.json(responsePayload);
+    if (actualSupported) setCachedResearch(cacheKey, payload);
+    return res.json(payload);
   } catch (error: any) {
-    console.warn('[FUNDAMENTAL GENERATE INDICATOR] Live search fell back to verified data:', error?.message || error);
-    const definition = req.body?.definition || {};
-    const existingObservation = req.body?.existingObservation || null;
-    const currency = String(definition.currency || 'USD').toUpperCase();
-    const id = String(definition.id || '');
-    const official = OFFICIAL_INDICATOR_REGISTRY.find((item: any) => item.id === id && item.currency === currency);
-    const resolved = official || definition;
-    const fallback = getVerifiedIndicatorFallback(currency, id, resolved, existingObservation);
-    return res.json(fallback);
+    console.warn('[FUNDAMENTAL GENERATE INDICATOR] Google-backed research unavailable:', error?.message || error);
+    return res.status(200).json({
+      status: 'UNAVAILABLE',
+      indicatorId: String(req.body?.definition?.id || ''),
+      currency: String(req.body?.definition?.currency || '').toUpperCase(),
+      actual: null,
+      forecast: null,
+      previous: null,
+      revisedPrevious: null,
+      referencePeriod: '',
+      releaseDate: '',
+      unit: String(req.body?.definition?.unit || ''),
+      sourceName: '',
+      sourceUrl: '',
+      retrievedAt: new Date().toISOString(),
+      confidence: 0,
+      notes: 'Google Search verification is unavailable right now. Existing values were left unchanged.',
+      sources: [],
+    });
   }
 });
 
-// ----------------------------------------------------
-// FUNDAMENTAL INTELLIGENCE — 81 INDICATORS BATCH REGENERATE API
-// ----------------------------------------------------
 app.post('/api/fundamental/generate-indicators-batch', async (req, res) => {
   try {
     const currency = String(req.body?.currency || 'ALL').toUpperCase();
     const mode = req.body?.mode === 'REGENERATE' ? 'REGENERATE' : 'GENERATE';
     const requestedIds = Array.isArray(req.body?.indicatorIds) ? req.body.indicatorIds : null;
-
-    let targetRegistry = OFFICIAL_INDICATOR_REGISTRY;
-    if (currency !== 'ALL') {
-      targetRegistry = targetRegistry.filter((item: any) => item.currency === currency);
-    }
-    if (requestedIds && requestedIds.length > 0) {
-      targetRegistry = targetRegistry.filter((item: any) => requestedIds.includes(item.id));
+    if (currency !== 'ALL' && !/^(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD)$/.test(currency)) {
+      return res.status(400).json({ error: 'Valid currency or ALL is required.' });
     }
 
-    const results = targetRegistry.map((item: any) => {
-      const fallback = getVerifiedIndicatorFallback(item.currency, item.id, item, null);
-      return {
-        ...fallback,
-        status: 'VERIFIED' as const,
-        retrievedAt: new Date().toISOString(),
-      };
-    });
+    const definitions = OFFICIAL_INDICATOR_REGISTRY.filter((item: any) =>
+      (currency === 'ALL' || item.currency === currency) &&
+      (!requestedIds || requestedIds.includes(item.id))
+    );
+    const indicators = [];
+    for (const definition of definitions) {
+      try {
+        const cacheKey = `indicator_${definition.currency}_${definition.id}`;
+        const cached = mode !== 'REGENERATE' ? getCachedResearch(cacheKey) : null;
+        if (cached?.status === 'VERIFIED' && cached?.actual !== null && cached?.sources?.length > 0 &&
+            Date.now() - Date.parse(cached.retrievedAt || '') < 5 * 60 * 1000) {
+          indicators.push(cached);
+          continue;
+        }
 
+        const { searchHint, briefPrompt, extractionPromptFn } = getIndicatorResearchPrompts(definition, mode);
+        const { parsed, sources, searchQueries } = await groundedJsonResearch(briefPrompt, extractionPromptFn, searchHint);
+        const value = finiteOrNull(parsed.actual);
+        const unit = typeof parsed.unit === 'string' ? parsed.unit.trim() : '';
+        const sourceUrl = typeof parsed.sourceUrl === 'string' && /^https:\/\//i.test(parsed.sourceUrl) &&
+          sources.some((source) => source.uri === parsed.sourceUrl) ? parsed.sourceUrl : '';
+        const officialSourceRetrieved = sources.some((source) =>
+          isGroundedSourceUrl(definition.officialSourceUrl, [{ uri: source.uri, title: source.title }])
+        );
+        const referencePeriod = typeof parsed.referencePeriod === 'string' ? parsed.referencePeriod.trim() : '';
+        const releaseDate = typeof parsed.releaseDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(parsed.releaseDate) ? parsed.releaseDate : '';
+        const verified = value !== null && !!sourceUrl && officialSourceRetrieved && !!referencePeriod &&
+          !!releaseDate && normalizeUnit(unit) === normalizeUnit(definition.unit);
+        const item = {
+          status: verified ? 'VERIFIED' : value !== null ? 'REVIEW_REQUIRED' : 'NOT_FOUND',
+          indicatorId: definition.id,
+          currency: definition.currency,
+          actual: verified ? value : null,
+          forecast: verified ? finiteOrNull(parsed.forecast) : null,
+          previous: verified ? finiteOrNull(parsed.previous) : null,
+          revisedPrevious: verified ? finiteOrNull(parsed.revisedPrevious) : null,
+          referencePeriod: verified ? referencePeriod : '',
+          releaseDate: verified ? releaseDate : '',
+          unit: verified ? unit : definition.unit,
+          sourceName: verified && typeof parsed.sourceName === 'string' ? parsed.sourceName : '',
+          sourceUrl: verified ? sourceUrl : '',
+          retrievedAt: new Date().toISOString(),
+          confidence: verified ? Math.max(0, Math.min(100, finiteOrNull(parsed.confidence) ?? 0)) : 0,
+          notes: verified ? (typeof parsed.notes === 'string' ? parsed.notes : '') :
+            'No value was returned as verified. Google Search citations did not support every required field.',
+          sources,
+          searchQueries,
+        };
+        if (verified) setCachedResearch(cacheKey, item);
+        indicators.push(item);
+      } catch (error: any) {
+        indicators.push({
+          status: 'UNAVAILABLE',
+          indicatorId: definition.id,
+          currency: definition.currency,
+          actual: null,
+          forecast: null,
+          previous: null,
+          revisedPrevious: null,
+          referencePeriod: '',
+          releaseDate: '',
+          unit: definition.unit,
+          retrievedAt: new Date().toISOString(),
+          confidence: 0,
+          notes: 'Google Search was unavailable. Existing values were left unchanged.',
+          sources: [],
+        });
+      }
+    }
     return res.json({
-      status: 'VERIFIED',
-      count: results.length,
+      status: indicators.some((item: any) => item.status !== 'VERIFIED') ? 'PARTIAL' : 'VERIFIED',
+      count: indicators.length,
       currency,
       mode,
-      indicators: results,
+      indicators,
       retrievedAt: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.warn('[BATCH INDICATORS] Batch generation fallback:', error?.message || error);
-    return res.status(500).json({ error: 'Failed to batch generate indicators.' });
+    console.warn('[BATCH INDICATORS] Google Search research unavailable:', error?.message || error);
+    return res.status(500).json({ error: 'Google Search research is unavailable.' });
   }
 });
 
