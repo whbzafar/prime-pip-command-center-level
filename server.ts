@@ -1680,6 +1680,8 @@ app.post('/api/fundamental/generate-rates', async (req, res) => {
         currency,
         centralBankName: official.centralBankName,
         currentPolicyRate,
+        releaseDate,
+        confidence: 0,
         sourceUrl: valueSource.uri,
         retrievedAt: new Date().toISOString(),
       },
