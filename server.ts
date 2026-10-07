@@ -5819,16 +5819,52 @@ app.get('/api/fundamental/provider-status', (_req, res) => {
   }
 });
 
+
 app.post('/api/fundamental/sync-live-providers', async (req, res) => {
   try {
     const currency = String(req.body?.currency || 'ALL').toUpperCase();
     const action = req.body?.action === 'VERIFY' ? 'VERIFY' : 'SYNC';
+    // Return the newly retrieved live response on explicit refresh.
     const result = await syncAndVerifyFundamentalData({ currency, action });
+    lastAutomaticFundamentalSync = Date.now();
     return res.json(result);
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message || 'Live provider synchronization failed' });
   }
 });
+
+// Public official economic series are refreshed automatically without paid credentials.
+// Serverless hosts may suspend timers; app requests also trigger refresh when data is due.
+let fundamentalSyncInFlight: Promise<any> | null = null;
+let lastAutomaticFundamentalSync = 0;
+const FUNDAMENTAL_AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+
+async function runAutomaticFundamentalSync() {
+  if (fundamentalSyncInFlight) return fundamentalSyncInFlight;
+  fundamentalSyncInFlight = syncAndVerifyFundamentalData({ currency: 'ALL', action: 'SYNC' })
+    .then((result) => {
+      lastAutomaticFundamentalSync = Date.now();
+      return result;
+    })
+    .catch((error) => {
+      console.warn('[FundamentalSync] Automatic public feed refresh failed:', error?.message || error);
+      return null;
+    })
+    .finally(() => { fundamentalSyncInFlight = null; });
+  return fundamentalSyncInFlight;
+}
+
+function isFundamentalSyncDue() {
+  return Date.now() - lastAutomaticFundamentalSync >= FUNDAMENTAL_AUTO_SYNC_INTERVAL_MS;
+}
+
+// On a persistent Node server, refresh in the background. Vercel serverless instances
+// may suspend timers, so the read path below also performs a due refresh.
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
+  const fundamentalSyncTimer = setInterval(() => { void runAutomaticFundamentalSync(); }, FUNDAMENTAL_AUTO_SYNC_INTERVAL_MS);
+  fundamentalSyncTimer.unref?.();
+}
+
 
 // ----------------------------------------------------------------------------
 // INSTITUTIONAL DATABASE ARCHITECTURE & AUDIT ENDPOINTS
