@@ -132,9 +132,9 @@ export const RatesAndYieldsView: React.FC<RatesAndYieldsViewProps> = ({
           onUpdateInterestRate(updated);
         }
       }
-      setRatesMessage('✓ All 8 Central Bank rates & sovereign yields updated successfully with 100% official data.');
-    } catch {
-      setRatesMessage('✓ Verified central bank rates & sovereign yields loaded.');
+      setRatesMessage('Live provider rates retrieved where available. Missing currencies remain unchanged and are not marked current.');
+    } catch (err: any) {
+      setRatesMessage(err?.message || 'Live rate provider is unavailable. Existing values were not refreshed.');
     } finally {
       setRegeneratingCurrency(null);
     }
