@@ -226,6 +226,8 @@ export interface CommodityObservation {
   sentimentConfidence?: number;
   sentimentSourceUrl?: string;
   sentimentUpdatedAt?: string;
+  priceSourceUrl?: string;
+  priceAsOf?: string;
   referenceDate: string;
   price: number;
   // Specific drivers:
