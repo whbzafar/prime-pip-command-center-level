@@ -9,255 +9,37 @@ import {
 } from '../types/fundamentalIndicatorTypes';
 import { OFFICIAL_INDICATOR_REGISTRY } from './fundamentalRegistryData';
 import {
-  VERIFIED_INDICATORS,
   VERIFIED_COT,
   VERIFIED_COMMODITIES,
   VERIFIED_RATES,
   VERIFIED_31_PAIR_SENTIMENT,
 } from './verifiedFundamentalBaselines';
 
-export const DEFAULT_OBSERVATIONS: IndicatorObservation[] = OFFICIAL_INDICATOR_REGISTRY.map((def) => {
-  const verified =
-    VERIFIED_INDICATORS[def.id] ||
-    VERIFIED_INDICATORS[def.code] ||
-    VERIFIED_INDICATORS[`${def.currency}_${def.shortLabel}`];
-
-  if (verified) {
-    return {
-      id: `obs_${def.id}`,
-      indicatorId: def.id,
-      indicatorName: def.name,
-      currency: def.currency,
-      category: def.category,
-      referencePeriod: verified.referencePeriod || 'Latest Release',
-      releaseDate: verified.releaseDate || '2025-02-20',
-      actual: verified.actual,
-      forecast: verified.forecast,
-      previous: verified.previous,
-      revisedPrevious: verified.revisedPrevious ?? null,
-      unit: def.unit || verified.unit || '%',
-      frequency: def.frequency,
-      sourceName: verified.sourceName || def.officialSourceName,
-      sourceUrl: verified.sourceUrl || def.officialSourceUrl,
-      sourceType: 'OFFICIAL',
-      verificationStatus: 'VERIFIED',
-      dataStatus: 'COMPLETE',
-      confidence: 96,
-      notes: verified.notes || `${def.name} verified official baseline.`,
-      updatedAt: '2025-02-22T08:00:00.000Z',
-      isEntered: true,
-    };
-  }
-
-  // Fallback for indicators in registry without a dedicated key in VERIFIED_INDICATORS
-  const rateFallback = VERIFIED_RATES[def.currency];
-  const defaultVal =
-    def.category === 'MONETARY_POLICY'
-      ? (rateFallback?.currentPolicyRate ?? 3.5)
-      : def.category === 'RATES_YIELDS'
-      ? (def.id.includes('2Y') ? (rateFallback?.yield2Y ?? 3.5) : (rateFallback?.yield10Y ?? 3.8))
-      : def.category === 'INFLATION'
-      ? 2.5
-      : def.category === 'BUSINESS_ACTIVITY'
-      ? 50.8
-      : def.category === 'EMPLOYMENT'
-      ? (def.unit === '%' ? 4.2 : 25.0)
-      : 1.8;
-
-  return {
-    id: `obs_${def.id}`,
-    indicatorId: def.id,
-    indicatorName: def.name,
-    currency: def.currency,
-    category: def.category,
-    referencePeriod: 'Latest Verified Release',
-    releaseDate: '2025-02-18',
-    actual: defaultVal,
-    forecast: defaultVal,
-    previous: Number((defaultVal - 0.1).toFixed(2)),
-    revisedPrevious: null,
-    unit: def.unit || '%',
-    frequency: def.frequency,
-    sourceName: def.officialSourceName || 'Official Statistical Office',
-    sourceUrl: def.officialSourceUrl || 'https://fred.stlouisfed.org',
-    sourceType: 'OFFICIAL',
-    verificationStatus: 'VERIFIED',
-    dataStatus: 'COMPLETE',
-    confidence: 94,
-    notes: `${def.name} verified statistical release.`,
-    updatedAt: '2025-02-22T08:00:00.000Z',
-    isEntered: true,
-  };
-});
-
-export const DEFAULT_COT_RECORDS: CotPositioningRecord[] = (
-  ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD', 'XAU', 'XAG', 'OIL'] as const
-).map((code) => {
-  const v = VERIFIED_COT[code] || {};
-  return {
-    id: `cot_${code.toLowerCase()}`,
-    currency: code as any,
-    contractName: v.contractName || `${code} Futures (CME/CFTC)`,
-    reportDate: v.reportDate || '2025-02-18',
-    releaseDate: v.releaseDate || '2025-02-21',
-    openInterest: v.openInterest || 120000,
-    nonCommercialLong: v.nonCommercialLong || 45000,
-    nonCommercialShort: v.nonCommercialShort || 40000,
-    commercialLong: v.commercialLong || 55000,
-    commercialShort: v.commercialShort || 60000,
-    dealerLong: Math.round((v.commercialLong || 50000) * 0.45),
-    dealerShort: Math.round((v.commercialShort || 50000) * 0.48),
-    assetManagerLong: Math.round((v.nonCommercialLong || 45000) * 0.55),
-    assetManagerShort: Math.round((v.nonCommercialShort || 40000) * 0.50),
-    leveragedFundsLong: Math.round((v.nonCommercialLong || 45000) * 0.45),
-    leveragedFundsShort: Math.round((v.nonCommercialShort || 40000) * 0.50),
-    otherReportablesLong: 8500,
-    otherReportablesShort: 7900,
-    nonReportableLong: 14200,
-    nonReportableShort: 15100,
-    sourceUrl: v.sourceUrl || 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm',
-    notes: v.notes || `Verified CFTC Commitment of Traders positioning for ${code}.`,
-    updatedAt: '2025-02-22T08:00:00.000Z',
-    isEntered: true,
-  };
-});
-
-export const DEFAULT_RETAIL_POSITIONING: RetailPositioningRecord[] = [
-  { asset: 'USD', longPercent: 42, shortPercent: 58, updatedAt: '2025-02-22T08:00:00.000Z', isEntered: true },
-  { asset: 'EUR', longPercent: 56, shortPercent: 44, updatedAt: '2025-02-22T08:00:00.000Z', isEntered: true },
-  { asset: 'GBP', longPercent: 47, shortPercent: 53, updatedAt: '2025-02-22T08:00:00.000Z', isEntered: true },
-  { asset: 'JPY', longPercent: 39, shortPercent: 61, updatedAt: '2025-02-22T08:00:00.000Z', isEntered: true },
-  { asset: 'CHF', longPercent: 54, shortPercent: 46, updatedAt: '2025-02-22T08:00:00.000Z', isEntered: true },
-  { asset: 'CAD', longPercent: 63, shortPercent: 37, updatedAt: '2025-02-22T08:00:00.000Z', isEntered: true },
-  { asset: 'AUD', longPercent: 66, shortPercent: 34, updatedAt: '2025-02-22T08:00:00.000Z', isEntered: true },
-  { asset: 'NZD', longPercent: 68, shortPercent: 32, updatedAt: '2025-02-22T08:00:00.000Z', isEntered: true },
-  { asset: 'GOLD', longPercent: 44, shortPercent: 56, updatedAt: '2025-02-22T08:00:00.000Z', isEntered: true },
-  { asset: 'SILVER', longPercent: 48, shortPercent: 52, updatedAt: '2025-02-22T08:00:00.000Z', isEntered: true },
-  { asset: 'CRUDE_OIL', longPercent: 64, shortPercent: 36, updatedAt: '2025-02-22T08:00:00.000Z', isEntered: true },
-];
-
-export const DEFAULT_SENTIMENT_RECORDS: MarketSentimentRecord[] = [
-  {
-    id: 'sent_usd',
-    currency: 'USD',
-    globalRiskRegime: 'NEUTRAL',
-    currencySentiment: 'BULLISH',
-    newsSentiment: 'BULLISH',
-    centralBankTone: 'HAWKISH',
-    sentimentConfidence: 88,
-    source: 'Federal Reserve / Treasury / Institutional Flow',
-    date: '2025-02-22',
-    time: '08:00 UTC',
-    notes: 'Resilient US growth and higher-for-longer FOMC yield advantage support USD.',
-    updatedAt: '2025-02-22T08:00:00.000Z',
-    isEntered: true,
-  },
-  {
-    id: 'sent_eur',
-    currency: 'EUR',
-    globalRiskRegime: 'NEUTRAL',
-    currencySentiment: 'BEARISH',
-    newsSentiment: 'NEUTRAL',
-    centralBankTone: 'DOVISH',
-    sentimentConfidence: 82,
-    source: 'ECB / Eurostat / Bundesbank',
-    date: '2025-02-22',
-    time: '08:00 UTC',
-    notes: 'ECB gradual rate cuts and sluggish Eurozone manufacturing weigh on EUR.',
-    updatedAt: '2025-02-22T08:00:00.000Z',
-    isEntered: true,
-  },
-  {
-    id: 'sent_gbp',
-    currency: 'GBP',
-    globalRiskRegime: 'NEUTRAL',
-    currencySentiment: 'BULLISH',
-    newsSentiment: 'BULLISH',
-    centralBankTone: 'HAWKISH',
-    sentimentConfidence: 80,
-    source: 'Bank of England / ONS',
-    date: '2025-02-22',
-    time: '08:00 UTC',
-    notes: 'Sticky UK services inflation keeps BoE cuts cautious, supporting Gilt yields and GBP.',
-    updatedAt: '2025-02-22T08:00:00.000Z',
-    isEntered: true,
-  },
-  {
-    id: 'sent_jpy',
-    currency: 'JPY',
-    globalRiskRegime: 'NEUTRAL',
-    currencySentiment: 'BULLISH',
-    newsSentiment: 'BULLISH',
-    centralBankTone: 'HAWKISH',
-    sentimentConfidence: 84,
-    source: 'Bank of Japan / Ministry of Finance',
-    date: '2025-02-22',
-    time: '08:00 UTC',
-    notes: 'BoJ policy normalization to 0.50% and rising JGB yields provide structural support.',
-    updatedAt: '2025-02-22T08:00:00.000Z',
-    isEntered: true,
-  },
-  {
-    id: 'sent_chf',
-    currency: 'CHF',
-    globalRiskRegime: 'NEUTRAL',
-    currencySentiment: 'BEARISH',
-    newsSentiment: 'NEUTRAL',
-    centralBankTone: 'DOVISH',
-    sentimentConfidence: 81,
-    source: 'Swiss National Bank / FSO',
-    date: '2025-02-22',
-    time: '08:00 UTC',
-    notes: 'Sub-1% Swiss CPI inflation and SNB rate cuts to 0.50% limit CHF upside.',
-    updatedAt: '2025-02-22T08:00:00.000Z',
-    isEntered: true,
-  },
-  {
-    id: 'sent_cad',
-    currency: 'CAD',
-    globalRiskRegime: 'NEUTRAL',
-    currencySentiment: 'BEARISH',
-    newsSentiment: 'BEARISH',
-    centralBankTone: 'DOVISH',
-    sentimentConfidence: 83,
-    source: 'Bank of Canada / Statistics Canada',
-    date: '2025-02-22',
-    time: '08:00 UTC',
-    notes: 'BoC easing cycle and wide negative rate differential vs USD pressure CAD.',
-    updatedAt: '2025-02-22T08:00:00.000Z',
-    isEntered: true,
-  },
-  {
-    id: 'sent_aud',
-    currency: 'AUD',
-    globalRiskRegime: 'NEUTRAL',
-    currencySentiment: 'NEUTRAL',
-    newsSentiment: 'NEUTRAL',
-    centralBankTone: 'HAWKISH',
-    sentimentConfidence: 79,
-    source: 'Reserve Bank of Australia / ABS',
-    date: '2025-02-22',
-    time: '08:00 UTC',
-    notes: 'RBA holding cash rate at 4.35% amid sticky core inflation offsets external China headwinds.',
-    updatedAt: '2025-02-22T08:00:00.000Z',
-    isEntered: true,
-  },
-  {
-    id: 'sent_nzd',
-    currency: 'NZD',
-    globalRiskRegime: 'NEUTRAL',
-    currencySentiment: 'BEARISH',
-    newsSentiment: 'BEARISH',
-    centralBankTone: 'DOVISH',
-    sentimentConfidence: 85,
-    source: 'Reserve Bank of New Zealand / Stats NZ',
-    date: '2025-02-22',
-    time: '08:00 UTC',
-    notes: 'RBNZ front-loaded OCR cuts to 4.25% and soft domestic growth weigh on NZD.',
-    updatedAt: '2025-02-22T08:00:00.000Z',
-    isEntered: true,
-  },
-];
+export const DEFAULT_OBSERVATIONS: IndicatorObservation[] = OFFICIAL_INDICATOR_REGISTRY.map((def) => ({
+  id: `obs_${def.id}`,
+  indicatorId: def.id,
+  indicatorName: def.name,
+  currency: def.currency,
+  category: def.category,
+  frequency: def.frequency,
+  referencePeriod: '',
+  releaseDate: '',
+  actual: null,
+  forecast: null,
+  previous: null,
+  revisedPrevious: null,
+  unit: def.unit || '',
+  dataSource: '',
+  sourceName: '',
+  sourceUrl: '',
+  sourceType: '',
+  verificationStatus: 'NOT_FOUND',
+  dataStatus: 'UNAVAILABLE',
+  confidence: 0,
+  notes: 'No fresh official observation has been retrieved yet.',
+  updatedAt: '',
+  isEntered: false,
+}));
 
 export const DEFAULT_INTEREST_RATES: InterestRateRecord[] = Object.values(VERIFIED_RATES).map((r) => ({
   currency: r.currency as CurrencyCode,
