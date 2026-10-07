@@ -6,7 +6,6 @@ import fs from "fs";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { GoogleGenAI } from "@google/genai";
-import { PDFParse } from "pdf-parse";
 import dotenv from "dotenv";
 import { randomUUID } from "crypto";
 import {
@@ -2013,6 +2012,7 @@ app.post('/api/fundamental/extract-from-image', async (req, res) => {
       if (!pdfText) {
         try {
           const pdfBuf = Buffer.from(cleanBase64, 'base64');
+          const { PDFParse } = await import('pdf-parse');
           const parser = new PDFParse({ data: pdfBuf });
           const parsedPdf = await parser.getText();
           await parser.destroy();
@@ -2219,6 +2219,7 @@ app.post('/api/fundamental/extract-rates-from-image', async (req, res) => {
       if (!pdfText) {
         try {
           const pdfBuf = Buffer.from(cleanBase64, 'base64');
+          const { PDFParse } = await import('pdf-parse');
           const parser = new PDFParse({ data: pdfBuf });
           const parsedPdf = await parser.getText();
           await parser.destroy();
@@ -2369,6 +2370,7 @@ app.post('/api/fundamental/extract-cot-from-image', async (req, res) => {
       if (!pdfText) {
         try {
           const pdfBuf = Buffer.from(cleanBase64, 'base64');
+          const { PDFParse } = await import('pdf-parse');
           const parser = new PDFParse({ data: pdfBuf });
           const parsedPdf = await parser.getText();
           await parser.destroy();
@@ -2517,6 +2519,7 @@ app.post('/api/fundamental/extract-sentiment-from-image', async (req, res) => {
       if (!pdfText) {
         try {
           const pdfBuf = Buffer.from(cleanBase64, 'base64');
+          const { PDFParse } = await import('pdf-parse');
           const parser = new PDFParse({ data: pdfBuf });
           const parsedPdf = await parser.getText();
           await parser.destroy();
