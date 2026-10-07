@@ -1,10 +1,7 @@
 import { OFFICIAL_INDICATOR_REGISTRY } from '../src/data/fundamentalRegistryData.js';
 import {
-  VERIFIED_INDICATORS,
-  VERIFIED_RATES,
   VERIFIED_COMMODITIES,
   VERIFIED_COT,
-  VERIFIED_31_PAIR_SENTIMENT,
 } from './verifiedFundamentalBaselines.js';
 import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
 import { syncFundamentalProfile } from './fundamentalDataArchitecture.js';
@@ -332,7 +329,7 @@ export async function syncAndVerifyFundamentalData(options: {
 
   const providersUsed = new Set<string>();
   let liveApiHits = 0;
-  let verifiedFallbackHits = 0;
+  const verifiedFallbackHits = 0;
 
   // 1. Pull live FRED series in parallel for mapped indicators + yields + WTI
   const activeMappings = FRED_INDICATOR_MAPPINGS.filter(
@@ -415,10 +412,7 @@ export async function syncAndVerifyFundamentalData(options: {
     }
 
     const liveMatch = liveFredResults.get(def.id);
-    const verifiedBaseline =
-      (VERIFIED_INDICATORS as any)[def.id] ||
-      (VERIFIED_INDICATORS as any)[def.code] ||
-      (VERIFIED_INDICATORS as any)[`${def.currency}_${def.shortLabel}`];
+    const verifiedBaseline = null;
 
     // Only data returned by a mapped live provider is current. Preserve prior
     // observations without refreshing timestamps or claiming fresh verification.
@@ -488,7 +482,8 @@ export async function syncAndVerifyFundamentalData(options: {
   const liveBreakeven5Y = breakeven5YData?.points?.[0]?.value;
   const liveWtiPrice = twelveQuotes['WTI/USD'] ?? wtiFredData?.points?.[0]?.value;
 
-  const updatedInterestRates = Object.values(VERIFIED_RATES).map((r: any) => {
+  const previousRates = safeReadJsonFile<any[]>('fundamental_rates_store.json', []);
+  const updatedInterestRates = previousRates.map((r: any) => {
     const isUsd = r.currency === 'USD';
     return {
       currency: r.currency,
@@ -517,65 +512,28 @@ export async function syncAndVerifyFundamentalData(options: {
   });
 
   // 4. Build updated Commodities (GOLD, SILVER, CRUDE_OIL)
-  const updatedCommodities = [
-    {
-      id: 'comm_gold',
-      symbol: 'GOLD',
-      name: 'Gold (XAU/USD)',
-      referenceDate: todayStr,
-      price: twelveQuotes['XAU/USD'] ?? VERIFIED_COMMODITIES.GOLD.price,
-      sentiment: VERIFIED_COMMODITIES.GOLD.sentiment,
-      sentimentConfidence: 96,
-      sentimentSourceUrl: VERIFIED_COMMODITIES.GOLD.sentimentSourceUrl,
-      usRealYield10Y: liveReal10Y !== undefined ? Number(liveReal10Y.toFixed(2)) : VERIFIED_COMMODITIES.GOLD.usRealYield10Y,
-      inflationBreakeven5Y:
-        liveBreakeven5Y !== undefined ? Number(liveBreakeven5Y.toFixed(2)) : VERIFIED_COMMODITIES.GOLD.inflationBreakeven5Y,
-      centralBankDemandTone: VERIFIED_COMMODITIES.GOLD.centralBankDemandTone,
-      industrialDemandTone: VERIFIED_COMMODITIES.GOLD.industrialDemandTone,
-      geopoliticalRiskLevel: VERIFIED_COMMODITIES.GOLD.geopoliticalRiskLevel,
-      supplyDemandBalance: VERIFIED_COMMODITIES.GOLD.supplyDemandBalance,
-      notes: VERIFIED_COMMODITIES.GOLD.notes,
+  const previousCommodities = safeReadJsonFile<any[]>('fundamental_commodities_store.json', []);
+  const updatedCommodities = previousCommodities.map((r: any) => {
+    const priceBySymbol: Record<string, number | undefined> = {
+      GOLD: twelveQuotes['XAU/USD'],
+      SILVER: twelveQuotes['XAG/USD'],
+      CRUDE_OIL: liveWtiPrice,
+    };
+    const price = priceBySymbol[r.symbol];
+    const realYield = liveReal10Y;
+    const breakeven = liveBreakeven5Y;
+    if (price === undefined && realYield === undefined && breakeven === undefined) {
+      return { ...r, dataStatus: 'DELAYED' };
+    }
+    return {
+      ...r,
+      ...(price !== undefined ? { price, referenceDate: todayStr } : {}),
+      ...(realYield !== undefined ? { usRealYield10Y: Number(realYield.toFixed(2)) } : {}),
+      ...(breakeven !== undefined ? { inflationBreakeven5Y: Number(breakeven.toFixed(2)) } : {}),
+      dataStatus: 'LIVE_VERIFIED',
       updatedAt: nowIso,
-    },
-    {
-      id: 'comm_silver',
-      symbol: 'SILVER',
-      name: 'Silver (XAG/USD)',
-      referenceDate: todayStr,
-      price: twelveQuotes['XAG/USD'] ?? VERIFIED_COMMODITIES.SILVER.price,
-      sentiment: VERIFIED_COMMODITIES.SILVER.sentiment,
-      sentimentConfidence: 94,
-      sentimentSourceUrl: VERIFIED_COMMODITIES.SILVER.sentimentSourceUrl,
-      usRealYield10Y: liveReal10Y !== undefined ? Number(liveReal10Y.toFixed(2)) : VERIFIED_COMMODITIES.SILVER.usRealYield10Y,
-      inflationBreakeven5Y:
-        liveBreakeven5Y !== undefined ? Number(liveBreakeven5Y.toFixed(2)) : VERIFIED_COMMODITIES.SILVER.inflationBreakeven5Y,
-      centralBankDemandTone: VERIFIED_COMMODITIES.SILVER.centralBankDemandTone,
-      industrialDemandTone: VERIFIED_COMMODITIES.SILVER.industrialDemandTone,
-      geopoliticalRiskLevel: VERIFIED_COMMODITIES.SILVER.geopoliticalRiskLevel,
-      supplyDemandBalance: VERIFIED_COMMODITIES.SILVER.supplyDemandBalance,
-      notes: VERIFIED_COMMODITIES.SILVER.notes,
-      updatedAt: nowIso,
-    },
-    {
-      id: 'comm_oil',
-      symbol: 'CRUDE_OIL',
-      name: 'Crude Oil (WTI / USOIL)',
-      referenceDate: todayStr,
-      price: liveWtiPrice !== undefined ? Number(liveWtiPrice.toFixed(2)) : VERIFIED_COMMODITIES.CRUDE_OIL.price,
-      sentiment: VERIFIED_COMMODITIES.CRUDE_OIL.sentiment,
-      sentimentConfidence: 92,
-      sentimentSourceUrl: VERIFIED_COMMODITIES.CRUDE_OIL.sentimentSourceUrl,
-      usRealYield10Y: liveReal10Y !== undefined ? Number(liveReal10Y.toFixed(2)) : VERIFIED_COMMODITIES.CRUDE_OIL.usRealYield10Y,
-      inflationBreakeven5Y:
-        liveBreakeven5Y !== undefined ? Number(liveBreakeven5Y.toFixed(2)) : VERIFIED_COMMODITIES.CRUDE_OIL.inflationBreakeven5Y,
-      inventoriesWeeklySurpriseMb: VERIFIED_COMMODITIES.CRUDE_OIL.inventoriesWeeklySurpriseMb,
-      opecPolicyTone: VERIFIED_COMMODITIES.CRUDE_OIL.opecPolicyTone,
-      geopoliticalRiskLevel: VERIFIED_COMMODITIES.CRUDE_OIL.geopoliticalRiskLevel,
-      supplyDemandBalance: VERIFIED_COMMODITIES.CRUDE_OIL.supplyDemandBalance,
-      notes: VERIFIED_COMMODITIES.CRUDE_OIL.notes,
-      updatedAt: nowIso,
-    },
-  ];
+    };
+  });
 
   const report: LiveSyncProviderReport = {
     timestamp: nowIso,
