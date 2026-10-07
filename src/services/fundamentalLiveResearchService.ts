@@ -185,7 +185,7 @@ function unavailableIndicator(definition: IndicatorDefinition | CustomFundamenta
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 45000);
+  const timeout = window.setTimeout(() => controller.abort(), 58000);
   try {
     const response = await fetch(url, {
       method: 'POST',
