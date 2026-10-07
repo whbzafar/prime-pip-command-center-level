@@ -334,7 +334,7 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
     try {
       const existing = observations.find((observation) => observation.indicatorId === def.id);
       const result = await generateIndicator(def, existing, mode);
-      if (result.actual === null) {
+      if (result.status !== 'VERIFIED' || result.actual === null || !result.sourceUrl || !result.releaseDate || !result.referencePeriod) {
         const errorMsg = result.notes || `${def.shortLabel}: No published data found on Google/official source.`;
         setLiveResearchMessage(errorMsg);
         setRowFeedbackMap((prev) => ({ ...prev, [def.id]: { type: 'error', text: errorMsg } }));
@@ -352,18 +352,18 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
         id: existing?.id || `obs_${def.id}_${Date.now()}`,
         indicatorId: def.id,
         currency: activeCurrency,
-        referencePeriod: result.referencePeriod || existing?.referencePeriod || 'Latest',
-        releaseDate: result.releaseDate || existing?.releaseDate || new Date().toISOString().split('T')[0],
+        referencePeriod: result.referencePeriod,
+        releaseDate: result.releaseDate,
         actual: result.actual,
-        forecast: result.forecast !== null && result.forecast !== undefined ? result.forecast : (existing?.forecast ?? null),
-        previous: result.previous !== null && result.previous !== undefined ? result.previous : (existing?.previous ?? null),
-        revisedPrevious: result.revisedPrevious ?? existing?.revisedPrevious ?? null,
+        forecast: result.forecast ?? null,
+        previous: result.previous ?? null,
+        revisedPrevious: result.revisedPrevious ?? null,
         unit: def.unit,
-        sourceUrl: result.sourceUrl || def.officialSourceUrl,
+        sourceUrl: result.sourceUrl || '',
         notes: result.notes || existing?.notes,
         updatedAt: result.retrievedAt || new Date().toISOString(),
         verificationStatus: 'VERIFIED',
-        confidence: result.confidence || 90,
+        confidence: result.confidence,
         researchRetrievedAt: result.retrievedAt,
         researchSourceName: result.sourceName,
       };
@@ -409,25 +409,25 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
             try {
               const existing = observations.find((observation) => observation.indicatorId === def.id);
               const result = await generateIndicator(def, existing, mode);
-              if (result && result.actual !== null && result.actual !== undefined) {
+              if (result?.status === 'VERIFIED' && result.actual !== null && !!result.sourceUrl && !!result.releaseDate && !!result.referencePeriod) {
                 onUpdateObservation({
                   id: existing?.id || `obs_${def.id}_${Date.now()}`,
                   indicatorId: def.id,
                   currency: activeCurrency,
-                  referencePeriod: result.referencePeriod || existing?.referencePeriod || 'Latest',
-                  releaseDate: result.releaseDate || existing?.releaseDate || new Date().toISOString().split('T')[0],
+                  referencePeriod: result.referencePeriod,
+                  releaseDate: result.releaseDate,
                   actual: result.actual,
-                  forecast: result.forecast !== null && result.forecast !== undefined ? result.forecast : (existing?.forecast ?? null),
-                  previous: result.previous !== null && result.previous !== undefined ? result.previous : (existing?.previous ?? null),
-                  revisedPrevious: result.revisedPrevious ?? existing?.revisedPrevious ?? null,
+                  forecast: result.forecast ?? null,
+                  previous: result.previous ?? null,
+                  revisedPrevious: result.revisedPrevious ?? null,
                   unit: def.unit,
-                  sourceUrl: result.sourceUrl || def.officialSourceUrl,
+                  sourceUrl: result.sourceUrl || '',
                   notes: result.notes || existing?.notes,
                   updatedAt: result.retrievedAt || new Date().toISOString(),
                   verificationStatus: 'VERIFIED',
-                  confidence: result.confidence || 90,
+                  confidence: result.confidence,
                   researchRetrievedAt: result.retrievedAt,
-                  researchSourceName: result.sourceName || def.officialSourceName,
+                  researchSourceName: result.sourceName,
                 });
               }
             } catch {
@@ -468,7 +468,7 @@ export const CurrencyWorkspaceView: React.FC<CurrencyWorkspaceViewProps> = ({
         }
       } catch {}
 
-      setLiveResearchMessage(`${activeCurrency}: Grounded research completed. Indicators and central bank rates populated with 100% verified data.`);
+      setLiveResearchMessage(`${activeCurrency}: Google Search research finished. Only values with an official source citation were saved; unverified results were left unchanged.`);
     } finally {
       setGenerateAllState((prev) => ({ ...prev, running: false }));
     }
