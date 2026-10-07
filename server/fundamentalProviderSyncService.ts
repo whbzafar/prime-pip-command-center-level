@@ -367,6 +367,7 @@ export async function syncAndVerifyFundamentalData(options: {
     Object.entries(CURRENCY_POLICY_SERIES)
       .filter(([currency]) => targetCurrency === 'ALL' || targetCurrency === currency)
       .map(async ([currency, mapping]) => {
+        const series = await fetchFredSeriesPoints(mapping.id);
         const values = series && transformSeriesPoints(series.points, 'LEVEL');
         if (!series || !values) return null;
         providersUsed.add(series.sourceLabel);
