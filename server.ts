@@ -1624,7 +1624,7 @@ app.post('/api/fundamental/generate-rates', async (req, res) => {
       `Today is ${currentDate}. Source page: ${official.url}`,
       'Return the current policy rate exactly as published in percent, the date of the latest decision or official rate publication, and the official source title and URL.',
       'Do not use a search snippet as proof. Do not infer, estimate, or convert a value. If the official source does not explicitly support a field, return null.',
-    ].join('\\n');
+    ].join('\n');
     const extractionPromptFn = (researchText: string, sources: GroundedResearchSource[]) => [
       'Extract only facts directly supported by this Google Search grounded research brief.',
       `Currency: ${currency}; central bank: ${official.centralBankName}; expected source host: ${safeHostname(official.url)}.`,
@@ -1635,7 +1635,7 @@ app.post('/api/fundamental/generate-rates', async (req, res) => {
       researchText,
       'Grounded citations:',
       JSON.stringify(sources),
-    ].join('\\n');
+    ].join('\n');
 
     const { parsed, sources, searchQueries, groundingSupports } = await groundedJsonResearch(
       briefPrompt,
@@ -1648,7 +1648,7 @@ app.post('/api/fundamental/generate-rates', async (req, res) => {
     const officialSourceFilter = (source: GroundedResearchSource) => isOfficialCitation(source.uri, official.url);
     const valueSource = groundedSourceForNumber(currentPolicyRate, sources, groundingSupports, officialSourceFilter);
     const valueHasPercentUnit = currentPolicyRate !== null && groundingSupports.some((support) => {
-      const hasValue = (support.text.replace(/[−–]/g, '-').match(/[+-]?(?:\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.\\d+)?/g) || [])
+      const hasValue = (support.text.replace(/[−–]/g, '-').match(/[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\\.\d+)?/g) || [])
         .some((token) => Number(token.replace(/,/g, '')) === currentPolicyRate);
       const hasPercent = /%|percent|per cent/i.test(support.text);
       return hasValue && hasPercent && support.chunkIndices.some((index) => {
