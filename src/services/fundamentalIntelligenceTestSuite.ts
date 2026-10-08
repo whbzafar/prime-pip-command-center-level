@@ -424,6 +424,200 @@ export function runFundamentalIntelligenceTestSuite(): {
     );
   }
 
+  // --------------------------------------------------------------------------
+  // TEST 17: Macroeconomic Regime Detection: RISK_ON
+  // --------------------------------------------------------------------------
+  {
+    const riskOnScores: any = {
+      AUD: { compositeScore: 55, dataCoveragePercent: 90, categoryScores: {} },
+      NZD: { compositeScore: 50, dataCoveragePercent: 90, categoryScores: {} },
+      CAD: { compositeScore: 40, dataCoveragePercent: 90, categoryScores: {} },
+      GBP: { compositeScore: 35, dataCoveragePercent: 90, categoryScores: {} },
+      JPY: { compositeScore: -30, dataCoveragePercent: 90, categoryScores: {} },
+      CHF: { compositeScore: -25, dataCoveragePercent: 90, categoryScores: {} },
+      USD: { compositeScore: -15, dataCoveragePercent: 90, categoryScores: {} },
+      EUR: { compositeScore: 10, dataCoveragePercent: 90, categoryScores: {} },
+    };
+
+    const regime = FundamentalIntelligenceEngine.detectMacroRegime(riskOnScores);
+
+    assert(
+      17,
+      "Macroeconomic Regime Detection: 'RISK_ON'",
+      regime.dominantRegime === 'RISK_ON' && regime.supportingScores.riskOnVsOffScore >= 30,
+      `Dominant Regime: ${regime.dominantRegime} (${regime.regimeLabel}), Risk Score: +${regime.supportingScores.riskOnVsOffScore}`,
+      "Pro-cyclical outperformance correctly identifies 'RISK_ON'"
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // TEST 18: Macroeconomic Regime Detection: RISK_OFF
+  // --------------------------------------------------------------------------
+  {
+    const riskOffScores: any = {
+      USD: { compositeScore: 45, dataCoveragePercent: 90, categoryScores: {} },
+      CHF: { compositeScore: 40, dataCoveragePercent: 90, categoryScores: {} },
+      JPY: { compositeScore: 35, dataCoveragePercent: 90, categoryScores: {} },
+      AUD: { compositeScore: -40, dataCoveragePercent: 90, categoryScores: {} },
+      NZD: { compositeScore: -45, dataCoveragePercent: 90, categoryScores: {} },
+      CAD: { compositeScore: -30, dataCoveragePercent: 90, categoryScores: {} },
+      GBP: { compositeScore: -20, dataCoveragePercent: 90, categoryScores: {} },
+      EUR: { compositeScore: -10, dataCoveragePercent: 90, categoryScores: {} },
+    };
+
+    const regime = FundamentalIntelligenceEngine.detectMacroRegime(riskOffScores);
+
+    assert(
+      18,
+      "Macroeconomic Regime Detection: 'RISK_OFF'",
+      regime.dominantRegime === 'RISK_OFF' && regime.supportingScores.riskOnVsOffScore <= -30,
+      `Dominant Regime: ${regime.dominantRegime} (${regime.regimeLabel}), Risk Score: ${regime.supportingScores.riskOnVsOffScore}`,
+      "Safe-haven outperformance correctly identifies 'RISK_OFF'"
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // TEST 19: Macroeconomic Regime Detection: CENTRAL_BANK_TIGHTENING
+  // --------------------------------------------------------------------------
+  {
+    const tighteningScores: any = {
+      USD: { compositeScore: 25, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: 60, activeIndicatorCount: 2 }, RATES_YIELDS: { score: 50, activeIndicatorCount: 1 } } },
+      EUR: { compositeScore: 20, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: 45, activeIndicatorCount: 2 }, RATES_YIELDS: { score: 40, activeIndicatorCount: 1 } } },
+      GBP: { compositeScore: 20, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: 50, activeIndicatorCount: 2 }, RATES_YIELDS: { score: 45, activeIndicatorCount: 1 } } },
+      AUD: { compositeScore: 10, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: 35, activeIndicatorCount: 2 }, RATES_YIELDS: { score: 30, activeIndicatorCount: 1 } } },
+      NZD: { compositeScore: 10, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: 30, activeIndicatorCount: 2 }, RATES_YIELDS: { score: 30, activeIndicatorCount: 1 } } },
+      CAD: { compositeScore: 15, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: 40, activeIndicatorCount: 2 }, RATES_YIELDS: { score: 35, activeIndicatorCount: 1 } } },
+      CHF: { compositeScore: 5, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: 25, activeIndicatorCount: 2 }, RATES_YIELDS: { score: 20, activeIndicatorCount: 1 } } },
+      JPY: { compositeScore: 5, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: 20, activeIndicatorCount: 2 }, RATES_YIELDS: { score: 15, activeIndicatorCount: 1 } } },
+    };
+
+    const regime = FundamentalIntelligenceEngine.detectMacroRegime(tighteningScores);
+
+    assert(
+      19,
+      "Macroeconomic Regime Detection: 'CENTRAL_BANK_TIGHTENING'",
+      regime.dominantRegime === 'CENTRAL_BANK_TIGHTENING' && regime.supportingScores.centralBankPolicyStanceScore >= 30,
+      `Dominant Regime: ${regime.dominantRegime} (${regime.regimeLabel}), Policy Stance Score: +${regime.supportingScores.centralBankPolicyStanceScore}`,
+      "Elevated policy and yield scores correctly identify 'CENTRAL_BANK_TIGHTENING'"
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // TEST 20: Macroeconomic Regime Detection: CENTRAL_BANK_EASING
+  // --------------------------------------------------------------------------
+  {
+    const easingScores: any = {
+      USD: { compositeScore: -20, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: -55, activeIndicatorCount: 2 }, RATES_YIELDS: { score: -45, activeIndicatorCount: 1 } } },
+      EUR: { compositeScore: -15, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: -40, activeIndicatorCount: 2 }, RATES_YIELDS: { score: -40, activeIndicatorCount: 1 } } },
+      GBP: { compositeScore: -15, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: -45, activeIndicatorCount: 2 }, RATES_YIELDS: { score: -35, activeIndicatorCount: 1 } } },
+      AUD: { compositeScore: -10, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: -35, activeIndicatorCount: 2 }, RATES_YIELDS: { score: -30, activeIndicatorCount: 1 } } },
+      NZD: { compositeScore: -10, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: -30, activeIndicatorCount: 2 }, RATES_YIELDS: { score: -30, activeIndicatorCount: 1 } } },
+      CAD: { compositeScore: -15, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: -40, activeIndicatorCount: 2 }, RATES_YIELDS: { score: -35, activeIndicatorCount: 1 } } },
+      CHF: { compositeScore: -5, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: -25, activeIndicatorCount: 2 }, RATES_YIELDS: { score: -20, activeIndicatorCount: 1 } } },
+      JPY: { compositeScore: -5, dataCoveragePercent: 90, categoryScores: { MONETARY_POLICY: { score: -20, activeIndicatorCount: 2 }, RATES_YIELDS: { score: -15, activeIndicatorCount: 1 } } },
+    };
+
+    const regime = FundamentalIntelligenceEngine.detectMacroRegime(easingScores);
+
+    assert(
+      20,
+      "Macroeconomic Regime Detection: 'CENTRAL_BANK_EASING'",
+      regime.dominantRegime === 'CENTRAL_BANK_EASING' && regime.supportingScores.centralBankPolicyStanceScore <= -30,
+      `Dominant Regime: ${regime.dominantRegime} (${regime.regimeLabel}), Policy Stance Score: ${regime.supportingScores.centralBankPolicyStanceScore}`,
+      "Dovish policy and rate cut scores correctly identify 'CENTRAL_BANK_EASING'"
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // TEST 21: Macroeconomic Regime Detection: STAGFLATION
+  // --------------------------------------------------------------------------
+  {
+    const stagflationScores: any = {
+      USD: { compositeScore: 10, dataCoveragePercent: 90, categoryScores: { INFLATION: { score: 65, activeIndicatorCount: 3 }, GROWTH: { score: -45, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: -40, activeIndicatorCount: 2 } } },
+      EUR: { compositeScore: -25, dataCoveragePercent: 90, categoryScores: { INFLATION: { score: 55, activeIndicatorCount: 2 }, GROWTH: { score: -50, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: -45, activeIndicatorCount: 1 } } },
+      GBP: { compositeScore: -20, dataCoveragePercent: 90, categoryScores: { INFLATION: { score: 60, activeIndicatorCount: 2 }, GROWTH: { score: -40, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: -35, activeIndicatorCount: 1 } } },
+      CAD: { compositeScore: 5, dataCoveragePercent: 90, categoryScores: { INFLATION: { score: 50, activeIndicatorCount: 2 }, GROWTH: { score: -35, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: -30, activeIndicatorCount: 1 } } },
+      AUD: { compositeScore: -15, dataCoveragePercent: 90, categoryScores: { INFLATION: { score: 45, activeIndicatorCount: 2 }, GROWTH: { score: -40, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: -35, activeIndicatorCount: 1 } } },
+      NZD: { compositeScore: -20, dataCoveragePercent: 90, categoryScores: { INFLATION: { score: 40, activeIndicatorCount: 2 }, GROWTH: { score: -45, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: -40, activeIndicatorCount: 1 } } },
+      CHF: { compositeScore: -5, dataCoveragePercent: 90, categoryScores: { INFLATION: { score: 35, activeIndicatorCount: 2 }, GROWTH: { score: -30, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: -25, activeIndicatorCount: 1 } } },
+      JPY: { compositeScore: -10, dataCoveragePercent: 90, categoryScores: { INFLATION: { score: 30, activeIndicatorCount: 2 }, GROWTH: { score: -35, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: -30, activeIndicatorCount: 1 } } },
+    };
+
+    const regime = FundamentalIntelligenceEngine.detectMacroRegime(stagflationScores);
+
+    assert(
+      21,
+      "Macroeconomic Regime Detection: 'STAGFLATION'",
+      regime.dominantRegime === 'STAGFLATION' &&
+        regime.regimeCode === 'STAGFLATION' &&
+        regime.supportingScores.inflationPressureScore >= 30 &&
+        regime.supportingScores.growthMomentumScore <= -25 &&
+        regime.quadrant.quadrantName === 'STAGFLATION',
+      `Dominant Regime: ${regime.dominantRegime} (${regime.regimeCode}), Inflation Score: +${regime.supportingScores.inflationPressureScore}, Growth Score: ${regime.supportingScores.growthMomentumScore}, Quadrant: ${regime.quadrant.quadrantName}`,
+      "Elevated inflation combined with contractionary growth momentum correctly triggers 'STAGFLATION'"
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // TEST 22: Macroeconomic Regime Detection: GOLDILOCKS
+  // --------------------------------------------------------------------------
+  {
+    const goldilocksScores: any = {
+      AUD: { compositeScore: 40, dataCoveragePercent: 90, categoryScores: { GROWTH: { score: 55, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: 50, activeIndicatorCount: 1 }, INFLATION: { score: -35, activeIndicatorCount: 2 } } },
+      NZD: { compositeScore: 35, dataCoveragePercent: 90, categoryScores: { GROWTH: { score: 50, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: 45, activeIndicatorCount: 1 }, INFLATION: { score: -30, activeIndicatorCount: 2 } } },
+      CAD: { compositeScore: 30, dataCoveragePercent: 90, categoryScores: { GROWTH: { score: 45, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: 40, activeIndicatorCount: 1 }, INFLATION: { score: -35, activeIndicatorCount: 2 } } },
+      GBP: { compositeScore: 25, dataCoveragePercent: 90, categoryScores: { GROWTH: { score: 40, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: 35, activeIndicatorCount: 1 }, INFLATION: { score: -30, activeIndicatorCount: 2 } } },
+      USD: { compositeScore: 20, dataCoveragePercent: 90, categoryScores: { GROWTH: { score: 45, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: 40, activeIndicatorCount: 2 }, INFLATION: { score: -40, activeIndicatorCount: 3 } } },
+      EUR: { compositeScore: 15, dataCoveragePercent: 90, categoryScores: { GROWTH: { score: 35, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: 30, activeIndicatorCount: 1 }, INFLATION: { score: -35, activeIndicatorCount: 2 } } },
+      CHF: { compositeScore: 5, dataCoveragePercent: 90, categoryScores: { GROWTH: { score: 25, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: 20, activeIndicatorCount: 1 }, INFLATION: { score: -25, activeIndicatorCount: 2 } } },
+      JPY: { compositeScore: 0, dataCoveragePercent: 90, categoryScores: { GROWTH: { score: 20, activeIndicatorCount: 1 }, BUSINESS_ACTIVITY: { score: 15, activeIndicatorCount: 1 }, INFLATION: { score: -20, activeIndicatorCount: 2 } } },
+    };
+
+    const regime = FundamentalIntelligenceEngine.detectMacroRegime(goldilocksScores);
+
+    assert(
+      22,
+      "Macroeconomic Regime Detection: 'GOLDILOCKS'",
+      regime.dominantRegime === 'GOLDILOCKS' &&
+        regime.regimeCode === 'GOLDILOCKS' &&
+        regime.supportingScores.growthMomentumScore >= 25 &&
+        regime.supportingScores.inflationPressureScore <= -20 &&
+        regime.quadrant.quadrantName === 'GOLDILOCKS',
+      `Dominant Regime: ${regime.dominantRegime} (${regime.regimeCode}), Growth: +${regime.supportingScores.growthMomentumScore}, Inflation: ${regime.supportingScores.inflationPressureScore}, Quadrant: ${regime.quadrant.quadrantName}`,
+      "Accelerating growth with disinflationary price trajectory correctly triggers 'GOLDILOCKS'"
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // TEST 23: Standardized Regime Codes & Multi-Asset Playbook
+  // --------------------------------------------------------------------------
+  {
+    const riskOnScores: any = {
+      AUD: { compositeScore: 60, dataCoveragePercent: 90, categoryScores: {} },
+      NZD: { compositeScore: 55, dataCoveragePercent: 90, categoryScores: {} },
+      CAD: { compositeScore: 45, dataCoveragePercent: 90, categoryScores: {} },
+      GBP: { compositeScore: 40, dataCoveragePercent: 90, categoryScores: {} },
+      JPY: { compositeScore: -40, dataCoveragePercent: 90, categoryScores: {} },
+      CHF: { compositeScore: -35, dataCoveragePercent: 90, categoryScores: {} },
+      USD: { compositeScore: -20, dataCoveragePercent: 90, categoryScores: {} },
+      EUR: { compositeScore: 10, dataCoveragePercent: 90, categoryScores: {} },
+    };
+
+    const regime = FundamentalIntelligenceEngine.detectMacroRegime(riskOnScores);
+
+    const hasValidCode = regime.regimeCode === 'RISK-ON';
+    const hasProbabilities = Array.isArray(regime.regimeProbabilities) && regime.regimeProbabilities.length > 0;
+    const hasAssetImpacts = Boolean(regime.assetClassImpacts?.fxStrategy && regime.assetClassImpacts?.equities);
+
+    assert(
+      23,
+      "Standardized Regime Codes ('RISK-ON', 'RISK-OFF', 'CENTRAL-BANK-TIGHTENING') & Playbook",
+      hasValidCode && hasProbabilities && hasAssetImpacts,
+      `Regime Code: ${regime.regimeCode}, Probabilities Count: ${regime.regimeProbabilities?.length}, Strategy: "${regime.assetClassImpacts?.fxStrategy?.slice(0, 40)}..."`,
+      "Engine outputs standardized hyphenated regime codes, probability distribution, and multi-asset playbooks"
+    );
+  }
+
   const passedCount = results.filter((r) => r.passed).length;
   return {
     total: results.length,

@@ -64,6 +64,88 @@ export type BiasClassification =
   | 'STRONGLY_BEARISH'
   | 'INSUFFICIENT_DATA';
 
+export type MacroRegimeType =
+  | 'RISK_ON'
+  | 'RISK_OFF'
+  | 'CENTRAL_BANK_TIGHTENING'
+  | 'CENTRAL_BANK_EASING'
+  | 'STAGFLATION'
+  | 'GOLDILOCKS'
+  | 'INFLATIONARY'
+  | 'DISINFLATIONARY'
+  | 'GROWTH_EXPANSION'
+  | 'GROWTH_SLOWDOWN'
+  | 'RECESSIONARY'
+  | 'MIXED_UNCLEAR';
+
+export type MacroRegimeCode =
+  | 'RISK-ON'
+  | 'RISK-OFF'
+  | 'CENTRAL-BANK-TIGHTENING'
+  | 'CENTRAL-BANK-EASING'
+  | 'STAGFLATION'
+  | 'GOLDILOCKS'
+  | 'INFLATIONARY'
+  | 'DISINFLATIONARY'
+  | 'GROWTH-EXPANSION'
+  | 'GROWTH-SLOWDOWN'
+  | 'RECESSIONARY'
+  | 'MIXED-UNCLEAR';
+
+export function toRegimeCode(regime: MacroRegimeType | string): MacroRegimeCode {
+  const norm = String(regime || '').toUpperCase().replace(/_/g, '-');
+  if (norm.includes('RISK-ON')) return 'RISK-ON';
+  if (norm.includes('RISK-OFF')) return 'RISK-OFF';
+  if (norm.includes('TIGHTENING')) return 'CENTRAL-BANK-TIGHTENING';
+  if (norm.includes('EASING')) return 'CENTRAL-BANK-EASING';
+  if (norm.includes('STAGFLATION')) return 'STAGFLATION';
+  if (norm.includes('GOLDILOCKS')) return 'GOLDILOCKS';
+  if (norm.includes('DISINFLATION')) return 'DISINFLATIONARY';
+  if (norm.includes('INFLATION')) return 'INFLATIONARY';
+  if (norm.includes('EXPANSION')) return 'GROWTH-EXPANSION';
+  if (norm.includes('SLOWDOWN')) return 'GROWTH-SLOWDOWN';
+  if (norm.includes('RECESSION')) return 'RECESSIONARY';
+  return 'MIXED-UNCLEAR';
+}
+
+export interface MacroRegimeAssessment {
+  dominantRegime: MacroRegimeType;
+  regimeCode: MacroRegimeCode;
+  secondaryRegime?: MacroRegimeCode;
+  regimeLabel: string;
+  conviction: number; // 0 - 100%
+  supportingScores: {
+    riskOnVsOffScore: number; // Positive = Risk-On, Negative = Risk-Off (-100 to +100)
+    centralBankPolicyStanceScore: number; // Positive = Tightening/Hawkish, Negative = Easing/Dovish (-100 to +100)
+    inflationPressureScore: number; // Positive = Inflationary, Negative = Disinflationary (-100 to +100)
+    growthMomentumScore: number; // Positive = Growth/Expansion, Negative = Slowdown/Contraction (-100 to +100)
+  };
+  quadrant: {
+    growthState: 'EXPANDING' | 'NEUTRAL' | 'CONTRACTING';
+    inflationState: 'SURGING' | 'STICKY' | 'COOLING';
+    quadrantName: 'EXPANSION' | 'STAGFLATION' | 'RECESSION' | 'GOLDILOCKS' | 'TRANSITIONAL';
+  };
+  regimeProbabilities: {
+    regime: MacroRegimeCode;
+    label: string;
+    probability: number;
+    score: number;
+  }[];
+  keyMarketImplications: string[];
+  favoredCurrencies: CurrencyCode[];
+  vulnerableCurrencies: CurrencyCode[];
+  regimeRationale: string;
+  assetClassImpacts: {
+    fxStrategy: string;
+    equities: string;
+    sovereignYields: string;
+    commodities: string;
+  };
+  historicalAnalogue: string;
+  invalidationTriggers: string[];
+  dataConfidence: number;
+}
+
 export type DataFreshnessStatus = 'CURRENT' | 'RECENT' | 'STALE' | 'EXPIRED' | 'UNAVAILABLE';
 
 export interface IndicatorIntelligenceResult {
@@ -181,8 +263,11 @@ export interface FullIntelligenceReport {
   currencyScores: Record<CurrencyCode, CurrencyIntelligenceResult>;
   currencyRankings: { rank: number; currency: CurrencyCode; score: number; bias: BiasClassification; confidence: number }[];
   pairDifferentials: PairIntelligenceResult[];
+  macroRegime: MacroRegimeAssessment;
   globalMacroRegimeSummary: {
-    dominantRegime: 'RISK_ON' | 'RISK_OFF' | 'NEUTRAL_TRANSITIONAL' | 'INFLATION_DOMINANT';
+    dominantRegime: MacroRegimeType;
+    regimeLabel: string;
+    conviction: number;
     strongestCurrency: CurrencyCode;
     weakestCurrency: CurrencyCode;
     highestConvictionPairs: string[];
@@ -972,8 +1057,561 @@ export class FundamentalIntelligenceEngine {
   }
 
   /**
+   * Evaluates and categorizes the macroeconomic environment into distinct regimes:
+   * 'RISK_ON', 'RISK_OFF', 'CENTRAL_BANK_TIGHTENING', 'CENTRAL_BANK_EASING',
+   * 'INFLATIONARY', 'DISINFLATIONARY', 'GROWTH_EXPANSION', 'GROWTH_SLOWDOWN', or 'MIXED_UNCLEAR'.
+   */
+  public static detectMacroRegime(
+    currencyScores: Record<CurrencyCode, CurrencyIntelligenceResult>
+  ): MacroRegimeAssessment {
+    const proCyclicalCurrencies: CurrencyCode[] = ['AUD', 'NZD', 'CAD', 'GBP'];
+    const safeHavenCurrencies: CurrencyCode[] = ['JPY', 'CHF', 'USD'];
+
+    // 1. Risk-On vs Risk-Off calculation
+    // Pro-cyclical (AUD, NZD, CAD, GBP) strength vs Safe-haven (JPY, CHF, USD)
+    const proCyclicalAvg =
+      proCyclicalCurrencies.reduce((acc, c) => acc + (currencyScores[c]?.compositeScore ?? 0), 0) /
+      proCyclicalCurrencies.length;
+    const safeHavenAvg =
+      safeHavenCurrencies.reduce((acc, c) => acc + (currencyScores[c]?.compositeScore ?? 0), 0) /
+      safeHavenCurrencies.length;
+    const riskOnVsOffScore = Math.round(Math.max(-100, Math.min(100, (proCyclicalAvg - safeHavenAvg) * 1.5)));
+
+    // 2. Central-Bank Policy Stance calculation
+    // Aggregation of MONETARY_POLICY and RATES_YIELDS categories across all currencies
+    let policyScoreSum = 0;
+    let policyCount = 0;
+    Object.values(currencyScores).forEach((c) => {
+      const monPolicy = c.categoryScores?.MONETARY_POLICY;
+      const yields = c.categoryScores?.RATES_YIELDS;
+      if (monPolicy && monPolicy.activeIndicatorCount > 0) {
+        policyScoreSum += monPolicy.score;
+        policyCount++;
+      }
+      if (yields && yields.activeIndicatorCount > 0) {
+        policyScoreSum += yields.score;
+        policyCount++;
+      }
+    });
+    const centralBankPolicyStanceScore = policyCount > 0
+      ? Math.round(Math.max(-100, Math.min(100, policyScoreSum / policyCount)))
+      : 0;
+
+    // 3. Inflation Pressure calculation
+    let inflationScoreSum = 0;
+    let inflationCount = 0;
+    Object.values(currencyScores).forEach((c) => {
+      const inf = c.categoryScores?.INFLATION;
+      if (inf && inf.activeIndicatorCount > 0) {
+        inflationScoreSum += inf.score;
+        inflationCount++;
+      }
+    });
+    const inflationPressureScore = inflationCount > 0
+      ? Math.round(Math.max(-100, Math.min(100, inflationScoreSum / inflationCount)))
+      : 0;
+
+    // 4. Growth Momentum calculation
+    let growthScoreSum = 0;
+    let growthCount = 0;
+    Object.values(currencyScores).forEach((c) => {
+      const growth = c.categoryScores?.GROWTH;
+      const pmi = c.categoryScores?.BUSINESS_ACTIVITY;
+      if (growth && growth.activeIndicatorCount > 0) {
+        growthScoreSum += growth.score;
+        growthCount++;
+      }
+      if (pmi && pmi.activeIndicatorCount > 0) {
+        growthScoreSum += pmi.score;
+        growthCount++;
+      }
+    });
+    const growthMomentumScore = growthCount > 0
+      ? Math.round(Math.max(-100, Math.min(100, growthScoreSum / growthCount)))
+      : 0;
+
+    // 5. Data Coverage & Confidence
+    const avgCoverage = Math.round(
+      Object.values(currencyScores).reduce((acc, c) => acc + c.dataCoveragePercent, 0) / 8
+    );
+
+    // If data coverage is severely deficient, do NOT force an arbitrary regime
+    if (avgCoverage < 25) {
+      return {
+        dominantRegime: 'MIXED_UNCLEAR',
+        regimeCode: 'MIXED-UNCLEAR',
+        regimeLabel: 'INSUFFICIENT DATA / UNCLEAR',
+        conviction: 20,
+        supportingScores: {
+          riskOnVsOffScore,
+          centralBankPolicyStanceScore,
+          inflationPressureScore,
+          growthMomentumScore,
+        },
+        quadrant: {
+          growthState: 'NEUTRAL',
+          inflationState: 'STICKY',
+          quadrantName: 'TRANSITIONAL',
+        },
+        regimeProbabilities: [
+          { regime: 'MIXED-UNCLEAR', label: 'Transitional / Unclear', probability: 100, score: 0 },
+        ],
+        keyMarketImplications: [
+          'Verified macroeconomic data coverage is below minimum threshold.',
+          'Exercise caution: avoid taking high-beta macroeconomic bets until data refresh.',
+        ],
+        favoredCurrencies: [],
+        vulnerableCurrencies: [],
+        regimeRationale: 'Insufficient verified data points to establish a dominant macroeconomic regime.',
+        assetClassImpacts: {
+          fxStrategy: 'Neutral / low-exposure stance until verified fundamental observations update.',
+          equities: 'Range-bound posture awaiting key macro releases.',
+          sovereignYields: 'Monitor benchmark yields for breakout trends.',
+          commodities: 'Neutral baseline pending global demand clarity.',
+        },
+        historicalAnalogue: 'Quiet inter-meeting data consolidation windows.',
+        invalidationTriggers: ['Ingestion of new official economic reports providing requisite statistical coverage.'],
+        dataConfidence: avgCoverage,
+      };
+    }
+
+    // Determine candidate regimes based on magnitude and divergence
+    const regimeCandidates: {
+      type: MacroRegimeType;
+      code: MacroRegimeCode;
+      label: string;
+      magnitude: number;
+      implications: string[];
+      favored: CurrencyCode[];
+      vulnerable: CurrencyCode[];
+      rationale: string;
+      assetClassImpacts: {
+        fxStrategy: string;
+        equities: string;
+        sovereignYields: string;
+        commodities: string;
+      };
+      historicalAnalogue: string;
+      invalidationTriggers: string[];
+    }[] = [];
+
+    // Stagflation candidate (High inflation + decelerating/contracting growth)
+    if (inflationPressureScore >= 20 && growthMomentumScore <= -15) {
+      const stagMagnitude = Math.round((inflationPressureScore + Math.abs(growthMomentumScore)) * 0.7);
+      regimeCandidates.push({
+        type: 'STAGFLATION',
+        code: 'STAGFLATION',
+        label: 'STAGFLATIONARY PRESSURE',
+        magnitude: stagMagnitude,
+        implications: [
+          'Consumer and producer prices elevated alongside contracting economic activity and sub-50 PMIs.',
+          'Central bank policy dilemma: hiking rates deepens recession, yet easing risks spiraling price inflation.',
+          'Real wage erosion curtails retail consumption; corporate margin compression accelerates.',
+        ],
+        favored: ['USD', 'CAD'],
+        vulnerable: ['EUR', 'GBP', 'AUD'],
+        rationale: `Inflation pressure score of +${inflationPressureScore} coupled with negative growth momentum (${growthMomentumScore}) signals severe stagflationary risks.`,
+        assetClassImpacts: {
+          fxStrategy: 'Long USD cash carry and commodity energy exporters (CAD); short consumer-reliant cyclical currencies (EUR, GBP).',
+          equities: 'Multi-factor earnings downgrades; defensive staples outperform discretionary and growth equities.',
+          sovereignYields: 'Yield curve unanchored; elevated inflation premia counterbalanced by sovereign growth degradation.',
+          commodities: 'Energy and physical commodities remain supported by persistent structural supply scarcity.',
+        },
+        historicalAnalogue: '1970s oil supply shocks or mid-2022 global supply chain & energy stagflation squeeze.',
+        invalidationTriggers: [
+          'Core CPI prints decisively retreating below central bank targets (<2.5%).',
+          'Composite PMIs re-accelerating back above the 50.0 expansion line.',
+        ],
+      });
+    }
+
+    // Goldilocks candidate (Solid growth + cooling/controlled inflation)
+    if (growthMomentumScore >= 20 && inflationPressureScore <= -10) {
+      const goldilocksMagnitude = Math.round((growthMomentumScore + Math.abs(inflationPressureScore)) * 0.7);
+      regimeCandidates.push({
+        type: 'GOLDILOCKS',
+        code: 'GOLDILOCKS',
+        label: 'GOLDILOCKS EXPANSION',
+        magnitude: goldilocksMagnitude,
+        implications: [
+          'Robust GDP output and healthy labor prints coupled with softening inflation metrics.',
+          'Benign inflation trajectory alleviates central bank tightening pressure.',
+          'Financial conditions ease naturally; corporate profit outlook supports risk-taking.',
+        ],
+        favored: ['AUD', 'NZD', 'CAD', 'GBP'],
+        vulnerable: ['JPY', 'CHF'],
+        rationale: `Growth momentum score of +${growthMomentumScore} with cooling inflation score (${inflationPressureScore}) confirms a Goldilocks non-inflationary expansion.`,
+        assetClassImpacts: {
+          fxStrategy: 'Overweight high-beta and pro-cyclical commodity currencies (AUD, NZD, GBP) against funding safe-havens (JPY, CHF).',
+          equities: 'Broad-based equity rally driven by multiple expansion and resilient corporate earnings.',
+          sovereignYields: 'Yields stable with subdued term premiums; corporate credit spreads compress to cycle tights.',
+          commodities: 'Industrial metals (Copper, Aluminum) and global shipping demand outperform.',
+        },
+        historicalAnalogue: '2017 synchronized global expansion and mid-2019 mid-cycle adjustment expansion.',
+        invalidationTriggers: [
+          'Unexpected rebound in core PCE or CPI triggering hawkish central bank repricing.',
+          'Global growth indicators or PMIs rolling over into contraction.',
+        ],
+      });
+    }
+
+    // Central Bank Tightening candidate
+    if (centralBankPolicyStanceScore >= 20) {
+      regimeCandidates.push({
+        type: 'CENTRAL_BANK_TIGHTENING',
+        code: 'CENTRAL-BANK-TIGHTENING',
+        label: 'CENTRAL BANK TIGHTENING',
+        magnitude: centralBankPolicyStanceScore,
+        implications: [
+          'Global policy rates elevated; restrictive monetary conditions prevailing.',
+          'High-yielding currencies with hawkish central banks offer sustained carry support.',
+          'Credit conditions tight; high-debt and zero-yield assets face headwinds.',
+        ],
+        favored: Object.values(currencyScores)
+          .filter((c) => (c.policyRate ?? 0) >= 4.0 || (c.categoryScores?.MONETARY_POLICY?.score ?? 0) >= 15)
+          .map((c) => c.currency),
+        vulnerable: Object.values(currencyScores)
+          .filter((c) => (c.policyRate ?? 0) < 2.0 || (c.categoryScores?.MONETARY_POLICY?.score ?? 0) <= -15)
+          .map((c) => c.currency),
+        rationale: `Global central bank policy score of +${centralBankPolicyStanceScore} reflects widespread hawkish tightening stance and elevated yields.`,
+        assetClassImpacts: {
+          fxStrategy: 'Long high-yielding hawkish central bank currencies; short low-yielding funding currencies (carry trade).',
+          equities: 'High-duration growth equities face valuation multiple compression from elevated discount rates.',
+          sovereignYields: 'Front-end sovereign yields pinned high; yield curve bear flattening or inversion persists.',
+          commodities: 'Commodities face headwind from elevated real rates and strong reserve currency financing costs.',
+        },
+        historicalAnalogue: '2022–2023 aggressive Federal Reserve, ECB, and BoE rate hiking campaign.',
+        invalidationTriggers: [
+          'Sharp rise in unemployment rates triggering emergency policy pivot expectations.',
+          'Consecutive soft inflation reports pulling policy expectations down.',
+        ],
+      });
+    }
+
+    // Central Bank Easing candidate
+    if (centralBankPolicyStanceScore <= -20) {
+      regimeCandidates.push({
+        type: 'CENTRAL_BANK_EASING',
+        code: 'CENTRAL-BANK-EASING',
+        label: 'CENTRAL BANK EASING',
+        magnitude: Math.abs(centralBankPolicyStanceScore),
+        implications: [
+          'Global central banks cutting benchmark rates or signaling dovish policy pivots.',
+          'Monetary accommodation underway; yield carry premiums compressing.',
+          'Lower real rates relieve debt pressures and support risk asset liquidity.',
+        ],
+        favored: ['EUR', 'GBP', 'AUD', 'NZD'],
+        vulnerable: ['USD'],
+        rationale: `Global central bank policy score of ${centralBankPolicyStanceScore} indicates synchronized monetary policy easing or rate cut cycles.`,
+        assetClassImpacts: {
+          fxStrategy: 'Short currencies aggressively slashing policy rates; position for liquidity expansion beneficiaries.',
+          equities: 'Declining discount rates boost valuation multiples; tech and interest-rate-sensitive assets lead.',
+          sovereignYields: 'Bull steepening of sovereign yield curves; benchmark yields drift lower.',
+          commodities: 'Precious metals (Gold, Silver) strongly favored as fiat interest rate opportunity cost drops.',
+        },
+        historicalAnalogue: '2019 global central bank easing pivot and post-shock accommodation cycles.',
+        invalidationTriggers: [
+          'Re-acceleration of headline inflation compelling central banks to pause or reverse rate cuts.',
+          'Sovereign debt supply overhang halting the decline in long-term yields.',
+        ],
+      });
+    }
+
+    // Risk-On candidate
+    if (riskOnVsOffScore >= 20) {
+      regimeCandidates.push({
+        type: 'RISK_ON',
+        code: 'RISK-ON',
+        label: 'GLOBAL RISK-ON',
+        magnitude: riskOnVsOffScore,
+        implications: [
+          'Capital flows favor pro-cyclical and commodity-linked currencies.',
+          'Safe-haven capital flight reverses; funding currencies used for carry trades.',
+          'Global risk appetite buoyant across equity and credit markets.',
+        ],
+        favored: ['AUD', 'NZD', 'CAD', 'GBP'],
+        vulnerable: ['JPY', 'CHF'],
+        rationale: `Pro-cyclical currencies outperforming safe-haven reserves by +${riskOnVsOffScore} points, indicating healthy market risk appetite.`,
+        assetClassImpacts: {
+          fxStrategy: 'Aggressively long commodity and pro-cyclical FX crosses (AUD/JPY, NZD/JPY, GBP/CHF).',
+          equities: 'Risk assets rally; high-beta and emerging market equities outperform defensive sectors.',
+          sovereignYields: 'Safe-haven government bond buying subsides; benchmark yields stabilize or grind higher.',
+          commodities: 'Growth-sensitive industrial raw materials, crude oil, and base metals see strong inflows.',
+        },
+        historicalAnalogue: 'Reflation rallies such as 2017 global synchronized growth and late 2020 vaccine rollouts.',
+        invalidationTriggers: [
+          'Geopolitical shock or credit event sparking flight-to-safety liquidity demands.',
+          'Pro-cyclical currency relative strength index breaking down below safe havens.',
+        ],
+      });
+    }
+
+    // Risk-Off candidate
+    if (riskOnVsOffScore <= -20) {
+      regimeCandidates.push({
+        type: 'RISK_OFF',
+        code: 'RISK-OFF',
+        label: 'GLOBAL RISK-OFF / CAPITAL PRESERVATION',
+        magnitude: Math.abs(riskOnVsOffScore),
+        implications: [
+          'Heightened capital flight into defensive safe-haven currencies (USD, CHF, JPY).',
+          'High-beta and commodity currencies (AUD, NZD, CAD) vulnerable to liquidation.',
+          'Risk aversion elevated; avoid unhedged carry trade positions.',
+        ],
+        favored: ['USD', 'CHF', 'JPY'],
+        vulnerable: ['AUD', 'NZD', 'CAD'],
+        rationale: `Safe-haven currencies exhibiting strength over pro-cyclical currencies (-${Math.abs(riskOnVsOffScore)} spread), confirming capital preservation mode.`,
+        assetClassImpacts: {
+          fxStrategy: 'Long defensive safe havens (USD, CHF, JPY); unwind high-beta carry longs immediately.',
+          equities: 'Broad market liquidation; volatility indicators (VIX) elevated; capital shelters in defensive cash.',
+          sovereignYields: 'Strong sovereign bond bids; benchmark 10Y Treasury and Bund yields tumble on safe-haven buying.',
+          commodities: 'Industrial and growth commodities sell off on global demand destruction fears; Gold acts as store of value.',
+        },
+        historicalAnalogue: 'Q1 2020 pandemic onset or 2008 Lehman liquidity flight to reserve currencies.',
+        invalidationTriggers: [
+          'Central bank liquidity backstops or fiscal stimulus announcements calming market fears.',
+          'Safe-haven capital inflows stalling with high-beta currencies breaking out above key moving averages.',
+        ],
+      });
+    }
+
+    // Inflationary candidate
+    if (inflationPressureScore >= 25 && growthMomentumScore >= 0) {
+      regimeCandidates.push({
+        type: 'INFLATIONARY',
+        code: 'INFLATIONARY',
+        label: 'INFLATIONARY REGIME',
+        magnitude: inflationPressureScore,
+        implications: [
+          'Headline and Core CPI metrics exceeding target benchmarks across key economies.',
+          'Higher-for-longer policy expectations persist; bond yields face upward pressure.',
+          'Commodity-linked currencies and resource exporters exhibit resilience.',
+        ],
+        favored: ['USD', 'CAD', 'AUD'],
+        vulnerable: ['JPY', 'EUR'],
+        rationale: `Aggregate inflation score of +${inflationPressureScore} reflects persistent consumer price and wage pressures above targets.`,
+        assetClassImpacts: {
+          fxStrategy: 'Long commodity currencies and high-yield reserve currencies with positive real rates.',
+          equities: 'Pricing power companies and energy producers outperform; low-margin consumer stocks suffer.',
+          sovereignYields: 'Term premiums surge; inflation-protected securities (TIPS) outperform nominal bonds.',
+          commodities: 'Energy, grains, and industrial materials maintain strong pricing momentum.',
+        },
+        historicalAnalogue: 'Mid-2021 to mid-2022 global reopening inflation surge.',
+        invalidationTriggers: ['Sustained sequence of below-forecast CPI prints across the US and Eurozone.'],
+      });
+    }
+
+    // Disinflationary candidate
+    if (inflationPressureScore <= -25) {
+      regimeCandidates.push({
+        type: 'DISINFLATIONARY',
+        code: 'DISINFLATIONARY',
+        label: 'DISINFLATIONARY REGIME',
+        magnitude: Math.abs(inflationPressureScore),
+        implications: [
+          'Consumer price pressures cooling toward or below official 2% central bank targets.',
+          'Bond markets pricing in prospective rate cuts; sovereign yields declining.',
+          'Currencies with room to ease may see near-term capital reallocation.',
+        ],
+        favored: ['CHF', 'EUR'],
+        vulnerable: ['USD', 'GBP'],
+        rationale: `Inflation pressure score of ${inflationPressureScore} confirms cooling price dynamics and disinflationary progression.`,
+        assetClassImpacts: {
+          fxStrategy: 'Rotate into currencies offering stable real returns; prepare for impending rate cut differentials.',
+          equities: 'Lower inflation relieves margin pressure; consumer discretionary and tech shares rebound.',
+          sovereignYields: 'Bond yields fall as disinflation removes central bank hiking risks.',
+          commodities: 'Raw materials lose inflation hedging premia; prices stabilize.',
+        },
+        historicalAnalogue: '2014–2015 global disinflationary period.',
+        invalidationTriggers: ['Sudden commodity supply disruptions reigniting headline price metrics.'],
+      });
+    }
+
+    // Growth Expansion candidate
+    if (growthMomentumScore >= 25) {
+      regimeCandidates.push({
+        type: 'GROWTH_EXPANSION',
+        code: 'GROWTH-EXPANSION',
+        label: 'GROWTH & EXPANSION',
+        magnitude: growthMomentumScore,
+        implications: [
+          'GDP prints and PMI surveys comfortably in expansionary territory (>50).',
+          'Corporate investment, consumer spending, and industrial production resilient.',
+          'Broad-based currency appreciation for export-driven economies.',
+        ],
+        favored: ['USD', 'AUD', 'CAD'],
+        vulnerable: ['JPY'],
+        rationale: `Growth momentum score of +${growthMomentumScore} driven by robust GDP output and PMI expansion.`,
+        assetClassImpacts: {
+          fxStrategy: 'Long growth-sensitive cyclical currencies (AUD, CAD, GBP) against low-beta currencies.',
+          equities: 'Cyclical sectors and capital goods lead broad market gains.',
+          sovereignYields: 'Real yields rise due to capital demand for productive investment.',
+          commodities: 'Broad-based commodity rally supported by end-user industrial consumption.',
+        },
+        historicalAnalogue: '2004–2006 synchronized global economic expansion.',
+        invalidationTriggers: ['Leading indicators (Yield curve inversions, manufacturing PMIs) rolling over.'],
+      });
+    }
+
+    // Growth Slowdown candidate
+    if (growthMomentumScore <= -25) {
+      regimeCandidates.push({
+        type: 'GROWTH_SLOWDOWN',
+        code: 'GROWTH-SLOWDOWN',
+        label: 'ECONOMIC SLOWDOWN / CONTRACTION',
+        magnitude: Math.abs(growthMomentumScore),
+        implications: [
+          'GDP contraction or sub-trend growth coupled with sub-50 manufacturing PMIs.',
+          'Labor market hiring slowing down; business capital expenditure reined in.',
+          'Defensive currency postures recommended.',
+        ],
+        favored: ['CHF', 'USD', 'JPY'],
+        vulnerable: ['EUR', 'NZD', 'AUD'],
+        rationale: `Growth momentum score of ${growthMomentumScore} signals synchronized economic deceleration and output contraction.`,
+        assetClassImpacts: {
+          fxStrategy: 'Long defensive currencies (CHF, USD, JPY); short high-beta cyclical exporters.',
+          equities: 'Earnings recession expectations depress cyclical stocks; high-quality balance sheets preferred.',
+          sovereignYields: 'Flight to quality and anticipated easing drive sovereign yields down.',
+          commodities: 'Industrial metals and energy face demand destruction headwinds.',
+        },
+        historicalAnalogue: 'Late 2001 slowdown and late 2018 global trade-war deceleration.',
+        invalidationTriggers: ['Unexpected rebound in composite PMIs and global export orders.'],
+      });
+    }
+
+    // 6. Macro Quadrant calculation (Growth x Inflation)
+    const growthState: 'EXPANDING' | 'NEUTRAL' | 'CONTRACTING' =
+      growthMomentumScore >= 15 ? 'EXPANDING' : growthMomentumScore <= -15 ? 'CONTRACTING' : 'NEUTRAL';
+
+    const inflationState: 'SURGING' | 'STICKY' | 'COOLING' =
+      inflationPressureScore >= 20 ? 'SURGING' : inflationPressureScore <= -15 ? 'COOLING' : 'STICKY';
+
+    let quadrantName: 'EXPANSION' | 'STAGFLATION' | 'RECESSION' | 'GOLDILOCKS' | 'TRANSITIONAL' = 'TRANSITIONAL';
+    if (growthState === 'EXPANDING' && (inflationState === 'SURGING' || inflationState === 'STICKY')) {
+      quadrantName = 'EXPANSION';
+    } else if (growthState === 'EXPANDING' && inflationState === 'COOLING') {
+      quadrantName = 'GOLDILOCKS';
+    } else if (growthState === 'CONTRACTING' && (inflationState === 'SURGING' || inflationState === 'STICKY')) {
+      quadrantName = 'STAGFLATION';
+    } else if (growthState === 'CONTRACTING' && inflationState === 'COOLING') {
+      quadrantName = 'RECESSION';
+    }
+
+    // 7. Calculate Normalized Regime Probabilities
+    const rawScores: { regime: MacroRegimeCode; label: string; score: number }[] = [
+      { regime: 'RISK-ON', label: 'Global Risk-On', score: Math.max(0, riskOnVsOffScore) },
+      { regime: 'RISK-OFF', label: 'Global Risk-Off', score: Math.max(0, -riskOnVsOffScore) },
+      { regime: 'CENTRAL-BANK-TIGHTENING', label: 'Central Bank Tightening', score: Math.max(0, centralBankPolicyStanceScore) },
+      { regime: 'CENTRAL-BANK-EASING', label: 'Central Bank Easing', score: Math.max(0, -centralBankPolicyStanceScore) },
+      {
+        regime: 'STAGFLATION',
+        label: 'Stagflation',
+        score: Math.max(0, inflationPressureScore) > 10 && Math.max(0, -growthMomentumScore) > 10
+          ? Math.round((Math.max(0, inflationPressureScore) + Math.max(0, -growthMomentumScore)) * 0.7)
+          : 0,
+      },
+      {
+        regime: 'GOLDILOCKS',
+        label: 'Goldilocks Expansion',
+        score: Math.max(0, growthMomentumScore) > 10 && Math.max(0, -inflationPressureScore) > 10
+          ? Math.round((Math.max(0, growthMomentumScore) + Math.max(0, -inflationPressureScore)) * 0.7)
+          : 0,
+      },
+      { regime: 'GROWTH-SLOWDOWN', label: 'Growth Slowdown', score: Math.max(0, -growthMomentumScore) },
+    ];
+
+    const totalRaw = rawScores.reduce((sum, r) => sum + r.score, 0);
+    const regimeProbabilities = totalRaw > 0
+      ? rawScores
+          .map((r) => ({
+            regime: r.regime,
+            label: r.label,
+            probability: Math.round((r.score / totalRaw) * 100),
+            score: r.score,
+          }))
+          .sort((a, b) => b.probability - a.probability)
+      : [
+          { regime: 'MIXED-UNCLEAR' as MacroRegimeCode, label: 'Transitional', probability: 100, score: 0 },
+        ];
+
+    // Sort candidate regimes by magnitude
+    regimeCandidates.sort((a, b) => b.magnitude - a.magnitude);
+
+    if (regimeCandidates.length === 0) {
+      return {
+        dominantRegime: 'MIXED_UNCLEAR',
+        regimeCode: 'MIXED-UNCLEAR',
+        regimeLabel: 'MIXED / TRANSITIONAL REGIME',
+        conviction: 45,
+        supportingScores: {
+          riskOnVsOffScore,
+          centralBankPolicyStanceScore,
+          inflationPressureScore,
+          growthMomentumScore,
+        },
+        quadrant: {
+          growthState,
+          inflationState,
+          quadrantName,
+        },
+        regimeProbabilities,
+        keyMarketImplications: [
+          'Cross-currents across economic indicators; no single macroeconomic regime dominates.',
+          'Trade individual currency differentials rather than macro broad-basket themes.',
+          'Wait for high-impact catalyst releases to establish clear market direction.',
+        ],
+        favoredCurrencies: [],
+        vulnerableCurrencies: [],
+        regimeRationale:
+          'Macro indicators reflect balanced or conflicting signals across monetary policy, inflation, and risk appetite.',
+        assetClassImpacts: {
+          fxStrategy: 'Focus on idiosyncratic currency pair divergence rather than top-down beta bets.',
+          equities: 'Stock-specific selection; index levels consolidate in range.',
+          sovereignYields: 'Yields range-bound pending central bank guidance.',
+          commodities: 'Commodity moves driven by local supply factors rather than macro tide.',
+        },
+        historicalAnalogue: 'Mid-cycle consolidation regimes where macro drivers pause.',
+        invalidationTriggers: ['Next tier-1 inflation or labor release creating clear directional consensus.'],
+        dataConfidence: avgCoverage,
+      };
+    }
+
+    const top = regimeCandidates[0];
+    const secondary = regimeCandidates[1];
+    const conviction = Math.round(Math.min(95, Math.max(50, top.magnitude * 0.8 + avgCoverage * 0.2)));
+
+    return {
+      dominantRegime: top.type,
+      regimeCode: top.code,
+      secondaryRegime: secondary ? secondary.code : undefined,
+      regimeLabel: top.label,
+      conviction,
+      supportingScores: {
+        riskOnVsOffScore,
+        centralBankPolicyStanceScore,
+        inflationPressureScore,
+        growthMomentumScore,
+      },
+      quadrant: {
+        growthState,
+        inflationState,
+        quadrantName,
+      },
+      regimeProbabilities,
+      keyMarketImplications: top.implications,
+      favoredCurrencies: top.favored,
+      vulnerableCurrencies: top.vulnerable,
+      regimeRationale: top.rationale,
+      assetClassImpacts: top.assetClassImpacts,
+      historicalAnalogue: top.historicalAnalogue,
+      invalidationTriggers: top.invalidationTriggers,
+      dataConfidence: avgCoverage,
+    };
+  }
+
+  /**
    * Generates the Master Fundamental Intelligence Report encompassing all 8 currencies,
-   * rankings, and canonical 28 currency pairs.
+   * rankings, macro regime assessment, and canonical 28 currency pairs.
    */
   public static generateMasterReport(observations: { [indicatorId: string]: any }): FullIntelligenceReport {
     const currencyScores = this.evaluateAllCurrencies(observations);
@@ -1004,6 +1642,8 @@ export class FundamentalIntelligenceEngine {
       Object.values(currencyScores).reduce((acc, c) => acc + c.dataCoveragePercent, 0) / 8
     );
 
+    const macroRegime = this.detectMacroRegime(currencyScores);
+
     return {
       timestamp: new Date().toISOString(),
       engineVersion: 'PRIME-FX-INTELLIGENCE-v3.0',
@@ -1011,8 +1651,11 @@ export class FundamentalIntelligenceEngine {
       currencyScores,
       currencyRankings,
       pairDifferentials,
+      macroRegime,
       globalMacroRegimeSummary: {
-        dominantRegime: 'RISK_ON',
+        dominantRegime: macroRegime.dominantRegime,
+        regimeLabel: macroRegime.regimeLabel,
+        conviction: macroRegime.conviction,
         strongestCurrency: strongest,
         weakestCurrency: weakest,
         highestConvictionPairs: highConvictionPairs.slice(0, 5),

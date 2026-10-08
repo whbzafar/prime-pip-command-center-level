@@ -5985,6 +5985,28 @@ app.post('/api/fundamental-intelligence/evaluate-pair', async (req, res) => {
   }
 });
 
+app.post('/api/fundamental-intelligence/detect-regime', async (req, res) => {
+  try {
+    const { FundamentalIntelligenceEngine } = await import('./src/services/fundamentalIntelligenceEngine');
+    const observations = req.body?.observations || {};
+    const currencyScores = FundamentalIntelligenceEngine.evaluateAllCurrencies(observations);
+    const regime = FundamentalIntelligenceEngine.detectMacroRegime(currencyScores);
+    return res.json({ ok: true, regime });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to detect macroeconomic regime' });
+  }
+});
+
+app.get('/api/fundamental-intelligence/test-suite', async (_req, res) => {
+  try {
+    const { runFundamentalIntelligenceTestSuite } = await import('./src/services/fundamentalIntelligenceTestSuite');
+    const suiteResults = runFundamentalIntelligenceTestSuite();
+    return res.json({ ok: true, suiteResults });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to execute test suite' });
+  }
+});
+
 // Vite middleware / static files (only run when launched standalone, not in Vercel serverless)
 async function startServer() {
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
