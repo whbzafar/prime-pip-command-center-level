@@ -5937,6 +5937,54 @@ app.post('/api/database/validate-observation', (req, res) => {
   }
 });
 
+// ----------------------------------------------------------------------------
+// CORE FUNDAMENTAL INTELLIGENCE ENGINE ENDPOINTS
+// ----------------------------------------------------------------------------
+app.get('/api/fundamental-intelligence/report', async (_req, res) => {
+  try {
+    const { FundamentalIntelligenceEngine } = await import('./src/services/fundamentalIntelligenceEngine');
+    const { DEFAULT_OBSERVATIONS } = await import('./src/data/defaultFundamentalObservations');
+
+    const obsMap: Record<string, any> = {};
+    for (const obs of DEFAULT_OBSERVATIONS) {
+      obsMap[obs.indicatorId] = obs;
+    }
+
+    const report = FundamentalIntelligenceEngine.generateMasterReport(obsMap);
+    return res.json({ ok: true, report });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to generate intelligence report' });
+  }
+});
+
+app.post('/api/fundamental-intelligence/evaluate-currency', async (req, res) => {
+  try {
+    const { FundamentalIntelligenceEngine } = await import('./src/services/fundamentalIntelligenceEngine');
+    const currency = String(req.body?.currency || 'USD').toUpperCase() as any;
+    const observations = req.body?.observations || {};
+
+    const result = FundamentalIntelligenceEngine.evaluateCurrency(currency, observations);
+    return res.json({ ok: true, result });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to evaluate currency intelligence' });
+  }
+});
+
+app.post('/api/fundamental-intelligence/evaluate-pair', async (req, res) => {
+  try {
+    const { FundamentalIntelligenceEngine } = await import('./src/services/fundamentalIntelligenceEngine');
+    const baseCurrency = String(req.body?.baseCurrency || 'EUR').toUpperCase() as any;
+    const quoteCurrency = String(req.body?.quoteCurrency || 'USD').toUpperCase() as any;
+    const observations = req.body?.observations || {};
+
+    const allScores = FundamentalIntelligenceEngine.evaluateAllCurrencies(observations);
+    const result = FundamentalIntelligenceEngine.evaluatePair(baseCurrency, quoteCurrency, allScores);
+    return res.json({ ok: true, result });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to evaluate pair intelligence' });
+  }
+});
+
 // Vite middleware / static files (only run when launched standalone, not in Vercel serverless)
 async function startServer() {
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {

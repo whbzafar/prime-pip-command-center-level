@@ -56,6 +56,8 @@ import { FundamentalAssetCommandCenter } from './fundamental/FundamentalAssetCom
 import { FundamentalSentimentMeter } from './fundamental/FundamentalSentimentMeter';
 import { DataControlCenterView } from './fundamental/DataControlCenterView';
 import { VerifiedDataArchitectureView } from './fundamental/VerifiedDataArchitectureView';
+import { FundamentalIntelligenceConsole } from './fundamental/FundamentalIntelligenceConsole';
+import { FundamentalIntelligenceEngine } from '../services/fundamentalIntelligenceEngine';
 import { LiquidGlassThemeToggle } from './LiquidGlassThemeToggle';
 
 // Modals
@@ -107,6 +109,7 @@ import {
 
 export type FundamentalDashboardTab =
   | 'OVERVIEW'
+  | 'INTELLIGENCE_CONSOLE'
   | 'DATA_CONTROL_CENTER'
   | 'VERIFIED_DATABASE'
   | 'WORKSPACES'
@@ -596,6 +599,15 @@ export const FundamentalIndicators: React.FC = () => {
     return pairs;
   }, [currencyScores]);
 
+  // Master Fundamental Intelligence Engine Report (Synthesizes verified data into indicator/category/currency/pair bias & rank)
+  const masterIntelligenceReport = useMemo(() => {
+    const obsMap: Record<string, any> = {};
+    for (const obs of observations) {
+      obsMap[obs.indicatorId] = obs;
+    }
+    return FundamentalIntelligenceEngine.generateMasterReport(obsMap);
+  }, [observations]);
+
   // Observation Update Handler
   const handleUpdateObservation = (updated: IndicatorObservation) => {
     const enriched: IndicatorObservation = {
@@ -925,6 +937,7 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
 
   const navTabs: { id: FundamentalDashboardTab; label: string; icon: any }[] = [
     { id: 'OVERVIEW', label: '11 Assets', icon: Landmark },
+    { id: 'INTELLIGENCE_CONSOLE', label: 'Intelligence Engine', icon: Sparkles },
     { id: 'DATA_CONTROL_CENTER', label: 'Control Center', icon: ShieldCheck },
     { id: 'VERIFIED_DATABASE', label: 'Verified Database', icon: Database },
     { id: 'WORKSPACES', label: 'Workspaces', icon: Layers },
@@ -1208,6 +1221,21 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
           onOpenStocks={() => setActiveTab('STOCKS')}
           onOpenCrypto={() => setActiveTab('CRYPTO')}
           onOpenImageExtractor={(sel) => handleOpenImageExtractor((sel as SupportedSelection) || 'USD')}
+        />
+      )}
+
+      {activeTab === 'INTELLIGENCE_CONSOLE' && (
+        <FundamentalIntelligenceConsole
+          report={masterIntelligenceReport}
+          onSelectCurrency={(curr) => {
+            setActiveCurrency(curr);
+            setActiveTab('WORKSPACES');
+          }}
+          onRequestAiExplanation={(target) => handleRequestAiExplanation(target as any)}
+          onOpenPairDetails={(pair) => {
+            const pairResult = pairDifferentials.find((p) => p.pair === pair.pair);
+            if (pairResult) setActivePairModal(pairResult);
+          }}
         />
       )}
 

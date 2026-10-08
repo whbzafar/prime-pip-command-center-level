@@ -117,8 +117,7 @@ export async function extractTextFromPdfAsync(data: Uint8Array | ArrayBuffer | s
       data: u8,
       useSystemFonts: true,
       disableFontFace: true,
-      isEvalSupported: false,
-    });
+    } as any);
     const pdf = await loadingTask.promise;
     let allText = '';
     for (let i = 1; i <= pdf.numPages; i++) {
@@ -186,8 +185,7 @@ export async function renderPdfPageToImage(
       data: u8,
       useSystemFonts: true,
       disableFontFace: true,
-      isEvalSupported: false,
-    });
+    } as any);
     const pdf = await loadingTask.promise;
     if (pageNumber > pdf.numPages) pageNumber = 1;
     const page = await pdf.getPage(pageNumber);

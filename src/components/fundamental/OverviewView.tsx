@@ -79,6 +79,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           {/* Quick Jump Buttons */}
           <div className="flex flex-wrap items-center gap-2">
             <button
+              onClick={() => onNavigateTab('INTELLIGENCE_CONSOLE')}
+              className="px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 text-xs font-military font-bold transition cursor-pointer flex items-center gap-1.5"
+            >
+              <Zap className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Intelligence Engine →</span>
+            </button>
+            <button
               onClick={() => onNavigateTab('CURRENCIES')}
               className="px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 border border-blue-500/30 text-xs font-military font-bold transition cursor-pointer"
             >
