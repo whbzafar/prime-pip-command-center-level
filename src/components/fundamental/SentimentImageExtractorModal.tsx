@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Camera, Sparkles, Check, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { extractSentimentFromImage } from '../../services/fundamentalLiveResearchService';
+import { PdfExtractionTelemetry } from '../../utils/pdfDocumentParser';
 
 interface SentimentImageExtractorModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export const SentimentImageExtractorModal: React.FC<SentimentImageExtractorModal
   const [extractedRows, setExtractedRows] = useState<ExtractedSentimentRow[]>([]);
   const [hasScanned, setHasScanned] = useState(false);
   const [appliedSuccess, setAppliedSuccess] = useState<string | null>(null);
+  const [extractionTelemetry, setExtractionTelemetry] = useState<PdfExtractionTelemetry | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,6 +62,7 @@ export const SentimentImageExtractorModal: React.FC<SentimentImageExtractorModal
   const handleFileSelected = (file: File) => {
     setError(null);
     setAppliedSuccess(null);
+    setExtractionTelemetry(null);
     const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|bmp|gif|jfif|tiff?)$/i.test(file.name);
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 
@@ -133,12 +136,16 @@ export const SentimentImageExtractorModal: React.FC<SentimentImageExtractorModal
     if (!filePreview && !rawFileBytes) return;
     setIsProcessing(true);
     setError(null);
+    setExtractionTelemetry(null);
 
     try {
-      const payload = rawFileBytes || filePreview;
+      const payload = rawFileBytes ? new Uint8Array(rawFileBytes) : filePreview;
       const res = await extractSentimentFromImage(payload!, fileMime);
+      if (res.telemetry) {
+        setExtractionTelemetry(res.telemetry);
+      }
       if (!res.success || !res.sentiments || res.sentiments.length === 0) {
-        throw new Error(res.error || 'No sentiment data could be extracted from this document.');
+        throw new Error(res.error || 'No retail sentiment data could be extracted from this document. Existing sentiment data was preserved.');
       }
 
       const rows: ExtractedSentimentRow[] = res.sentiments.map((s: any) => {
@@ -158,28 +165,10 @@ export const SentimentImageExtractorModal: React.FC<SentimentImageExtractorModal
       setExtractedRows(rows);
       setHasScanned(true);
     } catch (err: any) {
-      console.warn('[SENTIMENT OCR] Auto-extract notice:', err);
-      // Pre-populate candidate rows from existingSentiments so user can review against document preview and apply
-      const pairs = Object.keys(existingSentiments).length > 0
-        ? Object.keys(existingSentiments)
-        : ['EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'USD/CAD', 'NZD/USD', 'XAU/USD'];
-
-      const fallbackRows: ExtractedSentimentRow[] = pairs.map((pair) => {
-        const existing = existingSentiments[pair];
-        const long = existing?.longPercentage ?? 50;
-        const short = existing?.shortPercentage ?? 50;
-        return {
-          pair,
-          selected: true,
-          longPercent: long,
-          shortPercent: short,
-          notes: short > 60 ? `Retail ${short}% short; contrarian bullish` : long > 60 ? `Retail ${long}% long; contrarian bearish` : 'Balanced retail exposure',
-        };
-      });
-
-      setExtractedRows(fallbackRows);
-      setHasScanned(true);
-      setError('Document loaded. Please verify the retail positioning against the document preview and click "APPLY & UPDATE SENTIMENT".');
+      console.warn('[SENTIMENT OCR] Extraction failed:', err);
+      setExtractedRows([]);
+      setHasScanned(false);
+      setError(err?.message || 'Could not extract retail sentiment percentages from this document. Previously saved sentiment data remains unchanged.');
     } finally {
       setIsProcessing(false);
     }
@@ -328,6 +317,16 @@ export const SentimentImageExtractorModal: React.FC<SentimentImageExtractorModal
               {/* Extracted Results Table */}
               {hasScanned && extractedRows.length > 0 && (
                 <div className="space-y-3">
+                  {extractionTelemetry && (
+                    <div className="p-2.5 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-[11px] font-mono-code flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-cyan-300 font-bold">
+                        Pages Processed: {extractionTelemetry.pagesProcessed}/{extractionTelemetry.totalPages} ({extractionTelemetry.extractionMethodUsed})
+                      </span>
+                      <span className="text-emerald-300 font-bold">
+                        Extracted: {extractedRows.length} sentiment pair(s)
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-xs font-military font-bold text-slate-200 uppercase">
                     <span>Extracted Sentiment Ratios ({extractedRows.length} pairs)</span>
                     <span className="text-[10px] text-cyan-400 font-mono-code">Review long/short percentages</span>

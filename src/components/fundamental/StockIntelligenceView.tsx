@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -9,8 +9,35 @@ import {
   Info,
   ExternalLink,
   DollarSign,
+  Camera,
 } from 'lucide-react';
 import { getAssetsByClass } from '../../data/marketUniverseData';
+
+interface MultiAssetStoredRecord {
+  id: string;
+  symbol: string;
+  name: string;
+  category?: string;
+  price: number;
+  changePercent?: number;
+  change24hPct?: number;
+  score: number;
+  bias: string;
+  keyMetric1Label?: string;
+  keyMetric1Value?: string;
+  keyMetric2Label?: string;
+  keyMetric2Value?: string;
+  keyMetric3Label?: string;
+  keyMetric3Value?: string;
+  metric1Label?: string;
+  metric1Value?: string;
+  metric2Label?: string;
+  metric2Value?: string;
+  drivers?: string[];
+  primaryDriver?: string;
+  updatedAt?: string;
+  lastUpdated?: string;
+}
 
 interface StockMacroMetrics {
   symbol: string;
@@ -102,10 +129,71 @@ const STOCKS_BASELINE_DATA: Record<string, StockMacroMetrics> = {
   },
 };
 
-export const StockIntelligenceView: React.FC = () => {
+interface StockIntelligenceViewProps {
+  onOpenImageExtractor?: (target?: string) => void;
+}
+
+export const StockIntelligenceView: React.FC<StockIntelligenceViewProps> = ({
+  onOpenImageExtractor,
+}) => {
   const [selectedSymbol, setSelectedSymbol] = useState<string>('NVDA');
+  const [storedMultiAssets, setStoredMultiAssets] = useState<MultiAssetStoredRecord[]>([]);
+
+  useEffect(() => {
+    const loadStored = () => {
+      try {
+        const raw = localStorage.getItem('primepip_fundamental_multi_assets_v1');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) setStoredMultiAssets(parsed);
+        }
+      } catch {}
+    };
+    loadStored();
+    window.addEventListener('primepipfx_fundamental_data_updated', loadStored);
+    window.addEventListener('storage', loadStored);
+    return () => {
+      window.removeEventListener('primepipfx_fundamental_data_updated', loadStored);
+      window.removeEventListener('storage', loadStored);
+    };
+  }, []);
+
   const stockAssets = getAssetsByClass('STOCK');
-  const activeMetrics = STOCKS_BASELINE_DATA[selectedSymbol] || STOCKS_BASELINE_DATA.NVDA;
+  const baseMetrics = STOCKS_BASELINE_DATA[selectedSymbol] || STOCKS_BASELINE_DATA.NVDA;
+  const activeStored = storedMultiAssets.find(
+    (item) => item.symbol.toUpperCase() === selectedSymbol.toUpperCase()
+  );
+
+  const peRaw = activeStored?.keyMetric3Value || activeStored?.keyMetric1Value || activeStored?.metric1Value || '';
+  const marginRaw = activeStored?.keyMetric2Value || activeStored?.metric2Value || '';
+  const parsedStoredPe = peRaw ? parseFloat(peRaw.replace(/[^0-9.-]/g, '')) : NaN;
+  const parsedStoredGrowth = marginRaw ? parseFloat(marginRaw.replace(/[^0-9.-]/g, '')) : NaN;
+  const catalystText = activeStored?.drivers?.[0] || activeStored?.primaryDriver;
+  const updatedLabel = (activeStored?.updatedAt || activeStored?.lastUpdated || '').slice(0, 10);
+
+  const activeMetrics: StockMacroMetrics = {
+    ...baseMetrics,
+    forwardPe: !isNaN(parsedStoredPe) && parsedStoredPe > 0 ? parsedStoredPe : baseMetrics.forwardPe,
+    operatingMarginPct:
+      !isNaN(parsedStoredGrowth) && parsedStoredGrowth !== 0
+        ? parsedStoredGrowth
+        : baseMetrics.operatingMarginPct,
+    primaryDrivers: catalystText && activeStored
+      ? [
+          {
+            label: `Extracted / Synced Catalyst (${updatedLabel || 'Latest'})`,
+            impact:
+              activeStored.score >= 10
+                ? 'BULLISH'
+                : activeStored.score <= -10
+                ? 'BEARISH'
+                : 'NEUTRAL',
+            note: `${catalystText} | Spot: $${activeStored.price} | Macro Score: ${activeStored.score > 0 ? '+' : ''}${activeStored.score} (${activeStored.bias})`,
+          },
+          ...baseMetrics.primaryDrivers,
+        ]
+      : baseMetrics.primaryDrivers,
+  };
 
   return (
     <div className="space-y-6 font-mono-code text-xs">
@@ -125,22 +213,34 @@ export const StockIntelligenceView: React.FC = () => {
           </p>
         </div>
 
-        {/* Stock Selector */}
-        <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800 flex-wrap">
-          {stockAssets.map((asset) => (
+        <div className="flex items-center gap-2 flex-wrap">
+          {onOpenImageExtractor && (
             <button
-              key={asset.symbol}
               type="button"
-              onClick={() => setSelectedSymbol(asset.symbol)}
-              className={`px-3 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer ${
-                selectedSymbol === asset.symbol
-                  ? 'bg-purple-500 text-slate-950 shadow-md shadow-purple-500/20'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              onClick={() => onOpenImageExtractor(selectedSymbol)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/40 text-xs font-military font-bold tracking-wider transition cursor-pointer"
             >
-              {asset.symbol}
+              <Camera className="w-3.5 h-3.5" />
+              <span>UPLOAD PDF / IMAGE ({selectedSymbol})</span>
             </button>
-          ))}
+          )}
+          {/* Stock Selector */}
+          <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800 flex-wrap">
+            {stockAssets.map((asset) => (
+              <button
+                key={asset.symbol}
+                type="button"
+                onClick={() => setSelectedSymbol(asset.symbol)}
+                className={`px-3 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer ${
+                  selectedSymbol === asset.symbol
+                    ? 'bg-purple-500 text-slate-950 shadow-md shadow-purple-500/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {asset.symbol}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -148,6 +248,12 @@ export const StockIntelligenceView: React.FC = () => {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {stockAssets.map((asset) => {
           const metrics = STOCKS_BASELINE_DATA[asset.symbol];
+          const stored = storedMultiAssets.find(
+            (s) => s.symbol.toUpperCase() === asset.symbol.toUpperCase()
+          );
+          const cardPeRaw = stored?.keyMetric3Value || stored?.keyMetric1Value || stored?.metric1Value || '';
+          const storedPe = cardPeRaw ? parseFloat(cardPeRaw.replace(/[^0-9.-]/g, '')) : NaN;
+          const displayPe = !isNaN(storedPe) && storedPe > 0 ? storedPe : metrics?.forwardPe;
           const isSelected = selectedSymbol === asset.symbol;
           return (
             <button
@@ -166,20 +272,26 @@ export const StockIntelligenceView: React.FC = () => {
                 </span>
                 <span
                   className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border ${
-                    metrics?.valuationStatus === 'UNDERVALUED'
+                    stored
+                      ? stored.score >= 10
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                        : stored.score <= -10
+                        ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                        : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+                      : metrics?.valuationStatus === 'UNDERVALUED'
                       ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                       : metrics?.valuationStatus === 'OVERVALUED'
                       ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
                       : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
                   }`}
                 >
-                  {metrics?.valuationStatus || 'DATA_UNAVAILABLE'}
+                  {stored ? `${stored.bias} (${stored.score > 0 ? '+' : ''}${stored.score})` : metrics?.valuationStatus || 'DATA_UNAVAILABLE'}
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 truncate mb-2">{asset.shortName}</p>
               <div className="text-[9px] text-slate-500 pt-1.5 border-t border-slate-800 flex justify-between">
                 <span>Fwd P/E:</span>
-                <strong className="text-slate-200">{metrics?.forwardPe ? `${metrics.forwardPe}x` : '—'}</strong>
+                <strong className="text-slate-200">{displayPe ? `${displayPe}x` : '—'}</strong>
               </div>
             </button>
           );

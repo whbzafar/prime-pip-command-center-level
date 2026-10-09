@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Coins,
   TrendingUp,
@@ -10,8 +10,33 @@ import {
   Info,
   ExternalLink,
   Zap,
+  Camera,
 } from 'lucide-react';
 import { getAssetsByClass, MarketAssetDefinition } from '../../data/marketUniverseData';
+
+interface MultiAssetStoredRecord {
+  id: string;
+  symbol: string;
+  name: string;
+  category?: string;
+  price: number;
+  changePercent?: number;
+  change24hPct?: number;
+  score: number;
+  bias: string;
+  keyMetric1Label?: string;
+  keyMetric1Value?: string;
+  keyMetric2Label?: string;
+  keyMetric2Value?: string;
+  metric1Label?: string;
+  metric1Value?: string;
+  metric2Label?: string;
+  metric2Value?: string;
+  drivers?: string[];
+  primaryDriver?: string;
+  updatedAt?: string;
+  lastUpdated?: string;
+}
 
 interface CryptoMacroMetrics {
   symbol: string;
@@ -93,10 +118,87 @@ const CRYPTO_BASELINE_DATA: Record<string, CryptoMacroMetrics> = {
   },
 };
 
-export const CryptoIntelligenceView: React.FC = () => {
+interface CryptoIntelligenceViewProps {
+  onOpenImageExtractor?: (target?: string) => void;
+}
+
+const SYMBOL_TO_MULTI_ASSET_MAP: Record<string, string> = {
+  BTCUSDT: 'BTC',
+  ETHUSDT: 'ETH',
+  SOLUSDT: 'SOL',
+  BNBUSDT: 'BNB',
+  XRPUSDT: 'XRP',
+};
+
+export const CryptoIntelligenceView: React.FC<CryptoIntelligenceViewProps> = ({
+  onOpenImageExtractor,
+}) => {
   const [selectedSymbol, setSelectedSymbol] = useState<string>('BTCUSDT');
+  const [storedMultiAssets, setStoredMultiAssets] = useState<MultiAssetStoredRecord[]>([]);
+
+  useEffect(() => {
+    const loadStored = () => {
+      try {
+        const raw = localStorage.getItem('primepip_fundamental_multi_assets_v1');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) setStoredMultiAssets(parsed);
+        }
+      } catch {}
+    };
+    loadStored();
+    window.addEventListener('primepipfx_fundamental_data_updated', loadStored);
+    window.addEventListener('storage', loadStored);
+    return () => {
+      window.removeEventListener('primepipfx_fundamental_data_updated', loadStored);
+      window.removeEventListener('storage', loadStored);
+    };
+  }, []);
+
   const cryptoAssets = getAssetsByClass('CRYPTO');
-  const activeMetrics = CRYPTO_BASELINE_DATA[selectedSymbol] || CRYPTO_BASELINE_DATA.BTCUSDT;
+  const baseMetrics = CRYPTO_BASELINE_DATA[selectedSymbol] || CRYPTO_BASELINE_DATA.BTCUSDT;
+  const shortCode = SYMBOL_TO_MULTI_ASSET_MAP[selectedSymbol] || selectedSymbol.replace('USDT', '');
+  const activeStored = storedMultiAssets.find((item) => {
+    const normItem = item.symbol.replace('/USDT', '').replace('USDT', '').toUpperCase();
+    return normItem === shortCode.toUpperCase() || item.symbol.toUpperCase() === selectedSymbol.toUpperCase();
+  });
+
+  const m1Val = activeStored?.keyMetric1Value || activeStored?.metric1Value;
+  const m2Label = activeStored?.keyMetric2Label || activeStored?.metric2Label || 'Metric';
+  const m2Val = activeStored?.keyMetric2Value || activeStored?.metric2Value || '';
+  const catalystText = activeStored?.drivers?.[0] || activeStored?.primaryDriver;
+  const updatedLabel = (activeStored?.updatedAt || activeStored?.lastUpdated || '').slice(0, 10);
+
+  const activeMetrics: CryptoMacroMetrics = {
+    ...baseMetrics,
+    spotEtfFlowsWeekly: m1Val || baseMetrics.spotEtfFlowsWeekly,
+    macroBias: activeStored
+      ? activeStored.score >= 35
+        ? 'STRONGLY_BULLISH'
+        : activeStored.score >= 10
+        ? 'BULLISH'
+        : activeStored.score <= -35
+        ? 'STRONGLY_BEARISH'
+        : activeStored.score <= -10
+        ? 'BEARISH'
+        : 'NEUTRAL'
+      : baseMetrics.macroBias,
+    primaryDrivers: catalystText && activeStored
+      ? [
+          {
+            label: `Extracted / Synced Catalyst (${updatedLabel || 'Latest'})`,
+            impact:
+              activeStored.score >= 10
+                ? 'BULLISH'
+                : activeStored.score <= -10
+                ? 'BEARISH'
+                : 'NEUTRAL',
+            note: `${catalystText} | Spot: $${activeStored.price.toLocaleString()} | ${m2Label}: ${m2Val} | Score: ${activeStored.score > 0 ? '+' : ''}${activeStored.score}`,
+          },
+          ...baseMetrics.primaryDrivers,
+        ]
+      : baseMetrics.primaryDrivers,
+  };
 
   return (
     <div className="space-y-6 font-mono-code text-xs">
@@ -116,22 +218,34 @@ export const CryptoIntelligenceView: React.FC = () => {
           </p>
         </div>
 
-        {/* Crypto Selector */}
-        <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800 flex-wrap">
-          {cryptoAssets.map((asset) => (
+        <div className="flex items-center gap-2 flex-wrap">
+          {onOpenImageExtractor && (
             <button
-              key={asset.symbol}
               type="button"
-              onClick={() => setSelectedSymbol(asset.symbol)}
-              className={`px-3 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer ${
-                selectedSymbol === asset.symbol
-                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              onClick={() => onOpenImageExtractor(shortCode)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/40 text-xs font-military font-bold tracking-wider transition cursor-pointer"
             >
-              {asset.shortName.split(' ')[0]}
+              <Camera className="w-3.5 h-3.5" />
+              <span>UPLOAD PDF / IMAGE ({shortCode})</span>
             </button>
-          ))}
+          )}
+          {/* Crypto Selector */}
+          <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800 flex-wrap">
+            {cryptoAssets.map((asset) => (
+              <button
+                key={asset.symbol}
+                type="button"
+                onClick={() => setSelectedSymbol(asset.symbol)}
+                className={`px-3 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer ${
+                  selectedSymbol === asset.symbol
+                    ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {asset.shortName.split(' ')[0]}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -139,7 +253,13 @@ export const CryptoIntelligenceView: React.FC = () => {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {cryptoAssets.map((asset) => {
           const metrics = CRYPTO_BASELINE_DATA[asset.symbol];
+          const code = SYMBOL_TO_MULTI_ASSET_MAP[asset.symbol] || asset.symbol.replace('USDT', '');
+          const stored = storedMultiAssets.find((s) => {
+            const normS = s.symbol.replace('/USDT', '').replace('USDT', '').toUpperCase();
+            return normS === code.toUpperCase() || s.symbol.toUpperCase() === asset.symbol.toUpperCase();
+          });
           const isSelected = selectedSymbol === asset.symbol;
+          const displayBias = stored ? `${stored.bias} (${stored.score > 0 ? '+' : ''}${stored.score})` : metrics?.macroBias.replace('_', ' ') || 'NEUTRAL';
           return (
             <button
               key={asset.id}
@@ -157,17 +277,27 @@ export const CryptoIntelligenceView: React.FC = () => {
                 </span>
                 <span
                   className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border ${
-                    metrics?.macroBias === 'BULLISH' || metrics?.macroBias === 'STRONGLY_BULLISH'
+                    stored
+                      ? stored.score >= 10
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                        : stored.score <= -10
+                        ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                        : 'bg-slate-800 text-slate-400 border-slate-700'
+                      : metrics?.macroBias === 'BULLISH' || metrics?.macroBias === 'STRONGLY_BULLISH'
                       ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                       : 'bg-slate-800 text-slate-400 border-slate-700'
                   }`}
                 >
-                  {metrics?.macroBias.replace('_', ' ') || 'NEUTRAL'}
+                  {displayBias}
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 truncate mb-2">{asset.displayName}</p>
               <div className="text-[9px] text-slate-500 pt-1.5 border-t border-slate-800">
-                Liquidity: <strong className="text-slate-300">{metrics?.stablecoinLiquidityStatus || 'DATA UNAVAILABLE'}</strong>
+                {stored ? (
+                  <span>Spot: <strong className="text-emerald-300">${stored.price.toLocaleString()}</strong></span>
+                ) : (
+                  <span>Liquidity: <strong className="text-slate-300">{metrics?.stablecoinLiquidityStatus || 'DATA UNAVAILABLE'}</strong></span>
+                )}
               </div>
             </button>
           );

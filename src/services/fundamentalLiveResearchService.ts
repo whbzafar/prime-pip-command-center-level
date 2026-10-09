@@ -20,13 +20,17 @@ import { OFFICIAL_INDICATOR_REGISTRY } from '../data/fundamentalRegistryData';
 import {
   extractTextFromPdf,
   extractTextFromPdfAsync,
+  extractStructuredPdfDocument,
   renderPdfPageToImage,
   parseCurrencyDocumentText,
   parseRatesDocumentText,
   parseSentimentDocumentText,
   parseCotDocumentText,
+  parseMultiAssetDocumentText,
   isPdfPayload,
   getCleanBase64,
+  PdfExtractionTelemetry,
+  ExtractedMultiAssetRecord,
 } from '../utils/pdfDocumentParser';
 
 export type LiveVerificationStatus = 'VERIFIED' | 'REVIEW_REQUIRED' | 'NOT_FOUND';
@@ -80,6 +84,8 @@ export interface ImageExtractionResponse {
   selection: string;
   extractedCount: number;
   indicators: ExtractedIndicatorItem[];
+  multiAssets?: ExtractedMultiAssetRecord[];
+  telemetry?: PdfExtractionTelemetry;
   rawText?: string;
   source?: string;
   error?: string;
@@ -522,105 +528,167 @@ export async function extractIndicatorsFromImage(
   const cleanSel = (selection || 'ALL').trim().toUpperCase();
   const isPdfFile = isPdfPayload(imageBase64, mimeType);
 
-  // PRIORITY 1: Direct in-memory PDF extraction (Client-Side & Universal)
-  // Guarantees 100% exact numerical fidelity on Vercel, Preview, and mobile
+  let docMeta: Awaited<ReturnType<typeof extractStructuredPdfDocument>> | null = null;
+  const combinedIndicators: ExtractedIndicatorItem[] = [];
+  const seenKeys = new Set<string>();
+  let extractedMultiAssets: ExtractedMultiAssetRecord[] = [];
+  let usedOcrOnPages = false;
+  let usedNativeText = false;
+
+  const addUniqueIndicators = (items: any[], defaultSource: string) => {
+    for (let idx = 0; idx < items.length; idx++) {
+      const ind = items[idx];
+      const itemCurr = (ind.currency || (cleanSel === 'ALL' ? 'USD' : cleanSel)).toUpperCase();
+      const dedupKey = ind.matchedIndicatorId
+        ? `${itemCurr}:${ind.matchedIndicatorId}`
+        : `${itemCurr}:${String(ind.name || '').toLowerCase().trim()}`;
+      if (seenKeys.has(dedupKey)) continue;
+      seenKeys.add(dedupKey);
+      combinedIndicators.push({
+        ...ind,
+        id: ind.id || `extracted_${ind.matchedIndicatorId || itemCurr}_${Date.now()}_${combinedIndicators.length}`,
+        currency: itemCurr,
+        dataStatus: 'EXTRACTED_FROM_IMAGE' as const,
+        source: ind.source || defaultSource,
+      });
+    }
+  };
+
   if (isPdfFile) {
     try {
-      const pdfText = await extractTextFromPdfAsync(imageBase64);
-      if (pdfText && pdfText.trim()) {
-        const extracted = parseCurrencyDocumentText(pdfText, cleanSel);
+      docMeta = await extractStructuredPdfDocument(imageBase64);
+      if (docMeta.fullText && docMeta.fullText.trim()) {
+        const extracted = parseCurrencyDocumentText(docMeta.fullText, cleanSel);
         if (extracted && extracted.length > 0) {
-          const enriched = extracted.map((ind, idx) => {
-            let itemCurr = (ind.currency || (cleanSel === 'ALL' ? 'USD' : cleanSel)).toUpperCase();
-            return {
-              ...ind,
-              id: ind.id || `extracted_${ind.matchedIndicatorId || itemCurr}_${Date.now()}_${idx}`,
-              currency: itemCurr,
-              dataStatus: 'EXTRACTED_FROM_IMAGE' as const,
-              source: 'Uploaded PDF / Document Report',
-            };
-          });
-
-          return {
-            success: true,
-            selection: cleanSel,
-            extractedCount: enriched.length,
-            indicators: enriched,
-            source: 'DOCUMENT_PDF_EXACT',
-          };
+          usedNativeText = true;
+          addUniqueIndicators(extracted, 'Uploaded PDF / Document Report');
+        }
+        const multiParsed = parseMultiAssetDocumentText(docMeta.fullText, cleanSel);
+        if (multiParsed.assets.length > 0) {
+          extractedMultiAssets = multiParsed.assets;
+        }
+        if (multiParsed.indicators.length > 0 && combinedIndicators.length === 0) {
+          usedNativeText = true;
+          addUniqueIndicators(multiParsed.indicators, 'Uploaded Multi-Asset PDF Report');
         }
       }
 
-      // Fallback for image-based / scanned PDF: Render page to canvas and OCR via multimodal vision
-      const rendered = await renderPdfPageToImage(imageBase64, 1, 1.5);
-      if (rendered && rendered.dataUrl) {
-        const ocrRes = await postJson<ImageExtractionResponse>('/api/fundamental/extract-from-image', {
-          image: rendered.dataUrl,
-          mimeType: 'image/jpeg',
-          selection: cleanSel,
-        });
-        if (ocrRes && ocrRes.success && Array.isArray(ocrRes.indicators) && ocrRes.indicators.length > 0) {
-          const enriched = ocrRes.indicators.map((ind, idx) => {
-            let itemCurr = (ind.currency || (cleanSel === 'ALL' ? 'USD' : cleanSel)).toUpperCase();
-            return {
-              ...ind,
-              id: ind.id || `extracted_${ind.matchedIndicatorId || itemCurr}_${Date.now()}_${idx}`,
-              currency: itemCurr,
-              dataStatus: 'EXTRACTED_FROM_IMAGE' as const,
-              source: 'Scanned Document Multimodal OCR',
-            };
-          });
-          return {
-            ...ocrRes,
-            selection: cleanSel,
-            indicators: enriched,
-            source: 'SCANNED_PDF_MULTIMODAL_OCR',
-          };
+      // For scanned or mixed PDFs (or if native text found 0 rows), render scanned/all pages up to batch limit (8 pages)
+      const pagesToOcr =
+        combinedIndicators.length === 0
+          ? Array.from({ length: Math.min(docMeta.totalPages || 1, 8) }, (_, i) => i + 1)
+          : docMeta.scannedPageNumbers.slice(0, 6);
+
+      for (const pageNum of pagesToOcr) {
+        try {
+          const rendered = await renderPdfPageToImage(imageBase64, pageNum, 1.5);
+          if (rendered && rendered.dataUrl) {
+            const ocrRes = await postJson<ImageExtractionResponse>('/api/fundamental/extract-from-image', {
+              image: rendered.dataUrl,
+              mimeType: 'image/jpeg',
+              selection: cleanSel,
+            });
+            if (ocrRes && ocrRes.success && Array.isArray(ocrRes.indicators) && ocrRes.indicators.length > 0) {
+              usedOcrOnPages = true;
+              addUniqueIndicators(ocrRes.indicators, `Scanned PDF Page ${pageNum} Vision OCR`);
+            }
+          }
+        } catch (pageOcrErr) {
+          console.warn(`[LiveResearch] Scanned page ${pageNum} OCR fallback warning:`, pageOcrErr);
         }
+      }
+
+      if (combinedIndicators.length > 0) {
+        const valuesRequiringReview = combinedIndicators.filter(
+          (r) => r.actual === null || r.actual === undefined || (r.confidence !== undefined && r.confidence < 85)
+        ).length;
+        const telemetry: PdfExtractionTelemetry = {
+          totalPages: docMeta.totalPages || 1,
+          pagesProcessed: docMeta.pagesProcessed || 1,
+          pagesFailed: docMeta.pagesFailed || 0,
+          failedPageNumbers: docMeta.failedPageNumbers || [],
+          scannedPageNumbers: docMeta.scannedPageNumbers || [],
+          valuesExtracted: combinedIndicators.length,
+          valuesRequiringReview,
+          extractionMethod:
+            usedNativeText && usedOcrOnPages
+              ? 'HYBRID_TEXT_AND_OCR'
+              : usedOcrOnPages
+              ? 'VISION_OCR'
+              : 'NATIVE_PDF_TEXT',
+          incompleteReason:
+            docMeta.pagesFailed > 0
+              ? `Pages failed to process: ${docMeta.failedPageNumbers.join(', ')}`
+              : undefined,
+        };
+
+        return {
+          success: true,
+          selection: cleanSel,
+          extractedCount: combinedIndicators.length,
+          indicators: combinedIndicators,
+          multiAssets: extractedMultiAssets.length > 0 ? extractedMultiAssets : undefined,
+          telemetry,
+          source: telemetry.extractionMethod,
+        };
       }
     } catch (err: any) {
       console.warn('[LiveResearch] Client direct PDF text extraction warning:', err?.message || err);
     }
   }
 
-  // PRIORITY 2: Server API endpoint (Vision OCR for screenshots & images)
+  // PRIORITY 2: Server API endpoint (Full PDF or Image Vision OCR)
   try {
-    const res = await postJson<ImageExtractionResponse>('/api/fundamental/extract-from-image', {
-      image: payloadToBase64(imageBase64),
-      mimeType,
-      selection: cleanSel,
-    });
-    if (res && res.success && Array.isArray(res.indicators) && res.indicators.length > 0) {
-      const enriched = res.indicators.map((ind, idx) => {
-        let itemCurr = (ind.currency || (cleanSel === 'ALL' ? 'USD' : cleanSel)).toUpperCase();
-        let matchedId = ind.matchedIndicatorId;
-        if (!matchedId) {
-          const match = OFFICIAL_INDICATOR_REGISTRY.find((r) => {
-            const norm = (ind.name || '').toLowerCase();
-            return (
-              norm.includes(r.shortLabel.toLowerCase()) ||
-              norm.includes(r.name.toLowerCase()) ||
-              r.name.toLowerCase().includes(norm)
-            );
-          });
-          if (match) {
-            matchedId = match.id;
-            itemCurr = match.currency;
-          }
-        }
-        return {
-          ...ind,
-          id: ind.id || `extracted_${matchedId || itemCurr}_${Date.now()}_${idx}`,
-          currency: itemCurr,
-          matchedIndicatorId: matchedId,
-          dataStatus: 'EXTRACTED_FROM_IMAGE' as const,
-        };
+    const b64 = payloadToBase64(imageBase64);
+    if (b64 && b64.length > 0) {
+      const res = await postJson<ImageExtractionResponse>('/api/fundamental/extract-from-image', {
+        image: b64,
+        mimeType,
+        selection: cleanSel,
       });
-      return {
-        ...res,
-        selection: res.selection || cleanSel,
-        indicators: enriched,
-      };
+      if (res && res.success && Array.isArray(res.indicators) && res.indicators.length > 0) {
+        const enriched = res.indicators.map((ind, idx) => {
+          let itemCurr = (ind.currency || (cleanSel === 'ALL' ? 'USD' : cleanSel)).toUpperCase();
+          let matchedId = ind.matchedIndicatorId;
+          if (!matchedId) {
+            const match = OFFICIAL_INDICATOR_REGISTRY.find((r) => {
+              const norm = (ind.name || '').toLowerCase();
+              return (
+                norm.includes(r.shortLabel.toLowerCase()) ||
+                norm.includes(r.name.toLowerCase()) ||
+                r.name.toLowerCase().includes(norm)
+              );
+            });
+            if (match) {
+              matchedId = match.id;
+              itemCurr = match.currency;
+            }
+          }
+          return {
+            ...ind,
+            id: ind.id || `extracted_${matchedId || itemCurr}_${Date.now()}_${idx}`,
+            currency: itemCurr,
+            matchedIndicatorId: matchedId,
+            dataStatus: 'EXTRACTED_FROM_IMAGE' as const,
+          };
+        });
+        const valuesRequiringReview = enriched.filter((r) => r.actual === null || r.actual === undefined).length;
+        return {
+          ...res,
+          selection: res.selection || cleanSel,
+          indicators: enriched,
+          telemetry: res.telemetry || {
+            totalPages: docMeta?.totalPages || 1,
+            pagesProcessed: docMeta?.pagesProcessed || 1,
+            pagesFailed: docMeta?.pagesFailed || 0,
+            failedPageNumbers: docMeta?.failedPageNumbers || [],
+            scannedPageNumbers: docMeta?.scannedPageNumbers || [],
+            valuesExtracted: enriched.length,
+            valuesRequiringReview,
+            extractionMethod: isPdfFile ? 'HYBRID_TEXT_AND_OCR' : 'VISION_OCR',
+          },
+        };
+      }
     }
   } catch (err: any) {
     console.error('[LiveResearch] Server extraction failed:', err?.message || err);
@@ -634,6 +702,7 @@ export interface RatesImageExtractionResponse {
   success: boolean;
   extractedCount: number;
   rates?: any[];
+  telemetry?: PdfExtractionTelemetry;
   notice?: string;
   source?: string;
   error?: string;
@@ -644,35 +713,72 @@ export async function extractRatesFromImage(
   mimeType: string = 'image/png'
 ): Promise<RatesImageExtractionResponse> {
   const isPdfFile = isPdfPayload(imageBase64, mimeType);
+  let docMeta: Awaited<ReturnType<typeof extractStructuredPdfDocument>> | null = null;
 
   if (isPdfFile) {
     try {
-      const pdfText = await extractTextFromPdfAsync(imageBase64);
-      if (pdfText && pdfText.trim()) {
-        const rates = parseRatesDocumentText(pdfText);
+      docMeta = await extractStructuredPdfDocument(imageBase64);
+      const combinedRates: any[] = [];
+      const seenCurr = new Set<string>();
+      let usedNative = false;
+      let usedOcr = false;
+
+      if (docMeta.fullText && docMeta.fullText.trim()) {
+        const rates = parseRatesDocumentText(docMeta.fullText);
         if (rates && rates.length > 0) {
-          return {
-            success: true,
-            extractedCount: rates.length,
-            rates,
-            source: 'DOCUMENT_PDF_EXACT',
-          };
+          usedNative = true;
+          for (const r of rates) {
+            if (!seenCurr.has(r.currency)) {
+              seenCurr.add(r.currency);
+              combinedRates.push(r);
+            }
+          }
         }
       }
 
-      // Scanned PDF fallback
-      const rendered = await renderPdfPageToImage(imageBase64, 1, 1.5);
-      if (rendered && rendered.dataUrl) {
-        const ocrRes = await postJson<RatesImageExtractionResponse>('/api/fundamental/extract-rates-from-image', {
-          image: rendered.dataUrl,
-          mimeType: 'image/jpeg',
-        });
-        if (ocrRes && ocrRes.success && Array.isArray(ocrRes.rates) && ocrRes.rates.length > 0) {
-          return {
-            ...ocrRes,
-            source: 'SCANNED_PDF_MULTIMODAL_OCR',
-          };
-        }
+      const pagesToOcr =
+        combinedRates.length === 0
+          ? Array.from({ length: Math.min(docMeta.totalPages || 1, 6) }, (_, i) => i + 1)
+          : docMeta.scannedPageNumbers.slice(0, 4);
+
+      for (const pageNum of pagesToOcr) {
+        try {
+          const rendered = await renderPdfPageToImage(imageBase64, pageNum, 1.5);
+          if (rendered && rendered.dataUrl) {
+            const ocrRes = await postJson<RatesImageExtractionResponse>('/api/fundamental/extract-rates-from-image', {
+              image: rendered.dataUrl,
+              mimeType: 'image/jpeg',
+            });
+            if (ocrRes && ocrRes.success && Array.isArray(ocrRes.rates) && ocrRes.rates.length > 0) {
+              usedOcr = true;
+              for (const r of ocrRes.rates) {
+                if (!seenCurr.has(r.currency)) {
+                  seenCurr.add(r.currency);
+                  combinedRates.push(r);
+                }
+              }
+            }
+          }
+        } catch {}
+      }
+
+      if (combinedRates.length > 0) {
+        return {
+          success: true,
+          extractedCount: combinedRates.length,
+          rates: combinedRates,
+          telemetry: {
+            totalPages: docMeta.totalPages || 1,
+            pagesProcessed: docMeta.pagesProcessed || 1,
+            pagesFailed: docMeta.pagesFailed || 0,
+            failedPageNumbers: docMeta.failedPageNumbers || [],
+            scannedPageNumbers: docMeta.scannedPageNumbers || [],
+            valuesExtracted: combinedRates.length,
+            valuesRequiringReview: combinedRates.filter((r) => typeof r.currentPolicyRate !== 'number').length,
+            extractionMethod: usedNative && usedOcr ? 'HYBRID_TEXT_AND_OCR' : usedOcr ? 'VISION_OCR' : 'NATIVE_PDF_TEXT',
+          },
+          source: 'DOCUMENT_PDF_EXACT',
+        };
       }
     } catch (e: any) {
       console.warn('[LiveResearch] Client rates extraction warning:', e?.message || e);
@@ -680,12 +786,27 @@ export async function extractRatesFromImage(
   }
 
   try {
-    const res = await postJson<RatesImageExtractionResponse>('/api/fundamental/extract-rates-from-image', {
-      image: payloadToBase64(imageBase64),
-      mimeType,
-    });
-    if (res && res.success && Array.isArray(res.rates) && res.rates.length > 0) {
-      return res;
+    const b64 = payloadToBase64(imageBase64);
+    if (b64 && b64.length > 0) {
+      const res = await postJson<RatesImageExtractionResponse>('/api/fundamental/extract-rates-from-image', {
+        image: b64,
+        mimeType,
+      });
+      if (res && res.success && Array.isArray(res.rates) && res.rates.length > 0) {
+        return {
+          ...res,
+          telemetry: res.telemetry || {
+            totalPages: docMeta?.totalPages || 1,
+            pagesProcessed: docMeta?.pagesProcessed || 1,
+            pagesFailed: docMeta?.pagesFailed || 0,
+            failedPageNumbers: docMeta?.failedPageNumbers || [],
+            scannedPageNumbers: docMeta?.scannedPageNumbers || [],
+            valuesExtracted: res.rates.length,
+            valuesRequiringReview: 0,
+            extractionMethod: 'VISION_OCR',
+          },
+        };
+      }
     }
   } catch (err: any) {
     console.error('[LiveResearch] Server extract-rates endpoint failed:', err?.message || err);
@@ -698,6 +819,7 @@ export interface SentimentImageExtractionResponse {
   success: boolean;
   extractedCount: number;
   sentiments?: any[];
+  telemetry?: PdfExtractionTelemetry;
   notice?: string;
   source?: string;
   error?: string;
@@ -708,35 +830,72 @@ export async function extractSentimentFromImage(
   mimeType: string = 'image/png'
 ): Promise<SentimentImageExtractionResponse> {
   const isPdfFile = isPdfPayload(imageBase64, mimeType);
+  let docMeta: Awaited<ReturnType<typeof extractStructuredPdfDocument>> | null = null;
 
   if (isPdfFile) {
     try {
-      const pdfText = await extractTextFromPdfAsync(imageBase64);
-      if (pdfText && pdfText.trim()) {
-        const sentiments = parseSentimentDocumentText(pdfText);
+      docMeta = await extractStructuredPdfDocument(imageBase64);
+      const combinedSentiments: any[] = [];
+      const seenPairs = new Set<string>();
+      let usedNative = false;
+      let usedOcr = false;
+
+      if (docMeta.fullText && docMeta.fullText.trim()) {
+        const sentiments = parseSentimentDocumentText(docMeta.fullText);
         if (sentiments && sentiments.length > 0) {
-          return {
-            success: true,
-            extractedCount: sentiments.length,
-            sentiments,
-            source: 'DOCUMENT_PDF_EXACT',
-          };
+          usedNative = true;
+          for (const s of sentiments) {
+            if (!seenPairs.has(s.pair)) {
+              seenPairs.add(s.pair);
+              combinedSentiments.push(s);
+            }
+          }
         }
       }
 
-      // Scanned PDF fallback
-      const rendered = await renderPdfPageToImage(imageBase64, 1, 1.5);
-      if (rendered && rendered.dataUrl) {
-        const ocrRes = await postJson<SentimentImageExtractionResponse>('/api/fundamental/extract-sentiment-from-image', {
-          image: rendered.dataUrl,
-          mimeType: 'image/jpeg',
-        });
-        if (ocrRes && ocrRes.success && Array.isArray(ocrRes.sentiments) && ocrRes.sentiments.length > 0) {
-          return {
-            ...ocrRes,
-            source: 'SCANNED_PDF_MULTIMODAL_OCR',
-          };
-        }
+      const pagesToOcr =
+        combinedSentiments.length === 0
+          ? Array.from({ length: Math.min(docMeta.totalPages || 1, 6) }, (_, i) => i + 1)
+          : docMeta.scannedPageNumbers.slice(0, 4);
+
+      for (const pageNum of pagesToOcr) {
+        try {
+          const rendered = await renderPdfPageToImage(imageBase64, pageNum, 1.5);
+          if (rendered && rendered.dataUrl) {
+            const ocrRes = await postJson<SentimentImageExtractionResponse>('/api/fundamental/extract-sentiment-from-image', {
+              image: rendered.dataUrl,
+              mimeType: 'image/jpeg',
+            });
+            if (ocrRes && ocrRes.success && Array.isArray(ocrRes.sentiments) && ocrRes.sentiments.length > 0) {
+              usedOcr = true;
+              for (const s of ocrRes.sentiments) {
+                if (!seenPairs.has(s.pair)) {
+                  seenPairs.add(s.pair);
+                  combinedSentiments.push(s);
+                }
+              }
+            }
+          }
+        } catch {}
+      }
+
+      if (combinedSentiments.length > 0) {
+        return {
+          success: true,
+          extractedCount: combinedSentiments.length,
+          sentiments: combinedSentiments,
+          telemetry: {
+            totalPages: docMeta.totalPages || 1,
+            pagesProcessed: docMeta.pagesProcessed || 1,
+            pagesFailed: docMeta.pagesFailed || 0,
+            failedPageNumbers: docMeta.failedPageNumbers || [],
+            scannedPageNumbers: docMeta.scannedPageNumbers || [],
+            valuesExtracted: combinedSentiments.length,
+            valuesRequiringReview: 0,
+            extractionMethod: usedNative && usedOcr ? 'HYBRID_TEXT_AND_OCR' : usedOcr ? 'VISION_OCR' : 'NATIVE_PDF_TEXT',
+          },
+          source: 'DOCUMENT_PDF_EXACT',
+        };
       }
     } catch (e: any) {
       console.warn('[LiveResearch] Client sentiment extraction warning:', e?.message || e);
@@ -744,12 +903,27 @@ export async function extractSentimentFromImage(
   }
 
   try {
-    const res = await postJson<SentimentImageExtractionResponse>('/api/fundamental/extract-sentiment-from-image', {
-      image: payloadToBase64(imageBase64),
-      mimeType,
-    });
-    if (res && res.success && Array.isArray(res.sentiments) && res.sentiments.length > 0) {
-      return res;
+    const b64 = payloadToBase64(imageBase64);
+    if (b64 && b64.length > 0) {
+      const res = await postJson<SentimentImageExtractionResponse>('/api/fundamental/extract-sentiment-from-image', {
+        image: b64,
+        mimeType,
+      });
+      if (res && res.success && Array.isArray(res.sentiments) && res.sentiments.length > 0) {
+        return {
+          ...res,
+          telemetry: res.telemetry || {
+            totalPages: docMeta?.totalPages || 1,
+            pagesProcessed: docMeta?.pagesProcessed || 1,
+            pagesFailed: docMeta?.pagesFailed || 0,
+            failedPageNumbers: docMeta?.failedPageNumbers || [],
+            scannedPageNumbers: docMeta?.scannedPageNumbers || [],
+            valuesExtracted: res.sentiments.length,
+            valuesRequiringReview: 0,
+            extractionMethod: 'VISION_OCR',
+          },
+        };
+      }
     }
   } catch (err: any) {
     console.error('[LiveResearch] extractSentimentFromImage failed:', err);
@@ -762,6 +936,7 @@ export interface CotImageExtractionResponse {
   success: boolean;
   extractedCount: number;
   records?: any[];
+  telemetry?: PdfExtractionTelemetry;
   notice?: string;
   source?: string;
   error?: string;
@@ -772,35 +947,72 @@ export async function extractCotFromImage(
   mimeType: string = 'image/png'
 ): Promise<CotImageExtractionResponse> {
   const isPdfFile = isPdfPayload(imageBase64, mimeType);
+  let docMeta: Awaited<ReturnType<typeof extractStructuredPdfDocument>> | null = null;
 
   if (isPdfFile) {
     try {
-      const pdfText = await extractTextFromPdfAsync(imageBase64);
-      if (pdfText && pdfText.trim()) {
-        const records = parseCotDocumentText(pdfText);
+      docMeta = await extractStructuredPdfDocument(imageBase64);
+      const combinedRecords: any[] = [];
+      const seenAsset = new Set<string>();
+      let usedNative = false;
+      let usedOcr = false;
+
+      if (docMeta.fullText && docMeta.fullText.trim()) {
+        const records = parseCotDocumentText(docMeta.fullText);
         if (records && records.length > 0) {
-          return {
-            success: true,
-            extractedCount: records.length,
-            records,
-            source: 'DOCUMENT_PDF_EXACT',
-          };
+          usedNative = true;
+          for (const r of records) {
+            if (!seenAsset.has(r.currency)) {
+              seenAsset.add(r.currency);
+              combinedRecords.push(r);
+            }
+          }
         }
       }
 
-      // Scanned PDF fallback
-      const rendered = await renderPdfPageToImage(imageBase64, 1, 1.5);
-      if (rendered && rendered.dataUrl) {
-        const ocrRes = await postJson<CotImageExtractionResponse>('/api/fundamental/extract-cot-from-image', {
-          image: rendered.dataUrl,
-          mimeType: 'image/jpeg',
-        });
-        if (ocrRes && ocrRes.success && Array.isArray(ocrRes.records) && ocrRes.records.length > 0) {
-          return {
-            ...ocrRes,
-            source: 'SCANNED_PDF_MULTIMODAL_OCR',
-          };
-        }
+      const pagesToOcr =
+        combinedRecords.length === 0
+          ? Array.from({ length: Math.min(docMeta.totalPages || 1, 6) }, (_, i) => i + 1)
+          : docMeta.scannedPageNumbers.slice(0, 4);
+
+      for (const pageNum of pagesToOcr) {
+        try {
+          const rendered = await renderPdfPageToImage(imageBase64, pageNum, 1.5);
+          if (rendered && rendered.dataUrl) {
+            const ocrRes = await postJson<CotImageExtractionResponse>('/api/fundamental/extract-cot-from-image', {
+              image: rendered.dataUrl,
+              mimeType: 'image/jpeg',
+            });
+            if (ocrRes && ocrRes.success && Array.isArray(ocrRes.records) && ocrRes.records.length > 0) {
+              usedOcr = true;
+              for (const r of ocrRes.records) {
+                if (!seenAsset.has(r.currency)) {
+                  seenAsset.add(r.currency);
+                  combinedRecords.push(r);
+                }
+              }
+            }
+          }
+        } catch {}
+      }
+
+      if (combinedRecords.length > 0) {
+        return {
+          success: true,
+          extractedCount: combinedRecords.length,
+          records: combinedRecords,
+          telemetry: {
+            totalPages: docMeta.totalPages || 1,
+            pagesProcessed: docMeta.pagesProcessed || 1,
+            pagesFailed: docMeta.pagesFailed || 0,
+            failedPageNumbers: docMeta.failedPageNumbers || [],
+            scannedPageNumbers: docMeta.scannedPageNumbers || [],
+            valuesExtracted: combinedRecords.length,
+            valuesRequiringReview: 0,
+            extractionMethod: usedNative && usedOcr ? 'HYBRID_TEXT_AND_OCR' : usedOcr ? 'VISION_OCR' : 'NATIVE_PDF_TEXT',
+          },
+          source: 'DOCUMENT_PDF_EXACT',
+        };
       }
     } catch (e: any) {
       console.warn('[LiveResearch] Client COT extraction warning:', e?.message || e);
@@ -808,12 +1020,27 @@ export async function extractCotFromImage(
   }
 
   try {
-    const res = await postJson<CotImageExtractionResponse>('/api/fundamental/extract-cot-from-image', {
-      image: payloadToBase64(imageBase64),
-      mimeType,
-    });
-    if (res && res.success && Array.isArray(res.records) && res.records.length > 0) {
-      return res;
+    const b64 = payloadToBase64(imageBase64);
+    if (b64 && b64.length > 0) {
+      const res = await postJson<CotImageExtractionResponse>('/api/fundamental/extract-cot-from-image', {
+        image: b64,
+        mimeType,
+      });
+      if (res && res.success && Array.isArray(res.records) && res.records.length > 0) {
+        return {
+          ...res,
+          telemetry: res.telemetry || {
+            totalPages: docMeta?.totalPages || 1,
+            pagesProcessed: docMeta?.pagesProcessed || 1,
+            pagesFailed: docMeta?.pagesFailed || 0,
+            failedPageNumbers: docMeta?.failedPageNumbers || [],
+            scannedPageNumbers: docMeta?.scannedPageNumbers || [],
+            valuesExtracted: res.records.length,
+            valuesRequiringReview: 0,
+            extractionMethod: 'VISION_OCR',
+          },
+        };
+      }
     }
   } catch (err: any) {
     console.error('[LiveResearch] extractCotFromImage failed:', err);

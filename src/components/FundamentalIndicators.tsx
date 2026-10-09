@@ -1347,15 +1347,21 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
       )}
 
       {activeTab === 'INDICES' && (
-        <IndicesIntelligenceView />
+        <IndicesIntelligenceView
+          onOpenImageExtractor={(target) => handleOpenImageExtractor((target as SupportedSelection) || 'NAS100')}
+        />
       )}
 
       {activeTab === 'STOCKS' && (
-        <StockIntelligenceView />
+        <StockIntelligenceView
+          onOpenImageExtractor={(target) => handleOpenImageExtractor((target as SupportedSelection) || 'NVDA')}
+        />
       )}
 
       {activeTab === 'CRYPTO' && (
-        <CryptoIntelligenceView />
+        <CryptoIntelligenceView
+          onOpenImageExtractor={(target) => handleOpenImageExtractor((target as SupportedSelection) || 'BTC')}
+        />
       )}
 
       {activeTab === 'LONG_TERM_RANKINGS' && (

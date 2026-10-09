@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -11,9 +11,34 @@ import {
   ExternalLink,
   Search,
   Filter,
+  Camera,
 } from 'lucide-react';
 import { CORE_MARKET_UNIVERSE, getAssetsByClass } from '../../data/marketUniverseData';
 import { formatCurrency } from '../../utils/currencyFormatter';
+
+interface MultiAssetStoredRecord {
+  id: string;
+  symbol: string;
+  name: string;
+  category?: string;
+  price: number;
+  changePercent?: number;
+  change24hPct?: number;
+  score: number;
+  bias: string;
+  keyMetric1Label?: string;
+  keyMetric1Value?: string;
+  keyMetric2Label?: string;
+  keyMetric2Value?: string;
+  metric1Label?: string;
+  metric1Value?: string;
+  metric2Label?: string;
+  metric2Value?: string;
+  drivers?: string[];
+  primaryDriver?: string;
+  updatedAt?: string;
+  lastUpdated?: string;
+}
 
 interface IndexMacroMetrics {
   symbol: string;
@@ -77,10 +102,74 @@ const INDICES_BASELINE_DATA: Record<string, IndexMacroMetrics> = {
   },
 };
 
-export const IndicesIntelligenceView: React.FC = () => {
+interface IndicesIntelligenceViewProps {
+  onOpenImageExtractor?: (target?: string) => void;
+}
+
+export const IndicesIntelligenceView: React.FC<IndicesIntelligenceViewProps> = ({
+  onOpenImageExtractor,
+}) => {
   const [selectedSymbol, setSelectedSymbol] = useState<string>('NAS100');
+  const [storedMultiAssets, setStoredMultiAssets] = useState<MultiAssetStoredRecord[]>([]);
+
+  useEffect(() => {
+    const loadStored = () => {
+      try {
+        const raw = localStorage.getItem('primepip_fundamental_multi_assets_v1');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) setStoredMultiAssets(parsed);
+        }
+      } catch {}
+    };
+    loadStored();
+    window.addEventListener('primepipfx_fundamental_data_updated', loadStored);
+    window.addEventListener('storage', loadStored);
+    return () => {
+      window.removeEventListener('primepipfx_fundamental_data_updated', loadStored);
+      window.removeEventListener('storage', loadStored);
+    };
+  }, []);
+
   const indexAssets = getAssetsByClass('INDEX');
-  const activeMetrics = INDICES_BASELINE_DATA[selectedSymbol] || INDICES_BASELINE_DATA.NAS100;
+  const baseMetrics = INDICES_BASELINE_DATA[selectedSymbol] || INDICES_BASELINE_DATA.NAS100;
+  const activeStored = storedMultiAssets.find((item) => {
+    const normSym = item.symbol.replace('S&P500', 'SPX500').toUpperCase();
+    return normSym === selectedSymbol.toUpperCase() || item.symbol.toUpperCase() === selectedSymbol.toUpperCase();
+  });
+
+  const m1Raw = activeStored?.keyMetric1Value || activeStored?.metric1Value || '';
+  const m2Raw = activeStored?.keyMetric2Value || activeStored?.metric2Value || '';
+  const parsedStoredPe = m1Raw ? parseFloat(m1Raw.replace(/[^0-9.-]/g, '')) : NaN;
+  const parsedStoredYield = m2Raw ? parseFloat(m2Raw.replace(/[^0-9.-]/g, '')) : NaN;
+  const catalystText = activeStored?.drivers?.[0] || activeStored?.primaryDriver;
+  const updatedLabel = (activeStored?.updatedAt || activeStored?.lastUpdated || '').slice(0, 10);
+
+  const activeMetrics: IndexMacroMetrics = {
+    ...baseMetrics,
+    forwardPe: !isNaN(parsedStoredPe) && parsedStoredPe > 0 ? parsedStoredPe : baseMetrics.forwardPe,
+    earningsYieldPct:
+      !isNaN(parsedStoredYield) && parsedStoredYield > 0
+        ? parsedStoredYield
+        : !isNaN(parsedStoredPe) && parsedStoredPe > 0
+        ? Number((100 / parsedStoredPe).toFixed(2))
+        : baseMetrics.earningsYieldPct,
+    primaryDrivers: catalystText && activeStored
+      ? [
+          {
+            label: `Extracted / Synced Catalyst (${updatedLabel || 'Latest'})`,
+            impact:
+              activeStored.score >= 10
+                ? 'BULLISH'
+                : activeStored.score <= -10
+                ? 'BEARISH'
+                : 'NEUTRAL',
+            note: `${catalystText} | Spot: ${activeStored.price.toLocaleString()} | Macro Score: ${activeStored.score > 0 ? '+' : ''}${activeStored.score} (${activeStored.bias})`,
+          },
+          ...baseMetrics.primaryDrivers,
+        ]
+      : baseMetrics.primaryDrivers,
+  };
 
   return (
     <div className="space-y-6 font-mono-code text-xs">
@@ -100,22 +189,34 @@ export const IndicesIntelligenceView: React.FC = () => {
           </p>
         </div>
 
-        {/* Index Selector Buttons */}
-        <div className="flex items-center gap-2 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
-          {indexAssets.map((asset) => (
+        <div className="flex items-center gap-2 flex-wrap">
+          {onOpenImageExtractor && (
             <button
-              key={asset.symbol}
               type="button"
-              onClick={() => setSelectedSymbol(asset.symbol)}
-              className={`px-3 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer ${
-                selectedSymbol === asset.symbol
-                  ? 'bg-blue-500 text-slate-950 shadow-md shadow-blue-500/20'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              onClick={() => onOpenImageExtractor(selectedSymbol)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/40 text-xs font-military font-bold tracking-wider transition cursor-pointer"
             >
-              {asset.symbol}
+              <Camera className="w-3.5 h-3.5" />
+              <span>UPLOAD PDF / IMAGE ({selectedSymbol})</span>
             </button>
-          ))}
+          )}
+          {/* Index Selector Buttons */}
+          <div className="flex items-center gap-2 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+            {indexAssets.map((asset) => (
+              <button
+                key={asset.symbol}
+                type="button"
+                onClick={() => setSelectedSymbol(asset.symbol)}
+                className={`px-3 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer ${
+                  selectedSymbol === asset.symbol
+                    ? 'bg-blue-500 text-slate-950 shadow-md shadow-blue-500/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {asset.symbol}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -123,6 +224,14 @@ export const IndicesIntelligenceView: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {indexAssets.map((asset) => {
           const metrics = INDICES_BASELINE_DATA[asset.symbol];
+          const stored = storedMultiAssets.find((s) => {
+            const normSym = s.symbol.replace('S&P500', 'SPX500').toUpperCase();
+            return normSym === asset.symbol.toUpperCase() || s.symbol.toUpperCase() === asset.symbol.toUpperCase();
+          });
+          const cardM1 = stored?.keyMetric1Value || stored?.metric1Value || '';
+          const cardM2 = stored?.keyMetric2Value || stored?.metric2Value || '';
+          const storedPe = cardM1 ? parseFloat(cardM1.replace(/[^0-9.-]/g, '')) : NaN;
+          const displayPe = !isNaN(storedPe) && storedPe > 0 ? storedPe : metrics?.forwardPe;
           const isSelected = selectedSymbol === asset.symbol;
           return (
             <button
@@ -141,25 +250,33 @@ export const IndicesIntelligenceView: React.FC = () => {
                 </span>
                 <span
                   className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${
-                    metrics?.valuationStatus === 'OVERVALUED'
+                    stored
+                      ? stored.score >= 10
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                        : stored.score <= -10
+                        ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                        : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+                      : metrics?.valuationStatus === 'OVERVALUED'
                       ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
                       : metrics?.valuationStatus === 'UNDERVALUED'
                       ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                       : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
                   }`}
                 >
-                  {metrics?.valuationStatus || 'DATA_UNAVAILABLE'}
+                  {stored ? `${stored.bias} (${stored.score > 0 ? '+' : ''}${stored.score})` : metrics?.valuationStatus || 'DATA_UNAVAILABLE'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 truncate mb-3">{asset.displayName}</p>
               <div className="grid grid-cols-2 gap-2 text-[10px] pt-2 border-t border-slate-800/80">
                 <div>
                   <span className="text-slate-500 block">Forward P/E:</span>
-                  <span className="font-bold text-slate-200">{metrics?.forwardPe ? `${metrics.forwardPe}x` : 'DATA UNAVAILABLE'}</span>
+                  <span className="font-bold text-slate-200">{displayPe ? `${displayPe}x` : 'DATA UNAVAILABLE'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Earnings Yield:</span>
-                  <span className="font-bold text-cyan-400">{metrics?.earningsYieldPct ? `${metrics.earningsYieldPct}%` : 'DATA UNAVAILABLE'}</span>
+                  <span className="text-slate-500 block">{stored ? 'Spot / Metric:' : 'Earnings Yield:'}</span>
+                  <span className="font-bold text-cyan-400">
+                    {stored ? `${stored.price.toLocaleString()} (${cardM2 || 'Verified'})` : metrics?.earningsYieldPct ? `${metrics.earningsYieldPct}%` : 'DATA UNAVAILABLE'}
+                  </span>
                 </div>
               </div>
             </button>

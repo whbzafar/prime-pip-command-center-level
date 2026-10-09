@@ -30,9 +30,21 @@ import {
   patchFundamentalObservations,
   ExtractedIndicatorItem,
 } from '../../services/fundamentalLiveResearchService';
-import { renderPdfPageToImage } from '../../utils/pdfDocumentParser';
+import {
+  renderPdfPageToImage,
+  PdfExtractionTelemetry,
+  ExtractedMultiAssetRecord,
+} from '../../utils/pdfDocumentParser';
 
-export type SupportedSelection = 'ALL' | CurrencyCode | 'GOLD' | 'SILVER' | 'CRUDE_OIL';
+export type SupportedSelection =
+  | 'ALL'
+  | CurrencyCode
+  | 'GOLD'
+  | 'SILVER'
+  | 'CRUDE_OIL'
+  | 'INDICES'
+  | 'STOCKS'
+  | 'CRYPTO';
 
 interface EconomicImageExtractorModalProps {
   isOpen: boolean;
@@ -46,8 +58,13 @@ interface EconomicImageExtractorModalProps {
   existingObservations: IndicatorObservation[];
 }
 
-const ALL_SELECTIONS: { code: SupportedSelection; label: string; flag: string; type: 'ALL' | 'CURRENCY' | 'COMMODITY' }[] = [
-  { code: 'ALL', label: 'All Currencies & Commodities (Multi-Calendar PDF)', flag: '🌐', type: 'ALL' },
+const ALL_SELECTIONS: {
+  code: SupportedSelection;
+  label: string;
+  flag: string;
+  type: 'ALL' | 'CURRENCY' | 'COMMODITY' | 'MULTI_ASSET';
+}[] = [
+  { code: 'ALL', label: 'All Currencies & Assets (Multi-Page PDF)', flag: '🌐', type: 'ALL' },
   { code: 'USD', label: 'US Dollar', flag: '🇺🇸', type: 'CURRENCY' },
   { code: 'EUR', label: 'Euro', flag: '🇪🇺', type: 'CURRENCY' },
   { code: 'GBP', label: 'British Pound', flag: '🇬🇧', type: 'CURRENCY' },
@@ -59,6 +76,9 @@ const ALL_SELECTIONS: { code: SupportedSelection; label: string; flag: string; t
   { code: 'GOLD', label: 'Gold (XAU)', flag: '🪙', type: 'COMMODITY' },
   { code: 'SILVER', label: 'Silver (XAG)', flag: '🥈', type: 'COMMODITY' },
   { code: 'CRUDE_OIL', label: 'Crude Oil (WTI)', flag: '🛢️', type: 'COMMODITY' },
+  { code: 'INDICES', label: 'Global Indices', flag: '📈', type: 'MULTI_ASSET' },
+  { code: 'STOCKS', label: 'Stocks / Equities', flag: '🏛️', type: 'MULTI_ASSET' },
+  { code: 'CRYPTO', label: 'Cryptocurrencies', flag: '₿', type: 'MULTI_ASSET' },
 ];
 
 export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalProps> = ({
@@ -80,6 +100,8 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extractedRows, setExtractedRows] = useState<(ExtractedIndicatorItem & { selected: boolean })[]>([]);
+  const [extractedMultiAssets, setExtractedMultiAssets] = useState<ExtractedMultiAssetRecord[]>([]);
+  const [extractionTelemetry, setExtractionTelemetry] = useState<PdfExtractionTelemetry | null>(null);
   const [hasScanned, setHasScanned] = useState(false);
   const [appliedSuccess, setAppliedSuccess] = useState<string | null>(null);
   const [currencyFilter, setCurrencyFilter] = useState<string>('ALL');
@@ -135,8 +157,8 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
     if (isPdfFile) {
       file.arrayBuffer().then((ab) => {
         const u8 = new Uint8Array(ab);
-        setRawFileBytes(u8);
-        renderPdfPageToImage(u8, 1, 1.5).then((rendered) => {
+        setRawFileBytes(new Uint8Array(u8));
+        renderPdfPageToImage(new Uint8Array(u8), 1, 1.5).then((rendered) => {
           if (rendered && rendered.dataUrl) {
             setPdfRenderedPreview(rendered.dataUrl);
           }
@@ -208,10 +230,12 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
     setIsProcessing(true);
     setError(null);
     setAppliedSuccess(null);
+    setExtractionTelemetry(null);
 
     try {
-      const payload = rawFileBytes || pdfRenderedPreview || imagePreview;
-      const response = await extractIndicatorsFromImage(payload!, imageMime, selectedAsset);
+      const payload = rawFileBytes ? new Uint8Array(rawFileBytes) : (imagePreview || pdfRenderedPreview);
+      const effectiveMime = isPdf ? 'application/pdf' : imageMime;
+      const response = await extractIndicatorsFromImage(payload!, effectiveMime, selectedAsset);
       if (!response.success || !response.indicators || response.indicators.length === 0) {
         throw new Error(response.error || 'No readable economic indicator rows found in this document/screenshot.');
       }
@@ -222,57 +246,34 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
           selected: true,
         }))
       );
+      if (response.multiAssets && response.multiAssets.length > 0) {
+        setExtractedMultiAssets(response.multiAssets);
+      } else {
+        setExtractedMultiAssets([]);
+      }
+      if (response.telemetry) {
+        setExtractionTelemetry(response.telemetry);
+      }
       setHasScanned(true);
     } catch (err: any) {
-      console.warn('[IMAGE_EXTRACTOR] Auto-extract notice:', err);
-      // Pre-populate candidate indicators for selectedAsset so the user can verify from preview and apply
-      const candidates = selectedAsset === 'ALL'
-        ? OFFICIAL_INDICATOR_REGISTRY.slice(0, 16)
-        : ['GOLD', 'SILVER', 'CRUDE_OIL'].includes(selectedAsset)
-        ? [
-            { id: `${selectedAsset}_SPOT`, name: `${selectedAsset} Spot / Futures Price`, currency: 'USD', unit: '$', defaultVal: selectedAsset === 'GOLD' ? 2920 : selectedAsset === 'SILVER' ? 33.5 : 72.5 },
-            { id: `${selectedAsset}_REAL_YIELD`, name: 'US 10-Year Real Yield', currency: 'USD', unit: '%', defaultVal: 1.95 },
-            { id: `${selectedAsset}_BREAKEVEN`, name: 'US 5-Year Breakeven Inflation', currency: 'USD', unit: '%', defaultVal: 2.35 },
-          ]
-        : OFFICIAL_INDICATOR_REGISTRY.filter((d) => d.currency === selectedAsset);
-
-      const fallbackRows: (ExtractedIndicatorItem & { selected: boolean })[] = candidates.map((cand: any, idx: number) => {
-        const existing = existingObservations.find((o) => o.indicatorId === cand.id);
-        return {
-          id: `extracted_${cand.id}_${Date.now()}_${idx}`,
-          matchedIndicatorId: cand.id,
-          name: cand.name,
-          currency: cand.currency || (selectedAsset !== 'ALL' ? selectedAsset : 'USD'),
-          actual: existing?.actual ?? (cand.defaultVal ?? 0),
-          forecast: existing?.forecast ?? null,
-          previous: existing?.previous ?? null,
-          revisedPrevious: null,
-          unit: cand.unit || '%',
-          referencePeriod: 'Uploaded Release',
-          releaseDate: new Date().toISOString().slice(0, 10),
-          releaseTime: '12:00 GMT',
-          source: 'Uploaded Document / Manual Verification',
-          confidence: 90,
-          dataStatus: 'EXTRACTED_FROM_IMAGE' as const,
-          notes: 'Loaded from uploaded document table for direct review.',
-          selected: true,
-        };
-      });
-
-      if (fallbackRows.length > 0) {
-        setExtractedRows(fallbackRows);
-        setHasScanned(true);
-        setError('Document loaded. Please verify the numbers against the document preview and click "APPLY & PATCH DATA".');
-      } else {
-        setError(err?.message || 'Failed to extract indicator data from screenshot. Please try another image or edit manually.');
-      }
+      console.warn('[IMAGE_EXTRACTOR] Extraction error:', err);
+      setExtractedRows([]);
+      setExtractedMultiAssets([]);
+      setHasScanned(false);
+      setError(
+        err?.message ||
+          'Unable to extract real indicator values from this document. No fabricated or default values were substituted. You may add rows manually or upload a clearer report.'
+      );
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleAddNewManualRow = () => {
-    const defaultCurr = selectedAsset !== 'ALL' && !['GOLD', 'SILVER', 'CRUDE_OIL'].includes(selectedAsset) ? selectedAsset : 'USD';
+    const defaultCurr =
+      selectedAsset !== 'ALL' && !['GOLD', 'SILVER', 'CRUDE_OIL', 'INDICES', 'STOCKS', 'CRYPTO'].includes(selectedAsset)
+        ? selectedAsset
+        : 'USD';
     const newRow: ExtractedIndicatorItem & { selected: boolean } = {
       name: 'Custom Economic Release',
       currency: defaultCurr,
@@ -361,9 +362,85 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
       });
     }
 
+    // Persist multi-asset records (Indices, Stocks, Crypto) so their intelligence views update immediately
+    try {
+      const existingMultiRaw = localStorage.getItem('primepip_multi_asset_extracted_v1');
+      const existingMulti: ExtractedMultiAssetRecord[] = existingMultiRaw ? JSON.parse(existingMultiRaw) : [];
+      const mergedMap = new Map<string, ExtractedMultiAssetRecord>();
+      existingMulti.forEach((m) => mergedMap.set(m.symbol, m));
+      extractedMultiAssets.forEach((m) => mergedMap.set(m.symbol, m));
+
+      // Also map any edited selectedRows that correspond to Indices/Stocks/Crypto
+      selectedRows.forEach((row) => {
+        if (row.matchedIndicatorId?.startsWith('MULTI_') && typeof row.actual === 'number') {
+          const sym = row.matchedIndicatorId.replace('MULTI_', '');
+          const prevRec = mergedMap.get(sym);
+          mergedMap.set(sym, {
+            category:
+              selectedAsset === 'INDICES'
+                ? 'INDICES'
+                : selectedAsset === 'STOCKS'
+                ? 'STOCKS'
+                : selectedAsset === 'CRYPTO'
+                ? 'CRYPTO'
+                : prevRec?.category || 'INDICES',
+            symbol: sym,
+            name: row.name,
+            price: row.actual,
+            changePct: row.previous,
+            secondaryMetric: row.forecast,
+            unit: row.unit || '$',
+            bias: row.previous !== null && row.previous < 0 ? 'BEARISH' : 'BULLISH',
+            notes: row.notes || 'Updated from PDF Document',
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      });
+
+      if (mergedMap.size > 0) {
+        const mergedList = Array.from(mergedMap.values());
+        localStorage.setItem('primepip_multi_asset_extracted_v1', JSON.stringify(mergedList));
+        window.dispatchEvent(new CustomEvent('primepip-multi-asset-updated', { detail: mergedList }));
+
+        // Also synchronize primepip_fundamental_multi_assets_v1 used by FundamentalAssetCommandCenter and Intelligence views
+        try {
+          const savedMultiRaw = localStorage.getItem('primepip_fundamental_multi_assets_v1');
+          const currentMultiList: any[] = savedMultiRaw ? JSON.parse(savedMultiRaw) : [];
+          if (Array.isArray(currentMultiList) && currentMultiList.length > 0) {
+            const updatedMultiList = currentMultiList.map((item) => {
+              const normItemSym = String(item.symbol || '').replace('/USDT', '').replace('S&P500', 'SPX500').toUpperCase();
+              const match = mergedList.find((m) => {
+                const normM = String(m.symbol || '').replace('/USDT', '').replace('S&P500', 'SPX500').toUpperCase();
+                return normM === normItemSym || String(m.symbol).toUpperCase() === String(item.symbol).toUpperCase();
+              });
+              if (!match) return item;
+              const nextScore = match.bias === 'BULLISH' ? Math.max(25, item.score || 35) : match.bias === 'BEARISH' ? Math.min(-25, item.score || -35) : item.score;
+              return {
+                ...item,
+                price: typeof match.price === 'number' && match.price > 0 ? match.price : item.price,
+                changePercent: typeof match.changePct === 'number' ? match.changePct : item.changePercent,
+                score: nextScore,
+                bias: nextScore >= 35 ? 'STRONG BULLISH' : nextScore >= 10 ? 'BULLISH' : nextScore <= -35 ? 'STRONG BEARISH' : nextScore <= -10 ? 'BEARISH' : 'NEUTRAL',
+                keyMetric1Value: match.secondaryMetric !== null && match.secondaryMetric !== undefined ? String(match.secondaryMetric) : item.keyMetric1Value,
+                drivers: match.notes ? [match.notes, ...(Array.isArray(item.drivers) ? item.drivers.slice(0, 2) : [])] : item.drivers,
+                updatedAt: new Date().toISOString(),
+                verificationStatus: 'VERIFIED',
+              };
+            });
+            localStorage.setItem('primepip_fundamental_multi_assets_v1', JSON.stringify(updatedMultiList));
+          }
+          window.dispatchEvent(new CustomEvent('primepipfx_fundamental_data_updated'));
+        } catch {}
+      }
+    } catch (e) {
+      console.warn('[IMAGE_EXTRACTOR] Multi-asset persistence warning:', e);
+    }
+
     // Convert to IndicatorObservation list
+    const validCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
     const updatedObservations: IndicatorObservation[] = selectedRows.map((row, idx) => {
-      const rowCurr = (row.currency || (selectedAsset !== 'ALL' ? selectedAsset : 'USD')) as CurrencyCode;
+      const rawCurr = (row.currency || (validCurrencies.includes(selectedAsset) ? selectedAsset : 'USD')).toUpperCase();
+      const rowCurr = (validCurrencies.includes(rawCurr) ? rawCurr : 'USD') as CurrencyCode;
       const targetId = row.matchedIndicatorId || `obs_custom_${rowCurr}_${Date.now()}_${idx}`;
       const officialDef = OFFICIAL_INDICATOR_REGISTRY.find((d) => d.id === targetId);
       const existing = existingObservations.find((o) => o.indicatorId === targetId);
@@ -383,7 +460,7 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
         unit: row.unit || officialDef?.unit || '%',
         dataSource: row.source || 'Uploaded Economic Calendar Table',
         sourceUrl: officialDef?.officialSourceUrl || 'https://www.forexfactory.com/calendar',
-        notes: row.notes || 'Extracted via High-Fidelity Multimodal Vision OCR',
+        notes: row.notes || 'Extracted via High-Fidelity Document & Vision Parser',
         updatedAt: new Date().toISOString(),
         dataRetrievalTimestamp: new Date().toISOString(),
         dataStatus: 'EXTRACTED_FROM_IMAGE',
@@ -644,6 +721,47 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
           {/* Scanned Indicator Review Table */}
           {hasScanned && (
             <div className="space-y-3 pt-2">
+              {extractionTelemetry && (
+                <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/30 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-400">Total Pages:</span>
+                      <span className="font-mono-code font-bold text-white">{extractionTelemetry.totalPages}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-400">Pages Processed:</span>
+                      <span className="font-mono-code font-bold text-emerald-400">{extractionTelemetry.pagesProcessed}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-400">Pages Failed:</span>
+                      <span className={`font-mono-code font-bold ${extractionTelemetry.pagesFailed > 0 ? 'text-rose-400' : 'text-slate-300'}`}>
+                        {extractionTelemetry.pagesFailed}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-400">Values Extracted:</span>
+                      <span className="font-mono-code font-bold text-cyan-300">{extractionTelemetry.valuesExtracted}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-400">Requiring Review:</span>
+                      <span className={`font-mono-code font-bold ${extractionTelemetry.valuesRequiringReview > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                        {extractionTelemetry.valuesRequiringReview}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 font-mono-code text-[10px] font-bold">
+                      {extractionTelemetry.extractionMethod}
+                    </span>
+                    {extractionTelemetry.incompleteReason && (
+                      <span className="text-[11px] text-amber-400 font-semibold">
+                        ({extractionTelemetry.incompleteReason})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <h3 className="text-xs font-bold text-white font-military uppercase tracking-wider">

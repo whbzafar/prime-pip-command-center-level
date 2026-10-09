@@ -3,6 +3,7 @@ import { X, Upload, Camera, Sparkles, Check, CheckCircle2, AlertTriangle, Refres
 import { CurrencyCode, CotPositioningRecord, CotAssetCode } from '../../types/fundamentalIndicatorTypes';
 import { CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
 import { extractCotFromImage } from '../../services/fundamentalLiveResearchService';
+import { PdfExtractionTelemetry } from '../../utils/pdfDocumentParser';
 
 const getAssetFlag = (code: CotAssetCode) => {
   if (code === 'XAU') return '🥇';
@@ -48,6 +49,7 @@ export const CotImageExtractorModal: React.FC<CotImageExtractorModalProps> = ({
   const [extractedRows, setExtractedRows] = useState<ExtractedCotRow[]>([]);
   const [hasScanned, setHasScanned] = useState(false);
   const [appliedSuccess, setAppliedSuccess] = useState<string | null>(null);
+  const [extractionTelemetry, setExtractionTelemetry] = useState<PdfExtractionTelemetry | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -75,6 +77,7 @@ export const CotImageExtractorModal: React.FC<CotImageExtractorModalProps> = ({
   const handleFileSelected = (file: File) => {
     setError(null);
     setAppliedSuccess(null);
+    setExtractionTelemetry(null);
     const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|bmp|gif|jfif|tiff?)$/i.test(file.name);
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 
@@ -148,12 +151,16 @@ export const CotImageExtractorModal: React.FC<CotImageExtractorModalProps> = ({
     if (!filePreview && !rawFileBytes) return;
     setIsProcessing(true);
     setError(null);
+    setExtractionTelemetry(null);
 
     try {
-      const payload = rawFileBytes || filePreview;
+      const payload = rawFileBytes ? new Uint8Array(rawFileBytes) : filePreview;
       const res = await extractCotFromImage(payload!, fileMime);
+      if (res.telemetry) {
+        setExtractionTelemetry(res.telemetry);
+      }
       if (!res.success || !res.records || res.records.length === 0) {
-        throw new Error(res.error || 'No COT data could be extracted from this document.');
+        throw new Error(res.error || 'No CFTC COT positioning data could be extracted from this document. Existing COT records were preserved.');
       }
 
       const normalizeCotAsset = (raw: string): CotAssetCode => {
@@ -173,38 +180,24 @@ export const CotImageExtractorModal: React.FC<CotImageExtractorModalProps> = ({
           currency: curr,
           selected: true,
           contractName: r.contractName || existing?.contractName || (curr === 'XAU' ? 'Gold Futures (COMEX)' : curr === 'XAG' ? 'Silver Futures (COMEX)' : curr === 'OIL' ? 'Crude Oil Light Sweet (NYMEX WTI)' : `${curr} Futures (CME)`),
-          openInterest: typeof r.openInterest === 'number' ? r.openInterest : (existing?.openInterest ?? 100000),
-          nonCommercialLong: typeof r.nonCommercialLong === 'number' ? r.nonCommercialLong : (existing?.nonCommercialLong ?? 40000),
-          nonCommercialShort: typeof r.nonCommercialShort === 'number' ? r.nonCommercialShort : (existing?.nonCommercialShort ?? 30000),
-          commercialLong: typeof r.commercialLong === 'number' ? r.commercialLong : (existing?.commercialLong ?? 50000),
-          commercialShort: typeof r.commercialShort === 'number' ? r.commercialShort : (existing?.commercialShort ?? 60000),
+          openInterest: typeof r.openInterest === 'number' ? r.openInterest : (existing?.openInterest ?? 0),
+          nonCommercialLong: typeof r.nonCommercialLong === 'number' ? r.nonCommercialLong : (existing?.nonCommercialLong ?? 0),
+          nonCommercialShort: typeof r.nonCommercialShort === 'number' ? r.nonCommercialShort : (existing?.nonCommercialShort ?? 0),
+          commercialLong: typeof r.commercialLong === 'number' ? r.commercialLong : (existing?.commercialLong ?? 0),
+          commercialShort: typeof r.commercialShort === 'number' ? r.commercialShort : (existing?.commercialShort ?? 0),
           reportDate: r.reportDate || existing?.reportDate || new Date().toISOString().slice(0, 10),
           releaseDate: r.releaseDate || existing?.releaseDate || new Date().toISOString().slice(0, 10),
-          notes: r.notes || existing?.notes || 'CFTC legacy report extracted.',
+          notes: r.notes || existing?.notes || 'CFTC Commitments of Traders report extracted.',
         };
       });
 
       setExtractedRows(rows);
       setHasScanned(true);
     } catch (err: any) {
-      console.warn('[COT OCR] Auto-extract notice:', err);
-      // Pre-populate candidate rows from existing records so user can review from the preview image and apply
-      const fallbackRows: ExtractedCotRow[] = existingRecords.map((ex) => ({
-        currency: ex.currency,
-        selected: true,
-        contractName: ex.contractName,
-        openInterest: ex.openInterest,
-        nonCommercialLong: ex.nonCommercialLong,
-        nonCommercialShort: ex.nonCommercialShort,
-        commercialLong: ex.commercialLong,
-        commercialShort: ex.commercialShort,
-        reportDate: ex.reportDate,
-        releaseDate: ex.releaseDate,
-        notes: ex.notes || 'CFTC Commitments of Traders positioning verified.',
-      }));
-      setExtractedRows(fallbackRows);
-      setHasScanned(true);
-      setError('Document loaded. Please verify the CFTC figures against the document preview and click "APPLY & UPDATE POSITIONING".');
+      console.warn('[COT OCR] Extraction failed:', err);
+      setExtractedRows([]);
+      setHasScanned(false);
+      setError(err?.message || 'Could not extract CFTC COT positioning from this document. Previously saved COT records remain unchanged.');
     } finally {
       setIsProcessing(false);
     }
@@ -374,6 +367,16 @@ export const CotImageExtractorModal: React.FC<CotImageExtractorModalProps> = ({
               {/* Extracted Results Table */}
               {hasScanned && extractedRows.length > 0 && (
                 <div className="space-y-3">
+                  {extractionTelemetry && (
+                    <div className="p-2.5 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-[11px] font-mono-code flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-cyan-300 font-bold">
+                        Pages Processed: {extractionTelemetry.pagesProcessed}/{extractionTelemetry.totalPages} ({extractionTelemetry.extractionMethodUsed})
+                      </span>
+                      <span className="text-emerald-300 font-bold">
+                        Extracted: {extractedRows.length} COT record(s)
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-xs font-military font-bold text-slate-200 uppercase">
                     <span>Extracted COT Positioning ({extractedRows.length} currencies)</span>
                     <span className="text-[10px] text-cyan-400 font-mono-code">Review contracts and net position</span>

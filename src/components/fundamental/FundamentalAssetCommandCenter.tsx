@@ -193,11 +193,34 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
   });
 
   useEffect(() => {
+    const syncMultiAssets = () => {
+      try {
+        const saved = localStorage.getItem('primepip_fundamental_multi_assets_v1');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMultiAssets((prev) => {
+              if (JSON.stringify(prev) === saved) return prev;
+              return parsed;
+            });
+          }
+        }
+      } catch {}
+    };
+    window.addEventListener('primepipfx_fundamental_data_updated', syncMultiAssets);
+    window.addEventListener('storage', syncMultiAssets);
+    return () => {
+      window.removeEventListener('primepipfx_fundamental_data_updated', syncMultiAssets);
+      window.removeEventListener('storage', syncMultiAssets);
+    };
+  }, []);
+
+  const saveMultiAssetsToStorage = (next: MultiAssetFundamentalRecord[]) => {
     try {
-      localStorage.setItem('primepip_fundamental_multi_assets_v1', JSON.stringify(multiAssets));
+      localStorage.setItem('primepip_fundamental_multi_assets_v1', JSON.stringify(next));
       window.dispatchEvent(new CustomEvent('primepipfx_fundamental_data_updated'));
     } catch {}
-  }, [multiAssets]);
+  };
 
   const classifyBiasFromScore = (s: number): MultiAssetFundamentalRecord['bias'] => {
     if (s >= 35) return 'STRONG BULLISH';
@@ -208,8 +231,8 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
   };
 
   const handleSaveMultiAssetEdit = (id: string) => {
-    setMultiAssets((prev) =>
-      prev.map((item) => {
+    setMultiAssets((prev) => {
+      const next = prev.map((item) => {
         if (item.id !== id) return item;
         const parsedPrice = parseFloat(editPrice);
         const parsedScore = Math.max(-100, Math.min(100, Math.round(parseFloat(editScore) || 0)));
@@ -222,10 +245,12 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
           keyMetric1Value: editMetric1.trim() || item.keyMetric1Value,
           keyMetric2Value: editMetric2.trim() || item.keyMetric2Value,
           updatedAt: new Date().toISOString(),
-          verificationStatus: 'VERIFIED',
+          verificationStatus: 'VERIFIED' as const,
         };
-      })
-    );
+      });
+      saveMultiAssetsToStorage(next);
+      return next;
+    });
     setEditingMultiId(null);
     setMessage('✓ Updated multi-asset fundamental metrics and recalculated Bullish/Bearish status.');
   };
@@ -266,8 +291,8 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
       const momentumAdjust = updatedChange > 2 ? 4 : updatedChange < -2 ? -4 : 0;
       const newScore = Math.max(-100, Math.min(100, baseline.score + momentumAdjust));
 
-      setMultiAssets((prev) =>
-        prev.map((item) =>
+      setMultiAssets((prev) => {
+        const next = prev.map((item) =>
           item.id === asset.id
             ? {
                 ...baseline,
@@ -276,11 +301,13 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
                 score: newScore,
                 bias: classifyBiasFromScore(newScore),
                 updatedAt: new Date().toISOString(),
-                verificationStatus: 'VERIFIED',
+                verificationStatus: 'VERIFIED' as const,
               }
             : item
-        )
-      );
+        );
+        saveMultiAssetsToStorage(next);
+        return next;
+      });
       setMessage(`✓ ${asset.symbol}: Verified fundamental metrics & live market feed synchronized.`);
     } finally {
       setLoading(null);
@@ -560,6 +587,17 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
                 {loading === asset.symbol ? 'VERIFYING...' : `AUTO-UPDATE ${asset.symbol}`}
               </span>
             </button>
+            {onOpenImageExtractor && (
+              <button
+                type="button"
+                onClick={() => onOpenImageExtractor(asset.symbol.replace('/USDT', '') as any)}
+                className="px-2.5 py-2 rounded-xl border border-purple-500/40 bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 text-[10px] font-mono-code font-bold transition cursor-pointer flex items-center gap-1"
+                title="Upload PDF or Screenshot for this asset"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>PDF/Img</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {

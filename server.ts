@@ -1971,6 +1971,7 @@ function safeParseNum(val: any): number | null {
 import {
   extractTextFromPdf,
   extractTextFromPdfAsync,
+  extractStructuredPdfDocument,
   isPdfPayload,
   getCleanBase64,
   parseCurrencyDocumentText,
@@ -1978,8 +1979,112 @@ import {
   parseRatesDocumentText,
   parseCotDocumentText,
   parseSentimentDocumentText,
+  parseMultiAssetDocumentText,
   findBestRegistryMatch,
 } from './server/fundamentalOcrService.js';
+
+const OCR_CANDIDATE_MODELS = ['gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview', 'gemini-2.5-flash'];
+
+// Direct PDF text & structured extraction endpoint (used by EconomicImageExtractorModal and other uploaders)
+app.post('/api/fundamental-extract-pdf-text', async (req, res) => {
+  try {
+    const { pdfBase64, image, selection = 'ALL' } = req.body || {};
+    const payload = pdfBase64 || image;
+    if (!payload) {
+      return res.status(400).json({ ok: false, success: false, error: 'No PDF payload provided.' });
+    }
+    const cleanBase64 = getCleanBase64(String(payload));
+    const cleanSelection = String(selection || 'ALL').toUpperCase().trim();
+    const docMeta = await extractStructuredPdfDocument(cleanBase64);
+    let pdfText = (docMeta.fullText || '').trim();
+
+    if (!pdfText) {
+      try {
+        const pdfBuf = Buffer.from(cleanBase64, 'base64');
+        const parser = new PDFParse({ data: pdfBuf });
+        const parsedPdf = await parser.getText();
+        await parser.destroy();
+        pdfText = (parsedPdf?.text || '').trim();
+      } catch (err: any) {
+        console.warn('[PDF TEXT API] pdf-parse fallback warning:', err?.message || err);
+      }
+    }
+
+    const indicators = pdfText ? parseCurrencyDocumentText(pdfText, cleanSelection) : [];
+    const multiAssets = pdfText ? parseMultiAssetDocumentText(pdfText, cleanSelection) : [];
+
+    return res.json({
+      ok: Boolean(pdfText),
+      success: Boolean(pdfText),
+      text: pdfText,
+      indicators,
+      multiAssets,
+      telemetry: {
+        totalPages: docMeta.totalPages || 1,
+        pagesProcessed: docMeta.pagesProcessed || 1,
+        pagesFailed: docMeta.pagesFailed || 0,
+        failedPageNumbers: docMeta.failedPageNumbers || [],
+        scannedPageNumbers: docMeta.scannedPageNumbers || [],
+        valuesExtracted: indicators.length + multiAssets.length,
+        valuesRequiringReview: indicators.filter((r: any) => r.actual === null || r.actual === undefined).length,
+        extractionMethod: 'NATIVE_PDF_TEXT',
+      },
+    });
+  } catch (err: any) {
+    console.error('[PDF TEXT API] Error:', err);
+    return res.status(500).json({ ok: false, success: false, error: err?.message || 'PDF text extraction failed' });
+  }
+});
+
+// Alias /api/fundamental-ocr for components that call it directly
+app.post('/api/fundamental-ocr', async (req, res) => {
+  try {
+    const { image, pdfBase64, mimeType = 'image/png', currency, selection } = req.body || {};
+    const payload = image || pdfBase64;
+    const targetSelection = String(selection || currency || 'ALL').toUpperCase().trim();
+    if (!payload) {
+      return res.status(400).json({ ok: false, success: false, error: 'No payload provided.' });
+    }
+    const cleanBase64 = getCleanBase64(String(payload));
+    const isPdfFile = isPdfPayload(payload, mimeType);
+    if (isPdfFile) {
+      const docMeta = await extractStructuredPdfDocument(cleanBase64);
+      const pdfText = (docMeta.fullText || '').trim();
+      if (pdfText) {
+        const extracted = parseCurrencyDocumentText(pdfText, targetSelection);
+        const multiAssets = parseMultiAssetDocumentText(pdfText, targetSelection);
+        if (extracted.length > 0 || multiAssets.length > 0) {
+          return res.json({
+            ok: true,
+            success: true,
+            selection: targetSelection,
+            extractedCount: extracted.length,
+            indicators: extracted,
+            multiAssets,
+            data: { indicators: extracted, multiAssets },
+            telemetry: {
+              totalPages: docMeta.totalPages || 1,
+              pagesProcessed: docMeta.pagesProcessed || 1,
+              pagesFailed: docMeta.pagesFailed || 0,
+              failedPageNumbers: docMeta.failedPageNumbers || [],
+              scannedPageNumbers: docMeta.scannedPageNumbers || [],
+              valuesExtracted: extracted.length + multiAssets.length,
+              valuesRequiringReview: extracted.filter((r: any) => r.actual === null || r.actual === undefined).length,
+              extractionMethod: 'NATIVE_PDF_TEXT',
+            },
+          });
+        }
+      }
+    }
+    return res.status(422).json({
+      ok: false,
+      success: false,
+      error: 'No matching fundamental indicators extracted from document.',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, success: false, error: err?.message });
+  }
+});
 
 app.post('/api/fundamental/extract-from-image', async (req, res) => {
   try {
@@ -2001,14 +2106,16 @@ app.post('/api/fundamental/extract-from-image', async (req, res) => {
       cleanSelection.includes('WTI');
 
     let pdfText = '';
+    let docMeta: Awaited<ReturnType<typeof extractStructuredPdfDocument>> | null = null;
     const isPdfFile = isPdfPayload(image, mimeType);
 
     if (isPdfFile) {
       try {
-        pdfText = (await extractTextFromPdfAsync(cleanBase64)).trim();
-        console.log(`[FUNDAMENTAL OCR] Extracted ${pdfText.length} characters from PDF via extractTextFromPdfAsync.`);
+        docMeta = await extractStructuredPdfDocument(cleanBase64);
+        pdfText = (docMeta.fullText || '').trim();
+        console.log(`[FUNDAMENTAL OCR] Extracted ${pdfText.length} chars across ${docMeta.pagesProcessed}/${docMeta.totalPages} pages.`);
       } catch (err: any) {
-        console.warn('[FUNDAMENTAL OCR] extractTextFromPdfAsync failed:', err?.message || err);
+        console.warn('[FUNDAMENTAL OCR] extractStructuredPdfDocument failed:', err?.message || err);
       }
       if (!pdfText) {
         try {
@@ -2027,32 +2134,46 @@ app.post('/api/fundamental/extract-from-image', async (req, res) => {
     // PRIORITY 1: 100% Deterministic extraction if text is extracted from PDF
     if (pdfText) {
       const extractedFromPdf = parseCurrencyDocumentText(pdfText, cleanSelection);
+      const multiAssets = parseMultiAssetDocumentText(pdfText, cleanSelection);
       if (extractedFromPdf && extractedFromPdf.length > 0) {
         console.log(`[FUNDAMENTAL OCR] Successfully extracted ${extractedFromPdf.length} items directly from document with 100% fidelity.`);
+        const valuesRequiringReview = extractedFromPdf.filter((r: any) => r.actual === null || r.actual === undefined).length;
         return res.json({
           success: true,
           selection: cleanSelection,
           extractedCount: extractedFromPdf.length,
           indicators: extractedFromPdf,
+          multiAssets: multiAssets.length > 0 ? multiAssets : undefined,
+          telemetry: {
+            totalPages: docMeta?.totalPages || 1,
+            pagesProcessed: docMeta?.pagesProcessed || 1,
+            pagesFailed: docMeta?.pagesFailed || 0,
+            failedPageNumbers: docMeta?.failedPageNumbers || [],
+            scannedPageNumbers: docMeta?.scannedPageNumbers || [],
+            valuesExtracted: extractedFromPdf.length,
+            valuesRequiringReview,
+            extractionMethod: 'NATIVE_PDF_TEXT',
+          },
           source: 'DOCUMENT_PDF_EXACT',
         });
       }
     }
 
-    // PRIORITY 2: If image (e.g. screenshot or photo), use Gemini Vision OCR
+    // PRIORITY 2: If image (e.g. screenshot, scanned PDF page, or photo), use Gemini Vision OCR
     let parsedResult: any = null;
     const ai = getGeminiClient();
     if (ai) {
-      const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
+      const candidateModels = OCR_CANDIDATE_MODELS;
       let extractionPrompt = '';
 
       if (isCommodity) {
         extractionPrompt = `You are an institutional macro commodity OCR vision parser.
-Examine this screenshot of commodity data for ${cleanSelection} (Gold XAU, Silver XAG, or Crude Oil WTI).
+Examine this document or screenshot of commodity data for ${cleanSelection} (Gold XAU, Silver XAG, or Crude Oil WTI).
 Extract visible numbers:
 - Spot or futures price (as number)
 - 10-year US real yield % (as number)
 - 5-year breakeven inflation % (as number)
+- All visible commodity/macro rows with actual, forecast, and previous values.
 Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
 {
   "selection": "${cleanSelection}",
@@ -2072,12 +2193,13 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
   ]
 }`;
       } else {
-        extractionPrompt = `You are the institutional economic calendar OCR vision parser.
-Target Currency: ${cleanSelection}
-Examine this image of an economic indicators table carefully.
+        extractionPrompt = `You are the institutional economic calendar and fundamental report OCR vision parser.
+Target Asset / Currency: ${cleanSelection}
+Examine this image or document of economic/fundamental indicators carefully.
+Preserve exact column header relationships (e.g., Indicator | Actual | Previous | Forecast or Actual | Forecast | Previous — never mistake Forecast for Actual).
 Extract EVERY single row visible in the table with exact numerical fidelity:
-- name: clean name of indicator (e.g. "Fed Funds Rate", "CPI YoY", "Core CPI YoY", "NFP", "Unemployment Rate", "GDP", "Retail Sales")
-- currency: 3-letter currency code (e.g. "${cleanSelection}")
+- name: clean name of indicator (e.g. "Fed Funds Rate", "CPI YoY", "Core CPI YoY", "NFP", "Unemployment Rate", "GDP", "Retail Sales", or Equity/Index/Crypto metric)
+- currency: 3-letter currency code (e.g. "${cleanSelection === 'ALL' ? 'USD' : cleanSelection}")
 - actual: exact actual number from table (or null if pending)
 - forecast: exact forecast / consensus number from table (or null if empty)
 - previous: exact previous number from table (or null if empty)
@@ -2090,7 +2212,7 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
   "indicators": [
     {
       "name": "Fed Funds Rate",
-      "currency": "${cleanSelection}",
+      "currency": "${cleanSelection === 'ALL' ? 'USD' : cleanSelection}",
       "actual": 4.50,
       "forecast": 4.50,
       "previous": 4.75,
@@ -2172,15 +2294,27 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
           source: item.source || 'Uploaded Document OCR',
           confidence: 96,
           dataStatus: 'EXTRACTED_FROM_IMAGE',
-          notes: `Verified from image: ${match?.shortLabel || item.name}`,
+          notes: `Verified from document: ${match?.shortLabel || item.name}`,
         };
       });
+
+      const valuesRequiringReview = enrichedIndicators.filter((r: any) => r.actual === null || r.actual === undefined).length;
 
       return res.json({
         success: true,
         selection: cleanSelection,
         extractedCount: enrichedIndicators.length,
         indicators: enrichedIndicators,
+        telemetry: {
+          totalPages: docMeta?.totalPages || 1,
+          pagesProcessed: docMeta?.pagesProcessed || 1,
+          pagesFailed: docMeta?.pagesFailed || 0,
+          failedPageNumbers: docMeta?.failedPageNumbers || [],
+          scannedPageNumbers: docMeta?.scannedPageNumbers || [],
+          valuesExtracted: enrichedIndicators.length,
+          valuesRequiringReview,
+          extractionMethod: isPdfFile ? 'HYBRID_TEXT_AND_OCR' : 'VISION_OCR',
+        },
       });
     }
 
@@ -2209,12 +2343,14 @@ app.post('/api/fundamental/extract-rates-from-image', async (req, res) => {
     const isPdfFile = isPdfPayload(image, mimeType);
 
     let pdfText = '';
+    let docMeta: Awaited<ReturnType<typeof extractStructuredPdfDocument>> | null = null;
     if (isPdfFile) {
       try {
-        pdfText = (await extractTextFromPdfAsync(cleanBase64)).trim();
-        console.log(`[RATES OCR] Extracted ${pdfText.length} characters from PDF via extractTextFromPdfAsync.`);
+        docMeta = await extractStructuredPdfDocument(cleanBase64);
+        pdfText = (docMeta.fullText || '').trim();
+        console.log(`[RATES OCR] Extracted ${pdfText.length} chars across ${docMeta.pagesProcessed}/${docMeta.totalPages} pages.`);
       } catch (err: any) {
-        console.warn('[RATES OCR] extractTextFromPdfAsync failed:', err?.message || err);
+        console.warn('[RATES OCR] extractStructuredPdfDocument failed:', err?.message || err);
       }
       if (!pdfText) {
         try {
@@ -2239,6 +2375,16 @@ app.post('/api/fundamental/extract-rates-from-image', async (req, res) => {
           success: true,
           extractedCount: extractedRates.length,
           rates: extractedRates,
+          telemetry: {
+            totalPages: docMeta?.totalPages || 1,
+            pagesProcessed: docMeta?.pagesProcessed || 1,
+            pagesFailed: docMeta?.pagesFailed || 0,
+            failedPageNumbers: docMeta?.failedPageNumbers || [],
+            scannedPageNumbers: docMeta?.scannedPageNumbers || [],
+            valuesExtracted: extractedRates.length,
+            valuesRequiringReview: 0,
+            extractionMethod: 'NATIVE_PDF_TEXT',
+          },
           source: 'DOCUMENT_PDF_EXACT',
         });
       }
@@ -2248,7 +2394,7 @@ app.post('/api/fundamental/extract-rates-from-image', async (req, res) => {
     let parsedResult: any = null;
     const ai = getGeminiClient();
     if (ai) {
-      const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
+      const candidateModels = OCR_CANDIDATE_MODELS;
       const ratesPrompt = `You are an institutional macro bond and central bank interest rate parser.
 Scan this screenshot of central bank policy rates, sovereign bond yields (2Y, 5Y, 10Y), and rate guidance.
 Extract the data for all visible currencies (USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD):
@@ -2330,6 +2476,16 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
         success: true,
         extractedCount: parsedResult.rates.length,
         rates: parsedResult.rates,
+        telemetry: {
+          totalPages: docMeta?.totalPages || 1,
+          pagesProcessed: docMeta?.pagesProcessed || 1,
+          pagesFailed: docMeta?.pagesFailed || 0,
+          failedPageNumbers: docMeta?.failedPageNumbers || [],
+          scannedPageNumbers: docMeta?.scannedPageNumbers || [],
+          valuesExtracted: parsedResult.rates.length,
+          valuesRequiringReview: 0,
+          extractionMethod: 'VISION_OCR',
+        },
         source: 'IMAGE_VISION_OCR',
       });
     }
@@ -2359,12 +2515,14 @@ app.post('/api/fundamental/extract-cot-from-image', async (req, res) => {
     const isPdfFile = isPdfPayload(image, mimeType);
 
     let pdfText = '';
+    let docMeta: Awaited<ReturnType<typeof extractStructuredPdfDocument>> | null = null;
     if (isPdfFile) {
       try {
-        pdfText = (await extractTextFromPdfAsync(cleanBase64)).trim();
-        console.log(`[COT OCR] Extracted ${pdfText.length} characters from PDF via extractTextFromPdfAsync.`);
+        docMeta = await extractStructuredPdfDocument(cleanBase64);
+        pdfText = (docMeta.fullText || '').trim();
+        console.log(`[COT OCR] Extracted ${pdfText.length} chars across ${docMeta.pagesProcessed}/${docMeta.totalPages} pages.`);
       } catch (err: any) {
-        console.warn('[COT OCR] extractTextFromPdfAsync failed:', err?.message || err);
+        console.warn('[COT OCR] extractStructuredPdfDocument failed:', err?.message || err);
       }
       if (!pdfText) {
         try {
@@ -2389,6 +2547,16 @@ app.post('/api/fundamental/extract-cot-from-image', async (req, res) => {
           success: true,
           extractedCount: extractedRecords.length,
           records: extractedRecords,
+          telemetry: {
+            totalPages: docMeta?.totalPages || 1,
+            pagesProcessed: docMeta?.pagesProcessed || 1,
+            pagesFailed: docMeta?.pagesFailed || 0,
+            failedPageNumbers: docMeta?.failedPageNumbers || [],
+            scannedPageNumbers: docMeta?.scannedPageNumbers || [],
+            valuesExtracted: extractedRecords.length,
+            valuesRequiringReview: 0,
+            extractionMethod: 'NATIVE_PDF_TEXT',
+          },
           source: 'DOCUMENT_PDF_EXACT',
         });
       }
@@ -2398,7 +2566,7 @@ app.post('/api/fundamental/extract-cot-from-image', async (req, res) => {
     let parsedResult: any = null;
     const ai = getGeminiClient();
     if (ai) {
-      const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
+      const candidateModels = OCR_CANDIDATE_MODELS;
       const cotPrompt = `You are an institutional CFTC Commitments of Traders (COT) report parser.
 Scan this screenshot of the CFTC Commitments of Traders report for currencies (USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD) or commodities (XAU / Gold, XAG / Silver, OIL / Crude Oil).
 Extract:
@@ -2478,6 +2646,16 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
         success: true,
         extractedCount: parsedResult.records.length,
         records: parsedResult.records,
+        telemetry: {
+          totalPages: docMeta?.totalPages || 1,
+          pagesProcessed: docMeta?.pagesProcessed || 1,
+          pagesFailed: docMeta?.pagesFailed || 0,
+          failedPageNumbers: docMeta?.failedPageNumbers || [],
+          scannedPageNumbers: docMeta?.scannedPageNumbers || [],
+          valuesExtracted: parsedResult.records.length,
+          valuesRequiringReview: 0,
+          extractionMethod: 'VISION_OCR',
+        },
         source: 'IMAGE_VISION_OCR',
       });
     }
@@ -2507,12 +2685,14 @@ app.post('/api/fundamental/extract-sentiment-from-image', async (req, res) => {
     const isPdfFile = isPdfPayload(image, mimeType);
 
     let pdfText = '';
+    let docMeta: Awaited<ReturnType<typeof extractStructuredPdfDocument>> | null = null;
     if (isPdfFile) {
       try {
-        pdfText = (await extractTextFromPdfAsync(cleanBase64)).trim();
-        console.log(`[SENTIMENT OCR] Extracted ${pdfText.length} characters from PDF via extractTextFromPdfAsync.`);
+        docMeta = await extractStructuredPdfDocument(cleanBase64);
+        pdfText = (docMeta.fullText || '').trim();
+        console.log(`[SENTIMENT OCR] Extracted ${pdfText.length} chars across ${docMeta.pagesProcessed}/${docMeta.totalPages} pages.`);
       } catch (err: any) {
-        console.warn('[SENTIMENT OCR] extractTextFromPdfAsync failed:', err?.message || err);
+        console.warn('[SENTIMENT OCR] extractStructuredPdfDocument failed:', err?.message || err);
       }
       if (!pdfText) {
         try {
@@ -2537,6 +2717,16 @@ app.post('/api/fundamental/extract-sentiment-from-image', async (req, res) => {
           success: true,
           extractedCount: extractedSentiments.length,
           sentiments: extractedSentiments,
+          telemetry: {
+            totalPages: docMeta?.totalPages || 1,
+            pagesProcessed: docMeta?.pagesProcessed || 1,
+            pagesFailed: docMeta?.pagesFailed || 0,
+            failedPageNumbers: docMeta?.failedPageNumbers || [],
+            scannedPageNumbers: docMeta?.scannedPageNumbers || [],
+            valuesExtracted: extractedSentiments.length,
+            valuesRequiringReview: 0,
+            extractionMethod: 'NATIVE_PDF_TEXT',
+          },
           source: 'DOCUMENT_PDF_EXACT',
         });
       }
@@ -2546,7 +2736,7 @@ app.post('/api/fundamental/extract-sentiment-from-image', async (req, res) => {
     let parsedResult: any = null;
     const ai = getGeminiClient();
     if (ai) {
-      const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
+      const candidateModels = OCR_CANDIDATE_MODELS;
       const sentimentPrompt = `You are an institutional retail sentiment parser for Forex and commodities (Myfxbook, OANDA, IG).
 Scan this screenshot of retail long/short positioning ratios across currency pairs and commodities.
 Extract:
@@ -2614,6 +2804,16 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
         success: true,
         extractedCount: parsedResult.sentiments.length,
         sentiments: parsedResult.sentiments,
+        telemetry: {
+          totalPages: docMeta?.totalPages || 1,
+          pagesProcessed: docMeta?.pagesProcessed || 1,
+          pagesFailed: docMeta?.pagesFailed || 0,
+          failedPageNumbers: docMeta?.failedPageNumbers || [],
+          scannedPageNumbers: docMeta?.scannedPageNumbers || [],
+          valuesExtracted: parsedResult.sentiments.length,
+          valuesRequiringReview: 0,
+          extractionMethod: 'VISION_OCR',
+        },
         source: 'IMAGE_VISION_OCR',
       });
     }

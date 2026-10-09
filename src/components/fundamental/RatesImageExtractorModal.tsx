@@ -3,6 +3,7 @@ import { X, Upload, Camera, Sparkles, Check, CheckCircle2, AlertTriangle, Refres
 import { CurrencyCode, InterestRateRecord } from '../../types/fundamentalIndicatorTypes';
 import { CURRENCY_METADATA } from '../../data/fundamentalRegistryData';
 import { extractRatesFromImage } from '../../services/fundamentalLiveResearchService';
+import { PdfExtractionTelemetry } from '../../utils/pdfDocumentParser';
 
 interface RatesImageExtractorModalProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ export const RatesImageExtractorModal: React.FC<RatesImageExtractorModalProps> =
   const [extractedRows, setExtractedRows] = useState<ExtractedRateRow[]>([]);
   const [hasScanned, setHasScanned] = useState(false);
   const [appliedSuccess, setAppliedSuccess] = useState<string | null>(null);
+  const [extractionTelemetry, setExtractionTelemetry] = useState<PdfExtractionTelemetry | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -69,6 +71,7 @@ export const RatesImageExtractorModal: React.FC<RatesImageExtractorModalProps> =
   const handleFileSelected = (file: File) => {
     setError(null);
     setAppliedSuccess(null);
+    setExtractionTelemetry(null);
     const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|bmp|gif|jfif|tiff?)$/i.test(file.name);
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 
@@ -142,12 +145,16 @@ export const RatesImageExtractorModal: React.FC<RatesImageExtractorModalProps> =
     if (!filePreview && !rawFileBytes) return;
     setIsProcessing(true);
     setError(null);
+    setExtractionTelemetry(null);
 
     try {
-      const payload = rawFileBytes || filePreview;
+      const payload = rawFileBytes ? new Uint8Array(rawFileBytes) : filePreview;
       const res = await extractRatesFromImage(payload!, fileMime);
+      if (res.telemetry) {
+        setExtractionTelemetry(res.telemetry);
+      }
       if (!res.success || !res.rates || res.rates.length === 0) {
-        throw new Error(res.error || 'No rates data could be extracted from this document.');
+        throw new Error(res.error || 'No interest rate or sovereign yield data could be extracted from this document. Existing rates were preserved.');
       }
 
       const rows: ExtractedRateRow[] = res.rates.map((r: any) => {
@@ -165,32 +172,17 @@ export const RatesImageExtractorModal: React.FC<RatesImageExtractorModalProps> =
           realYield10Y: typeof r.realYield10Y === 'number' ? r.realYield10Y : existing?.realYield10Y,
           centralBankBias: (['HAWKISH', 'NEUTRAL', 'DOVISH'].includes(r.centralBankBias) ? r.centralBankBias : (existing?.centralBankBias ?? 'NEUTRAL')) as any,
           nextMeetingDate: r.nextMeetingDate || existing?.nextMeetingDate || 'Upcoming',
-          recentGuidance: r.recentGuidance || existing?.recentGuidance || 'Official forward policy remarks.',
+          recentGuidance: r.recentGuidance || existing?.recentGuidance || 'Extracted from uploaded rate document.',
         };
       });
 
       setExtractedRows(rows);
       setHasScanned(true);
     } catch (err: any) {
-      console.warn('[RATES OCR] Auto-extract notice:', err);
-      // Pre-populate candidate rows from existing rates so user can review from the preview image and apply
-      const fallbackRows: ExtractedRateRow[] = existingRates.map((ex) => ({
-        currency: ex.currency,
-        selected: true,
-        currentPolicyRate: ex.currentPolicyRate,
-        previousPolicyRate: ex.previousPolicyRate,
-        expectedNextRate: ex.expectedNextRate,
-        yield2Y: ex.yield2Y || 0,
-        yield5Y: ex.yield5Y || 0,
-        yield10Y: ex.yield10Y || 0,
-        realYield10Y: ex.realYield10Y,
-        centralBankBias: ex.centralBankBias,
-        nextMeetingDate: ex.nextMeetingDate,
-        recentGuidance: ex.recentGuidance,
-      }));
-      setExtractedRows(fallbackRows);
-      setHasScanned(true);
-      setError('Document loaded. Please verify the rates against the document preview and click "APPLY & UPDATE RATES".');
+      console.warn('[RATES OCR] Extraction failed:', err);
+      setExtractedRows([]);
+      setHasScanned(false);
+      setError(err?.message || 'Could not extract rate or yield figures from this document. Previously saved rates remain unchanged.');
     } finally {
       setIsProcessing(false);
     }
@@ -355,6 +347,16 @@ export const RatesImageExtractorModal: React.FC<RatesImageExtractorModalProps> =
               {/* Extracted Results Table */}
               {hasScanned && extractedRows.length > 0 && (
                 <div className="space-y-3">
+                  {extractionTelemetry && (
+                    <div className="p-2.5 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-[11px] font-mono-code flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-cyan-300 font-bold">
+                        Pages Processed: {extractionTelemetry.pagesProcessed}/{extractionTelemetry.totalPages} ({extractionTelemetry.extractionMethodUsed})
+                      </span>
+                      <span className="text-emerald-300 font-bold">
+                        Extracted: {extractedRows.length} rate record(s)
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-xs font-military font-bold text-slate-200 uppercase">
                     <span>Extracted G8 Rates & Yields ({extractedRows.length} found)</span>
                     <span className="text-[10px] text-cyan-400 font-mono-code">Review and edit values if needed</span>

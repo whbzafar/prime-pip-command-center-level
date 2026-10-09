@@ -2,6 +2,7 @@ export {
   safeParseNum,
   extractTextFromPdf,
   extractTextFromPdfAsync,
+  extractStructuredPdfDocument,
   renderPdfPageToImage,
   isPdfPayload,
   getCleanBase64,
@@ -12,5 +13,11 @@ export {
   parseRatesDocumentText,
   parseCotDocumentText,
   parseSentimentDocumentText,
+  parseMultiAssetDocumentText,
 } from '../src/utils/pdfDocumentParser.js';
-export type { ExtractedIndicatorRecord } from '../src/utils/pdfDocumentParser.js';
+export type {
+  ExtractedIndicatorRecord,
+  PdfExtractionTelemetry,
+  StructuredPdfDocument,
+  ExtractedMultiAssetRecord,
+} from '../src/utils/pdfDocumentParser.js';
