@@ -1980,6 +1980,7 @@ import {
   parseCotDocumentText,
   parseSentimentDocumentText,
   parseMultiAssetDocumentText,
+  detectDocumentAssetIdentity,
   findBestRegistryMatch,
 } from './server/fundamentalOcrService.js';
 
@@ -2010,14 +2011,20 @@ app.post('/api/fundamental-extract-pdf-text', async (req, res) => {
       }
     }
 
-    const indicators = pdfText ? parseCurrencyDocumentText(pdfText, cleanSelection) : [];
-    const multiAssets = pdfText ? parseMultiAssetDocumentText(pdfText, cleanSelection) : [];
+    const currencyIndicators = pdfText ? parseCurrencyDocumentText(pdfText, cleanSelection) : [];
+    const multiAssetParsed = pdfText ? parseMultiAssetDocumentText(pdfText, cleanSelection) : { assets: [], indicators: [] };
+    const seenIds = new Set(currencyIndicators.map((i: any) => i.matchedIndicatorId || i.name));
+    const combinedIndicators = [
+      ...currencyIndicators,
+      ...(multiAssetParsed.indicators || []).filter((i: any) => !seenIds.has(i.matchedIndicatorId || i.name)),
+    ];
+    const multiAssets = multiAssetParsed.assets || [];
 
     return res.json({
       ok: Boolean(pdfText),
       success: Boolean(pdfText),
       text: pdfText,
-      indicators,
+      indicators: combinedIndicators,
       multiAssets,
       telemetry: {
         totalPages: docMeta.totalPages || 1,
@@ -2025,9 +2032,9 @@ app.post('/api/fundamental-extract-pdf-text', async (req, res) => {
         pagesFailed: docMeta.pagesFailed || 0,
         failedPageNumbers: docMeta.failedPageNumbers || [],
         scannedPageNumbers: docMeta.scannedPageNumbers || [],
-        valuesExtracted: indicators.length + multiAssets.length,
-        valuesRequiringReview: indicators.filter((r: any) => r.actual === null || r.actual === undefined).length,
-        extractionMethod: 'NATIVE_PDF_TEXT',
+        valuesExtracted: combinedIndicators.length + multiAssets.length,
+        valuesRequiringReview: combinedIndicators.filter((r: any) => r.actual === null || r.actual === undefined).length,
+        extractionMethod: docMeta.scannedPageNumbers?.length > 0 ? 'HYBRID_TEXT_AND_OCR' : 'NATIVE_PDF_TEXT',
       },
     });
   } catch (err: any) {
@@ -2052,26 +2059,40 @@ app.post('/api/fundamental-ocr', async (req, res) => {
       const pdfText = (docMeta.fullText || '').trim();
       if (pdfText) {
         const extracted = parseCurrencyDocumentText(pdfText, targetSelection);
-        const multiAssets = parseMultiAssetDocumentText(pdfText, targetSelection);
-        if (extracted.length > 0 || multiAssets.length > 0) {
+        const multiAssetParsed = parseMultiAssetDocumentText(pdfText, targetSelection);
+        const seenIds = new Set(extracted.map((i: any) => i.matchedIndicatorId || i.name));
+        const combinedIndicators = [
+          ...extracted,
+          ...(multiAssetParsed.indicators || []).filter((i: any) => !seenIds.has(i.matchedIndicatorId || i.name)),
+        ];
+        const multiAssets = multiAssetParsed.assets || [];
+        if (combinedIndicators.length > 0 || multiAssets.length > 0) {
           return res.json({
             ok: true,
             success: true,
             selection: targetSelection,
-            extractedCount: extracted.length,
-            indicators: extracted,
+            extractedCount: combinedIndicators.length,
+            indicators: combinedIndicators,
             multiAssets,
-            data: { indicators: extracted, multiAssets },
+            data: { indicators: combinedIndicators, multiAssets },
             telemetry: {
               totalPages: docMeta.totalPages || 1,
               pagesProcessed: docMeta.pagesProcessed || 1,
               pagesFailed: docMeta.pagesFailed || 0,
               failedPageNumbers: docMeta.failedPageNumbers || [],
               scannedPageNumbers: docMeta.scannedPageNumbers || [],
-              valuesExtracted: extracted.length + multiAssets.length,
-              valuesRequiringReview: extracted.filter((r: any) => r.actual === null || r.actual === undefined).length,
-              extractionMethod: 'NATIVE_PDF_TEXT',
+              valuesExtracted: combinedIndicators.length,
+              valuesRequiringReview: combinedIndicators.filter((r: any) => r.actual === null || r.actual === undefined).length,
+              extractionMethod: docMeta.scannedPageNumbers?.length > 0 ? 'HYBRID_TEXT_AND_OCR' : 'NATIVE_PDF_TEXT',
             },
+          });
+        }
+        const detectedAssets = detectDocumentAssetIdentity(pdfText);
+        if (detectedAssets.length > 0 && targetSelection !== 'ALL' && !detectedAssets.includes(targetSelection)) {
+          return res.status(422).json({
+            ok: false,
+            success: false,
+            error: `Asset Mismatch: The uploaded PDF contains data for ${detectedAssets.join(', ')}, which does not match the selected category (${targetSelection}). Existing ${targetSelection} records were preserved.`,
           });
         }
       }
@@ -2132,34 +2153,55 @@ app.post('/api/fundamental/extract-from-image', async (req, res) => {
     }
 
     // PRIORITY 1: 100% Deterministic extraction if text is extracted from PDF
+    let deterministicIndicators: any[] = [];
+    let deterministicMultiAssets: any[] = [];
     if (pdfText) {
       const extractedFromPdf = parseCurrencyDocumentText(pdfText, cleanSelection);
-      const multiAssets = parseMultiAssetDocumentText(pdfText, cleanSelection);
-      if (extractedFromPdf && extractedFromPdf.length > 0) {
-        console.log(`[FUNDAMENTAL OCR] Successfully extracted ${extractedFromPdf.length} items directly from document with 100% fidelity.`);
-        const valuesRequiringReview = extractedFromPdf.filter((r: any) => r.actual === null || r.actual === undefined).length;
+      const multiAssetParsed = parseMultiAssetDocumentText(pdfText, cleanSelection);
+      const seenIds = new Set(extractedFromPdf.map((i: any) => i.matchedIndicatorId || i.name));
+      deterministicIndicators = [
+        ...extractedFromPdf,
+        ...(multiAssetParsed.indicators || []).filter((i: any) => !seenIds.has(i.matchedIndicatorId || i.name)),
+      ];
+      deterministicMultiAssets = multiAssetParsed.assets || [];
+
+      const hasScannedPages = (docMeta?.scannedPageNumbers?.length || 0) > 0;
+      if ((deterministicIndicators.length > 0 || deterministicMultiAssets.length > 0) && !hasScannedPages) {
+        console.log(`[FUNDAMENTAL OCR] Successfully extracted ${deterministicIndicators.length} items directly from document with 100% fidelity.`);
+        const valuesRequiringReview = deterministicIndicators.filter((r: any) => r.actual === null || r.actual === undefined).length;
         return res.json({
           success: true,
           selection: cleanSelection,
-          extractedCount: extractedFromPdf.length,
-          indicators: extractedFromPdf,
-          multiAssets: multiAssets.length > 0 ? multiAssets : undefined,
+          extractedCount: deterministicIndicators.length,
+          indicators: deterministicIndicators,
+          multiAssets: deterministicMultiAssets.length > 0 ? deterministicMultiAssets : undefined,
           telemetry: {
             totalPages: docMeta?.totalPages || 1,
             pagesProcessed: docMeta?.pagesProcessed || 1,
             pagesFailed: docMeta?.pagesFailed || 0,
             failedPageNumbers: docMeta?.failedPageNumbers || [],
             scannedPageNumbers: docMeta?.scannedPageNumbers || [],
-            valuesExtracted: extractedFromPdf.length,
+            valuesExtracted: deterministicIndicators.length,
             valuesRequiringReview,
             extractionMethod: 'NATIVE_PDF_TEXT',
           },
           source: 'DOCUMENT_PDF_EXACT',
         });
       }
+
+      // Check for explicit asset mismatch before calling Vision LLM on a text-based PDF
+      if (deterministicIndicators.length === 0 && deterministicMultiAssets.length === 0 && !hasScannedPages) {
+        const detectedAssets = detectDocumentAssetIdentity(pdfText);
+        if (detectedAssets.length > 0 && !isMultiCurrency && !detectedAssets.includes(cleanSelection)) {
+          return res.status(422).json({
+            success: false,
+            error: `Asset Mismatch: The uploaded PDF contains data for ${detectedAssets.join(', ')}, which does not match the selected category (${cleanSelection}). Existing ${cleanSelection} records were preserved.`,
+          });
+        }
+      }
     }
 
-    // PRIORITY 2: If image (e.g. screenshot, scanned PDF page, or photo), use Gemini Vision OCR
+    // PRIORITY 2: If image, scanned PDF, or mixed PDF with scanned pages, use Gemini Vision OCR
     let parsedResult: any = null;
     const ai = getGeminiClient();
     if (ai) {
@@ -2199,7 +2241,7 @@ Examine this image or document of economic/fundamental indicators carefully.
 Preserve exact column header relationships (e.g., Indicator | Actual | Previous | Forecast or Actual | Forecast | Previous — never mistake Forecast for Actual).
 Extract EVERY single row visible in the table with exact numerical fidelity:
 - name: clean name of indicator (e.g. "Fed Funds Rate", "CPI YoY", "Core CPI YoY", "NFP", "Unemployment Rate", "GDP", "Retail Sales", or Equity/Index/Crypto metric)
-- currency: 3-letter currency code (e.g. "${cleanSelection === 'ALL' ? 'USD' : cleanSelection}")
+- currency: 3-letter currency code or ticker (e.g. "${cleanSelection === 'ALL' ? 'USD' : cleanSelection}")
 - actual: exact actual number from table (or null if pending)
 - forecast: exact forecast / consensus number from table (or null if empty)
 - previous: exact previous number from table (or null if empty)
@@ -2298,30 +2340,62 @@ Respond STRICTLY with valid JSON (NO MARKDOWN) in this format:
         };
       });
 
-      const valuesRequiringReview = enrichedIndicators.filter((r: any) => r.actual === null || r.actual === undefined).length;
+      // Merge with any deterministic indicators extracted from text pages (for mixed PDFs) without duplicates
+      const seenKeys = new Set(deterministicIndicators.map((i: any) => `${i.currency}_${i.matchedIndicatorId || i.name}`));
+      const mergedIndicators = [
+        ...deterministicIndicators,
+        ...enrichedIndicators.filter((i: any) => !seenKeys.has(`${i.currency}_${i.matchedIndicatorId || i.name}`)),
+      ];
+      const valuesRequiringReview = mergedIndicators.filter((r: any) => r.actual === null || r.actual === undefined).length;
 
       return res.json({
         success: true,
         selection: cleanSelection,
-        extractedCount: enrichedIndicators.length,
-        indicators: enrichedIndicators,
+        extractedCount: mergedIndicators.length,
+        indicators: mergedIndicators,
+        multiAssets: deterministicMultiAssets.length > 0 ? deterministicMultiAssets : undefined,
         telemetry: {
           totalPages: docMeta?.totalPages || 1,
           pagesProcessed: docMeta?.pagesProcessed || 1,
           pagesFailed: docMeta?.pagesFailed || 0,
           failedPageNumbers: docMeta?.failedPageNumbers || [],
           scannedPageNumbers: docMeta?.scannedPageNumbers || [],
-          valuesExtracted: enrichedIndicators.length,
+          valuesExtracted: mergedIndicators.length,
           valuesRequiringReview,
-          extractionMethod: isPdfFile ? 'HYBRID_TEXT_AND_OCR' : 'VISION_OCR',
+          extractionMethod: isPdfFile ? (deterministicIndicators.length > 0 ? 'HYBRID_TEXT_AND_OCR' : 'VISION_OCR') : 'VISION_OCR',
         },
+      });
+    }
+
+    // If mixed PDF had deterministic results even though OCR didn't add more, return deterministic results
+    if (deterministicIndicators.length > 0 || deterministicMultiAssets.length > 0) {
+      const valuesRequiringReview = deterministicIndicators.filter((r: any) => r.actual === null || r.actual === undefined).length;
+      return res.json({
+        success: true,
+        selection: cleanSelection,
+        extractedCount: deterministicIndicators.length,
+        indicators: deterministicIndicators,
+        multiAssets: deterministicMultiAssets.length > 0 ? deterministicMultiAssets : undefined,
+        telemetry: {
+          totalPages: docMeta?.totalPages || 1,
+          pagesProcessed: docMeta?.pagesProcessed || 1,
+          pagesFailed: docMeta?.pagesFailed || 0,
+          failedPageNumbers: docMeta?.failedPageNumbers || [],
+          scannedPageNumbers: docMeta?.scannedPageNumbers || [],
+          valuesExtracted: deterministicIndicators.length,
+          valuesRequiringReview,
+          extractionMethod: (docMeta?.scannedPageNumbers?.length || 0) > 0 ? 'HYBRID_TEXT_AND_OCR' : 'NATIVE_PDF_TEXT',
+        },
+        source: 'DOCUMENT_PDF_EXACT',
       });
     }
 
     // CRITICAL: NEVER INVENT DATA OR USE FAKE DEFAULTS
     return res.status(422).json({
       success: false,
-      error: 'Unable to reliably extract the Actual / Forecast / Previous values from this document. No values were substituted.',
+      error: isPdfFile && !pdfText && !ai
+        ? 'Scanned PDF detected (no native text layer) and Vision OCR API key is not configured on the server.'
+        : 'Unable to reliably extract the Actual / Forecast / Previous values from this document. No values were substituted.',
     });
   } catch (error: any) {
     console.error('[IMAGE OCR] Error in extract-from-image:', error);

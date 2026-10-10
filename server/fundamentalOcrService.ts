@@ -14,6 +14,7 @@ export {
   parseCotDocumentText,
   parseSentimentDocumentText,
   parseMultiAssetDocumentText,
+  detectDocumentAssetIdentity,
 } from '../src/utils/pdfDocumentParser.js';
 export type {
   ExtractedIndicatorRecord,

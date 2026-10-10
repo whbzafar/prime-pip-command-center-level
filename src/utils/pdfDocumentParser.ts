@@ -258,10 +258,25 @@ export async function extractStructuredPdfDocument(
       }
     }
 
+    // Also run stream inflation to see if any scanned/empty page had compressed or XObject/ActualText content missed by pdfjs font decoding
+    const streamFallbackText = extractTextFromPdf(new Uint8Array(originalU8)).trim();
     const combined = allPagesText.join('\n\n').trim();
+
     if (combined.length > 10) {
+      // If mixed PDF where some pages were scanned and streamFallbackText contains additional lines not in combined, append non-duplicate lines
+      let finalFullText = combined;
+      if (scannedPageNumbers.length > 0 && streamFallbackText.length > combined.length) {
+        const existingLines = new Set(combined.split(/\r?\n/).map((l) => l.trim()));
+        const extraLines = streamFallbackText
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => l.length > 3 && !existingLines.has(l));
+        if (extraLines.length > 0) {
+          finalFullText = `${combined}\n--- OCR / STREAM LAYER ---\n${extraLines.join('\n')}`;
+        }
+      }
       return {
-        fullText: combined,
+        fullText: finalFullText,
         totalPages,
         pagesProcessed,
         pagesFailed,
@@ -271,17 +286,15 @@ export async function extractStructuredPdfDocument(
       };
     }
 
-    // If pdfjs found 0 native text (or failed), try stream inflation fallback on a fresh copy
-    const fallbackText = extractTextFromPdf(new Uint8Array(originalU8)).trim();
-    if (fallbackText.length > 10) {
+    if (streamFallbackText.length > 10) {
       return {
-        fullText: fallbackText,
+        fullText: streamFallbackText,
         totalPages,
         pagesProcessed: totalPages,
         pagesFailed: 0,
         failedPageNumbers: [],
-        scannedPageNumbers: [],
-        pageTexts: [{ pageNumber: 1, text: fallbackText, charCount: fallbackText.length, isScanned: false }],
+        scannedPageNumbers,
+        pageTexts: [{ pageNumber: 1, text: streamFallbackText, charCount: streamFallbackText.length, isScanned: scannedPageNumbers.length > 0 }],
       };
     }
 
@@ -296,15 +309,19 @@ export async function extractStructuredPdfDocument(
     };
   } catch (err: any) {
     console.warn('[PDF PARSER] pdfjs-dist structured extraction fallback:', err?.message || err);
+    const rawStr = Array.from(originalU8.subarray(0, Math.min(originalU8.length, 250000)))
+      .map((b) => String.fromCharCode(b))
+      .join('');
+    const pageMatches = rawStr.match(/\/Type\s*\/Page\b(?!s)/g);
+    const approxPages = Math.max(1, pageMatches ? pageMatches.length : 1);
     const fallbackText = extractTextFromPdf(new Uint8Array(originalU8)).trim();
-    const approxPages = Math.max(1, (fallbackText.match(/\/Type\s*\/Page\b/g) || []).length || 1);
     return {
       fullText: fallbackText,
       totalPages: approxPages,
       pagesProcessed: fallbackText.length > 0 ? approxPages : 0,
       pagesFailed: fallbackText.length > 0 ? 0 : approxPages,
       failedPageNumbers: fallbackText.length > 0 ? [] : [1],
-      scannedPageNumbers: fallbackText.length > 0 ? [] : [1],
+      scannedPageNumbers: fallbackText.length > 0 ? [] : Array.from({ length: approxPages }, (_, i) => i + 1),
       pageTexts: fallbackText ? [{ pageNumber: 1, text: fallbackText, charCount: fallbackText.length, isScanned: false }] : [],
     };
   }
@@ -419,12 +436,44 @@ export function extractTextFromPdf(data: Uint8Array | ArrayBuffer | string): str
     let opMatch: RegExpExecArray | null;
     let streamText = '';
     let hasOps = false;
+    let currentX = 0;
+    let currentY: number | null = null;
+    const positionedItems: { x: number; y: number; str: string }[] = [];
+    let hasTmCoords = false;
+
+    const flushTextToken = (tokenText: string) => {
+      const cleanTok = tokenText.trim();
+      if (!cleanTok) return;
+      if (hasTmCoords && currentY !== null) {
+        positionedItems.push({ x: currentX, y: currentY, str: cleanTok });
+        currentX += cleanTok.length * 4;
+      } else {
+        streamText += (streamText && !streamText.endsWith('\n') && !streamText.endsWith(' ') ? ' ' : '') + cleanTok;
+      }
+    };
 
     while ((opMatch = opRegex.exec(decompressedStr)) !== null) {
       hasOps = true;
       const op = opMatch[0];
-      if (/T\*|\bT[dD]\b|\bTm\b/.test(op)) {
-        if (!streamText.endsWith('\n')) {
+      const tmMatch = op.match(/([+-]?\d+(?:\.\d+)?)\s+([+-]?\d+(?:\.\d+)?)\s+Tm$/);
+      const tdMatch = op.match(/([+-]?\d+(?:\.\d+)?)\s+([+-]?\d+(?:\.\d+)?)\s+T[dD]$/);
+      if (tmMatch) {
+        hasTmCoords = true;
+        currentX = parseFloat(tmMatch[1]);
+        currentY = parseFloat(tmMatch[2]);
+      } else if (tdMatch) {
+        const dx = parseFloat(tdMatch[1]);
+        const dy = parseFloat(tdMatch[2]);
+        currentX += dx;
+        if (currentY !== null) {
+          currentY += dy;
+        } else if (Math.abs(dy) > 1 && !streamText.endsWith('\n')) {
+          streamText += '\n';
+        }
+      } else if (/T\*/.test(op)) {
+        if (currentY !== null) {
+          currentY -= 12;
+        } else if (!streamText.endsWith('\n')) {
           streamText += '\n';
         }
       } else if (op.trim().startsWith('[')) {
@@ -454,9 +503,7 @@ export function extractTextFromPdf(data: Uint8Array | ArrayBuffer | string): str
             }
           }
         }
-        if (wordBuf.trim()) {
-          streamText += (streamText && !streamText.endsWith('\n') && !streamText.endsWith(' ') ? ' ' : '') + wordBuf.trim();
-        }
+        flushTextToken(wordBuf);
       } else {
         const hexRegex = /<([0-9a-fA-F]+)>/g;
         let hMatch: RegExpExecArray | null;
@@ -466,9 +513,7 @@ export function extractTextFromPdf(data: Uint8Array | ArrayBuffer | string): str
           for (let k = 0; k < hex.length; k += 2) {
             hDec += String.fromCharCode(parseInt(hex.substr(k, 2), 16));
           }
-          if (hDec.trim()) {
-            streamText += (streamText && !streamText.endsWith('\n') ? ' ' : '') + hDec;
-          }
+          flushTextToken(hDec);
         }
 
         const parenRegex = /\((?:\\\(|\\\)|[^()])*\)/g;
@@ -480,11 +525,37 @@ export function extractTextFromPdf(data: Uint8Array | ArrayBuffer | string): str
             .replace(/\\r/g, '\r')
             .replace(/\\n/g, '\n')
             .replace(/\\t/g, '\t');
-          if (t.trim()) {
-            streamText += (streamText && !streamText.endsWith('\n') ? ' ' : '') + t;
-          }
+          flushTextToken(t);
         }
       }
+    }
+
+    if (hasTmCoords && positionedItems.length > 0) {
+      const lineMap = new Map<number, { x: number; str: string }[]>();
+      for (const item of positionedItems) {
+        let key = Array.from(lineMap.keys()).find((k) => Math.abs(k - item.y) <= 3.5);
+        if (key === undefined) {
+          key = item.y;
+          lineMap.set(key, []);
+        }
+        lineMap.get(key)!.push({ x: item.x, str: item.str });
+      }
+      const sortedY = Array.from(lineMap.keys()).sort((a, b) => b - a);
+      const rows = sortedY.map((yKey) => {
+        const rowItems = lineMap.get(yKey)!.sort((a, b) => a.x - b.x);
+        let rowStr = '';
+        let prevX = -1;
+        for (const it of rowItems) {
+          if (prevX !== -1) {
+            if (it.x - prevX > 10) rowStr += ' | ';
+            else rowStr += ' ';
+          }
+          rowStr += it.str;
+          prevX = it.x + Math.max(it.str.length * 3.5, 4);
+        }
+        return rowStr.trim();
+      });
+      streamText = rows.join('\n');
     }
 
     if (!hasOps) {
@@ -834,7 +905,7 @@ function stripIndicatorTitleFromSegment(line: string, matchedReg?: any): { title
   return { titlePart: line, valueSegment: afterText };
 }
 
-/** Helper to extract numeric tokens, units, revised previous, and period from a table cell/row segment */
+/** Helper to extract numeric tokens, units, revised previous, releaseDate, and period from a table cell/row segment */
 function tokenizeRowNumbers(
   segment: string,
   columnOrder: ValueColumnType[] = ['actual', 'forecast', 'previous']
@@ -846,11 +917,17 @@ function tokenizeRowNumbers(
   unit: string;
   revised: number | null;
   period: string;
+  releaseDate: string;
 } {
-  // Strip full dates like 2025-01-15 or times like 08:30 GMT
+  // Capture explicit ISO date if present before stripping
+  const dateMatch = segment.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  const releaseDate = dateMatch ? dateMatch[1] : '';
+
+  // Strip full dates like 2025-01-15, times like 08:30 GMT, and cadence strings like "6 Weeks"
   let s = segment
     .replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ')
     .replace(/\b\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:AM|PM|GMT|EST|UTC))?\b/gi, ' ')
+    .replace(/\b\d+\s*(?:Weeks?|Months?|Days?|Years?|Quarters?)\b/gi, ' ')
     // Strip embedded title tokens like 10Y, 2Y, 5Y, Q1-Q4 if they still appear before numbers
     .replace(/\b(?:10Y|2Y|5Y|30Y|10-Year|2-Year|5-Year|Q[1-4]|1st|2nd|3rd|4th)\b/gi, ' ');
 
@@ -862,13 +939,14 @@ function tokenizeRowNumbers(
     s = s.replace(revMatch[0], ' ');
   }
 
-  // Detect Unit
-  let unit = '%';
+  // Detect Unit (only set when explicitly present in the row; otherwise allow registry fallback)
+  let unit = '';
   if (/%/.test(s)) unit = '%';
   else if (/\b(?:k|thousand)\b/i.test(s) || /\d+k\b/i.test(s)) unit = 'k';
   else if (/\b(?:M|million)\b/i.test(s)) unit = 'M';
   else if (/\b(?:B|billion)\b/i.test(s)) unit = 'B';
-  else if (/\b(?:pts|points|index)\b/i.test(s)) unit = 'Points';
+  else if (/\b(?:pts|points)\b/i.test(s)) unit = 'Points';
+  else if (/\b(?:index)\b/i.test(s)) unit = 'Index';
   else if (/\b(?:bps)\b/i.test(s)) unit = 'bps';
   else if (/\$/.test(s)) unit = '$';
 
@@ -894,6 +972,7 @@ function tokenizeRowNumbers(
       unit,
       revised,
       period,
+      releaseDate,
     };
   }
 
@@ -935,48 +1014,111 @@ function tokenizeRowNumbers(
     else if (colType === 'revised' && values[idx] !== null) revised = values[idx];
   }
 
-  return { actual, forecast, previous, values, unit, revised, period };
+  return { actual, forecast, previous, values, unit, revised, period, releaseDate };
+}
+
+/**
+ * Inspects document text to identify which currencies or assets are explicitly referenced in headers/rows.
+ */
+export function detectDocumentAssetIdentity(rawText: string): string[] {
+  if (!rawText || !rawText.trim()) return [];
+  const found = new Set<string>();
+
+  for (const c of G8_CURRENCIES) {
+    const patterns = [
+      new RegExp(`PRIME\\s+PIP\\s+FX\\s*[—–-]\\s*${c}\\b`, 'i'),
+      new RegExp(`(?:Currency|Asset|Target)\\s*(?:Code)?\\s*[:=]\\s*${c}\\b`, 'i'),
+      new RegExp(`\\b${c}\\s*[—–-]\\s*(?:US DOLLAR|EURO|BRITISH POUND|JAPANESE YEN|SWISS FRANC|CANADIAN DOLLAR|AUSTRALIAN DOLLAR|NEW ZEALAND DOLLAR)`, 'i'),
+      new RegExp(`\\b${c}\\b\\s+(?:Economic Calendar|Fundamental Intelligence Report|Macro Report|Fundamental Report)`, 'i'),
+      new RegExp(`(?:^|\\n|\\|)\\s*\\[?${c}\\]?\\s*(?:\\||—|-|\\s+[A-Z])`, 'm'),
+    ];
+    if (patterns.some((p) => p.test(rawText))) {
+      found.add(c);
+    }
+  }
+
+  if (/\b(?:GOLD|XAU\/USD|XAUUSD)\b/i.test(rawText)) found.add('GOLD');
+  if (/\b(?:SILVER|XAG\/USD|XAGUSD)\b/i.test(rawText)) found.add('SILVER');
+  if (/\b(?:CRUDE\s+OIL|WTI|USOIL)\b/i.test(rawText)) found.add('CRUDE_OIL');
+
+  for (const def of MULTI_ASSET_DEFINITIONS) {
+    if (def.aliases.test(rawText)) {
+      found.add(def.symbol);
+    }
+  }
+
+  return Array.from(found);
 }
 
 export function parseCurrencyDocumentText(rawText: string, selection: string = 'ALL'): ExtractedIndicatorRecord[] {
   if (!rawText || !rawText.trim()) return [];
   const cleanSel = String(selection || 'ALL').toUpperCase().trim();
-  const isCommodity =
+  const isCommoditySelection =
     cleanSel === 'GOLD' ||
     cleanSel === 'SILVER' ||
     cleanSel === 'CRUDE_OIL' ||
     cleanSel.includes('XAU') ||
     cleanSel.includes('XAG') ||
     cleanSel.includes('OIL') ||
-    cleanSel.includes('WTI') ||
-    /COMMODITIES FUNDAMENTAL MACRO REPORT/i.test(rawText);
+    cleanSel.includes('WTI');
 
-  if (isCommodity) {
+  if (isCommoditySelection || (cleanSel === 'ALL' && /COMMODITIES FUNDAMENTAL MACRO REPORT/i.test(rawText))) {
     return parseCommodityDocumentText(rawText, cleanSel) as any;
   }
 
   // Detect if selection is an Index, Stock, or Crypto asset
-  const multiAssetParsed = parseMultiAssetDocumentText(rawText, cleanSel);
-  if (multiAssetParsed.indicators.length > 0 && !G8_CURRENCIES.includes(cleanSel) && cleanSel !== 'ALL') {
+  const isMultiAssetSelection =
+    ['INDICES', 'INDICES_ALL', 'INDEX', 'STOCKS', 'STOCKS_ALL', 'STOCK', 'CRYPTO', 'CRYPTO_ALL'].includes(cleanSel) ||
+    MULTI_ASSET_DEFINITIONS.some((d) => d.symbol === cleanSel || d.symbol.replace('USDT', '') === cleanSel || (cleanSel === 'S&P500' && d.symbol === 'SPX500'));
+
+  if (isMultiAssetSelection) {
+    const multiAssetParsed = parseMultiAssetDocumentText(rawText, cleanSel);
     return multiAssetParsed.indicators;
   }
 
-  // Detect currency from document text
-  let detectedCurrency = G8_CURRENCIES.includes(cleanSel) ? cleanSel : null;
-  if (!detectedCurrency) {
-    for (const c of G8_CURRENCIES) {
-      const patterns = [
-        new RegExp(`PRIME\\s+PIP\\s+FX\\s*—\\s*${c}\\b`, 'i'),
-        new RegExp(`Currency Code:\\s*${c}\\b`, 'i'),
-        new RegExp(`\\b${c}\\s+—\\s+(?:US DOLLAR|EURO|BRITISH POUND|JAPANESE YEN|SWISS FRANC|CANADIAN DOLLAR|AUSTRALIAN DOLLAR|NEW ZEALAND DOLLAR)`, 'i'),
-        new RegExp(`\\b${c}\\b\\s+(?:Economic Calendar|Fundamental Intelligence Report|Macro Report|Fundamental Report)`, 'i'),
-      ];
-      if (patterns.some((p) => p.test(rawText))) {
-        detectedCurrency = c;
-        break;
-      }
+  // Always detect explicit currency identity from the document itself first
+  let docExplicitCurrency: string | null = null;
+  const explicitCurrenciesInDoc: string[] = [];
+  for (const c of G8_CURRENCIES) {
+    const patterns = [
+      new RegExp(`PRIME\\s+PIP\\s+FX\\s*[—–-]\\s*${c}\\b`, 'i'),
+      new RegExp(`(?:Currency|Target)\\s*(?:Code)?\\s*[:=]\\s*${c}\\b`, 'i'),
+      new RegExp(`\\b${c}\\s*[—–-]\\s*(?:US DOLLAR|EURO|BRITISH POUND|JAPANESE YEN|SWISS FRANC|CANADIAN DOLLAR|AUSTRALIAN DOLLAR|NEW ZEALAND DOLLAR)`, 'i'),
+      new RegExp(`\\b${c}\\b\\s+(?:Economic Calendar|Fundamental Intelligence Report|Macro Report|Fundamental Report)`, 'i'),
+    ];
+    if (patterns.some((p) => p.test(rawText))) {
+      explicitCurrenciesInDoc.push(c);
     }
   }
+  if (explicitCurrenciesInDoc.length === 1) {
+    docExplicitCurrency = explicitCurrenciesInDoc[0];
+  }
+
+  // If user selected a single currency (e.g. EUR), but the document explicitly declares a different single currency (e.g. USD)
+  // and does not mention the selected currency anywhere, do not misattribute the document's indicators to the selected currency.
+  if (
+    G8_CURRENCIES.includes(cleanSel) &&
+    docExplicitCurrency &&
+    docExplicitCurrency !== cleanSel &&
+    !new RegExp(`\\b${cleanSel}\\b`, 'i').test(rawText)
+  ) {
+    return [];
+  }
+
+  // Also check if user selected a single currency (e.g. EUR), and the document only has explicit [USD] row tags or is a Commodity/Stock report
+  const detectedIdentities = detectDocumentAssetIdentity(rawText);
+  if (
+    G8_CURRENCIES.includes(cleanSel) &&
+    detectedIdentities.length > 0 &&
+    !detectedIdentities.includes(cleanSel) &&
+    !new RegExp(`\\b${cleanSel}\\b`, 'i').test(rawText)
+  ) {
+    return [];
+  }
+
+  const detectedCurrency = docExplicitCurrency || (G8_CURRENCIES.includes(cleanSel) ? cleanSel : null);
+  const docHeaderDateMatch = rawText.match(/(?:DATE|Release Date|Report Date)\s*[:=]\s*(\d{4}-\d{2}-\d{2})/i) || rawText.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  const docHeaderDate = docHeaderDateMatch ? docHeaderDateMatch[1] : new Date().toISOString().slice(0, 10);
 
   const results: ExtractedIndicatorRecord[] = [];
   const processedDefs = new Set<string>();
@@ -1015,12 +1157,22 @@ export function parseCurrencyDocumentText(rawText: string, selection: string = '
       rowCurrency = cleanSel;
     }
 
+    // If user selected a specific currency and this row explicitly belongs to a different currency, skip it
+    if (G8_CURRENCIES.includes(cleanSel) && rowCurrency && rowCurrency !== cleanSel) {
+      continue;
+    }
+
     // Extract candidate indicator name cell if pipe-separated
     const pipeCells = line
       .split('|')
       .map((c) => c.trim())
       .filter(Boolean);
-    const candidateLabel = pipeCells.length >= 2 ? pipeCells[0] : line;
+    const candidateLabel =
+      pipeCells.length >= 3 && G8_CURRENCIES.includes(pipeCells[0].replace(/[\[\]]/g, '').toUpperCase())
+        ? pipeCells[1]
+        : pipeCells.length >= 2
+        ? pipeCells[0]
+        : line;
 
     const match = findBestRegistryMatch(candidateLabel, rowCurrency || 'USD') || findBestRegistryMatch(line, rowCurrency || 'USD');
     if (match && !processedDefs.has(match.id)) {
@@ -1059,7 +1211,7 @@ export function parseCurrencyDocumentText(rawText: string, selection: string = '
           revisedPrevious: parsed.revised,
           unit: parsed.unit || match.unit || '%',
           referencePeriod: parsed.period || 'Uploaded Document',
-          releaseDate: new Date().toISOString().slice(0, 10),
+          releaseDate: parsed.releaseDate || docHeaderDate,
           releaseTime: 'Document Data',
           source: 'Uploaded PDF / Document Report',
           confidence: !needsReview ? 99 : 82,
@@ -1077,10 +1229,14 @@ export function parseCurrencyDocumentText(rawText: string, selection: string = '
       const labelLower = pipeCells[0].toLowerCase();
       if (!/\b(?:indicator|metric|event|release|category|total|page|source|currency|asset|date)\b/.test(labelLower)) {
         const parsed = tokenizeRowNumbers(pipeCells.slice(1).join(' | '), activeColumnOrder);
-        if (parsed.values.length >= 1 && parsed.actual !== null) {
+        if (parsed.values.length >= 1 && (parsed.actual !== null || parsed.forecast !== null || parsed.previous !== null)) {
           const customCurr = rowCurrency || 'USD';
+          if (G8_CURRENCIES.includes(cleanSel) && customCurr !== cleanSel) {
+            continue;
+          }
           const customId = `custom_${customCurr}_${pipeCells[0].replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase()}`;
           if (!processedDefs.has(customId)) {
+            const needsReview = parsed.actual === null;
             results.push({
               id: `extracted_${customId}_${Date.now()}_${results.length}`,
               matchedIndicatorId: customId,
@@ -1093,12 +1249,12 @@ export function parseCurrencyDocumentText(rawText: string, selection: string = '
               revisedPrevious: parsed.revised,
               unit: parsed.unit || '%',
               referencePeriod: parsed.period || 'Uploaded Document',
-              releaseDate: new Date().toISOString().slice(0, 10),
+              releaseDate: parsed.releaseDate || docHeaderDate,
               releaseTime: 'Document Data',
               source: 'Uploaded PDF / Document Report',
-              confidence: 95,
+              confidence: !needsReview ? 95 : 80,
               dataStatus: 'EXTRACTED_FROM_IMAGE',
-              validationStatus: 'VALIDATED',
+              validationStatus: !needsReview ? 'VALIDATED' : 'REVIEW_REQUIRED',
               notes: `Extracted table row (${activeColumnOrder.join(' / ').toUpperCase()}) for ${pipeCells[0].trim()}`,
             });
             processedDefs.add(customId);
@@ -1122,6 +1278,7 @@ export function parseCurrencyDocumentText(rawText: string, selection: string = '
   const normText = rawText.replace(/[\t\r\n]+/g, ' ');
 
   for (const curr of targetCurrencies) {
+    if (G8_CURRENCIES.includes(cleanSel) && curr !== cleanSel) continue;
     const defs = OFFICIAL_INDICATOR_REGISTRY.filter((d: any) => d.currency === curr);
     for (const def of defs) {
       if (processedDefs.has(def.id)) continue;
@@ -1153,7 +1310,7 @@ export function parseCurrencyDocumentText(rawText: string, selection: string = '
               revisedPrevious: parsed.revised,
               unit: parsed.unit || def.unit || '%',
               referencePeriod: parsed.period || 'Uploaded Document',
-              releaseDate: new Date().toISOString().slice(0, 10),
+              releaseDate: parsed.releaseDate || docHeaderDate,
               releaseTime: 'Document Data',
               source: 'Uploaded PDF / Document Report',
               confidence: 92,
@@ -1179,6 +1336,7 @@ export function parseCommodityDocumentText(rawText: string, selection: string = 
   if (!rawText || !rawText.trim()) return [];
   const cleanSel = String(selection || 'ALL').toUpperCase().trim();
   const results: any[] = [];
+  const addedKeys = new Set<string>();
 
   const commDefs = [
     { key: 'GOLD', name: 'Gold (XAU/USD)', symbol: 'GOLD', priceIndId: 'GOLD_SPOT_PRICE', patterns: [/\b(?:GOLD|XAU|XAU\/USD|XAUUSD)\b/i] },
@@ -1198,10 +1356,94 @@ export function parseCommodityDocumentText(rawText: string, selection: string = 
             (c.key === 'CRUDE_OIL' && (cleanSel.includes('OIL') || cleanSel.includes('WTI')))
         );
 
+  const docLines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  let activeColOrder: ValueColumnType[] = ['actual', 'forecast', 'previous'];
+
+  // Pass 1: Line-by-line table row extraction (handles tables where Gold, Silver, Crude Oil, Real Yield appear as rows)
+  for (const line of docLines) {
+    const hdr = detectTableHeaderOrder(line);
+    if (hdr) {
+      activeColOrder = hdr;
+      continue;
+    }
+
+    for (const comm of targetComms) {
+      // Check if this specific line is a spot price row for this commodity (and doesn't list multiple commodities in a title)
+      const otherCommsOnLine = commDefs.filter((o) => o.key !== comm.key && o.patterns[0].test(line));
+      if (comm.patterns[0].test(line) && otherCommsOnLine.length === 0) {
+        const valSeg = line.includes('|')
+          ? line.split('|').slice(1).join(' | ')
+          : line.replace(comm.patterns[0], ' ').replace(/(?:Spot Price|Current Price|Cash Price|Futures Price|Price|\(XAU\/USD\)|\(XAG\/USD\)|\(WTI\))/gi, ' ');
+        const parsed = tokenizeRowNumbers(valSeg, activeColOrder);
+        if (parsed.actual !== null && !addedKeys.has(`${comm.key}_PRICE`)) {
+          addedKeys.add(`${comm.key}_PRICE`);
+          results.push({
+            id: `extracted_${comm.key}_price_${Date.now()}_${results.length}`,
+            matchedIndicatorId: comm.priceIndId,
+            name: `${comm.name} Spot Price`,
+            currency: 'USD',
+            symbol: comm.key,
+            actual: parsed.actual,
+            forecast: parsed.forecast ?? parsed.actual,
+            previous: parsed.previous,
+            revisedPrevious: parsed.revised,
+            unit: '$',
+            referencePeriod: parsed.period || 'Uploaded Document',
+            releaseDate: parsed.releaseDate || new Date().toISOString().slice(0, 10),
+            releaseTime: 'Live Market',
+            source: 'Uploaded PDF / OCR',
+            confidence: 99,
+            dataStatus: 'EXTRACTED_FROM_IMAGE',
+            validationStatus: 'VALIDATED',
+            notes: `Spot price verified from document: $${parsed.actual.toLocaleString()}.`,
+          });
+        }
+      }
+    }
+
+    // Check shared macro commodity drivers on this line (10Y Real Yield, 5Y Breakeven, Inventory Surprise)
+    if (/(?:US 10Y Real Yield|10-Year Real Yield|10Y Real Yield|Real Yield|TIPS)\b/i.test(line)) {
+      const valSeg = line.includes('|')
+        ? line.split('|').slice(1).join(' | ')
+        : line.replace(/^.*?(?:US 10Y Real Yield|10-Year Real Yield|10Y Real Yield|Real Yield|TIPS)\s*(?:\(TIPS\))?/i, ' ');
+      const parsed = tokenizeRowNumbers(valSeg, activeColOrder);
+      if (parsed.actual !== null) {
+        for (const comm of targetComms) {
+          if (rawText.search(comm.patterns[0]) !== -1 && !addedKeys.has(`${comm.key}_REAL_YIELD`)) {
+            addedKeys.add(`${comm.key}_REAL_YIELD`);
+            results.push({
+              id: `extracted_${comm.key}_real_yield_${Date.now()}_${results.length}`,
+              matchedIndicatorId: 'USD_10Y_REAL_YIELD',
+              name: 'US 10-Year Real Yield',
+              currency: 'USD',
+              symbol: comm.key,
+              actual: parsed.actual,
+              forecast: parsed.forecast ?? parsed.actual,
+              previous: parsed.previous,
+              revisedPrevious: parsed.revised,
+              unit: '%',
+              referencePeriod: 'Daily Benchmark',
+              releaseDate: parsed.releaseDate || new Date().toISOString().slice(0, 10),
+              releaseTime: '15:00 EST',
+              source: 'US Treasury / Document',
+              confidence: 99,
+              dataStatus: 'EXTRACTED_FROM_IMAGE',
+              validationStatus: 'VALIDATED',
+              notes: `US 10Y TIPS real yield extracted: ${parsed.actual}%.`,
+            });
+          }
+        }
+      }
+    }
+  }
+
   for (const comm of targetComms) {
-    const match = rawText.search(comm.patterns[0]);
-    const isSingleTarget = targetComms.length === 1;
-    if (match === -1 && !isSingleTarget) continue;
+    // Find first occurrence of comm that isn't a multi-commodity banner line
+    let match = rawText.search(comm.patterns[0]);
+    if (match === -1) {
+      // Do not assign another asset's numbers if the selected commodity is not mentioned in the document
+      continue;
+    }
 
     let segment = rawText;
     if (match !== -1) {
@@ -1209,9 +1451,9 @@ export function parseCommodityDocumentText(rawText: string, selection: string = 
       for (const other of commDefs) {
         if (other.key === comm.key) continue;
         const otherRegex = new RegExp(other.patterns[0].source, 'gi');
-        otherRegex.lastIndex = match + 10;
+        otherRegex.lastIndex = match + 35;
         const om = otherRegex.exec(rawText);
-        if (om && om.index > match && om.index < nextPos) {
+        if (om && om.index > match + 35 && om.index < nextPos) {
           nextPos = om.index;
         }
       }
@@ -1248,7 +1490,8 @@ export function parseCommodityDocumentText(rawText: string, selection: string = 
       invSurprise = parseFloat(invMatch[1]);
     }
 
-    if (price !== null) {
+    if (price !== null && !addedKeys.has(`${comm.key}_PRICE`)) {
+      addedKeys.add(`${comm.key}_PRICE`);
       results.push({
         id: `extracted_${comm.key}_price_${Date.now()}_${results.length}`,
         matchedIndicatorId: comm.priceIndId,
@@ -1271,7 +1514,8 @@ export function parseCommodityDocumentText(rawText: string, selection: string = 
       });
     }
 
-    if (realYield !== null) {
+    if (realYield !== null && !addedKeys.has(`${comm.key}_REAL_YIELD`)) {
+      addedKeys.add(`${comm.key}_REAL_YIELD`);
       results.push({
         id: `extracted_${comm.key}_real_yield_${Date.now()}_${results.length}`,
         matchedIndicatorId: 'USD_10Y_REAL_YIELD',
@@ -1294,7 +1538,8 @@ export function parseCommodityDocumentText(rawText: string, selection: string = 
       });
     }
 
-    if (breakeven !== null) {
+    if (breakeven !== null && !addedKeys.has(`${comm.key}_BREAKEVEN`)) {
+      addedKeys.add(`${comm.key}_BREAKEVEN`);
       results.push({
         id: `extracted_${comm.key}_breakeven_${Date.now()}_${results.length}`,
         matchedIndicatorId: 'USD_5Y_INFLATION_BREAKEVEN',
@@ -1317,7 +1562,8 @@ export function parseCommodityDocumentText(rawText: string, selection: string = 
       });
     }
 
-    if (invSurprise !== null) {
+    if (invSurprise !== null && !addedKeys.has(`${comm.key}_INV`)) {
+      addedKeys.add(`${comm.key}_INV`);
       results.push({
         id: `extracted_${comm.key}_inv_${Date.now()}_${results.length}`,
         matchedIndicatorId: 'CRUDE_OIL_INVENTORY_SURPRISE',
@@ -1402,8 +1648,16 @@ export function parseRatesDocumentText(rawText: string): any[] {
   const processed = new Set<string>();
 
   const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  let has5YColumn = /\b5Y\b|\b5-Year\b/i.test(rawText);
+  let hasRealYieldColumn = /\bReal\s+Yield\b|\bTIPS\b/i.test(rawText);
 
   for (const line of lines) {
+    if (/\b(?:Policy\s+Rate|2Y|10Y)\b/i.test(line) && /\b(?:Currency|Central\s+Bank)\b/i.test(line)) {
+      has5YColumn = /\b5Y\b|\b5-Year\b/i.test(line);
+      hasRealYieldColumn = /\bReal\s+Yield\b|\bTIPS\b/i.test(line);
+      continue;
+    }
+
     for (const curr of G8_CURRENCIES) {
       if (processed.has(curr)) continue;
       const cbRegex = CENTRAL_BANK_ALIASES[curr];
@@ -1412,6 +1666,11 @@ export function parseRatesDocumentText(rawText: string): any[] {
           (cbRegex && cbRegex.test(line))) &&
         /(?:%|\d+\.\d+|hawkish|dovish|neutral)/i.test(line);
       if (!isRow) continue;
+
+      // Avoid matching commodity/macro rows like "US 10Y Real Yield (TIPS)" as a central bank rate row
+      if (/\b(?:Spot\s+Price|Real\s+Yield\s*\(TIPS\)|Payrolls|CPI|PMI|Retail\s+Sales)\b/i.test(line)) {
+        continue;
+      }
 
       // Strip currency/central bank title words containing 2Y/5Y/10Y before extracting numbers
       const noDates = line
@@ -1434,8 +1693,19 @@ export function parseRatesDocumentText(rawText: string): any[] {
         const prevRate = nums.length > 1 ? nums[1] : policyRate;
         const expRate = nums.length > 2 ? nums[2] : policyRate;
         const y2 = nums.length > 3 ? nums[3] : policyRate;
-        const y10 = nums.length > 4 ? nums[4] : y2;
-        const realY = nums.length > 5 ? nums[5] : undefined;
+        let y5 = y2;
+        let y10 = y2;
+        let realY: number | undefined = undefined;
+
+        if (has5YColumn && nums.length >= 6) {
+          y5 = nums[4];
+          y10 = nums[5];
+          realY = nums.length > 6 ? nums[6] : undefined;
+        } else {
+          y10 = nums.length > 4 ? nums[4] : y2;
+          y5 = Number(((y2 + y10) / 2).toFixed(2));
+          realY = nums.length > 5 ? nums[5] : undefined;
+        }
 
         rates.push({
           currency: curr,
@@ -1446,7 +1716,7 @@ export function parseRatesDocumentText(rawText: string): any[] {
           expectedNextRate: expRate,
           expectedRate: expRate,
           yield2Y: y2,
-          yield5Y: y10,
+          yield5Y: y5,
           yield10Y: y10,
           realYield10Y: realY,
           centralBankBias: bias,
@@ -1528,6 +1798,9 @@ export function parseCotDocumentText(rawText: string): any[] {
   const records: any[] = [];
   const processed = new Set<string>();
 
+  const docDateMatch = rawText.match(/(?:DATE|Report Date|Release Date)\s*[:=]\s*(\d{4}-\d{2}-\d{2})/i) || rawText.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  const defaultReportDate = docDateMatch ? docDateMatch[1] : new Date().toISOString().slice(0, 10);
+
   const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 
   for (const line of lines) {
@@ -1535,6 +1808,9 @@ export function parseCotDocumentText(rawText: string): any[] {
       if (processed.has(def.code)) continue;
       if (!def.regex.test(line)) continue;
       if (!/(?:\d{1,3}(?:,\d{3})+|\b\d{3,}\b|bullish|bearish|neutral)/i.test(line)) continue;
+
+      const rowDateMatch = line.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+      const rowReportDate = rowDateMatch ? rowDateMatch[1] : defaultReportDate;
 
       const noDates = line.replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ').replace(/\b6[A-Z]\b/g, ' ');
       const numMatches = Array.from(noDates.matchAll(/([+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/g));
@@ -1545,22 +1821,32 @@ export function parseCotDocumentText(rawText: string): any[] {
       if (nums.length >= 2) {
         const nonCommLong = Math.abs(Math.round(nums[0]));
         const nonCommShort = Math.abs(Math.round(nums[1]));
-        let commLong: number | null = null;
-        let commShort: number | null = null;
-        let openInterest: number | null = null;
+        let commLong = 0;
+        let commShort = 0;
+        let openInterest = nonCommLong + nonCommShort;
 
-        if (nums.length >= 6 && Math.abs(nums[0] - nums[1] - nums[2]) < 5) {
+        const thirdIsNet = nums.length >= 3 && Math.abs((nums[0] - nums[1]) - nums[2]) <= 5;
+
+        if (nums.length >= 6 && thirdIsNet) {
           commLong = Math.abs(Math.round(nums[3]));
           commShort = Math.abs(Math.round(nums[4]));
           openInterest = Math.abs(Math.round(nums[5]));
-        } else if (nums.length >= 5) {
+        } else if (nums.length >= 5 && !thirdIsNet) {
           commLong = Math.abs(Math.round(nums[2]));
           commShort = Math.abs(Math.round(nums[3]));
           openInterest = Math.abs(Math.round(nums[4]));
-        } else {
-          commLong = nums.length > 2 ? Math.abs(Math.round(nums[2])) : Math.round(nonCommShort * 1.1);
-          commShort = nums.length > 3 ? Math.abs(Math.round(nums[3])) : Math.round(nonCommLong * 1.1);
-          openInterest = nonCommLong + nonCommShort + (commLong || 0) + (commShort || 0);
+        } else if (nums.length >= 5 && thirdIsNet) {
+          commLong = Math.abs(Math.round(nums[3]));
+          commShort = Math.abs(Math.round(nums[4]));
+          openInterest = nonCommLong + nonCommShort + commLong + commShort;
+        } else if (nums.length === 4 && thirdIsNet) {
+          openInterest = Math.abs(Math.round(nums[3]));
+        } else if (nums.length === 4 && !thirdIsNet) {
+          commLong = Math.abs(Math.round(nums[2]));
+          commShort = Math.abs(Math.round(nums[3]));
+          openInterest = nonCommLong + nonCommShort + commLong + commShort;
+        } else if (nums.length === 3 && !thirdIsNet) {
+          openInterest = Math.abs(Math.round(nums[2]));
         }
 
         const net = nonCommLong - nonCommShort;
@@ -1573,11 +1859,11 @@ export function parseCotDocumentText(rawText: string): any[] {
           contractName: def.contract,
           nonCommercialLong: nonCommLong,
           nonCommercialShort: nonCommShort,
-          commercialLong: commLong ?? 0,
-          commercialShort: commShort ?? 0,
-          openInterest: openInterest || nonCommLong + nonCommShort,
-          reportDate: new Date().toISOString().slice(0, 10),
-          releaseDate: new Date().toISOString().slice(0, 10),
+          commercialLong: commLong,
+          commercialShort: commShort,
+          openInterest,
+          reportDate: rowReportDate,
+          releaseDate: rowReportDate,
           source: 'CFTC Commitments of Traders / Document',
           confidence: 99,
           notes: `Net ${net > 0 ? '+' : ''}${net.toLocaleString()} contracts. ${stance} institutional positioning verified.`,
@@ -1595,6 +1881,8 @@ export function parseCotDocumentText(rawText: string): any[] {
     let m: RegExpExecArray | null;
     while ((m = re.exec(rawText)) !== null) {
       const seg = rawText.slice(m.index, m.index + 280);
+      const rowDateMatch = seg.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+      const rowReportDate = rowDateMatch ? rowDateMatch[1] : defaultReportDate;
       const noDates = seg.replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ').replace(/\b6[A-Z]\b/g, ' ');
       const nums = Array.from(noDates.matchAll(/([+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/g))
         .map((n) => parseFloat(n[1].replace(/,/g, '')))
@@ -1603,9 +1891,19 @@ export function parseCotDocumentText(rawText: string): any[] {
       if (nums.length >= 2) {
         const nonCommLong = Math.abs(Math.round(nums[0]));
         const nonCommShort = Math.abs(Math.round(nums[1]));
-        const commLong = nums.length > 2 ? Math.abs(Math.round(nums[2])) : Math.round(nonCommShort * 1.1);
-        const commShort = nums.length > 3 ? Math.abs(Math.round(nums[3])) : Math.round(nonCommLong * 1.1);
-        const openInterest = nums.length > 4 ? Math.abs(Math.round(nums[4])) : nonCommLong + nonCommShort + commLong + commShort;
+        const thirdIsNet = nums.length >= 3 && Math.abs((nums[0] - nums[1]) - nums[2]) <= 5;
+        let commLong = 0;
+        let commShort = 0;
+        let openInterest = nonCommLong + nonCommShort;
+        if (nums.length >= 6 && thirdIsNet) {
+          commLong = Math.abs(Math.round(nums[3]));
+          commShort = Math.abs(Math.round(nums[4]));
+          openInterest = Math.abs(Math.round(nums[5]));
+        } else if (nums.length >= 5 && !thirdIsNet) {
+          commLong = Math.abs(Math.round(nums[2]));
+          commShort = Math.abs(Math.round(nums[3]));
+          openInterest = Math.abs(Math.round(nums[4]));
+        }
         const net = nonCommLong - nonCommShort;
 
         records.push({
@@ -1616,8 +1914,8 @@ export function parseCotDocumentText(rawText: string): any[] {
           commercialLong: commLong,
           commercialShort: commShort,
           openInterest,
-          reportDate: new Date().toISOString().slice(0, 10),
-          releaseDate: new Date().toISOString().slice(0, 10),
+          reportDate: rowReportDate,
+          releaseDate: rowReportDate,
           source: 'CFTC Commitments of Traders / Document',
           confidence: 99,
           notes: `Net ${net > 0 ? '+' : ''}${net.toLocaleString()} contracts.`,
@@ -1766,25 +2064,227 @@ export function parseMultiAssetDocumentText(
 
   const assets: ExtractedMultiAssetRecord[] = [];
   const indicators: ExtractedIndicatorRecord[] = [];
+  const docDateMatch = rawText.match(/(?:DATE|Report Date|Release Date|As of)[\s:|—–]*(\d{4}-\d{2}-\d{2})/i) || rawText.match(/\b(202\d-\d{2}-\d{2})\b/);
+  const defaultReleaseDate = docDateMatch ? docDateMatch[1] : new Date().toISOString().slice(0, 10);
 
   const targetDefs = MULTI_ASSET_DEFINITIONS.filter((d) => {
-    if (cleanSel === 'ALL' || cleanSel === 'INDICES_ALL' || cleanSel === 'STOCKS_ALL' || cleanSel === 'CRYPTO_ALL') {
-      if (cleanSel === 'INDICES_ALL') return d.category === 'INDEX';
-      if (cleanSel === 'STOCKS_ALL') return d.category === 'STOCK';
-      if (cleanSel === 'CRYPTO_ALL') return d.category === 'CRYPTO';
+    if (
+      cleanSel === 'ALL' ||
+      cleanSel === 'INDICES' ||
+      cleanSel === 'INDICES_ALL' ||
+      cleanSel === 'STOCKS' ||
+      cleanSel === 'STOCKS_ALL' ||
+      cleanSel === 'CRYPTO' ||
+      cleanSel === 'CRYPTO_ALL'
+    ) {
+      if (cleanSel === 'INDICES' || cleanSel === 'INDICES_ALL') return d.category === 'INDEX';
+      if (cleanSel === 'STOCKS' || cleanSel === 'STOCKS_ALL') return d.category === 'STOCK';
+      if (cleanSel === 'CRYPTO' || cleanSel === 'CRYPTO_ALL') return d.category === 'CRYPTO';
       return true;
     }
-    return d.symbol === cleanSel || cleanSel.includes(d.symbol.replace('USDT', ''));
+    const cleanTicker = cleanSel.replace(/\/USDT$/, 'USDT').replace(/\/USD$/, '');
+    return (
+      d.symbol === cleanSel ||
+      d.symbol === cleanTicker ||
+      d.symbol.replace('USDT', '') === cleanTicker
+    );
   });
 
   const activeDefs = targetDefs.length > 0 ? targetDefs : MULTI_ASSET_DEFINITIONS;
+  const processedSymbols = new Set<string>();
+
+  // Pass 1: Check for horizontal tabular rows (e.g., Symbol | Price | Forward P/E | PEG Ratio | Operating Margin | FCF Yield | Score | Bias)
+  const docLines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  let activeTableCols: string[] | null = null;
+
+  for (const line of docLines) {
+    const cells = line.includes('|')
+      ? line.split('|').map((c) => c.trim()).filter(Boolean)
+      : line.split(/\s{2,}/).map((c) => c.trim()).filter(Boolean);
+
+    if (cells.length >= 3) {
+      const firstCellLower = cells[0].toLowerCase();
+      if (/^(?:symbol|ticker|asset|company|index|instrument)$/i.test(firstCellLower) && /(?:price|p\/e|peg|margin|yield|score|bias)/i.test(line)) {
+        activeTableCols = cells.map((c) => c.toLowerCase());
+        continue;
+      }
+
+      if (activeTableCols && activeTableCols.length >= 3) {
+        const matchedDef = activeDefs.find((d) => !processedSymbols.has(d.symbol) && d.aliases.test(cells[0]));
+        if (matchedDef) {
+          let price: number | undefined;
+          let changePercent: number | undefined;
+          let forwardPe: number | undefined;
+          let pegRatio: number | undefined;
+          let operatingMarginPct: number | undefined;
+          let fcfYieldPct: number | undefined;
+          let dividendYieldPct: number | undefined;
+          let earningsYieldPct: number | undefined;
+          let realYieldDiscountRate10Y: number | undefined;
+          let creditSpreadOasBps: number | undefined;
+          let score: number | undefined;
+          let bias: ExtractedMultiAssetRecord['bias'];
+          let valuationStatus: ExtractedMultiAssetRecord['valuationStatus'];
+
+          const parseNum = (s: string): number | undefined => {
+            const m = s.match(/([+-]?[0-9,]+(?:\.\d+)?)/);
+            if (!m) return undefined;
+            const n = parseFloat(m[1].replace(/,/g, ''));
+            return isNaN(n) ? undefined : n;
+          };
+
+          for (let ci = 1; ci < Math.min(cells.length, activeTableCols.length); ci++) {
+            const colName = activeTableCols[ci];
+            const cellVal = cells[ci];
+            if (/price|level/.test(colName)) price = parseNum(cellVal);
+            else if (/change/.test(colName)) changePercent = parseNum(cellVal);
+            else if (/p\/e|pe\b/.test(colName)) forwardPe = parseNum(cellVal);
+            else if (/peg/.test(colName)) pegRatio = parseNum(cellVal);
+            else if (/operating\s*margin|ebit\s*margin|margin/.test(colName)) operatingMarginPct = parseNum(cellVal);
+            else if (/fcf|free\s*cash/.test(colName)) fcfYieldPct = parseNum(cellVal);
+            else if (/div/.test(colName)) dividendYieldPct = parseNum(cellVal);
+            else if (/earnings\s*yield/.test(colName)) earningsYieldPct = parseNum(cellVal);
+            else if (/real\s*yield|tips/.test(colName)) realYieldDiscountRate10Y = parseNum(cellVal);
+            else if (/spread|oas/.test(colName)) creditSpreadOasBps = parseNum(cellVal);
+            else if (/score/.test(colName)) score = parseNum(cellVal);
+            else if (/bias|rating/.test(colName)) {
+              if (/\bSTRONG(?:LY)?[_\s]BULLISH\b/i.test(cellVal)) bias = 'STRONG BULLISH';
+              else if (/\bSTRONG(?:LY)?[_\s]BEARISH\b/i.test(cellVal)) bias = 'STRONG BEARISH';
+              else if (/\bBULLISH\b/i.test(cellVal)) bias = 'BULLISH';
+              else if (/\bBEARISH\b/i.test(cellVal)) bias = 'BEARISH';
+              else if (/\bNEUTRAL\b/i.test(cellVal)) bias = 'NEUTRAL';
+            } else if (/valuation/.test(colName)) {
+              if (/\bUNDERVALUED\b/i.test(cellVal)) valuationStatus = 'UNDERVALUED';
+              else if (/\bOVERVALUED\b/i.test(cellVal)) valuationStatus = 'OVERVALUED';
+              else if (/\bFAIR[_\s]VALUE\b/i.test(cellVal)) valuationStatus = 'FAIR_VALUE';
+            }
+          }
+
+          const keyMetrics: Record<string, string | number> = {};
+          if (price !== undefined) keyMetrics.price = price;
+          if (changePercent !== undefined) keyMetrics.changePercent = changePercent;
+          if (forwardPe !== undefined) keyMetrics.forwardPe = forwardPe;
+          if (pegRatio !== undefined) keyMetrics.pegRatio = pegRatio;
+          if (operatingMarginPct !== undefined) keyMetrics.operatingMarginPct = operatingMarginPct;
+          if (fcfYieldPct !== undefined) keyMetrics.fcfYieldPct = fcfYieldPct;
+          if (dividendYieldPct !== undefined) keyMetrics.dividendYieldPct = dividendYieldPct;
+          if (earningsYieldPct !== undefined) keyMetrics.earningsYieldPct = earningsYieldPct;
+          if (realYieldDiscountRate10Y !== undefined) keyMetrics.realYieldDiscountRate10Y = realYieldDiscountRate10Y;
+          if (creditSpreadOasBps !== undefined) keyMetrics.creditSpreadOasBps = creditSpreadOasBps;
+
+          if (Object.keys(keyMetrics).length > 0 || score !== undefined) {
+            for (const [k, v] of Object.entries(keyMetrics)) {
+              if (typeof v === 'number') {
+                const metricLabel = `${matchedDef.symbol} ${k.replace(/([A-Z])/g, ' $1').trim()}`;
+                indicators.push({
+                  id: `extracted_${matchedDef.symbol}_${k}_${Date.now()}_${indicators.length}`,
+                  matchedIndicatorId: `${matchedDef.symbol}_${k.toUpperCase()}`,
+                  name: metricLabel,
+                  currency: matchedDef.symbol,
+                  category: matchedDef.category,
+                  actual: v,
+                  forecast: null,
+                  previous: null,
+                  revisedPrevious: null,
+                  unit:
+                    k.toLowerCase().includes('pct') ||
+                    k.toLowerCase().includes('yield') ||
+                    k.toLowerCase().includes('margin') ||
+                    k === 'changePercent'
+                      ? '%'
+                      : k === 'price'
+                      ? '$'
+                      : k.toLowerCase().includes('bps') || k.toLowerCase().includes('spread')
+                      ? 'bps'
+                      : '',
+                  referencePeriod: 'Latest Filing / Report',
+                  releaseDate: defaultReleaseDate,
+                  releaseTime: 'Document Data',
+                  source: `Uploaded ${matchedDef.category} PDF Report`,
+                  confidence: 99,
+                  dataStatus: 'EXTRACTED_FROM_IMAGE',
+                  validationStatus: 'VALIDATED',
+                  notes: `Extracted ${matchedDef.symbol} tabular fundamental metric from PDF`,
+                });
+              }
+            }
+            assets.push({
+              symbol: matchedDef.symbol,
+              category: matchedDef.category,
+              price,
+              changePercent,
+              score,
+              bias,
+              valuationStatus,
+              forwardPe,
+              pegRatio,
+              operatingMarginPct,
+              fcfYieldPct,
+              dividendYieldPct,
+              earningsYieldPct,
+              realYieldDiscountRate10Y,
+              creditSpreadOasBps,
+              drivers: [],
+              keyMetrics,
+            });
+            processedSymbols.add(matchedDef.symbol);
+          }
+        }
+      }
+    }
+  }
 
   for (const def of activeDefs) {
-    const isExplicitlySelected = def.symbol === cleanSel || (activeDefs.length === 1 && cleanSel !== 'ALL');
-    const matchIdx = rawText.search(def.aliases);
-    if (matchIdx === -1 && !isExplicitlySelected) continue;
+    if (processedSymbols.has(def.symbol)) continue;
 
-    const seg = matchIdx !== -1 ? rawText.slice(Math.max(0, matchIdx - 100), Math.min(rawText.length, matchIdx + 2400)) : rawText;
+    // Locate the dedicated section start for this asset (skipping multi-asset banner headers like "NVDA & US30")
+    const globalRegex = new RegExp(def.aliases.source, 'gi');
+    let match: RegExpExecArray | null;
+    let bestStartIdx = -1;
+
+    while ((match = globalRegex.exec(rawText)) !== null) {
+      const idx = match.index;
+      const lineStart = rawText.lastIndexOf('\n', idx) + 1;
+      const lineEnd = rawText.indexOf('\n', idx);
+      const currentLine = rawText.slice(lineStart, lineEnd === -1 ? rawText.length : lineEnd);
+
+      const mentionsOtherAsset = MULTI_ASSET_DEFINITIONS.some(
+        (other) => other.symbol !== def.symbol && other.aliases.test(currentLine)
+      );
+      if (!mentionsOtherAsset) {
+        bestStartIdx = lineStart;
+        break;
+      }
+      if (bestStartIdx === -1) {
+        bestStartIdx = lineStart;
+      }
+    }
+
+    if (bestStartIdx === -1) continue;
+
+    // Bound segment before the next dedicated asset section header
+    let segEndIdx = Math.min(rawText.length, bestStartIdx + 2600);
+    const firstNewlineAfterStart = rawText.indexOf('\n', bestStartIdx + 1);
+    if (firstNewlineAfterStart !== -1 && firstNewlineAfterStart < segEndIdx) {
+      const afterFirstLine = rawText.slice(firstNewlineAfterStart + 1, segEndIdx);
+      let earliestOtherOffset = afterFirstLine.length;
+
+      for (const other of MULTI_ASSET_DEFINITIONS) {
+        if (other.symbol === def.symbol) continue;
+        const otherRegex = new RegExp(other.aliases.source, 'gi');
+        let om: RegExpExecArray | null;
+        while ((om = otherRegex.exec(afterFirstLine)) !== null) {
+          const oLineStart = afterFirstLine.lastIndexOf('\n', om.index) + 1;
+          if (oLineStart < earliestOtherOffset) {
+            earliestOtherOffset = oLineStart;
+          }
+          break;
+        }
+      }
+      segEndIdx = firstNewlineAfterStart + 1 + earliestOtherOffset;
+    }
+
+    const seg = rawText.slice(bestStartIdx, segEndIdx);
 
     const extractMetric = (regex: RegExp): number | undefined => {
       const m = seg.match(regex);
@@ -1796,6 +2296,7 @@ export function parseMultiAssetDocumentText(
     };
 
     const price = extractMetric(/(?:Spot Price|Current Price|Share Price|Index Level|Price)[\s:|—–]+(?:USD|\$)?\s*([0-9,]+(?:\.\d+)?)/i);
+    const changePercent = extractMetric(/(?:24h Change|Daily Change|Change %|Change)[\s:|—–]+([+-]?[0-9]+(?:\.\d+)?)\s*%/i);
     const forwardPe = extractMetric(/(?:Forward P\/E|Fwd P\/E|P\/E Ratio|P\/E Multiple|PE Ratio)[\s:|—–]+([0-9]+(?:\.\d+)?)/i);
     const pegRatio = extractMetric(/(?:PEG Ratio|PEG)[\s:|—–]+([0-9]+(?:\.\d+)?)/i);
     const operatingMarginPct = extractMetric(/(?:Operating Margin|GAAP Operating Margin|EBIT Margin)[\s:|—–]+([+-]?[0-9]+(?:\.\d+)?)/i);
@@ -1838,17 +2339,19 @@ export function parseMultiAssetDocumentText(
         colOrder = hdr;
         continue;
       }
-      // Check for tabular rows
-      const cells = line.split('|').map((c) => c.trim()).filter(Boolean);
-      if (cells.length >= 2 && /^[A-Za-z][A-Za-z0-9\s/()&-]{2,45}$/.test(cells[0])) {
-        if (/\b(?:indicator|metric|driver|category|source|valuation)\b/i.test(cells[0])) continue;
+      // Check for pipe-delimited or multi-space tabular rows
+      const cells = line.includes('|')
+        ? line.split('|').map((c) => c.trim()).filter(Boolean)
+        : line.split(/\s{2,}/).map((c) => c.trim()).filter(Boolean);
+      if (cells.length >= 2 && /^[A-Za-z][A-Za-z0-9\s/()&.-]{2,45}$/.test(cells[0])) {
+        if (/\b(?:indicator|metric|driver|category|source|valuation|symbol|asset|overview|summary)\b/i.test(cells[0])) continue;
         const parsed = tokenizeRowNumbers(cells.slice(1).join(' | '), colOrder);
         if (parsed.actual !== null) {
           indicators.push({
             id: `extracted_${def.symbol}_${Date.now()}_${indicators.length}`,
             matchedIndicatorId: `${def.symbol}_${cells[0].replace(/[^a-zA-Z0-9]+/g, '_').toUpperCase()}`,
             name: `${def.symbol} — ${cells[0]}`,
-            currency: 'USD',
+            currency: def.symbol,
             category: def.category,
             actual: parsed.actual,
             forecast: parsed.forecast,
@@ -1856,7 +2359,7 @@ export function parseMultiAssetDocumentText(
             revisedPrevious: parsed.revised,
             unit: parsed.unit || '%',
             referencePeriod: parsed.period || 'Uploaded Document',
-            releaseDate: new Date().toISOString().slice(0, 10),
+            releaseDate: parsed.releaseDate || defaultReleaseDate,
             releaseTime: 'Document Data',
             source: `Uploaded ${def.category} PDF Report`,
             confidence: 97,
@@ -1899,6 +2402,7 @@ export function parseMultiAssetDocumentText(
 
     const keyMetrics: Record<string, string | number> = {};
     if (price !== undefined) keyMetrics.price = price;
+    if (changePercent !== undefined) keyMetrics.changePercent = changePercent;
     if (forwardPe !== undefined) keyMetrics.forwardPe = forwardPe;
     if (pegRatio !== undefined) keyMetrics.pegRatio = pegRatio;
     if (operatingMarginPct !== undefined) keyMetrics.operatingMarginPct = operatingMarginPct;
@@ -1912,21 +2416,24 @@ export function parseMultiAssetDocumentText(
     if (stakingYieldPct !== undefined) keyMetrics.stakingYieldPct = stakingYieldPct;
 
     // Also add extracted scalar metrics to indicators list so EconomicImageExtractorModal displays them
+    const seenIndicatorNames = new Set(indicators.map((i) => i.name.toLowerCase()));
     for (const [k, v] of Object.entries(keyMetrics)) {
       if (typeof v === 'number') {
+        const metricLabel = `${def.symbol} ${k.replace(/([A-Z])/g, ' $1').trim()}`;
+        if (seenIndicatorNames.has(metricLabel.toLowerCase())) continue;
         indicators.push({
           id: `extracted_${def.symbol}_${k}_${Date.now()}_${indicators.length}`,
           matchedIndicatorId: `${def.symbol}_${k.toUpperCase()}`,
-          name: `${def.symbol} ${k.replace(/([A-Z])/g, ' $1').trim()}`,
-          currency: 'USD',
+          name: metricLabel,
+          currency: def.symbol,
           category: def.category,
           actual: v,
           forecast: null,
           previous: null,
           revisedPrevious: null,
-          unit: k.toLowerCase().includes('pct') || k.toLowerCase().includes('yield') || k.toLowerCase().includes('margin') ? '%' : k === 'price' ? '$' : '',
+          unit: k.toLowerCase().includes('pct') || k.toLowerCase().includes('yield') || k.toLowerCase().includes('margin') || k === 'changePercent' ? '%' : k === 'price' ? '$' : k.toLowerCase().includes('bps') || k.toLowerCase().includes('spread') ? 'bps' : '',
           referencePeriod: 'Latest Filing / Report',
-          releaseDate: new Date().toISOString().slice(0, 10),
+          releaseDate: defaultReleaseDate,
           releaseTime: 'Document Data',
           source: `Uploaded ${def.category} PDF Report`,
           confidence: 99,
@@ -1942,6 +2449,7 @@ export function parseMultiAssetDocumentText(
         symbol: def.symbol,
         category: def.category,
         price,
+        changePercent,
         score,
         bias,
         valuationStatus,

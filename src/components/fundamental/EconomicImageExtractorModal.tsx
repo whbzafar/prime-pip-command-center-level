@@ -25,6 +25,7 @@ import {
   CommodityObservation,
 } from '../../types/fundamentalIndicatorTypes';
 import { CURRENCIES, OFFICIAL_INDICATOR_REGISTRY } from '../../data/fundamentalRegistryData';
+import { DEFAULT_MULTI_ASSET_FUNDAMENTALS } from '../../data/defaultFundamentalObservations';
 import {
   extractIndicatorsFromImage,
   patchFundamentalObservations,
@@ -44,7 +45,8 @@ export type SupportedSelection =
   | 'CRUDE_OIL'
   | 'INDICES'
   | 'STOCKS'
-  | 'CRYPTO';
+  | 'CRYPTO'
+  | string;
 
 interface EconomicImageExtractorModalProps {
   isOpen: boolean;
@@ -110,7 +112,10 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
 
   useEffect(() => {
     if (initialSelection) {
-      setSelectedAsset(initialSelection);
+      if (initialSelection === 'INDICES_ALL') setSelectedAsset('INDICES');
+      else if (initialSelection === 'STOCKS_ALL') setSelectedAsset('STOCKS');
+      else if (initialSelection === 'CRYPTO_ALL') setSelectedAsset('CRYPTO');
+      else setSelectedAsset(initialSelection);
     }
   }, [initialSelection]);
 
@@ -364,66 +369,128 @@ export const EconomicImageExtractorModal: React.FC<EconomicImageExtractorModalPr
 
     // Persist multi-asset records (Indices, Stocks, Crypto) so their intelligence views update immediately
     try {
-      const existingMultiRaw = localStorage.getItem('primepip_multi_asset_extracted_v1');
-      const existingMulti: ExtractedMultiAssetRecord[] = existingMultiRaw ? JSON.parse(existingMultiRaw) : [];
-      const mergedMap = new Map<string, ExtractedMultiAssetRecord>();
-      existingMulti.forEach((m) => mergedMap.set(m.symbol, m));
-      extractedMultiAssets.forEach((m) => mergedMap.set(m.symbol, m));
+      const existingOverridesRaw = localStorage.getItem('primepipfx_multi_asset_overrides_v1');
+      const overridesObj: Record<string, ExtractedMultiAssetRecord> = existingOverridesRaw
+        ? JSON.parse(existingOverridesRaw)
+        : {};
 
-      // Also map any edited selectedRows that correspond to Indices/Stocks/Crypto
+      extractedMultiAssets.forEach((m) => {
+        overridesObj[m.symbol] = {
+          ...(overridesObj[m.symbol] || {}),
+          ...m,
+          drivers: m.drivers && m.drivers.length > 0 ? m.drivers : overridesObj[m.symbol]?.drivers || [],
+          keyMetrics: {
+            ...(overridesObj[m.symbol]?.keyMetrics || {}),
+            ...(m.keyMetrics || {}),
+          },
+        };
+      });
+
+      // Also apply any user edits made in the review table to the corresponding multi-asset record
       selectedRows.forEach((row) => {
-        if (row.matchedIndicatorId?.startsWith('MULTI_') && typeof row.actual === 'number') {
-          const sym = row.matchedIndicatorId.replace('MULTI_', '');
-          const prevRec = mergedMap.get(sym);
-          mergedMap.set(sym, {
-            category:
-              selectedAsset === 'INDICES'
-                ? 'INDICES'
-                : selectedAsset === 'STOCKS'
-                ? 'STOCKS'
-                : selectedAsset === 'CRYPTO'
-                ? 'CRYPTO'
-                : prevRec?.category || 'INDICES',
+        const matchId = String(row.matchedIndicatorId || '');
+        const symMatch = matchId.match(/^(US30|NAS100|SPX500|NVDA|AAPL|MSFT|AMZN|GOOGL|META|TSLA|BTCUSDT|ETHUSDT|BNBUSDT|SOLUSDT|XRPUSDT)_(.+)$/);
+        if (symMatch && typeof row.actual === 'number') {
+          const sym = symMatch[1];
+          const fieldKey = symMatch[2].toUpperCase();
+          const cat: 'INDEX' | 'STOCK' | 'CRYPTO' =
+            ['US30', 'NAS100', 'SPX500'].includes(sym)
+              ? 'INDEX'
+              : ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT'].includes(sym)
+              ? 'CRYPTO'
+              : 'STOCK';
+          const prev = overridesObj[sym] || {
             symbol: sym,
-            name: row.name,
-            price: row.actual,
-            changePct: row.previous,
-            secondaryMetric: row.forecast,
-            unit: row.unit || '$',
-            bias: row.previous !== null && row.previous < 0 ? 'BEARISH' : 'BULLISH',
-            notes: row.notes || 'Updated from PDF Document',
-            updatedAt: new Date().toISOString(),
-          });
+            category: cat,
+            drivers: [],
+            keyMetrics: {},
+          };
+          if (fieldKey === 'PRICE') prev.price = row.actual;
+          else if (fieldKey === 'CHANGEPERCENT') prev.changePercent = row.actual;
+          else if (fieldKey === 'FORWARDPE') prev.forwardPe = row.actual;
+          else if (fieldKey === 'PEGRATIO') prev.pegRatio = row.actual;
+          else if (fieldKey === 'OPERATINGMARGINPCT') prev.operatingMarginPct = row.actual;
+          else if (fieldKey === 'FCFYELDPCT' || fieldKey === 'FCFYIELD') prev.fcfYieldPct = row.actual;
+          else if (fieldKey === 'DIVIDENDYIELDPCT') prev.dividendYieldPct = row.actual;
+          else if (fieldKey === 'EARNINGSYIELDPCT') prev.earningsYieldPct = row.actual;
+          else if (fieldKey === 'REALYIELDDISCOUNTRATE10Y') prev.realYieldDiscountRate10Y = row.actual;
+          else if (fieldKey === 'CREDITSPREADOASBPS') prev.creditSpreadOasBps = row.actual;
+          else if (fieldKey === 'GLOBALM2CORRELATION') prev.globalM2Correlation = row.actual;
+          else if (fieldKey === 'STAKINGYIELDPCT') prev.stakingYieldPct = row.actual;
+          else {
+            prev.keyMetrics = { ...(prev.keyMetrics || {}), [row.name]: row.actual };
+          }
+          overridesObj[sym] = prev;
         }
       });
 
-      if (mergedMap.size > 0) {
-        const mergedList = Array.from(mergedMap.values());
+      if (Object.keys(overridesObj).length > 0) {
+        localStorage.setItem('primepipfx_multi_asset_overrides_v1', JSON.stringify(overridesObj));
+        window.dispatchEvent(new CustomEvent('primepipfx_multi_asset_updated', { detail: overridesObj }));
+
+        const mergedList = Object.values(overridesObj);
         localStorage.setItem('primepip_multi_asset_extracted_v1', JSON.stringify(mergedList));
         window.dispatchEvent(new CustomEvent('primepip-multi-asset-updated', { detail: mergedList }));
 
-        // Also synchronize primepip_fundamental_multi_assets_v1 used by FundamentalAssetCommandCenter and Intelligence views
+        // Also synchronize primepip_fundamental_multi_assets_v1 used by FundamentalAssetCommandCenter
         try {
           const savedMultiRaw = localStorage.getItem('primepip_fundamental_multi_assets_v1');
-          const currentMultiList: any[] = savedMultiRaw ? JSON.parse(savedMultiRaw) : [];
-          if (Array.isArray(currentMultiList) && currentMultiList.length > 0) {
-            const updatedMultiList = currentMultiList.map((item) => {
-              const normItemSym = String(item.symbol || '').replace('/USDT', '').replace('S&P500', 'SPX500').toUpperCase();
-              const match = mergedList.find((m) => {
-                const normM = String(m.symbol || '').replace('/USDT', '').replace('S&P500', 'SPX500').toUpperCase();
-                return normM === normItemSym || String(m.symbol).toUpperCase() === String(item.symbol).toUpperCase();
-              });
+          const baseMultiList: any[] = savedMultiRaw ? JSON.parse(savedMultiRaw) : DEFAULT_MULTI_ASSET_FUNDAMENTALS;
+          if (Array.isArray(baseMultiList) && baseMultiList.length > 0) {
+            const updatedMultiList = baseMultiList.map((item) => {
+              const normItemSym = String(item.symbol || '')
+                .replace('/USDT', 'USDT')
+                .replace('S&P500', 'SPX500')
+                .toUpperCase();
+              const match = overridesObj[normItemSym] || overridesObj[String(item.symbol || '').toUpperCase()];
               if (!match) return item;
-              const nextScore = match.bias === 'BULLISH' ? Math.max(25, item.score || 35) : match.bias === 'BEARISH' ? Math.min(-25, item.score || -35) : item.score;
+              const nextScore =
+                typeof match.score === 'number'
+                  ? match.score
+                  : match.bias === 'STRONG BULLISH'
+                  ? 55
+                  : match.bias === 'BULLISH'
+                  ? Math.max(25, item.score || 35)
+                  : match.bias === 'STRONG BEARISH'
+                  ? -55
+                  : match.bias === 'BEARISH'
+                  ? Math.min(-25, item.score || -35)
+                  : item.score;
               return {
                 ...item,
                 price: typeof match.price === 'number' && match.price > 0 ? match.price : item.price,
-                changePercent: typeof match.changePct === 'number' ? match.changePct : item.changePercent,
+                changePercent: typeof match.changePercent === 'number' ? match.changePercent : item.changePercent,
                 score: nextScore,
-                bias: nextScore >= 35 ? 'STRONG BULLISH' : nextScore >= 10 ? 'BULLISH' : nextScore <= -35 ? 'STRONG BEARISH' : nextScore <= -10 ? 'BEARISH' : 'NEUTRAL',
-                keyMetric1Value: match.secondaryMetric !== null && match.secondaryMetric !== undefined ? String(match.secondaryMetric) : item.keyMetric1Value,
-                drivers: match.notes ? [match.notes, ...(Array.isArray(item.drivers) ? item.drivers.slice(0, 2) : [])] : item.drivers,
-                updatedAt: new Date().toISOString(),
+                bias:
+                  match.bias ||
+                  (nextScore >= 35
+                    ? 'STRONG BULLISH'
+                    : nextScore >= 10
+                    ? 'BULLISH'
+                    : nextScore <= -35
+                    ? 'STRONG BEARISH'
+                    : nextScore <= -10
+                    ? 'BEARISH'
+                    : 'NEUTRAL'),
+                keyMetric1Value:
+                  match.forwardPe !== undefined
+                    ? `${match.forwardPe}x`
+                    : match.spotEtfFlowsWeekly !== undefined
+                    ? match.spotEtfFlowsWeekly
+                    : item.keyMetric1Value,
+                keyMetric2Value:
+                  match.operatingMarginPct !== undefined
+                    ? `${match.operatingMarginPct}%`
+                    : match.pegRatio !== undefined
+                    ? `${match.pegRatio}`
+                    : match.stakingYieldPct !== undefined
+                    ? `${match.stakingYieldPct}%`
+                    : item.keyMetric2Value,
+                keyDrivers:
+                  match.drivers && match.drivers.length > 0
+                    ? match.drivers.map((d) => `${d.label}: ${d.note}`)
+                    : item.keyDrivers,
+                lastUpdated: new Date().toISOString().slice(0, 10),
                 verificationStatus: 'VERIFIED',
               };
             });

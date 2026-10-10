@@ -320,7 +320,7 @@ export const SentimentImageExtractorModal: React.FC<SentimentImageExtractorModal
                   {extractionTelemetry && (
                     <div className="p-2.5 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-[11px] font-mono-code flex flex-wrap items-center justify-between gap-2">
                       <span className="text-cyan-300 font-bold">
-                        Pages Processed: {extractionTelemetry.pagesProcessed}/{extractionTelemetry.totalPages} ({extractionTelemetry.extractionMethodUsed})
+                        Pages Processed: {extractionTelemetry.pagesProcessed}/{extractionTelemetry.totalPages} ({extractionTelemetry.extractionMethod})
                       </span>
                       <span className="text-emerald-300 font-bold">
                         Extracted: {extractedRows.length} sentiment pair(s)

@@ -208,9 +208,11 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
       } catch {}
     };
     window.addEventListener('primepipfx_fundamental_data_updated', syncMultiAssets);
+    window.addEventListener('primepipfx_multi_asset_updated', syncMultiAssets);
     window.addEventListener('storage', syncMultiAssets);
     return () => {
       window.removeEventListener('primepipfx_fundamental_data_updated', syncMultiAssets);
+      window.removeEventListener('primepipfx_multi_asset_updated', syncMultiAssets);
       window.removeEventListener('storage', syncMultiAssets);
     };
   }, []);
@@ -590,7 +592,7 @@ export const FundamentalAssetCommandCenter: React.FC<Props> = ({
             {onOpenImageExtractor && (
               <button
                 type="button"
-                onClick={() => onOpenImageExtractor(asset.symbol.replace('/USDT', '') as any)}
+                onClick={() => onOpenImageExtractor(asset.symbol.replace('/USDT', 'USDT') as any)}
                 className="px-2.5 py-2 rounded-xl border border-purple-500/40 bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 text-[10px] font-mono-code font-bold transition cursor-pointer flex items-center gap-1"
                 title="Upload PDF or Screenshot for this asset"
               >

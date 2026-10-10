@@ -27,6 +27,7 @@ import {
   parseSentimentDocumentText,
   parseCotDocumentText,
   parseMultiAssetDocumentText,
+  detectDocumentAssetIdentity,
   isPdfPayload,
   getCleanBase64,
   PdfExtractionTelemetry,
@@ -567,15 +568,29 @@ export async function extractIndicatorsFromImage(
         if (multiParsed.assets.length > 0) {
           extractedMultiAssets = multiParsed.assets;
         }
-        if (multiParsed.indicators.length > 0 && combinedIndicators.length === 0) {
+        if (multiParsed.indicators.length > 0) {
           usedNativeText = true;
           addUniqueIndicators(multiParsed.indicators, 'Uploaded Multi-Asset PDF Report');
+        }
+
+        // If text-based PDF yielded 0 matches for the selected category, check if the document belongs to a different asset
+        if (
+          combinedIndicators.length === 0 &&
+          extractedMultiAssets.length === 0 &&
+          docMeta.scannedPageNumbers.length === 0
+        ) {
+          const detectedAssets = detectDocumentAssetIdentity(docMeta.fullText);
+          if (detectedAssets.length > 0 && cleanSel !== 'ALL' && !detectedAssets.includes(cleanSel)) {
+            throw new Error(
+              `Asset Mismatch: The uploaded PDF contains data for ${detectedAssets.join(', ')}, which does not match the selected category (${cleanSel}). Existing ${cleanSel} records were preserved.`
+            );
+          }
         }
       }
 
       // For scanned or mixed PDFs (or if native text found 0 rows), render scanned/all pages up to batch limit (8 pages)
       const pagesToOcr =
-        combinedIndicators.length === 0
+        combinedIndicators.length === 0 && extractedMultiAssets.length === 0
           ? Array.from({ length: Math.min(docMeta.totalPages || 1, 8) }, (_, i) => i + 1)
           : docMeta.scannedPageNumbers.slice(0, 6);
 
@@ -598,7 +613,7 @@ export async function extractIndicatorsFromImage(
         }
       }
 
-      if (combinedIndicators.length > 0) {
+      if (combinedIndicators.length > 0 || extractedMultiAssets.length > 0) {
         const valuesRequiringReview = combinedIndicators.filter(
           (r) => r.actual === null || r.actual === undefined || (r.confidence !== undefined && r.confidence < 85)
         ).length;
@@ -611,7 +626,7 @@ export async function extractIndicatorsFromImage(
           valuesExtracted: combinedIndicators.length,
           valuesRequiringReview,
           extractionMethod:
-            usedNativeText && usedOcrOnPages
+            (usedNativeText && usedOcrOnPages) || (usedNativeText && docMeta.scannedPageNumbers.length > 0)
               ? 'HYBRID_TEXT_AND_OCR'
               : usedOcrOnPages
               ? 'VISION_OCR'
@@ -633,6 +648,9 @@ export async function extractIndicatorsFromImage(
         };
       }
     } catch (err: any) {
+      if (err?.message && err.message.startsWith('Asset Mismatch:')) {
+        throw err;
+      }
       console.warn('[LiveResearch] Client direct PDF text extraction warning:', err?.message || err);
     }
   }
