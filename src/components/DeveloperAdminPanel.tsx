@@ -74,7 +74,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
   const [newPassword, setNewPassword] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newReferralCode, setNewReferralCode] = useState('');
-  const [newPrice, setNewPrice] = useState<number>(50);
+  const [newPrice, setNewPrice] = useState<number>(55);
   const [newIsLifetime, setNewIsLifetime] = useState<boolean>(false);
   const [newPaymentStatus, setNewPaymentStatus] = useState<'UNPAID' | 'PENDING' | 'VERIFIED'>('VERIFIED');
   const [newStatus, setNewStatus] = useState<'ACTIVE' | 'PAYMENT_REQUIRED' | 'LIFETIME'>('ACTIVE');
@@ -475,10 +475,10 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
   const lifetimeCount = regularCustomers.filter((c) => c.subscriptionStatus === 'LIFETIME').length;
   const expiredCount = regularCustomers.filter((c) => c.subscriptionStatus === 'EXPIRED').length;
   const pendingPaymentCount = regularCustomers.filter((c) => c.paymentStatus === 'PENDING' || c.paymentStatus === 'UNPAID').length;
-  const monthlyRevenueEstimate = activeCount * 50;
+  const monthlyRevenueEstimate = activeCount * 55;
   const totalRevenue = regularCustomers
     .filter((c) => c.paymentStatus === 'VERIFIED')
-    .reduce((acc, c) => acc + (c.subscriptionPrice || 50), 0);
+    .reduce((acc, c) => acc + (c.subscriptionPrice || 55), 0);
 
   if (!isAuthorized) {
     return (
@@ -790,7 +790,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                       </td>
 
                       <td className="py-3 font-bold text-slate-300">
-                        ${cust.subscriptionPrice || 50}
+                        ${cust.subscriptionPrice || 55}
                       </td>
 
                       <td className="py-3">
@@ -1063,8 +1063,8 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                   <label className="text-slate-300 font-bold block mb-1">Subscription Price ($)</label>
                   <input
                     type="number"
-                    value={editingUser.subscriptionPrice || 50}
-                    onChange={(e) => setEditingUser({ ...editingUser, subscriptionPrice: parseFloat(e.target.value) || 50 })}
+                    value={editingUser.subscriptionPrice || 55}
+                    onChange={(e) => setEditingUser({ ...editingUser, subscriptionPrice: parseFloat(e.target.value) || 55 })}
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
                   />
                 </div>

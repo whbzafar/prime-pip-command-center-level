@@ -162,16 +162,16 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
               </div>
             )}
 
-            {/* Special Offer Banner: $55 until Oct 10 2026 or 5 students free */}
+            {/* Special Offer Banner: $55 or 5 Course / 2 Terminal Referrals Free */}
             <div className="p-3 rounded-lg bg-gradient-to-r from-amber-500/15 via-blue-500/15 to-emerald-500/15 border border-amber-500/40 space-y-1 text-slate-200">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-amber-300 text-xs font-military">SPECIAL LIFETIME ACCESS OFFER</span>
+                <span className="font-bold text-amber-300 text-xs font-military">LIFETIME ACCESS ($55) & REWARD SYSTEM</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
-                  VALID UNTIL OCT 10, 2026
+                  $55 LIFETIME
                 </span>
               </div>
               <p className="text-[11px] text-slate-300">
-                Lock in lifetime access for <strong>$55</strong> (fee increases after Oct 10, 2026) — OR bring <strong>5 students</strong> to take the 3-month course and receive the <strong>entire platform 100% FREE for life!</strong>
+                Get full lifetime access for <strong>$55</strong> — OR unlock <strong>100% FREE Lifetime Access</strong> by referring <strong>5 students to the course</strong> OR when <strong>2 referred students purchase the terminal ($55)</strong>!
               </p>
             </div>
           </div>

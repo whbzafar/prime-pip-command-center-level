@@ -52,6 +52,10 @@ import { PostTradeImpactSummary } from './types';
 import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
 
 const ALLOWED_DEMO_CATEGORIES: string[] = [
+  'SBT_MODELS',
+  'JOURNAL',
+  'RISK',
+  'PRE_TRADE_PLAN',
   'LOT_SIZE',
   'FUNDAMENTAL_CALENDAR',
   'PRO_TRADING',
@@ -652,11 +656,6 @@ export default function App() {
 
   const handleDeleteTrade = async (id: string) => {
     if (!activeAccount) return;
-    if (isDemoMode && !currentUser) {
-      playDisciplineAlert('WARNING');
-      setDemoToast('WARNING: Trade deletion is restricted in preview mode.');
-      return;
-    }
 
     if (
       currentUser &&
@@ -1022,10 +1021,6 @@ export default function App() {
         lastSavedTime={lastSavedTime}
         isDemoMode={isDemoMode}
         onOpenNewTrade={() => {
-          if (isDemoMode) {
-            setLockedCategoryModal(CATEGORY_SUMMARIES['JOURNAL']);
-            return;
-          }
           setIsEntryModalOpen(true);
         }}
         onOpenAccountManager={() => setIsAccountManagerOpen(true)}
@@ -1069,11 +1064,11 @@ export default function App() {
         <div className="bg-blue-500/10 border-b border-blue-500/30 px-4 py-2.5 text-center text-xs font-mono-code text-amber-300 flex items-center justify-center gap-3 flex-wrap shadow-inner">
           <span className="font-bold flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-            EXPLORING IN DEMO / PREVIEW MODE (READ-ONLY)
+            EXPLORING IN DEMO MODE (SBT MODELS • TRADE JOURNAL • RISK • PRE-TRADE PLAN UNLOCKED)
           </span>
           <span className="text-slate-600 hidden sm:inline">•</span>
           <span className="text-slate-400 text-[11px]">
-            To connect live accounts and log permanent executions, activate your account on Developer WhatsApp: <strong className="text-amber-300">03406671495</strong>
+            To unlock all categories & cloud sync, activate your subscription on Developer WhatsApp: <strong className="text-amber-300">03406671495</strong>
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -1086,7 +1081,7 @@ export default function App() {
               onClick={() => setIsSubscriptionModalOpen(true)}
               className="px-3 py-1 bg-slate-950 hover:bg-slate-800 text-amber-300 font-bold font-military rounded-lg text-[10px] tracking-wider uppercase transition cursor-pointer border border-blue-500/40"
             >
-              SUBSCRIBE ($40-$50)
+              SUBSCRIBE ($55)
             </button>
           </div>
         </div>
@@ -1434,10 +1429,6 @@ export default function App() {
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
         onOpenNewTrade={() => {
-          if (isDemoMode) {
-            setLockedCategoryModal(CATEGORY_SUMMARIES['JOURNAL']);
-            return;
-          }
           setIsEntryModalOpen(true);
         }}
         currentUser={currentUser}

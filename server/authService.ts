@@ -498,13 +498,13 @@ export function createCustomer(data: {
   }
 
   // Check referral validity
-  let effectivePrice = data.subscriptionPrice ?? 50;
+  let effectivePrice = data.subscriptionPrice ?? 55;
   let referrerUser: StoredUser | undefined;
   if (data.referralCode) {
     const cleanRef = data.referralCode.trim().toUpperCase();
     referrerUser = users.find((u) => (u.referralCode || '').toUpperCase() === cleanRef || u.username.toUpperCase() === cleanRef);
     if (referrerUser) {
-      effectivePrice = 40; // $40 with valid referral
+      effectivePrice = 55; // $55 with valid referral
     }
   }
 

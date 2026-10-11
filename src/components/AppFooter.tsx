@@ -19,10 +19,17 @@ export const AppFooter: React.FC<AppFooterProps> = ({ onOpenReviews }) => (
         <p className="font-military text-xs sm:text-sm font-bold tracking-wider text-slate-200 shrink-0">
           PRIMEPIP<span className="text-cyan-400">FX</span>
         </p>
-        <span className="text-slate-600 hidden xs:inline shrink-0">|</span>
-        <p className="hidden xs:block text-[10px] sm:text-[11px] text-slate-500 truncate">
-          Trade with process. Grow with discipline.
-        </p>
+        <span className="text-slate-600 hidden sm:inline shrink-0">|</span>
+        <a
+          href="https://wa.me/923406671495"
+          target="_blank"
+          rel="noreferrer noopener"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] sm:text-[11px] font-mono-code font-bold transition shrink-0"
+          title="Contact Owner directly on WhatsApp: 03406671495"
+        >
+          <MessageCircle className="w-3 h-3 text-emerald-400" />
+          <span>WhatsApp: 03406671495</span>
+        </a>
 
         {/* 5-Star Reviews Quick Access Pill */}
         {onOpenReviews && (

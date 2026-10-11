@@ -110,6 +110,10 @@ export const LockedCategoryModal: React.FC<LockedCategoryModalProps> = ({
 
           {/* Call to Actions */}
           <div className="mt-5 space-y-2.5 pt-2 border-t border-slate-800/80">
+            <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-[11px] font-mono-code text-slate-200">
+              <strong className="text-purple-300">🎁 Lifetime Reward Option:</strong> Refer <strong>5 students to the course</strong> OR <strong>2 students who purchase the terminal ($55)</strong> to receive <strong>FREE Lifetime Access</strong>!
+            </div>
+
             <button
               type="button"
               onClick={() => {
@@ -119,7 +123,7 @@ export const LockedCategoryModal: React.FC<LockedCategoryModalProps> = ({
               className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-military font-bold text-xs tracking-wider uppercase transition shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-slate-950" />
-              <span>PURCHASE SUBSCRIPTION TO UNLOCK FULL SUITE</span>
+              <span>SUBSCRIBE ($55) OR CLAIM LIFETIME REWARD</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
@@ -131,13 +135,13 @@ export const LockedCategoryModal: React.FC<LockedCategoryModalProps> = ({
                 className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-mono-code font-bold text-center flex items-center justify-center gap-2 transition"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
-                <span>Contact via WhatsApp</span>
+                <span>WhatsApp: 03406671495</span>
               </a>
 
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-mono-code transition border border-slate-700/60"
+                className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-mono-code transition border border-slate-700/60 cursor-pointer"
               >
                 Continue Demo Exploration
               </button>
