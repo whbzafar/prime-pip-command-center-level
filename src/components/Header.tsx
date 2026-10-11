@@ -410,7 +410,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'FUNDAMENTAL_INDICATORS' as MainNavTab, label: '08. FUNDAMENTAL INDICATORS', icon: Globe, highlight: true },
     { id: 'SIGNALS' as MainNavTab, label: '09. PREMIUM SIGNALS', icon: Radio, highlight: true, comingSoon: false, locked: false, isLive: true },
     { id: 'PRO_TRADING' as MainNavTab, label: '10. PREMIUM TRADINGVIEW', icon: CandlestickChart, highlight: true },
-    { id: 'META5_PREMIUM' as MainNavTab, label: '11. META 5', icon: Smartphone, highlight: false, locked: true, comingSoon: true },
+    { id: 'META5_PREMIUM' as MainNavTab, label: '11. META 5', icon: Smartphone, highlight: false, locked: true, comingSoon: false },
     { id: 'COMPOUNDING' as MainNavTab, label: '12. COMPOUNDING TOOLS', icon: Calculator },
     { id: 'PERFORMANCE' as MainNavTab, label: '11. PERFORMANCE REPORT', icon: BarChart3 },
     { id: 'DAILY_DEV' as MainNavTab, label: '12. DAILY DEVELOPMENT', icon: Award },
@@ -858,18 +858,6 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {onOpenCreateAccount && (
-          <button
-            type="button"
-            onClick={onOpenCreateAccount}
-            title="Create or Configure Demo, Personal, or Funded Account"
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-gradient-to-r from-blue-500/15 to-cyan-500/15 hover:from-blue-500/25 hover:to-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-[11px] font-military font-bold tracking-wider uppercase transition cursor-pointer shadow-sm hover:border-cyan-400"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[3]" />
-            <span>Set Up Account</span>
-          </button>
-        )}
-
         {/* Global discovery and account actions */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           <GlobalSearch onNavigate={switchTab} />
@@ -985,19 +973,19 @@ export const Header: React.FC<HeaderProps> = ({
                 id="header-psychological-center-guest-btn"
                 type="button"
                 onClick={() => switchTab('PSYCHOLOGY')}
-                title="Psychological Center — Train your mindset. Protect your discipline. Improve your execution."
+                title="Psychological Center — Subscription Required in Demo Mode"
                 className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition-all duration-200 cursor-pointer shadow-sm group prime-ios-touch ${
                   activeTab === 'PSYCHOLOGY'
                     ? 'bg-gradient-to-r from-blue-500 to-amber-600 text-slate-950 border-cyan-400 shadow-blue-500/25 ring-1 ring-cyan-400'
-                    : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-amber-300 border-slate-800 hover:border-blue-500/50'
+                    : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-amber-300 border-amber-500/40 hover:border-amber-400'
                 }`}
               >
                 <div className={`w-4 h-4 rounded flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
-                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-cyan-400'
+                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-amber-400'
                 }`}>
-                  <Brain className="w-3.5 h-3.5 stroke-[2.2]" />
+                  <Lock className="w-3.5 h-3.5 stroke-[2.2]" />
                 </div>
-                <div className="text-left flex flex-col justify-center leading-tight">
+                <div className="text-left flex items-center gap-1 leading-tight">
                   <span className="whitespace-nowrap hidden sm:inline">Psych Center</span>
                   <span className="sm:hidden font-mono-code text-[10px]">MINDSET</span>
                 </div>
@@ -1017,20 +1005,6 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="sm:hidden text-[9px] font-mono-code">
                 {account ? formatCurrency(account.currentBalance, account.currency).split('.')[0] : 'ACC'}
               </span>
-            </button>
-          )}
-
-          {onOpenCreateAccount && (
-            <button
-              id="mobile-setup-account-btn"
-              type="button"
-              onClick={onOpenCreateAccount}
-              className="md:hidden flex items-center gap-1 px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/30 hover:border-cyan-400 text-cyan-300 font-military text-[11px] font-bold prime-ios-touch cursor-pointer"
-              title="Set Up New Trading Account"
-            >
-              <Plus className="w-3 h-3 shrink-0 stroke-[3]" />
-              <span className="hidden sm:inline">NEW ACC</span>
-              <span className="sm:hidden text-[9px]">+ACC</span>
             </button>
           )}
 
@@ -1165,13 +1139,24 @@ export const Header: React.FC<HeaderProps> = ({
                   {item.id === 'META5_PREMIUM' && (
                     <span className="flex items-center gap-1 text-[8px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
                       <Lock className="w-2.5 h-2.5 text-amber-400" />
-                      COMING SOON
+                      LOCKED
                     </span>
                   )}
-                  {item.id === 'SIGNALS' && isDemoMode ? (
+                  {isDemoMode &&
+                  (item.id === 'PRE_TRADE_PLAN' ||
+                    item.id === 'FUNDAMENTAL_CALENDAR' ||
+                    item.id === 'FUNDAMENTAL_INDICATORS' ||
+                    item.id === 'SIGNALS' ||
+                    item.id === 'PERFORMANCE' ||
+                    item.id === 'DAILY_DEV' ||
+                    item.id === 'PSYCHOLOGY' ||
+                    item.id === 'CALMING_TOOLS' ||
+                    item.id === 'SITUATION_SAVER' ||
+                    item.id === 'PRO_LEARNING' ||
+                    item.id === 'COMMUNITY') ? (
                     <span className="flex items-center gap-1 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
-                      <Clock className="w-2.5 h-2.5 text-amber-400" />
-                      COMING SOON
+                      <Lock className="w-2.5 h-2.5 text-amber-400" />
+                      LOCKED
                     </span>
                   ) : (
                     <>

@@ -52,18 +52,21 @@ import { PostTradeImpactSummary } from './types';
 import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
 
 const ALLOWED_DEMO_CATEGORIES: string[] = [
+  'DASHBOARD',
   'SBT_MODELS',
   'JOURNAL',
   'RISK',
-  'PRE_TRADE_PLAN',
   'LOT_SIZE',
-  'FUNDAMENTAL_CALENDAR',
   'PRO_TRADING',
-  'SIGNALS',
   'COMPOUNDING',
+  'BACKTESTING',
   'FREEHAND_WORKSPACE',
   'RESEARCH',
   'PAIR_SAVER',
+  'BOOK_SESSION',
+  'GOALS',
+  'SUBSCRIPTION',
+  'REFERRALS',
 ];
 import { apiRecordTelemetrySignal } from './utils/evolutionClient';
 import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin } from './utils/authClient';
@@ -258,7 +261,7 @@ export default function App() {
     } catch {}
     setIsLoginModalOpen(false);
     setIsSubscriptionModalOpen(false);
-    setActiveTab('PRO_TRADING');
+    setActiveTab('DASHBOARD');
 
     // If no account is loaded, provide a demo preview account immediately
     if (!activeAccount || accounts.length === 0) {
@@ -293,31 +296,14 @@ export default function App() {
         const summary = CATEGORY_SUMMARIES['META5_PREMIUM'] || {
           id: 'META5_PREMIUM',
           name: '11. Meta 5 Terminal',
-          shortDesc: 'Locked — Coming Soon',
-          overview: 'The Meta 5 Mobile Terminal category is currently locked and labeled Coming Soon. Multi-broker MT5 bridges and direct mobile execution are launching soon.',
+          shortDesc: '🔒 Category Locked',
+          overview: 'The Meta 5 Mobile Terminal category is currently locked. Subscribe to unlock full broker connectivity and live MT5 bridge capabilities.',
           keyFeatures: ['Authentic mobile MT5 interface', 'Prop firm & broker bridge', 'One-click journal auto-log'],
         };
         setLockedCategoryModal({
           ...summary,
-          name: '11. Meta 5 Terminal (Coming Soon)',
-          shortDesc: '🔒 Category Locked — Coming Soon',
-          overview: 'The Meta 5 Mobile Terminal is currently locked and marked Coming Soon. Full broker connectivity and live MT5 bridge capabilities will be unlocked in an upcoming release.',
-        });
-        return;
-      }
-      if (isDemoMode && tab === 'SIGNALS') {
-        const summary = CATEGORY_SUMMARIES['SIGNALS'] || {
-          id: 'SIGNALS',
-          name: '09. Premium Signals',
-          shortDesc: 'Coming Soon in Demo Mode',
-          overview: 'The Premium Signals category is tagged Coming Soon for Demo users. Institutional signals, real-time setups, and live broadcast alpha will be unlocked with full student enrollment ($55 lifetime access with code "Primepip").',
-          keyFeatures: ['Institutional high-probability trade setups', 'Real-time entry, stop loss, and take profit levels', 'Direct broadcast notifications & trade journals'],
-        };
-        setLockedCategoryModal({
-          ...summary,
-          name: '09. Premium Signals (Coming Soon)',
-          shortDesc: '⏳ Category Tagged: Coming Soon',
-          overview: 'The Premium Signals category is currently tagged Coming Soon for demo users. Upgrade to lifetime access for $55 (using code "Primepip" for 45% discount) to unlock live real-time institutional setups and signals.',
+          name: '11. Meta 5 Terminal',
+          shortDesc: '🔒 Category Locked',
         });
         return;
       }
@@ -1024,7 +1010,6 @@ export default function App() {
           setIsEntryModalOpen(true);
         }}
         onOpenAccountManager={() => setIsAccountManagerOpen(true)}
-        onOpenCreateAccount={() => setIsCreateAccountWizardOpen(true)}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         currentUser={currentUser}
         onOpenLogin={() => setIsLoginModalOpen(true)}
@@ -1059,16 +1044,20 @@ export default function App() {
         onOpenAllCategories={() => setIsAllCategoriesOpen(true)}
       />
 
-      {/* Demo Mode Notification HUD */}
+      {/* Demo Mode Notification HUD with $55 Subscription & Free Referral Incentive */}
       {isDemoMode && (
-        <div className="bg-blue-500/10 border-b border-blue-500/30 px-4 py-2.5 text-center text-xs font-mono-code text-amber-300 flex items-center justify-center gap-3 flex-wrap shadow-inner">
+        <div className="bg-gradient-to-r from-blue-500/15 via-slate-900/95 to-emerald-500/15 border-b border-blue-500/35 px-4 py-2.5 text-center text-xs font-mono-code text-amber-300 flex items-center justify-center gap-3 flex-wrap shadow-inner">
           <span className="font-bold flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-            EXPLORING IN DEMO MODE (SBT MODELS • TRADE JOURNAL • RISK • PRE-TRADE PLAN UNLOCKED)
+            EXPLORING DEMO MODE — FULL ACCESS ($55)
           </span>
           <span className="text-slate-600 hidden sm:inline">•</span>
-          <span className="text-slate-400 text-[11px]">
-            To unlock all categories & cloud sync, activate your subscription on Developer WhatsApp: <strong className="text-amber-300">03406671495</strong>
+          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold">
+            🎁 FREE ACCESS INCENTIVE: Get the Course &amp; Terminal 100% FREE if you refer 5 students to the course OR if 2 students purchase it!
+          </span>
+          <span className="text-slate-600 hidden lg:inline">•</span>
+          <span className="text-slate-300 text-[11px]">
+            WhatsApp: <strong className="text-amber-300">03406671495</strong>
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -1079,9 +1068,9 @@ export default function App() {
             </button>
             <button
               onClick={() => setIsSubscriptionModalOpen(true)}
-              className="px-3 py-1 bg-slate-950 hover:bg-slate-800 text-amber-300 font-bold font-military rounded-lg text-[10px] tracking-wider uppercase transition cursor-pointer border border-blue-500/40"
+              className="px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-bold font-military rounded-lg text-[10px] tracking-wider uppercase transition cursor-pointer shadow-sm"
             >
-              SUBSCRIBE ($55)
+              SUBSCRIBE ($55 OR CLAIM FREE REWARD)
             </button>
           </div>
         </div>
@@ -1136,17 +1125,18 @@ export default function App() {
             account={activeAccount}
             trades={trades}
             currentUser={currentUser}
+            isDemoMode={isDemoMode}
             onOpenNewTrade={(prefill) => {
               if (prefill) {
                 setPrefilledTradeData(prefill);
               }
               setIsEntryModalOpen(true);
             }}
-            onNavigateToTab={(tab) => setActiveTab(tab as any)}
+            onNavigateToTab={(tab) => handleSelectTab(tab)}
             onOpenAccountModal={() => setIsAccountManagerOpen(true)}
             onOpenTraderProfile={() => setIsTraderProfileOpen(true)}
             onOpenNotifications={() => setIsNotificationsOpen(true)}
-            onOpenEvolution={() => setActiveTab('EVOLUTION')}
+            onOpenEvolution={() => handleSelectTab('EVOLUTION')}
             onUpdateAccount={handleUpdateAccount}
           />
         )}
@@ -1182,7 +1172,7 @@ export default function App() {
               if (prefill) setPrefilledTradeData(prefill);
               setIsEntryModalOpen(true);
             }}
-            onNavigateTab={(tab) => setActiveTab(tab as MainNavTab)}
+            onNavigateTab={(tab) => handleSelectTab(tab)}
           />
         )}
 
@@ -1192,12 +1182,12 @@ export default function App() {
               if (prefill) setPrefilledTradeData(prefill);
               setIsEntryModalOpen(true);
             }}
-            onNavigateTab={(tab) => setActiveTab(tab as MainNavTab)}
+            onNavigateTab={(tab) => handleSelectTab(tab)}
             onOpenCurrencyWorkspace={() => {
-              setActiveTab('FUNDAMENTAL_INDICATORS');
+              handleSelectTab('FUNDAMENTAL_INDICATORS');
             }}
             onSaveSituationForPair={() => {
-              setActiveTab('SITUATION_SAVER');
+              handleSelectTab('SITUATION_SAVER');
             }}
           />
         )}
@@ -1205,12 +1195,12 @@ export default function App() {
         {activeTab === 'FREEHAND_WORKSPACE' && (
           <FreehandWorkspace
             userKey={currentUser?.id || currentUser?.email || 'guest'}
-            onNavigateTab={(tab) => setActiveTab(tab as MainNavTab)}
+            onNavigateTab={(tab) => handleSelectTab(tab)}
           />
         )}
 
         {activeTab === 'PRO_LEARNING' && (
-          <ProLearningTrading onNavigateTab={(tab) => setActiveTab(tab as MainNavTab)} />
+          <ProLearningTrading onNavigateTab={(tab) => handleSelectTab(tab)} />
         )}
 
         {activeTab === 'COMMUNITY' && (
@@ -1261,7 +1251,7 @@ export default function App() {
             trades={trades}
             account={activeAccount}
             onOpenNewTrade={() => setIsEntryModalOpen(true)}
-            onNavigateToTab={(tab) => setActiveTab(tab as any)}
+            onNavigateToTab={(tab) => handleSelectTab(tab)}
           />
         )}
 
@@ -1289,14 +1279,33 @@ export default function App() {
         )}
 
         {activeTab === 'PRO_TRADING' && (
-          <ProTradingView onOpenNewTrade={() => setIsEntryModalOpen(true)} />
+          <ProTradingView
+            onOpenNewTrade={() => setIsEntryModalOpen(true)}
+            currentUser={currentUser}
+            isDemoMode={isDemoMode}
+            onRequireSubscription={() => {
+              setLockedCategoryModal({
+                id: 'FUNDAMENTAL_INDICATORS',
+                name: 'Fundamental Pairs (Premium Pairing Feature)',
+                shortDesc: '🔒 Locked in Demo Mode — Subscription Required ($55 or Free via Referrals)',
+                overview:
+                  'The Fundamental Pair option (28-Pair Bullish & Bearish Differential Matrix & Multi-Asset Pairing Engine) inside Premium TradingView is restricted to subscribed members. Subscribe for $55 — OR get the Course & Terminal 100% FREE if you refer 5 students to the course or if 2 students purchase it!',
+                keyFeatures: [
+                  'Live 28-Pair Long-Term Bullish & Bearish Differential Matrix',
+                  'Real-Time Central Bank Rate Spread & 10Y Bond Yield Differentials',
+                  'Multi-Asset Fundamental Status (Indices, Top Stocks & Top 5 Crypto)',
+                  'One-click chart loading for highest-probability fundamental pairs',
+                ],
+              });
+            }}
+          />
         )}
 
         {activeTab === 'META5_PREMIUM' && (
           <Meta5PremiumTerminal
             activeAccount={activeAccount}
             onAutoLogTradeToJournal={handleAutoLogMeta5Trade}
-            onOpenJournal={() => setActiveTab('JOURNAL')}
+            onOpenJournal={() => handleSelectTab('JOURNAL')}
           />
         )}
 
@@ -1306,7 +1315,7 @@ export default function App() {
             trades={trades}
             metrics={metrics}
             onOpenNewTrade={() => setIsEntryModalOpen(true)}
-            onNavigateToTab={(tab) => setActiveTab(tab)}
+            onNavigateToTab={(tab) => handleSelectTab(tab)}
           />
         )}
 
@@ -1340,7 +1349,7 @@ export default function App() {
           <CalmingSuiteMaster
             trades={trades}
             userId={currentUser?.id}
-            onNavigateToTab={(tab) => setActiveTab(tab as any)}
+            onNavigateToTab={(tab) => handleSelectTab(tab)}
           />
         )}
 
@@ -1357,7 +1366,7 @@ export default function App() {
             trades={trades}
             defaultInstrument={selectedInstrument}
             onInstrumentChange={setSelectedInstrument}
-            onNavigateToTab={(tab) => setActiveTab(tab)}
+            onNavigateToTab={(tab) => handleSelectTab(tab)}
           />
         )}
 
@@ -1419,8 +1428,8 @@ export default function App() {
         <NotificationsPanel
           onClose={() => setIsNotificationsOpen(false)}
           onNavigate={(link) => {
-            if (link === "/community") setActiveTab("COMMUNITY");
-            else if (link === "/trade") setActiveTab("DASHBOARD");
+            if (link === "/community") handleSelectTab("COMMUNITY");
+            else if (link === "/trade") handleSelectTab("DASHBOARD");
             else console.log("Navigate to", link);
           }}
         />
@@ -1472,7 +1481,7 @@ export default function App() {
           onOpenPreTradePlan={() => {
             setIsEntryModalOpen(false);
             setPrefilledTradeData(null);
-            setActiveTab('PRE_TRADE_PLAN');
+            handleSelectTab('PRE_TRADE_PLAN');
           }}
           prefilledTradeData={prefilledTradeData}
         />

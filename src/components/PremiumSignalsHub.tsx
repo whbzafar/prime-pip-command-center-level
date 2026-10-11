@@ -31,6 +31,7 @@ import {
   Maximize2,
   Eye,
   Paperclip,
+  Lock,
 } from 'lucide-react';
 import { SignalItem, UserAccount } from '../types';
 import jsPDF from 'jspdf';
@@ -648,8 +649,8 @@ Issued: ${signal.createdAt}`;
                 </h1>
                 {isDemo ? (
                   <span className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/50 text-[11px] font-mono-code font-bold text-amber-300 shadow-md shadow-amber-500/20">
-                    <Clock className="w-3 h-3 text-amber-400" />
-                    <span>COMING SOON</span>
+                    <Lock className="w-3 h-3 text-amber-400" />
+                    <span>LOCKED</span>
                   </span>
                 ) : (
                   <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-[11px] font-mono-code font-bold text-emerald-400 shadow-sm shadow-emerald-500/20">
@@ -698,13 +699,13 @@ Issued: ${signal.createdAt}`;
         {isDemo && (
           <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono-code text-amber-200">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+              <Lock className="w-4 h-4 text-amber-400 shrink-0" />
               <span>
-                <strong>DEMO NOTICE:</strong> The Premium Signals category is tagged <strong>'Coming Soon'</strong> for explore demo accounts. Lifetime access ($55 with code <strong>'Primepip'</strong>, 45% discount) unlocks live verified execution dispatches.
+                <strong>DEMO NOTICE:</strong> The Premium Signals category is <strong>locked</strong> for demo accounts. Subscribe for <strong>$55</strong> — or get the course &amp; terminal <strong>100% FREE</strong> by referring <strong>5 students</strong> or when <strong>2 students purchase</strong> it!
               </span>
             </div>
             <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/40 font-bold uppercase shrink-0 w-fit">
-              COMING SOON
+              LOCKED
             </span>
           </div>
         )}

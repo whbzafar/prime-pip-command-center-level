@@ -24,6 +24,7 @@ import {
   Radio,
   Bell,
   X,
+  Lock,
 } from 'lucide-react';
 import {
   fetchSignalsFromServer,
@@ -53,10 +54,12 @@ interface MainDashboardProps {
   account: AccountSettings;
   trades: Trade[];
   currentUser?: UserAccount | null;
+  isDemoMode?: boolean;
   onOpenNewTrade: (prefill?: Partial<Trade>) => void;
   onNavigateToTab: (tab: any) => void;
   onOpenAccountModal?: () => void;
   onOpenTraderProfile?: () => void;
+  onOpenNotifications?: () => void;
   onOpenEvolution?: () => void;
   onUpdateAccount?: (account: AccountSettings) => void;
 }
@@ -66,6 +69,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   account,
   trades,
   currentUser,
+  isDemoMode = false,
   onOpenNewTrade,
   onNavigateToTab,
   onOpenAccountModal,
@@ -73,6 +77,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   onOpenEvolution,
   onUpdateAccount,
 }) => {
+  const isPsychLocked = isDemoMode || (!currentUser && typeof window !== 'undefined' && localStorage.getItem('primepipfx_demo_mode') === 'true');
   const scores = metrics.performanceScores;
   const isProfitable = metrics.totalProfitLoss >= 0;
 
@@ -310,18 +315,35 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
             id="dash-psychological-center-direct-btn"
             type="button"
             onClick={() => onNavigateToTab('PSYCHOLOGY')}
-            title="Psychological Center — Train your mindset. Protect your discipline. Improve your execution."
+            title={
+              isPsychLocked
+                ? 'Psychological Center — Subscription Required in Demo Mode'
+                : 'Psychological Center — Train your mindset. Protect your discipline. Improve your execution.'
+            }
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-500/20 via-amber-600/15 to-transparent hover:from-blue-500/30 hover:via-amber-600/25 border border-blue-500/40 hover:border-cyan-400 text-slate-200 hover:text-amber-300 font-military font-bold text-xs tracking-wider transition-all duration-200 cursor-pointer shadow-md group"
           >
             <div className="w-6 h-6 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform">
-              <Brain className="w-3.5 h-3.5 stroke-[2.2]" />
+              {isPsychLocked ? (
+                <Lock className="w-3.5 h-3.5 text-amber-400 stroke-[2.2]" />
+              ) : (
+                <Brain className="w-3.5 h-3.5 stroke-[2.2]" />
+              )}
             </div>
             <div className="text-left">
               <div className="flex items-center gap-1">
                 <span className="text-cyan-400 group-hover:text-amber-300 transition-colors">Psychological Center</span>
-                <span className="text-[9px] font-mono-code px-1 py-0.2 rounded bg-blue-500/30 text-amber-300 uppercase font-bold">MINDSET</span>
+                {isPsychLocked ? (
+                  <span className="flex items-center gap-1 text-[9px] font-mono-code px-1.5 py-0.2 rounded bg-amber-500/25 text-amber-300 border border-amber-500/40 uppercase font-bold">
+                    <Lock className="w-2.5 h-2.5 text-amber-400" />
+                    LOCKED
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-mono-code px-1 py-0.2 rounded bg-blue-500/30 text-amber-300 uppercase font-bold">MINDSET</span>
+                )}
               </div>
-              <span className="text-[9px] text-slate-400 font-sans block leading-none">Discipline • Tilt Defense • Focus</span>
+              <span className="text-[9px] text-slate-400 font-sans block leading-none">
+                {isPsychLocked ? 'Subscription Required ($55 or Free via Referrals)' : 'Discipline • Tilt Defense • Focus'}
+              </span>
             </div>
           </button>
 
@@ -363,9 +385,10 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
 
       {/* DAILY FUNDAMENTAL INTELLIGENCE & SURPRISE NOTIFICATION BANNER */}
       <FundamentalNotificationBanner
+        isLocked={isPsychLocked}
         onNavigateToFundamental={(targetAsset) => {
           onNavigateToTab('FUNDAMENTAL_INDICATORS');
-          if (targetAsset) {
+          if (targetAsset && !isPsychLocked) {
             setTimeout(() => {
               window.dispatchEvent(
                 new CustomEvent('primepipfx_select_fundamental_asset', { detail: { asset: targetAsset } })
@@ -381,58 +404,114 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
         return (
           <div
             key={sig.id}
+            onClick={() => {
+              if (isPsychLocked) onNavigateToTab('SIGNALS');
+            }}
             className={`border rounded-2xl p-4 sm:p-5 shadow-2xl transition animate-in slide-in-from-top-4 fade-in duration-500 relative overflow-hidden ${
-              isBuy
+              isPsychLocked
+                ? 'bg-gradient-to-r from-amber-950/30 via-slate-900 to-[#0B0F19] border-amber-500/45 shadow-amber-500/10 cursor-pointer hover:border-amber-400'
+                : isBuy
                 ? 'bg-gradient-to-r from-emerald-950/40 via-slate-900 to-[#0B0F19] border-emerald-500/50 shadow-emerald-500/10'
                 : 'bg-gradient-to-r from-rose-950/40 via-slate-900 to-[#0B0F19] border-rose-500/50 shadow-rose-500/10'
             }`}
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                  isBuy ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-rose-500/20 border-rose-500/40 text-rose-400'
-                }`}>
-                  <Radio className="w-5 h-5 animate-pulse" />
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                    isPsychLocked
+                      ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                      : isBuy
+                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                      : 'bg-rose-500/20 border-rose-500/40 text-rose-400'
+                  }`}
+                >
+                  {isPsychLocked ? (
+                    <Lock className="w-5 h-5 text-amber-400" />
+                  ) : (
+                    <Radio className="w-5 h-5 animate-pulse" />
+                  )}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono-code font-bold uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                      LIVE SIGNAL ACTIVE
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-mono-code font-bold uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      {isPsychLocked && <Lock className="w-2.5 h-2.5 text-amber-400" />}
+                      <span>LIVE SIGNAL ACTIVE</span>
                     </span>
-                    <h3 className="text-base font-military font-bold text-slate-100 tracking-wider">
-                      {sig.pair} — {sig.direction}
-                    </h3>
-                    <span className="text-[10px] font-mono-code text-slate-400">
-                      {sig.createdAt}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs font-mono-code mt-1 text-slate-300">
-                    <span>Entry: <strong className="text-cyan-400">{sig.entryPrice}</strong></span>
-                    <span>•</span>
-                    <span>SL: <strong className="text-rose-400">{sig.stopLoss}</strong></span>
-                    <span>•</span>
-                    <span>TP: <strong className="text-emerald-400">{sig.takeProfit1}</strong></span>
-                    {sig.strategyNotes && (
+                    {isPsychLocked ? (
                       <>
-                        <span className="hidden md:inline">•</span>
-                        <span className="hidden md:inline text-slate-400 truncate max-w-sm">{sig.strategyNotes}</span>
+                        <span className="flex items-center gap-1 text-[10px] font-mono-code font-bold uppercase px-2 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/50">
+                          <Lock className="w-2.5 h-2.5 text-amber-400" />
+                          <span>LOCKED</span>
+                        </span>
+                        <h3 className="text-sm sm:text-base font-military font-bold text-slate-100 tracking-wider">
+                          Institutional VIP Signal Setup (Locked in Demo Mode)
+                        </h3>
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="text-base font-military font-bold text-slate-100 tracking-wider">
+                          {sig.pair} — {sig.direction}
+                        </h3>
+                        <span className="text-[10px] font-mono-code text-slate-400">
+                          {sig.createdAt}
+                        </span>
                       </>
                     )}
                   </div>
+                  {isPsychLocked ? (
+                    <div className="flex items-center gap-2 text-xs font-mono-code mt-1 text-amber-200/90">
+                      <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>
+                        Pair, Entry, Stop Loss &amp; Take Profit targets require an active subscription ($55 or 100% Free via Referrals).
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 text-xs font-mono-code mt-1 text-slate-300">
+                      <span>Entry: <strong className="text-cyan-400">{sig.entryPrice}</strong></span>
+                      <span>•</span>
+                      <span>SL: <strong className="text-rose-400">{sig.stopLoss}</strong></span>
+                      <span>•</span>
+                      <span>TP: <strong className="text-emerald-400">{sig.takeProfit1}</strong></span>
+                      {sig.strategyNotes && (
+                        <>
+                          <span className="hidden md:inline">•</span>
+                          <span className="hidden md:inline text-slate-400 truncate max-w-sm">{sig.strategyNotes}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                 <button
                   type="button"
-                  onClick={() => onNavigateToTab('SIGNALS')}
-                  className="px-3.5 py-1.5 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs tracking-wider transition shadow shadow-blue-500/20 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigateToTab('SIGNALS');
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl font-military font-bold text-xs tracking-wider transition shadow cursor-pointer flex items-center gap-1.5 ${
+                    isPsychLocked
+                      ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 shadow-amber-500/10'
+                      : 'bg-blue-500 hover:bg-cyan-400 text-slate-950 shadow-blue-500/20'
+                  }`}
                 >
-                  VIEW SIGNAL SETUP
+                  {isPsychLocked ? (
+                    <>
+                      <Lock className="w-3.5 h-3.5 text-amber-400" />
+                      <span>LOCKED</span>
+                    </>
+                  ) : (
+                    <span>VIEW SIGNAL SETUP</span>
+                  )}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDismissedSignalIds((prev) => [...prev, sig.id])}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDismissedSignalIds((prev) => [...prev, sig.id]);
+                  }}
                   className="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
                   title="Dismiss banner from view"
                 >
@@ -531,10 +610,19 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
             id="dash-psych-center-btn"
             onClick={() => onNavigateToTab('PSYCHOLOGY')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-cyan-400 text-xs font-mono-code transition cursor-pointer"
-            title="Open Psychological Center"
+            title={isPsychLocked ? 'Psychological Center — Subscription Required' : 'Open Psychological Center'}
           >
-            <Brain className="w-3.5 h-3.5 text-cyan-400" />
+            {isPsychLocked ? (
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+            ) : (
+              <Brain className="w-3.5 h-3.5 text-cyan-400" />
+            )}
             <span>PSYCHOLOGICAL CENTER</span>
+            {isPsychLocked && (
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
+                LOCKED
+              </span>
+            )}
           </button>
 
           <button

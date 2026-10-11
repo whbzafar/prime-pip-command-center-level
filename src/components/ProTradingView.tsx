@@ -37,6 +37,7 @@ import {
   Target,
   RotateCcw,
   Magnet,
+  Lock,
 } from 'lucide-react';
 import { calculateCurrencyScore, calculateLongTermPairRankings } from '../utils/fundamentalCalculationEngine';
 import { CURRENCIES, DEFAULT_CATEGORY_WEIGHTS } from '../data/fundamentalRegistryData';
@@ -68,6 +69,8 @@ interface ProTradingViewProps {
   onOpenNewTrade?: () => void;
   defaultSymbol?: string;
   currentUser?: UserAccount | null;
+  isDemoMode?: boolean;
+  onRequireSubscription?: () => void;
   onNavigateToFundamental?: () => void;
   onNavigateToJournal?: () => void;
 }
@@ -283,9 +286,21 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   onOpenNewTrade,
   defaultSymbol = 'XAUUSD',
   currentUser,
+  isDemoMode = false,
+  onRequireSubscription,
   onNavigateToFundamental,
   onNavigateToJournal,
 }) => {
+  const isFundamentalLocked =
+    isDemoMode ||
+    (!currentUser && typeof window !== 'undefined' && localStorage.getItem('primepipfx_demo_mode') === 'true') ||
+    Boolean(
+      currentUser &&
+        currentUser.role !== 'ADMIN' &&
+        currentUser.role !== 'DEVELOPER' &&
+        !currentUser.isDeveloper &&
+        currentUser.subscriptionStatus !== 'ACTIVE'
+    );
   // Load saved student chart state for automatic persistence
   const savedState = (() => {
     try {
@@ -1172,19 +1187,43 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               <Trash2 className="w-3.5 h-3.5" />
             </button>
 
-            {/* Fundamental Pairs Toggle Button */}
+            {/* Fundamental Pairs Toggle Button (Locked in Demo / Non-Subscribed Mode) */}
             <button
               type="button"
-              onClick={() => setShowFundamentalPairs(!showFundamentalPairs)}
+              onClick={() => {
+                if (isFundamentalLocked) {
+                  setShowFundamentalPairs(false);
+                  if (onRequireSubscription) {
+                    onRequireSubscription();
+                  }
+                  return;
+                }
+                setShowFundamentalPairs(!showFundamentalPairs);
+              }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition cursor-pointer ${
-                showFundamentalPairs
+                isFundamentalLocked
+                  ? 'bg-slate-950 text-amber-300 border-amber-500/40 hover:border-amber-400'
+                  : showFundamentalPairs
                   ? 'bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-500/20'
                   : 'bg-slate-950 text-purple-300 border-purple-500/30 hover:border-purple-400'
               }`}
-              title="View Long-Term Bullish & Bearish Pairs from Fundamental Analysis"
+              title={
+                isFundamentalLocked
+                  ? 'Fundamental Pairs (28-Pair Premium Pairing Feature) — Subscription Required'
+                  : 'View Long-Term Bullish & Bearish Pairs from Fundamental Analysis'
+              }
             >
-              <Activity className="w-3.5 h-3.5" />
+              {isFundamentalLocked ? (
+                <Lock className="w-3.5 h-3.5 text-amber-400" />
+              ) : (
+                <Activity className="w-3.5 h-3.5" />
+              )}
               <span>FUNDAMENTAL PAIRS</span>
+              {isFundamentalLocked && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold uppercase">
+                  LOCKED
+                </span>
+              )}
             </button>
 
             {/* Fullscreen Button */}
@@ -1212,7 +1251,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         </div>
 
         {/* FUNDAMENTAL PAIRS LIVE DRAWER: All 28 Bullish and Bearish Pairs from Fundamental Intelligence */}
-        {showFundamentalPairs && (
+        {showFundamentalPairs && !isFundamentalLocked && (
           <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-purple-500/40 space-y-2.5 animate-in slide-in-from-top-2">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
               <div className="flex items-center gap-2">

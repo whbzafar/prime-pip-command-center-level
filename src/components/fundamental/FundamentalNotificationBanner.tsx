@@ -16,6 +16,7 @@ import {
   Zap,
   Eye,
   EyeOff,
+  Lock,
 } from 'lucide-react';
 import { CurrencyCode, CurrencyScoreResult, IndicatorObservation, RetailPositioningRecord } from '../../types/fundamentalIndicatorTypes';
 import {
@@ -40,12 +41,16 @@ import {
 interface FundamentalNotificationBannerProps {
   currencyScores?: Record<CurrencyCode, CurrencyScoreResult>;
   onNavigateToFundamental?: (targetAsset?: string) => void;
+  isLocked?: boolean;
 }
 
 export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBannerProps> = ({
   currencyScores: propCurrencyScores,
   onNavigateToFundamental,
+  isLocked = false,
 }) => {
+  const isDemoLocked =
+    isLocked || (typeof window !== 'undefined' && localStorage.getItem('primepipfx_demo_mode') === 'true');
   // Toggle state: click to reveal, click again to hide
   const [isRevealed, setIsRevealed] = useState<boolean>(false);
   const [showAll28Pairs, setShowAll28Pairs] = useState<boolean>(true);
@@ -274,16 +279,28 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
       <div
         role="button"
         tabIndex={0}
-        onClick={() => setIsRevealed(!isRevealed)}
+        onClick={() => {
+          if (isDemoLocked) {
+            if (onNavigateToFundamental) onNavigateToFundamental();
+            return;
+          }
+          setIsRevealed(!isRevealed);
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
+            if (isDemoLocked) {
+              if (onNavigateToFundamental) onNavigateToFundamental();
+              return;
+            }
             setIsRevealed(!isRevealed);
           }
         }}
-        aria-expanded={isRevealed}
+        aria-expanded={!isDemoLocked && isRevealed}
         className={`w-full p-2.5 sm:p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer group relative overflow-hidden select-none ${
-          isRevealed
+          isDemoLocked
+            ? 'bg-gradient-to-r from-slate-950 via-slate-900/95 to-slate-950 border-amber-500/40 hover:border-amber-400 shadow-lg shadow-amber-950/20'
+            : isRevealed
             ? 'bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border-cyan-400 shadow-xl shadow-cyan-950/50'
             : 'bg-gradient-to-r from-slate-950 via-slate-900/90 to-slate-950 border-cyan-500/35 hover:border-cyan-400 shadow-lg shadow-cyan-950/20'
         }`}
@@ -297,66 +314,101 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
             <div className="relative shrink-0">
               <div
                 className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all ${
-                  isRevealed
+                  isDemoLocked
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-400 group-hover:scale-105'
+                    : isRevealed
                     ? 'bg-cyan-500/25 border-cyan-400 text-cyan-300 scale-105'
                     : 'bg-cyan-500/15 border-cyan-500/30 text-cyan-400 group-hover:scale-105'
                 }`}
               >
-                <Sparkles className="w-4 h-4 animate-pulse text-amber-300" />
+                {isDemoLocked ? (
+                  <Lock className="w-4 h-4 text-amber-400" />
+                ) : (
+                  <Sparkles className="w-4 h-4 animate-pulse text-amber-300" />
+                )}
               </div>
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-slate-950 animate-ping" />
             </div>
 
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase tracking-wider flex items-center gap-1">
-                  <Flame className="w-2.5 h-2.5 text-amber-400 animate-bounce" />
+                  {isDemoLocked ? (
+                    <Lock className="w-2.5 h-2.5 text-amber-400" />
+                  ) : (
+                    <Flame className="w-2.5 h-2.5 text-amber-400 animate-bounce" />
+                  )}
                   <span>FUNDAMENTAL SURPRISE</span>
                 </span>
-                <span className="text-[10px] font-mono-code text-slate-400 hidden xs:inline-flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-slate-500" />
-                  <span>{todayStr} • Institutional Signal</span>
-                </span>
+                {isDemoLocked ? (
+                  <span className="flex items-center gap-1 text-[9px] font-mono-code font-bold px-2 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/50 uppercase">
+                    <Lock className="w-2.5 h-2.5 text-amber-400" />
+                    <span>LOCKED</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-mono-code text-slate-400 hidden xs:inline-flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-slate-500" />
+                    <span>{todayStr} • Institutional Signal</span>
+                  </span>
+                )}
               </div>
               <p className="text-xs sm:text-sm font-military font-bold text-slate-100 tracking-wide mt-0.5 group-hover:text-cyan-200 transition-colors">
-                Top Long-Term Pairs (Bullish Buy / Bearish Sell)
+                {isDemoLocked
+                  ? 'Top Long-Term Pairs (Locked in Demo Mode — Subscription Required)'
+                  : 'Top Long-Term Pairs (Bullish Buy / Bearish Sell)'}
               </p>
             </div>
           </div>
 
           {/* Right Highlights Preview & Reveal/Hide Button */}
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
-            <div className="flex items-center gap-2 text-xs font-mono-code">
-              {rankedData.bestBullish && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="font-bold">{rankedData.bestBullish.pair}</span>
-                  <span className="text-[10px] font-bold text-emerald-400">
-                    +{rankedData.bestBullish.score}
-                  </span>
-                </div>
-              )}
+            {isDemoLocked ? (
+              <div className="flex items-center gap-2 text-xs font-mono-code">
+                <span className="px-2.5 py-1 rounded-xl bg-slate-900/90 border border-amber-500/30 text-amber-300/90 text-[11px] flex items-center gap-1.5">
+                  <Lock className="w-3 h-3 text-amber-400" />
+                  <span>Subscription Required ($55 or Free via Referrals)</span>
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-xs font-mono-code">
+                {rankedData.bestBullish && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
+                    <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="font-bold">{rankedData.bestBullish.pair}</span>
+                    <span className="text-[10px] font-bold text-emerald-400">
+                      +{rankedData.bestBullish.score}
+                    </span>
+                  </div>
+                )}
 
-              {rankedData.bestBearish && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300">
-                  <TrendingDown className="w-3.5 h-3.5 text-rose-400" />
-                  <span className="font-bold">{rankedData.bestBearish.pair}</span>
-                  <span className="text-[10px] font-bold text-rose-400">
-                    {rankedData.bestBearish.score}
-                  </span>
-                </div>
-              )}
-            </div>
+                {rankedData.bestBearish && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300">
+                    <TrendingDown className="w-3.5 h-3.5 text-rose-400" />
+                    <span className="font-bold">{rankedData.bestBearish.pair}</span>
+                    <span className="text-[10px] font-bold text-rose-400">
+                      {rankedData.bestBearish.score}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Click to Reveal / Click to Hide Toggle Pill */}
             <div
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-military font-bold border transition-all cursor-pointer shrink-0 ${
-                isRevealed
+                isDemoLocked
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30 shadow-xs'
+                  : isRevealed
                   ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400 shadow-xs'
                   : 'bg-slate-800/80 text-cyan-400 border-slate-700 hover:border-cyan-400 group-hover:bg-slate-800'
               }`}
             >
-              {isRevealed ? (
+              {isDemoLocked ? (
+                <>
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>LOCKED</span>
+                </>
+              ) : isRevealed ? (
                 <>
                   <EyeOff className="w-3.5 h-3.5" />
                   <span>HIDE SURPRISE</span>
@@ -378,7 +430,7 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
           EXPANDABLE INLINE DASHBOARD CONTENT
           Reveals top long-term Bullish (BUY) pairs and Bearish (SELL) pairs
           ───────────────────────────────────────────────────────────────── */}
-      {isRevealed && (
+      {!isDemoLocked && isRevealed && (
         <div className="mt-2.5 rounded-2xl bg-slate-950/95 border border-cyan-500/35 p-3.5 sm:p-5 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-3 duration-200">
           {/* Subheader */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-slate-800/80 gap-2">

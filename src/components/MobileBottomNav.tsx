@@ -73,7 +73,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'FUNDAMENTAL_INDICATORS' as MainNavTab, label: '08. Fundamental Indicator', desc: 'Deterministic 8-currency economic scoring & differential intelligence', icon: Globe2, highlight: true, section: 'Market Intelligence' },
       { id: 'SIGNALS' as MainNavTab, label: '09. Premium Signals', desc: 'Institutional VIP trade setups', icon: Radio, comingSoon: false, isLive: true, highlight: true, section: 'Market Intelligence' },
       { id: 'PRO_TRADING' as MainNavTab, label: '10. Premium TradingView', desc: 'Live TradingView interactive charts & real-time quotes', icon: CandlestickChart, highlight: true, section: 'Market Intelligence' },
-      { id: 'META5_PREMIUM' as MainNavTab, label: '11. Meta 5', desc: 'Authentic mobile MT5 terminal with live broker & prop firm trading', icon: Smartphone, highlight: false, locked: true, comingSoon: true, section: 'Market Intelligence' },
+      { id: 'META5_PREMIUM' as MainNavTab, label: '11. Meta 5', desc: 'Authentic mobile MT5 terminal with live broker & prop firm trading', icon: Smartphone, highlight: false, locked: true, comingSoon: false, section: 'Market Intelligence' },
       { id: 'COMPOUNDING' as MainNavTab, label: '12. Compounding Tools', desc: 'Long-term growth simulator', icon: Calculator, section: 'Market Intelligence' },
       { id: 'PERFORMANCE' as MainNavTab, label: '11. Performance Report', desc: 'Win rates, R:R & drawdowns', icon: BarChart3, section: 'Analytics' },
       { id: 'DAILY_DEV' as MainNavTab, label: '12. Daily Development', desc: 'Traders habit tracker & routines', icon: Award, section: 'Mindset & Health' },
@@ -81,12 +81,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'CALMING_TOOLS' as MainNavTab, label: '14. Trading Tool Suite', desc: 'Diaphragmatic breathing & focus tools', icon: Wind, highlight: true, section: 'Mindset & Health' },
       { id: 'RESEARCH' as MainNavTab, label: '15. Academic Research', desc: 'OpenAlex academic market research engine', icon: Compass, highlight: true, section: 'Research & Tools' },
       { id: 'FREEHAND_WORKSPACE' as MainNavTab, label: '16. Freehand Canvas', desc: 'Diagramming & markup workspace', icon: PenTool, section: 'Research & Tools' },
-      { id: 'COMMUNITY' as MainNavTab, label: '17. Trader Community Feed', desc: 'Live dispatches & peer sharing', icon: Users, section: 'Community' },
-      { id: 'BOOK_SESSION' as MainNavTab, label: '18. Book a Session', desc: '1-on-1 mentorship consultation', icon: MessageSquare, highlight: true, section: 'Community' },
-      { id: 'SETTINGS' as MainNavTab, label: '19. Data Export & Backup', desc: 'Export journal & restore state', icon: Settings2, section: 'Operations' },
-      { id: 'ADMIN' as MainNavTab, label: '20. Admin Panel (Owner)', desc: 'User access & customer controls', icon: ShieldCheck, highlight: true, section: 'Administration' },
-      { id: 'EVOLUTION' as MainNavTab, label: '21. Evaluation Engine', desc: 'Proprietary performance review & evolution', icon: Cpu, highlight: true, section: 'Administration' },
-      { id: 'PRO_LEARNING' as MainNavTab, label: '22. Pro Learning Trading', desc: 'Complete trading strategies, execution courses & trading bots', icon: GraduationCap, highlight: true, section: 'Research & Tools' },
+      { id: 'SITUATION_SAVER' as MainNavTab, label: '17. Situation Saver', desc: 'Multi-timeframe market situations & setups vault', icon: FileText, highlight: true, section: 'Research & Tools' },
+      { id: 'PAIR_SAVER' as MainNavTab, label: '18. Pair Saver', desc: 'Multi-timeframe direction alignment & Fibonacci scenarios', icon: Compass, highlight: true, section: 'Research & Tools' },
+      { id: 'PRO_LEARNING' as MainNavTab, label: '19. Pro Learning / Trading', desc: 'Complete trading strategies, execution courses & trading bots', icon: GraduationCap, highlight: true, section: 'Research & Tools' },
+      { id: 'COMMUNITY' as MainNavTab, label: '20. Trader Community Feed', desc: 'Live dispatches & peer sharing', icon: Users, section: 'Community' },
+      { id: 'BOOK_SESSION' as MainNavTab, label: '21. Book a Session', desc: '1-on-1 mentorship consultation', icon: MessageSquare, highlight: true, section: 'Community' },
+      { id: 'SETTINGS' as MainNavTab, label: '22. Data Export & Backup', desc: 'Export journal & restore state', icon: Settings2, section: 'Operations' },
+      { id: 'ADMIN' as MainNavTab, label: '23. Admin Panel (Owner)', desc: 'User access & customer controls', icon: ShieldCheck, highlight: true, section: 'Administration' },
+      { id: 'EVOLUTION' as MainNavTab, label: '24. Evaluation Engine', desc: 'Proprietary performance review & evolution', icon: Cpu, highlight: true, section: 'Administration' },
     ];
   }, [currentUser]);
 
@@ -160,13 +162,16 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             }`}
           >
             <div
-              className={`w-9 h-8 rounded-xl flex items-center justify-center transition-all ${
+              className={`w-9 h-8 rounded-xl flex items-center justify-center transition-all relative ${
                 activeTab === 'PRE_TRADE_PLAN'
                   ? 'bg-blue-500/20 text-cyan-400 shadow-sm shadow-blue-500/20 scale-105'
                   : 'bg-transparent text-slate-400'
               }`}
             >
               <ShieldAlert className="w-4 h-4 stroke-[2.2]" />
+              {isDemo && (
+                <Lock className="w-2.5 h-2.5 text-amber-400 absolute -top-0.5 -right-0.5" />
+              )}
             </div>
             <span className="text-[10px] font-military tracking-tight mt-0.5 select-none">Pre-Plan</span>
             {activeTab === 'PRE_TRADE_PLAN' && (
@@ -321,15 +326,26 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                           <span className="font-military font-bold text-xs tracking-wider">
                             {item.label}
                           </span>
-                          {item.id === 'SIGNALS' && isDemo ? (
+                          {isDemo &&
+                          (item.id === 'PRE_TRADE_PLAN' ||
+                            item.id === 'FUNDAMENTAL_CALENDAR' ||
+                            item.id === 'FUNDAMENTAL_INDICATORS' ||
+                            item.id === 'SIGNALS' ||
+                            item.id === 'PERFORMANCE' ||
+                            item.id === 'DAILY_DEV' ||
+                            item.id === 'PSYCHOLOGY' ||
+                            item.id === 'CALMING_TOOLS' ||
+                            item.id === 'SITUATION_SAVER' ||
+                            item.id === 'PRO_LEARNING' ||
+                            item.id === 'COMMUNITY') ? (
                             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
-                              <Clock className="w-2.5 h-2.5 text-amber-400" />
-                              <span>COMING SOON</span>
+                              <Lock className="w-2.5 h-2.5 text-amber-400" />
+                              <span>LOCKED</span>
                             </span>
                           ) : item.id === 'META5_PREMIUM' ? (
-                            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
                               <Lock className="w-2.5 h-2.5 text-amber-400" />
-                              <span>COMING SOON</span>
+                              <span>LOCKED</span>
                             </span>
                           ) : isComingSoon ? (
                             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code bg-blue-500/15 text-cyan-400 border border-blue-500/30">

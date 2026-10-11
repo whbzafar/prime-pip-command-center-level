@@ -158,7 +158,7 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
     icon: Smartphone,
     highlight: false,
     locked: true,
-    comingSoon: true,
+    comingSoon: false,
   },
   {
     id: 'COMPOUNDING',
@@ -251,10 +251,10 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
     num: '19',
     label: 'Pro Learning Trading',
     name: 'Pro Learning / Trading',
-    desc: 'Coming Soon — complete trading strategies, courses, learning paths, and future trading bots in one professional learning command center.',
+    desc: 'Complete trading strategies, courses, learning paths, and future trading bots in one professional learning command center.',
     section: 'Intelligence & Setups',
     icon: GraduationCap,
-    comingSoon: true,
+    comingSoon: false,
     highlight: true,
   },
   {
@@ -530,13 +530,24 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
                           {cat.id === 'META5_PREMIUM' && (
                             <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase shadow-xs">
                               <Lock className="w-2.5 h-2.5 text-amber-400" />
-                              <span>COMING SOON</span>
+                              <span>LOCKED</span>
                             </span>
                           )}
-                          {cat.id === 'SIGNALS' && isDemoMode ? (
+                          {isDemoMode &&
+                          (cat.id === 'PRE_TRADE_PLAN' ||
+                            cat.id === 'FUNDAMENTAL_CALENDAR' ||
+                            cat.id === 'FUNDAMENTAL_INDICATORS' ||
+                            cat.id === 'SIGNALS' ||
+                            cat.id === 'PERFORMANCE' ||
+                            cat.id === 'DAILY_DEV' ||
+                            cat.id === 'PSYCHOLOGY' ||
+                            cat.id === 'CALMING_TOOLS' ||
+                            cat.id === 'SITUATION_SAVER' ||
+                            cat.id === 'PRO_LEARNING' ||
+                            cat.id === 'COMMUNITY') ? (
                             <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/50 uppercase shadow-xs">
-                              <Clock className="w-2.5 h-2.5 text-amber-400" />
-                              <span>COMING SOON</span>
+                              <Lock className="w-2.5 h-2.5 text-amber-400" />
+                              <span>LOCKED</span>
                             </span>
                           ) : (
                             <>
