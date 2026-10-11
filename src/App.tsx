@@ -53,6 +53,7 @@ import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
 
 const ALLOWED_DEMO_CATEGORIES: string[] = [
   'LOT_SIZE',
+  'FUNDAMENTAL_CALENDAR',
   'PRO_TRADING',
   'SIGNALS',
   'COMPOUNDING',

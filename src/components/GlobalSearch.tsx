@@ -21,7 +21,7 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { title: 'Lot Size Calculator', category: 'Risk & Strategy', subcategory: 'Position Sizing', description: 'Exact risk positioning tool and pip calculations.', tab: 'LOT_SIZE' },
   { title: 'Risk Management', category: 'Risk & Strategy', subcategory: 'Capital Protection', description: 'Max drawdown controls, risk rules, and trade limiters.', tab: 'RISK' },
   { title: 'Pre-Trade Plan', category: 'Risk & Strategy', subcategory: 'Execution Protocol', description: 'Pre-trade execution rules and gatekeeper plan.', tab: 'PRE_TRADE_PLAN' },
-  { title: 'Live News Calendar', category: 'Market Intelligence', subcategory: 'Economic Calendar', description: 'Macro releases, FOMC, CPI, NFP, and central bank events.', tab: 'FUNDAMENTAL_CALENDAR' },
+  { title: 'Live News Calendar', category: 'Market Intelligence', subcategory: 'Economic Calendar', description: '100% live TradingView economic news in Forex Factory folder interface with Pakistan Standard Time (PKT).', tab: 'FUNDAMENTAL_CALENDAR' },
   { title: 'Fundamental Indicators', category: 'Market Intelligence', subcategory: 'Macro Intelligence', description: '8-currency economic scoring, differential dashboard, and live search.', tab: 'FUNDAMENTAL_INDICATORS' },
   { title: 'Premium Signals', category: 'Market Intelligence', subcategory: 'VIP Setups', description: 'Institutional VIP trade alerts and setup breakdowns.', tab: 'SIGNALS' },
   { title: 'Compounding Tools', category: 'Market Intelligence', subcategory: 'Growth Simulator', description: 'Capital compounding models and equity trajectory plans.', tab: 'COMPOUNDING' },

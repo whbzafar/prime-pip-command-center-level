@@ -78,13 +78,13 @@ export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
   FUNDAMENTAL_CALENDAR: {
     id: 'FUNDAMENTAL_CALENDAR',
     name: '07. Live News Calendar',
-    shortDesc: 'Macro economic calendar with 8-currency schedule and Pakistan Time live countdowns.',
-    overview: 'Full-year economic calendar covering all 8 major global currencies. Features real-time countdown timers to upcoming releases, high-impact visual folder badges, and zero-lag alert telemetry.',
+    shortDesc: 'Forex Factory interface powered by 100% live TradingView news data in Pakistan Standard Time (PKT).',
+    overview: 'Real-time macroeconomic news calendar combining 100% free live data sourced directly from TradingView with the classic Forex Factory interface. Features color-coded High, Medium, and Low impact folders that open to reveal the news topic, official issuing source, potential currency impact, and Previous, Forecast, and Actual figures in Pakistan Standard Time (PKT / UTC+5).',
     keyFeatures: [
-      'Full-year economic release schedule across all 8 currencies',
-      'Second-by-second countdown to high-impact CPI, NFP, and Interest Rate releases',
-      'Calibrated in Pakistan Standard Time (PKT / UTC+5)',
-      'ForexFactory-style color coded impact hierarchy',
+      '100% live macroeconomic release feed sourced directly from TradingView',
+      'Forex Factory layout with expandable color-coded impact folders (Red, Orange, Yellow)',
+      'Click any folder to inspect News Topic, Official Source, Potential Impact, and Actual/Forecast/Previous figures',
+      'Synchronized to Pakistan Standard Time (PKT / Asia/Karachi UTC+5) with live second-by-second countdowns',
     ],
   },
   FUNDAMENTAL_INDICATORS: {

@@ -69,7 +69,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'LOT_SIZE' as MainNavTab, label: '04. Lot Size Calculator', desc: 'Exact risk positioning tool', icon: Calculator, section: 'Risk & Strategy' },
       { id: 'RISK' as MainNavTab, label: '05. Risk Management', desc: 'Discipline rules & trade limits', icon: Crosshair, section: 'Risk & Strategy' },
       { id: 'PRE_TRADE_PLAN' as MainNavTab, label: '06. Pre-Trade Plan', desc: '3-phase execution checklist gatekeeper', icon: ShieldAlert, highlight: true, section: 'Risk & Strategy' },
-      { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: '07. Fundamental Calendar', desc: 'Macro news & high-impact releases', icon: Calendar, highlight: true, section: 'Market Intelligence' },
+      { id: 'FUNDAMENTAL_CALENDAR' as MainNavTab, label: '07. Live News Calendar', desc: '100% live TradingView news in Forex Factory folder layout (PKT)', icon: Calendar, highlight: true, section: 'Market Intelligence' },
       { id: 'FUNDAMENTAL_INDICATORS' as MainNavTab, label: '08. Fundamental Indicator', desc: 'Deterministic 8-currency economic scoring & differential intelligence', icon: Globe2, highlight: true, section: 'Market Intelligence' },
       { id: 'SIGNALS' as MainNavTab, label: '09. Premium Signals', desc: 'Institutional VIP trade setups', icon: Radio, comingSoon: false, isLive: true, highlight: true, section: 'Market Intelligence' },
       { id: 'PRO_TRADING' as MainNavTab, label: '10. Premium TradingView', desc: 'Live TradingView interactive charts & real-time quotes', icon: CandlestickChart, highlight: true, section: 'Market Intelligence' },

@@ -3,7 +3,7 @@ import { fetchUpcomingEvents, CalendarEvent } from '../../economicCalendarServic
 
 export const calendarHandler: CapabilityHandler = async (entities, userId) => {
   const currency = entities.currency ? entities.currency.toUpperCase().trim() : undefined;
-  const rawEvents: CalendarEvent[] = fetchUpcomingEvents(10);
+  const rawEvents: CalendarEvent[] = await fetchUpcomingEvents(10);
 
   let filtered = rawEvents;
   if (currency && currency !== 'ALL') {

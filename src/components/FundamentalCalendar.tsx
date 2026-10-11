@@ -1,347 +1,359 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import {
-  CalendarEvent,
-  CalendarMeta,
-  fetchYearEvents,
-  fetchMonthEvents,
-  fetchWeekEvents,
-  fetchUpcomingEvents,
-  fetchHistoricalEvents,
-  syncCalendar,
-  getCalendarMeta,
-  getCachedCalendar,
-} from '../services/economicCalendarService';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Calendar,
   Clock,
-  AlertTriangle,
-  Info,
-  ChevronRight,
-  ChevronLeft,
-  X,
-  Search,
   Filter,
-  Layers,
-  Flame,
+  Search,
   RefreshCw,
-  Wifi,
-  WifiOff,
-  CalendarDays,
-  History,
-  Folder,
-  BarChart2,
-  Clock4,
-  ShieldAlert,
-  Zap,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
-  Globe,
-  ArrowUpRight,
-  Volume2,
-  VolumeX,
+  AlertTriangle,
+  Activity,
   Bell,
   BellRing,
-  BellOff,
-  Maximize2,
-  Minimize2,
   CheckCircle2,
+  Folder,
+  FolderOpen,
+  Globe,
+  TrendingUp,
+  TrendingDown,
+  Info,
+  Sparkles,
+  Volume2,
+  VolumeX,
+  Layers,
+  Building2,
+  Scale,
+  Zap,
 } from 'lucide-react';
-import { playDisciplineAlert, getAlertSettings, saveAlertSettings } from '../utils/audioAlerts';
+import {
+  CalendarEvent,
+  CalendarMeta,
+  fetchWeekEvents,
+  fetchMonthEvents,
+  fetchYearEvents,
+  syncCalendar,
+  getCalendarMeta,
+} from '../services/economicCalendarService';
 
-const REAL_TIME_MACRO_HUBS = [
-  {
-    name: 'Forex Factory Calendar',
-    tag: 'PRIMARY CALENDAR',
-    url: 'https://www.forexfactory.com/calendar',
-    highlight: true,
-    desc: 'Real-time release updates, consensus forecast numbers & live volatility deviation impact.',
-  },
-  {
-    name: 'Forex Factory News Wire',
-    tag: 'LIVE BREAKING NEWS',
-    url: 'https://www.forexfactory.com/news',
-    highlight: true,
-    desc: 'High-speed headline dispatches on central banks, currencies & macro shocks.',
-  },
-  {
-    name: 'DailyFX Economic Calendar',
-    tag: 'ANALYST FORECASTS',
-    url: 'https://www.dailyfx.com/economic-calendar',
-    highlight: false,
-    desc: 'Live macroeconomic calendar with volatility ratings and technical market analysis.',
-  },
-  {
-    name: 'Investing.com Global Desk',
-    tag: 'CENTRAL BANKS',
-    url: 'https://www.investing.com/economic-calendar/',
-    highlight: false,
-    desc: 'Multi-nation event schedules, Fed rate monitors & actual vs prior data.',
-  },
-  {
-    name: 'TradingView Macro Calendar',
-    tag: 'CHART SYNC',
-    url: 'https://www.tradingview.com/economic-calendar/',
-    highlight: false,
-    desc: 'Live economic events synced directly with historical chart price action.',
-  },
-  {
-    name: 'Federal Reserve FOMC Calendar',
-    tag: 'FED OFFICIAL',
-    url: 'https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm',
-    highlight: false,
-    desc: 'Official US rate decision dates, press conference webcasts & SEP projections.',
-  },
-  {
-    name: 'FXStreet Real-Time Calendar',
-    tag: 'FAST EXECUTION',
-    url: 'https://www.fxstreet.com/economic-calendar',
-    highlight: false,
-    desc: 'Ultra-low latency calendar feed with deviation barometers and central bank radar.',
-  },
-];
+// Classic Forex Factory Folder Icon SVG (Color-coded by impact)
+const ForexFactoryFolderIcon: React.FC<{
+  importance: 'HIGH' | 'MEDIUM' | 'LOW';
+  isOpen?: boolean;
+  size?: number;
+}> = ({ importance, isOpen = false, size = 18 }) => {
+  const colors = {
+    HIGH: {
+      tab: '#b91c1c',
+      body: '#ef4444',
+      highlight: '#fca5a5',
+      border: '#7f1d1d',
+      glow: 'rgba(239, 68, 68, 0.45)',
+    },
+    MEDIUM: {
+      tab: '#c2410c',
+      body: '#f97316',
+      highlight: '#fdba74',
+      border: '#7c2d12',
+      glow: 'rgba(249, 115, 22, 0.4)',
+    },
+    LOW: {
+      tab: '#a16207',
+      body: '#eab308',
+      highlight: '#fde047',
+      border: '#713f12',
+      glow: 'rgba(234, 179, 8, 0.35)',
+    },
+  }[importance];
 
-type CalendarViewMode = 'YEAR' | 'MONTH' | 'WEEK' | 'UPCOMING' | 'HISTORICAL';
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="shrink-0 transition-transform duration-150"
+      style={{ filter: `drop-shadow(0 1px 3px ${colors.glow})` }}
+    >
+      {/* Back Folder Tab */}
+      <path
+        d="M2 5C2 3.89543 2.89543 3 4 3H9.17157C9.70201 3 10.2107 3.21071 10.5858 3.58579L12.4142 5.41421C12.7893 5.78929 13.298 6 13.8284 6H20C21.1046 6 22 6.89543 22 8V19C22 20.1046 21.1046 21 20 21H4C2.89543 21 2 20.1046 2 19V5Z"
+        fill={colors.tab}
+        stroke={colors.border}
+        strokeWidth="1.2"
+      />
+      {/* Inner Paper sheet when open */}
+      {isOpen && (
+        <rect
+          x="4"
+          y="5.5"
+          width="16"
+          height="12"
+          rx="1"
+          fill="#f8fafc"
+          stroke="#cbd5e1"
+          strokeWidth="0.8"
+        />
+      )}
+      {/* Front Folder Flap */}
+      <path
+        d={
+          isOpen
+            ? 'M2 10.5C2 9.67157 2.67157 9 3.5 9H20.5C21.3284 9 22 9.67157 22 10.5L20.8 19.5C20.68 20.35 19.95 21 19.1 21H4.9C4.05 21 3.32 20.35 3.2 19.5L2 10.5Z'
+            : 'M2 8.5C2 7.67157 2.67157 7 3.5 7H20.5C21.3284 7 22 7.67157 22 8.5V19C22 20.1046 21.1046 21 20 21H4C2.89543 21 2 20.1046 2 19V8.5Z'
+        }
+        fill={colors.body}
+        stroke={colors.border}
+        strokeWidth="1.2"
+      />
+      {/* Top Sheen Line */}
+      <line
+        x1="4"
+        y1={isOpen ? '10.5' : '8.5'}
+        x2="20"
+        y2={isOpen ? '10.5' : '8.5'}
+        stroke={colors.highlight}
+        strokeWidth="1"
+        strokeLinecap="round"
+        opacity="0.75"
+      />
+    </svg>
+  );
+};
 
-interface ActiveAudioAlert {
-  event: CalendarEvent;
-  minutesRemaining: number;
-  id: string;
+const CURRENCY_FLAGS: Record<string, string> = {
+  USD: '🇺🇸',
+  EUR: '🇪🇺',
+  GBP: '🇬🇧',
+  JPY: '🇯🇵',
+  AUD: '🇦🇺',
+  CAD: '🇨🇦',
+  CHF: '🇨🇭',
+  NZD: '🇳🇿',
+  CNY: '🇨🇳',
+  INR: '🇮🇳',
+  TRY: '🇹🇷',
+  ZAR: '🇿🇦',
+  BRL: '🇧🇷',
+  MXN: '🇲🇽',
+  SGD: '🇸🇬',
+  HKD: '🇭🇰',
+  KRW: '🇰🇷',
+  SEK: '🇸🇪',
+  NOK: '🇳🇴',
+};
+
+const MAJOR_CURRENCIES = ['ALL', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'CNY'];
+
+type PeriodPreset = 'TODAY' | 'THIS_WEEK' | 'NEXT_WEEK' | 'THIS_MONTH' | 'CUSTOM_WEEK';
+
+function getPktNowParts(nowMs: number) {
+  const d = new Date(nowMs);
+  const pktDateKey = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+
+  const pktTimeString = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Karachi',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  }).format(d);
+
+  const pktFullDateString = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Karachi',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(d);
+
+  return { pktDateKey, pktTimeString, pktFullDateString };
+}
+
+function getWeekBoundsInPkt(offsetWeeks = 0): { start: Date; end: Date; label: string } {
+  // Calculate start of week (Sunday 00:00 PKT) to Saturday 23:59:59 PKT
+  const now = new Date();
+  const pktStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+  const [y, m, d] = pktStr.split('-').map(Number);
+  // Create Date in UTC corresponding to 00:00 PKT
+  const pktMidnightUtc = new Date(Date.UTC(y, m - 1, d, 0, 0, 0) - 5 * 3600_000);
+  // Day of week in PKT
+  const dayOfWeek = new Date(pktMidnightUtc.getTime() + 5 * 3600_000).getUTCDay();
+  const startOfWeekUtc = new Date(
+    pktMidnightUtc.getTime() - dayOfWeek * 86400_000 + offsetWeeks * 7 * 86400_000
+  );
+  const endOfWeekUtc = new Date(startOfWeekUtc.getTime() + 7 * 86400_000 - 1000);
+
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Karachi',
+    month: 'short',
+    day: 'numeric',
+  });
+  const yearFmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+  });
+  const label = `${fmt.format(startOfWeekUtc)} – ${fmt.format(endOfWeekUtc)}, ${yearFmt.format(endOfWeekUtc)}`;
+  return { start: startOfWeekUtc, end: endOfWeekUtc, label };
+}
+
+function parseNumeric(val?: string, raw?: number | null): number | null {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (!val || val === '—' || val === '-') return null;
+  const cleaned = val.replace(/[^0-9.-]/g, '');
+  if (!cleaned) return null;
+  const num = Number(cleaned);
+  return Number.isFinite(num) ? num : null;
+}
+
+function evaluateActualOutcome(event: CalendarEvent): 'BETTER' | 'WORSE' | 'INLINE' | 'NONE' {
+  const actual = parseNumeric(event.actual, event.actualRaw);
+  const compareBase =
+    parseNumeric(event.forecast, event.forecastRaw) ??
+    parseNumeric(event.previous, event.previousRaw);
+
+  if (actual === null || compareBase === null) return 'NONE';
+  const diff = actual - compareBase;
+  if (Math.abs(diff) < 1e-6) return 'INLINE';
+
+  const isHigherBetter = !event.isInverseIndicator;
+  if (diff > 0) return isHigherBetter ? 'BETTER' : 'WORSE';
+  return isHigherBetter ? 'WORSE' : 'BETTER';
+}
+
+function formatCountdown(msRemaining: number): string {
+  if (msRemaining <= 0) return 'LIVE / RELEASED';
+  const totalSec = Math.floor(msRemaining / 1000);
+  const days = Math.floor(totalSec / 86400);
+  const hours = Math.floor((totalSec % 86400) / 3600);
+  const mins = Math.floor((totalSec % 3600) / 60);
+  const secs = totalSec % 60;
+  if (days > 0) return `${days}d ${hours}h ${mins}m`;
+  if (hours > 0) return `${hours}h ${mins}m ${secs}s`;
+  return `${mins}m ${secs}s`;
 }
 
 export const FundamentalCalendar: React.FC = () => {
-  // Navigation & View states
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('UPCOMING'); // Default is UPCOMING
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1); // 1-12
-  const [events, setEvents] = useState<CalendarEvent[]>(() => getCachedCalendar());
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [meta, setMeta] = useState<CalendarMeta | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-
-  // Filters: Month, Impact, Currency
-  const [filterImportance, setFilterImportance] = useState<'ALL' | 'HIGH' | 'MEDIUM' | 'LOW'>('ALL');
-  const [filterCurrency, setFilterCurrency] = useState<string>('ALL');
-  const [filterMonth, setFilterMonth] = useState<number | 'ALL'>('ALL');
-  const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [lastRefreshedTime, setLastRefreshedTime] = useState<string>(new Date().toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi' }));
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
 
-  // Internet connectivity state
-  const [isOnline, setIsOnline] = useState<boolean>(() => {
-    return typeof navigator !== 'undefined' ? navigator.onLine : true;
+  // Navigation & Filters (Forex Factory style)
+  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>('THIS_WEEK');
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+  const [selectedMonth, setSelectedMonth] = useState<number>(() => {
+    const pktMonth = Number(
+      new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Karachi', month: 'numeric' }).format(
+        new Date()
+      )
+    );
+    return pktMonth || new Date().getMonth() + 1;
+  });
+  const [selectedYear, setSelectedYear] = useState<number>(() => {
+    const pktYear = Number(
+      new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Karachi', year: 'numeric' }).format(
+        new Date()
+      )
+    );
+    return pktYear || new Date().getFullYear();
   });
 
-  // UI state: Fullscreen & Auto Refresh
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState<boolean>(true);
-
-  // Audio Alerts System state
-  const [soundAlertsEnabled, setSoundAlertsEnabled] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('primepipfx_calendar_sound_alerts');
-      return saved !== null ? JSON.parse(saved) : true;
-    } catch {
-      return true;
-    }
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('ALL');
+  const [impactFilters, setImpactFilters] = useState<{
+    HIGH: boolean;
+    MEDIUM: boolean;
+    LOW: boolean;
+  }>({
+    HIGH: true,
+    MEDIUM: true,
+    LOW: true,
   });
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [onlyWithActual, setOnlyWithActual] = useState<boolean>(false);
 
-  const [alertLeadTimeMinutes, setAlertLeadTimeMinutes] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('primepipfx_calendar_alert_lead_time');
-      return saved !== null ? Number(saved) : 15; // default 15 minutes before
-    } catch {
-      return 15;
-    }
-  });
+  // Expanded Folder IDs (clicking a folder or row toggles its Forex Factory folder details drawer)
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Record<string, boolean>>({});
+  const [soundAlerts, setSoundAlerts] = useState<boolean>(false);
 
-  // Specific event alert subscriptions (event IDs user subscribed to, or ALL high-impact by default)
-  const [customAlertEventIds, setCustomAlertEventIds] = useState<Record<string, boolean>>(() => {
-    try {
-      const raw = localStorage.getItem('primepipfx_custom_calendar_alerts');
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  // Active triggered alert toast for HUD
-  const [activeAlerts, setActiveAlerts] = useState<ActiveAudioAlert[]>([]);
-  const triggeredAlertsRef = useRef<Set<string>>(new Set());
-  const [soundTested, setSoundTested] = useState<boolean>(false);
-
-  // Monitor network connectivity
+  // Live 1-second Pakistan Standard Time ticker
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      loadCalendarData();
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+    const timer = setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
 
-  // Save audio alert settings
-  const toggleSoundAlerts = () => {
-    const next = !soundAlertsEnabled;
-    setSoundAlertsEnabled(next);
-    try {
-      localStorage.setItem('primepipfx_calendar_sound_alerts', JSON.stringify(next));
-      saveAlertSettings({ economicNewsAlert: next, soundEnabled: next ? true : getAlertSettings().soundEnabled });
-    } catch {}
-    if (next) {
-      playDisciplineAlert('ECONOMIC_NEWS_ALERT');
-    }
-  };
+  const pktNow = useMemo(() => getPktNowParts(nowMs), [nowMs]);
 
-  const handleLeadTimeChange = (minutes: number) => {
-    setAlertLeadTimeMinutes(minutes);
-    try {
-      localStorage.setItem('primepipfx_calendar_alert_lead_time', minutes.toString());
-    } catch {}
-  };
+  const activeWeekBounds = useMemo(() => {
+    if (periodPreset === 'TODAY') return getWeekBoundsInPkt(0);
+    if (periodPreset === 'THIS_WEEK') return getWeekBoundsInPkt(0);
+    if (periodPreset === 'NEXT_WEEK') return getWeekBoundsInPkt(1);
+    return getWeekBoundsInPkt(weekOffset);
+  }, [periodPreset, weekOffset]);
 
-  const toggleEventAlertSubscription = (eventId: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setCustomAlertEventIds((prev) => {
-      const next = { ...prev, [eventId]: !prev[eventId] };
-      try {
-        localStorage.setItem('primepipfx_custom_calendar_alerts', JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-  };
-
-  // Test sound alert button
-  const handleTestSoundAlert = () => {
-    playDisciplineAlert('ECONOMIC_NEWS_ALERT');
-    setSoundTested(true);
-    setTimeout(() => setSoundTested(false), 2000);
-  };
-
-  // Load events based on viewMode and selected time range
-  const loadCalendarData = async () => {
+  const loadCalendarData = useCallback(async () => {
     setIsLoading(true);
     try {
-      if (!navigator.onLine) {
-        setIsOnline(false);
-        // Load from local storage cache
-        const cached = getCachedCalendar();
-        if (cached && cached.length > 0) {
-          setEvents(cached);
-        }
-        setIsLoading(false);
-        return;
+      let fetched: CalendarEvent[] = [];
+      if (periodPreset === 'THIS_MONTH') {
+        fetched = await fetchMonthEvents(selectedYear, selectedMonth);
+      } else {
+        fetched = await fetchWeekEvents(
+          activeWeekBounds.start.toISOString(),
+          activeWeekBounds.end.toISOString()
+        );
       }
-
-      setIsOnline(true);
-      let loaded: CalendarEvent[] = [];
-
-      if (viewMode === 'YEAR') {
-        const res = await fetchYearEvents(selectedYear);
-        loaded = res.events;
-      } else if (viewMode === 'MONTH') {
-        loaded = await fetchMonthEvents(selectedYear, selectedMonth);
-      } else if (viewMode === 'WEEK') {
-        const now = new Date();
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - now.getDay());
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 7);
-        loaded = await fetchWeekEvents(startOfWeek.toISOString(), endOfWeek.toISOString());
-      } else if (viewMode === 'UPCOMING') {
-        loaded = await fetchUpcomingEvents(50);
-      } else if (viewMode === 'HISTORICAL') {
-        loaded = await fetchHistoricalEvents(50);
-      }
-
-      if (loaded.length === 0) {
-        const cached = getCachedCalendar();
-        if (cached && cached.length > 0) {
-          loaded = viewMode === 'UPCOMING' ? cached.slice(0, 50) : cached;
-        }
-      }
-
-      setEvents(loaded.length > 0 ? loaded : getCachedCalendar());
-      const metaData = await getCalendarMeta();
-      setMeta(metaData);
-      setLastRefreshedTime(new Date().toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi' }));
-    } catch (err) {
-      console.warn('Failed to load economic calendar from network, loading cached data:', err);
-      const cached = getCachedCalendar();
-      if (cached && cached.length > 0) {
-        setEvents(cached);
-      }
-      setIsOnline(false);
+      setEvents(fetched);
+      const latestMeta = await getCalendarMeta();
+      setMeta(latestMeta);
+    } catch {
+      // handled gracefully in service
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [periodPreset, selectedYear, selectedMonth, activeWeekBounds]);
 
   useEffect(() => {
     loadCalendarData();
-  }, [viewMode, selectedYear, selectedMonth]);
+  }, [loadCalendarData]);
 
-  // Auto-refresh interval (every 60 seconds)
+  // Auto-refresh live TradingView figures every 60 seconds
   useEffect(() => {
-    if (!autoRefreshEnabled) return;
-    const interval = setInterval(() => {
-      if (navigator.onLine) {
-        loadCalendarData();
-      }
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [autoRefreshEnabled, viewMode, selectedYear, selectedMonth]);
-
-  // Background Audio Alert Monitor
-  useEffect(() => {
-    const alertInterval = setInterval(() => {
-      if (!soundAlertsEnabled) return;
-      const now = Date.now();
-      const leadTimeMs = alertLeadTimeMinutes * 60 * 1000;
-
-      // Check upcoming events in our dataset
-      events.forEach((ev) => {
-        const isHighImpact = ev.importance === 'HIGH';
-        const isExplicitlySubscribed = customAlertEventIds[ev.id] === true;
-        const isExplicitlyMuted = customAlertEventIds[ev.id] === false;
-
-        // Monitor if high-impact or custom subscribed, unless explicitly muted
-        if ((isHighImpact || isExplicitlySubscribed) && !isExplicitlyMuted) {
-          const timeUntilEvent = ev.utcTimestamp - now;
-          const alertTriggerKey = `${ev.id}-${alertLeadTimeMinutes}`;
-
-          // If within lead time window (e.g. within 15 min and has not passed more than 2 minutes ago)
-          if (timeUntilEvent > -120000 && timeUntilEvent <= leadTimeMs) {
-            if (!triggeredAlertsRef.current.has(alertTriggerKey)) {
-              triggeredAlertsRef.current.add(alertTriggerKey);
-
-              // Play synthesized audio dispatch alert
-              playDisciplineAlert('ECONOMIC_NEWS_ALERT');
-
-              // Add to visible active alerts HUD
-              const mins = Math.max(0, Math.round(timeUntilEvent / 60000));
-              setActiveAlerts((prev) => [
-                ...prev.filter((a) => a.id !== ev.id),
-                { event: ev, minutesRemaining: mins, id: ev.id },
-              ]);
-            }
-          }
+    const refreshTimer = setInterval(async () => {
+      try {
+        if (periodPreset === 'THIS_MONTH') {
+          const fetched = await fetchMonthEvents(selectedYear, selectedMonth);
+          if (fetched.length > 0) setEvents(fetched);
+        } else {
+          const fetched = await fetchWeekEvents(
+            activeWeekBounds.start.toISOString(),
+            activeWeekBounds.end.toISOString()
+          );
+          if (fetched.length > 0) setEvents(fetched);
         }
-      });
-    }, 10000);
+      } catch {}
+    }, 60_000);
+    return () => clearInterval(refreshTimer);
+  }, [periodPreset, selectedYear, selectedMonth, activeWeekBounds]);
 
-    return () => clearInterval(alertInterval);
-  }, [events, soundAlertsEnabled, alertLeadTimeMinutes, customAlertEventIds]);
-
-  const handleSync = async () => {
+  const handleManualSync = async () => {
     setIsSyncing(true);
     try {
       await syncCalendar();
@@ -351,890 +363,1136 @@ export const FundamentalCalendar: React.FC = () => {
     }
   };
 
-  const dismissActiveAlert = (id: string) => {
-    setActiveAlerts((prev) => prev.filter((a) => a.id !== id));
+  const toggleFolder = (id: string) => {
+    setExpandedFolderIds((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
   };
 
-  useEffect(() => {
-    if (selectedEvent) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [selectedEvent]);
+  const toggleImpactFilter = (level: 'HIGH' | 'MEDIUM' | 'LOW') => {
+    setImpactFilters((prev) => ({
+      ...prev,
+      [level]: !prev[level],
+    }));
+  };
 
-  // Filtered Events
+  // Filtered events
   const filteredEvents = useMemo(() => {
-    return events.filter((ev) => {
-      if (filterImportance !== 'ALL' && ev.importance !== filterImportance) return false;
-      if (filterCurrency !== 'ALL' && ev.currency !== filterCurrency) return false;
-      if (filterMonth !== 'ALL' && ev.month !== filterMonth) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchName = ev.eventName.toLowerCase().includes(q);
-        const matchDesc = ev.whatItMeasures?.toLowerCase().includes(q);
-        const matchSource = ev.source.toLowerCase().includes(q);
-        if (!matchName && !matchDesc && !matchSource) return false;
-      }
-      return true;
-    });
-  }, [events, filterImportance, filterCurrency, filterMonth, searchQuery]);
+    return events
+      .filter((ev) => {
+        if (periodPreset === 'TODAY') {
+          const evKey =
+            ev.pktDateKey ||
+            new Intl.DateTimeFormat('en-CA', {
+              timeZone: 'Asia/Karachi',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            }).format(new Date(ev.utcTimestamp));
+          if (evKey !== pktNow.pktDateKey) return false;
+        }
+        if (selectedCurrency !== 'ALL' && ev.currency !== selectedCurrency) return false;
+        if (!impactFilters[ev.importance]) return false;
+        if (onlyWithActual && (!ev.actual || ev.actual === '—')) return false;
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          const matchName = ev.eventName.toLowerCase().includes(q);
+          const matchCur = ev.currency.toLowerCase().includes(q);
+          const matchCountry = ev.country.toLowerCase().includes(q);
+          const matchSource = (ev.source || '').toLowerCase().includes(q);
+          const matchInd = (ev.indicator || '').toLowerCase().includes(q);
+          if (!matchName && !matchCur && !matchCountry && !matchSource && !matchInd) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => a.utcTimestamp - b.utcTimestamp);
+  }, [events, periodPreset, pktNow.pktDateKey, selectedCurrency, impactFilters, onlyWithActual, searchQuery]);
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  // Group events by PKT Date Key for Forex Factory Day-Grouped Table
+  const groupedByPktDay = useMemo(() => {
+    const groups: {
+      pktDateKey: string;
+      dayOfWeekPkt: string;
+      datePkt: string;
+      events: CalendarEvent[];
+    }[] = [];
+    const map = new Map<string, typeof groups[number]>();
 
-  // Group events by Month for the Full Year view
-  const groupedByMonth = useMemo(() => {
-    if (viewMode !== 'YEAR') return null;
-    const groups: { [key: number]: CalendarEvent[] } = {};
-    for (let m = 1; m <= 12; m++) {
-      groups[m] = [];
-    }
     for (const ev of filteredEvents) {
-      if (groups[ev.month]) {
-        groups[ev.month].push(ev);
+      const key =
+        ev.pktDateKey ||
+        new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Karachi',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(new Date(ev.utcTimestamp));
+
+      let grp = map.get(key);
+      if (!grp) {
+        const d = new Date(ev.utcTimestamp);
+        const dayOfWeekPkt =
+          ev.dayOfWeekPkt ||
+          new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Karachi',
+            weekday: 'short',
+          }).format(d);
+        const datePkt =
+          ev.datePkt ||
+          new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Karachi',
+            month: 'short',
+            day: 'numeric',
+          }).format(d);
+        grp = { pktDateKey: key, dayOfWeekPkt, datePkt, events: [] };
+        map.set(key, grp);
+        groups.push(grp);
       }
+      grp.events.push(ev);
     }
     return groups;
-  }, [filteredEvents, viewMode]);
+  }, [filteredEvents]);
+
+  // Next Upcoming Event (for the "Up Next" radar banner & row marker)
+  const nextUpcomingEvent = useMemo(() => {
+    const upcoming = filteredEvents.filter((e) => e.utcTimestamp >= nowMs - 60_000);
+    return upcoming.length > 0 ? upcoming[0] : null;
+  }, [filteredEvents, nowMs]);
+
+  const highImpactUpcoming = useMemo(() => {
+    const upcomingHigh = events
+      .filter((e) => e.importance === 'HIGH' && e.utcTimestamp >= nowMs)
+      .sort((a, b) => a.utcTimestamp - b.utcTimestamp);
+    return upcomingHigh.length > 0 ? upcomingHigh[0] : null;
+  }, [events, nowMs]);
+
+  const allExpanded = useMemo(() => {
+    if (filteredEvents.length === 0) return false;
+    return filteredEvents.every((e) => expandedFolderIds[e.id]);
+  }, [filteredEvents, expandedFolderIds]);
+
+  const handleToggleExpandAll = () => {
+    if (allExpanded) {
+      setExpandedFolderIds({});
+    } else {
+      const next: Record<string, boolean> = {};
+      for (const e of filteredEvents) next[e.id] = true;
+      setExpandedFolderIds(next);
+    }
+  };
+
+  const scrollToUpNext = () => {
+    if (!nextUpcomingEvent) return;
+    const el = document.getElementById(`ff-row-${nextUpcomingEvent.id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setExpandedFolderIds((prev) => ({ ...prev, [nextUpcomingEvent.id]: true }));
+    }
+  };
+
+  // Summary counts
+  const counts = useMemo(() => {
+    let high = 0;
+    let medium = 0;
+    let low = 0;
+    let released = 0;
+    for (const e of filteredEvents) {
+      if (e.importance === 'HIGH') high++;
+      else if (e.importance === 'MEDIUM') medium++;
+      else low++;
+      if (e.actual && e.actual !== '—') released++;
+    }
+    return { high, medium, low, released, total: filteredEvents.length };
+  }, [filteredEvents]);
 
   return (
-    <div className={`w-full max-w-7xl mx-auto space-y-6 overflow-x-hidden ${isFullscreen ? 'fixed inset-0 z-50 bg-[#020617] p-4 sm:p-6 overflow-y-auto max-w-none' : ''}`}>
-      {/* Offline Alert Notification Banner */}
-      {!isOnline && (
-        <div className="bg-rose-950/70 border-2 border-rose-500/80 rounded-xl p-4 text-rose-200 flex items-center justify-between gap-3 shadow-2xl animate-pulse">
-          <div className="flex items-center gap-3">
-            <WifiOff className="w-5 h-5 text-rose-400 shrink-0" />
-            <div className="text-xs font-mono-code font-bold">
-              No internet connection — cannot fetch live economic events. Showing last cached data.
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              if (navigator.onLine) {
-                setIsOnline(true);
-                loadCalendarData();
-              }
-            }}
-            className="px-3 py-1.5 bg-rose-900/60 hover:bg-rose-800 border border-rose-400 rounded-lg text-xs font-mono-code text-white transition shrink-0 cursor-pointer"
-          >
-            RETRY CONNECTION
-          </button>
-        </div>
-      )}
-
-      {/* Triggered Audio Alert Banner */}
-      {activeAlerts.length > 0 && (
-        <div className="space-y-2">
-          {activeAlerts.map((alert) => (
-            <div
-              key={alert.id}
-              className="bg-amber-950/90 border-2 border-blue-500 rounded-xl p-4 text-cyan-200 flex items-center justify-between gap-4 shadow-2xl animate-bounce"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-500 text-slate-950 font-bold">
-                  <BellRing className="w-5 h-5 animate-spin" />
+    <div className="min-h-screen bg-[#070b12] text-slate-100 pb-16">
+      {/* TOP COMMAND HEADER: Forex Factory Layout + TradingView Live Data Engine + PKT Clock */}
+      <div className="border-b border-slate-800/90 bg-gradient-to-b from-[#0d1421] to-[#090e17] sticky top-0 z-30 shadow-2xl">
+        <div className="max-w-[1440px] mx-auto px-3 sm:px-6 py-3">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            {/* Left Brand & Live Status */}
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/25 via-orange-500/20 to-amber-500/25 border border-red-500/40 flex items-center justify-center shrink-0 shadow-inner">
+                <ForexFactoryFolderIcon importance="HIGH" isOpen={true} size={22} />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-white uppercase">
+                    Live News Calendar
+                  </h1>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/40 text-[10px] font-bold text-emerald-300 tracking-wider uppercase">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    100% Live TradingView Data
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/35 text-[10px] font-bold text-amber-300 tracking-wider uppercase">
+                    Forex Factory Interface
+                  </span>
                 </div>
-                <div>
-                  <div className="text-xs font-mono-code font-bold text-cyan-400 flex items-center gap-2">
-                    <span>🚨 AUDIO ALERT: HIGH-IMPACT RELEASE IMMINENT</span>
-                    <span className="px-2 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-[10px]">
-                      {alert.minutesRemaining === 0 ? 'RELEASING NOW' : `IN ~${alert.minutesRemaining} MIN`}
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Click any color-coded impact folder to inspect topic, official source, potential market impact, and Previous / Forecast / Actual figures.
+                </p>
+              </div>
+            </div>
+
+            {/* Right Live Pakistan Standard Time (PKT) Clock & Sync Controls */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {/* Live PKT Clock Box */}
+              <div className="flex items-center gap-2.5 bg-[#05080f] border border-cyan-500/35 rounded-lg px-3 py-1.5 shadow-inner">
+                <Clock className="w-4 h-4 text-cyan-400 shrink-0" />
+                <div className="leading-tight">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs sm:text-sm font-mono font-bold text-white tracking-wider">
+                      {pktNow.pktTimeString}
+                    </span>
+                    <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                      PKT (UTC+5)
                     </span>
                   </div>
-                  <div className="text-sm font-bold text-slate-100 font-military mt-0.5">
-                    {alert.event.eventName} ({alert.event.currency}) • {alert.event.timePkt}
-                  </div>
-                  <div className="text-[11px] text-slate-300 font-sans mt-0.5">
-                    {alert.event.recommendedPosture}
+                  <div className="text-[10px] text-slate-400 font-medium">
+                    Pakistan Standard Time • {pktNow.pktFullDateString}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+
+              {/* Jump to Up Next Button */}
+              {nextUpcomingEvent && (
                 <button
-                  onClick={() => setSelectedEvent(alert.event)}
-                  className="px-3 py-1.5 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs font-mono-code transition cursor-pointer"
+                  onClick={scrollToUpNext}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold transition cursor-pointer"
+                  title="Scroll to next upcoming economic release"
                 >
-                  VIEW BREAKDOWN
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Up Next: {nextUpcomingEvent.currency}</span>
                 </button>
-                <button
-                  onClick={() => dismissActiveAlert(alert.id)}
-                  className="p-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-300 hover:text-white cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Header Banner */}
-      <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-cyan-400">
-            <Calendar className="w-6 h-6" />
-          </span>
-          <div>
-            <h2 className="text-lg font-military font-bold tracking-wider text-slate-100 flex items-center gap-2">
-              <span>PRIMEPIPFX LIVE ECONOMIC CALENDAR</span>
-              <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-blue-500/15 text-cyan-400 border border-blue-500/30 font-bold">
-                YEAR {selectedYear}
-              </span>
-            </h2>
-            <p className="text-xs text-slate-400 font-sans mt-0.5">
-              Upcoming Macro Releases Schedule • Event Names & Timings (Detailed Data: Coming Soon) • Asia/Karachi (PKT UTC+5)
-            </p>
-          </div>
-        </div>
-
-        {/* Action Controls: Sound Alerts, Fullscreen, Auto Refresh, Sync */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Audio Alerts Toggle */}
-          <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 gap-2 text-xs font-mono-code">
-            <button
-              onClick={toggleSoundAlerts}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded transition cursor-pointer font-bold ${
-                soundAlertsEnabled
-                  ? 'bg-blue-500/20 text-cyan-400 border border-blue-500/40'
-                  : 'bg-slate-950 text-slate-500 border border-slate-800'
-              }`}
-              title="Toggle Audio News Alerts"
-            >
-              {soundAlertsEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-              <span>{soundAlertsEnabled ? 'AUDIO ALERTS: ON' : 'AUDIO: OFF'}</span>
-            </button>
-
-            {/* Lead Time Selector */}
-            {soundAlertsEnabled && (
-              <select
-                value={alertLeadTimeMinutes}
-                onChange={(e) => handleLeadTimeChange(Number(e.target.value))}
-                className="bg-slate-950 border border-slate-700 text-slate-300 text-[11px] rounded px-1.5 py-1 focus:outline-none focus:border-blue-500"
-                title="Alert timing before release"
-              >
-                <option value={0}>At Event Time (0m)</option>
-                <option value={5}>5m Before</option>
-                <option value={15}>15m Before</option>
-                <option value={30}>30m Before</option>
-              </select>
-            )}
-
-            <button
-              onClick={handleTestSoundAlert}
-              className="p-1 rounded text-slate-400 hover:text-cyan-400 transition cursor-pointer"
-              title="Test Audio Alert Sound"
-            >
-              <Bell className={`w-3.5 h-3.5 ${soundTested ? 'text-cyan-400 animate-spin' : ''}`} />
-            </button>
-          </div>
-
-          {/* Auto Refresh Toggle */}
-          <button
-            onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-mono-code transition cursor-pointer flex items-center gap-1.5 ${
-              autoRefreshEnabled
-                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 font-bold'
-                : 'bg-slate-950 border-slate-800 text-slate-400'
-            }`}
-            title="Auto-refresh every 60 seconds"
-          >
-            <span className={`w-2 h-2 rounded-full ${autoRefreshEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
-            <span>{autoRefreshEnabled ? 'AUTO (60s)' : 'AUTO: OFF'}</span>
-          </button>
-
-          {/* Sync / Refresh Button */}
-          <button
-            onClick={handleSync}
-            disabled={isSyncing}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-mono-code transition cursor-pointer"
-            title={`Refreshed at ${lastRefreshedTime}. Click to fetch latest data.`}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-cyan-400' : ''}`} />
-            <span>{isSyncing ? 'REFRESHING...' : 'REFRESH LIVE DATA'}</span>
-          </button>
-
-          {/* Fullscreen Toggle */}
-          <button
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            className="p-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-lg text-slate-300 hover:text-white transition cursor-pointer"
-            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Terminal View'}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Main View Grid: Calendar on Left, Real-Time Macro Hubs on Right */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Calendar Views & Controls */}
-        <div className="xl:col-span-9 space-y-6">
-          {/* Main View Selector & Year Navigation */}
-          <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
-            {/* View Mode Buttons */}
-            <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-mono-code flex-wrap">
-              <button
-                onClick={() => setViewMode('YEAR')}
-                className={`px-3 py-1.5 rounded-md transition font-bold flex items-center gap-1.5 cursor-pointer ${
-                  viewMode === 'YEAR'
-                    ? 'bg-blue-500 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Calendar className="w-3.5 h-3.5" />
-                <span>FULL YEAR</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('MONTH')}
-                className={`px-3 py-1.5 rounded-md transition font-bold flex items-center gap-1.5 cursor-pointer ${
-                  viewMode === 'MONTH'
-                    ? 'bg-blue-500 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <CalendarDays className="w-3.5 h-3.5" />
-                <span>MONTH VIEW</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('WEEK')}
-                className={`px-3 py-1.5 rounded-md transition font-bold flex items-center gap-1.5 cursor-pointer ${
-                  viewMode === 'WEEK'
-                    ? 'bg-blue-500 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Clock4 className="w-3.5 h-3.5" />
-                <span>THIS WEEK</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('UPCOMING')}
-                className={`px-3 py-1.5 rounded-md transition font-bold flex items-center gap-1.5 cursor-pointer ${
-                  viewMode === 'UPCOMING'
-                    ? 'bg-blue-500 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <ChevronRight className="w-3.5 h-3.5" />
-                <span>UPCOMING</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('HISTORICAL')}
-                className={`px-3 py-1.5 rounded-md transition font-bold flex items-center gap-1.5 cursor-pointer ${
-                  viewMode === 'HISTORICAL'
-                    ? 'bg-blue-500 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <History className="w-3.5 h-3.5" />
-                <span>HISTORICAL</span>
-              </button>
-            </div>
-
-            {/* Year & Month Selectors (2026 & 2027) */}
-            <div className="flex items-center gap-2 text-xs font-mono-code">
-              {viewMode === 'MONTH' && (
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                  className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500 font-bold cursor-pointer"
-                >
-                  {monthNames.map((name, idx) => (
-                    <option key={idx + 1} value={idx + 1}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
               )}
 
-              {/* Year Navigation: 2026 and 2027 */}
-              <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5">
-                <button
-                  onClick={() => setSelectedYear(2026)}
-                  className={`px-3 py-1 rounded text-xs font-bold transition cursor-pointer ${
-                    selectedYear === 2026
-                      ? 'bg-blue-500 text-slate-950 font-bold shadow'
-                      : 'text-slate-400 hover:text-slate-200'
+              {/* Live Refresh Button */}
+              <button
+                onClick={handleManualSync}
+                disabled={isSyncing || isLoading}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+                title="Refresh live data directly from TradingView Economic Calendar"
+              >
+                <RefreshCw
+                  className={`w-3.5 h-3.5 text-emerald-400 ${
+                    isSyncing || isLoading ? 'animate-spin' : ''
                   }`}
-                >
-                  2026
-                </button>
-                <button
-                  onClick={() => setSelectedYear(2027)}
-                  className={`px-3 py-1 rounded text-xs font-bold transition cursor-pointer ${
-                    selectedYear === 2027
-                      ? 'bg-blue-500 text-slate-950 font-bold shadow'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  2027
-                </button>
-              </div>
+                />
+                <span>{isSyncing ? 'Syncing Live...' : 'Sync Live'}</span>
+              </button>
             </div>
           </div>
 
-          {/* Filter and Search Bar: Month, Impact, Currency */}
-          <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono-code">
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Impact Filter */}
-              <span className="text-slate-400 flex items-center gap-1 text-[11px]">
-                <Filter className="w-3.5 h-3.5 text-slate-400" />
-                <span>IMPACT:</span>
-              </span>
-              <button
-                onClick={() => setFilterImportance('ALL')}
-                className={`px-2.5 py-1 rounded-lg border transition cursor-pointer ${
-                  filterImportance === 'ALL'
-                    ? 'bg-blue-500 text-slate-950 border-cyan-400 font-bold'
-                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
-                }`}
-              >
-                ALL
-              </button>
-              <button
-                onClick={() => setFilterImportance('HIGH')}
-                className={`px-2.5 py-1 rounded-lg border transition flex items-center gap-1 cursor-pointer ${
-                  filterImportance === 'HIGH'
-                    ? 'bg-rose-500 text-slate-950 border-rose-400 font-bold'
-                    : 'bg-slate-950 text-rose-400 border-slate-800 hover:bg-slate-950'
-                }`}
-              >
-                <Flame className="w-3 h-3" />
-                <span>HIGH</span>
-              </button>
-              <button
-                onClick={() => setFilterImportance('MEDIUM')}
-                className={`px-2.5 py-1 rounded-lg border transition cursor-pointer ${
-                  filterImportance === 'MEDIUM'
-                    ? 'bg-blue-500 text-slate-950 border-cyan-400 font-bold'
-                    : 'bg-slate-950 text-cyan-400 border-slate-800 hover:bg-slate-950'
-                }`}
-              >
-                MEDIUM
-              </button>
-              <button
-                onClick={() => setFilterImportance('LOW')}
-                className={`px-2.5 py-1 rounded-lg border transition cursor-pointer ${
-                  filterImportance === 'LOW'
-                    ? 'bg-slate-700 text-slate-200 border-slate-600 font-bold'
-                    : 'bg-slate-950 text-slate-500 border-slate-800 hover:bg-slate-950'
-                }`}
-              >
-                LOW
-              </button>
+          {/* FOREX FACTORY CONTROL BAR: Date Navigation + Folder Impact Filters + Currency Filter */}
+          <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-2.5">
+            {/* Period & Week Navigation */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <div className="inline-flex items-center bg-[#060a10] border border-slate-800 rounded-lg p-0.5">
+                <button
+                  onClick={() => {
+                    setPeriodPreset('TODAY');
+                    setWeekOffset(0);
+                  }}
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
+                    periodPreset === 'TODAY'
+                      ? 'bg-cyan-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Today (PKT)
+                </button>
+                <button
+                  onClick={() => {
+                    setPeriodPreset('THIS_WEEK');
+                    setWeekOffset(0);
+                  }}
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
+                    periodPreset === 'THIS_WEEK'
+                      ? 'bg-cyan-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  This Week
+                </button>
+                <button
+                  onClick={() => {
+                    setPeriodPreset('NEXT_WEEK');
+                    setWeekOffset(1);
+                  }}
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
+                    periodPreset === 'NEXT_WEEK'
+                      ? 'bg-cyan-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Next Week
+                </button>
+                <button
+                  onClick={() => setPeriodPreset('THIS_MONTH')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
+                    periodPreset === 'THIS_MONTH'
+                      ? 'bg-cyan-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Month View
+                </button>
+              </div>
 
-              <span className="text-slate-700 mx-1">|</span>
+              {/* Prev / Next Week Stepper */}
+              {periodPreset !== 'THIS_MONTH' ? (
+                <div className="inline-flex items-center gap-1 bg-[#060a10] border border-slate-800 rounded-lg px-2 py-1">
+                  <button
+                    onClick={() => {
+                      const nextOff =
+                        periodPreset === 'NEXT_WEEK' ? 0 : weekOffset - 1;
+                      setPeriodPreset('CUSTOM_WEEK');
+                      setWeekOffset(nextOff);
+                    }}
+                    className="p-0.5 rounded hover:bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                    title="Previous Week"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs font-mono font-semibold text-slate-200 px-1.5">
+                    {activeWeekBounds.label}
+                  </span>
+                  <button
+                    onClick={() => {
+                      const nextOff =
+                        periodPreset === 'NEXT_WEEK' ? 2 : weekOffset + 1;
+                      setPeriodPreset('CUSTOM_WEEK');
+                      setWeekOffset(nextOff);
+                    }}
+                    className="p-0.5 rounded hover:bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                    title="Next Week"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 bg-[#060a10] border border-slate-800 rounded-lg px-2 py-1">
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                    className="bg-transparent text-xs font-bold text-slate-200 focus:outline-none cursor-pointer"
+                  >
+                    {[
+                      'January',
+                      'February',
+                      'March',
+                      'April',
+                      'May',
+                      'June',
+                      'July',
+                      'August',
+                      'September',
+                      'October',
+                      'November',
+                      'December',
+                    ].map((mName, idx) => (
+                      <option key={mName} value={idx + 1} className="bg-slate-900 text-white">
+                        {mName}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                    className="bg-transparent text-xs font-bold text-cyan-400 focus:outline-none cursor-pointer"
+                  >
+                    {[2025, 2026, 2027].map((yr) => (
+                      <option key={yr} value={yr} className="bg-slate-900 text-white">
+                        {yr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-              {/* Currency Filter */}
-              <span className="text-slate-400 text-[11px]">CCY:</span>
-              <select
-                value={filterCurrency}
-                onChange={(e) => setFilterCurrency(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer"
-              >
-                <option value="ALL">ALL CURRENCIES</option>
-                <option value="USD">USD (United States)</option>
-                <option value="EUR">EUR (Eurozone)</option>
-                <option value="GBP">GBP (United Kingdom)</option>
-                <option value="JPY">JPY (Japan)</option>
-                <option value="CAD">CAD (Canada)</option>
-                <option value="AUD">AUD (Australia)</option>
-                <option value="CHF">CHF (Switzerland)</option>
-              </select>
+              {/* FOREX FACTORY FOLDER IMPACT LEGEND & TOGGLES */}
+              <div className="inline-flex items-center gap-1.5 bg-[#060a10] border border-slate-800 rounded-lg px-2.5 py-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+                  Folders:
+                </span>
+                <button
+                  onClick={() => toggleImpactFilter('HIGH')}
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold transition cursor-pointer border ${
+                    impactFilters.HIGH
+                      ? 'bg-red-500/15 border-red-500/50 text-red-200'
+                      : 'bg-slate-900/50 border-slate-800 text-slate-500 opacity-50'
+                  }`}
+                  title="Toggle High Impact Red Folders"
+                >
+                  <ForexFactoryFolderIcon importance="HIGH" size={14} />
+                  <span>High ({counts.high})</span>
+                </button>
+                <button
+                  onClick={() => toggleImpactFilter('MEDIUM')}
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold transition cursor-pointer border ${
+                    impactFilters.MEDIUM
+                      ? 'bg-orange-500/15 border-orange-500/50 text-orange-200'
+                      : 'bg-slate-900/50 border-slate-800 text-slate-500 opacity-50'
+                  }`}
+                  title="Toggle Medium Impact Orange Folders"
+                >
+                  <ForexFactoryFolderIcon importance="MEDIUM" size={14} />
+                  <span>Medium ({counts.medium})</span>
+                </button>
+                <button
+                  onClick={() => toggleImpactFilter('LOW')}
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold transition cursor-pointer border ${
+                    impactFilters.LOW
+                      ? 'bg-yellow-500/15 border-yellow-500/50 text-yellow-200'
+                      : 'bg-slate-900/50 border-slate-800 text-slate-500 opacity-50'
+                  }`}
+                  title="Toggle Low Impact Yellow Folders"
+                >
+                  <ForexFactoryFolderIcon importance="LOW" size={14} />
+                  <span>Low ({counts.low})</span>
+                </button>
+              </div>
+            </div>
 
-              {/* Month Filter */}
-              <span className="text-slate-400 text-[11px] ml-1">MONTH:</span>
-              <select
-                value={filterMonth}
-                onChange={(e) => setFilterMonth(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
-                className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer"
-              >
-                <option value="ALL">ALL MONTHS (JAN - DEC)</option>
-                {monthNames.map((name, idx) => (
-                  <option key={idx + 1} value={idx + 1}>
-                    {name}
-                  </option>
+            {/* Right: Currency Pills + Search + Expand All Folders */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Currency Selector */}
+              <div className="inline-flex items-center gap-1 bg-[#060a10] border border-slate-800 rounded-lg p-0.5 overflow-x-auto max-w-full">
+                {MAJOR_CURRENCIES.map((cur) => (
+                  <button
+                    key={cur}
+                    onClick={() => setSelectedCurrency(cur)}
+                    className={`px-2 py-1 rounded text-[11px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                      selectedCurrency === cur
+                        ? 'bg-slate-700 text-white shadow'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {cur !== 'ALL' && <span>{CURRENCY_FLAGS[cur] || '🌐'}</span>}
+                    <span>{cur}</span>
+                  </button>
                 ))}
-              </select>
-            </div>
-
-            {/* Search Input */}
-            <div className="relative w-full sm:w-64">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Search FOMC, CPI, NFP, ECB..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Main Table Content */}
-          {isLoading ? (
-            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-12 text-center text-slate-400 font-mono-code text-sm">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-cyan-400 mb-3" />
-              <span>LOADING INSTITUTIONAL EVENT SCHEDULE & NUMBERS...</span>
-            </div>
-          ) : viewMode === 'YEAR' && groupedByMonth ? (
-            /* FULL YEAR GROUPED BY MONTH VIEW */
-            <div className="space-y-6">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((monthNum) => {
-                const monthEvents = groupedByMonth[monthNum] || [];
-                if (monthEvents.length === 0) return null;
-                const mIndex = monthNum - 1;
-                return (
-                  <div key={monthNum} className="bg-slate-950/60 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-                    {/* Month Banner */}
-                    <div className="bg-slate-950/80 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CalendarDays className="w-4 h-4 text-cyan-400" />
-                        <span className="font-military font-bold text-sm tracking-wider text-slate-200">
-                          {monthNames[mIndex]?.toUpperCase()} {selectedYear}
-                        </span>
-                        <span className="text-[10px] font-mono-code text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                          {monthEvents.length} INSTITUTIONAL RELEASES
-                        </span>
-                      </div>
-                      <span className="text-[11px] font-mono-code text-cyan-400/80">
-                        RELEASE TIMES IN ASIA/KARACHI (PKT)
-                      </span>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs font-mono-code">
-                        <thead className="bg-[#E6E6E6] text-slate-800 border-b border-slate-300 text-[11px] font-sans">
-                    <tr>
-                      <th className="py-2 px-3 font-semibold w-16">Date</th>
-                      <th className="py-2 px-3 font-semibold">Time (PST)</th>
-                      <th className="py-2 px-3 font-semibold text-center">Cur.</th>
-                      <th className="py-2 px-3 font-semibold text-center">Imp.</th>
-                      <th className="py-2 px-3 font-semibold">Event</th>
-                      <th className="py-2 px-2 font-semibold text-center">Detail</th>
-                      <th className="py-2 px-3 font-semibold text-center">Actual</th>
-                      <th className="py-2 px-3 font-semibold text-center">Forecast</th>
-                      <th className="py-2 px-3 font-semibold text-center">Previous</th>
-                      <th className="py-2 px-2 font-semibold text-center">Graph</th>
-                    </tr>
-                  </thead>
-                        <tbody className="divide-y divide-slate-800/40">
-                          {monthEvents.map((ev) => {
-                            const isAlertActive = customAlertEventIds[ev.id] !== false && (ev.importance === 'HIGH' || customAlertEventIds[ev.id] === true);
-                            return (
-                              <tr
-                            key={ev.id}
-                            onClick={() => setSelectedEvent(ev)}
-                            className="bg-white hover:bg-slate-50 cursor-pointer transition border-b border-slate-200 font-sans text-[12px] text-slate-800"
-                          >
-                            <td className="py-2 px-3 text-slate-700 whitespace-nowrap border-r border-slate-100 font-medium">
-                              <span className="text-slate-800 font-semibold">{ev.datePkt.split(',')[0]}</span>
-                              <span className="text-slate-400 text-[10px] ml-1">{ev.datePkt.split(',')[1]?.trim()}</span>
-                            </td>
-                            <td className="py-2 px-3 whitespace-nowrap text-slate-700 border-r border-slate-100">
-                              {ev.timePkt}
-                            </td>
-                            <td className="py-2 px-3 text-center font-bold text-slate-600 border-r border-slate-100">
-                              {ev.currency}
-                            </td>
-                            <td className="py-2 px-3 text-center border-r border-slate-100">
-                              <div className="flex justify-center">
-                                <Folder 
-                                  className={`w-4 h-4 ${
-                                    ev.importance === 'HIGH' ? 'fill-rose-500 text-rose-500' : 
-                                    ev.importance === 'MEDIUM' ? 'fill-orange-400 text-orange-400' : 
-                                    'fill-yellow-400 text-yellow-400'
-                                  }`} 
-                                />
-                              </div>
-                            </td>
-                            <td className="py-2 px-3 font-medium text-slate-800 border-r border-slate-100">
-                              {ev.eventName}
-                            </td>
-                            <td className="py-2 px-2 text-center border-r border-slate-100">
-                              <div className="flex justify-center text-slate-400 hover:text-blue-500 transition">
-                                <Folder className="w-4 h-4" />
-                              </div>
-                            </td>
-                            <td className="py-2 px-3 text-center border-r border-slate-100">
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono-code font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-                                Coming Soon
-                              </span>
-                            </td>
-                            <td className="py-2 px-3 text-center text-slate-600 border-r border-slate-100">
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono-code font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-                                Coming Soon
-                              </span>
-                            </td>
-                            <td className="py-2 px-3 text-center text-slate-600 border-r border-slate-100">
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono-code font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-                                Coming Soon
-                              </span>
-                            </td>
-                            <td className="py-2 px-2 text-center">
-                              <div className="flex justify-center text-slate-400 hover:text-blue-500 transition">
-                                <BarChart2 className="w-4 h-4" />
-                              </div>
-                            </td>
-                          </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            /* STANDARD TABLE VIEW (MONTH, WEEK, UPCOMING, HISTORICAL) */
-            <div className="bg-white border border-slate-300 rounded-sm overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono-code">
-                  <thead className="bg-[#E6E6E6] text-slate-800 border-b border-slate-300 text-[11px] font-sans">
-                    <tr>
-                      <th className="py-2 px-3 font-semibold w-16">Date</th>
-                      <th className="py-2 px-3 font-semibold">Time (PST)</th>
-                      <th className="py-2 px-3 font-semibold text-center">Cur.</th>
-                      <th className="py-2 px-3 font-semibold text-center">Imp.</th>
-                      <th className="py-2 px-3 font-semibold">Event</th>
-                      <th className="py-2 px-2 font-semibold text-center">Detail</th>
-                      <th className="py-2 px-3 font-semibold text-center">Actual</th>
-                      <th className="py-2 px-3 font-semibold text-center">Forecast</th>
-                      <th className="py-2 px-3 font-semibold text-center">Previous</th>
-                      <th className="py-2 px-2 font-semibold text-center">Graph</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/40">
-                    {filteredEvents.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="py-8 text-center text-slate-500">
-                          No economic releases matching current filters.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredEvents.map((ev) => {
-                        const isAlertActive = customAlertEventIds[ev.id] !== false && (ev.importance === 'HIGH' || customAlertEventIds[ev.id] === true);
-                        return (
-                          <tr
-                            key={ev.id}
-                            onClick={() => setSelectedEvent(ev)}
-                            className="bg-white hover:bg-slate-50 cursor-pointer transition border-b border-slate-200 font-sans text-[12px] text-slate-800"
-                          >
-                            <td className="py-2 px-3 text-slate-700 whitespace-nowrap border-r border-slate-100 font-medium">
-                              <span className="text-slate-800 font-semibold">{ev.datePkt.split(',')[0]}</span>
-                              <span className="text-slate-400 text-[10px] ml-1">{ev.datePkt.split(',')[1]?.trim()}</span>
-                            </td>
-                            <td className="py-2 px-3 whitespace-nowrap text-slate-700 border-r border-slate-100">
-                              {ev.timePkt}
-                            </td>
-                            <td className="py-2 px-3 text-center font-bold text-slate-600 border-r border-slate-100">
-                              {ev.currency}
-                            </td>
-                            <td className="py-2 px-3 text-center border-r border-slate-100">
-                              <div className="flex justify-center">
-                                <Folder 
-                                  className={`w-4 h-4 ${
-                                    ev.importance === 'HIGH' ? 'fill-rose-500 text-rose-500' : 
-                                    ev.importance === 'MEDIUM' ? 'fill-orange-400 text-orange-400' : 
-                                    'fill-yellow-400 text-yellow-400'
-                                  }`} 
-                                />
-                              </div>
-                            </td>
-                            <td className="py-2 px-3 font-medium text-slate-800 border-r border-slate-100">
-                              {ev.eventName}
-                            </td>
-                            <td className="py-2 px-2 text-center border-r border-slate-100">
-                              <div className="flex justify-center text-slate-400 hover:text-blue-500 transition">
-                                <Folder className="w-4 h-4" />
-                              </div>
-                            </td>
-                            <td className="py-2 px-3 text-center border-r border-slate-100">
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono-code font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-                                Coming Soon
-                              </span>
-                            </td>
-                            <td className="py-2 px-3 text-center text-slate-600 border-r border-slate-100">
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono-code font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-                                Coming Soon
-                              </span>
-                            </td>
-                            <td className="py-2 px-3 text-center text-slate-600 border-r border-slate-100">
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono-code font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-                                Coming Soon
-                              </span>
-                            </td>
-                            <td className="py-2 px-2 text-center">
-                              <div className="flex justify-center text-slate-400 hover:text-blue-500 transition">
-                                <BarChart2 className="w-4 h-4" />
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
               </div>
-            </div>
-          )}
-        </div>
 
-        {/* Right Column: Real-Time News & External Macro Hubs (Forex Factory, etc.) */}
-        <div className="xl:col-span-3 space-y-4">
-          <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-cyan-400" />
-              <h3 className="font-military font-bold text-xs tracking-wider text-slate-200">
-                LIVE MARKET HUBS & WIRES
-              </h3>
-            </div>
-            <p className="text-[11px] text-slate-400 font-sans">
-              Instant live feeds, consensus deviation trackers, and central bank monitors.
-            </p>
+              {/* Search input */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search news, CPI, NFP, Fed..."
+                  className="bg-[#060a10] border border-slate-800 focus:border-cyan-500/60 rounded-lg pl-8 pr-3 py-1 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none w-44 sm:w-52"
+                />
+              </div>
 
-            <div className="space-y-2 pt-1">
-              {REAL_TIME_MACRO_HUBS.map((hub, idx) => (
-                <a
-                  key={idx}
-                  href={hub.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`block p-3 rounded-xl border transition group ${
-                    hub.highlight
-                      ? 'bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/30'
-                      : 'bg-slate-950/70 hover:bg-slate-950 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono-code font-bold text-cyan-400/90 tracking-wider">
-                      {hub.tag}
-                    </span>
-                    <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 transition transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                  </div>
-                  <div className="font-military font-bold text-xs text-slate-200 mt-1">
-                    {hub.name}
-                  </div>
-                  <div className="text-[11px] text-slate-400 font-sans mt-0.5 line-clamp-2">
-                    {hub.desc}
-                  </div>
-                </a>
-              ))}
-            </div>
-          </div>
-
-          {/* Institutional Volatility Protocols Box */}
-          <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-2.5 text-xs font-mono-code">
-            <div className="flex items-center gap-2 text-cyan-400 font-bold">
-              <ShieldAlert className="w-4 h-4" />
-              <span>DISCIPLINE PROTOCOL</span>
-            </div>
-            <p className="text-slate-300 text-[11px] font-sans leading-relaxed">
-              PrimePipFx rules dictate standing down 15 minutes before and after Tier-1 high impact releases (CPI, NFP, FOMC). Spreads widen and algorithmic stop-runs are severe.
-            </p>
-            <div className="p-2.5 rounded bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
-              <div className="text-cyan-400 font-bold mb-1">RECOMMENDED POSTURE:</div>
-              Wait for the 15-minute post-news candle to close. Trade continuation only after liquidity is swept.
+              {/* Expand / Collapse All Folders */}
+              <button
+                onClick={handleToggleExpandAll}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#060a10] hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-300 transition cursor-pointer"
+                title="Expand or Collapse all news folder details"
+              >
+                <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                <span>{allExpanded ? 'Collapse Folders' : 'Expand All Folders'}</span>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Deep-Dive Modal Breakdown */}
-      {selectedEvent && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-950 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-start justify-between border-b border-slate-800 pb-4">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-cyan-400 font-bold text-xs font-mono-code">
-                    {selectedEvent.currency}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded text-xs font-bold font-mono-code ${
-                      selectedEvent.importance === 'HIGH'
-                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
-                        : selectedEvent.importance === 'MEDIUM'
-                        ? 'bg-blue-500/20 text-cyan-400 border border-blue-500/40'
-                        : 'bg-slate-800 text-slate-400 border border-slate-700'
-                    }`}
-                  >
-                    {selectedEvent.importance} IMPACT
-                  </span>
-                  <span className="text-sky-400 text-xs font-mono-code flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>{selectedEvent.timePkt}</span>
-                  </span>
-                </div>
-                <h3 className="text-lg font-military font-bold text-slate-100 mt-2">
-                  {selectedEvent.eventName}
-                </h3>
-                <p className="text-xs text-slate-400 font-sans mt-0.5">
-                  Issuing Source: {selectedEvent.source}
-                </p>
+      {/* HIGH-IMPACT LIVE RADAR BANNER */}
+      <div className="max-w-[1440px] mx-auto px-3 sm:px-6 mt-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
+          {/* Card 1: Next Immediate Release Countdown */}
+          <div className="bg-[#0c121e] border border-slate-800/90 rounded-xl p-3.5 flex items-center justify-between">
+            <div className="min-w-0 pr-2">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+                <Activity className="w-3.5 h-3.5" />
+                <span>Next Scheduled Release (PKT)</span>
               </div>
-
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              {nextUpcomingEvent ? (
+                <>
+                  <div className="mt-1 flex items-center gap-2">
+                    <ForexFactoryFolderIcon importance={nextUpcomingEvent.importance} size={16} />
+                    <span className="font-bold text-xs px-1.5 py-0.5 rounded bg-slate-800 text-white">
+                      {CURRENCY_FLAGS[nextUpcomingEvent.currency] || ''}{' '}
+                      {nextUpcomingEvent.currency}
+                    </span>
+                    <span className="text-sm font-bold text-white truncate">
+                      {nextUpcomingEvent.eventName}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-1 font-mono">
+                    {nextUpcomingEvent.datePkt} • {nextUpcomingEvent.timeShortPkt || nextUpcomingEvent.timePkt} PKT
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs text-slate-400 mt-1">
+                  All events in current filter window have been released.
+                </div>
+              )}
             </div>
+            {nextUpcomingEvent && (
+              <div className="text-right shrink-0 bg-[#070b12] border border-cyan-500/30 rounded-lg px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
+                  Countdown
+                </div>
+                <div className="text-sm font-mono font-extrabold text-cyan-300">
+                  {formatCountdown(nextUpcomingEvent.utcTimestamp - nowMs)}
+                </div>
+              </div>
+            )}
+          </div>
 
-            {/* Event Actual, Forecast, Previous Stat Badges */}
-            <div className="grid grid-cols-3 gap-3 my-4">
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
-                <div className="text-[10px] text-slate-500 font-mono-code uppercase font-bold">Actual</div>
-                <div className="text-xs font-semibold font-mono-code text-cyan-400 mt-1">
-                  Coming Soon
-                </div>
+          {/* Card 2: Next High Impact Red Folder Alert */}
+          <div className="bg-[#0c121e] border border-red-500/30 rounded-xl p-3.5 flex items-center justify-between">
+            <div className="min-w-0 pr-2">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-red-400">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Next High-Impact Red Folder</span>
               </div>
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
-                <div className="text-[10px] text-slate-500 font-mono-code uppercase font-bold">Forecast</div>
-                <div className="text-xs font-semibold font-mono-code text-slate-400 mt-1">
-                  Coming Soon
+              {highImpactUpcoming ? (
+                <>
+                  <div className="mt-1 flex items-center gap-2">
+                    <ForexFactoryFolderIcon importance="HIGH" size={16} />
+                    <span className="font-bold text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-200 border border-red-500/30">
+                      {CURRENCY_FLAGS[highImpactUpcoming.currency] || ''}{' '}
+                      {highImpactUpcoming.currency}
+                    </span>
+                    <span className="text-sm font-bold text-white truncate">
+                      {highImpactUpcoming.eventName}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-1 font-mono">
+                    {highImpactUpcoming.datePkt} • {highImpactUpcoming.timeShortPkt || highImpactUpcoming.timePkt} PKT
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs text-slate-400 mt-1">
+                  No pending high-impact red folders in this window.
                 </div>
-              </div>
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
-                <div className="text-[10px] text-slate-500 font-mono-code uppercase font-bold">Previous</div>
-                <div className="text-xs font-semibold font-mono-code text-slate-400 mt-1">
-                  Coming Soon
-                </div>
-              </div>
+              )}
             </div>
-
-            <div className="space-y-4 text-xs font-mono-code">
-              {/* Section 1: What It Measures */}
-              <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1">
-                <div className="text-[11px] font-bold text-cyan-400 flex items-center gap-1.5">
-                  <Info className="w-3.5 h-3.5" />
-                  <span>WHAT IT MEASURES</span>
+            {highImpactUpcoming && (
+              <div className="text-right shrink-0 bg-[#070b12] border border-red-500/35 rounded-lg px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wider text-red-300/80 font-semibold">
+                  Red Folder In
                 </div>
-                <p className="text-slate-300 font-sans leading-relaxed text-xs">
-                  {selectedEvent.whatItMeasures}
-                </p>
+                <div className="text-sm font-mono font-extrabold text-red-400">
+                  {formatCountdown(highImpactUpcoming.utcTimestamp - nowMs)}
+                </div>
               </div>
+            )}
+          </div>
 
-              {/* Section 2: Historical Institutional Reaction */}
-              <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1">
-                <div className="text-[11px] font-bold text-sky-400 flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>HISTORICAL INSTITUTIONAL REACTION</span>
-                </div>
-                <p className="text-slate-300 font-sans leading-relaxed text-xs">
-                  {selectedEvent.historicalReaction}
-                </p>
+          {/* Card 3: Live Feed Telemetry */}
+          <div className="bg-[#0c121e] border border-slate-800/90 rounded-xl p-3.5 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                <Globe className="w-3.5 h-3.5" />
+                <span>Data Provider & Timezone Standard</span>
               </div>
-
-              {/* Section 3: Why It Impacts Volatility */}
-              <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1">
-                <div className="text-[11px] font-bold text-purple-400 flex items-center gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>WHY IT IMPACTS VOLATILITY</span>
-                </div>
-                <p className="text-slate-300 font-sans leading-relaxed text-xs">
-                  {selectedEvent.whyItImpactsVolatility}
-                </p>
+              <div className="text-sm font-bold text-white mt-1">
+                TradingView Live Economic Feed
               </div>
-
-              {/* Section 4: Recommended Trading Posture (Highlighted) */}
-              <div className="p-3.5 bg-rose-950/20 rounded-xl border border-rose-500/40 space-y-1">
-                <div className="text-[11px] font-bold text-rose-400 flex items-center gap-1.5">
-                  <ShieldAlert className="w-3.5 h-3.5" />
-                  <span>RECOMMENDED TRADING POSTURE</span>
-                </div>
-                <p className="text-slate-200 font-sans leading-relaxed text-xs font-medium">
-                  {selectedEvent.recommendedPosture}
-                </p>
-              </div>
-
-              {/* Asset Correlation Matrix */}
-              <div className="space-y-2">
-                <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>TYPICAL ASSET IMPACT MATRIX</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
-                    <div className="text-cyan-400 font-bold text-[11px]">US DOLLAR (DXY)</div>
-                    <p className="text-slate-400 text-[11px] font-sans">
-                      {selectedEvent.marketRelevance.usd}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
-                    <div className="text-cyan-400 font-bold text-[11px]">GOLD (XAUUSD)</div>
-                    <p className="text-slate-400 text-[11px] font-sans">
-                      {selectedEvent.marketRelevance.gold}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
-                    <div className="text-cyan-400 font-bold text-[11px]">MAJOR FOREX (EUR/GBP)</div>
-                    <p className="text-slate-400 text-[11px] font-sans">
-                      {selectedEvent.marketRelevance.forex}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
-                    <div className="text-cyan-400 font-bold text-[11px]">EQUITY INDICES (US30 / NAS100)</div>
-                    <p className="text-slate-400 text-[11px] font-sans">
-                      {selectedEvent.marketRelevance.indices}
-                    </p>
-                  </div>
-                </div>
+              <div className="text-[11px] text-slate-400 mt-1">
+                Showing <span className="text-white font-semibold">{counts.total}</span> events (
+                <span className="text-emerald-400 font-semibold">{counts.released}</span> actuals printed)
               </div>
             </div>
-
-            <div className="mt-5 pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => toggleEventAlertSubscription(selectedEvent.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                    customAlertEventIds[selectedEvent.id] !== false && (selectedEvent.importance === 'HIGH' || customAlertEventIds[selectedEvent.id] === true)
-                      ? 'bg-blue-500/20 text-amber-300 border border-blue-500/40'
-                      : 'bg-slate-800 text-slate-300 border border-slate-700'
-                  }`}
-                >
-                  <Bell className="w-3.5 h-3.5" />
-                  <span>
-                    {customAlertEventIds[selectedEvent.id] !== false && (selectedEvent.importance === 'HIGH' || customAlertEventIds[selectedEvent.id] === true)
-                      ? 'AUDIO ALERT: ACTIVE'
-                      : 'ENABLE AUDIO ALERT'}
-                  </span>
-                </button>
-
-                <a
-                  href="https://www.forexfactory.com/calendar"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-mono-code font-bold transition"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>CHECK FOREX FACTORY</span>
-                </a>
-              </div>
-
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-mono-code transition cursor-pointer"
-              >
-                CLOSE BREAKDOWN
-              </button>
+            <div className="flex flex-col items-end gap-1.5">
+              <label className="inline-flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer select-none bg-[#070b12] border border-slate-800 px-2.5 py-1.5 rounded-lg">
+                <input
+                  type="checkbox"
+                  checked={onlyWithActual}
+                  onChange={(e) => setOnlyWithActual(e.target.checked)}
+                  className="rounded border-slate-700 text-cyan-500 focus:ring-0"
+                />
+                <span>Released Actuals Only</span>
+              </label>
+              <span className="text-[10px] text-slate-500 font-mono">
+                PKT = Asia/Karachi (UTC+05:00)
+              </span>
             </div>
           </div>
-        </div>,
-        document.body
-      )}
+        </div>
+
+        {/* FOREX FACTORY CLASSIC TABLE */}
+        <div className="bg-[#0b101b] border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+          {/* Table Header Bar */}
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="bg-[#11192a] border-b border-slate-700/80 text-[11px] font-extrabold uppercase tracking-wider text-slate-300">
+                  <th className="py-2.5 px-3 w-[115px] border-r border-slate-800/80">
+                    Date (PKT)
+                  </th>
+                  <th className="py-2.5 px-3 w-[95px] border-r border-slate-800/80">
+                    Time (PKT)
+                  </th>
+                  <th className="py-2.5 px-3 w-[78px] text-center border-r border-slate-800/80">
+                    Currency
+                  </th>
+                  <th className="py-2.5 px-3 w-[92px] text-center border-r border-slate-800/80">
+                    Impact
+                  </th>
+                  <th className="py-2.5 px-3.5 min-w-[260px] border-r border-slate-800/80">
+                    News Event / Topic (Click Folder to Open)
+                  </th>
+                  <th className="py-2.5 px-2.5 w-[68px] text-center border-r border-slate-800/80">
+                    Detail
+                  </th>
+                  <th className="py-2.5 px-3 w-[105px] text-right border-r border-slate-800/80">
+                    Actual
+                  </th>
+                  <th className="py-2.5 px-3 w-[105px] text-right border-r border-slate-800/80">
+                    Forecast
+                  </th>
+                  <th className="py-2.5 px-3 w-[105px] text-right">
+                    Previous
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-800/70 text-xs">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={9} className="py-16 text-center">
+                      <div className="inline-flex flex-col items-center gap-2">
+                        <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
+                        <div className="text-sm font-bold text-slate-200">
+                          Fetching 100% Live TradingView Economic Calendar...
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          Synchronizing event timestamps to Pakistan Standard Time (PKT)
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : groupedByPktDay.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="py-16 text-center">
+                      <div className="inline-flex flex-col items-center gap-2 max-w-md mx-auto">
+                        <ForexFactoryFolderIcon importance="MEDIUM" size={28} />
+                        <div className="text-sm font-bold text-slate-200">
+                          No Economic News Events Match Your Current Filter
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          Try enabling High/Medium/Low folders, selecting "ALL" currencies, or switching to "This Week".
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  groupedByPktDay.map((dayGroup) => {
+                    const isTodayPkt = dayGroup.pktDateKey === pktNow.pktDateKey;
+                    let lastPrintedTime = '';
+
+                    return (
+                      <React.Fragment key={dayGroup.pktDateKey}>
+                        {/* Forex Factory Day Subheader Banner */}
+                        <tr
+                          className={`${
+                            isTodayPkt
+                              ? 'bg-gradient-to-r from-cyan-950/70 via-[#101c30] to-[#0d1524] border-y border-cyan-500/40'
+                              : 'bg-[#0e1625] border-y border-slate-800'
+                          }`}
+                        >
+                          <td colSpan={9} className="py-2 px-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Calendar
+                                  className={`w-3.5 h-3.5 ${
+                                    isTodayPkt ? 'text-cyan-400' : 'text-slate-400'
+                                  }`}
+                                />
+                                <span className="font-extrabold text-xs tracking-wide uppercase text-white">
+                                  {dayGroup.dayOfWeekPkt} — {dayGroup.datePkt}
+                                </span>
+                                {isTodayPkt && (
+                                  <span className="px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-[10px] font-extrabold uppercase">
+                                    Today (PKT)
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] text-slate-400 font-mono">
+                                {dayGroup.events.length} scheduled releases
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {dayGroup.events.map((ev, idx) => {
+                          const isFolderOpen = Boolean(expandedFolderIds[ev.id]);
+                          const isUpNext = nextUpcomingEvent?.id === ev.id;
+                          const isPast = ev.utcTimestamp <= nowMs;
+                          const outcome = evaluateActualOutcome(ev);
+                          const displayTime =
+                            ev.timeShortPkt ||
+                            ev.timePkt.replace(' PKT', '');
+                          const showTimeCell = displayTime !== lastPrintedTime;
+                          lastPrintedTime = displayTime;
+
+                          // Surprise deviation calculation when both actual & forecast exist
+                          const actualNum = parseNumeric(ev.actual, ev.actualRaw);
+                          const forecastNum = parseNumeric(ev.forecast, ev.forecastRaw);
+                          const previousNum = parseNumeric(ev.previous, ev.previousRaw);
+                          const deviationVal =
+                            actualNum !== null && forecastNum !== null
+                              ? Number((actualNum - forecastNum).toFixed(2))
+                              : null;
+
+                          return (
+                            <React.Fragment key={ev.id}>
+                              {/* MAIN FOREX FACTORY EVENT ROW */}
+                              <tr
+                                id={`ff-row-${ev.id}`}
+                                onClick={() => toggleFolder(ev.id)}
+                                className={`transition-colors cursor-pointer select-none ${
+                                  isFolderOpen
+                                    ? 'bg-[#162238] hover:bg-[#192740]'
+                                    : isUpNext
+                                    ? 'bg-amber-500/[0.08] hover:bg-amber-500/[0.14]'
+                                    : idx % 2 === 0
+                                    ? 'bg-[#0b101b] hover:bg-[#121b2d]'
+                                    : 'bg-[#0d1320] hover:bg-[#121b2d]'
+                                }`}
+                              >
+                                {/* Date column (shown on first row of day like Forex Factory) */}
+                                <td className="py-2.5 px-3 border-r border-slate-800/60 font-mono text-[11px] whitespace-nowrap align-middle">
+                                  {idx === 0 ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-bold text-slate-200">
+                                        {dayGroup.dayOfWeekPkt}
+                                      </span>
+                                      <span className="text-slate-400">{dayGroup.datePkt}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-600 text-[10px]">↳</span>
+                                  )}
+                                </td>
+
+                                {/* Time (PKT) column */}
+                                <td className="py-2.5 px-3 border-r border-slate-800/60 font-mono text-[11px] whitespace-nowrap align-middle">
+                                  <div className="flex items-center gap-1.5">
+                                    {isUpNext && (
+                                      <span
+                                        className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0"
+                                        title="Up Next in PKT"
+                                      />
+                                    )}
+                                    <span
+                                      className={`${
+                                        showTimeCell
+                                          ? isUpNext
+                                            ? 'text-amber-300 font-bold'
+                                            : isPast
+                                            ? 'text-slate-300'
+                                            : 'text-cyan-300 font-semibold'
+                                          : 'text-slate-500'
+                                      }`}
+                                    >
+                                      {displayTime}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                {/* Currency column */}
+                                <td className="py-2.5 px-3 border-r border-slate-800/60 text-center whitespace-nowrap align-middle">
+                                  <span className="inline-flex items-center gap-1 font-extrabold text-slate-100">
+                                    <span>{CURRENCY_FLAGS[ev.currency] || '🌐'}</span>
+                                    <span>{ev.currency}</span>
+                                  </span>
+                                </td>
+
+                                {/* Forex Factory Color-Coded Impact Folder column */}
+                                <td className="py-2.5 px-3 border-r border-slate-800/60 text-center whitespace-nowrap align-middle">
+                                  <div
+                                    className="inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded hover:bg-slate-800/80 transition"
+                                    title={`${ev.importance} Impact Folder — Click to open details`}
+                                  >
+                                    <ForexFactoryFolderIcon
+                                      importance={ev.importance}
+                                      isOpen={isFolderOpen}
+                                      size={18}
+                                    />
+                                  </div>
+                                </td>
+
+                                {/* News Topic / Event Title */}
+                                <td className="py-2.5 px-3.5 border-r border-slate-800/60 align-middle">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span
+                                        className={`font-semibold truncate ${
+                                          ev.importance === 'HIGH'
+                                            ? 'text-white font-bold'
+                                            : 'text-slate-200'
+                                        }`}
+                                      >
+                                        {ev.eventName}
+                                      </span>
+                                      {ev.period && (
+                                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-800/90 text-slate-400 border border-slate-700/70 shrink-0">
+                                          {ev.period}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[10px] text-slate-500 hidden sm:inline shrink-0">
+                                      {ev.source}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                {/* Detail Folder Action Icon (Classic Forex Factory folder button) */}
+                                <td className="py-2.5 px-2.5 border-r border-slate-800/60 text-center align-middle">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleFolder(ev.id);
+                                    }}
+                                    className={`inline-flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold transition cursor-pointer ${
+                                      isFolderOpen
+                                        ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+                                        : 'bg-slate-900/90 hover:bg-slate-800 border-slate-700/80 text-slate-300'
+                                    }`}
+                                    title="Open Forex Factory Folder Specs"
+                                  >
+                                    <ForexFactoryFolderIcon
+                                      importance={ev.importance}
+                                      isOpen={isFolderOpen}
+                                      size={13}
+                                    />
+                                    {isFolderOpen ? (
+                                      <ChevronUp className="w-3 h-3" />
+                                    ) : (
+                                      <ChevronDown className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                </td>
+
+                                {/* Actual Figure (Green for Better, Red for Worse, like Forex Factory) */}
+                                <td className="py-2.5 px-3 border-r border-slate-800/60 text-right font-mono font-bold whitespace-nowrap align-middle">
+                                  {ev.actual && ev.actual !== '—' ? (
+                                    <span
+                                      className={`inline-block px-1.5 py-0.5 rounded ${
+                                        outcome === 'BETTER'
+                                          ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30'
+                                          : outcome === 'WORSE'
+                                          ? 'text-red-400 bg-red-500/10 border border-red-500/30'
+                                          : 'text-slate-100 bg-slate-800/70'
+                                      }`}
+                                    >
+                                      {ev.actual}
+                                    </span>
+                                  ) : isUpNext ? (
+                                    <span className="text-[10px] font-sans font-bold text-amber-400 uppercase">
+                                      Pending
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-600">—</span>
+                                  )}
+                                </td>
+
+                                {/* Forecast Figure */}
+                                <td className="py-2.5 px-3 border-r border-slate-800/60 text-right font-mono text-slate-300 whitespace-nowrap align-middle">
+                                  {ev.forecast && ev.forecast !== '—' ? (
+                                    ev.forecast
+                                  ) : (
+                                    <span className="text-slate-600">—</span>
+                                  )}
+                                </td>
+
+                                {/* Previous Figure */}
+                                <td className="py-2.5 px-3 text-right font-mono text-slate-400 whitespace-nowrap align-middle">
+                                  {ev.previous && ev.previous !== '—' ? (
+                                    ev.previous
+                                  ) : (
+                                    <span className="text-slate-600">—</span>
+                                  )}
+                                </td>
+                              </tr>
+
+                              {/* EXPANDED FOREX FACTORY FOLDER DETAIL PANEL */}
+                              {isFolderOpen && (
+                                <tr className="bg-[#09111f] border-b-2 border-cyan-500/30">
+                                  <td colSpan={9} className="p-0">
+                                    <div className="p-4 sm:p-5 bg-gradient-to-b from-[#101c31] to-[#09101d] border-l-4 border-l-cyan-400">
+                                      {/* Folder Header Strip */}
+                                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-3.5 mb-4 border-b border-slate-800">
+                                        <div className="flex items-start sm:items-center gap-3">
+                                          <ForexFactoryFolderIcon
+                                            importance={ev.importance}
+                                            isOpen={true}
+                                            size={28}
+                                          />
+                                          <div>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                              <span className="text-xs font-extrabold px-2 py-0.5 rounded bg-slate-800 text-white">
+                                                {CURRENCY_FLAGS[ev.currency] || '🌐'} {ev.currency} •{' '}
+                                                {ev.country}
+                                              </span>
+                                              <span
+                                                className={`text-[11px] font-extrabold px-2 py-0.5 rounded uppercase ${
+                                                  ev.importance === 'HIGH'
+                                                    ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+                                                    : ev.importance === 'MEDIUM'
+                                                    ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40'
+                                                    : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'
+                                                }`}
+                                              >
+                                                {ev.importance} Impact Folder
+                                              </span>
+                                              <span className="text-[11px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded">
+                                                {ev.datePkt} • {ev.timePkt}
+                                              </span>
+                                            </div>
+                                            <h3 className="text-base sm:text-lg font-extrabold text-white mt-1">
+                                              {ev.eventName}
+                                              {ev.indicator &&
+                                              ev.indicator !== ev.eventName ? (
+                                                <span className="text-slate-400 font-normal text-sm ml-2">
+                                                  ({ev.indicator})
+                                                </span>
+                                              ) : null}
+                                            </h3>
+                                          </div>
+                                        </div>
+
+                                        {/* Official Source Link + Close Folder */}
+                                        <div className="flex items-center gap-2 self-start md:self-center">
+                                          {ev.sourceUrl && (
+                                            <a
+                                              href={ev.sourceUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition"
+                                            >
+                                              <Building2 className="w-3.5 h-3.5" />
+                                              <span>Official Source: {ev.source}</span>
+                                              <ExternalLink className="w-3 h-3" />
+                                            </a>
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleFolder(ev.id)}
+                                            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                                          >
+                                            Close Folder
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* 4-COLUMN FOREX FACTORY DATA & FIGURES COMPARISON */}
+                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                                        {/* Actual Card */}
+                                        <div className="bg-[#070c16] border border-slate-800 rounded-lg p-3">
+                                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                            Actual Figure
+                                          </div>
+                                          <div
+                                            className={`text-lg font-mono font-extrabold mt-1 ${
+                                              outcome === 'BETTER'
+                                                ? 'text-emerald-400'
+                                                : outcome === 'WORSE'
+                                                ? 'text-red-400'
+                                                : 'text-white'
+                                            }`}
+                                          >
+                                            {ev.actual && ev.actual !== '—'
+                                              ? ev.actual
+                                              : 'Awaiting Release'}
+                                          </div>
+                                          <div className="text-[10px] text-slate-400 mt-0.5">
+                                            {outcome === 'BETTER'
+                                              ? 'Bullish / Better than expected'
+                                              : outcome === 'WORSE'
+                                              ? 'Bearish / Worse than expected'
+                                              : outcome === 'INLINE'
+                                              ? 'In-line with consensus'
+                                              : 'Live TradingView print'}
+                                          </div>
+                                        </div>
+
+                                        {/* Forecast Card */}
+                                        <div className="bg-[#070c16] border border-slate-800 rounded-lg p-3">
+                                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                            Consensus Forecast
+                                          </div>
+                                          <div className="text-lg font-mono font-extrabold text-cyan-300 mt-1">
+                                            {ev.forecast && ev.forecast !== '—'
+                                              ? ev.forecast
+                                              : 'No Consensus'}
+                                          </div>
+                                          <div className="text-[10px] text-slate-400 mt-0.5">
+                                            Economist median estimate
+                                          </div>
+                                        </div>
+
+                                        {/* Previous Card */}
+                                        <div className="bg-[#070c16] border border-slate-800 rounded-lg p-3">
+                                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                            Previous Release
+                                          </div>
+                                          <div className="text-lg font-mono font-extrabold text-slate-200 mt-1">
+                                            {ev.previous && ev.previous !== '—'
+                                              ? ev.previous
+                                              : '—'}
+                                          </div>
+                                          <div className="text-[10px] text-slate-400 mt-0.5">
+                                            Prior period benchmark
+                                          </div>
+                                        </div>
+
+                                        {/* Surprise / Deviation Card */}
+                                        <div className="bg-[#070c16] border border-slate-800 rounded-lg p-3">
+                                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                            Surprise Deviation
+                                          </div>
+                                          <div
+                                            className={`text-lg font-mono font-extrabold mt-1 ${
+                                              deviationVal !== null && deviationVal > 0
+                                                ? 'text-emerald-400'
+                                                : deviationVal !== null && deviationVal < 0
+                                                ? 'text-red-400'
+                                                : 'text-slate-300'
+                                            }`}
+                                          >
+                                            {deviationVal !== null
+                                              ? `${deviationVal > 0 ? '+' : ''}${deviationVal}${
+                                                  ev.scale || ''
+                                                }${ev.unit && ev.unit !== '%' ? ` ${ev.unit}` : ev.unit || ''}`
+                                              : previousNum !== null && actualNum !== null
+                                              ? `${
+                                                  actualNum - previousNum > 0 ? '+' : ''
+                                                }${Number((actualNum - previousNum).toFixed(2))} vs Prev`
+                                              : '—'}
+                                          </div>
+                                          <div className="text-[10px] text-slate-400 mt-0.5">
+                                            Actual minus Forecast delta
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* FOREX FACTORY SPECS BOX: Topic, Source, Usual Effect, Potential Impact */}
+                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                        {/* Left Column: Forex Factory Classic Event Specs */}
+                                        <div className="bg-[#070c16] border border-slate-800/90 rounded-lg p-3.5 space-y-2.5">
+                                          <div className="text-xs font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1.5 border-b border-slate-800 pb-2">
+                                            <FolderOpen className="w-3.5 h-3.5" />
+                                            <span>Forex Factory Folder Specifications</span>
+                                          </div>
+
+                                          <div className="grid grid-cols-3 gap-2 text-xs py-1 border-b border-slate-800/60">
+                                            <span className="text-slate-400 font-semibold">
+                                              News Topic:
+                                            </span>
+                                            <span className="col-span-2 text-white font-bold">
+                                              {ev.eventName}{' '}
+                                              <span className="text-cyan-400 font-mono text-[11px]">
+                                                [{ev.category}]
+                                              </span>
+                                            </span>
+                                          </div>
+
+                                          <div className="grid grid-cols-3 gap-2 text-xs py-1 border-b border-slate-800/60">
+                                            <span className="text-slate-400 font-semibold">
+                                              Issuing Source:
+                                            </span>
+                                            <span className="col-span-2 text-slate-200 font-medium">
+                                              {ev.source || 'Central Bank / National Statistics Office'}
+                                            </span>
+                                          </div>
+
+                                          <div className="grid grid-cols-3 gap-2 text-xs py-1 border-b border-slate-800/60">
+                                            <span className="text-slate-400 font-semibold">
+                                              Usual Effect:
+                                            </span>
+                                            <span className="col-span-2 text-emerald-300 font-semibold">
+                                              {ev.usualEffect ||
+                                                (ev.isInverseIndicator
+                                                  ? "'Actual' less than 'Forecast' is good for currency"
+                                                  : "'Actual' greater than 'Forecast' is good for currency")}
+                                            </span>
+                                          </div>
+
+                                          <div className="grid grid-cols-3 gap-2 text-xs py-1">
+                                            <span className="text-slate-400 font-semibold">
+                                              What It Measures:
+                                            </span>
+                                            <span className="col-span-2 text-slate-300 leading-relaxed">
+                                              {ev.whatItMeasures}
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        {/* Right Column: Potential Impact & Asset Playbook */}
+                                        <div className="bg-[#070c16] border border-slate-800/90 rounded-lg p-3.5 space-y-2.5">
+                                          <div className="text-xs font-extrabold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5 border-b border-slate-800 pb-2">
+                                            <Scale className="w-3.5 h-3.5" />
+                                            <span>Potential Market Impact & Volatility Playbook</span>
+                                          </div>
+
+                                          <div className="text-xs text-slate-300 leading-relaxed">
+                                            <span className="text-slate-400 font-semibold">
+                                              Why Traders Care:{' '}
+                                            </span>
+                                            {ev.whyItImpactsVolatility}
+                                          </div>
+
+                                          <div className="text-xs text-slate-300 leading-relaxed">
+                                            <span className="text-slate-400 font-semibold">
+                                              Recommended Desk Posture:{' '}
+                                            </span>
+                                            <span className="text-amber-300 font-medium">
+                                              {ev.recommendedPosture}
+                                            </span>
+                                          </div>
+
+                                          {/* Cross-Asset Matrix */}
+                                          {ev.marketRelevance && (
+                                            <div className="grid grid-cols-2 gap-2 pt-1">
+                                              <div className="bg-slate-900/90 border border-slate-800 rounded p-2">
+                                                <span className="text-[10px] font-bold uppercase text-cyan-400 block">
+                                                  {ev.currency} / Forex Impact
+                                                </span>
+                                                <span className="text-[11px] text-slate-300">
+                                                  {ev.marketRelevance.forex}
+                                                </span>
+                                              </div>
+                                              <div className="bg-slate-900/90 border border-slate-800 rounded p-2">
+                                                <span className="text-[10px] font-bold uppercase text-amber-400 block">
+                                                  Gold (XAUUSD) Impact
+                                                </span>
+                                                <span className="text-[11px] text-slate-300">
+                                                  {ev.marketRelevance.gold}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
-
+export default FundamentalCalendar;

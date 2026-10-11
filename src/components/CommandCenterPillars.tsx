@@ -479,7 +479,7 @@ export const CommandCenterPillars: React.FC<CommandCenterPillarsProps> = ({
             <button
               onClick={() => onNavigateToTab('FUNDAMENTAL_CALENDAR')}
               className="py-1.5 px-2 bg-slate-950/90 hover:bg-slate-800 text-slate-300 hover:text-sky-400 border border-slate-800 rounded-lg text-[10px] font-mono-code transition cursor-pointer"
-              title="Fundamental News Calendar"
+              title="Live News Calendar"
             >
               NEWS
             </button>

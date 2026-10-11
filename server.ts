@@ -4319,12 +4319,12 @@ app.post('/api/user/psychology/recovery', (req, res) => {
 });
 
 // ----------------------------------------------------
-// ECONOMIC CALENDAR API ENDPOINTS
+// ECONOMIC CALENDAR API ENDPOINTS (LIVE TRADINGVIEW FEED)
 // ----------------------------------------------------
-app.get('/api/calendar/year/:year', (req, res) => {
+app.get('/api/calendar/year/:year', async (req, res) => {
   try {
-    const year = Number(req.params.year) || 2026;
-    const events = fetchYearEvents(year);
+    const year = Number(req.params.year) || new Date().getUTCFullYear();
+    const events = await fetchYearEvents(year);
     const meta = getCalendarMeta();
     return res.json({ ok: true, events, meta });
   } catch (err: any) {
@@ -4332,43 +4332,47 @@ app.get('/api/calendar/year/:year', (req, res) => {
   }
 });
 
-app.get('/api/calendar/month/:year/:month', (req, res) => {
+app.get('/api/calendar/month/:year/:month', async (req, res) => {
   try {
-    const year = Number(req.params.year) || 2026;
-    const month = Number(req.params.month) || 1;
-    const events = fetchMonthEvents(year, month);
-    return res.json({ ok: true, events });
+    const year = Number(req.params.year) || new Date().getUTCFullYear();
+    const month = Number(req.params.month) || new Date().getUTCMonth() + 1;
+    const events = await fetchMonthEvents(year, month);
+    const meta = getCalendarMeta();
+    return res.json({ ok: true, events, meta });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
 });
 
-app.get('/api/calendar/week', (req, res) => {
+app.get('/api/calendar/week', async (req, res) => {
   try {
-    const start = String(req.query.start || new Date().toISOString());
+    const start = String(req.query.start || new Date(Date.now() - 3 * 86400000).toISOString());
     const end = String(req.query.end || new Date(Date.now() + 7 * 86400000).toISOString());
-    const events = fetchWeekEvents(start, end);
-    return res.json({ ok: true, events });
+    const events = await fetchWeekEvents(start, end);
+    const meta = getCalendarMeta();
+    return res.json({ ok: true, events, meta });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
 });
 
-app.get('/api/calendar/upcoming', (req, res) => {
+app.get('/api/calendar/upcoming', async (req, res) => {
   try {
-    const limit = Number(req.query.limit) || 30;
-    const events = fetchUpcomingEvents(limit);
-    return res.json({ ok: true, events });
+    const limit = Number(req.query.limit) || 150;
+    const events = await fetchUpcomingEvents(limit);
+    const meta = getCalendarMeta();
+    return res.json({ ok: true, events, meta });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }
 });
 
-app.get('/api/calendar/historical', (req, res) => {
+app.get('/api/calendar/historical', async (req, res) => {
   try {
-    const limit = Number(req.query.limit) || 30;
-    const events = fetchHistoricalEvents(limit);
-    return res.json({ ok: true, events });
+    const limit = Number(req.query.limit) || 150;
+    const events = await fetchHistoricalEvents(limit);
+    const meta = getCalendarMeta();
+    return res.json({ ok: true, events, meta });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
   }

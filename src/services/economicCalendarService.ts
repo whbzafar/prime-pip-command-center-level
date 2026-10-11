@@ -4,6 +4,9 @@ export interface CalendarEvent {
   id: string;
   utcTimestamp: number;
   date: string;
+  pktDateKey?: string;
+  dayOfWeekPkt?: string;
+  timeShortPkt?: string;
   timeUtc: string;
   timePkt: string;
   datePkt: string;
@@ -12,12 +15,23 @@ export interface CalendarEvent {
   country: string;
   currency: string;
   eventName: string;
+  indicator?: string;
+  period?: string;
+  ticker?: string;
   category: 'INFLATION' | 'EMPLOYMENT' | 'CENTRAL_BANK' | 'GROWTH' | 'CONSUMER' | 'SURVEY';
   importance: 'HIGH' | 'MEDIUM' | 'LOW';
   forecast?: string;
   previous?: string;
   actual?: string;
+  actualRaw?: number | null;
+  forecastRaw?: number | null;
+  previousRaw?: number | null;
+  unit?: string;
+  scale?: string;
+  isInverseIndicator?: boolean;
+  usualEffect?: string;
   source: string;
+  sourceUrl?: string;
   whatItMeasures: string;
   historicalReaction: string;
   whyItImpactsVolatility: string;
@@ -36,8 +50,8 @@ export interface CalendarMeta {
   error?: string;
 }
 
-const CACHE_KEY = 'primepipfx_calendar_live_cache_v5';
-const META_KEY = 'primepipfx_calendar_live_meta_v5';
+const CACHE_KEY = 'primepipfx_calendar_tv_live_v1';
+const META_KEY = 'primepipfx_calendar_tv_meta_v1';
 
 export function getCachedCalendar(): CalendarEvent[] {
   try {
@@ -109,7 +123,6 @@ async function getLiveEvents(endpoint: string): Promise<{ events: CalendarEvent[
 
 export async function fetchYearEvents(year: number) {
   try {
-    await syncLiveCalendar();
     const live = await getLiveEvents(`/api/calendar/year/${year}`);
     if (live && live.events.length > 0) {
       return { events: live.events, isOnline: true, lastSynced: live.meta?.lastSynced || new Date().toISOString() };
@@ -126,7 +139,6 @@ export async function fetchYearEvents(year: number) {
 
 export async function fetchMonthEvents(year: number, month: number): Promise<CalendarEvent[]> {
   try {
-    await syncLiveCalendar();
     const live = await getLiveEvents(`/api/calendar/month/${year}/${month}`);
     if (live && live.events.length > 0) return live.events;
   } catch {}
@@ -136,7 +148,6 @@ export async function fetchMonthEvents(year: number, month: number): Promise<Cal
 
 export async function fetchWeekEvents(start: string, end: string): Promise<CalendarEvent[]> {
   try {
-    await syncLiveCalendar();
     const live = await getLiveEvents(`/api/calendar/week?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
     if (live && live.events.length > 0) return live.events;
   } catch {}
@@ -146,22 +157,20 @@ export async function fetchWeekEvents(start: string, end: string): Promise<Calen
   return events.length > 0 ? events : DEFAULT_CALENDAR_EVENTS.filter((event) => event.utcTimestamp >= s && event.utcTimestamp <= e);
 }
 
-export async function fetchUpcomingEvents(limit = 60): Promise<CalendarEvent[]> {
+export async function fetchUpcomingEvents(limit = 150): Promise<CalendarEvent[]> {
   try {
-    await syncLiveCalendar();
     const live = await getLiveEvents(`/api/calendar/upcoming?limit=${limit}`);
     if (live && live.events.length > 0) return live.events;
   } catch {}
   const now = Date.now();
   const pool = getCachedCalendar();
-  const upcoming = pool.filter((e) => e.utcTimestamp >= now);
+  const upcoming = pool.filter((e) => e.utcTimestamp >= now - 2 * 3600_000);
   if (upcoming.length > 0) return upcoming.slice(0, limit);
   return pool.slice(0, limit);
 }
 
-export async function fetchHistoricalEvents(limit = 60): Promise<CalendarEvent[]> {
+export async function fetchHistoricalEvents(limit = 150): Promise<CalendarEvent[]> {
   try {
-    await syncLiveCalendar();
     const live = await getLiveEvents(`/api/calendar/historical?limit=${limit}`);
     if (live && live.events.length > 0) return live.events;
   } catch {}
@@ -174,7 +183,7 @@ export async function fetchHistoricalEvents(limit = 60): Promise<CalendarEvent[]
 
 export async function syncCalendar() {
   const ok = await syncLiveCalendar();
-  const meta = await getCalendarMeta();
+  await getCalendarMeta();
   return { ok, count: getCachedCalendar().length, isOnline: true };
 }
 

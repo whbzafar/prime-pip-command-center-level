@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { fetchTradingViewRange } from '../economicCalendarService.js';
 
 const router = Router();
 
@@ -46,32 +47,40 @@ router.get('/news', async (_req, res) => {
 });
 
 router.get('/calendar', async (_req, res) => {
-  const apiKey = process.env.FMP_API_KEY;
-  if (!apiKey) {
-    return res.status(503).json({ ok: false, sourceConfigured: false, items: [], error: 'Economic calendar is not configured. Add FMP_API_KEY on the server.' });
-  }
-
   try {
-    const from = new Date();
+    const from = new Date(Date.now() - 2 * 86400000);
     const to = new Date(Date.now() + 7 * 86400000);
-    const format = (date: Date) => date.toISOString().slice(0, 10);
-    const url = `https://financialmodelingprep.com/api/v3/economic_calendar?from=${format(from)}&to=${format(to)}&apikey=${encodeURIComponent(apiKey)}`;
-    const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
-    if (!response.ok) throw new Error(`FMP HTTP ${response.status}`);
-    const payload = await response.json();
-    const items = Array.isArray(payload) ? payload.map((event: any) => ({
-      date: event.date || null,
-      event: event.event || event.name || 'Unknown event',
-      country: event.country || null,
-      currency: event.currency || null,
-      impact: event.impact || null,
-      forecast: event.estimate ?? event.forecast ?? null,
+    const events = await fetchTradingViewRange(from, to);
+    const items = events.map((event) => ({
+      id: event.id,
+      date: event.datePkt,
+      timePkt: event.timePkt,
+      event: event.eventName,
+      indicator: event.indicator,
+      country: event.country,
+      currency: event.currency,
+      impact: event.importance,
+      forecast: event.forecast ?? null,
       actual: event.actual ?? null,
       previous: event.previous ?? null,
-    })) : [];
-    return res.json({ ok: true, sourceConfigured: true, timezone: 'Asia/Karachi', fetchedAt: new Date().toISOString(), items });
+      source: event.source,
+      sourceUrl: event.sourceUrl,
+    }));
+    return res.json({
+      ok: true,
+      sourceConfigured: true,
+      source: 'TradingView Live Economic Calendar',
+      timezone: 'Asia/Karachi (PKT, UTC+05:00)',
+      fetchedAt: new Date().toISOString(),
+      items,
+    });
   } catch (error: any) {
-    return res.status(502).json({ ok: false, sourceConfigured: true, items: [], error: error?.message || 'Economic calendar provider unavailable.' });
+    return res.status(502).json({
+      ok: false,
+      sourceConfigured: true,
+      items: [],
+      error: error?.message || 'TradingView economic calendar provider unavailable.',
+    });
   }
 });
 
