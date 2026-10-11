@@ -46,21 +46,19 @@ import { evaluateFundedAccountRisk, isFundedAccount } from '../utils/fundedRiskE
 import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
 import { FundamentalNotificationBanner } from './fundamental/FundamentalNotificationBanner';
 import { TradeApprovalModal } from './TradeApprovalModal';
-
-
-
-
+import { PersonalizedAccountDashboard } from './account/PersonalizedAccountDashboard';
 
 interface MainDashboardProps {
   metrics: DashboardMetrics;
   account: AccountSettings;
   trades: Trade[];
   currentUser?: UserAccount | null;
-  onOpenNewTrade: () => void;
+  onOpenNewTrade: (prefill?: Partial<Trade>) => void;
   onNavigateToTab: (tab: any) => void;
   onOpenAccountModal?: () => void;
   onOpenTraderProfile?: () => void;
   onOpenEvolution?: () => void;
+  onUpdateAccount?: (account: AccountSettings) => void;
 }
 
 export const MainDashboard: React.FC<MainDashboardProps> = ({
@@ -73,6 +71,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   onOpenAccountModal,
   onOpenTraderProfile,
   onOpenEvolution,
+  onUpdateAccount,
 }) => {
   const scores = metrics.performanceScores;
   const isProfitable = metrics.totalProfitLoss >= 0;
@@ -94,6 +93,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   const [dismissedSignalIds, setDismissedSignalIds] = useState<string[]>([]);
   const [dismissedAnnIds, setDismissedAnnIds] = useState<string[]>([]);
   const [isTradeApprovalOpen, setIsTradeApprovalOpen] = useState(false);
+  const [dashboardViewMode, setDashboardViewMode] = useState<'PERSONALIZED' | 'CLASSIC'>('PERSONALIZED');
 
   useEffect(() => {
     let isMounted = true;
@@ -553,8 +553,62 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
         </div>
       </div>
 
-      {/* FUNDED ACCOUNT COMMAND CENTER */}
-      {(() => {
+      {/* Top View Switcher: Personalized Risk Cockpit vs Classic HUD */}
+      <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-[#0B0F19]/90 border border-slate-800 shadow-xl flex-wrap">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setDashboardViewMode('PERSONALIZED')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-military font-bold tracking-wider uppercase transition cursor-pointer ${
+              dashboardViewMode === 'PERSONALIZED'
+                ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 stroke-[2.5]" />
+            <span>PERSONALIZED RISK COCKPIT</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-950/40 text-cyan-200">
+              {account.accountKind || (isFundedAccount(account) ? 'FUNDED' : 'PERSONAL')}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDashboardViewMode('CLASSIC')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-military font-bold tracking-wider uppercase transition cursor-pointer ${
+              dashboardViewMode === 'CLASSIC'
+                ? 'bg-gradient-to-r from-blue-500 to-slate-700 text-slate-100 shadow-md'
+                : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+            }`}
+          >
+            <Crosshair className="w-4 h-4 stroke-[2.5]" />
+            <span>CLASSIC HUD</span>
+          </button>
+        </div>
+
+        {onOpenAccountModal && (
+          <button
+            type="button"
+            onClick={onOpenAccountModal}
+            className="text-xs font-mono-code text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1.5 cursor-pointer bg-slate-900/90 border border-slate-800 hover:border-cyan-500/40 px-3 py-1.5 rounded-lg"
+          >
+            <span>Switch / Manage Accounts ({account.accountName}) →</span>
+          </button>
+        )}
+      </div>
+
+      {dashboardViewMode === 'PERSONALIZED' && (
+        <PersonalizedAccountDashboard
+          account={account}
+          trades={trades}
+          onUpdateAccount={onUpdateAccount || (() => {})}
+          onOpenNewTrade={onOpenNewTrade}
+          onOpenAccountSwitcher={onOpenAccountModal}
+        />
+      )}
+
+      {/* FUNDED ACCOUNT COMMAND CENTER (CLASSIC VIEW) */}
+      {dashboardViewMode === 'CLASSIC' && (() => {
         const fundedEval = evaluateFundedAccountRisk(account, trades);
         const fundedMode = isFundedAccount(account);
         return (

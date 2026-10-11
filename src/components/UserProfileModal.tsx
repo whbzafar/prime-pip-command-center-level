@@ -20,6 +20,7 @@ interface UserProfileModalProps {
   user: UserAccount | null;
   onUpdateUser: (updated: UserAccount) => void;
   onStartWalkthrough?: () => void;
+  onOpenCreateAccount?: () => void;
 }
 
 const PRESET_AVATARS = [
@@ -37,6 +38,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   user,
   onUpdateUser,
   onStartWalkthrough,
+  onOpenCreateAccount,
 }) => {
   const [name, setName] = useState(user?.name || '');
   const [bio, setBio] = useState(user?.bio || '');
@@ -375,6 +377,31 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               />
             </div>
           </div>
+
+          {/* Trading Account Setup Quick Launcher */}
+          {onOpenCreateAccount && (
+            <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                  <Shield className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-military font-bold text-slate-200 truncate">TRADING ACCOUNT SETUP</p>
+                  <p className="text-[11px] font-mono-code text-slate-400 truncate">Set up Demo, Personal, or Funded Account</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenCreateAccount();
+                }}
+                className="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 border border-cyan-400 text-xs font-military font-bold transition cursor-pointer shrink-0"
+              >
+                + SET UP ACCOUNT
+              </button>
+            </div>
+          )}
 
           {/* Guided Walkthrough Banner */}
           {onStartWalkthrough && (

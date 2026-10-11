@@ -11,7 +11,8 @@ import {
   Calendar,
   Sparkles,
 } from 'lucide-react';
-import { TradingGoal, Trade } from '../types';
+import { TradingGoal, Trade, AccountSettings } from '../types';
+import { GoalSettingPlanner } from './account/GoalSettingPlanner';
 
 interface GoalsProgressProps {
   goals: TradingGoal[];
@@ -19,6 +20,8 @@ interface GoalsProgressProps {
   onAddGoal: (title: string, target: number, unit: string) => void;
   onDeleteGoal: (id: string) => void;
   trades: Trade[];
+  account?: AccountSettings;
+  onUpdateAccount?: (account: AccountSettings) => void;
 }
 
 export const GoalsProgress: React.FC<GoalsProgressProps> = ({
@@ -27,6 +30,8 @@ export const GoalsProgress: React.FC<GoalsProgressProps> = ({
   onAddGoal,
   onDeleteGoal,
   trades,
+  account,
+  onUpdateAccount,
 }) => {
   const [newTitle, setNewTitle] = useState('');
   const [newTarget, setNewTarget] = useState<number>(20);
@@ -72,6 +77,15 @@ export const GoalsProgress: React.FC<GoalsProgressProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Deterministic Target Planning & Execution Scenarios Engine */}
+      {account && (
+        <GoalSettingPlanner
+          account={account}
+          trades={trades}
+          onUpdateAccount={onUpdateAccount}
+        />
+      )}
 
       {/* Goals Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

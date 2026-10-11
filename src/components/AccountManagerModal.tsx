@@ -22,6 +22,7 @@ import {
   isFundedAccount,
 } from '../utils/fundedRiskEngine';
 import { FundedAccountConfigPanel } from './FundedAccountConfigPanel';
+import { CreateAccountWizard } from './account/CreateAccountWizard';
 
 interface AccountManagerModalProps {
   isOpen: boolean;
@@ -392,18 +393,28 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
             </div>
           )}
 
-          {(view === 'CREATE' || view === 'EDIT') && (
-            <form onSubmit={view === 'CREATE' ? handleCreateSubmit : handleEditSubmit} className="space-y-4">
+          {view === 'CREATE' && (
+            <div className="py-1">
+              <CreateAccountWizard
+                onAccountCreated={(newAcc) => {
+                  onCreateAccount(newAcc);
+                  setView('LIST');
+                }}
+                onCancel={() => setView('LIST')}
+              />
+            </div>
+          )}
+
+          {view === 'EDIT' && (
+            <form onSubmit={handleEditSubmit} className="space-y-4">
               {/* Recalculation Warning for EDIT view */}
-              {view === 'EDIT' && (
-                <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-amber-300 text-xs flex items-start gap-2.5 leading-relaxed">
-                  <AlertTriangle className="w-4 h-4 shrink-0 text-cyan-400 mt-0.5" />
-                  <div>
-                    <span className="font-bold block">NOTICE: RECALCULATION IMPACT</span>
-                    Changing the starting balance will recalculate your account statistics, drawdown levels, and net P&L % based on your trade history.
-                  </div>
+              <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-amber-300 text-xs flex items-start gap-2.5 leading-relaxed">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-cyan-400 mt-0.5" />
+                <div>
+                  <span className="font-bold block">NOTICE: RECALCULATION IMPACT</span>
+                  Changing the starting balance will recalculate your account statistics, drawdown levels, and net P&L % based on your trade history.
                 </div>
-              )}
+              </div>
 
               {/* Account Name */}
               <div>
@@ -619,7 +630,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                     type="submit"
                     className="px-5 py-2.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider uppercase shadow-lg shadow-blue-500/20 cursor-pointer"
                   >
-                    {view === 'CREATE' ? 'CREATE ACCOUNT' : 'SAVE CHANGES'}
+                    SAVE CHANGES
                   </button>
                 </div>
               </div>

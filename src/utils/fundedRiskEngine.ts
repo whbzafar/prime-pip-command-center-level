@@ -12,6 +12,11 @@ import {
   AccountHealthEvaluation,
   TrailingBasis,
   FundedTrailingConfig,
+  RiskDecisionState,
+  DeterministicRiskAssessment,
+  GoalPlannerScenario,
+  GoalScenarioMetrics,
+  PostTradeImpactSummary,
 } from '../types';
 import { getKarachiDate, getKarachiEpoch, getKarachiTime } from './time';
 import { formatCurrency, safeNumber } from './currencyFormatter';
@@ -1925,3 +1930,612 @@ export function clearViolations(accountId: string): void {
     localStorage.removeItem(`${VIOLATIONS_STORAGE_KEY}_${accountId}`);
   } catch {}
 }
+
+// ----------------------------------------------------------------------------
+// 41. STANDARDIZED 4-STATE DETERMINISTIC RISK EVALUATION ENGINE
+// ----------------------------------------------------------------------------
+
+export interface DeterministicEvaluationOutput extends DeterministicRiskAssessment {
+  symbol: string;
+  direction: 'BUY' | 'SELL';
+  entryPrice: number;
+  stopLossPrice: number;
+  stopDistancePips: number;
+  stopDistancePrice: number;
+  lotSize: number;
+  pipValuePerLot: number;
+  potentialProfitDollars: number;
+  riskRewardRatio: number;
+  isAllowed: boolean;
+  warnings: string[];
+}
+
+/**
+ * Evaluates trade risk against official provider rules, personal preferences, and latest account state.
+ * Emits strictly one of 4 states: TAKE, REDUCE, STOP, or REVIEW.
+ */
+export function evaluateTradeRiskDeterministic(
+  input: TradeEvaluationInput,
+  account: AccountSettings,
+  trades: Trade[] = [],
+  customConfig?: FundedAccountConfig
+): DeterministicEvaluationOutput {
+  const currency = account.currency || 'USD';
+  const config = customConfig || getEffectiveFundedConfig(account);
+  const startingBal = Math.max(1, safeNumber(account.initialBalance, config.startingBalance || 5000));
+  const currentBal = safeNumber(account.currentBalance, startingBal);
+  const currentEq = safeNumber(account.currentEquity, currentBal);
+  const isManuallyReported = account.isManual !== false;
+  const ruleProfileVersion = account.ruleProfileVersion || config.rulesProfileName || 'PPFX-DETERMINISTIC-v2.6';
+
+  const missingOrStaleInputs: string[] = [];
+
+  // 1. DATA HEALTH & INTEGRITY CHECK (Downgrades to REVIEW if missing / stale)
+  if (!input.symbol || typeof input.symbol !== 'string' || input.symbol.trim() === '') {
+    missingOrStaleInputs.push('Missing trading instrument / symbol.');
+  }
+  const entryPrice = safeNumber(input.entryPrice, 0);
+  const stopLossPrice = safeNumber(input.stopLossPrice, 0);
+  if (entryPrice <= 0) {
+    missingOrStaleInputs.push('Entry price must be greater than zero.');
+  }
+  if (stopLossPrice <= 0) {
+    missingOrStaleInputs.push('Stop-loss price must be specified and greater than zero.');
+  }
+  if (entryPrice > 0 && stopLossPrice > 0 && Math.abs(entryPrice - stopLossPrice) < 0.000001) {
+    missingOrStaleInputs.push('Stop-loss cannot equal entry price.');
+  }
+  if (currentBal <= 0) {
+    missingOrStaleInputs.push('Account balance must be positive.');
+  }
+
+  const spec = getInstrumentSpec(input.symbol || 'XAUUSD');
+  const stopDistancePrice = Math.abs(entryPrice - stopLossPrice);
+  const stopDistancePips =
+    stopDistancePrice > 0 && spec.pipSize > 0
+      ? Number((stopDistancePrice / spec.pipSize).toFixed(1))
+      : 0;
+
+  // Stale / unverified rule check
+  if (account.accountCategory === 'FUNDED' && account.ruleVerificationStatus === 'UNVERIFIED') {
+    missingOrStaleInputs.push('Prop firm rules are marked Unverified. Review official rules documentation before trading.');
+  }
+
+  if (missingOrStaleInputs.length > 0) {
+    return {
+      decisionState: 'REVIEW',
+      maxPermissiblePlannedLoss: 0,
+      recommendedRiskBudget: 0,
+      proposedRisk: 0,
+      positionSize: 0,
+      dailyLossCapacityRemaining: 0,
+      overallLossCapacityRemaining: 0,
+      personalLimitsRemaining: 0,
+      safetyBuffer: config.safetyBufferPercent || 20,
+      exactReason: `Calculation cannot proceed with unverified or missing inputs: ${missingOrStaleInputs.join(' ')}`,
+      missingOrStaleInputs,
+      nextAction: 'Verify and supply required trade entry inputs (symbol, entry price, stop-loss price, and valid balance).',
+      ruleProfileVersion,
+      assessmentTimestamp: Date.now(),
+      isManuallyReported,
+      symbol: input.symbol || 'XAUUSD',
+      direction: input.direction || 'BUY',
+      entryPrice,
+      stopLossPrice,
+      stopDistancePips,
+      stopDistancePrice,
+      lotSize: 0,
+      pipValuePerLot: spec.pipValuePerStandardLot,
+      potentialProfitDollars: 0,
+      riskRewardRatio: 0,
+      isAllowed: false,
+      warnings: missingOrStaleInputs,
+    };
+  }
+
+  // 2. DRAWDOWN CAPACITY BASELINES
+  const dailyRes = calculateDailyDrawdown(account, trades, config);
+  const trailingRes = calculateTrailingDrawdown(account, trades, config);
+  const overallRes = calculateOverallDrawdown(
+    account,
+    trades,
+    config,
+    trailingRes.activeLiquidationThreshold
+  );
+
+  const closedTrades = trades.filter((t) => t.status !== 'OPEN');
+  const reverseClosed = [...closedTrades].reverse();
+  let consecutiveLosses = 0;
+  for (const t of reverseClosed) {
+    if (safeNumber(t.profitLoss, 0) < 0) consecutiveLosses++;
+    else break;
+  }
+
+  const phaseRes = calculatePhaseProgress(account, trades, config);
+  const riskRes = calculateRecommendedRisk(
+    account,
+    trades,
+    config,
+    dailyRes.remainingDailyDrawdown,
+    overallRes.remainingOverallDrawdown,
+    consecutiveLosses,
+    phaseRes.isTargetPassed,
+    phaseRes.profitProgressPercent,
+    phaseRes.remainingProfitTarget
+  );
+
+  const hardCeiling = riskRes.hardCeilingRiskDollars;
+  const recommendedRiskBudget = riskRes.recommendedRiskDollars;
+
+  // 3. DETERMINE PROPOSED RISK & LOT SIZE
+  let lotSize = 0;
+  let proposedRisk = 0;
+
+  if (typeof input.proposedRiskDollars === 'number' && input.proposedRiskDollars > 0) {
+    proposedRisk = input.proposedRiskDollars;
+    const calc = calculateLotSize(input.symbol, entryPrice, stopLossPrice, proposedRisk, currency);
+    lotSize = calc.lotSize;
+  } else if (typeof input.lotSizeOverride === 'number' && input.lotSizeOverride > 0) {
+    lotSize = input.lotSizeOverride;
+    proposedRisk = Number((lotSize * stopDistancePips * spec.pipValuePerStandardLot).toFixed(2));
+  } else {
+    proposedRisk = recommendedRiskBudget;
+    const calc = calculateLotSize(input.symbol, entryPrice, stopLossPrice, proposedRisk, currency);
+    lotSize = calc.lotSize;
+  }
+
+  // Factor in costs
+  const commission = safeNumber(input.commission, 0);
+  const swap = safeNumber(input.swap, 0);
+  const spreadCost = (safeNumber(input.spreadPips, 0) * spec.pipValuePerStandardLot * lotSize);
+  proposedRisk = Number((proposedRisk + commission + swap + spreadCost).toFixed(2));
+
+  // Potential profit & R:R
+  let potentialProfitDollars = 0;
+  let riskRewardRatio = 0;
+  const takeProfitPrice = safeNumber(input.takeProfitPrice, 0);
+  if (takeProfitPrice > 0) {
+    const tpDistancePrice = Math.abs(takeProfitPrice - entryPrice);
+    const tpDistancePips = tpDistancePrice / spec.pipSize;
+    potentialProfitDollars = Number((tpDistancePips * spec.pipValuePerStandardLot * lotSize).toFixed(2));
+    if (proposedRisk > 0) {
+      riskRewardRatio = Number((potentialProfitDollars / proposedRisk).toFixed(2));
+    }
+  }
+
+  const dailyRemainingAfterTrade = Number((dailyRes.remainingDailyDrawdown - proposedRisk).toFixed(2));
+  const overallRemainingAfterTrade = Number((overallRes.remainingOverallDrawdown - proposedRisk).toFixed(2));
+
+  // 4. CHECK DECISION STATES: STOP, REDUCE, TAKE
+  const warnings: string[] = [];
+
+  // STATE A: STOP
+  // Account is breached, trading restricted, daily limit hit, or proposed risk breaks boundary
+  if (dailyRes.isDailyDrawdownBreached) {
+    return {
+      decisionState: 'STOP',
+      maxPermissiblePlannedLoss: 0,
+      recommendedRiskBudget: 0,
+      proposedRisk,
+      positionSize: lotSize,
+      dailyLossCapacityRemaining: 0,
+      overallLossCapacityRemaining: overallRes.remainingOverallDrawdown,
+      personalLimitsRemaining: 0,
+      safetyBuffer: config.safetyBufferPercent || 20,
+      exactReason: `Account has breached today's daily drawdown limit (${formatCurrency(dailyRes.dailyDrawdownLimitDollars, currency)}).`,
+      missingOrStaleInputs: [],
+      nextAction: 'Stop trading for the day. Wait for the provider midnight reset to resume trading.',
+      ruleProfileVersion,
+      assessmentTimestamp: Date.now(),
+      isManuallyReported,
+      symbol: input.symbol,
+      direction: input.direction,
+      entryPrice,
+      stopLossPrice,
+      stopDistancePips,
+      stopDistancePrice,
+      lotSize: 0,
+      pipValuePerLot: spec.pipValuePerStandardLot,
+      potentialProfitDollars,
+      riskRewardRatio,
+      isAllowed: false,
+      warnings: ['Daily drawdown breached.'],
+    };
+  }
+
+  if (overallRes.isOverallDrawdownBreached) {
+    return {
+      decisionState: 'STOP',
+      maxPermissiblePlannedLoss: 0,
+      recommendedRiskBudget: 0,
+      proposedRisk,
+      positionSize: lotSize,
+      dailyLossCapacityRemaining: 0,
+      overallLossCapacityRemaining: 0,
+      personalLimitsRemaining: 0,
+      safetyBuffer: config.safetyBufferPercent || 20,
+      exactReason: `Account has reached or breached the maximum overall loss boundary (${formatCurrency(overallRes.overallBreachFloor, currency)}).`,
+      missingOrStaleInputs: [],
+      nextAction: 'Trading halted. Account eligibility has ended per firm liquidation boundary.',
+      ruleProfileVersion,
+      assessmentTimestamp: Date.now(),
+      isManuallyReported,
+      symbol: input.symbol,
+      direction: input.direction,
+      entryPrice,
+      stopLossPrice,
+      stopDistancePips,
+      stopDistancePrice,
+      lotSize: 0,
+      pipValuePerLot: spec.pipValuePerStandardLot,
+      potentialProfitDollars,
+      riskRewardRatio,
+      isAllowed: false,
+      warnings: ['Maximum overall drawdown breached.'],
+    };
+  }
+
+  const todayStr = getKarachiDate();
+  const tradesTodayCount = trades.filter((t) => t.date === todayStr).length;
+  if (tradesTodayCount >= safeNumber(account.maxDailyTrades, 2)) {
+    return {
+      decisionState: 'STOP',
+      maxPermissiblePlannedLoss: hardCeiling,
+      recommendedRiskBudget: 0,
+      proposedRisk,
+      positionSize: lotSize,
+      dailyLossCapacityRemaining: dailyRes.remainingDailyDrawdown,
+      overallLossCapacityRemaining: overallRes.remainingOverallDrawdown,
+      personalLimitsRemaining: 0,
+      safetyBuffer: config.safetyBufferPercent || 20,
+      exactReason: `Daily trade limit reached: ${tradesTodayCount} of ${account.maxDailyTrades} permitted trades logged today.`,
+      missingOrStaleInputs: [],
+      nextAction: 'Wait for next trading day to preserve psychological capital and discipline.',
+      ruleProfileVersion,
+      assessmentTimestamp: Date.now(),
+      isManuallyReported,
+      symbol: input.symbol,
+      direction: input.direction,
+      entryPrice,
+      stopLossPrice,
+      stopDistancePips,
+      stopDistancePrice,
+      lotSize: 0,
+      pipValuePerLot: spec.pipValuePerStandardLot,
+      potentialProfitDollars,
+      riskRewardRatio,
+      isAllowed: false,
+      warnings: ['Daily trade limit reached.'],
+    };
+  }
+
+  if (dailyRemainingAfterTrade < 0 || overallRemainingAfterTrade < 0 || proposedRisk > hardCeiling) {
+    return {
+      decisionState: 'STOP',
+      maxPermissiblePlannedLoss: hardCeiling,
+      recommendedRiskBudget,
+      proposedRisk,
+      positionSize: lotSize,
+      dailyLossCapacityRemaining: dailyRes.remainingDailyDrawdown,
+      overallLossCapacityRemaining: overallRes.remainingOverallDrawdown,
+      personalLimitsRemaining: Math.max(0, hardCeiling - proposedRisk),
+      safetyBuffer: config.safetyBufferPercent || 20,
+      exactReason: `Proposed risk of ${formatCurrency(proposedRisk, currency)} exceeds maximum allowable boundary. If stopped out, this trade would trigger a hard breach.`,
+      missingOrStaleInputs: [],
+      nextAction: 'Do not place this trade. Reduce position size significantly or cancel trade.',
+      ruleProfileVersion,
+      assessmentTimestamp: Date.now(),
+      isManuallyReported,
+      symbol: input.symbol,
+      direction: input.direction,
+      entryPrice,
+      stopLossPrice,
+      stopDistancePips,
+      stopDistancePrice,
+      lotSize,
+      pipValuePerLot: spec.pipValuePerStandardLot,
+      potentialProfitDollars,
+      riskRewardRatio,
+      isAllowed: false,
+      warnings: ['Trade risks breaching account limits.'],
+    };
+  }
+
+  // STATE B: REDUCE
+  // Trade fits within hard boundaries, but exceeds Prime Pip FX recommended risk budget
+  if (proposedRisk > recommendedRiskBudget * 1.05 && recommendedRiskBudget > 0) {
+    const downsizedLotCalc = calculateLotSize(input.symbol, entryPrice, stopLossPrice, recommendedRiskBudget, currency);
+    const downsizedLots = downsizedLotCalc.lotSize;
+
+    return {
+      decisionState: 'REDUCE',
+      maxPermissiblePlannedLoss: hardCeiling,
+      recommendedRiskBudget,
+      proposedRisk,
+      positionSize: lotSize,
+      dailyLossCapacityRemaining: dailyRes.remainingDailyDrawdown,
+      overallLossCapacityRemaining: overallRes.remainingOverallDrawdown,
+      personalLimitsRemaining: Math.max(0, recommendedRiskBudget),
+      safetyBuffer: config.safetyBufferPercent || 20,
+      exactReason: `Proposed risk (${formatCurrency(proposedRisk, currency)}) exceeds Prime Pip FX safe risk budget of ${formatCurrency(recommendedRiskBudget, currency)} (${riskRes.limitingFactor}).`,
+      missingOrStaleInputs: [],
+      nextAction: `Reduce position size to ${downsizedLots} lots to align with recommended risk budget of ${formatCurrency(recommendedRiskBudget, currency)}.`,
+      ruleProfileVersion,
+      assessmentTimestamp: Date.now(),
+      isManuallyReported,
+      symbol: input.symbol,
+      direction: input.direction,
+      entryPrice,
+      stopLossPrice,
+      stopDistancePips,
+      stopDistancePrice,
+      lotSize: downsizedLots,
+      pipValuePerLot: spec.pipValuePerStandardLot,
+      potentialProfitDollars,
+      riskRewardRatio,
+      isAllowed: true,
+      warnings: [`Downsize from ${lotSize} to ${downsizedLots} lots to comply with risk guidelines.`],
+    };
+  }
+
+  // STATE C: TAKE
+  // Proposed trade complies with all rules, buffers, and sizing guidelines
+  return {
+    decisionState: 'TAKE',
+    maxPermissiblePlannedLoss: hardCeiling,
+    recommendedRiskBudget,
+    proposedRisk,
+    positionSize: lotSize,
+    dailyLossCapacityRemaining: dailyRes.remainingDailyDrawdown,
+    overallLossCapacityRemaining: overallRes.remainingOverallDrawdown,
+    personalLimitsRemaining: Math.max(0, dailyRes.remainingDailyDrawdown - proposedRisk),
+    safetyBuffer: config.safetyBufferPercent || 20,
+    exactReason: `Trade fully complies with ${config.firmName} rules and personal risk guidelines. Risk of ${formatCurrency(proposedRisk, currency)} leaves healthy drawdown buffer.`,
+    missingOrStaleInputs: [],
+    nextAction: 'Execute trade with discipline according to plan.',
+    ruleProfileVersion,
+    assessmentTimestamp: Date.now(),
+    isManuallyReported,
+    symbol: input.symbol,
+    direction: input.direction,
+    entryPrice,
+    stopLossPrice,
+    stopDistancePips,
+    stopDistancePrice,
+    lotSize,
+    pipValuePerLot: spec.pipValuePerStandardLot,
+    potentialProfitDollars,
+    riskRewardRatio,
+    isAllowed: true,
+    warnings: [],
+  };
+}
+
+// ----------------------------------------------------------------------------
+// 42. GOAL SETTING & TARGET SCENARIO PLANNER
+// ----------------------------------------------------------------------------
+
+export function calculateGoalScenarios(
+  account: AccountSettings,
+  trades: Trade[] = [],
+  customTargetDollars?: number,
+  customDaysDeadline?: number
+): GoalPlannerScenario {
+  const currency = account.currency || 'USD';
+  const config = getEffectiveFundedConfig(account);
+  const startingBal = Math.max(1, safeNumber(account.initialBalance, config.startingBalance || 5000));
+  const currentBal = Math.max(0, safeNumber(account.currentBalance, startingBal));
+  const currentProfit = Number((currentBal - startingBal).toFixed(2));
+
+  let targetDollars = safeNumber(customTargetDollars, 0);
+  if (targetDollars <= 0) {
+    if (account.accountCategory === 'FUNDED') {
+      const phaseRes = calculatePhaseProgress(account, trades, config);
+      targetDollars = phaseRes.activeProfitTargetDollars;
+    } else {
+      targetDollars = Math.round(startingBal * 0.1); // Default 10% milestone
+    }
+  }
+
+  const remainingTarget = Number(Math.max(0, targetDollars - currentProfit).toFixed(2));
+  const progressPercent = targetDollars > 0 ? Number(Math.min(100, Math.max(0, (currentProfit / targetDollars) * 100)).toFixed(1)) : 0;
+
+  const dailyRes = calculateDailyDrawdown(account, trades, config);
+  const trailingRes = calculateTrailingDrawdown(account, trades, config);
+  const overallRes = calculateOverallDrawdown(account, trades, config, trailingRes.activeLiquidationThreshold);
+  const drawdownCapacityRemaining = Math.min(dailyRes.remainingDailyDrawdown, overallRes.remainingOverallDrawdown);
+
+  const baseRiskDollars = Math.max(10, Math.round(startingBal * 0.005)); // 0.5% standard
+
+  // Helper to project completion
+  const projectScenario = (winRate: number, riskReward: number, riskDollars: number): GoalScenarioMetrics => {
+    // Expected Value per trade: (WinRate * RR * Risk) - ((1 - WinRate) * 1 * Risk)
+    const winProfit = winRate * (riskReward * riskDollars);
+    const lossCost = (1 - winRate) * riskDollars;
+    const expectedValue = winProfit - lossCost;
+
+    if (expectedValue <= 0 || remainingTarget <= 0) {
+      return {
+        daysRequired: remainingTarget <= 0 ? 0 : 999,
+        targetDate: remainingTarget <= 0 ? 'Goal Reached' : 'Indeterminate (Negative EV)',
+        winRate: Number((winRate * 100).toFixed(0)),
+        riskReward,
+        riskPerTradePercent: Number(((riskDollars / startingBal) * 100).toFixed(2)),
+        expectedTradesCount: 0,
+        assumptions: 'Negative expected return under selected parameters.',
+      };
+    }
+
+    const expectedTrades = Math.max(1, Math.ceil(remainingTarget / expectedValue));
+    const tradesPerDay = 1.5;
+    const daysRequired = Math.ceil(expectedTrades / tradesPerDay);
+
+    const projectedDate = new Date();
+    projectedDate.setDate(projectedDate.getDate() + Math.ceil(daysRequired * 1.4)); // Skip weekends roughly
+    const targetDateStr = projectedDate.toISOString().slice(0, 10);
+
+    return {
+      daysRequired,
+      targetDate: targetDateStr,
+      winRate: Number((winRate * 100).toFixed(0)),
+      riskReward,
+      riskPerTradePercent: Number(((riskDollars / startingBal) * 100).toFixed(2)),
+      expectedTradesCount: expectedTrades,
+      assumptions: `Assumes ~${tradesPerDay} trades/day, ${Number((winRate * 100).toFixed(0))}% win rate at 1:${riskReward} R:R, risking $${riskDollars} (${Number(((riskDollars / startingBal) * 100).toFixed(2))}%) per trade. Trading costs excluded.`,
+    };
+  };
+
+  const conservative = projectScenario(0.45, 1.5, baseRiskDollars * 0.7);
+  const baseline = projectScenario(0.50, 2.0, baseRiskDollars);
+  const optimistic = projectScenario(0.58, 2.5, baseRiskDollars * 1.5);
+
+  // CONFLICT DETECTION
+  let hasConflict = false;
+  let conflictExplanation: string | undefined;
+  const suggestedAlternatives: string[] = [];
+
+  if (typeof customDaysDeadline === 'number' && customDaysDeadline > 0 && remainingTarget > 0) {
+    if (customDaysDeadline < baseline.daysRequired * 0.5) {
+      hasConflict = true;
+      conflictExplanation = `Target deadline of ${customDaysDeadline} trading days requires aggressive risk that conflicts with your 0.5% risk limit and daily drawdown buffer (${formatCurrency(dailyRes.remainingDailyDrawdown, currency)}).`;
+      suggestedAlternatives.push('Extend the target timeline to allow statistical edge to play out without forcing setups.');
+      suggestedAlternatives.push('Focus on process consistency and execution quality over arbitrary completion deadlines.');
+      suggestedAlternatives.push('Prioritize preserving account eligibility over rapid phase passage.');
+    }
+  }
+
+  return {
+    startingBalance: startingBal,
+    currentBalance: currentBal,
+    profitTargetDollars: targetDollars,
+    remainingTargetDollars: remainingTarget,
+    drawdownCapacityRemaining,
+    progressPercent,
+    conservative,
+    baseline,
+    optimistic,
+    hasConflict,
+    conflictExplanation,
+    suggestedAlternatives,
+  };
+}
+
+// ----------------------------------------------------------------------------
+// 43. AUTOMATIC POST-TRADE IMPACT CALCULATOR
+// ----------------------------------------------------------------------------
+
+export function calculatePostTradeImpact(
+  trade: Trade,
+  account: AccountSettings,
+  existingTrades: Trade[]
+): PostTradeImpactSummary {
+  const currency = account.currency || 'USD';
+  const config = getEffectiveFundedConfig(account);
+  const startingBal = Math.max(1, safeNumber(account.initialBalance, config.startingBalance || 5000));
+  const pnl = safeNumber(trade.profitLoss, 0);
+
+  const prevBal = safeNumber(account.currentBalance, startingBal);
+  const prevEq = safeNumber(account.currentEquity, prevBal);
+  const updatedBal = Number((prevBal + pnl).toFixed(2));
+  const updatedEq = Number((prevEq + pnl).toFixed(2));
+
+  // Temp account state to measure after-trade capacity
+  const afterAcc: AccountSettings = {
+    ...account,
+    currentBalance: updatedBal,
+    currentEquity: updatedEq,
+  };
+
+  const allTrades = [trade, ...existingTrades.filter((t) => t.id !== trade.id)];
+  const dailyBefore = calculateDailyDrawdown(account, existingTrades, config);
+  const dailyAfter = calculateDailyDrawdown(afterAcc, allTrades, config);
+
+  const trailingAfter = calculateTrailingDrawdown(afterAcc, allTrades, config);
+  const overallAfter = calculateOverallDrawdown(afterAcc, allTrades, config, trailingAfter.activeLiquidationThreshold);
+
+  const overallBefore = calculateOverallDrawdown(
+    account,
+    existingTrades,
+    config,
+    calculateTrailingDrawdown(account, existingTrades, config).activeLiquidationThreshold
+  );
+
+  const phaseAfter = calculatePhaseProgress(afterAcc, allTrades, config);
+
+  const isBreached = dailyAfter.isDailyDrawdownBreached || overallAfter.isOverallDrawdownBreached;
+  const isApproachingLimit = dailyAfter.dailyDrawdownUsedPercent >= 75 || overallAfter.overallDrawdownUsedPercent >= 75;
+
+  let decisionState: RiskDecisionState = 'TAKE';
+  let recommendedNextAction = 'Continue trading within your standard risk budget on verified setups.';
+  let explanation = '';
+
+  if (isBreached) {
+    decisionState = 'STOP';
+    recommendedNextAction = 'Trading halted: Drawdown limit has been reached.';
+    explanation = `This trade triggered a drawdown breach. Account daily remaining is ${formatCurrency(dailyAfter.remainingDailyDrawdown, currency)} and overall remaining is ${formatCurrency(overallAfter.remainingOverallDrawdown, currency)}.`;
+  } else if (pnl < 0) {
+    decisionState = isApproachingLimit ? 'REDUCE' : 'TAKE';
+    explanation = `Loss of ${formatCurrency(Math.abs(pnl), currency)} reduced today's daily buffer to ${formatCurrency(dailyAfter.remainingDailyDrawdown, currency)} (${dailyAfter.dailyDrawdownUsedPercent}% used). Capital preservation protocol recommends maintaining strict discipline and not attempting revenge trades.`;
+    recommendedNextAction = isApproachingLimit
+      ? 'Reduce risk on next trade to preserve remaining daily drawdown.'
+      : 'Maintain standard risk sizing. Do not revenge trade.';
+  } else if (pnl > 0) {
+    explanation = `Win of ${formatCurrency(pnl, currency)} increases profit-target progress to ${phaseAfter.profitProgressPercent}%. Remaining to target: ${formatCurrency(phaseAfter.remainingProfitTarget, currency)}. Keep sizing consistent; never increase lot size simply because the previous trade won.`;
+    recommendedNextAction = phaseAfter.isTargetPassed
+      ? 'Target Passed! Stop trading and request phase verification.'
+      : 'Keep risk steady at calibrated baseline. Avoid overconfidence.';
+  } else {
+    explanation = `Breakeven trade recorded. Risk budget and drawdown boundaries remain unchanged.`;
+  }
+
+  // Calculate updated personal risk budget for next trade
+  const nextRisk = calculateRecommendedRisk(
+    afterAcc,
+    allTrades,
+    config,
+    dailyAfter.remainingDailyDrawdown,
+    overallAfter.remainingOverallDrawdown,
+    pnl < 0 ? 1 : 0,
+    phaseAfter.isTargetPassed,
+    phaseAfter.profitProgressPercent,
+    phaseAfter.remainingProfitTarget
+  );
+
+  return {
+    tradeId: trade.id,
+    tradeResult: pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN',
+    netProfitLoss: pnl,
+    previousBalance: prevBal,
+    updatedBalance: updatedBal,
+    previousEquity: prevEq,
+    updatedEquity: updatedEq,
+    previousDailyDdCapacity: dailyBefore.remainingDailyDrawdown,
+    updatedDailyDdCapacity: dailyAfter.remainingDailyDrawdown,
+    previousOverallDdCapacity: overallBefore.remainingOverallDrawdown,
+    updatedOverallDdCapacity: overallAfter.remainingOverallDrawdown,
+    targetProgressPercent: phaseAfter.profitProgressPercent,
+    remainingProfitTarget: phaseAfter.remainingProfitTarget,
+    updatedPersonalRiskBudget: nextRisk.recommendedRiskDollars,
+    decisionState,
+    recommendedNextAction,
+    explanation,
+    isApproachingLimit,
+    isBreached,
+    isManuallyReported: account.isManual !== false,
+  };
+}
+
+// ----------------------------------------------------------------------------
+// 44. DEMO ACCOUNT RESET HELPER
+// ----------------------------------------------------------------------------
+
+export function resetDemoAccountState(account: AccountSettings): AccountSettings {
+  const start = Math.max(100, safeNumber(account.initialBalance, 5000));
+  return {
+    ...account,
+    currentBalance: start,
+    currentEquity: start,
+    updatedAt: new Date().toISOString(),
+  };
+}
+

@@ -534,13 +534,98 @@ export interface FundedRulesProfile {
   isCustom?: boolean;
 }
 
+export type AccountKind = 'DEMO' | 'PERSONAL' | 'FUNDED';
+
+export type RiskDecisionState = 'TAKE' | 'REDUCE' | 'STOP' | 'REVIEW';
+
+export interface DeterministicRiskAssessment {
+  decisionState: RiskDecisionState;
+  maxPermissiblePlannedLoss: number;
+  recommendedRiskBudget: number;
+  proposedRisk: number;
+  positionSize?: number;
+  dailyLossCapacityRemaining: number;
+  overallLossCapacityRemaining: number;
+  personalLimitsRemaining: number;
+  safetyBuffer: number;
+  exactReason: string;
+  missingOrStaleInputs: string[];
+  nextAction: string;
+  ruleProfileVersion: string;
+  assessmentTimestamp: number;
+  isManuallyReported: boolean;
+}
+
+export interface GoalScenarioMetrics {
+  daysRequired: number;
+  targetDate: string;
+  winRate: number;
+  riskReward: number;
+  riskPerTradePercent: number;
+  expectedTradesCount: number;
+  assumptions: string;
+}
+
+export interface GoalPlannerScenario {
+  startingBalance: number;
+  currentBalance: number;
+  profitTargetDollars: number;
+  remainingTargetDollars: number;
+  drawdownCapacityRemaining: number;
+  progressPercent: number;
+  conservative: GoalScenarioMetrics;
+  baseline: GoalScenarioMetrics;
+  optimistic: GoalScenarioMetrics;
+  hasConflict: boolean;
+  conflictExplanation?: string;
+  suggestedAlternatives?: string[];
+}
+
+export interface PostTradeImpactSummary {
+  tradeId: string;
+  tradeResult: 'WIN' | 'LOSS' | 'BREAKEVEN';
+  netProfitLoss: number;
+  previousBalance: number;
+  updatedBalance: number;
+  previousEquity: number;
+  updatedEquity: number;
+  previousDailyDdCapacity: number;
+  updatedDailyDdCapacity: number;
+  previousOverallDdCapacity: number;
+  updatedOverallDdCapacity: number;
+  targetProgressPercent: number;
+  remainingProfitTarget: number;
+  updatedPersonalRiskBudget: number;
+  decisionState: RiskDecisionState;
+  recommendedNextAction: string;
+  explanation: string;
+  isApproachingLimit: boolean;
+  isBreached: boolean;
+  isManuallyReported: boolean;
+}
+
 export interface AccountSettings {
   id: string;
   userId?: string;
   traderName: string;
   accountName: string;
   accountType: AccountType | string;
-  accountCategory?: 'PERSONAL' | 'FUNDED';
+  accountCategory?: 'PERSONAL' | 'FUNDED' | 'DEMO';
+  accountKind?: AccountKind;
+  isDemo?: boolean;
+  isManual?: boolean;
+  syncStatus?: 'MANUAL' | 'SYNCHRONIZED' | 'UNLINKED';
+  lastSyncTimestamp?: number;
+  preferredInstruments?: string[];
+  consecutiveLossProtection?: boolean;
+  maxSimultaneousExposurePercent?: number;
+  personalDrawdownBufferPercent?: number;
+  ruleProfileVersion?: string;
+  ruleVerificationStatus?: 'VERIFIED' | 'UNVERIFIED' | 'CUSTOM';
+  officialSourceUrl?: string;
+  lastRuleVerificationDate?: string;
+  calculationMethodology?: string;
+  knownLimitations?: string[];
   fundedConfig?: FundedAccountConfig;
   initialBalance: number;
   currentBalance: number;

@@ -46,6 +46,10 @@ import { CalmingSuiteMaster } from './components/calming/CalmingSuiteMaster';
 import { CATEGORY_SUMMARIES, CategorySummary } from './data/categorySummaries';
 import { LockedCategoryModal } from './components/LockedCategoryModal';
 import { Meta5PremiumTerminal } from './components/meta5/Meta5PremiumTerminal';
+import { PostTradeGuidanceModal } from './components/account/PostTradeGuidanceModal';
+import { CreateAccountWizard } from './components/account/CreateAccountWizard';
+import { PostTradeImpactSummary } from './types';
+import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
 
 const ALLOWED_DEMO_CATEGORIES: string[] = [
   'LOT_SIZE',
@@ -117,6 +121,9 @@ export default function App() {
   const [isTraderProfileOpen, setIsTraderProfileOpen] = useState(false);
   const [isAllCategoriesOpen, setIsAllCategoriesOpen] = useState(false);
   const [prefilledTradeData, setPrefilledTradeData] = useState<Partial<Trade> | null>(null);
+  const [postTradeImpactSummary, setPostTradeImpactSummary] = useState<PostTradeImpactSummary | null>(null);
+  const [isPostTradeModalOpen, setIsPostTradeModalOpen] = useState<boolean>(false);
+  const [isCreateAccountWizardOpen, setIsCreateAccountWizardOpen] = useState<boolean>(false);
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
@@ -580,6 +587,36 @@ export default function App() {
     setTrades(nextTrades);
     setLastSavedTime(getKarachiTime());
 
+    // Update active account balance and equity with realized profit/loss
+    const pnl = typeof newTrade.profitLoss === 'number'
+      ? newTrade.profitLoss
+      : typeof (newTrade as any).netProfitLoss === 'number'
+      ? (newTrade as any).netProfitLoss
+      : 0;
+    const prevBal = activeAccount.currentBalance ?? activeAccount.initialBalance;
+    const prevEquity = activeAccount.currentEquity ?? activeAccount.initialBalance;
+    const nextBal = Number((prevBal + pnl).toFixed(2));
+    const nextEq = Number((prevEquity + pnl).toFixed(2));
+
+    const updatedAccount: AccountSettings = {
+      ...activeAccount,
+      currentBalance: nextBal,
+      currentEquity: nextEq,
+      updatedAt: new Date().toISOString(),
+    };
+    await saveAccount(updatedAccount);
+    setActiveAccount(updatedAccount);
+    setAccounts((prev) => prev.map((a) => (a.id === updatedAccount.id ? updatedAccount : a)));
+
+    // Calculate and trigger immediate Post-Trade Impact Guidance
+    try {
+      const impact = calculatePostTradeImpact(tradeWithAccount, updatedAccount, trades);
+      setPostTradeImpactSummary(impact);
+      setIsPostTradeModalOpen(true);
+    } catch (err) {
+      console.warn('Post-trade impact calculation notice:', err);
+    }
+
     const token = getStoredToken();
     if (token && currentUser && currentUser.role !== 'DEVELOPER') {
       syncUserDataToServer(token);
@@ -636,7 +673,24 @@ export default function App() {
     }
 
     await deleteTrade(id, activeAccount.id);
-    setTrades((prev) => prev.filter((t) => t.id !== id));
+    const nextTrades = trades.filter((t) => t.id !== id);
+    setTrades(nextTrades);
+    setLastSavedTime(getKarachiTime());
+
+    // Recalculate balance from all closed trades for data integrity
+    const totalRealizedPnl = nextTrades
+      .filter((t) => t.status !== 'OPEN')
+      .reduce((acc, t) => acc + (typeof t.profitLoss === 'number' ? t.profitLoss : 0), 0);
+    const updatedBal = Number((activeAccount.initialBalance + totalRealizedPnl).toFixed(2));
+    const updatedAccount: AccountSettings = {
+      ...activeAccount,
+      currentBalance: updatedBal,
+      currentEquity: updatedBal,
+      updatedAt: new Date().toISOString(),
+    };
+    await saveAccount(updatedAccount);
+    setActiveAccount(updatedAccount);
+    setAccounts((prev) => prev.map((a) => (a.id === updatedAccount.id ? updatedAccount : a)));
 
     const token = getStoredToken();
     if (token && currentUser && currentUser.role !== 'DEVELOPER') {
@@ -647,8 +701,24 @@ export default function App() {
   const handleUpdateTrade = async (updatedTrade: Trade) => {
     if (!activeAccount) return;
     await saveTrade(updatedTrade);
-    setTrades((prev) => prev.map((t) => (t.id === updatedTrade.id ? updatedTrade : t)));
+    const nextTrades = trades.map((t) => (t.id === updatedTrade.id ? updatedTrade : t));
+    setTrades(nextTrades);
     setLastSavedTime(getKarachiTime());
+
+    // Recalculate balance from all closed trades
+    const totalRealizedPnl = nextTrades
+      .filter((t) => t.status !== 'OPEN')
+      .reduce((acc, t) => acc + (typeof t.profitLoss === 'number' ? t.profitLoss : 0), 0);
+    const updatedBal = Number((activeAccount.initialBalance + totalRealizedPnl).toFixed(2));
+    const updatedAccount: AccountSettings = {
+      ...activeAccount,
+      currentBalance: updatedBal,
+      currentEquity: updatedBal,
+      updatedAt: new Date().toISOString(),
+    };
+    await saveAccount(updatedAccount);
+    setActiveAccount(updatedAccount);
+    setAccounts((prev) => prev.map((a) => (a.id === updatedAccount.id ? updatedAccount : a)));
 
     const token = getStoredToken();
     if (token && currentUser && currentUser.role !== 'DEVELOPER') {
@@ -958,6 +1028,7 @@ export default function App() {
           setIsEntryModalOpen(true);
         }}
         onOpenAccountManager={() => setIsAccountManagerOpen(true)}
+        onOpenCreateAccount={() => setIsCreateAccountWizardOpen(true)}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         currentUser={currentUser}
         onOpenLogin={() => setIsLoginModalOpen(true)}
@@ -1069,12 +1140,18 @@ export default function App() {
             account={activeAccount}
             trades={trades}
             currentUser={currentUser}
-            onOpenNewTrade={() => setIsEntryModalOpen(true)}
+            onOpenNewTrade={(prefill) => {
+              if (prefill) {
+                setPrefilledTradeData(prefill);
+              }
+              setIsEntryModalOpen(true);
+            }}
             onNavigateToTab={(tab) => setActiveTab(tab as any)}
-            onOpenAccountModal={() => setIsLoginModalOpen(true)}
+            onOpenAccountModal={() => setIsAccountManagerOpen(true)}
             onOpenTraderProfile={() => setIsTraderProfileOpen(true)}
-        onOpenNotifications={() => setIsNotificationsOpen(true)}
+            onOpenNotifications={() => setIsNotificationsOpen(true)}
             onOpenEvolution={() => setActiveTab('EVOLUTION')}
+            onUpdateAccount={handleUpdateAccount}
           />
         )}
 
@@ -1303,6 +1380,8 @@ export default function App() {
             onAddGoal={handleAddGoal}
             onDeleteGoal={handleDeleteGoal}
             trades={trades}
+            account={activeAccount || undefined}
+            onUpdateAccount={handleUpdateAccount}
           />
         )}
 
@@ -1453,6 +1532,8 @@ export default function App() {
             setIsLoginModalOpen(false);
             if (isUserAdmin(user)) {
               setActiveTab('ADMIN');
+            } else if (accounts.length === 0) {
+              setIsCreateAccountWizardOpen(true);
             }
           }}
           onSuccess={(user) => {
@@ -1461,6 +1542,8 @@ export default function App() {
             setIsLoginModalOpen(false);
             if (isUserAdmin(user)) {
               setActiveTab('ADMIN');
+            } else if (accounts.length === 0) {
+              setIsCreateAccountWizardOpen(true);
             }
           }}
           onOpenSubscription={() => {
@@ -1526,6 +1609,7 @@ export default function App() {
           setCurrentUser(updated);
         }}
         onStartWalkthrough={() => setIsStudentOnboardingOpen(true)}
+        onOpenCreateAccount={() => setIsCreateAccountWizardOpen(true)}
       />
 
       {/* Student Guided Walkthrough / Onboarding Modal */}
@@ -1560,6 +1644,32 @@ export default function App() {
           }}
           onExploreDemo={handleEnterDemoMode}
         />
+      )}
+      {/* Post-Trade Real-Time Risk Guidance Modal */}
+      {isPostTradeModalOpen && postTradeImpactSummary && activeAccount && (
+        <PostTradeGuidanceModal
+          isOpen={isPostTradeModalOpen}
+          onClose={() => setIsPostTradeModalOpen(false)}
+          summary={postTradeImpactSummary}
+          account={activeAccount}
+          onOpenJournal={() => setActiveTab('JOURNAL')}
+          onOpenRiskCommand={() => setActiveTab('RISK')}
+        />
+      )}
+
+      {/* Standalone Create Account Wizard Modal */}
+      {isCreateAccountWizardOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto animate-in fade-in">
+          <div className="w-full max-w-4xl my-auto">
+            <CreateAccountWizard
+              onAccountCreated={(newAcc) => {
+                handleAccountCreated(newAcc);
+                setIsCreateAccountWizardOpen(false);
+              }}
+              onCancel={() => setIsCreateAccountWizardOpen(false)}
+            />
+          </div>
+        </div>
       )}
 
     </div>

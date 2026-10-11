@@ -112,6 +112,7 @@ interface HeaderProps {
   onExportData?: () => void;
   onImportData?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onOpenAccountManager?: () => void;
+  onOpenCreateAccount?: () => void;
   onOpenBackupModal?: () => void;
   currentUser?: UserAccount | null;
   onOpenLogin?: () => void;
@@ -149,6 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
   onExportData,
   onImportData,
   onOpenAccountManager,
+  onOpenCreateAccount,
   onOpenBackupModal,
   currentUser,
   onOpenLogin,
@@ -856,6 +858,18 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
+        {onOpenCreateAccount && (
+          <button
+            type="button"
+            onClick={onOpenCreateAccount}
+            title="Create or Configure Demo, Personal, or Funded Account"
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-gradient-to-r from-blue-500/15 to-cyan-500/15 hover:from-blue-500/25 hover:to-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-[11px] font-military font-bold tracking-wider uppercase transition cursor-pointer shadow-sm hover:border-cyan-400"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            <span>Set Up Account</span>
+          </button>
+        )}
+
         {/* Global discovery and account actions */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           <GlobalSearch onNavigate={switchTab} />
@@ -1003,6 +1017,20 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="sm:hidden text-[9px] font-mono-code">
                 {account ? formatCurrency(account.currentBalance, account.currency).split('.')[0] : 'ACC'}
               </span>
+            </button>
+          )}
+
+          {onOpenCreateAccount && (
+            <button
+              id="mobile-setup-account-btn"
+              type="button"
+              onClick={onOpenCreateAccount}
+              className="md:hidden flex items-center gap-1 px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/30 hover:border-cyan-400 text-cyan-300 font-military text-[11px] font-bold prime-ios-touch cursor-pointer"
+              title="Set Up New Trading Account"
+            >
+              <Plus className="w-3 h-3 shrink-0 stroke-[3]" />
+              <span className="hidden sm:inline">NEW ACC</span>
+              <span className="sm:hidden text-[9px]">+ACC</span>
             </button>
           )}
 
