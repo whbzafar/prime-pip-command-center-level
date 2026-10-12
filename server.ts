@@ -174,6 +174,11 @@ import {
   uploadMediaSupabase,
   readMediaObjectSupabase,
 } from "./server/supabaseCommunityService.js";
+import {
+  extractTradingViewScreenshotWithVision,
+  validateScreenshotTradeSetup,
+  saveScreenshotTradeAtomically,
+} from "./server/tradingviewScreenshotService.js";
 
 dotenv.config();
 
@@ -565,6 +570,149 @@ Rules:
   } catch (error: any) {
     console.warn("[AI TRADE SCANNER] extraction failed:", error?.message || error);
     res.status(500).json({ error: "AI trade screenshot analysis failed. Please try again." });
+  }
+});
+
+// ============================================================================
+// TRADINGVIEW SCREENSHOT-TO-JOURNAL ENDPOINTS
+// ============================================================================
+app.post("/api/journal/extract-screenshot", async (req, res) => {
+  try {
+    // Enforce authentication or explicit demo session access control
+    const token = getAuthToken(req);
+    const isDemoHeader = String(req.headers["x-demo-mode"] || "").toLowerCase() === "true";
+    const user = token ? getUserByToken(token) : null;
+
+    if (!user && !isDemoHeader) {
+      return res.status(401).json({
+        ok: false,
+        error: "Authentication or active Demo session is required to analyze TradingView screenshots.",
+      });
+    }
+
+    if (
+      user &&
+      !user.isDeveloper &&
+      user.role !== "ADMIN" &&
+      (user.subscriptionStatus === "EXPIRED" ||
+        user.subscriptionStatus === "SUSPENDED" ||
+        user.subscriptionStatus === "PAYMENT_REQUIRED")
+    ) {
+      return res.status(403).json({
+        ok: false,
+        error: "Your account subscription status does not permit screenshot journal imports.",
+      });
+    }
+
+    const { imageBase64, mimeType, fileName } = req.body || {};
+    const result = await extractTradingViewScreenshotWithVision({
+      imageBase64,
+      mimeType,
+      fileName,
+      geminiClient: getGeminiClient(),
+    });
+
+    if (!result.ok) {
+      return res.status(result.status).json({
+        ok: false,
+        error: result.error,
+      });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      extraction: result.extraction,
+    });
+  } catch (error: any) {
+    console.error("[TV SCREENSHOT EXTRACT] Error:", error?.message || error);
+    return res.status(500).json({
+      ok: false,
+      error: "Failed to process TradingView screenshot.",
+    });
+  }
+});
+
+app.post("/api/journal/validate-screenshot-trade", (req, res) => {
+  try {
+    const validation = validateScreenshotTradeSetup(req.body || {});
+    return res.status(200).json({
+      ok: true,
+      validation,
+    });
+  } catch (error: any) {
+    return res.status(400).json({
+      ok: false,
+      error: error?.message || "Validation error",
+    });
+  }
+});
+
+app.post("/api/journal/save-screenshot-trade", async (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    if (!token) {
+      return res.status(401).json({
+        ok: false,
+        error: "Authentication required to save screenshot trade to server database.",
+      });
+    }
+    const user = getUserByToken(token);
+    if (!user) {
+      return res.status(401).json({
+        ok: false,
+        error: "Invalid or expired user session.",
+      });
+    }
+
+    if (
+      !user.isDeveloper &&
+      user.role !== "ADMIN" &&
+      user.subscriptionStatus !== "ACTIVE" &&
+      user.subscriptionStatus !== "LIFETIME"
+    ) {
+      return res.status(403).json({
+        ok: false,
+        error: "Active subscription required to persist journal records to cloud storage.",
+      });
+    }
+
+    const { accountId = "acc-default", trade, allowDuplicateOverride = false } = req.body || {};
+    if (!trade || typeof trade !== "object") {
+      return res.status(400).json({
+        ok: false,
+        error: "Valid trade payload is required.",
+      });
+    }
+
+    const saveResult = await saveScreenshotTradeAtomically({
+      userId: user.id,
+      accountId: String(accountId),
+      tradePayload: trade,
+      allowDuplicateOverride: Boolean(allowDuplicateOverride),
+    });
+
+    if (!saveResult.ok) {
+      return res.status(saveResult.status).json({
+        ok: false,
+        duplicate: saveResult.duplicate || false,
+        existingTradeId: saveResult.existingTradeId,
+        error: saveResult.error,
+      });
+    }
+
+    return res.status(201).json({
+      ok: true,
+      saved: true,
+      tradeId: saveResult.trade?.id,
+      dbUuid: saveResult.trade?.dbUuid,
+      trade: saveResult.trade,
+    });
+  } catch (error: any) {
+    console.error("[TV SCREENSHOT SAVE] Error:", error?.message || error);
+    return res.status(500).json({
+      ok: false,
+      error: "Database failed to save the screenshot trade record.",
+    });
   }
 });
 

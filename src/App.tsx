@@ -13,6 +13,7 @@ import { CompoundingEngine } from './components/CompoundingEngine';
 import { PersonalImprovementHub } from './components/PersonalImprovementHub';
 import { MainNavTab } from './components/Header';
 import { TradeEntryModal } from './components/TradeEntryModal';
+import { TradingViewScreenshotImportModal } from './components/TradingViewScreenshotImportModal';
 import { AccountOnboardingModal } from './components/AccountOnboardingModal';
 import { OnboardingModal } from './components/OnboardingModal';
 import { AccountManagerModal } from './components/AccountManagerModal';
@@ -84,6 +85,7 @@ import {
   syncUserDataFromServer,
   syncUserDataToServer,
   exportAllData,
+  saveScreenshotTradeGuaranteed,
 } from './utils/db';
 import { googleDriveService } from './services/googleDriveService';
 import { Loader2, Shield, AlertTriangle, X } from 'lucide-react';
@@ -117,6 +119,7 @@ export default function App() {
 
   // Modal States
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
+  const [isScreenshotImportModalOpen, setIsScreenshotImportModalOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isStudentOnboardingOpen, setIsStudentOnboardingOpen] = useState(false);
   const [isAccountManagerOpen, setIsAccountManagerOpen] = useState(false);
@@ -712,6 +715,78 @@ export default function App() {
     }
   };
 
+  const handleSaveScreenshotImportedTrade = async (
+    draftTrade: Trade,
+    options?: { allowDuplicateOverride?: boolean }
+  ) => {
+    const targetAccount = activeAccount || accounts[0];
+    if (!targetAccount) {
+      return {
+        ok: false,
+        saved: false,
+        error: 'No active trading account found.',
+      };
+    }
+
+    if (
+      currentUser &&
+      currentUser.role !== 'DEVELOPER' &&
+      !currentUser.isDeveloper &&
+      (currentUser.subscriptionStatus === 'EXPIRED' ||
+        currentUser.subscriptionStatus === 'SUSPENDED' ||
+        currentUser.subscriptionStatus === 'PAYMENT_REQUIRED')
+    ) {
+      playDisciplineAlert('WARNING');
+      return {
+        ok: false,
+        saved: false,
+        error: 'Account subscription status is restricted from recording journal entries.',
+      };
+    }
+
+    const token = getStoredToken();
+    const canPersistToServer = Boolean(
+      token &&
+        currentUser &&
+        (currentUser.isDeveloper ||
+          currentUser.role === 'ADMIN' ||
+          currentUser.subscriptionStatus === 'ACTIVE' ||
+          currentUser.subscriptionStatus === 'LIFETIME')
+    );
+
+    const saveResult = await saveScreenshotTradeGuaranteed(draftTrade, {
+      accountId: targetAccount.id,
+      allowDuplicateOverride: options?.allowDuplicateOverride,
+      token,
+      canPersistToServer,
+    });
+
+    if (!saveResult.ok || !saveResult.saved || !saveResult.trade) {
+      return saveResult;
+    }
+
+    const savedTrade = saveResult.trade;
+    setTrades((prev) => [savedTrade, ...prev.filter((t) => t.id !== savedTrade.id)]);
+    setLastSavedTime(getKarachiTime());
+
+    if (savedTrade.status === 'CLOSED' && typeof savedTrade.profitLoss === 'number' && savedTrade.profitLoss !== 0) {
+      const prevBal = targetAccount.currentBalance ?? targetAccount.initialBalance;
+      const prevEq = targetAccount.currentEquity ?? targetAccount.initialBalance;
+      const updatedAccount: AccountSettings = {
+        ...targetAccount,
+        currentBalance: Number((prevBal + savedTrade.profitLoss).toFixed(2)),
+        currentEquity: Number((prevEq + savedTrade.profitLoss).toFixed(2)),
+        updatedAt: new Date().toISOString(),
+      };
+      await saveAccount(updatedAccount);
+      setActiveAccount(updatedAccount);
+      setAccounts((prev) => prev.map((a) => (a.id === updatedAccount.id ? updatedAccount : a)));
+    }
+
+    playDisciplineAlert('CHIME');
+    return saveResult;
+  };
+
   // Meta5 Premium Terminal Auto-Log Handler
   const handleAutoLogMeta5Trade = useCallback(
     async (partialTrade: Partial<Trade>) => {
@@ -1221,6 +1296,7 @@ export default function App() {
           <TradeJournal
             trades={trades}
             onOpenNewTrade={() => setIsEntryModalOpen(true)}
+            onOpenScreenshotImport={() => setIsScreenshotImportModalOpen(true)}
             onDeleteTrade={handleDeleteTrade}
             onUpdateTrade={handleUpdateTrade}
             currency={activeAccount?.currency || 'USD'}
@@ -1462,6 +1538,18 @@ export default function App() {
       />
 
       <AppearanceControls isOpen={isAppearanceOpen} onClose={() => setIsAppearanceOpen(false)} />
+
+      {/* TradingView Screenshot-to-Journal Import Modal */}
+      {isScreenshotImportModalOpen && activeAccount && (
+        <TradingViewScreenshotImportModal
+          isOpen={isScreenshotImportModalOpen}
+          onClose={() => setIsScreenshotImportModalOpen(false)}
+          activeAccount={activeAccount}
+          onSaveImportedTrade={handleSaveScreenshotImportedTrade}
+          isDemoMode={isDemoMode}
+          authToken={getStoredToken()}
+        />
+      )}
 
       {/* Trade Entry Modal */}
       {isEntryModalOpen && (

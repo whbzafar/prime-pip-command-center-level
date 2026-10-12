@@ -24,6 +24,7 @@ import {
   List,
   Maximize2,
   Minimize2,
+  Upload,
 } from 'lucide-react';
 import { Trade, StrategyType, TradeGrade, TradingSession } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
@@ -38,6 +39,7 @@ import { TradeDiagnosticEngine } from './TradeDiagnosticEngine';
 interface TradeJournalProps {
   trades: Trade[];
   onOpenNewTrade: () => void;
+  onOpenScreenshotImport?: () => void;
   onDeleteTrade: (id: string) => void;
   onUpdateTrade?: (updatedTrade: Trade) => void;
   currency?: string;
@@ -46,6 +48,7 @@ interface TradeJournalProps {
 export const TradeJournal: React.FC<TradeJournalProps> = ({
   trades,
   onOpenNewTrade,
+  onOpenScreenshotImport,
   onDeleteTrade,
   onUpdateTrade,
   currency = 'USD',
@@ -240,6 +243,19 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
               <span className="w-2 h-2 rounded-full bg-cyan-400" />
             )}
           </button>
+
+          {onOpenScreenshotImport && (
+            <button
+              id="journal-upload-tv-screenshot-btn"
+              data-testid="upload-tv-screenshot-btn"
+              type="button"
+              onClick={onOpenScreenshotImport}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 font-military font-bold text-xs tracking-wider cursor-pointer transition"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Upload TradingView Screenshot</span>
+            </button>
+          )}
 
           <button
             id="journal-new-trade-btn"
@@ -500,16 +516,31 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                   >
                     {/* ID & Date */}
                     <td className="py-3 px-4">
-                      <div className="font-bold text-slate-100 flex items-center gap-1.5">
+                      <div className="font-bold text-slate-100 flex items-center gap-1.5 flex-wrap">
                         <span>{trade.id}</span>
                         {trade.screenshots?.entry && (
                           <Camera className="w-3 h-3 text-cyan-400" />
                         )}
+                        {trade.screenshotImportMeta?.importedFromScreenshot && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            TV OCR
+                          </span>
+                        )}
+                        {trade.status === 'OPEN' && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                            OPEN
+                          </span>
+                        )}
                       </div>
-                      <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5">
+                      <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
                         <span className="text-slate-300 font-medium">
                           {formatTradeDateTime(trade.date, trade.time)}
                         </span>
+                        {trade.tradeTimeVerified === false && (
+                          <span className="px-1 py-0.2 rounded text-[9px] font-mono bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            Unverified Time
+                          </span>
+                        )}
                         <span>•</span>
                         <span>{trade.session}</span>
                       </div>
@@ -546,12 +577,26 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
 
                     {/* Execution */}
                     <td className="py-3 px-3 text-[11px]">
-                      <div className="text-slate-300">
-                        In: <strong className="text-slate-100">{trade.entryPrice}</strong>
+                      <div className="text-slate-300 flex items-center gap-2">
+                        <span>
+                          In: <strong className="text-slate-100">{trade.entryPrice}</strong>
+                        </span>
+                        {trade.status === 'CLOSED' && (trade.actualExitPrice || trade.exitPrice > 0) && (
+                          <span className="text-sky-300">
+                            Exit: <strong>{trade.actualExitPrice ?? trade.exitPrice}</strong>
+                          </span>
+                        )}
                       </div>
                       <div className="text-slate-400 flex items-center gap-2 mt-0.5">
                         <span className="text-rose-400">SL: {trade.stopLoss}</span>
-                        <span className="text-emerald-400">TP: {trade.takeProfit}</span>
+                        <span className="text-emerald-400">
+                          TP:{' '}
+                          {trade.plannedTargetPrice !== undefined && trade.plannedTargetPrice !== null
+                            ? trade.plannedTargetPrice
+                            : trade.takeProfit > 0
+                            ? trade.takeProfit
+                            : 'Open'}
+                        </span>
                       </div>
                     </td>
 

@@ -622,3 +622,243 @@ export async function syncUserDataToServer(token: string): Promise<boolean> {
     return false;
   }
 }
+
+// ----------------------------------------------------
+// ATOMIC TRADINGVIEW SCREENSHOT-TO-JOURNAL PERSISTENCE
+// ----------------------------------------------------
+let clientTradeSaveMutex: Promise<any> = Promise.resolve();
+
+function withClientTradeLock<T>(fn: () => Promise<T>): Promise<T> {
+  const next = clientTradeSaveMutex.then(fn, fn);
+  clientTradeSaveMutex = next.catch(() => {});
+  return next;
+}
+
+function generateClientUuid(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+export async function allocateNextUniqueTradeId(
+  accountId: string,
+  specificUserId?: string
+): Promise<{ tradeId: string; tradeNumber: number; dbUuid: string }> {
+  const currentUserId = specificUserId || getEffectiveUserId();
+  const allUserTrades = await getAllTrades(currentUserId);
+  const accountTrades = allUserTrades.filter((t) => t.accountId === accountId);
+
+  const seqKey = `primepipfx_trade_seq_${currentUserId}`;
+  let storedSeq = 109;
+  try {
+    const rawSeq = localStorage.getItem(seqKey);
+    if (rawSeq) {
+      const parsed = parseInt(rawSeq, 10);
+      if (Number.isFinite(parsed) && parsed > storedSeq) {
+        storedSeq = parsed;
+      }
+    }
+  } catch {}
+
+  const existingIds = new Set<string>();
+  for (const t of allUserTrades) {
+    if (t && typeof t.id === 'string') {
+      existingIds.add(t.id.trim().toUpperCase());
+      const m = t.id.trim().match(/^TRD-(\d+)$/i);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (Number.isFinite(n) && n > storedSeq) {
+          storedSeq = n;
+        }
+      }
+    }
+  }
+
+  let nextNum = Math.max(110, storedSeq + 1);
+  let candidateId = `TRD-${nextNum}`;
+  while (existingIds.has(candidateId.toUpperCase())) {
+    nextNum++;
+    candidateId = `TRD-${nextNum}`;
+  }
+
+  try {
+    localStorage.setItem(seqKey, String(nextNum));
+  } catch {}
+
+  return {
+    tradeId: candidateId,
+    tradeNumber: accountTrades.length + 1,
+    dbUuid: generateClientUuid(),
+  };
+}
+
+export async function saveScreenshotTradeGuaranteed(
+  tradePayload: Trade,
+  options?: {
+    accountId?: string;
+    allowDuplicateOverride?: boolean;
+    token?: string | null;
+    canPersistToServer?: boolean;
+  }
+): Promise<{
+  ok: boolean;
+  saved: boolean;
+  duplicate?: boolean;
+  existingTradeId?: string;
+  error?: string;
+  trade?: Trade;
+}> {
+  return withClientTradeLock(async () => {
+    const currentUserId = tradePayload.userId || getEffectiveUserId();
+    const accountId = options?.accountId || tradePayload.accountId || 'acc-default';
+    const allowDuplicateOverride = Boolean(options?.allowDuplicateOverride);
+
+    // 1. Inspect existing trades in IndexedDB to prevent duplicate imports & never overwrite existing IDs
+    const existingTrades = await getAllTrades(currentUserId);
+
+    if (!allowDuplicateOverride) {
+      for (const existing of existingTrades) {
+        if (!existing) continue;
+        if (
+          tradePayload.idempotencyKey &&
+          existing.idempotencyKey &&
+          existing.idempotencyKey === tradePayload.idempotencyKey
+        ) {
+          return {
+            ok: false,
+            saved: false,
+            duplicate: true,
+            existingTradeId: existing.id,
+            error: `This screenshot was already imported as Trade ${existing.id}.`,
+          };
+        }
+
+        if (
+          tradePayload.screenshotHash &&
+          existing.screenshotHash &&
+          existing.screenshotHash === tradePayload.screenshotHash &&
+          (existing.accountId || accountId) === accountId &&
+          existing.instrument === tradePayload.instrument &&
+          existing.direction === tradePayload.direction &&
+          Number(existing.entryPrice) === Number(tradePayload.entryPrice) &&
+          Number(existing.stopLoss) === Number(tradePayload.stopLoss)
+        ) {
+          return {
+            ok: false,
+            saved: false,
+            duplicate: true,
+            existingTradeId: existing.id,
+            error: `Duplicate screenshot import detected: an identical ${tradePayload.instrument} ${tradePayload.direction} setup from this screenshot is already saved as ${existing.id}.`,
+          };
+        }
+      }
+    }
+
+    let finalizedTrade: Trade = {
+      ...tradePayload,
+      userId: currentUserId,
+      accountId,
+    };
+
+    // 2. If authenticated with server persistence rights, commit atomically to server DB first
+    if (options?.token && options?.canPersistToServer) {
+      try {
+        const res = await fetch('/api/journal/save-screenshot-trade', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${options.token}`,
+          },
+          body: JSON.stringify({
+            accountId,
+            trade: finalizedTrade,
+            allowDuplicateOverride,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok || !data.saved || !data.trade) {
+          return {
+            ok: false,
+            saved: false,
+            duplicate: Boolean(data.duplicate),
+            existingTradeId: data.existingTradeId,
+            error: data.error || 'Server database rejected or failed to confirm trade save.',
+          };
+        }
+        finalizedTrade = {
+          ...finalizedTrade,
+          ...data.trade,
+          userId: currentUserId,
+          accountId,
+        };
+      } catch (err: any) {
+        return {
+          ok: false,
+          saved: false,
+          error: err?.message || 'Network error while confirming trade save with database.',
+        };
+      }
+    } else {
+      // Allocate guaranteed-unique TRD-xxx ID locally
+      const allocated = await allocateNextUniqueTradeId(accountId, currentUserId);
+      finalizedTrade = {
+        ...finalizedTrade,
+        id: allocated.tradeId,
+        tradeNumber: allocated.tradeNumber,
+        dbUuid: allocated.dbUuid,
+        journalCreatedAt: finalizedTrade.journalCreatedAt || new Date().toISOString(),
+      };
+    }
+
+    // 3. Strictly insert into IndexedDB without overwriting any existing record, waiting for transaction commit
+    try {
+      const db = await getDB();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction('trades', 'readwrite');
+        const store = tx.objectStore('trades');
+
+        // Verify the ID does not already exist so we never silently overwrite an existing journal record
+        const checkReq = store.get(finalizedTrade.id);
+        checkReq.onsuccess = () => {
+          if (checkReq.result) {
+            // Allocate a fresh non-colliding ID if key already exists in IDB
+            const fallbackId = `${finalizedTrade.id}-${ String(Date.now()).slice(-3) }`;
+            finalizedTrade = { ...finalizedTrade, id: fallbackId };
+          }
+          const addReq = store.add(finalizedTrade);
+          addReq.onerror = () => reject(addReq.error || new Error('IndexedDB failed to insert new trade record.'));
+        };
+        checkReq.onerror = () => reject(checkReq.error);
+
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error('IndexedDB transaction failed.'));
+      });
+    } catch (idbErr: any) {
+      return {
+        ok: false,
+        saved: false,
+        error: idbErr?.message || 'Local database failed to confirm trade persistence.',
+      };
+    }
+
+    // 4. Mirror to localStorage backup without overwriting other records
+    try {
+      const lsKey = `primepipfx_trades_${currentUserId}_${accountId}`;
+      const existing: Trade[] = JSON.parse(localStorage.getItem(lsKey) || '[]');
+      const withoutSameId = existing.filter((t) => t.id !== finalizedTrade.id);
+      localStorage.setItem(lsKey, JSON.stringify([finalizedTrade, ...withoutSameId]));
+    } catch {}
+
+    return {
+      ok: true,
+      saved: true,
+      trade: finalizedTrade,
+    };
+  });
+}
+

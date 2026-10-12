@@ -303,6 +303,81 @@ export interface Trade {
     actionableTakeaway?: string;
     recommendedModule?: string;
   };
+
+  // TradingView Screenshot-to-Journal Import & Data Integrity Fields
+  dbUuid?: string;
+  idempotencyKey?: string;
+  screenshotHash?: string;
+  plannedTargetPrice?: number | null;
+  actualExitPrice?: number | null;
+  screenshotTradeTimestamp?: string | null;
+  screenshotUploadTimestamp?: string;
+  journalCreatedAt?: string;
+  tradeTimeVerified?: boolean;
+  visibleRiskRewardRatio?: number | null;
+  screenshotImportMeta?: ScreenshotImportMetadata;
+}
+
+export type ExtractionConfidenceLevel = 'HIGH' | 'UNCERTAIN' | 'MISSING';
+
+export interface ScreenshotPositionLabels {
+  stopDistanceLabel?: string | null;
+  targetDistanceLabel?: string | null;
+  amountOrQtyLabel?: string | null;
+  accountStatsLabel?: string | null;
+  brokerOrExchange?: string | null;
+  otherLabels?: string[];
+}
+
+export interface ScreenshotImportMetadata {
+  importedFromScreenshot: boolean;
+  fileName?: string;
+  mimeType?: string;
+  positionToolType?: 'Long Position' | 'Short Position' | 'Order Lines' | 'Manual Chart' | null;
+  rawTimeframeLabel?: string | null;
+  drawingHorizontalDurationIgnored?: string | null;
+  visibleTimestampRaw?: string | null;
+  positionLabels?: ScreenshotPositionLabels;
+  uncertainFields?: string[];
+  userEditedFields?: string[];
+  advancedSetupConfirmed?: boolean;
+  extractionSource?: string;
+}
+
+export interface TradingViewExtractionResult {
+  isReadableTradingViewChart: boolean;
+  unreadableReason?: string | null;
+  instrument: string | null;
+  chartTimeframe: Timeframe | null;
+  rawTimeframeLabel?: string | null;
+  drawingHorizontalDurationIgnored?: string | null;
+  direction: TradeDirection | null;
+  positionToolType?: 'Long Position' | 'Short Position' | 'Order Lines' | 'Manual Chart' | null;
+  entryPrice: number | null;
+  stopLoss: number | null;
+  takeProfit: number | null;
+  actualExitPrice?: number | null;
+  visibleTradeDate: string | null;
+  visibleTradeTime: string | null;
+  visibleTimestampRaw?: string | null;
+  riskRewardRatio: number | null;
+  positionLabels?: ScreenshotPositionLabels;
+  detectedTradeStatus?: 'OPEN' | 'CLOSED' | null;
+  fieldConfidence: {
+    instrument: ExtractionConfidenceLevel;
+    timeframe: ExtractionConfidenceLevel;
+    direction: ExtractionConfidenceLevel;
+    entryPrice: ExtractionConfidenceLevel;
+    stopLoss: ExtractionConfidenceLevel;
+    takeProfit: ExtractionConfidenceLevel;
+    tradeTimestamp: ExtractionConfidenceLevel;
+    riskRewardRatio: ExtractionConfidenceLevel;
+  };
+  uncertainFields: string[];
+  extractionNotes: string;
+  screenshotHash?: string;
+  uploadTimestamp?: string;
+  source?: string;
 }
 
 export interface SignalItem {
