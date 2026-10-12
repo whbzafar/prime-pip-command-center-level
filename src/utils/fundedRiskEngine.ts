@@ -1638,7 +1638,8 @@ export function evaluateFundedAccountRisk(
   const todayStr = getKarachiDate();
   const tradesToday = sortedTrades.filter((t) => t.date === todayStr).length;
   const maxDailyTrades = Math.max(1, safeNumber(account.maxDailyTrades, 2));
-  const lastTradePnL = reverseClosed.length > 0 ? safeNumber(reverseClosed[0].profitLoss, 0) : null;
+  const lastClosedTrade = reverseClosed.length > 0 ? reverseClosed[0] : null;
+  const lastTradePnL = lastClosedTrade ? safeNumber(lastClosedTrade.profitLoss, 0) : null;
 
   // Recommended Risk
   const riskRes = calculateRecommendedRisk(
@@ -1721,17 +1722,44 @@ export function evaluateFundedAccountRisk(
   const currentBal = Math.max(0, safeNumber(account.currentBalance, startingBalance));
   const currentEq = Math.max(0, safeNumber(account.currentEquity, currentBal + dailyRes.todayUnrealizedPnL));
 
+  const lastTradeContextLabel = lastClosedTrade
+    ? `${lastClosedTrade.instrument} ${lastClosedTrade.direction} (${lastClosedTrade.lotSize} Lots, Risk ${lastClosedTrade.riskPercent || 1}%)`
+    : null;
+
   const nextTradeRiskQuestionAnswer =
     riskRes.recommendedRiskDollars > 0
-      ? `You can safely risk ${formatCurrency(
-          riskRes.recommendedRiskDollars,
-          currency
-        )} (${riskRes.recommendedRiskPercent}% of current balance) on your NEXT trade. This leaves ${tradesToDailyBreachAtRecommended} full loss buffer(s) before Today's Daily Drawdown (${formatCurrency(
-          dailyRes.remainingDailyDrawdown,
-          currency
-        )} left) and ${tradesToOverallBreachAtRecommended} loss buffer(s) before your ${
-          trailingRes.isTrailing ? 'Trailing' : 'Overall'
-        } Liquidation Threshold (${formatCurrency(overallRes.overallBreachFloor, currency)}).`
+      ? lastTradePnL !== null && lastTradePnL < 0
+        ? `Since you incurred a loss of -${formatCurrency(
+            Math.abs(lastTradePnL),
+            currency
+          )} on your last trade (${lastTradeContextLabel}), you should now take your NEXT trade at a reduced risk of ${
+            riskRes.recommendedRiskPercent
+          }% (${formatCurrency(
+            riskRes.recommendedRiskDollars,
+            currency
+          )}). This protects your remaining Daily Drawdown (${formatCurrency(
+            dailyRes.remainingDailyDrawdown,
+            currency
+          )}) and keeps ${tradesToDailyBreachAtRecommended} full loss buffer(s).`
+        : lastTradePnL !== null && lastTradePnL > 0
+        ? `Since you secured a win of +${formatCurrency(
+            lastTradePnL,
+            currency
+          )} on your last trade (${lastTradeContextLabel}), lock in your profit cushion and take your NEXT trade at ${
+            riskRes.recommendedRiskPercent
+          }% (${formatCurrency(
+            riskRes.recommendedRiskDollars,
+            currency
+          )}). Avoid post-win over-sizing while maintaining ${tradesToDailyBreachAtRecommended} daily loss buffer(s).`
+        : `Based on your General Settings (${riskRes.riskMode} Mode, ${riskRes.preferredRiskPercent}% preferred risk), take your NEXT trade at ${
+            riskRes.recommendedRiskPercent
+          }% (${formatCurrency(
+            riskRes.recommendedRiskDollars,
+            currency
+          )}). This leaves ${tradesToDailyBreachAtRecommended} full loss buffer(s) before Today's Daily Drawdown (${formatCurrency(
+            dailyRes.remainingDailyDrawdown,
+            currency
+          )} left).`
       : `Your safe risk for the NEXT trade is ${formatCurrency(
           0,
           currency
@@ -1739,17 +1767,33 @@ export function evaluateFundedAccountRisk(
 
   const shouldTakeTradeQuestionAnswer =
     verdict === 'TAKE_TRADE'
-      ? `TAKE THIS TRADE AT STANDARD RISK (${formatCurrency(
-          riskRes.recommendedRiskDollars,
-          currency
-        )} / ${riskRes.recommendedRiskPercent}%): Your daily and overall drawdown buffers are healthy within all ${
-          config.firmName
-        } rules.`
+      ? lastTradePnL !== null && lastTradePnL > 0
+        ? `PROCEED AT ${riskRes.recommendedRiskPercent}% (${formatCurrency(
+            riskRes.recommendedRiskDollars,
+            currency
+          )}) RISK: You secured +${formatCurrency(
+            lastTradePnL,
+            currency
+          )} on ${lastClosedTrade?.instrument || 'your last trade'}. Keep sizing steady at ${
+            riskRes.recommendedRiskPercent
+          }% per your ${config.firmName} settings.`
+        : `TAKE THIS TRADE AT ${riskRes.recommendedRiskPercent}% (${formatCurrency(
+            riskRes.recommendedRiskDollars,
+            currency
+          )}) RISK: Your daily and overall drawdown buffers are healthy within all ${
+            config.firmName
+          } rules.`
       : verdict === 'REDUCE_RISK'
-      ? `REDUCE YOUR RISK TO ${formatCurrency(
+      ? `SCALE DOWN TO ${riskRes.recommendedRiskPercent}% (${formatCurrency(
           riskRes.recommendedRiskDollars,
           currency
-        )} (${riskRes.recommendedRiskPercent}%) BEFORE TAKING THIS TRADE: Down-size due to ${riskRes.limitingFactor.toLowerCase()}. Only execute an A+ setup.`
+        )}) ON YOUR NEXT TRADE: ${
+          lastTradePnL !== null && lastTradePnL < 0
+            ? `Following your -${formatCurrency(Math.abs(lastTradePnL), currency)} loss on ${
+                lastClosedTrade?.instrument || 'the previous trade'
+              }, reduce risk to ${riskRes.recommendedRiskPercent}%`
+            : `Down-size due to ${riskRes.limitingFactor.toLowerCase()}`
+        }. Execute only an A+ setup.`
       : verdict === 'TARGET_PASSED'
       ? `STOP TRADING & LOCK IN PASS: You have already reached the ${formatCurrency(
           phaseRes.activeProfitTargetDollars,

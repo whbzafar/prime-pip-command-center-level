@@ -568,10 +568,16 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                     {/* Strategy & Market Structure */}
                     <td className="py-3 px-3">
                       <div className="font-semibold text-slate-200">{trade.strategy}</div>
-                      <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                      <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5 flex-wrap">
                         <span className="text-amber-300">{trade.marketStructure}</span>
                         <span>•</span>
                         <span>HTF: {trade.htfTrend.slice(0, 4)}</span>
+                        {trade.market && (
+                          <>
+                            <span>•</span>
+                            <span className="text-cyan-300">{trade.market.split(' ')[0]}</span>
+                          </>
+                        )}
                       </div>
                     </td>
 
@@ -1121,6 +1127,18 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
                     <span className="text-slate-500 block text-[10px]">Market Structure:</span>
                     <strong className="text-amber-300">{inspectedTrade.marketStructure}</strong>
                   </div>
+                  {inspectedTrade.market && (
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Market / Asset Class:</span>
+                      <strong className="text-cyan-300">{inspectedTrade.market}</strong>
+                    </div>
+                  )}
+                  {inspectedTrade.sector && (
+                    <div className="sm:col-span-2">
+                      <span className="text-slate-500 block text-[10px]">Market Sector:</span>
+                      <strong className="text-emerald-300">{inspectedTrade.sector}</strong>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-2 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-5 gap-2 text-slate-300 text-[11px]">
@@ -1260,6 +1278,27 @@ export const TradeJournal: React.FC<TradeJournalProps> = ({
               )}
 
               {/* Section 6 & 7: Psychology, Rules & Mistakes */}
+              {(inspectedTrade.preTradeMindsetNotes || inspectedTrade.postTradeMindsetNotes) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl bg-slate-950/80 border border-cyan-500/30 space-y-1.5">
+                    <div className="text-xs font-military font-bold text-cyan-400">
+                      BEFORE TRADE — PRE-TRADE MINDSET & ANALYSIS
+                    </div>
+                    <p className="text-xs text-slate-200 leading-relaxed whitespace-pre-wrap font-sans">
+                      {inspectedTrade.preTradeMindsetNotes || 'No pre-trade notes recorded.'}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-slate-950/80 border border-emerald-500/30 space-y-1.5">
+                    <div className="text-xs font-military font-bold text-emerald-400">
+                      AFTER TRADE — POST-TRADE MINDSET & REVIEW
+                    </div>
+                    <p className="text-xs text-slate-200 leading-relaxed whitespace-pre-wrap font-sans">
+                      {inspectedTrade.postTradeMindsetNotes || 'No post-trade notes recorded.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
                   <div className="text-xs font-military font-bold text-cyan-400">

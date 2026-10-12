@@ -581,7 +581,7 @@ app.post("/api/journal/extract-screenshot", async (req, res) => {
     // Enforce authentication or explicit demo session access control
     const token = getAuthToken(req);
     const isDemoHeader = String(req.headers["x-demo-mode"] || "").toLowerCase() === "true";
-    const user = token ? getUserByToken(token) : null;
+    const user = (token ? getUserByToken(token) : null) || (await getCommunityUser(req));
 
     if (!user && !isDemoHeader) {
       return res.status(401).json({
@@ -656,7 +656,7 @@ app.post("/api/journal/save-screenshot-trade", async (req, res) => {
         error: "Authentication required to save screenshot trade to server database.",
       });
     }
-    const user = getUserByToken(token);
+    const user = getUserByToken(token) || (await getCommunityUser(req));
     if (!user) {
       return res.status(401).json({
         ok: false,

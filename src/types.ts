@@ -16,7 +16,7 @@ export type SBTStrategyModel =
 
 export type StrategyType = SBTStrategyModel | string;
 
-export type Timeframe = 'M1' | 'M5' | 'M15' | 'M30' | 'H1' | 'H4' | 'D1';
+export type Timeframe = 'M1' | 'M3' | 'M5' | 'M15' | 'M30' | 'H1' | 'H4' | 'D1';
 
 export type TrendDirection = 'BULLISH' | 'BEARISH' | 'RANGING';
 
@@ -248,11 +248,14 @@ export interface Trade {
   lotSize: number;
   riskAmount: number; // in $
   riskPercent?: number; // % of account
+  potentialProfitDollars?: number; // Potential dollar gain if Take-Profit is hit
   profitLoss: number; // in $
   rMultiple: number; // e.g. +3.2 or -1.0
   pips: number;
 
   // Strategy & Structure
+  market?: string;
+  sector?: string;
   strategy: StrategyType;
   sbtModel?: string;
   strategyModel?: string;
@@ -263,6 +266,8 @@ export interface Trade {
 
   // Psychology & Discipline
   preEmotion: EmotionState;
+  preTradeMindsetNotes?: string;
+  postTradeMindsetNotes?: string;
   postPsychology: PostTradePsychology;
   ruleViolation: RuleViolationLevel;
   violatedRules: string[];

@@ -766,6 +766,7 @@ export async function saveScreenshotTradeGuaranteed(
     };
 
     // 2. If authenticated with server persistence rights, commit atomically to server DB first
+    let persistedOnServer = false;
     if (options?.token && options?.canPersistToServer) {
       try {
         const res = await fetch('/api/journal/save-screenshot-trade', {
@@ -781,29 +782,30 @@ export async function saveScreenshotTradeGuaranteed(
           }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.ok || !data.saved || !data.trade) {
+        if (res.status === 409 || res.status === 422 || res.status === 403) {
           return {
             ok: false,
             saved: false,
             duplicate: Boolean(data.duplicate),
             existingTradeId: data.existingTradeId,
-            error: data.error || 'Server database rejected or failed to confirm trade save.',
+            error: data.error || 'Server database rejected trade save.',
           };
         }
-        finalizedTrade = {
-          ...finalizedTrade,
-          ...data.trade,
-          userId: currentUserId,
-          accountId,
-        };
+        if (res.ok && data.ok && data.saved && data.trade) {
+          finalizedTrade = {
+            ...finalizedTrade,
+            ...data.trade,
+            userId: currentUserId,
+            accountId,
+          };
+          persistedOnServer = true;
+        }
       } catch (err: any) {
-        return {
-          ok: false,
-          saved: false,
-          error: err?.message || 'Network error while confirming trade save with database.',
-        };
+        console.warn('[JOURNAL SAVE] Server save unavailable, falling back to local IndexedDB:', err?.message);
       }
-    } else {
+    }
+
+    if (!persistedOnServer) {
       // Allocate guaranteed-unique TRD-xxx ID locally
       const allocated = await allocateNextUniqueTradeId(accountId, currentUserId);
       finalizedTrade = {

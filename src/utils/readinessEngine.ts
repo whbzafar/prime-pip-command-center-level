@@ -50,6 +50,8 @@ export interface NextTradeReadiness {
   isAdaptiveRiskActive: boolean;
   adaptiveRecommendedRiskPercent: number;
   adaptiveRiskGuidance: string;
+  lastLoggedTrade?: Trade | null;
+  nextTradeProgressionGuidance: string;
   readinessScore: TradeReadinessScoreBreakdown;
 }
 
@@ -230,7 +232,7 @@ export function calculateNextTradeReadiness(
 
   // ---------------------------------------------------------------------------
   // ADAPTIVE RISK GUIDANCE (Item 13)
-  // Recommends reducing risk under specific pressure conditions
+  // Recommends reducing risk under specific pressure conditions or after a win/loss
   // ---------------------------------------------------------------------------
   let isAdaptiveRiskActive = false;
   let adaptiveRecommendedRiskPercent = maxRiskPerTradePct;
@@ -238,16 +240,22 @@ export function calculateNextTradeReadiness(
 
   if (consecutiveLosses >= 2 && status !== 'RED') {
     isAdaptiveRiskActive = true;
-    adaptiveRecommendedRiskPercent = Math.min(0.5, maxRiskPerTradePct * 0.5);
-    adaptiveRiskGuidance = `RISK CAUTION: You have experienced 2 consecutive losses. Your current rules allow another trade, but consider reducing risk to ${adaptiveRecommendedRiskPercent}%. (Risk-management suggestion • Not a market prediction)`;
+    adaptiveRecommendedRiskPercent = Number(Math.min(0.5, maxRiskPerTradePct * 0.5).toFixed(2));
+    adaptiveRiskGuidance = `RISK CAUTION: You have experienced ${consecutiveLosses} consecutive losses. Your current rules allow another trade, so scale down to ${adaptiveRecommendedRiskPercent}% on your next trade.`;
+  } else if (consecutiveLosses === 1 && status !== 'RED') {
+    isAdaptiveRiskActive = true;
+    adaptiveRecommendedRiskPercent = Number(Math.min(0.5, maxRiskPerTradePct * 0.6).toFixed(2));
+    adaptiveRiskGuidance = `POST-LOSS ADJUSTMENT: Since your last trade (${lastTrade?.instrument || 'previous setup'}) closed in a loss (-$${Math.abs(lastTrade?.profitLoss || 0).toLocaleString()}), take your next trade at ${adaptiveRecommendedRiskPercent}% risk to protect your equity buffer.`;
   } else if (currentDrawdownPercent >= maxDrawdownLimit * 0.75 && status !== 'RED') {
     isAdaptiveRiskActive = true;
-    adaptiveRecommendedRiskPercent = Math.min(0.5, maxRiskPerTradePct * 0.5);
-    adaptiveRiskGuidance = `DRAWDOWN CAUTION: Drawdown is at ${currentDrawdownPercent}%. Reduce risk to ${adaptiveRecommendedRiskPercent}% to protect account equity. (Risk-management suggestion)`;
+    adaptiveRecommendedRiskPercent = Number(Math.min(0.5, maxRiskPerTradePct * 0.5).toFixed(2));
+    adaptiveRiskGuidance = `DRAWDOWN CAUTION: Drawdown is at ${currentDrawdownPercent}%. Reduce risk to ${adaptiveRecommendedRiskPercent}% to protect account equity.`;
   } else if (ruleViolationsToday >= 1 && status !== 'RED') {
     isAdaptiveRiskActive = true;
-    adaptiveRecommendedRiskPercent = Math.min(0.5, maxRiskPerTradePct * 0.75);
+    adaptiveRecommendedRiskPercent = Number(Math.min(0.5, maxRiskPerTradePct * 0.75).toFixed(2));
     adaptiveRiskGuidance = `DISCIPLINE CAUTION: Rule breach logged today. Consider sizing down to ${adaptiveRecommendedRiskPercent}% until execution discipline stabilizes.`;
+  } else if (lastTrade && lastTrade.status !== 'OPEN' && lastTrade.profitLoss > 0 && status !== 'RED') {
+    adaptiveRiskGuidance = `POST-WIN GUIDANCE: You secured +$${Math.round(lastTrade.profitLoss).toLocaleString()} on ${lastTrade.instrument} (${lastTrade.direction}). Lock in your gains and take your next trade at ${adaptiveRecommendedRiskPercent}% risk ($${Math.round((balance * adaptiveRecommendedRiskPercent) / 100).toLocaleString()}) — do not oversize.`;
   }
 
   // Base recommended risk dollars
@@ -289,8 +297,20 @@ export function calculateNextTradeReadiness(
     } else {
       recommendedRiskDollars = Math.min(recommendedRiskDollars, fundedEval.recommendedRiskDollars);
       recommendedRiskPercent = Number(((recommendedRiskDollars / balance) * 100).toFixed(2));
+      adaptiveRiskGuidance = fundedEval.nextTradeRiskQuestionAnswer;
     }
   }
+
+  const nextTradeProgressionGuidance =
+    status === 'RED'
+      ? `HALT NEXT TRADE (0.00% RISK): ${recommendation}`
+      : lastTrade && lastTrade.status !== 'OPEN' && lastTrade.profitLoss < 0
+      ? `Since you incurred a loss of -$${Math.abs(Math.round(lastTrade.profitLoss)).toLocaleString()} (${lastTrade.riskPercent || 1}% risk, ${lastTrade.lotSize} Lots) on ${lastTrade.instrument} ${lastTrade.direction}, take your NEXT trade at ${recommendedRiskPercent}% ($${Math.round(recommendedRiskDollars).toLocaleString()} max risk) to protect capital and recover methodically.`
+      : lastTrade && lastTrade.status !== 'OPEN' && lastTrade.profitLoss > 0
+      ? `Since you secured a win of +$${Math.round(lastTrade.profitLoss).toLocaleString()} (+${lastTrade.rMultiple}R, ${lastTrade.lotSize} Lots) on ${lastTrade.instrument} ${lastTrade.direction}, protect your realized profit cushion and take your NEXT trade at ${recommendedRiskPercent}% ($${Math.round(recommendedRiskDollars).toLocaleString()} risk).`
+      : lastTrade && lastTrade.status === 'OPEN'
+      ? `Active Open Position: ${lastTrade.instrument} ${lastTrade.direction} (${lastTrade.lotSize} Lots • Risk ${lastTrade.riskPercent || 1}% / -$${Math.round(lastTrade.riskAmount || 0).toLocaleString()}). For any additional setup, keep risk within ${recommendedRiskPercent}% ($${Math.round(recommendedRiskDollars).toLocaleString()}).`
+      : `Based on your General Account Settings ($${Math.round(balance).toLocaleString()} balance, ${maxRiskPerTradePct}% max risk rule), take your NEXT trade at ${recommendedRiskPercent}% ($${Math.round(recommendedRiskDollars).toLocaleString()} max risk).`;
 
   const riskStatus =
     status === 'RED' || remainingDailyRiskDollars <= 0 ? 'LIMIT REACHED' : 'WITHIN PLAN';
@@ -410,6 +430,8 @@ export function calculateNextTradeReadiness(
     isAdaptiveRiskActive,
     adaptiveRecommendedRiskPercent,
     adaptiveRiskGuidance,
+    lastLoggedTrade: lastTrade || null,
+    nextTradeProgressionGuidance,
     readinessScore,
   };
 }

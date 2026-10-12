@@ -38,8 +38,12 @@ export function getStoredUser(): UserAccount | null {
 
 export function setStoredUser(user: UserAccount | null) {
   try {
-    if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
-    else localStorage.removeItem(USER_KEY);
+    if (user) {
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      localStorage.removeItem('primepipfx_demo_mode');
+    } else {
+      localStorage.removeItem(USER_KEY);
+    }
   } catch (err) {
     console.error('Error saving user profile:', err);
   }
@@ -81,6 +85,32 @@ export function hasFullAccess(user: UserAccount | null): boolean {
     if (!user.expiryDate) return true;
     return new Date(user.expiryDate).getTime() >= Date.now();
   }
+  return false;
+}
+
+/**
+ * Returns true ONLY if the user clicked "Explore Demo" and does NOT have an active subscription.
+ * Subscribed users (ACTIVE / LIFETIME / ADMIN / DEVELOPER) are NEVER locked.
+ */
+export function isFundamentalSurpriseLocked(
+  user?: UserAccount | null,
+  isDemoFlag?: boolean
+): boolean {
+  const effectiveUser = user !== undefined && user !== null ? user : getStoredUser();
+  if (effectiveUser && hasFullAccess(effectiveUser)) {
+    try {
+      if (typeof window !== 'undefined' && localStorage.getItem('primepipfx_demo_mode') === 'true') {
+        localStorage.removeItem('primepipfx_demo_mode');
+      }
+    } catch {}
+    return false;
+  }
+  if (isDemoFlag) return true;
+  try {
+    if (typeof window !== 'undefined' && localStorage.getItem('primepipfx_demo_mode') === 'true') {
+      return true;
+    }
+  } catch {}
   return false;
 }
 

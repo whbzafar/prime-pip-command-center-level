@@ -53,6 +53,7 @@ import {
 } from '../data/defaultFundamentalObservations';
 import { CurrencyCode, CurrencyScoreResult, IndicatorObservation } from '../types/fundamentalIndicatorTypes';
 import { UserAccount, Trade, SignalItem } from '../types';
+import { isFundamentalSurpriseLocked } from '../utils/authClient';
 import { fetchSignalsFromServer } from '../services/signalsService';
 import { isUserAdmin } from '../utils/authClient';
 
@@ -291,16 +292,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   onNavigateToFundamental,
   onNavigateToJournal,
 }) => {
-  const isFundamentalLocked =
-    isDemoMode ||
-    (!currentUser && typeof window !== 'undefined' && localStorage.getItem('primepipfx_demo_mode') === 'true') ||
-    Boolean(
-      currentUser &&
-        currentUser.role !== 'ADMIN' &&
-        currentUser.role !== 'DEVELOPER' &&
-        !currentUser.isDeveloper &&
-        currentUser.subscriptionStatus !== 'ACTIVE'
-    );
+  const isFundamentalLocked = isFundamentalSurpriseLocked(currentUser, isDemoMode);
   // Load saved student chart state for automatic persistence
   const savedState = (() => {
     try {

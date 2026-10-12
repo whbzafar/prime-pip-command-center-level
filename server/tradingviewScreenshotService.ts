@@ -3,7 +3,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { getCustomerData, saveCustomerData } from './customerDataService.js';
 import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
 
-export type AllowedTimeframe = 'M1' | 'M5' | 'M15' | 'M30' | 'H1' | 'H4' | 'D1';
+export type AllowedTimeframe = 'M1' | 'M3' | 'M5' | 'M15' | 'M30' | 'H1' | 'H4' | 'D1';
 export type AllowedDirection = 'BUY' | 'SELL';
 export type ConfidenceLevel = 'HIGH' | 'UNCERTAIN' | 'MISSING';
 
@@ -253,6 +253,7 @@ export function normalizeChartTimeframe(raw: unknown): AllowedTimeframe | null {
 
   const upper = trimmed.toUpperCase().replace(/\s+/g, '');
   if (['M1', '1M', '1MIN', '1MINUTE', '1'].includes(upper)) return 'M1';
+  if (['M3', '3M', '3MIN', '3MINUTES', '3'].includes(upper)) return 'M3';
   if (['M5', '5M', '5MIN', '5MINUTES', '5'].includes(upper)) return 'M5';
   if (['M15', '15M', '15MIN', '15MINUTES', '15'].includes(upper)) return 'M15';
   if (['M30', '30M', '30MIN', '30MINUTES', '30'].includes(upper)) return 'M30';
@@ -293,16 +294,31 @@ export function normalizeInstrumentSymbol(raw: unknown): string | null {
   return cleaned;
 }
 
-export function normalizeDirection(raw: unknown, positionToolType?: unknown): AllowedDirection | null {
-  if (typeof raw === 'string') {
-    const u = raw.trim().toUpperCase();
-    if (u === 'BUY' || u === 'LONG' || u === 'LONG POSITION' || u === 'BULLISH') return 'BUY';
-    if (u === 'SELL' || u === 'SHORT' || u === 'SHORT POSITION' || u === 'BEARISH') return 'SELL';
+export function normalizeDirection(
+  raw: unknown,
+  positionToolType?: unknown,
+  redStopZonePosition?: unknown,
+  greenTargetZonePosition?: unknown
+): AllowedDirection | null {
+  if (typeof redStopZonePosition === 'string') {
+    const rz = redStopZonePosition.trim().toUpperCase();
+    if (rz.includes('ABOVE') || rz === 'TOP' || rz === 'UPPER') return 'SELL';
+    if (rz.includes('BELOW') || rz === 'BOTTOM' || rz === 'LOWER') return 'BUY';
+  }
+  if (typeof greenTargetZonePosition === 'string') {
+    const gz = greenTargetZonePosition.trim().toUpperCase();
+    if (gz.includes('BELOW') || gz === 'BOTTOM' || gz === 'LOWER') return 'SELL';
+    if (gz.includes('ABOVE') || gz === 'TOP' || gz === 'UPPER') return 'BUY';
   }
   if (typeof positionToolType === 'string') {
     const pt = positionToolType.trim().toUpperCase();
-    if (pt.includes('LONG')) return 'BUY';
-    if (pt.includes('SHORT')) return 'SELL';
+    if (pt.includes('SHORT') || pt.includes('SELL')) return 'SELL';
+    if (pt.includes('LONG') || pt.includes('BUY')) return 'BUY';
+  }
+  if (typeof raw === 'string') {
+    const u = raw.trim().toUpperCase();
+    if (u.includes('SELL') || u.includes('SHORT') || u.includes('BEAR')) return 'SELL';
+    if (u.includes('BUY') || u.includes('LONG') || u.includes('BULL')) return 'BUY';
   }
   return null;
 }
@@ -356,6 +372,27 @@ export function normalizeTradeTime(raw: unknown): string | null {
   return null;
 }
 
+function parsePriceDeltaFromLabel(label: unknown): number | null {
+  if (!label || typeof label !== 'string') return null;
+  // TradingView position labels look like: "Target: 13.50 (1350) 0.54%" or "Stop: 4.50 (450)" or "14.20"
+  const cleaned = label.replace(/,/g, '');
+  const match = cleaned.match(/(?:target|stop|tp|sl)?\s*:?\s*([0-9]+(?:\.[0-9]+)?)/i);
+  if (!match) return null;
+  const val = Number(match[1]);
+  return Number.isFinite(val) && val > 0 ? val : null;
+}
+
+function getDecimalPlaces(num: number): number {
+  const s = String(num);
+  const idx = s.indexOf('.');
+  return idx >= 0 ? Math.min(6, s.length - idx - 1) : 2;
+}
+
+function roundToPrecision(val: number, refPrice: number): number {
+  const decimals = Math.max(2, getDecimalPlaces(refPrice));
+  return Number(val.toFixed(decimals));
+}
+
 function buildFinalExtractionResult(
   raw: Record<string, any>,
   meta: {
@@ -371,18 +408,242 @@ function buildFinalExtractionResult(
   const chartTimeframe = isReadable
     ? normalizeChartTimeframe(raw.chartTimeframe || raw.timeframe || raw.rawTimeframeLabel)
     : null;
-  const direction = isReadable ? normalizeDirection(raw.direction, raw.positionToolType) : null;
-  const entryPrice = isReadable ? positiveFiniteNumberOrNull(raw.entryPrice) : null;
-  const stopLoss = isReadable ? positiveFiniteNumberOrNull(raw.stopLoss) : null;
-  const takeProfit = isReadable ? positiveFiniteNumberOrNull(raw.takeProfit) : null;
+
+  let direction = isReadable
+    ? normalizeDirection(
+        raw.direction,
+        raw.positionToolType,
+        raw.redStopZonePosition,
+        raw.greenTargetZonePosition
+      )
+    : null;
+  let entryPrice = isReadable ? positiveFiniteNumberOrNull(raw.entryPrice) : null;
+  let stopLoss = isReadable ? positiveFiniteNumberOrNull(raw.stopLoss) : null;
+  let takeProfit = isReadable ? positiveFiniteNumberOrNull(raw.takeProfit) : null;
+  let riskRewardRatio = isReadable ? positiveFiniteNumberOrNull(raw.riskRewardRatio) : null;
+
+  const topEdge = isReadable ? positiveFiniteNumberOrNull(raw.topBoxEdgePrice) : null;
+  const midLine = isReadable ? positiveFiniteNumberOrNull(raw.middleLinePrice) : null;
+  const botEdge = isReadable ? positiveFiniteNumberOrNull(raw.bottomBoxEdgePrice) : null;
+  const currentMarketPrice = isReadable ? positiveFiniteNumberOrNull(raw.currentMarketPrice) : null;
+
+  const targetPriceDelta = isReadable
+    ? positiveFiniteNumberOrNull(raw.targetPriceDelta) ??
+      parsePriceDeltaFromLabel(raw.positionLabels?.targetDistanceLabel)
+    : null;
+  const stopPriceDelta = isReadable
+    ? positiveFiniteNumberOrNull(raw.stopPriceDelta) ??
+      parsePriceDeltaFromLabel(raw.positionLabels?.stopDistanceLabel)
+    : null;
+
+  const yAxisPrices: number[] =
+    isReadable && Array.isArray(raw.yAxisHighlightedPrices)
+      ? raw.yAxisHighlightedPrices
+          .map((p: unknown) => positiveFiniteNumberOrNull(p))
+          .filter((p: number | null): p is number => p !== null)
+      : [];
+
+  if (isReadable) {
+    // 0. Fill in missing entryPrice from middleLinePrice if extracted
+    if (entryPrice === null && midLine !== null) {
+      entryPrice = midLine;
+    }
+
+    // 1. Infer direction from prices if direction was not explicitly labeled, or if SL > Entry > TP on vision OCR
+    if (
+      meta.source.startsWith('gemini_vision') &&
+      entryPrice !== null &&
+      stopLoss !== null &&
+      takeProfit !== null &&
+      stopLoss > entryPrice &&
+      takeProfit < entryPrice &&
+      String(raw.redStopZonePosition || '').toUpperCase() !== 'BELOW_ENTRY'
+    ) {
+      direction = 'SELL';
+    } else if (!direction) {
+      if (entryPrice !== null && stopLoss !== null && entryPrice !== stopLoss) {
+        direction = stopLoss < entryPrice ? 'BUY' : 'SELL';
+      } else if (entryPrice !== null && takeProfit !== null && entryPrice !== takeProfit) {
+        direction = takeProfit > entryPrice ? 'BUY' : 'SELL';
+      } else if (stopLoss !== null && takeProfit !== null && stopLoss !== takeProfit) {
+        direction = takeProfit > stopLoss ? 'BUY' : 'SELL';
+      }
+    }
+
+    // 1b. Merge geometric topEdge / botEdge into stopLoss / takeProfit based on trade direction
+    if (direction === 'SELL') {
+      if (stopLoss === null && topEdge !== null && (entryPrice === null || topEdge > entryPrice)) {
+        stopLoss = topEdge;
+      }
+      if (takeProfit === null && botEdge !== null && (entryPrice === null || botEdge < entryPrice)) {
+        takeProfit = botEdge;
+      }
+    } else if (direction === 'BUY') {
+      if (takeProfit === null && topEdge !== null && (entryPrice === null || topEdge > entryPrice)) {
+        takeProfit = topEdge;
+      }
+      if (stopLoss === null && botEdge !== null && (entryPrice === null || botEdge < entryPrice)) {
+        stopLoss = botEdge;
+      }
+    }
+
+    // 2. If all 3 prices (entryPrice, stopLoss, takeProfit) are present (or 3 box edge prices exist),
+    // enforce strict geometric ordering for Long (SL < Entry < TP) and Short (TP < Entry < SL)
+    // unless explicitly flagged as a trailed stop-loss setup.
+    const candidateBoxPrices =
+      entryPrice !== null && stopLoss !== null && takeProfit !== null
+        ? [entryPrice, stopLoss, takeProfit]
+        : topEdge !== null && midLine !== null && botEdge !== null
+        ? [topEdge, midLine, botEdge]
+        : [];
+
+    if (candidateBoxPrices.length === 3 && direction && !raw.isTrailedStopLoss) {
+      const distinct = Array.from(new Set(candidateBoxPrices)).sort((a, b) => a - b);
+      if (distinct.length === 3) {
+        const [low, mid, high] = distinct;
+        if (direction === 'BUY') {
+          stopLoss = low;
+          entryPrice = mid;
+          takeProfit = high;
+        } else if (direction === 'SELL') {
+          takeProfit = low;
+          entryPrice = mid;
+          stopLoss = high;
+        }
+      }
+    }
+
+    // 2b. If only 2 of the 3 prices were returned on a SHORT (SELL) or LONG (BUY) setup,
+    // check if OCR put the Target price into stopLoss or the Stop price into takeProfit
+    if (direction === 'SELL' && entryPrice !== null && !raw.isTrailedStopLoss) {
+      if (stopLoss !== null && stopLoss < entryPrice && takeProfit === null) {
+        // A price below entryPrice on a SHORT position is the Take-Profit (Target), not the Stop-Loss
+        takeProfit = stopLoss;
+        stopLoss = topEdge !== null && topEdge > entryPrice ? topEdge : null;
+      } else if (takeProfit !== null && takeProfit > entryPrice && stopLoss === null) {
+        // A price above entryPrice on a SHORT position is the Stop-Loss, not the Take-Profit
+        stopLoss = takeProfit;
+        takeProfit = botEdge !== null && botEdge < entryPrice ? botEdge : null;
+      }
+    } else if (direction === 'BUY' && entryPrice !== null && !raw.isTrailedStopLoss) {
+      if (stopLoss !== null && stopLoss > entryPrice && takeProfit === null) {
+        takeProfit = stopLoss;
+        stopLoss = botEdge !== null && botEdge < entryPrice ? botEdge : null;
+      } else if (takeProfit !== null && takeProfit < entryPrice && stopLoss === null) {
+        stopLoss = takeProfit;
+        takeProfit = topEdge !== null && topEdge > entryPrice ? topEdge : null;
+      }
+    }
+
+    // Filter out currentMarketPrice from Y-axis candidates when other box edge tags exist
+    const filteredYAxisPrices =
+      currentMarketPrice !== null && yAxisPrices.length > 3
+        ? yAxisPrices.filter((p) => p !== currentMarketPrice)
+        : yAxisPrices;
+
+    // 3. Recover missing Take-Profit (TP) when Entry & Stop-Loss were detected
+    if (takeProfit === null && entryPrice !== null && stopLoss !== null && direction) {
+      // 3a. Check highlighted Y-axis prices on the target side of Entry
+      const candidateTpFromAxis =
+        direction === 'BUY'
+          ? filteredYAxisPrices.filter((p) => p > entryPrice! && p !== stopLoss).sort((a, b) => b - a)[0]
+          : filteredYAxisPrices.filter((p) => p < entryPrice! && p !== stopLoss).sort((a, b) => a - b)[0];
+
+      if (candidateTpFromAxis !== undefined) {
+        takeProfit = candidateTpFromAxis;
+      } else if (targetPriceDelta !== null && targetPriceDelta > 0) {
+        // 3b. Compute from visible Target price delta badge on the position tool
+        const rawTp = direction === 'BUY' ? entryPrice + targetPriceDelta : entryPrice - targetPriceDelta;
+        if (rawTp > 0) {
+          takeProfit = roundToPrecision(rawTp, entryPrice);
+        }
+      } else if (riskRewardRatio !== null && riskRewardRatio > 0 && entryPrice !== stopLoss) {
+        // 3c. Compute from visible Risk/Reward ratio badge on the position tool
+        const stopDist = Math.abs(entryPrice - stopLoss);
+        const rawTp =
+          direction === 'BUY'
+            ? entryPrice + stopDist * riskRewardRatio
+            : entryPrice - stopDist * riskRewardRatio;
+        if (rawTp > 0) {
+          takeProfit = roundToPrecision(rawTp, entryPrice);
+        }
+      }
+    }
+
+    // 4. Recover missing Stop-Loss (SL) when Entry & Take-Profit were detected
+    if (stopLoss === null && entryPrice !== null && takeProfit !== null && direction) {
+      const candidateSlFromAxis =
+        direction === 'BUY'
+          ? filteredYAxisPrices.filter((p) => p < entryPrice! && p !== takeProfit).sort((a, b) => a - b)[0]
+          : filteredYAxisPrices.filter((p) => p > entryPrice! && p !== takeProfit).sort((a, b) => b - a)[0];
+
+      if (candidateSlFromAxis !== undefined) {
+        stopLoss = candidateSlFromAxis;
+      } else if (stopPriceDelta !== null && stopPriceDelta > 0) {
+        const rawSl = direction === 'BUY' ? entryPrice - stopPriceDelta : entryPrice + stopPriceDelta;
+        if (rawSl > 0) {
+          stopLoss = roundToPrecision(rawSl, entryPrice);
+        }
+      } else if (riskRewardRatio !== null && riskRewardRatio > 0 && entryPrice !== takeProfit) {
+        const targetDist = Math.abs(takeProfit - entryPrice);
+        const stopDist = targetDist / riskRewardRatio;
+        const rawSl = direction === 'BUY' ? entryPrice - stopDist : entryPrice + stopDist;
+        if (rawSl > 0) {
+          stopLoss = roundToPrecision(rawSl, entryPrice);
+        }
+      }
+    }
+
+    // 5. Recover missing Entry Price when Stop-Loss & Take-Profit were detected
+    if (entryPrice === null && stopLoss !== null && takeProfit !== null && direction) {
+      const low = Math.min(stopLoss, takeProfit);
+      const high = Math.max(stopLoss, takeProfit);
+      const candidateEntryFromAxis = filteredYAxisPrices.find((p) => p > low && p < high);
+      if (candidateEntryFromAxis !== undefined) {
+        entryPrice = candidateEntryFromAxis;
+      } else if (stopPriceDelta !== null && stopPriceDelta > 0) {
+        const rawEntry = direction === 'BUY' ? stopLoss + stopPriceDelta : stopLoss - stopPriceDelta;
+        if (rawEntry > low && rawEntry < high) {
+          entryPrice = roundToPrecision(rawEntry, stopLoss);
+        }
+      } else if (targetPriceDelta !== null && targetPriceDelta > 0) {
+        const rawEntry = direction === 'BUY' ? takeProfit - targetPriceDelta : takeProfit + targetPriceDelta;
+        if (rawEntry > low && rawEntry < high) {
+          entryPrice = roundToPrecision(rawEntry, takeProfit);
+        }
+      } else if (riskRewardRatio !== null && riskRewardRatio > 0) {
+        const totalSpan = Math.abs(takeProfit - stopLoss);
+        const stopSpan = totalSpan / (1 + riskRewardRatio);
+        const rawEntry = direction === 'BUY' ? stopLoss + stopSpan : stopLoss - stopSpan;
+        if (rawEntry > 0) {
+          entryPrice = roundToPrecision(rawEntry, stopLoss);
+        }
+      }
+    }
+
+    // 6. Compute Risk/Reward Ratio if all 3 prices are now known and R:R wasn't explicitly extracted
+    if (
+      riskRewardRatio === null &&
+      entryPrice !== null &&
+      stopLoss !== null &&
+      takeProfit !== null &&
+      entryPrice !== stopLoss
+    ) {
+      const stopDist = Math.abs(entryPrice - stopLoss);
+      const targetDist = Math.abs(takeProfit - entryPrice);
+      if (stopDist > 0 && targetDist > 0) {
+        riskRewardRatio = Number((targetDist / stopDist).toFixed(2));
+      }
+    }
+  }
+
   const actualExitPrice =
     isReadable && raw.detectedTradeStatus === 'CLOSED'
-      ? positiveFiniteNumberOrNull(raw.actualExitPrice)
-      : null;
+      ? positiveFiniteNumberOrNull(raw.actualExitPrice) ?? takeProfit
+      : positiveFiniteNumberOrNull(raw.actualExitPrice);
 
   const visibleTradeDate = isReadable ? normalizeTradeDate(raw.visibleTradeDate) : null;
   const visibleTradeTime = isReadable ? normalizeTradeTime(raw.visibleTradeTime) : null;
-  const riskRewardRatio = isReadable ? positiveFiniteNumberOrNull(raw.riskRewardRatio) : null;
 
   const rawConf = raw.fieldConfidence && typeof raw.fieldConfidence === 'object' ? raw.fieldConfidence : {};
   const resolveConf = (val: any, explicitConf?: string): ConfidenceLevel => {
@@ -560,30 +821,44 @@ export async function extractTradingViewScreenshotWithVision(params: {
     };
   }
 
-  const systemInstruction = `You are the PRIME PIP FX TRADINGVIEW SCREENSHOT-TO-JOURNAL OCR & VISION ENGINE.
-Examine the uploaded image carefully and extract ONLY values that are visibly present on the TradingView screenshot.
+  const systemInstruction = `You are the PRIME PIP FX TRADINGVIEW & TRADING ROOM SCREENSHOT-TO-JOURNAL OCR & VISION ENGINE.
+Examine the uploaded chart screenshot carefully and accurately extract all visible trade position parameters.
 
-STRICT DATA INTEGRITY RULES:
-1. NEVER invent, guess, or estimate missing prices, timestamps, trade direction, or instrument names. If a field is not clearly visible or readable, return null for that field and add its name to "uncertainFields".
-2. If the image is blurry, blank, not a trading chart, or unreadable, set "isReadableTradingViewChart": false and return null for all data fields.
+CRITICAL INSTRUCTIONS FOR READING TRADINGVIEW & TRADING ROOM POSITION DRAWINGS (ESPECIALLY SHORT POSITIONS vs LONG POSITIONS):
+1. HOW TO DISTINGUISH SHORT POSITION (SELL) vs LONG POSITION (BUY):
+   - A TradingView Position Tool has TWO colored shaded rectangles meeting at a horizontal middle Entry line:
+     * RED / PINK / ROSE / MAROON shaded zone = STOP-LOSS zone.
+     * GREEN / TEAL / CYAN / BLUE shaded zone = TAKE-PROFIT (TARGET) zone.
+   - SHORT POSITION ("SELL"):
+     * The RED / PINK stop-loss shaded zone is on TOP (ABOVE the entry line) -> set "redStopZonePosition": "ABOVE_ENTRY", "greenTargetZonePosition": "BELOW_ENTRY", "direction": "SELL", "positionToolType": "Short Position".
+     * Top callout label says "Stop: ..." and bottom callout label says "Target: ...".
+     * On a SHORT Position:
+       - "stopLoss" = "topBoxEdgePrice" (the HIGHEST of the 3 position prices, at the top edge of the red zone, ABOVE entryPrice).
+       - "entryPrice" = "middleLinePrice" (the MIDDLE line where the red top box and green bottom box meet).
+       - "takeProfit" = "bottomBoxEdgePrice" (the LOWEST of the 3 position prices, at the bottom edge of the green zone, BELOW entryPrice).
+   - LONG POSITION ("BUY"):
+     * The GREEN / TEAL target shaded zone is on TOP (ABOVE the entry line) and the RED / PINK stop-loss shaded zone is on the BOTTOM (BELOW the entry line) -> set "redStopZonePosition": "BELOW_ENTRY", "greenTargetZonePosition": "ABOVE_ENTRY", "direction": "BUY", "positionToolType": "Long Position".
+     * Top callout label says "Target: ..." and bottom callout label says "Stop: ...".
+     * On a LONG Position:
+       - "takeProfit" = "topBoxEdgePrice" (the HIGHEST of the 3 position prices, at the top edge of the green zone, ABOVE entryPrice).
+       - "entryPrice" = "middleLinePrice" (the MIDDLE line where the green top box and red bottom box meet).
+       - "stopLoss" = "bottomBoxEdgePrice" (the LOWEST of the 3 position prices, at the bottom edge of the red zone, BELOW entryPrice).
+   - ALWAYS populate "topBoxEdgePrice", "middleLinePrice", and "bottomBoxEdgePrice" from the 3 horizontal boundary levels of the position tool on the right-hand Y-axis price scale!
+   - Do NOT confuse the live current candle ticker price pill ("currentMarketPrice") with the 3 position box boundary tags.
+   - Also populate "yAxisHighlightedPrices" with ALL colored/highlighted price tags visible on the right Y-axis scale.
+2. FLOATING POSITION TOOL CALLOUT BOXES (TARGET DELTA, STOP DELTA & R:R):
+   - Read the text callouts attached to the top and bottom of the Long/Short Position drawing:
+     * Target callout (e.g., "Target: 13.50 (1350) 0.54%"): extract the numeric price distance (13.50) into "targetPriceDelta" and the full string into "positionLabels.targetDistanceLabel".
+     * Stop callout (e.g., "Stop: 4.50 (450) 0.18%"): extract the numeric price distance (4.50) into "stopPriceDelta" and the full string into "positionLabels.stopDistanceLabel".
+     * Center callout (e.g., "Risk/Reward Ratio: 3.0" or "R/R: 2.5"): extract the number into "riskRewardRatio".
+     * If "takeProfit" or "stopLoss" is partially covered on the Y-axis, compute or verify it using entryPrice +/- targetPriceDelta, entryPrice +/- stopPriceDelta, or entryPrice +/- |entryPrice - stopLoss| * riskRewardRatio.
 3. CHART TIMEFRAME vs DRAWING DURATION:
-   - Extract "chartTimeframe" ONLY from the chart's selected timeframe in the top toolbar or chart status header (e.g., "1m", "5m", "15m", "30m", "1h", "4h", "1D", "15", "60", "240").
-   - Map it to one of: "M1", "M5", "M15", "M30", "H1", "H4", "D1" (or null if not visible).
-   - DO NOT confuse the Long/Short Position drawing's horizontal bar/time duration (such as "14 bars, 3h 30m" or "28 bars, 7h") with the chart timeframe! If you see a horizontal duration on the position drawing, record it in "drawingHorizontalDurationIgnored" and ignore it for "chartTimeframe".
-4. TRADE DIRECTION:
-   - Identify whether the setup is a Long/Buy ("BUY") or Short/Sell ("SELL") from the TradingView Long Position tool (green target zone above entry, red stop zone below entry), Short Position tool (red stop zone above entry, green target zone below entry), or explicit Buy/Sell order labels.
-5. PRICES (ENTRY, STOP-LOSS, PLANNED TARGET vs ACTUAL EXIT):
-   - "entryPrice": The exact entry price level where the Long/Short position starts (grey/blue middle line or axis label).
-   - "stopLoss": The exact stop-loss price level (red stop box boundary or SL axis tag).
-   - "takeProfit": The planned target/take-profit price level (green target box boundary or TP axis tag). If no target is visible on the chart, return null.
-   - "actualExitPrice": Return null UNLESS there is an explicit closed broker execution fill / exit label proving the trade was already closed at a specific price. Never copy the planned target price into actualExitPrice.
-6. TRADE STATUS:
-   - Set "detectedTradeStatus" to "OPEN" by default unless explicit broker execution labels show the trade is already closed ("CLOSED").
-7. VISIBLE TIMESTAMP:
-   - Extract "visibleTradeDate" (YYYY-MM-DD) and "visibleTradeTime" (HH:mm in 24h format) ONLY if visibly shown on the chart crosshair tag, bottom time axis label, or header clock. If absent or unreadable, return null for both.
-8. RISK-TO-REWARD & POSITION LABELS:
-   - Extract "riskRewardRatio" (numeric, e.g. 2.5 or 3.2) if printed on the Long/Short Position label ("Risk/Reward Ratio: X").
-   - Populate "positionLabels" with any visible stop distance (pips/ticks/%), target distance, broker/exchange name (e.g., OANDA, FXCM, PEPPERSTONE), or account stats printed on the drawing.`;
+   - Extract "chartTimeframe" ONLY from the chart's selected timeframe in the top toolbar or status header (e.g., "1m", "3m", "5m", "15m", "30m", "1h", "4h", "1D", "1", "3", "5", "15", "30", "60", "240").
+   - Map it to one of: "M1", "M3", "M5", "M15", "M30", "H1", "H4", "D1".
+   - DO NOT confuse the position drawing's horizontal bar/time span (such as "14 bars, 3h 30m") with the chart timeframe. Put any horizontal bar/time span into "drawingHorizontalDurationIgnored".
+4. DATA INTEGRITY:
+   - If the image is blank, not a chart, or completely unreadable, set "isReadableTradingViewChart": false and return null for all fields.
+   - Never fabricate an instrument symbol or prices if none are visible on the image.`;
 
   const responseSchema = {
     type: Type.OBJECT,
@@ -596,10 +871,19 @@ STRICT DATA INTEGRITY RULES:
       drawingHorizontalDurationIgnored: { type: Type.STRING, nullable: true },
       direction: { type: Type.STRING, nullable: true },
       positionToolType: { type: Type.STRING, nullable: true },
+      redStopZonePosition: { type: Type.STRING, nullable: true },
+      greenTargetZonePosition: { type: Type.STRING, nullable: true },
+      topBoxEdgePrice: { type: Type.NUMBER, nullable: true },
+      middleLinePrice: { type: Type.NUMBER, nullable: true },
+      bottomBoxEdgePrice: { type: Type.NUMBER, nullable: true },
+      currentMarketPrice: { type: Type.NUMBER, nullable: true },
       entryPrice: { type: Type.NUMBER, nullable: true },
       stopLoss: { type: Type.NUMBER, nullable: true },
       takeProfit: { type: Type.NUMBER, nullable: true },
       actualExitPrice: { type: Type.NUMBER, nullable: true },
+      targetPriceDelta: { type: Type.NUMBER, nullable: true },
+      stopPriceDelta: { type: Type.NUMBER, nullable: true },
+      yAxisHighlightedPrices: { type: Type.ARRAY, items: { type: Type.NUMBER } },
       visibleTradeDate: { type: Type.STRING, nullable: true },
       visibleTradeTime: { type: Type.STRING, nullable: true },
       visibleTimestampRaw: { type: Type.STRING, nullable: true },
@@ -640,48 +924,56 @@ STRICT DATA INTEGRITY RULES:
   let lastErr: any = null;
 
   for (const model of candidateModels) {
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                data: cleanBase64,
-                mimeType: validation.mimeType,
+    for (const useStrictSchema of [true, false]) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  data: cleanBase64,
+                  mimeType: validation.mimeType,
+                },
               },
-            },
-            {
-              text: 'Extract all visible TradingView trade setup parameters from this screenshot following the strict non-fabrication rules.',
-            },
-          ],
-        },
-        config: {
-          systemInstruction,
-          responseMimeType: 'application/json',
-          responseSchema,
-          temperature: 0.1,
-        },
-      });
+              {
+                text: 'Extract all visible TradingView trade setup parameters (paying special attention to Short Position vs Long Position box orientation, topBoxEdgePrice, middleLinePrice, bottomBoxEdgePrice, entryPrice, stopLoss, and takeProfit) and return valid JSON.',
+              },
+            ],
+          },
+          config: {
+            systemInstruction,
+            responseMimeType: 'application/json',
+            ...(useStrictSchema ? { responseSchema } : {}),
+            temperature: 0.1,
+          },
+        });
 
-      const text = response.text?.trim() || '';
-      if (!text) continue;
+        let text = response.text?.trim() || '';
+        if (!text) continue;
 
-      const parsed = JSON.parse(text);
-      return {
-        ok: true,
-        status: 200,
-        extraction: buildFinalExtractionResult(parsed, {
-          screenshotHash: validation.screenshotHash,
-          uploadTimestamp,
-          width: validation.width,
-          height: validation.height,
-          source: `gemini_vision:${model}`,
-        }),
-      };
-    } catch (err: any) {
-      lastErr = err;
-      console.warn(`[TV SCREENSHOT OCR] Model ${model} error:`, err?.message || err);
+        const firstBrace = text.indexOf('{');
+        const lastBrace = text.lastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+          text = text.slice(firstBrace, lastBrace + 1);
+        }
+
+        const parsed = JSON.parse(text);
+        return {
+          ok: true,
+          status: 200,
+          extraction: buildFinalExtractionResult(parsed, {
+            screenshotHash: validation.screenshotHash,
+            uploadTimestamp,
+            width: validation.width,
+            height: validation.height,
+            source: `gemini_vision:${model}`,
+          }),
+        };
+      } catch (err: any) {
+        lastErr = err;
+        console.warn(`[TV SCREENSHOT OCR] Model ${model} (strictSchema=${useStrictSchema}) error:`, err?.message || err);
+      }
     }
   }
 
@@ -738,7 +1030,7 @@ export function validateScreenshotTradeSetup(
 
   const timeframe = normalizeChartTimeframe(input.timeframe);
   if (!timeframe) {
-    hardErrors.push('Valid chart timeframe (M1, M5, M15, M30, H1, H4, D1) is required.');
+    hardErrors.push('Valid chart timeframe (M1, M3, M5, M15, M30, H1, H4, D1) is required.');
   }
 
   const entryPrice = positiveFiniteNumberOrNull(input.entryPrice);

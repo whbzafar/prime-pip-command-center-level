@@ -172,6 +172,9 @@ export default function App() {
       if (user) {
         setCurrentUser(user);
         setIsDemoMode(false);
+        try {
+          localStorage.removeItem('primepipfx_demo_mode');
+        } catch {}
         if ((user.needsOnboarding || !user.hasCompletedOnboarding) && !isUserAdmin(user)) {
           setIsStudentOnboardingOpen(true);
         }
@@ -1295,8 +1298,14 @@ export default function App() {
         {activeTab === 'JOURNAL' && (
           <TradeJournal
             trades={trades}
-            onOpenNewTrade={() => setIsEntryModalOpen(true)}
-            onOpenScreenshotImport={() => setIsScreenshotImportModalOpen(true)}
+            onOpenNewTrade={() => {
+              setIsScreenshotImportModalOpen(false);
+              setIsEntryModalOpen(true);
+            }}
+            onOpenScreenshotImport={() => {
+              setIsScreenshotImportModalOpen(true);
+              setIsEntryModalOpen(true);
+            }}
             onDeleteTrade={handleDeleteTrade}
             onUpdateTrade={handleUpdateTrade}
             currency={activeAccount?.currency || 'USD'}
@@ -1539,27 +1548,17 @@ export default function App() {
 
       <AppearanceControls isOpen={isAppearanceOpen} onClose={() => setIsAppearanceOpen(false)} />
 
-      {/* TradingView Screenshot-to-Journal Import Modal */}
-      {isScreenshotImportModalOpen && activeAccount && (
-        <TradingViewScreenshotImportModal
-          isOpen={isScreenshotImportModalOpen}
-          onClose={() => setIsScreenshotImportModalOpen(false)}
-          activeAccount={activeAccount}
-          onSaveImportedTrade={handleSaveScreenshotImportedTrade}
-          isDemoMode={isDemoMode}
-          authToken={getStoredToken()}
-        />
-      )}
-
-      {/* Trade Entry Modal */}
+      {/* Unified Trade Entry & TradingView Screenshot Import Modal */}
       {isEntryModalOpen && (
         <TradeEntryModal
           isOpen={isEntryModalOpen}
           onClose={() => {
             setIsEntryModalOpen(false);
+            setIsScreenshotImportModalOpen(false);
             setPrefilledTradeData(null);
           }}
           onSaveTrade={handleSaveTrade}
+          onSaveScreenshotTrade={handleSaveScreenshotImportedTrade}
           rules={rules}
           account={activeAccount}
           tradeCount={trades.length}
@@ -1568,10 +1567,13 @@ export default function App() {
           onInstrumentChange={setSelectedInstrument}
           onOpenPreTradePlan={() => {
             setIsEntryModalOpen(false);
+            setIsScreenshotImportModalOpen(false);
             setPrefilledTradeData(null);
             handleSelectTab('PRE_TRADE_PLAN');
           }}
           prefilledTradeData={prefilledTradeData}
+          authToken={getStoredToken()}
+          autoFocusScreenshotUpload={isScreenshotImportModalOpen}
         />
       )}
 
@@ -1618,6 +1620,9 @@ export default function App() {
           onLoginSuccess={(user) => {
             setCurrentUser(user);
             setIsDemoMode(false);
+            try {
+              localStorage.removeItem('primepipfx_demo_mode');
+            } catch {}
             setIsLoginModalOpen(false);
             if (isUserAdmin(user)) {
               setActiveTab('ADMIN');
@@ -1628,6 +1633,9 @@ export default function App() {
           onSuccess={(user) => {
             setCurrentUser(user);
             setIsDemoMode(false);
+            try {
+              localStorage.removeItem('primepipfx_demo_mode');
+            } catch {}
             setIsLoginModalOpen(false);
             if (isUserAdmin(user)) {
               setActiveTab('ADMIN');

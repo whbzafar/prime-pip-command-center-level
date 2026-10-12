@@ -37,6 +37,7 @@ import {
   DEFAULT_MULTI_ASSET_FUNDAMENTALS,
   MultiAssetFundamentalRecord,
 } from '../../data/defaultFundamentalObservations';
+import { isFundamentalSurpriseLocked } from '../../utils/authClient';
 
 interface FundamentalNotificationBannerProps {
   currencyScores?: Record<CurrencyCode, CurrencyScoreResult>;
@@ -49,8 +50,7 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
   onNavigateToFundamental,
   isLocked = false,
 }) => {
-  const isDemoLocked =
-    isLocked || (typeof window !== 'undefined' && localStorage.getItem('primepipfx_demo_mode') === 'true');
+  const isDemoLocked = isFundamentalSurpriseLocked(undefined, isLocked);
   // Toggle state: click to reveal, click again to hide
   const [isRevealed, setIsRevealed] = useState<boolean>(false);
   const [showAll28Pairs, setShowAll28Pairs] = useState<boolean>(true);

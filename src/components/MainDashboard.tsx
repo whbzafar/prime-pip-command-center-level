@@ -48,6 +48,7 @@ import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
 import { FundamentalNotificationBanner } from './fundamental/FundamentalNotificationBanner';
 import { TradeApprovalModal } from './TradeApprovalModal';
 import { PersonalizedAccountDashboard } from './account/PersonalizedAccountDashboard';
+import { isFundamentalSurpriseLocked } from '../utils/authClient';
 
 interface MainDashboardProps {
   metrics: DashboardMetrics;
@@ -77,7 +78,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   onOpenEvolution,
   onUpdateAccount,
 }) => {
-  const isPsychLocked = isDemoMode || (!currentUser && typeof window !== 'undefined' && localStorage.getItem('primepipfx_demo_mode') === 'true');
+  const isPsychLocked = isFundamentalSurpriseLocked(currentUser, isDemoMode);
   const scores = metrics.performanceScores;
   const isProfitable = metrics.totalProfitLoss >= 0;
 
@@ -599,8 +600,14 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                 {readiness.headline}
               </span>
             </div>
-            <p className="text-xs text-slate-400 font-mono-code mt-0.5">
-              DAILY LIMIT: {metrics.tradesToday} / {account.maxDailyTrades} TRADES TAKEN TODAY • NEXT RISK: 1% ({formatCurrency(master1PercentRiskDollars, account.currency)})
+            <p className="text-xs text-slate-300 font-mono-code mt-0.5">
+              DAILY LIMIT: {metrics.tradesToday} / {account.maxDailyTrades} TRADES TAKEN TODAY • NEXT RECOMMENDED RISK:{' '}
+              <strong className="text-emerald-400">
+                {readiness.recommendedRiskPercent}% ({formatCurrency(readiness.recommendedRiskDollars, account.currency)})
+              </strong>
+            </p>
+            <p className="text-[11px] text-cyan-300 font-mono-code mt-1">
+              {readiness.nextTradeProgressionGuidance}
             </p>
           </div>
         </div>
@@ -1743,22 +1750,28 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                 <thead>
                   <tr className="text-slate-400 border-b border-slate-800/80">
                     <th className="pb-2 font-medium">TRADE ID</th>
-                    <th className="pb-2 font-medium">PAIR</th>
+                    <th className="pb-2 font-medium">PAIR & TF</th>
                     <th className="pb-2 font-medium">DIR</th>
+                    <th className="pb-2 font-medium">ENTRY / SL / TP</th>
+                    <th className="pb-2 font-medium">LOTS & RISK %</th>
                     <th className="pb-2 font-medium">STRATEGY</th>
-                    <th className="pb-2 font-medium">GRADE</th>
-                    <th className="pb-2 font-medium">QUALITY</th>
                     <th className="pb-2 font-medium text-right">R-MULT</th>
-                    <th className="pb-2 font-medium text-right">P&L</th>
+                    <th className="pb-2 font-medium text-right">OUTCOME / P&L</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
                   {recentTrades.map((t) => {
                     const isWin = t.profitLoss > 0;
+                    const isOpen = t.status === 'OPEN';
                     return (
                       <tr key={t.id} className="hover:bg-slate-800/40 transition">
                         <td className="py-2.5 font-bold text-slate-200">{t.id}</td>
-                        <td className="py-2.5 font-bold text-cyan-400">{t.instrument}</td>
+                        <td className="py-2.5 font-bold text-cyan-400">
+                          {t.instrument}{' '}
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                            {t.timeframe}
+                          </span>
+                        </td>
                         <td className="py-2.5">
                           <span
                             className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
@@ -1770,39 +1783,33 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                             {t.direction}
                           </span>
                         </td>
-                        <td className="py-2.5 text-slate-300">{t.strategy}</td>
-                        <td className="py-2.5">
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                              t.grade === 'A+' || t.grade === 'A'
-                                ? 'bg-emerald-500/20 text-emerald-400'
-                                : t.grade === 'B'
-                                ? 'bg-sky-500/20 text-sky-400'
-                                : t.grade === 'C'
-                                ? 'bg-blue-500/20 text-cyan-400'
-                                : 'bg-rose-500/20 text-rose-400'
-                            }`}
-                          >
-                            {t.grade}
+                        <td className="py-2.5 text-slate-300 text-[11px]">
+                          {t.entryPrice} / <span className="text-rose-400">{t.stopLoss}</span> /{' '}
+                          <span className="text-emerald-400">{t.takeProfit || 'Open'}</span>
+                        </td>
+                        <td className="py-2.5 text-slate-200">
+                          <span className="text-cyan-300 font-bold">{t.lotSize}L</span> •{' '}
+                          <span className="text-amber-300">{t.riskPercent || 1}%</span>{' '}
+                          <span className="text-rose-400 text-[10px]">
+                            (-{formatCurrency(t.riskAmount || 0, account.currency)})
                           </span>
                         </td>
-                        <td className="py-2.5 text-slate-400">
-                          {t.alignmentScore?.totalQuality || 85}/100
+                        <td className="py-2.5 text-slate-300">{t.strategy}</td>
+                        <td
+                          className={`py-2.5 text-right font-bold ${
+                            isOpen ? 'text-cyan-400' : isWin ? 'text-emerald-400' : 'text-rose-400'
+                          }`}
+                        >
+                          {isOpen ? `1:${t.rMultiple || 0}R` : `${isWin ? '+' : ''}${t.rMultiple?.toFixed(1) || '0.0'}R`}
                         </td>
                         <td
                           className={`py-2.5 text-right font-bold ${
-                            isWin ? 'text-emerald-400' : 'text-rose-400'
+                            isOpen ? 'text-cyan-400' : isWin ? 'text-emerald-400' : 'text-rose-400'
                           }`}
                         >
-                          {isWin ? '+' : ''}
-                          {t.rMultiple?.toFixed(1) || '0.0'}R
-                        </td>
-                        <td
-                          className={`py-2.5 text-right font-bold ${
-                            isWin ? 'text-emerald-400' : 'text-rose-400'
-                          }`}
-                        >
-                          {formatCurrency(t.profitLoss, account.currency, { showSign: true })}
+                          {isOpen
+                            ? 'OPEN'
+                            : formatCurrency(t.profitLoss, account.currency, { showSign: true })}
                         </td>
                       </tr>
                     );

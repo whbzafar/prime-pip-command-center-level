@@ -75,9 +75,44 @@ export const PersonalizedAccountDashboard: React.FC<PersonalizedAccountDashboard
     () => trades.filter((t) => t.status !== 'OPEN'),
     [trades]
   );
+  const openTradesCount = useMemo(
+    () => trades.filter((t) => t.status === 'OPEN').length,
+    [trades]
+  );
+  const latestLoggedTrade = useMemo(() => {
+    if (!trades || trades.length === 0) return null;
+    return trades[0];
+  }, [trades]);
+
   const winCount = closedTrades.filter((t) => safeNumber(t.profitLoss, 0) > 0).length;
   const lossCount = closedTrades.filter((t) => safeNumber(t.profitLoss, 0) < 0).length;
   const netPnL = closedTrades.reduce((acc, t) => acc + safeNumber(t.profitLoss, 0), 0);
+
+  // Quick General Risk Settings updater so Next Trade Guidance reacts live to General Settings
+  const handleQuickRiskSettingUpdate = (updates: {
+    preferredRiskPercent?: number;
+    maxRiskPerTradePercent?: number;
+    riskMode?: 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE';
+    safetyBufferPercent?: number;
+  }) => {
+    const nextPreferred = updates.preferredRiskPercent ?? config.preferredRiskPercent ?? 0.5;
+    const nextMax = Math.max(nextPreferred, updates.maxRiskPerTradePercent ?? config.maxRiskPerTradePercent ?? 1.0);
+    const nextMode = updates.riskMode ?? config.riskMode ?? 'BALANCED';
+    const nextBuffer = updates.safetyBufferPercent ?? config.safetyBufferPercent ?? 20;
+
+    onUpdateAccount({
+      ...account,
+      maxRiskPerTradePercent: nextMax,
+      fundedConfig: {
+        ...config,
+        preferredRiskPercent: nextPreferred,
+        maxRiskPerTradePercent: nextMax,
+        riskMode: nextMode,
+        safetyBufferPercent: nextBuffer,
+      },
+      updatedAt: Date.now(),
+    });
+  };
 
   // Decision State Badge Helper
   const getDecisionBadge = () => {
@@ -408,14 +443,19 @@ export const PersonalizedAccountDashboard: React.FC<PersonalizedAccountDashboard
         </div>
       )}
 
-      {/* SECTION D: NEXT-TRADE GUIDANCE (TAKE, REDUCE, STOP, REVIEW) */}
-      <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+      {/* SECTION D: NEXT-TRADE GUIDANCE (TAKE, REDUCE, STOP, REVIEW) + GENERAL SETTINGS */}
+      <div className="p-5 rounded-2xl bg-slate-900 border border-cyan-500/40 shadow-xl space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <Compass className="w-5 h-5 text-cyan-400" />
-            <h2 className="text-sm font-bold text-slate-100">
-              Next-Trade Operational Guidance
-            </h2>
+            <div>
+              <h2 className="text-sm font-bold text-slate-100 uppercase tracking-wider">
+                Next Trade Guidance & General Risk Settings
+              </h2>
+              <p className="text-[11px] text-slate-400">
+                Dynamically prescribes your next trade risk % based on your General Settings and last trade outcome (Win / Loss).
+              </p>
+            </div>
           </div>
           <div className={`px-2.5 py-1 rounded-lg border text-xs font-semibold flex items-center gap-1.5 ${decision.badge}`}>
             {decision.icon}
@@ -423,16 +463,96 @@ export const PersonalizedAccountDashboard: React.FC<PersonalizedAccountDashboard
           </div>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
-          <span className="font-semibold text-slate-300 block">System Recommendation:</span>
-          <p className="text-slate-300 leading-relaxed">
-            {evaluation.nextTradeRiskQuestionAnswer}
-          </p>
-          <div className="pt-2 border-t border-slate-900 flex flex-wrap items-center justify-between gap-2 text-[11px]">
-            <span className="text-slate-400">Controlling Limit: {evaluation.limitingFactor}</span>
-            <span className="font-bold text-cyan-400 font-mono">
-              Safe Risk Budget: {formatCurrency(evaluation.recommendedRiskDollars, currency)} ({evaluation.recommendedRiskPercent}%)
+        {/* General Risk Settings Bar (Preferred Risk %, Max Risk %, Risk Mode) */}
+        <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono font-bold text-cyan-400 uppercase text-[11px]">
+              General Settings — Base Risk %:
             </span>
+            {[0.25, 0.5, 0.75, 1.0].map((pct) => (
+              <button
+                key={pct}
+                type="button"
+                onClick={() => handleQuickRiskSettingUpdate({ preferredRiskPercent: pct })}
+                className={`px-2.5 py-1 rounded-lg font-mono font-bold text-[11px] border transition cursor-pointer ${
+                  Math.abs(evaluation.preferredRiskPercent - pct) < 0.05
+                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm'
+                    : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-cyan-500/40'
+                }`}
+              >
+                {pct}%
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono font-bold text-slate-400 uppercase text-[11px]">
+              Progression Mode:
+            </span>
+            {(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => handleQuickRiskSettingUpdate({ riskMode: mode })}
+                className={`px-2.5 py-1 rounded-lg font-mono font-bold text-[10px] border transition cursor-pointer ${
+                  evaluation.riskMode === mode
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
+                    : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Next Trade Progression Prescription Banner */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div className="lg:col-span-4 p-4 rounded-xl bg-gradient-to-br from-cyan-950/40 via-slate-950 to-slate-950 border border-cyan-500/40 flex flex-col justify-between">
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-300 block">
+                PRESCRIBED NEXT TRADE RISK %
+              </span>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-3xl font-bold font-mono text-emerald-400">
+                  {evaluation.recommendedRiskPercent}%
+                </span>
+                <span className="text-sm font-mono font-semibold text-cyan-300">
+                  ({formatCurrency(evaluation.recommendedRiskDollars, currency)})
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1 font-mono">
+                Base Setting: {evaluation.preferredRiskPercent}% • Max Allowed: {evaluation.maxRiskPerTradePercent}%
+              </p>
+            </div>
+
+            <div className="pt-3 mt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono">
+              <span className="text-slate-400">Loss Streak / Win Streak:</span>
+              <span className="font-bold text-slate-200">
+                {evaluation.consecutiveLosses > 0
+                  ? `${evaluation.consecutiveLosses} Loss Streak (Reduced)`
+                  : evaluation.consecutiveWins > 0
+                  ? `${evaluation.consecutiveWins} Win Streak (Locked Cushion)`
+                  : 'Neutral Streak'}
+              </span>
+            </div>
+          </div>
+
+          <div className="lg:col-span-8 p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between space-y-2.5 text-xs">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="font-bold text-cyan-300 uppercase font-mono text-[11px]">
+                HOW TO PROCEED ON YOUR NEXT TRADE:
+              </span>
+              <span className="text-[11px] font-mono text-amber-300">
+                Controlling Rule: {evaluation.limitingFactor}
+              </span>
+            </div>
+            <p className="text-slate-200 leading-relaxed font-medium">
+              {evaluation.nextTradeRiskQuestionAnswer}
+            </p>
+            <p className="text-[11px] text-slate-400 leading-relaxed border-t border-slate-900 pt-2">
+              {evaluation.shouldTakeTradeQuestionAnswer}
+            </p>
           </div>
         </div>
 
@@ -446,42 +566,147 @@ export const PersonalizedAccountDashboard: React.FC<PersonalizedAccountDashboard
         </div>
       </div>
 
-      {/* SECTION E: TRADE HISTORY & DISCIPLINE COMPLIANCE */}
+      {/* SECTION E: LATEST LOGGED TRADE & ACCOUNT EXECUTION HISTORY */}
       <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
           <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-slate-400" />
+            <Clock className="w-5 h-5 text-cyan-400" />
             <h2 className="text-sm font-bold text-slate-100">
-              Account Trade History & Execution Compliance
+              Logged Trades on Main Dashboard & Execution Details
             </h2>
           </div>
-          <span className="text-xs text-slate-400 font-mono">
-            {trades.length} Total Executions ({winCount}W · {lossCount}L)
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-slate-400 font-mono">
+              {trades.length} Logged ({openTradesCount} Open · {winCount}W · {lossCount}L)
+            </span>
+            {onOpenNewTrade && (
+              <button
+                type="button"
+                onClick={onOpenNewTrade}
+                className="px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 font-mono font-bold text-xs cursor-pointer transition"
+              >
+                + Record Trade
+              </button>
+            )}
+          </div>
         </div>
 
-        {closedTrades.length === 0 ? (
+        {/* Latest Logged Trade Spotlight Banner */}
+        {latestLoggedTrade && (
+          <div className="p-4 rounded-xl bg-gradient-to-r from-slate-950 via-slate-900/90 to-cyan-950/20 border border-cyan-500/40 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                  LATEST LOGGED TRADE: {latestLoggedTrade.id}
+                </span>
+                <span className="font-mono font-bold text-sm text-white">
+                  {latestLoggedTrade.instrument}
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                    latestLoggedTrade.direction === 'BUY'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                  }`}
+                >
+                  {latestLoggedTrade.direction === 'BUY' ? 'LONG / BUY' : 'SHORT / SELL'}
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-200">
+                  TF: {latestLoggedTrade.timeframe}
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-cyan-300">
+                  {latestLoggedTrade.strategy}
+                </span>
+              </div>
+              <span className="text-[11px] font-mono text-slate-400">
+                {latestLoggedTrade.date} · {latestLoggedTrade.time}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5 font-mono text-xs">
+              <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+                <span className="text-[10px] text-slate-400 block">ENTRY / SL / TP</span>
+                <span className="font-bold text-slate-100">
+                  {latestLoggedTrade.entryPrice} / {latestLoggedTrade.stopLoss} /{' '}
+                  {latestLoggedTrade.takeProfit || 'Open'}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+                <span className="text-[10px] text-slate-400 block">LOT SIZE USED</span>
+                <span className="font-bold text-cyan-300">{latestLoggedTrade.lotSize} Lots</span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+                <span className="text-[10px] text-slate-400 block">RISK % USED</span>
+                <span className="font-bold text-amber-300">{latestLoggedTrade.riskPercent || 1}%</span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-rose-950/25 border border-rose-500/30">
+                <span className="text-[10px] text-rose-300 block">DOLLAR RISK (IF SL)</span>
+                <span className="font-bold text-rose-400">
+                  -{formatCurrency(latestLoggedTrade.riskAmount || 0, currency)}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-emerald-950/25 border border-emerald-500/30">
+                <span className="text-[10px] text-emerald-300 block">TARGET / R:R</span>
+                <span className="font-bold text-emerald-400">
+                  {latestLoggedTrade.potentialProfitDollars
+                    ? `+${formatCurrency(latestLoggedTrade.potentialProfitDollars, currency)}`
+                    : `1:${latestLoggedTrade.rMultiple}R`}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+                <span className="text-[10px] text-slate-400 block">STATUS & OUTCOME</span>
+                <span
+                  className={`font-bold ${
+                    latestLoggedTrade.status === 'OPEN'
+                      ? 'text-cyan-400'
+                      : safeNumber(latestLoggedTrade.profitLoss, 0) >= 0
+                      ? 'text-emerald-400'
+                      : 'text-rose-400'
+                  }`}
+                >
+                  {latestLoggedTrade.status === 'OPEN'
+                    ? 'OPEN POSITION'
+                    : `${safeNumber(latestLoggedTrade.profitLoss, 0) >= 0 ? '+' : ''}${formatCurrency(
+                        safeNumber(latestLoggedTrade.profitLoss, 0),
+                        currency
+                      )}`}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {trades.length === 0 ? (
           <div className="p-6 text-center text-slate-500 text-xs">
-            No closed trades logged yet for this account. Record your first execution to populate performance statistics.
+            No trades logged yet for this account. Click "+ Record Trade" to upload a TradingView screenshot or log your first trade.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-sans">
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400 font-medium">
-                  <th className="py-2.5 px-3">Date</th>
-                  <th className="py-2.5 px-3">Pair</th>
-                  <th className="py-2.5 px-3">Type</th>
-                  <th className="py-2.5 px-3">Lots</th>
-                  <th className="py-2.5 px-3">Risk ($)</th>
-                  <th className="py-2.5 px-3 text-right">Result</th>
+                  <th className="py-2.5 px-3">Trade ID & Date</th>
+                  <th className="py-2.5 px-3">Pair & TF</th>
+                  <th className="py-2.5 px-3">Direction</th>
+                  <th className="py-2.5 px-3">Entry / SL / TP</th>
+                  <th className="py-2.5 px-3">Lot Size</th>
+                  <th className="py-2.5 px-3">Risk % & ($)</th>
+                  <th className="py-2.5 px-3 text-right">Status / Outcome</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-mono">
-                {closedTrades.slice(0, 5).map((t) => (
+                {trades.slice(0, 8).map((t) => (
                   <tr key={t.id} className="hover:bg-slate-800/30 transition">
-                    <td className="py-2.5 px-3 text-slate-300 font-sans">{t.date}</td>
-                    <td className="py-2.5 px-3 font-bold text-slate-100">{t.instrument}</td>
+                    <td className="py-2.5 px-3 text-slate-300 font-sans">
+                      <span className="font-mono font-bold text-cyan-300 block">{t.id}</span>
+                      <span className="text-[10px] text-slate-500">{t.date} {t.time}</span>
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <span className="font-bold text-slate-100">{t.instrument}</span>
+                      <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                        {t.timeframe}
+                      </span>
+                    </td>
                     <td className="py-2.5 px-3">
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
@@ -493,17 +718,36 @@ export const PersonalizedAccountDashboard: React.FC<PersonalizedAccountDashboard
                         {t.direction}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-slate-300">{t.lotSize}</td>
+                    <td className="py-2.5 px-3 text-slate-300 text-[11px]">
+                      {t.entryPrice} / <span className="text-rose-400">{t.stopLoss}</span> /{' '}
+                      <span className="text-emerald-400">{t.takeProfit || 'Open'}</span>
+                    </td>
+                    <td className="py-2.5 px-3 text-cyan-300 font-bold">{t.lotSize} Lots</td>
                     <td className="py-2.5 px-3 text-amber-400">
-                      {formatCurrency(t.riskAmount || 0, currency)}
+                      <span className="font-bold">{t.riskPercent || 1}%</span>{' '}
+                      <span className="text-rose-400 text-[11px]">
+                        (-{formatCurrency(t.riskAmount || 0, currency)})
+                      </span>
                     </td>
                     <td
                       className={`py-2.5 px-3 text-right font-bold ${
-                        safeNumber(t.profitLoss, 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                        t.status === 'OPEN'
+                          ? 'text-cyan-400'
+                          : safeNumber(t.profitLoss, 0) >= 0
+                          ? 'text-emerald-400'
+                          : 'text-rose-400'
                       }`}
                     >
-                      {safeNumber(t.profitLoss, 0) >= 0 ? '+' : ''}
-                      {formatCurrency(safeNumber(t.profitLoss, 0), currency)}
+                      {t.status === 'OPEN' ? (
+                        <span className="px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 text-[10px]">
+                          OPEN (1:{t.rMultiple}R)
+                        </span>
+                      ) : (
+                        <>
+                          {safeNumber(t.profitLoss, 0) >= 0 ? '+' : ''}
+                          {formatCurrency(safeNumber(t.profitLoss, 0), currency)}
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
