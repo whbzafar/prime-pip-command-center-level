@@ -1,6 +1,11 @@
 export type TradeDirection = 'BUY' | 'SELL';
 
-export type AccountType = 'PROP_FIRM_EVALUATION' | 'PROP_FIRM_FUNDED' | 'PERSONAL_LIVE' | 'DEMO';
+export type AccountType =
+  | 'PROP_FIRM_EVALUATION'
+  | 'PROP_FIRM_FUNDED'
+  | 'PERSONAL_LIVE'
+  | 'DEMO'
+  | 'CENT_ACCOUNT';
 
 export type SBTStrategyModel =
   | 'SBT Model 1'
@@ -614,7 +619,7 @@ export interface FundedRulesProfile {
   isCustom?: boolean;
 }
 
-export type AccountKind = 'DEMO' | 'PERSONAL' | 'FUNDED';
+export type AccountKind = 'DEMO' | 'PERSONAL' | 'FUNDED' | 'CENT';
 
 export type RiskDecisionState = 'TAKE' | 'REDUCE' | 'STOP' | 'REVIEW';
 
@@ -692,6 +697,7 @@ export interface AccountSettings {
   accountType: AccountType | string;
   accountCategory?: 'PERSONAL' | 'FUNDED' | 'DEMO';
   accountKind?: AccountKind;
+  isCentAccount?: boolean;
   isDemo?: boolean;
   isManual?: boolean;
   syncStatus?: 'MANUAL' | 'SYNCHRONIZED' | 'UNLINKED';
@@ -988,4 +994,15 @@ export interface ModerationWarning {
   datePkt: string;
   timePkt: string;
   acknowledgedByAdmin?: boolean;
+}
+
+export function isCentAccount(
+  account?: { isCentAccount?: boolean; accountType?: string; currency?: string } | null,
+  currency?: string
+): boolean {
+  if (!account && !currency) return false;
+  if (account?.isCentAccount) return true;
+  if (account?.accountType === 'CENT_ACCOUNT') return true;
+  const c = (currency || account?.currency || '').trim().toUpperCase();
+  return c === 'CENT' || c === 'USC' || c === 'CENTS' || c === '¢';
 }

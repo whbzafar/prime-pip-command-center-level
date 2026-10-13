@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   TrendingUp,
   Calculator,
@@ -46,6 +46,13 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
   const activeBalance = account.currentBalance > 0 ? account.currentBalance : account.initialBalance;
   const [balanceMode, setBalanceMode] = useState<'ACTIVE' | 'CUSTOM'>('ACTIVE');
   const [customStartBalance, setCustomStartBalance] = useState<number>(activeBalance);
+
+  useEffect(() => {
+    const isCent = account.isCentAccount || account.accountType === 'CENT_ACCOUNT' || account.currency === 'Cent' || account.currency === 'USC' || account.currency === 'CENT';
+    setCurrency(isCent ? (account.currency || 'USC') : (account.currency || 'USD'));
+    const currentActBal = account.currentBalance > 0 ? account.currentBalance : account.initialBalance;
+    setCustomStartBalance(currentActBal);
+  }, [account.id, account.currency, account.isCentAccount, account.accountType, account.currentBalance, account.initialBalance]);
 
   const [compoundingMode, setCompoundingMode] = useState<CompoundingMode>('PERCENTAGE_COMPOUNDING');
   const [riskPercent, setRiskPercent] = useState<number>(account.maxRiskPerTradePercent || 1.0);

@@ -838,7 +838,11 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="text-[9px] uppercase font-mono-code text-slate-400 flex items-center gap-1">
                 <span>{account.accountName}</span>
-                {account.accountCategory === 'FUNDED' || account.fundedConfig?.enabled ? (
+                {account.isCentAccount || account.accountType === 'CENT_ACCOUNT' || account.currency === 'USC' || account.currency === 'Cent' ? (
+                  <span className="text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1 rounded text-[8px] font-bold">
+                    🪙 CENT ACCOUNT (¢)
+                  </span>
+                ) : account.accountCategory === 'FUNDED' || account.fundedConfig?.enabled ? (
                   <span className="text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1 rounded text-[8px] font-bold">
                     PROP: {account.fundedConfig?.firmName || 'FUNDED'}
                   </span>

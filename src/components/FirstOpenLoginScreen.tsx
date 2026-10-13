@@ -36,8 +36,8 @@ import { UserAccount } from '../types';
 import { googleDriveService } from '../services/googleDriveService';
 
 interface FirstOpenLoginScreenProps {
-  onLoginSuccess: (user: UserAccount, token?: string) => void;
-  onExploreDemo: () => void;
+  onLoginSuccess: (user: UserAccount, token?: string, options?: { isCentAccount?: boolean }) => void;
+  onExploreDemo: (options?: { isCentAccount?: boolean }) => void;
   onOpenSubscription?: () => void;
 }
 
@@ -47,6 +47,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   onOpenSubscription,
 }) => {
   const [step, setStep] = useState<'LOGIN' | 'CHANGE_PASSWORD' | 'LINK_STORAGE'>('LOGIN');
+  const [accountUnit, setAccountUnit] = useState<'STANDARD' | 'CENT'>('STANDARD');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -229,7 +230,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       return;
     }
 
-    onLoginSuccess(user, token);
+    onLoginSuccess(user, token, { isCentAccount: accountUnit === 'CENT' });
   };
 
   const handleLinkDrive = async () => {
@@ -244,7 +245,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         setDriveLinkSuccess(true);
         triggerBurst();
         setTimeout(() => {
-          onLoginSuccess(pendingUser, pendingToken || undefined);
+          onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountUnit === 'CENT' });
         }, 800);
       } else {
         setLinkingDrive(false);
@@ -260,7 +261,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
     if (pendingUser) {
       // Mark as prompted so user is never prompted repeatedly on subsequent logins
       googleDriveService.setPromptedInitialLink(pendingUser.id, true);
-      onLoginSuccess(pendingUser, pendingToken || undefined);
+      onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountUnit === 'CENT' });
     }
   };
 
@@ -307,7 +308,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const handleDemoClick = () => {
     triggerBurst();
     setTimeout(() => {
-      onExploreDemo();
+      onExploreDemo({ isCentAccount: accountUnit === 'CENT' });
     }, 300);
   };
 
@@ -720,6 +721,56 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                       <span>Bloomberg Confluence</span>
                     </div>
                   </div>
+                </div>
+
+                {/* Cent Account / Standard Account Environment Selection */}
+                <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-mono-code text-slate-300 font-bold uppercase flex items-center gap-1.5">
+                      <span>Account Base Currency / Type</span>
+                    </label>
+                    <span className="text-[10px] font-mono-code text-cyan-400 font-semibold">
+                      {accountUnit === 'CENT' ? '1 USD = 100¢' : 'Standard USD ($)'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAccountUnit('STANDARD')}
+                      className={`py-2 px-3 rounded-xl border text-xs font-mono-code font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        accountUnit === 'STANDARD'
+                          ? 'bg-blue-600/30 border-cyan-400 text-white shadow-md shadow-blue-500/20'
+                          : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                      }`}
+                    >
+                      <span>💵 Standard ($)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAccountUnit('CENT')}
+                      className={`py-2 px-3 rounded-xl border text-xs font-mono-code font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        accountUnit === 'CENT'
+                          ? 'bg-amber-500/25 border-amber-400 text-amber-200 shadow-md shadow-amber-500/20'
+                          : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                      }`}
+                    >
+                      <span>🪙 Cent Account (¢)</span>
+                    </button>
+                  </div>
+                  {accountUnit === 'CENT' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] font-mono-code text-amber-300 leading-relaxed"
+                    >
+                      <div className="font-bold flex items-center gap-1 mb-0.5">
+                        <span>🪙 Cent Account Active (1 USD = 100¢)</span>
+                      </div>
+                      <div>
+                        All subsequent parameters—such as lot sizes, potential loss/TP, risk calculations, and compounding—will operate and calculate in Cents (¢).
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
 
                 {/* Remember Me Option */}

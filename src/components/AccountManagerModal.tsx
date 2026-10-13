@@ -62,10 +62,10 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
   );
   const [error, setError] = useState<string | null>(null);
 
-  const currencyOptions = ['USD', 'EUR', 'GBP', 'PKR', 'Cent', 'USC', 'Custom'];
+  const currencyOptions = ['USD', 'USC', 'Cent', 'EUR', 'GBP', 'PKR', 'Custom'];
   const accountTypeOptions = [
     { id: 'Personal Account', label: 'Personal Account', mappedType: 'PERSONAL_LIVE' as AccountType, category: 'PERSONAL' as const },
-    { id: 'Cent Account', label: 'Cent Account (USC / ¢)', mappedType: 'PERSONAL_LIVE' as AccountType, category: 'PERSONAL' as const },
+    { id: 'Cent Account', label: 'Cent Account (USC / ¢)', mappedType: 'CENT_ACCOUNT' as AccountType, category: 'PERSONAL' as const },
     { id: 'Funded Account', label: 'Funded Account (Prop Evaluation / Live)', mappedType: 'PROP_FIRM_EVALUATION' as AccountType, category: 'FUNDED' as const },
     { id: 'Prop Firm Challenge', label: 'Prop Firm Challenge', mappedType: 'PROP_FIRM_EVALUATION' as AccountType, category: 'FUNDED' as const },
     { id: 'Live Funded Account', label: 'Live Funded Account', mappedType: 'PROP_FIRM_FUNDED' as AccountType, category: 'FUNDED' as const },
@@ -94,8 +94,10 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
     const isFunded = isFundedAccount(acc);
     setAccountCategory(isFunded ? 'FUNDED' : 'PERSONAL');
     const matched =
-      accountTypeOptions.find((o) => o.mappedType === acc.accountType)?.id ||
-      (isFunded ? 'Funded Account' : 'Personal Account');
+      acc.accountType === 'CENT_ACCOUNT' || acc.isCentAccount
+        ? 'Cent Account'
+        : accountTypeOptions.find((o) => o.mappedType === acc.accountType)?.id ||
+          (isFunded ? 'Funded Account' : 'Personal Account');
     setAccountType(matched);
     setBroker(acc.broker || '');
     setFundedConfig(getEffectiveFundedConfig(acc));
@@ -118,12 +120,21 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
       return;
     }
 
+    const isCent =
+      accountType === 'Cent Account' || currency === 'USC' || currency === 'Cent';
     const selectedCurrency =
-      currency === 'Custom' ? (customCurrency.trim().toUpperCase() || 'USD') : currency;
+      currency === 'Custom'
+        ? (customCurrency.trim().toUpperCase() || 'USD')
+        : isCent && currency === 'USD'
+        ? 'USC'
+        : currency;
+
     const mappedType: AccountType = isFunded
       ? fundedConfig.phase === 'FUNDED_LIVE' || fundedConfig.phase === 'INSTANT_FUNDED'
         ? 'PROP_FIRM_FUNDED'
         : 'PROP_FIRM_EVALUATION'
+      : isCent
+      ? 'CENT_ACCOUNT'
       : accountTypeOptions.find((o) => o.id === accountType)?.mappedType || 'PERSONAL_LIVE';
 
     const finalizedFundedConfig: FundedAccountConfig | undefined = isFunded
@@ -142,12 +153,15 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
       accountName: name.trim(),
       accountType: mappedType,
       accountCategory: isFunded ? 'FUNDED' : 'PERSONAL',
+      isCentAccount: isCent,
       fundedConfig: finalizedFundedConfig,
       initialBalance: balanceNum,
       currentBalance: balanceNum,
       currentEquity: balanceNum,
       broker: isFunded
         ? finalizedFundedConfig?.firmName || broker.trim() || 'My Prop Firm'
+        : isCent
+        ? broker.trim() || 'MetaTrader 5 Cent Broker'
         : broker.trim() || 'Direct Market Access',
       currency: selectedCurrency,
       maxDailyLossPercent: isFunded ? finalizedFundedConfig?.dailyDrawdownPercent || 4.0 : 4.0,
@@ -178,12 +192,21 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
       return;
     }
 
+    const isCent =
+      accountType === 'Cent Account' || currency === 'USC' || currency === 'Cent';
     const selectedCurrency =
-      currency === 'Custom' ? (customCurrency.trim().toUpperCase() || 'USD') : currency;
+      currency === 'Custom'
+        ? (customCurrency.trim().toUpperCase() || 'USD')
+        : isCent && currency === 'USD'
+        ? 'USC'
+        : currency;
+
     const mappedType: AccountType = isFunded
       ? fundedConfig.phase === 'FUNDED_LIVE' || fundedConfig.phase === 'INSTANT_FUNDED'
         ? 'PROP_FIRM_FUNDED'
         : 'PROP_FIRM_EVALUATION'
+      : isCent
+      ? 'CENT_ACCOUNT'
       : accountTypeOptions.find((o) => o.id === accountType)?.mappedType || 'PERSONAL_LIVE';
 
     const finalizedFundedConfig: FundedAccountConfig | undefined = isFunded
@@ -208,6 +231,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
       currency: selectedCurrency,
       accountType: mappedType,
       accountCategory: isFunded ? 'FUNDED' : 'PERSONAL',
+      isCentAccount: isCent,
       fundedConfig: finalizedFundedConfig,
       maxDailyLossPercent: isFunded
         ? finalizedFundedConfig?.dailyDrawdownPercent || editingAccount.maxDailyLossPercent

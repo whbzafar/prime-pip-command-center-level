@@ -159,7 +159,13 @@ export const LotSizeCalculator: React.FC<LotSizeCalculatorProps> = ({
   // Universal Dynamic Specification for ANY currency pair
   const cleanPair = (instrument || '').toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
   const matchedSpec = DEFAULT_SPECS[cleanPair];
-  const isCentAccount = currency === 'Cent' || currency === 'USC' || currency === 'CENT';
+  const isCentAccount =
+    currency === 'Cent' ||
+    currency === 'USC' ||
+    currency === 'CENT' ||
+    currency === '¢' ||
+    activeAccount?.isCentAccount ||
+    activeAccount?.accountType === 'CENT_ACCOUNT';
 
   // Compute dynamic pair specifications if not in default table
   const dynamicSpec: InstrumentSpec = useMemo(() => {

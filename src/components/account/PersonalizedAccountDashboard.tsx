@@ -182,14 +182,22 @@ export const PersonalizedAccountDashboard: React.FC<PersonalizedAccountDashboard
                 <span className="text-slate-600">·</span>
                 <span
                   className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                    isFunded
+                    account.isCentAccount || account.accountType === 'CENT_ACCOUNT' || currency === 'USC' || currency === 'Cent'
+                      ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                      : isFunded
                       ? 'bg-purple-500/10 text-purple-300 border border-purple-500/30'
                       : isDemo
                       ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30'
                       : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
                   }`}
                 >
-                  {isFunded ? 'FUNDED TRADING' : isDemo ? 'SIMULATED DEMO' : 'PERSONAL CAPITAL'}
+                  {account.isCentAccount || account.accountType === 'CENT_ACCOUNT' || currency === 'USC' || currency === 'Cent'
+                    ? '🪙 CENT ACCOUNT (1 USD = 100¢)'
+                    : isFunded
+                    ? 'FUNDED TRADING'
+                    : isDemo
+                    ? 'SIMULATED DEMO'
+                    : 'PERSONAL CAPITAL'}
                 </span>
               </div>
               <h1 className="text-xl font-bold text-slate-100 tracking-tight mt-0.5">

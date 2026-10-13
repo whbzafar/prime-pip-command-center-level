@@ -499,7 +499,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
         }
 
         // 3. Trade Direction (Long/Buy or Short/Sell)
-        let resolvedDir: Direction = direction;
+        let resolvedDir: TradeDirection = direction;
         if (result.direction === 'BUY' || result.direction === 'SELL') {
           resolvedDir = result.direction;
           setDirection(result.direction);
@@ -681,13 +681,17 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
 
   const instrumentSpec = useMemo(() => getInstrumentSpec(instrument || 'XAUUSD'), [instrument]);
 
+  const isCent =
+    account.isCentAccount ||
+    account.accountType === 'CENT_ACCOUNT' ||
+    account.currency === 'Cent' ||
+    account.currency === 'USC' ||
+    account.currency === 'CENT';
+
   const pipValuePerStandardLot = useMemo(() => {
-    let pv = instrumentSpec.pipValuePerStandardLot || 10;
-    if (account.currency === 'Cent' || account.currency === 'USC') {
-      pv *= 100;
-    }
-    return pv;
-  }, [instrumentSpec, account.currency]);
+    // Both standard and cent lots share identical pip value in their native base currencies ($10 in USD or 10¢ in Cents)
+    return instrumentSpec.pipValuePerStandardLot || 10;
+  }, [instrumentSpec]);
 
   const stopDistancePips = useMemo(() => {
     if (effectiveEntry <= 0 || effectiveSl <= 0) return 0;
@@ -2419,11 +2423,11 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Card 4: Potential Dollar Loss (Recalculates with Entry, SL & Lot Size) */}
+                  {/* Card 4: Potential Loss (Recalculates with Entry, SL & Lot Size) */}
                   <div className="p-3 rounded-xl bg-rose-950/25 border border-rose-500/40 flex flex-col justify-between">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-rose-300 font-bold uppercase">
-                        4. POTENTIAL DOLLAR LOSS
+                        {isCent ? '4. POTENTIAL CENT LOSS' : '4. POTENTIAL DOLLAR LOSS'}
                       </span>
                       <span className="text-[10px] font-bold text-rose-400">-1.0R</span>
                     </div>
@@ -2438,11 +2442,11 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Card 5: Potential Take-Profit (TP) Dollar Value (Recalculates with Entry, TP & Lot Size) */}
+                  {/* Card 5: Potential Take-Profit (TP) Value (Recalculates with Entry, TP & Lot Size) */}
                   <div className="p-3 rounded-xl bg-emerald-950/25 border border-emerald-500/40 flex flex-col justify-between">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-emerald-300 font-bold uppercase">
-                        5. POTENTIAL TP VALUE
+                        {isCent ? '5. POTENTIAL TP VALUE (¢)' : '5. POTENTIAL TP VALUE'}
                       </span>
                       <span className="text-[10px] font-bold text-amber-300">
                         {computedRr > 0 ? `+${computedRr}R` : 'Set TP'}
@@ -2453,7 +2457,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                         ? `+${formatCurrency(potentialProfitDollars, account.currency)}`
                         : effectiveEntry > 0 && effectiveSl > 0 && effectiveLot > 0
                         ? `+${formatCurrency(riskAmount * 2, account.currency)} (at 1:2R)`
-                        : '$0.00'}
+                        : formatCurrency(0, account.currency)}
                     </div>
                     <div className="text-[10px] text-emerald-200/80">
                       {potentialProfitDollars > 0 ? (

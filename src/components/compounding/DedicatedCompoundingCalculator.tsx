@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Calculator,
   TrendingUp,
@@ -36,6 +36,11 @@ export const DedicatedCompoundingCalculator: React.FC<DedicatedCompoundingCalcul
   // Inputs
   const [currency, setCurrency] = useState<string>(initialCurrency);
   const [startingCapital, setStartingCapital] = useState<number>(initialCapital > 0 ? initialCapital : 10000);
+
+  useEffect(() => {
+    if (initialCurrency) setCurrency(initialCurrency);
+    if (initialCapital > 0) setStartingCapital(initialCapital);
+  }, [initialCurrency, initialCapital]);
   const [targetRatePercent, setTargetRatePercent] = useState<number>(2.0); // 2% per period
   const [frequency, setFrequency] = useState<CompoundingFrequency>('DAILY');
   const [selectedMonths, setSelectedMonths] = useState<number>(3); // 1, 3, 6, 12, or custom

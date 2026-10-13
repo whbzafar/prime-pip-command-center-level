@@ -130,6 +130,14 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
       setMaxRiskPerTradePct(1.0);
       setTargetRiskPerTradePct(0.5);
       setPersonalDailyLossCapPct(4.0);
+    } else if (kind === 'CENT') {
+      setAccountNickname('Live Cent Account');
+      setBrokerOrProvider('MetaTrader 5 Cent Broker');
+      setCurrency('USC');
+      setAccountSize('10000');
+      setMaxRiskPerTradePct(1.0);
+      setTargetRiskPerTradePct(0.5);
+      setPersonalDailyLossCapPct(4.0);
     } else if (kind === 'PERSONAL') {
       setAccountNickname('Live Personal Account');
       setBrokerOrProvider('MetaTrader 5 Broker');
@@ -201,24 +209,39 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
     const selectedCurr =
       currency === 'Custom' ? (customCurrency.trim().toUpperCase() || 'USD') : currency;
 
+    const isCent =
+      selectedKind === 'CENT' ||
+      selectedCurr === 'USC' ||
+      selectedCurr === 'Cent' ||
+      selectedCurr === 'CENT';
+
     const baseAccount: AccountSettings = {
       id: `acc-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       traderName: 'STUDENT TRADER',
       accountName: accountNickname.trim(),
       accountKind: selectedKind,
-      accountCategory: selectedKind,
+      accountCategory: selectedKind === 'FUNDED' ? 'FUNDED' : 'PERSONAL',
       accountType:
-        selectedKind === 'DEMO'
+        isCent
+          ? 'CENT_ACCOUNT'
+          : selectedKind === 'DEMO'
           ? 'DEMO'
           : selectedKind === 'PERSONAL'
           ? 'PERSONAL_LIVE'
           : fundedPhase === 'FUNDED_LIVE'
           ? 'PROP_FIRM_FUNDED'
           : 'PROP_FIRM_EVALUATION',
+      isCentAccount: isCent,
       initialBalance: sizeNum,
       currentBalance: sizeNum,
       currentEquity: sizeNum,
-      broker: brokerOrProvider.trim() || (selectedKind === 'DEMO' ? 'Demo Sandbox' : 'Self-Directed'),
+      broker:
+        brokerOrProvider.trim() ||
+        (selectedKind === 'DEMO'
+          ? 'Demo Sandbox'
+          : isCent
+          ? 'MetaTrader 5 Cent Broker'
+          : 'Self-Directed'),
       currency: selectedCurr,
       maxDailyLossPercent: personalDailyLossCapPct,
       maxDrawdownPercent: selectedKind === 'FUNDED' ? (ruleConfigMethod === 'PRESET' ? selectedPreset.overallDrawdownPct : manualOverallLossPct) : 10,
@@ -378,7 +401,56 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
               Choose the type of trading account you want to manage. Prime Pip FX will personalize your dashboard, risk calculations, progress tracking, and trading guidance according to your account.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* CARD D — CENT ACCOUNT (USC / ¢) */}
+              <div className="bg-slate-950/80 border border-amber-500/40 hover:border-amber-400 rounded-xl p-5 flex flex-col justify-between transition group shadow-lg hover:shadow-amber-500/10 relative">
+                <div className="absolute top-3 right-3 text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  1 USD = 100¢
+                </div>
+                <div>
+                  <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3.5">
+                    <span className="text-xl font-bold font-mono">¢</span>
+                  </div>
+                  <h3 className="text-base font-bold text-slate-100 group-hover:text-amber-300 transition">
+                    Cent Account (USC)
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                    Trade real market volume using cent denominations. All parameters—including lot sizes, stop-loss risk, and compounding—operate entirely in Cents.
+                  </p>
+
+                  <div className="mt-4 pt-3 border-t border-slate-800/80 space-y-1.5 text-xs text-slate-300">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400">Currency Unit</span>
+                      <span className="font-semibold text-amber-300">US Cents (USC / ¢)</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400">Starting Balance</span>
+                      <span className="text-slate-200">10,000¢ ($100 eq.)</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400">Lot Sizing</span>
+                      <span className="text-amber-300 font-medium">Cent Lots (10¢/pip)</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400">Compounding</span>
+                      <span className="text-emerald-400 font-medium">Calculated in Cents</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/20 text-[11px] text-amber-200/90 leading-normal">
+                    <span className="font-semibold text-amber-300">Cent Configuration:</span> 1 Dollar equals 100 Cents. Calculations throughout the entire command center operate in cent units.
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleSelectAccountKind('CENT')}
+                  className="mt-5 w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs rounded-lg transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
+                >
+                  Create Cent Account
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
               {/* CARD A — DEMO ACCOUNT */}
               <div className="bg-slate-950/80 border border-slate-800 hover:border-cyan-500/50 rounded-xl p-5 flex flex-col justify-between transition group shadow-lg hover:shadow-cyan-500/10">
                 <div>
@@ -576,11 +648,18 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
                     className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
                   >
                     <option value="USD">USD ($)</option>
+                    <option value="USC">USC (Cent Account ¢)</option>
+                    <option value="Cent">Cent (¢)</option>
                     <option value="EUR">EUR (€)</option>
                     <option value="GBP">GBP (£)</option>
                     <option value="PKR">PKR (₨)</option>
                     <option value="Custom">Custom Currency</option>
                   </select>
+                  {(currency === 'USC' || currency === 'Cent') && (
+                    <p className="text-[11px] font-mono text-amber-300 mt-1">
+                      🪙 1 USD = 100 Cents. Calculations throughout the platform will operate in Cents (¢).
+                    </p>
+                  )}
                 </div>
               </div>
 

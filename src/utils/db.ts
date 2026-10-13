@@ -697,6 +697,15 @@ export async function allocateNextUniqueTradeId(
   };
 }
 
+export type AtomicSaveScreenshotTradeResult = {
+  ok: boolean;
+  saved: boolean;
+  duplicate?: boolean;
+  existingTradeId?: string;
+  error?: string;
+  trade?: Trade;
+};
+
 export async function saveScreenshotTradeGuaranteed(
   tradePayload: Trade,
   options?: {
@@ -705,14 +714,7 @@ export async function saveScreenshotTradeGuaranteed(
     token?: string | null;
     canPersistToServer?: boolean;
   }
-): Promise<{
-  ok: boolean;
-  saved: boolean;
-  duplicate?: boolean;
-  existingTradeId?: string;
-  error?: string;
-  trade?: Trade;
-}> {
+): Promise<AtomicSaveScreenshotTradeResult> {
   return withClientTradeLock(async () => {
     const currentUserId = tradePayload.userId || getEffectiveUserId();
     const accountId = options?.accountId || tradePayload.accountId || 'acc-default';

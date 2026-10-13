@@ -51,11 +51,11 @@ function calculatePips(
 
 function inferTradingSessionFromTime(timeStr: string): TradingSession {
   const match = timeStr.match(/^(\d{1,2}):(\d{2})/);
-  if (!match) return 'London';
+  if (!match) return 'LONDON';
   const hour = Number(match[1]);
-  if (hour >= 18 || hour < 3) return 'New York';
-  if (hour >= 12 && hour < 18) return 'London';
-  return 'Asian';
+  if (hour >= 18 || hour < 3) return 'NEW_YORK';
+  if (hour >= 12 && hour < 18) return 'LONDON';
+  return 'ASIAN';
 }
 
 interface TradingViewScreenshotImportModalProps {
@@ -879,15 +879,29 @@ export const TradingViewScreenshotImportModal: React.FC<TradingViewScreenshotImp
         pips,
         strategy: 'SMC / ICT',
         strategyModel: extraction?.positionToolType || 'TradingView Screenshot Import',
-        htfTrend: direction === 'BUY' ? 'Bullish' : 'Bearish',
-        ltfTrend: direction === 'BUY' ? 'Bullish' : 'Bearish',
+        htfTrend: direction === 'BUY' ? 'BULLISH' : 'BEARISH',
+        ltfTrend: direction === 'BUY' ? 'BULLISH' : 'BEARISH',
         marketStructure: 'BOS',
-        alignmentScore: 'Full Alignment',
-        preEmotion: 'Calm',
-        postPsychology: 'Disciplined',
+        alignmentScore: {
+          htfDirection: 25,
+          marketStructure: 20,
+          entryModel: 20,
+          riskManagement: 20,
+          newsCondition: 15,
+          totalQuality: 100,
+        },
+        preEmotion: 'CALM',
+        postPsychology: {
+          followedPlan: true,
+          movedStopLoss: false,
+          closedEarly: false,
+          overtraded: false,
+          revengeTraded: false,
+          increasedLotSizeEmotionally: false,
+        },
         ruleViolation: 'NONE',
         violatedRules: [],
-        mistakeReason: 'No Mistake',
+        mistakeReason: 'None (Flawless)',
         grade: effectiveRR >= 2.5 ? 'A+' : effectiveRR >= 1.8 ? 'A' : 'B',
         screenshots: {
           entry: screenshotDataUrl,

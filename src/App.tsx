@@ -260,40 +260,46 @@ export default function App() {
   }, []);
 
   // Enter Demo Mode Helper
-  const handleEnterDemoMode = useCallback(async () => {
-    setIsDemoMode(true);
-    try {
-      localStorage.setItem('primepipfx_demo_mode', 'true');
-    } catch {}
-    setIsLoginModalOpen(false);
-    setIsSubscriptionModalOpen(false);
-    setActiveTab('DASHBOARD');
+  const handleEnterDemoMode = useCallback(
+    async (options?: { isCentAccount?: boolean }) => {
+      setIsDemoMode(true);
+      try {
+        localStorage.setItem('primepipfx_demo_mode', 'true');
+      } catch {}
+      setIsLoginModalOpen(false);
+      setIsSubscriptionModalOpen(false);
+      setActiveTab('DASHBOARD');
 
-    // If no account is loaded, provide a demo preview account immediately
-    if (!activeAccount || accounts.length === 0) {
-      const demoAccount: AccountSettings = {
-        id: 'acc-demo-preview',
-        traderName: 'DEMO TRADER',
-        accountName: 'Demo Preview Account',
-        accountType: 'DEMO',
-        initialBalance: 5000,
-        currentBalance: 5000,
-        currentEquity: 5000,
-        broker: 'PrimePipFX Simulation',
-        currency: 'USD',
-        maxDailyLossPercent: 4.0,
-        maxDrawdownPercent: 5.0,
-        maxDailyTrades: 2,
-        maxRiskPerTradePercent: 1.0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setAccounts([demoAccount]);
-      setActiveAccount(demoAccount);
-      await saveAccount(demoAccount);
-      await loadAccountData(demoAccount);
-    }
-  }, [activeAccount, accounts, loadAccountData]);
+      const isCent = options?.isCentAccount || false;
+
+      // If no account is loaded or cent requested, provide a demo preview account immediately
+      if (!activeAccount || accounts.length === 0 || (isCent && !activeAccount.isCentAccount)) {
+        const demoAccount: AccountSettings = {
+          id: isCent ? 'acc-demo-cent' : 'acc-demo-preview',
+          traderName: 'DEMO TRADER',
+          accountName: isCent ? 'Demo Cent Account (USC)' : 'Demo Preview Account',
+          accountType: isCent ? 'CENT_ACCOUNT' : 'DEMO',
+          isCentAccount: isCent,
+          initialBalance: isCent ? 10000 : 5000,
+          currentBalance: isCent ? 10000 : 5000,
+          currentEquity: isCent ? 10000 : 5000,
+          broker: isCent ? 'Exness Cent / MT5' : 'PrimePipFX Simulation',
+          currency: isCent ? 'USC' : 'USD',
+          maxDailyLossPercent: 4.0,
+          maxDrawdownPercent: 5.0,
+          maxDailyTrades: 2,
+          maxRiskPerTradePercent: 1.0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setAccounts((prev) => [demoAccount, ...prev.filter((a) => a.id !== demoAccount.id)]);
+        setActiveAccount(demoAccount);
+        await saveAccount(demoAccount);
+        await loadAccountData(demoAccount);
+      }
+    },
+    [activeAccount, accounts, loadAccountData]
+  );
 
   // Tab Selection with Strict Demo Guard
   const handleSelectTab = useCallback(
@@ -486,6 +492,57 @@ export default function App() {
 
     setIsOnboardingOpen(false);
   };
+
+  const handleAuthenticatedUser = useCallback(
+    async (user: UserAccount, token?: string, options?: { isCentAccount?: boolean }) => {
+      setCurrentUser(user);
+      setIsDemoMode(false);
+      try {
+        localStorage.removeItem('primepipfx_demo_mode');
+      } catch {}
+      setIsLoginModalOpen(false);
+
+      if (options?.isCentAccount) {
+        const loadedAccounts = await getAllAccounts();
+        const existingCent = loadedAccounts.find(
+          (a) => a.isCentAccount || a.accountType === 'CENT_ACCOUNT' || a.currency === 'USC' || a.currency === 'Cent'
+        );
+        if (existingCent) {
+          await handleSelectAccount(existingCent.id);
+        } else {
+          const centAccount: AccountSettings = {
+            id: `acc-cent-${Date.now()}`,
+            traderName: user.name || user.username || 'TRADER',
+            accountName: 'Personal Cent Account',
+            accountType: 'CENT_ACCOUNT',
+            accountCategory: 'PERSONAL',
+            isCentAccount: true,
+            initialBalance: 10000, // 10,000 cents ($100)
+            currentBalance: 10000,
+            currentEquity: 10000,
+            broker: 'MetaTrader 5 Cent Broker',
+            currency: 'USC',
+            maxDailyLossPercent: 4.0,
+            maxDrawdownPercent: 10.0,
+            maxDailyTrades: 2,
+            targetRiskPerTradePercent: 1.0,
+            maxRiskPerTradePercent: 1.0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          await handleAccountCreated(centAccount);
+        }
+      } else if (isUserAdmin(user)) {
+        setActiveTab('ADMIN');
+      } else {
+        const loadedAccounts = await getAllAccounts();
+        if (loadedAccounts.length === 0) {
+          setIsCreateAccountWizardOpen(true);
+        }
+      }
+    },
+    [handleAccountCreated, handleSelectAccount]
+  );
 
   const handleUpdateAccount = async (updatedAccount: AccountSettings) => {
     await saveAccount(updatedAccount);
@@ -1035,13 +1092,7 @@ export default function App() {
   if (!currentUser && !isDemoMode) {
     return (
       <FirstOpenLoginScreen
-        onLoginSuccess={(user, token) => {
-          setCurrentUser(user);
-          setIsDemoMode(false);
-          if (isUserAdmin(user)) {
-            setActiveTab('ADMIN');
-          }
-        }}
+        onLoginSuccess={handleAuthenticatedUser}
         onExploreDemo={handleEnterDemoMode}
         onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
       />
@@ -1617,32 +1668,8 @@ export default function App() {
         <LoginModal
           isOpen={isLoginModalOpen}
           onClose={() => setIsLoginModalOpen(false)}
-          onLoginSuccess={(user) => {
-            setCurrentUser(user);
-            setIsDemoMode(false);
-            try {
-              localStorage.removeItem('primepipfx_demo_mode');
-            } catch {}
-            setIsLoginModalOpen(false);
-            if (isUserAdmin(user)) {
-              setActiveTab('ADMIN');
-            } else if (accounts.length === 0) {
-              setIsCreateAccountWizardOpen(true);
-            }
-          }}
-          onSuccess={(user) => {
-            setCurrentUser(user);
-            setIsDemoMode(false);
-            try {
-              localStorage.removeItem('primepipfx_demo_mode');
-            } catch {}
-            setIsLoginModalOpen(false);
-            if (isUserAdmin(user)) {
-              setActiveTab('ADMIN');
-            } else if (accounts.length === 0) {
-              setIsCreateAccountWizardOpen(true);
-            }
-          }}
+          onLoginSuccess={handleAuthenticatedUser}
+          onSuccess={handleAuthenticatedUser}
           onOpenSubscription={() => {
             setIsLoginModalOpen(false);
             setIsSubscriptionModalOpen(true);

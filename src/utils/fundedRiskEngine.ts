@@ -1129,10 +1129,10 @@ export function calculateLotSize(
     return { lotSize: 0, stopDistancePips: 0, stopDistancePrice: 0, pipValuePerLot: spec.pipValuePerStandardLot };
   }
 
-  let pipValue = spec.pipValuePerStandardLot;
-  if (accountCurrency === 'Cent' || accountCurrency === 'USC') {
-    pipValue = spec.pipValuePerStandardLot * 100;
-  }
+  // In standard account: risk is in USD, 1 standard lot pip value is in USD (e.g. $10).
+  // In cent account: risk is in Cents, 1 cent lot pip value is in Cents (e.g. 10¢).
+  // Both have identical numerical pip values in their native base currencies.
+  const pipValue = spec.pipValuePerStandardLot;
 
   const rawLot = riskDollars / (stopDistancePips * pipValue);
   const lotSize = Math.max(0.01, Math.floor(rawLot * 100) / 100);

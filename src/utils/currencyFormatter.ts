@@ -18,7 +18,7 @@ export function safeNumber(value: unknown, fallback: number = 0): number {
 export function getCurrencySymbol(currency?: string): string {
   if (!currency) return '$';
   const c = currency.trim().toUpperCase();
-  if (c.includes('CENT') || c.includes('USC')) {
+  if (c.includes('CENT') || c.includes('USC') || c === '¢') {
     return '¢';
   }
   switch (c) {
@@ -61,6 +61,19 @@ export function formatCurrency(
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
+
+  const cUpper = (currency || '').trim().toUpperCase();
+  const isCent = symbol === '¢' || cUpper.includes('CENT') || cUpper.includes('USC');
+
+  if (isCent) {
+    if (isNegative) {
+      return `-${formattedAbs} ¢`;
+    }
+    if (showSign && num > 0) {
+      return `+${formattedAbs} ¢`;
+    }
+    return `${formattedAbs} ¢`;
+  }
 
   if (isNegative) {
     return `-${symbol}${formattedAbs}`;

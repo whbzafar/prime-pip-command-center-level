@@ -86,5 +86,12 @@ export const AppFooter: React.FC<AppFooterProps> = ({ onOpenReviews }) => (
         </a>
       </nav>
     </div>
+
+    {/* Persistent Mandated Educational & Regulatory Disclaimer */}
+    <div className="mx-auto max-w-7xl pt-2 mt-2 border-t border-slate-800/40 text-center">
+      <p className="text-[10px] sm:text-[11px] font-mono-code text-slate-400 tracking-tight">
+        Educational tool. Not financial advice. Firm rules change; always confirm against your firm's official dashboard.
+      </p>
+    </div>
   </footer>
 );
