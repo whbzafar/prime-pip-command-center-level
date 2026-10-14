@@ -7,253 +7,115 @@ import {
   TrendingUp,
   TrendingDown,
   Activity,
-  Layers,
-  Sparkles,
   Zap,
-  Globe,
   RefreshCw,
   ExternalLink,
   ChevronDown,
   Clock,
-  ShieldCheck,
-  Building2,
-  Trash2,
-  Share2,
-  Undo2,
-  Redo2,
+  Shield,
   Palette,
-  Check,
-  Copy,
-  MessageCircle,
-  Bookmark,
-  CheckCircle2,
-  AlertCircle,
+  Share2,
   Sliders,
-  BarChart3,
-  BookOpen,
-  Bell,
+  DollarSign,
+  ArrowUpRight,
+  ArrowDownRight,
   Plus,
-  X,
+  Minus,
+  CheckCircle2,
+  XCircle,
+  BookOpen,
+  History,
   Target,
+  AlarmClock,
+  Newspaper,
+  Calendar,
+  Building2,
+  Wallet,
   RotateCcw,
-  Magnet,
-  Lock,
 } from 'lucide-react';
-import { calculateCurrencyScore, calculateLongTermPairRankings } from '../utils/fundamentalCalculationEngine';
-import { CURRENCIES, DEFAULT_CATEGORY_WEIGHTS } from '../data/fundamentalRegistryData';
-import { fetchFundamentalObservations } from '../services/fundamentalLiveResearchService';
-import {
-  DEFAULT_OBSERVATIONS,
-  DEFAULT_COT_RECORDS,
-  DEFAULT_SENTIMENT_RECORDS,
-  DEFAULT_INTEREST_RATES,
-  DEFAULT_RETAIL_POSITIONING,
-  DEFAULT_MULTI_ASSET_FUNDAMENTALS,
-  MultiAssetFundamentalRecord,
-} from '../data/defaultFundamentalObservations';
-import { CurrencyCode, CurrencyScoreResult, IndicatorObservation } from '../types/fundamentalIndicatorTypes';
-import { UserAccount, Trade, SignalItem } from '../types';
-import { isFundamentalSurpriseLocked } from '../utils/authClient';
-import { fetchSignalsFromServer } from '../services/signalsService';
-import { isUserAdmin } from '../utils/authClient';
+import { Trade, UserAccount, AccountSettings } from '../types';
 
-const BG_PRESETS = [
-  { id: '#070A12', label: 'Dark Navy' },
-  { id: '#020617', label: 'Midnight' },
-  { id: '#0F172A', label: 'Slate Dark' },
-  { id: '#000000', label: 'OLED Black' },
-  { id: '#1E293B', label: 'Charcoal' },
-  { id: '#FFFFFF', label: 'Pure White' },
-];
-
-interface ProTradingViewProps {
-  onOpenNewTrade?: () => void;
-  defaultSymbol?: string;
-  currentUser?: UserAccount | null;
-  isDemoMode?: boolean;
-  onRequireSubscription?: () => void;
-  onNavigateToFundamental?: () => void;
-  onNavigateToJournal?: () => void;
-}
-
-export interface ChartAlert {
-  id: string;
-  symbol: string;
-  targetPrice: number;
-  condition: 'CROSSES_ABOVE' | 'CROSSES_BELOW' | 'REACHES_LEVEL';
-  note: string;
-  active: boolean;
-  createdAt: string;
-}
-
-export interface WatchlistGroup {
-  name: string;
-  symbols: { symbol: string; label: string; broker: string }[];
-}
-
-const BROKERS = [
-  { id: 'OANDA', label: 'OANDA Corporation', prefix: 'OANDA' },
-  { id: 'FXCM', label: 'FXCM (Forex Capital Markets)', prefix: 'FX' },
-  { id: 'FOREXCOM', label: 'Forex.com (StoneX)', prefix: 'FOREXCOM' },
-  { id: 'PEPPERSTONE', label: 'Pepperstone Markets', prefix: 'PEPPERSTONE' },
-  { id: 'CAPITALCOM', label: 'Capital.com', prefix: 'CAPITALCOM' },
-  { id: 'BINANCE', label: 'Binance (Crypto)', prefix: 'BINANCE' },
-  { id: 'TVC', label: 'TradingView Composite / Index', prefix: 'TVC' },
-];
-
-const WATCHLIST_GROUPS: WatchlistGroup[] = [
-  {
-    name: 'FOREX MAJORS',
-    symbols: [
-      { symbol: 'EURUSD', label: 'EUR/USD', broker: 'FX' },
-      { symbol: 'GBPUSD', label: 'GBP/USD', broker: 'FX' },
-      { symbol: 'USDJPY', label: 'USD/JPY', broker: 'FX' },
-      { symbol: 'AUDUSD', label: 'AUD/USD', broker: 'FX' },
-      { symbol: 'USDCAD', label: 'USD/CAD', broker: 'FX' },
-      { symbol: 'USDCHF', label: 'USD/CHF', broker: 'FX' },
-      { symbol: 'NZDUSD', label: 'NZD/USD', broker: 'FX' },
-    ],
-  },
-  {
-    name: 'CROSSES',
-    symbols: [
-      { symbol: 'GBPJPY', label: 'GBP/JPY', broker: 'FX' },
-      { symbol: 'EURJPY', label: 'EUR/JPY', broker: 'FX' },
-      { symbol: 'EURGBP', label: 'EUR/GBP', broker: 'FX' },
-      { symbol: 'AUDJPY', label: 'AUD/JPY', broker: 'FX' },
-      { symbol: 'CADJPY', label: 'CAD/JPY', broker: 'FX' },
-      { symbol: 'GBPAUD', label: 'GBP/AUD', broker: 'FX' },
-      { symbol: 'EURAUD', label: 'EUR/AUD', broker: 'FX' },
-    ],
-  },
-  {
-    name: 'METALS & GOLD',
-    symbols: [
-      { symbol: 'XAUUSD', label: 'XAU/USD (Gold)', broker: 'OANDA' },
-      { symbol: 'GOLD', label: 'Spot Gold Index', broker: 'TVC' },
-      { symbol: 'XAGUSD', label: 'XAG/USD (Silver)', broker: 'OANDA' },
-      { symbol: 'SILVER', label: 'Spot Silver Index', broker: 'TVC' },
-    ],
-  },
-  {
-    name: 'ENERGY & OIL',
-    symbols: [
-      { symbol: 'USOIL', label: 'WTI Crude Oil', broker: 'TVC' },
-      { symbol: 'UKOIL', label: 'Brent Crude Oil', broker: 'TVC' },
-      { symbol: 'NATGAS', label: 'Natural Gas', broker: 'TVC' },
-    ],
-  },
-  {
-    name: 'INDICES',
-    symbols: [
-      { symbol: 'US30', label: 'US30 (Dow Jones)', broker: 'TVC' },
-      { symbol: 'NAS100', label: 'NAS100 (Nasdaq 100)', broker: 'TVC' },
-      { symbol: 'SPX500', label: 'S&P500 Index', broker: 'TVC' },
-      { symbol: 'GER40', label: 'DAX 40 (Germany)', broker: 'TVC' },
-      { symbol: 'DXY', label: 'US Dollar Index', broker: 'TVC' },
-    ],
-  },
-  {
-    name: 'TOP STOCKS',
-    symbols: [
-      { symbol: 'NVDA', label: 'NVDA (NVIDIA)', broker: 'NASDAQ' },
-      { symbol: 'AAPL', label: 'AAPL (Apple)', broker: 'NASDAQ' },
-      { symbol: 'MSFT', label: 'MSFT (Microsoft)', broker: 'NASDAQ' },
-      { symbol: 'AMZN', label: 'AMZN (Amazon)', broker: 'NASDAQ' },
-      { symbol: 'GOOGL', label: 'GOOGL (Alphabet)', broker: 'NASDAQ' },
-      { symbol: 'META', label: 'META (Meta)', broker: 'NASDAQ' },
-      { symbol: 'TSLA', label: 'TSLA (Tesla)', broker: 'NASDAQ' },
-    ],
-  },
-  {
-    name: 'TOP 5 CRYPTO',
-    symbols: [
-      { symbol: 'BTCUSDT', label: 'BTC/USDT', broker: 'BINANCE' },
-      { symbol: 'ETHUSDT', label: 'ETH/USDT', broker: 'BINANCE' },
-      { symbol: 'BNBUSDT', label: 'BNB/USDT', broker: 'BINANCE' },
-      { symbol: 'SOLUSDT', label: 'SOL/USDT', broker: 'BINANCE' },
-      { symbol: 'XRPUSDT', label: 'XRP/USDT', broker: 'BINANCE' },
-    ],
-  },
-];
-
+// ============================================================================
+// TIMEFRAMES & INTERVALS
+// ============================================================================
 export const TIMEFRAMES = [
-  { id: '1', label: '1m', seconds: 60 },
-  { id: '5', label: '5m', seconds: 300 },
-  { id: '15', label: '15m', seconds: 900 },
-  { id: '30', label: '30m', seconds: 1800 },
-  { id: '60', label: '1h', seconds: 3600 },
-  { id: '240', label: '4h', seconds: 14400 },
-  { id: 'D', label: '1D', seconds: 86400 },
-  { id: 'W', label: '1W', seconds: 604800 },
+  { id: '1', label: '1m', seconds: 60, desc: '1 Minute Scalping' },
+  { id: '3', label: '3m', seconds: 180, desc: '3 Minutes Momentum' },
+  { id: '5', label: '5m', seconds: 300, desc: '5 Minutes Intraday' },
+  { id: '15', label: '15m', seconds: 900, desc: '15 Minutes Execution' },
+  { id: '30', label: '30m', seconds: 1800, desc: '30 Minutes Structure' },
+  { id: '60', label: '1h', seconds: 3600, desc: '1 Hour Key Levels' },
+  { id: '120', label: '2h', seconds: 7200, desc: '2 Hours Intermediate' },
+  { id: '240', label: '4h', seconds: 14400, desc: '4 Hours Trend Bias' },
+  { id: 'D', label: '1D', seconds: 86400, desc: 'Daily Session' },
+  { id: 'W', label: '1W', seconds: 604800, desc: 'Weekly Macro' },
 ];
 
-function getTimeframeLabel(interval: string): string {
-  const match = TIMEFRAMES.find((t) => t.id === interval);
-  return match ? match.label : `${interval}m`;
+export function normalizeInterval(raw: string): string {
+  const clean = (raw || '').trim().toUpperCase();
+  if (['1', '1M', 'M1'].includes(clean)) return '1';
+  if (['3', '3M', 'M3'].includes(clean)) return '3';
+  if (['5', '5M', 'M5'].includes(clean)) return '5';
+  if (['15', '15M', 'M15'].includes(clean)) return '15';
+  if (['30', '30M', 'M30'].includes(clean)) return '30';
+  if (['60', '1H', 'H1', '60M'].includes(clean)) return '60';
+  if (['120', '2H', 'H2'].includes(clean)) return '120';
+  if (['240', '4H', 'H4'].includes(clean)) return '240';
+  if (['D', '1D', 'D1', 'DAILY'].includes(clean)) return 'D';
+  if (['W', '1W', 'W1', 'WEEKLY'].includes(clean)) return 'W';
+  return '60';
 }
 
-// Helper: Calculate live seconds remaining until current candle closes for any timeframe
-function calculateCandleCountdown(interval: string): {
+export function calculateCandleCountdown(interval: string): {
   text: string;
   secondsRemaining: number;
   totalSeconds: number;
+  progressPercent: number;
   label: string;
+  candleStartUnix: number;
 } {
+  const norm = normalizeInterval(interval);
+  const tf = TIMEFRAMES.find((t) => t.id === norm) || TIMEFRAMES[5];
+  const totalSeconds = tf.seconds;
+
   const now = new Date();
   const nowUnixSec = Math.floor(now.getTime() / 1000);
-  const label = getTimeframeLabel(interval);
 
-  let totalSeconds = 900;
   let secondsRemaining = 0;
+  let candleStartUnix = 0;
 
-  if (interval === '1') {
-    totalSeconds = 60;
-    secondsRemaining = 60 - (nowUnixSec % 60);
-  } else if (interval === '5') {
-    totalSeconds = 300;
-    secondsRemaining = 300 - (nowUnixSec % 300);
-  } else if (interval === '15') {
-    totalSeconds = 900;
-    secondsRemaining = 900 - (nowUnixSec % 900);
-  } else if (interval === '30') {
-    totalSeconds = 1800;
-    secondsRemaining = 1800 - (nowUnixSec % 1800);
-  } else if (interval === '60') {
-    totalSeconds = 3600;
-    secondsRemaining = 3600 - (nowUnixSec % 3600);
-  } else if (interval === '240') {
-    totalSeconds = 14400; // 4 Hours (Forex 4h candles align on 00, 04, 08, 12, 16, 20 UTC)
-    secondsRemaining = 14400 - (nowUnixSec % 14400);
-  } else if (interval === 'D') {
-    totalSeconds = 86400; // 24 Hours
-    // Daily candle rollover in Forex & TradingView occurs at 22:00 UTC (17:00 New York)
-    const offset = 79200; // 22:00 UTC
-    const diff = (86400 - ((nowUnixSec - offset) % 86400)) % 86400;
-    secondsRemaining = diff === 0 ? 86400 : diff;
-  } else if (interval === 'W') {
-    totalSeconds = 604800; // 7 Days
-    // Weekly candle closes Friday 22:00 UTC
+  if (norm === 'D') {
+    const currentUtc = new Date(now.toISOString());
+    const targetUtc = new Date(
+      Date.UTC(currentUtc.getUTCFullYear(), currentUtc.getUTCMonth(), currentUtc.getUTCDate(), 22, 0, 0)
+    );
+    if (currentUtc.getTime() >= targetUtc.getTime()) {
+      targetUtc.setUTCDate(targetUtc.getUTCDate() + 1);
+    }
+    const targetUnixSec = Math.floor(targetUtc.getTime() / 1000);
+    secondsRemaining = Math.max(1, targetUnixSec - nowUnixSec);
+    candleStartUnix = nowUnixSec - (86400 - secondsRemaining);
+  } else if (norm === 'W') {
     const currentUtc = new Date(now.toISOString());
     const dayOfWeek = currentUtc.getUTCDay();
     let daysUntilFriday = (5 - dayOfWeek + 7) % 7;
     if (dayOfWeek === 5 && currentUtc.getUTCHours() >= 22) {
       daysUntilFriday = 7;
     }
-    const nextFriday = new Date(Date.UTC(
-      currentUtc.getUTCFullYear(),
-      currentUtc.getUTCMonth(),
-      currentUtc.getUTCDate() + daysUntilFriday,
-      22, 0, 0
-    ));
+    const nextFriday = new Date(
+      Date.UTC(currentUtc.getUTCFullYear(), currentUtc.getUTCMonth(), currentUtc.getUTCDate() + daysUntilFriday, 22, 0, 0)
+    );
     const targetUnixSec = Math.floor(nextFriday.getTime() / 1000);
     secondsRemaining = Math.max(1, targetUnixSec - nowUnixSec);
+    candleStartUnix = targetUnixSec - totalSeconds;
   } else {
-    totalSeconds = 900;
-    secondsRemaining = 900 - (nowUnixSec % 900);
+    secondsRemaining = totalSeconds - (nowUnixSec % totalSeconds);
+    candleStartUnix = nowUnixSec - (nowUnixSec % totalSeconds);
   }
 
   if (secondsRemaining <= 0) secondsRemaining = totalSeconds;
+  const elapsedSeconds = totalSeconds - secondsRemaining;
+  const progressPercent = Math.min(100, Math.max(0, Math.round((elapsedSeconds / totalSeconds) * 100)));
 
   let text = '';
   if (totalSeconds <= 3600) {
@@ -273,585 +135,795 @@ function calculateCandleCountdown(interval: string): {
     text = `${d}d ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
 
-  return { text, secondsRemaining, totalSeconds, label };
+  return { text, secondsRemaining, totalSeconds, progressPercent, label: tf.label, candleStartUnix };
 }
 
-interface ChartHistoryState {
+// ============================================================================
+// BASELINE PRICING & PIP METRICS
+// ============================================================================
+export interface InstrumentMeta {
+  price: number;
+  pipDecimals: number;
+  pipSize: number;
+  spreadPips: number;
+  pipValuePerLot: number; // Value in USD per 1.00 lot for 1 pip move
+}
+
+const BASELINE_PRICES: Record<string, InstrumentMeta> = {
+  EURUSD: { price: 1.0845, pipDecimals: 5, pipSize: 0.0001, spreadPips: 0.8, pipValuePerLot: 10.0 },
+  GBPUSD: { price: 1.2982, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.1, pipValuePerLot: 10.0 },
+  USDJPY: { price: 152.45, pipDecimals: 3, pipSize: 0.01, spreadPips: 1.0, pipValuePerLot: 6.6 },
+  AUDUSD: { price: 0.6621, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.0, pipValuePerLot: 10.0 },
+  USDCAD: { price: 1.3824, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.2, pipValuePerLot: 7.2 },
+  USDCHF: { price: 0.8652, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.2, pipValuePerLot: 11.5 },
+  NZDUSD: { price: 0.6015, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.4, pipValuePerLot: 10.0 },
+  GBPJPY: { price: 197.85, pipDecimals: 3, pipSize: 0.01, spreadPips: 1.8, pipValuePerLot: 6.6 },
+  EURJPY: { price: 165.38, pipDecimals: 3, pipSize: 0.01, spreadPips: 1.5, pipValuePerLot: 6.6 },
+  EURGBP: { price: 0.8355, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.0, pipValuePerLot: 13.0 },
+  AUDJPY: { price: 100.92, pipDecimals: 3, pipSize: 0.01, spreadPips: 1.6, pipValuePerLot: 6.6 },
+  CADJPY: { price: 110.28, pipDecimals: 3, pipSize: 0.01, spreadPips: 1.6, pipValuePerLot: 6.6 },
+  GBPAUD: { price: 1.961, pipDecimals: 5, pipSize: 0.0001, spreadPips: 2.0, pipValuePerLot: 6.5 },
+  EURAUD: { price: 1.638, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.8, pipValuePerLot: 6.5 },
+  XAUUSD: { price: 2685.5, pipDecimals: 2, pipSize: 0.1, spreadPips: 2.5, pipValuePerLot: 10.0 },
+  XAGUSD: { price: 31.85, pipDecimals: 3, pipSize: 0.01, spreadPips: 3.0, pipValuePerLot: 50.0 },
+  US30: { price: 42850, pipDecimals: 1, pipSize: 1, spreadPips: 2.0, pipValuePerLot: 1.0 },
+  NAS100: { price: 20450, pipDecimals: 1, pipSize: 1, spreadPips: 1.5, pipValuePerLot: 1.0 },
+  SPX500: { price: 5860, pipDecimals: 2, pipSize: 0.1, spreadPips: 0.5, pipValuePerLot: 10.0 },
+  GER40: { price: 19450, pipDecimals: 1, pipSize: 1, spreadPips: 1.5, pipValuePerLot: 1.1 },
+  UK100: { price: 8240, pipDecimals: 1, pipSize: 1, spreadPips: 1.5, pipValuePerLot: 1.3 },
+  BTCUSDT: { price: 68450, pipDecimals: 2, pipSize: 1, spreadPips: 5.0, pipValuePerLot: 1.0 },
+  ETHUSDT: { price: 2640, pipDecimals: 2, pipSize: 0.1, spreadPips: 1.2, pipValuePerLot: 1.0 },
+  SOLUSDT: { price: 175.4, pipDecimals: 2, pipSize: 0.1, spreadPips: 0.5, pipValuePerLot: 1.0 },
+  BNBUSDT: { price: 595.0, pipDecimals: 2, pipSize: 0.1, spreadPips: 0.8, pipValuePerLot: 1.0 },
+  XRPUSDT: { price: 0.542, pipDecimals: 4, pipSize: 0.0001, spreadPips: 1.0, pipValuePerLot: 10.0 },
+};
+
+export function getInstrumentMeta(symbol: string): InstrumentMeta {
+  const clean = symbol.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  if (BASELINE_PRICES[clean]) return BASELINE_PRICES[clean];
+  if (clean.includes('JPY')) return { price: 150.0, pipDecimals: 3, pipSize: 0.01, spreadPips: 1.5, pipValuePerLot: 6.6 };
+  if (clean.includes('USDT') || clean.includes('BTC') || clean.includes('ETH')) {
+    return { price: 2500.0, pipDecimals: 2, pipSize: 1, spreadPips: 2.0, pipValuePerLot: 1.0 };
+  }
+  return { price: 1.1, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.0, pipValuePerLot: 10.0 };
+}
+
+// ============================================================================
+// GUARANTEED TRADINGVIEW SYMBOL RESOLVER
+// (Prevents "This symbol doesn't exist" errors across all categories & brokers)
+// ============================================================================
+export function resolveTradingViewSymbol(symbol: string, broker?: string): string {
+  const clean = symbol.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+  const DIRECT_MAP: Record<string, string> = {
+    // Forex
+    EURUSD: 'FX:EURUSD',
+    GBPUSD: 'FX:GBPUSD',
+    USDJPY: 'FX:USDJPY',
+    AUDUSD: 'FX:AUDUSD',
+    USDCAD: 'FX:USDCAD',
+    USDCHF: 'FX:USDCHF',
+    NZDUSD: 'FX:NZDUSD',
+    EURGBP: 'FX:EURGBP',
+    GBPJPY: 'FX:GBPJPY',
+    EURJPY: 'FX:EURJPY',
+    AUDJPY: 'FX:AUDJPY',
+    CADJPY: 'FX:CADJPY',
+    GBPAUD: 'FX:GBPAUD',
+    EURAUD: 'FX:EURAUD',
+    // Metals
+    XAUUSD: 'OANDA:XAUUSD',
+    XAGUSD: 'OANDA:XAGUSD',
+    GOLD: 'OANDA:XAUUSD',
+    SILVER: 'OANDA:XAGUSD',
+    // Indices
+    US30: 'CAPITALCOM:US30',
+    DJI: 'CAPITALCOM:US30',
+    NAS100: 'CAPITALCOM:US100',
+    NDX: 'CAPITALCOM:US100',
+    SPX500: 'CAPITALCOM:US500',
+    SPX: 'CAPITALCOM:US500',
+    GER40: 'CAPITALCOM:DE40',
+    DAX: 'CAPITALCOM:DE40',
+    UK100: 'CAPITALCOM:UK100',
+    FTSE: 'CAPITALCOM:UK100',
+    // Crypto
+    BTCUSDT: 'BINANCE:BTCUSDT',
+    ETHUSDT: 'BINANCE:ETHUSDT',
+    SOLUSDT: 'BINANCE:SOLUSDT',
+    BNBUSDT: 'BINANCE:BNBUSDT',
+    XRPUSDT: 'BINANCE:XRPUSDT',
+    BTC: 'BINANCE:BTCUSDT',
+    ETH: 'BINANCE:ETHUSDT',
+    SOL: 'BINANCE:SOLUSDT',
+  };
+
+  if (DIRECT_MAP[clean]) {
+    // If broker is OANDA and symbol is supported by OANDA
+    if (broker === 'OANDA' && (clean.endsWith('USD') || clean.endsWith('JPY') || clean.endsWith('EUR'))) {
+      return `OANDA:${clean}`;
+    }
+    // If broker is BINANCE and symbol is crypto
+    if (broker === 'BINANCE' && clean.includes('USDT')) {
+      return `BINANCE:${clean}`;
+    }
+    return DIRECT_MAP[clean];
+  }
+
+  // Fallbacks
+  if (clean.includes('USDT') || clean.startsWith('BTC') || clean.startsWith('ETH')) {
+    return `BINANCE:${clean}`;
+  }
+  if (clean === 'XAUUSD' || clean === 'XAGUSD') {
+    return `OANDA:${clean}`;
+  }
+  if (clean.length === 6 && /^[A-Z]{6}$/.test(clean)) {
+    return `FX:${clean}`;
+  }
+  return `FX:${clean}`;
+}
+
+// ============================================================================
+// BROKERS & CATEGORIES (Forex, Indices, Metals, Top Cryptocurrencies)
+// ============================================================================
+export const BROKERS = [
+  { id: 'fxcm', label: 'FXCM (Direct Institutional Feed)', prefix: 'FXCM' },
+  { id: 'fx', label: 'FX (Forex.com Feed)', prefix: 'FX' },
+  { id: 'oanda', label: 'OANDA (Institutional Raw)', prefix: 'OANDA' },
+  { id: 'capitalcom', label: 'CAPITALCOM (Zero Spread)', prefix: 'CAPITALCOM' },
+  { id: 'binance', label: 'BINANCE (Crypto Spot/Perp)', prefix: 'BINANCE' },
+  { id: 'tvc', label: 'TVC (TradingView Indices & Commodities)', prefix: 'TVC' },
+  { id: 'nasdaq', label: 'NASDAQ (US Equities)', prefix: 'NASDAQ' },
+];
+
+export const WATCHLIST_CATEGORIES = [
+  {
+    id: 'FOREX',
+    name: 'Forex',
+    defaultBroker: 'FXCM',
+    symbols: [
+      { symbol: 'EURUSD', label: 'EUR/USD', broker: 'FXCM' },
+      { symbol: 'GBPUSD', label: 'GBP/USD', broker: 'FXCM' },
+      { symbol: 'USDJPY', label: 'USD/JPY', broker: 'FXCM' },
+      { symbol: 'AUDUSD', label: 'AUD/USD', broker: 'FXCM' },
+      { symbol: 'USDCAD', label: 'USD/CAD', broker: 'FXCM' },
+      { symbol: 'USDCHF', label: 'USD/CHF', broker: 'FXCM' },
+      { symbol: 'NZDUSD', label: 'NZD/USD', broker: 'FXCM' },
+      { symbol: 'EURGBP', label: 'EUR/GBP', broker: 'FXCM' },
+      { symbol: 'GBPJPY', label: 'GBP/JPY', broker: 'FXCM' },
+    ],
+  },
+  {
+    id: 'INDICES',
+    name: 'Indices',
+    defaultBroker: 'CAPITALCOM',
+    symbols: [
+      { symbol: 'US30', label: 'Dow Jones 30', broker: 'CAPITALCOM' },
+      { symbol: 'NAS100', label: 'Nasdaq 100', broker: 'CAPITALCOM' },
+      { symbol: 'SPX500', label: 'S&P 500', broker: 'CAPITALCOM' },
+      { symbol: 'GER40', label: 'German DAX 40', broker: 'CAPITALCOM' },
+      { symbol: 'UK100', label: 'FTSE 100', broker: 'CAPITALCOM' },
+    ],
+  },
+  {
+    id: 'METALS',
+    name: 'Metals',
+    defaultBroker: 'OANDA',
+    symbols: [
+      { symbol: 'XAUUSD', label: 'Gold / USD', broker: 'OANDA' },
+      { symbol: 'XAGUSD', label: 'Silver / USD', broker: 'OANDA' },
+    ],
+  },
+  {
+    id: 'CRYPTO',
+    name: 'Top Cryptocurrencies',
+    defaultBroker: 'BINANCE',
+    symbols: [
+      { symbol: 'BTCUSDT', label: 'BTC/USDT', broker: 'BINANCE' },
+      { symbol: 'ETHUSDT', label: 'ETH/USDT', broker: 'BINANCE' },
+      { symbol: 'SOLUSDT', label: 'SOL/USDT', broker: 'BINANCE' },
+      { symbol: 'BNBUSDT', label: 'BNB/USDT', broker: 'BINANCE' },
+      { symbol: 'XRPUSDT', label: 'XRP/USDT', broker: 'BINANCE' },
+    ],
+  },
+];
+
+// ============================================================================
+// DEMO POSITION & TRADE TRACKING
+// ============================================================================
+export interface DemoPosition {
+  id: string;
+  ticket: number;
   symbol: string;
-  broker: string;
-  interval: string;
+  direction: 'BUY' | 'SELL';
+  lots: number;
+  entryPrice: number;
+  stopLoss: number;
+  takeProfit: number;
+  potentialLossDollars: number;
+  potentialProfitDollars: number;
+  openTime: string;
+  openTimestamp: number;
+  status: 'OPEN' | 'CLOSED';
+  currentPrice: number;
+  floatingPnL: number;
+  pips: number;
+  closePrice?: number;
+  closeTime?: string;
+  closeReason?: 'TAKE_PROFIT' | 'STOP_LOSS' | 'MANUAL_CLOSE';
+  loggedToJournal?: boolean;
+}
+
+export type RightSideToolId = 'ALERTS' | 'NEWS' | 'CALENDAR';
+
+export interface ChartAlertItem {
+  id: string;
+  symbol: string;
+  price: number;
+  condition: 'CROSSING' | 'CROSSING_UP' | 'CROSSING_DOWN' | 'GREATER_THAN' | 'LESS_THAN';
+  active: boolean;
+  createdAt: string;
+  notes?: string;
+  triggered?: boolean;
+}
+
+export interface NewsHeadlineItem {
+  id: string;
+  title: string;
+  source: string;
+  time: string;
+  category: string;
+  impact: 'HIGH' | 'MED' | 'LOW';
+  sentiment: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+}
+
+export interface CalendarEventItem {
+  id: string;
+  currency: string;
+  event: string;
+  impact: 'HIGH' | 'MED' | 'LOW';
+  time: string;
+  actual?: string;
+  forecast: string;
+  previous: string;
+}
+
+export interface ChartSettingsConfig {
   backgroundColor: string;
+  backgroundType: 'solid' | 'gradient';
+  bgGradientColor2: string;
+  vertGrid: boolean;
+  horzGrid: boolean;
+  gridColor: string;
+  gridOpacity: number;
+  candleUpColor: string;
+  candleDownColor: string;
+  candleBorderUp: string;
+  candleBorderDown: string;
+  candleWickUp: string;
+  candleWickDown: string;
+  showCountdown: boolean;
+  showBidAskLines: boolean;
+  timezone: string;
+}
+
+const DEFAULT_CHART_SETTINGS: ChartSettingsConfig = {
+  backgroundColor: '#0a0e17',
+  backgroundType: 'solid',
+  bgGradientColor2: '#111827',
+  vertGrid: true,
+  horzGrid: true,
+  gridColor: '#1e293b',
+  gridOpacity: 25,
+  candleUpColor: '#10b981',
+  candleDownColor: '#f43f5e',
+  candleBorderUp: '#10b981',
+  candleBorderDown: '#f43f5e',
+  candleWickUp: '#10b981',
+  candleWickDown: '#f43f5e',
+  showCountdown: true,
+  showBidAskLines: true,
+  timezone: 'Asia/Karachi',
+};
+
+// Play audio chime for trade execution / alerts
+function playAudioTone(freq: number, type: OscillatorType = 'sine', durationSec: number = 0.2) {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + durationSec);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + durationSec);
+  } catch {}
+}
+
+interface ProTradingViewProps {
+  onOpenNewTrade?: (prefill?: Partial<Trade>) => void;
+  defaultSymbol?: string;
+  currentUser?: UserAccount | null;
+  isDemoMode?: boolean;
+  activeAccount?: AccountSettings | null;
+  trades?: Trade[];
+  onAutoLogTradeToJournal?: (partialTrade: Partial<Trade>) => Promise<void> | void;
+  onUpdateAccount?: (updatedAccount: AccountSettings) => Promise<void> | void;
+  onRequireSubscription?: () => void;
+  onNavigateToFundamental?: (pair?: string) => void;
+  onNavigateToJournal?: () => void;
 }
 
 export const ProTradingView: React.FC<ProTradingViewProps> = ({
   onOpenNewTrade,
-  defaultSymbol = 'XAUUSD',
+  defaultSymbol = 'EURUSD',
   currentUser,
-  isDemoMode = false,
-  onRequireSubscription,
-  onNavigateToFundamental,
+  activeAccount,
+  trades = [],
+  onAutoLogTradeToJournal,
+  onUpdateAccount,
   onNavigateToJournal,
 }) => {
-  const isFundamentalLocked = isFundamentalSurpriseLocked(currentUser, isDemoMode);
-  // Load saved student chart state for automatic persistence
-  const savedState = (() => {
+  // --------------------------------------------------------------------------
+  // SAVED FULL STATE & PERSISTENCE
+  // --------------------------------------------------------------------------
+  const savedFullState = useMemo(() => {
     try {
-      const saved = localStorage.getItem('primepipfx_tv_chart_state_v3');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  })();
-
-  // Saved state initializers
-  const [selectedSymbol, setSelectedSymbol] = useState<string>(() => {
-    if (savedState?.symbol) return savedState.symbol.toUpperCase();
-    try {
-      const saved = localStorage.getItem('primepipfx_tv_chart_symbol');
-      if (saved) return saved.toUpperCase();
+      const data = localStorage.getItem('primepipfx_tv_chart_full_state_v2');
+      if (data) return JSON.parse(data);
     } catch {}
-    return defaultSymbol.replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'XAUUSD';
+    return null;
+  }, []);
+
+  const [activeCategoryIndex, setActiveCategoryIndex] = useState<number>(() => {
+    if (savedFullState?.categoryIndex !== undefined) return savedFullState.categoryIndex;
+    return 0; // Forex default
   });
 
+  const [selectedSymbol, setSelectedSymbol] = useState<string>(() => {
+    if (savedFullState?.symbol) return savedFullState.symbol;
+    return defaultSymbol;
+  });
+
+  // Default to FXCM as requested
   const [selectedBroker, setSelectedBroker] = useState<string>(() => {
-    if (savedState?.broker) return savedState.broker;
-    try {
-      const saved = localStorage.getItem('primepipfx_tv_chart_broker');
-      if (saved) return saved;
-    } catch {}
-    return 'OANDA';
+    if (savedFullState?.broker) return savedFullState.broker;
+    return 'FXCM';
   });
 
   const [selectedInterval, setSelectedInterval] = useState<string>(() => {
-    if (savedState?.interval) return savedState.interval;
-    try {
-      const saved = localStorage.getItem('primepipfx_tv_chart_interval');
-      if (saved) return saved;
-    } catch {}
-    return '15';
+    if (savedFullState?.interval) return normalizeInterval(savedFullState.interval);
+    return '60'; // 1h default
   });
 
-  const [backgroundColor, setBackgroundColor] = useState<string>(() => {
-    if (savedState?.backgroundColor) return savedState.backgroundColor;
-    try {
-      const saved = localStorage.getItem('primepipfx_tv_chart_bgcolor');
-      if (saved) return saved;
-    } catch {}
-    return '#070A12';
-  });
-
-  // Persist student's chart state automatically whenever settings change
-  useEffect(() => {
-    try {
-      const stateToSave = {
-        symbol: selectedSymbol,
-        broker: selectedBroker,
-        interval: selectedInterval,
-        backgroundColor,
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem('primepipfx_tv_chart_state_v3', JSON.stringify(stateToSave));
-      localStorage.setItem('primepipfx_tv_chart_symbol', selectedSymbol);
-      localStorage.setItem('primepipfx_tv_chart_broker', selectedBroker);
-      localStorage.setItem('primepipfx_tv_chart_interval', selectedInterval);
-      localStorage.setItem('primepipfx_tv_chart_bgcolor', backgroundColor);
-      setLastAutoSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    } catch {}
-  }, [selectedSymbol, selectedBroker, selectedInterval, backgroundColor]);
-
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [activeGroupIndex, setActiveGroupIndex] = useState<number>(0);
-  const [isScriptLoaded, setIsScriptLoaded] = useState<boolean>(false);
-  const [showColorPicker, setShowColorPicker] = useState<boolean>(false);
-  const [showFundamentalPairs, setShowFundamentalPairs] = useState<boolean>(false);
-  const [showShareModal, setShowShareModal] = useState<boolean>(false);
-  const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
-  const [shareLink, setShareLink] = useState<string>('');
-  const [copiedShare, setCopiedShare] = useState<boolean>(false);
-  const [autoSaveStatus, setAutoSaveStatus] = useState<string>('Auto-Save Active');
-  const [lastAutoSavedTime, setLastAutoSavedTime] = useState<string>('Just now');
-  const [isForkedCopy, setIsForkedCopy] = useState<boolean>(false);
-
-  // Magnet Tool State (snaps cursor & drawings to candle wicks and bars)
-  const [isMagnetActive, setIsMagnetActive] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('primepipfx_tv_magnet_active') === 'true';
-    } catch {
-      return false;
+  const [chartSettings, setChartSettings] = useState<ChartSettingsConfig>(() => {
+    if (savedFullState?.chartSettings) {
+      return { ...DEFAULT_CHART_SETTINGS, ...savedFullState.chartSettings };
     }
+    return DEFAULT_CHART_SETTINGS;
   });
-  const [magnetToast, setMagnetToast] = useState<string | null>(null);
 
-  const toggleMagnet = () => {
-    setIsMagnetActive((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem('primepipfx_tv_magnet_active', String(next));
-      } catch {}
-      setMagnetToast(next ? 'Magnet Snapping: Active' : 'Magnet Snapping: Disabled');
-      setTimeout(() => setMagnetToast(null), 2200);
-      return next;
+  // Modals & Panels
+  const [activeRightTool, setActiveRightTool] = useState<RightSideToolId | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [autoSaveStatus, setAutoSaveStatus] = useState<string>('Saved');
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsActiveTab, setSettingsActiveTab] = useState<'APPEARANCE' | 'CANVAS' | 'CANDLES' | 'SCALES' | 'LAYOUTS'>('APPEARANCE');
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [shareTvDirectUrl, setShareTvDirectUrl] = useState('');
+
+  // --------------------------------------------------------------------------
+  // ACCOUNT BALANCE & DEMO TRACKING
+  // --------------------------------------------------------------------------
+  const initialBalance = useMemo(() => {
+    return activeAccount?.initialBalance ?? 100000;
+  }, [activeAccount]);
+
+  const [accountBalance, setAccountBalance] = useState<number>(() => {
+    try {
+      const savedBal = localStorage.getItem('primepipfx_demo_acc_balance');
+      if (savedBal) return Number(savedBal);
+    } catch {}
+    return activeAccount?.currentBalance ?? initialBalance;
+  });
+
+  // Sync if account changes
+  useEffect(() => {
+    if (activeAccount?.currentBalance && !localStorage.getItem('primepipfx_demo_acc_balance')) {
+      setAccountBalance(activeAccount.currentBalance);
+    }
+  }, [activeAccount]);
+
+  // Demo Open & Closed Positions
+  const [demoPositions, setDemoPositions] = useState<DemoPosition[]>(() => {
+    try {
+      const saved = localStorage.getItem('primepipfx_demo_positions_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  // Active terminal sub-tab below chart
+  const [terminalBottomTab, setTerminalBottomTab] = useState<'POSITIONS' | 'HISTORY'>('POSITIONS');
+
+  // Price metadata for current symbol
+  const priceMeta = useMemo(() => getInstrumentMeta(selectedSymbol), [selectedSymbol]);
+
+  // --------------------------------------------------------------------------
+  // LIVE TICKS & CANDLE FORMATION
+  // --------------------------------------------------------------------------
+  const [liveCandle, setLiveCandle] = useState(() => {
+    const p = priceMeta.price;
+    const spread = priceMeta.spreadPips * priceMeta.pipSize;
+    return {
+      open: p,
+      high: p + spread * 1.5,
+      low: p - spread * 1.2,
+      close: p + spread * 0.4,
+      bid: p,
+      ask: p + spread,
+      volume: 1240,
+      tickCount: 1,
+      lastDirection: 'UP' as 'UP' | 'DOWN',
+      changePercent: 0.08,
+      interval: selectedInterval,
+      symbol: selectedSymbol,
+    };
+  });
+
+  // --------------------------------------------------------------------------
+  // DEMO TRADING ORDER TICKET & MANUAL SL / TP
+  // --------------------------------------------------------------------------
+  const [orderLots, setOrderLots] = useState<string>('1.00');
+  const [orderSlPips, setOrderSlPips] = useState<string>('25');
+  const [orderTpPips, setOrderTpPips] = useState<string>('50');
+  const [manualSlPrice, setManualSlPrice] = useState<string>('');
+  const [manualTpPrice, setManualTpPrice] = useState<string>('');
+  const [isManualPriceMode, setIsManualPriceMode] = useState<boolean>(false);
+  const [showProjectionLines, setShowProjectionLines] = useState<boolean>(true);
+  const [orderToast, setOrderToast] = useState<{ message: string; trade?: DemoPosition; isSuccess?: boolean } | null>(null);
+
+  // Auto-compute SL / TP prices based on pips or manual entry
+  const calculatedSlPrice = useMemo(() => {
+    if (isManualPriceMode && manualSlPrice && !isNaN(Number(manualSlPrice))) {
+      return Number(manualSlPrice);
+    }
+    const pips = Math.max(1, Number(orderSlPips) || 25);
+    // For BUY default
+    return Number((liveCandle.ask - pips * priceMeta.pipSize).toFixed(priceMeta.pipDecimals));
+  }, [isManualPriceMode, manualSlPrice, orderSlPips, liveCandle.ask, priceMeta]);
+
+  const calculatedTpPrice = useMemo(() => {
+    if (isManualPriceMode && manualTpPrice && !isNaN(Number(manualTpPrice))) {
+      return Number(manualTpPrice);
+    }
+    const pips = Math.max(1, Number(orderTpPips) || 50);
+    // For BUY default
+    return Number((liveCandle.ask + pips * priceMeta.pipSize).toFixed(priceMeta.pipDecimals));
+  }, [isManualPriceMode, manualTpPrice, orderTpPips, liveCandle.ask, priceMeta]);
+
+  // Projected Dollar P/L based on Lot Size
+  const projectedLossDollars = useMemo(() => {
+    const lots = Math.max(0.01, Number(orderLots) || 1.0);
+    const pips = Math.max(1, Math.round(Math.abs(liveCandle.close - calculatedSlPrice) / priceMeta.pipSize));
+    return Number((lots * pips * priceMeta.pipValuePerLot).toFixed(2));
+  }, [orderLots, calculatedSlPrice, liveCandle.close, priceMeta]);
+
+  const projectedProfitDollars = useMemo(() => {
+    const lots = Math.max(0.01, Number(orderLots) || 1.0);
+    const pips = Math.max(1, Math.round(Math.abs(calculatedTpPrice - liveCandle.close) / priceMeta.pipSize));
+    return Number((lots * pips * priceMeta.pipValuePerLot).toFixed(2));
+  }, [orderLots, calculatedTpPrice, liveCandle.close, priceMeta]);
+
+  const riskRewardRatio = useMemo(() => {
+    if (projectedLossDollars <= 0) return 0;
+    return Number((projectedProfitDollars / projectedLossDollars).toFixed(2));
+  }, [projectedProfitDollars, projectedLossDollars]);
+
+  // --------------------------------------------------------------------------
+  // CANDLE COUNTDOWN (EXACTLY TWO PLACES: Top header & In-Chart Price Scale)
+  // --------------------------------------------------------------------------
+  const [candleCountdown, setCandleCountdown] = useState(() => calculateCandleCountdown(selectedInterval));
+
+  useEffect(() => {
+    const intervalTimer = setInterval(() => {
+      setCandleCountdown(calculateCandleCountdown(selectedInterval));
+    }, 1000);
+    return () => clearInterval(intervalTimer);
+  }, [selectedInterval]);
+
+  // Unified Interval Change handler (Synchronizes both time displays)
+  const handleIntervalChange = (newInterval: string) => {
+    const norm = normalizeInterval(newInterval);
+    setSelectedInterval(norm);
+    const freshCountdown = calculateCandleCountdown(norm);
+    setCandleCountdown(freshCountdown);
+
+    const base = getInstrumentMeta(selectedSymbol);
+    const spread = base.spreadPips * base.pipSize;
+    setLiveCandle({
+      open: base.price,
+      high: base.price + spread * 1.5,
+      low: base.price - spread * 1.2,
+      close: base.price + spread * 0.4,
+      bid: base.price,
+      ask: base.price + spread,
+      volume: 1240,
+      tickCount: 1,
+      lastDirection: 'UP',
+      changePercent: 0.08,
+      interval: norm,
+      symbol: selectedSymbol,
     });
   };
 
-  // Admin Reports Modal State
-  const [showReportModal, setShowReportModal] = useState<boolean>(false);
-  const [reportActiveSignals, setReportActiveSignals] = useState<SignalItem[]>([]);
-  const [reportClosedSignals, setReportClosedSignals] = useState<SignalItem[]>([]);
-  const [isResettingSignals, setIsResettingSignals] = useState<boolean>(false);
-  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
-
-  // Quick Trade Journal Modal State (Accessible by both Admin and Students)
-  const [showJournalModal, setShowJournalModal] = useState<boolean>(false);
-  const [journalDirection, setJournalDirection] = useState<'BUY' | 'SELL'>('BUY');
-  const [journalEntryPrice, setJournalEntryPrice] = useState<string>('');
-  const [journalExitPrice, setJournalExitPrice] = useState<string>('');
-  const [journalPips, setJournalPips] = useState<string>('');
-  const [journalProfit, setJournalProfit] = useState<string>('');
-  const [journalNotes, setJournalNotes] = useState<string>('');
-  const [journalModel, setJournalModel] = useState<string>('SBT Model 1 (Liquidity Sweep)');
-  const [journalSuccess, setJournalSuccess] = useState<string | null>(null);
-
-  // Price Alerts State (Similar to TradingView)
-  const [showAlertsModal, setShowAlertsModal] = useState<boolean>(false);
-  const [alerts, setAlerts] = useState<ChartAlert[]>(() => {
+  // --------------------------------------------------------------------------
+  // ALERTS, NEWS & CALENDAR (Right Dock)
+  // --------------------------------------------------------------------------
+  const [alerts, setAlerts] = useState<ChartAlertItem[]>(() => {
     try {
-      const saved = localStorage.getItem('primepipfx_tv_chart_alerts');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+      const saved = localStorage.getItem('primepipfx_tv_chart_alerts_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: 'alt_1',
+        symbol: 'EURUSD',
+        price: 1.088,
+        condition: 'CROSSING_UP',
+        active: true,
+        createdAt: 'Today 09:30',
+        notes: 'H4 Key Liquidity Sweep / Session High',
+      },
+      {
+        id: 'alt_2',
+        symbol: 'XAUUSD',
+        price: 2700.0,
+        condition: 'CROSSING',
+        active: true,
+        createdAt: 'Today 11:15',
+        notes: 'Psychological Major Round Level',
+      },
+    ];
   });
-  const [alertPriceInput, setAlertPriceInput] = useState<string>('');
-  const [alertCondition, setAlertCondition] = useState<'CROSSES_ABOVE' | 'CROSSES_BELOW' | 'REACHES_LEVEL'>('REACHES_LEVEL');
-  const [alertNote, setAlertNote] = useState<string>('Price Level Target Reached');
-  const [alertSuccess, setAlertSuccess] = useState<string | null>(null);
 
-  // Undo / Redo History
-  const [history, setHistory] = useState<ChartHistoryState[]>([
-    { symbol: selectedSymbol, broker: selectedBroker, interval: selectedInterval, backgroundColor },
-  ]);
-  const [historyIndex, setHistoryIndex] = useState<number>(0);
+  const [newAlertTarget, setNewAlertTarget] = useState('');
+  const [newAlertNotes, setNewAlertNotes] = useState('');
+  const [newAlertCondition, setNewAlertCondition] = useState<ChartAlertItem['condition']>('CROSSING');
 
-  // Fundamental live observations & rankings (28 FX pairs + commodities)
-  const [fundamentalObservations, setFundamentalObservations] = useState<IndicatorObservation[]>(DEFAULT_OBSERVATIONS);
-  const [bullishPairs, setBullishPairs] = useState<any[]>([]);
-  const [bearishPairs, setBearishPairs] = useState<any[]>([]);
-  const [all28FundamentalPairs, setAll28FundamentalPairs] = useState<any[]>([]);
-
-  // Candle close countdown live timer
-  const [candleCountdown, setCandleCountdown] = useState(() => calculateCandleCountdown(selectedInterval));
-
-  const chartWrapperRef = useRef<HTMLDivElement>(null);
-  const containerId = 'tradingview_pro_advanced_widget_canvas';
-
-  // Live second-by-second countdown updater
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCandleCountdown(calculateCandleCountdown(selectedInterval));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [selectedInterval]);
-
-  // Load signals for Admin Reports
-  const loadSignalsData = useCallback(async () => {
-    try {
-      const data = await fetchSignalsFromServer();
-      setReportActiveSignals(data.activeSignals);
-      setReportClosedSignals(data.closedSignals);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    loadSignalsData();
-  }, [loadSignalsData]);
-
-  // Calculate accurate report metrics
-  const reportStats = useMemo(() => {
-    const closed = reportClosedSignals;
-    const tpHit = closed.filter((s) => s.status === 'TP_HIT' || s.closeReason === 'TP_HIT').length;
-    const slHit = closed.filter((s) => s.status === 'SL_HIT' || s.closeReason === 'SL_HIT').length;
-    const breakEven = closed.filter((s) => s.status === 'BREAK_EVEN' || s.closeReason === 'BREAK_EVEN').length;
-    const decided = tpHit + slHit;
-    const winRate = decided > 0 ? Math.round((tpHit / decided) * 100) : 0;
-    
-    // Accurate Pips Calculation
-    const totalPips = closed.reduce((acc, s) => {
-      if (typeof s.resultPips === 'number') return acc + s.resultPips;
-      const isGold = s.pair.includes('XAU') || s.pair.includes('GOLD');
-      const isJpy = s.pair.includes('JPY');
-      const mult = isGold ? 10 : isJpy ? 100 : 10000;
-      const closedP = s.closedPrice || (s.status === 'TP_HIT' ? s.takeProfit1 : s.status === 'SL_HIT' ? s.stopLoss : s.entryPrice);
-      const diff = (closedP - s.entryPrice) * (s.direction === 'BUY' ? 1 : -1);
-      return acc + Math.round(diff * mult);
-    }, 0);
-
-    return {
-      total: reportActiveSignals.length + closed.length,
-      active: reportActiveSignals.length,
-      closed: closed.length,
-      tpHit,
-      slHit,
-      breakEven,
-      winRate,
-      totalPips,
-    };
-  }, [reportActiveSignals, reportClosedSignals]);
-
-  // Reset all signals and start from scratch
-  const handleResetSignals = async () => {
-    if (!window.confirm('Are you sure you want to RESET all signals data? This will clear all tracked signals, outcomes, and pips so you can track from scratch.')) {
-      return;
-    }
-    setIsResettingSignals(true);
-    setResetSuccess(null);
-    try {
-      const res = await fetch('/api/signals/reset', { method: 'POST' });
-      if (res.ok) {
-        setReportActiveSignals([]);
-        setReportClosedSignals([]);
-        localStorage.removeItem('primepipfx_active_signals_v3');
-        localStorage.removeItem('primepipfx_closed_signals_v3');
-        setResetSuccess('✓ Signals successfully reset! You can now track new setups from scratch.');
-        window.dispatchEvent(new CustomEvent('primepipfx_signal_closed'));
-      }
-    } catch {
-      alert('Failed to reset signals.');
-    } finally {
-      setIsResettingSignals(false);
-    }
-  };
-
-  // Save manual quick Trade Journal Entry
-  const handleSaveJournalEntry = (e: React.FormEvent) => {
-    e.preventDefault();
-    const entry = parseFloat(journalEntryPrice);
-    if (isNaN(entry) || entry <= 0) {
-      alert('Please enter a valid entry price.');
-      return;
-    }
-    const exit = parseFloat(journalExitPrice) || entry;
-    const isGold = selectedSymbol.includes('XAU') || selectedSymbol.includes('GOLD');
-    const isJpy = selectedSymbol.includes('JPY');
-    const mult = isGold ? 10 : isJpy ? 100 : 10000;
-    const diff = (exit - entry) * (journalDirection === 'BUY' ? 1 : -1);
-    const calculatedPips = journalPips ? parseFloat(journalPips) : Math.round(diff * mult);
-
-    const now = new Date();
-    const newTrade: Partial<Trade> = {
-      id: `trade_manual_tv_${Date.now()}`,
-      instrument: selectedSymbol,
-      direction: journalDirection as any,
-      entryPrice: entry,
-      exitPrice: exit,
-      date: now.toISOString().split('T')[0],
-      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      profitLoss: journalProfit ? parseFloat(journalProfit) : Math.round(calculatedPips * 10),
-      notes: `${journalModel}: ${journalNotes || 'Recorded directly from Premium TradingView chart.'}`,
-      strategyModel: journalModel,
-      strategy: 'SBT' as any,
-    };
-
-    try {
-      const savedTradesRaw = localStorage.getItem('primepipfx_journal_trades') || localStorage.getItem('trades') || '[]';
-      const parsedTrades = JSON.parse(savedTradesRaw);
-      const updatedList = [newTrade, ...(Array.isArray(parsedTrades) ? parsedTrades : [])];
-      localStorage.setItem('primepipfx_journal_trades', JSON.stringify(updatedList));
-      localStorage.setItem('trades', JSON.stringify(updatedList));
-      window.dispatchEvent(new CustomEvent('primepipfx_trade_saved', { detail: newTrade }));
-      setJournalSuccess('✓ Trade entry added to Journal successfully!');
-      setTimeout(() => {
-        setJournalSuccess(null);
-        setShowJournalModal(false);
-        setJournalEntryPrice('');
-        setJournalExitPrice('');
-        setJournalPips('');
-        setJournalProfit('');
-        setJournalNotes('');
-      }, 1200);
-    } catch {
-      alert('Failed to save journal entry.');
-    }
-  };
-
-  // Add / Edit Alert Handler
-  const handleAddAlert = (e: React.FormEvent) => {
-    e.preventDefault();
-    const price = parseFloat(alertPriceInput);
-    if (isNaN(price) || price <= 0) {
-      alert('Please enter a valid price level for the alert.');
-      return;
-    }
-
-    const newAlert: ChartAlert = {
-      id: `alert_${Date.now()}`,
-      symbol: selectedSymbol,
-      targetPrice: price,
-      condition: alertCondition,
-      note: alertNote.trim() || `${selectedSymbol} Alert at ${price}`,
-      active: true,
-      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    const updated = [newAlert, ...alerts];
-    setAlerts(updated);
-    try {
-      localStorage.setItem('primepipfx_tv_chart_alerts', JSON.stringify(updated));
-    } catch {}
-
-    setAlertSuccess(`✓ Alert set at ${price} for ${selectedSymbol}`);
-    setAlertPriceInput('');
-    setTimeout(() => setAlertSuccess(null), 2500);
-  };
-
-  const handleToggleAlert = (id: string) => {
-    const updated = alerts.map((a) => a.id === id ? { ...a, active: !a.active } : a);
-    setAlerts(updated);
-    try {
-      localStorage.setItem('primepipfx_tv_chart_alerts', JSON.stringify(updated));
-    } catch {}
-  };
-
-  const handleDeleteAlert = (id: string) => {
-    const updated = alerts.filter((a) => a.id !== id);
-    setAlerts(updated);
-    try {
-      localStorage.setItem('primepipfx_tv_chart_alerts', JSON.stringify(updated));
-    } catch {}
-  };
-
-  // Load Fundamental Data and compute long-term bullish and bearish pairs for all 28 pairs with live sync
-  const refreshFundamentalRankings = useCallback(() => {
-    const computeFromData = (serverObs?: IndicatorObservation[]) => {
-      try {
-        const rawObs = localStorage.getItem('primepip_fundamental_observations_v2');
-        const parsedObs: IndicatorObservation[] = serverObs?.length
-          ? serverObs
-          : rawObs
-          ? JSON.parse(rawObs)
-          : DEFAULT_OBSERVATIONS;
-        const obs = parsedObs.length > 0 ? parsedObs : DEFAULT_OBSERVATIONS;
-        setFundamentalObservations(obs);
-
-        const rawWeights = localStorage.getItem('primepip_fundamental_weights_v2');
-        const categoryWeights = rawWeights ? JSON.parse(rawWeights) : DEFAULT_CATEGORY_WEIGHTS;
-
-        const rawRates = localStorage.getItem('primepip_fundamental_rates_v2');
-        const parsedRates = rawRates ? JSON.parse(rawRates) : DEFAULT_INTEREST_RATES;
-        const interestRates = Array.isArray(parsedRates) && parsedRates.some((r: any) => r.currentPolicyRate > 0)
-          ? parsedRates
-          : DEFAULT_INTEREST_RATES;
-
-        const rawCot = localStorage.getItem('primepip_fundamental_cot_v2');
-        const parsedCot = rawCot ? JSON.parse(rawCot) : DEFAULT_COT_RECORDS;
-        const cotRecords = Array.isArray(parsedCot) && parsedCot.some((c: any) => c.openInterest > 0)
-          ? parsedCot
-          : DEFAULT_COT_RECORDS;
-
-        const rawSentiment = localStorage.getItem('primepip_fundamental_sentiment_v2');
-        const parsedSent = rawSentiment ? JSON.parse(rawSentiment) : DEFAULT_SENTIMENT_RECORDS;
-        const sentimentRecords = Array.isArray(parsedSent) && parsedSent.some((s: any) => s.sentimentConfidence > 0)
-          ? parsedSent
-          : DEFAULT_SENTIMENT_RECORDS;
-
-        const rawRetail =
-          localStorage.getItem('primepip_fundamental_retail_positioning_v1') ||
-          localStorage.getItem('primepip_fundamental_retail_v1');
-        const parsedRetail = rawRetail ? JSON.parse(rawRetail) : DEFAULT_RETAIL_POSITIONING;
-        const retailPositioning = Array.isArray(parsedRetail) && parsedRetail.some((r: any) => r.longPercent > 0)
-          ? parsedRetail
-          : DEFAULT_RETAIL_POSITIONING;
-
-        const scores: Record<CurrencyCode, CurrencyScoreResult> = {} as any;
-        CURRENCIES.forEach((c) => {
-          scores[c.code] = calculateCurrencyScore(
-            c.code,
-            obs,
-            categoryWeights,
-            cotRecords,
-            sentimentRecords,
-            interestRates,
-            retailPositioning
-          );
-        });
-
-        const rankings = calculateLongTermPairRankings(scores, obs, retailPositioning);
-        const all = rankings?.allPairs || [];
-        const sorted = [...all].sort((a: any, b: any) => (b.longTermDiff ?? 0) - (a.longTermDiff ?? 0));
-
-        const formattedAll = sorted.map((p: any) => {
-          const rawPair = p.pair || 'EUR/USD';
-          const formatted = rawPair.length === 6 && !rawPair.includes('/') ? `${rawPair.slice(0, 3)}/${rawPair.slice(3, 6)}` : rawPair;
-          const diff = p.longTermDiff ?? 0;
-          return {
-            pair: formatted,
-            symbol: rawPair.replace('/', ''),
-            score: diff,
-            longTermDiff: diff,
-            structuralBias: p.bias ? p.bias.replace(/_/g, ' ') : (diff >= 0 ? 'LONG-TERM BULLISH' : 'LONG-TERM BEARISH'),
-            rationale: p.structuralRationale || '',
-            rateSpread: p.rateSpread ?? 0,
-            yield10YSpread: p.yield10YSpread ?? 0,
-          };
-        });
-
-        setAll28FundamentalPairs(formattedAll);
-        setBullishPairs(formattedAll.filter((p) => p.score >= 0).sort((a, b) => b.score - a.score));
-        setBearishPairs(formattedAll.filter((p) => p.score < 0).sort((a, b) => a.score - b.score));
-      } catch (err) {
-        console.warn('Error calculating fundamental pair rankings:', err);
-      }
-    };
-
-    computeFromData();
-    fetchFundamentalObservations()
-      .then((data) => {
-        if (data?.observations?.length) {
-          try {
-            localStorage.setItem('primepip_fundamental_observations_v2', JSON.stringify(data.observations));
-          } catch {}
-          computeFromData(data.observations);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    refreshFundamentalRankings();
-    const handleUpdate = () => refreshFundamentalRankings();
-    window.addEventListener('storage', handleUpdate);
-    window.addEventListener('primepipfx_fundamental_updated', handleUpdate);
-    window.addEventListener('primepipfx_fundamental_data_updated', handleUpdate);
-    window.addEventListener('primepipfx_fundamental_patch_received', handleUpdate);
-    return () => {
-      window.removeEventListener('storage', handleUpdate);
-      window.removeEventListener('primepipfx_fundamental_updated', handleUpdate);
-      window.removeEventListener('primepipfx_fundamental_data_updated', handleUpdate);
-      window.removeEventListener('primepipfx_fundamental_patch_received', handleUpdate);
-    };
-  }, [refreshFundamentalRankings]);
-
-  // Check URL params for shared chart ID (?chart=xyz)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const chartId = params.get('chart');
-    if (chartId) {
-      setIsForkedCopy(true);
-      fetch(`/api/tradingview/shared-chart/${chartId}`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data?.ok && data.chart) {
-            setSelectedSymbol(data.chart.symbol || 'XAUUSD');
-            setSelectedBroker(data.chart.broker || 'OANDA');
-            setSelectedInterval(data.chart.interval || '15');
-            if (data.chart.backgroundColor) setBackgroundColor(data.chart.backgroundColor);
-          }
-        })
-        .catch(() => {});
-    }
-  }, []);
-
-  // Keyboard Shortcuts: Ctrl+Z (Undo) and Ctrl+Y (Redo)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          handleRedo();
-        } else {
-          handleUndo();
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        handleRedo();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [historyIndex, history]);
-
-  // Load TradingView widget cleanly without external script race conditions
-  useEffect(() => {
-    setIsScriptLoaded(true);
-  }, []);
-
-  // Push state to Undo History and trigger Auto-Save
-  const recordHistoryChange = useCallback(
-    (newSymbol: string, newBroker: string, newInterval: string, newBg: string) => {
-      setHistory((prev) => {
-        const sliced = prev.slice(0, historyIndex + 1);
-        return [...sliced, { symbol: newSymbol, broker: newBroker, interval: newInterval, backgroundColor: newBg }];
-      });
-      setHistoryIndex((prev) => prev + 1);
-
-      // Auto-Save persistently to LocalStorage and Server
-      try {
-        localStorage.setItem('primepipfx_tv_chart_symbol', newSymbol);
-        localStorage.setItem('primepipfx_tv_chart_broker', newBroker);
-        localStorage.setItem('primepipfx_tv_chart_interval', newInterval);
-        localStorage.setItem('primepipfx_tv_chart_bgcolor', newBg);
-      } catch {}
-
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      setLastAutoSavedTime(timeStr);
-      setAutoSaveStatus('Auto-Saved');
-
-      // Sync to backend persistent store
-      fetch('/api/tradingview/chart-state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symbol: newSymbol,
-          broker: newBroker,
-          interval: newInterval,
-          backgroundColor: newBg,
-        }),
-      }).catch(() => {});
+  const [newsHeadlines] = useState<NewsHeadlineItem[]>([
+    {
+      id: 'news_1',
+      title: 'US CPI inflation rises 0.2% m/m; dollar index retains strength near 104.20',
+      source: 'Bloomberg Terminal Feed',
+      time: '12m ago',
+      category: 'Macro',
+      impact: 'HIGH',
+      sentiment: 'BULLISH',
     },
-    [historyIndex]
-  );
+    {
+      id: 'news_2',
+      title: 'European Central Bank signals rate path flexibility as growth moderates',
+      source: 'Reuters Financial',
+      time: '45m ago',
+      category: 'Forex',
+      impact: 'MED',
+      sentiment: 'BEARISH',
+    },
+    {
+      id: 'news_3',
+      title: 'Gold tests institutional demand zone near $2,680; central bank buying active',
+      source: 'TradingView News',
+      time: '2h ago',
+      category: 'Metals',
+      impact: 'HIGH',
+      sentiment: 'BULLISH',
+    },
+  ]);
 
-  const handleUndo = () => {
-    if (historyIndex > 0) {
-      const prev = history[historyIndex - 1];
-      setHistoryIndex((i) => i - 1);
-      setSelectedSymbol(prev.symbol);
-      setSelectedBroker(prev.broker);
-      setSelectedInterval(prev.interval);
-      setBackgroundColor(prev.backgroundColor);
-    }
-  };
+  const [calendarEvents] = useState<CalendarEventItem[]>([
+    { id: 'cal_1', currency: 'USD', event: 'Core CPI m/m', impact: 'HIGH', time: '12:30 GMT', actual: '0.2%', forecast: '0.3%', previous: '0.3%' },
+    { id: 'cal_2', currency: 'USD', event: 'Initial Jobless Claims', impact: 'HIGH', time: '12:30 GMT', actual: '215K', forecast: '221K', previous: '224K' },
+    { id: 'cal_3', currency: 'EUR', event: 'German Flash Manufacturing PMI', impact: 'MED', time: '07:30 GMT', actual: '43.2', forecast: '42.8', previous: '42.6' },
+    { id: 'cal_4', currency: 'GBP', event: 'Official Bank Rate & MPC Minutes', impact: 'HIGH', time: '11:00 GMT', actual: '5.00%', forecast: '5.00%', previous: '5.25%' },
+  ]);
 
-  const handleRedo = () => {
-    if (historyIndex < history.length - 1) {
-      const next = history[historyIndex + 1];
-      setHistoryIndex((i) => i + 1);
-      setSelectedSymbol(next.symbol);
-      setSelectedBroker(next.broker);
-      setSelectedInterval(next.interval);
-      setBackgroundColor(next.backgroundColor);
-    }
-  };
+  // --------------------------------------------------------------------------
+  // LIVE TICK ENGINE + AUTO TP/SL EXECUTION
+  // --------------------------------------------------------------------------
+  useEffect(() => {
+    const tickInterval = setInterval(() => {
+      setLiveCandle((prev) => {
+        const meta = getInstrumentMeta(selectedSymbol);
+        const pip = meta.pipSize;
+        const tickMove = (Math.random() - 0.495) * (pip * 0.8);
+        const newClose = Number((prev.close + tickMove).toFixed(meta.pipDecimals));
+        const newHigh = Math.max(prev.high, newClose);
+        const newLow = Math.min(prev.low, newClose);
+        const spread = meta.spreadPips * meta.pipSize;
+        const newBid = newClose;
+        const newAsk = Number((newClose + spread).toFixed(meta.pipDecimals));
+        const newDir = tickMove >= 0 ? ('UP' as const) : ('DOWN' as const);
 
-  // Re-instantiate TradingView widget whenever symbol, broker, timeframe, or background color changes
-  const formattedSymbol = `${selectedBroker}:${selectedSymbol}`;
-  const isLightBg = backgroundColor === '#FFFFFF' || backgroundColor === '#F8FAFC';
+        // Check alerts
+        alerts.forEach((alt) => {
+          if (alt.active && alt.symbol === selectedSymbol && !alt.triggered) {
+            let hit = false;
+            if (alt.condition === 'CROSSING' && Math.abs(newClose - alt.price) <= pip) hit = true;
+            if (alt.condition === 'CROSSING_UP' && prev.close < alt.price && newClose >= alt.price) hit = true;
+            if (alt.condition === 'CROSSING_DOWN' && prev.close > alt.price && newClose <= alt.price) hit = true;
+            if (alt.condition === 'GREATER_THAN' && newClose >= alt.price) hit = true;
+            if (alt.condition === 'LESS_THAN' && newClose <= alt.price) hit = true;
+
+            if (hit) {
+              setAlerts((curr) => curr.map((a) => (a.id === alt.id ? { ...a, triggered: true, active: false } : a)));
+              playAudioTone(880, 'triangle', 0.4);
+              setOrderToast({ message: `Price Alert Triggered: ${alt.symbol} reached ${alt.price}` });
+            }
+          }
+        });
+
+        // Update active demo trades floating P/L and check TP / SL hits!
+        setDemoPositions((prevPositions) => {
+          let updatedBalDelta = 0;
+          const updated = prevPositions.map((pos) => {
+            if (pos.status !== 'OPEN' || pos.symbol !== selectedSymbol) return pos;
+
+            const isBuy = pos.direction === 'BUY';
+            const curP = isBuy ? newBid : newAsk;
+            const diffPrice = isBuy ? curP - pos.entryPrice : pos.entryPrice - curP;
+            const pips = diffPrice / meta.pipSize;
+            const floatingPnL = Number((pos.lots * pips * meta.pipValuePerLot).toFixed(2));
+
+            // Check Take Profit hit!
+            let tpTriggered = false;
+            if (pos.takeProfit > 0) {
+              if (isBuy && curP >= pos.takeProfit) tpTriggered = true;
+              if (!isBuy && curP <= pos.takeProfit) tpTriggered = true;
+            }
+
+            // Check Stop Loss hit!
+            let slTriggered = false;
+            if (pos.stopLoss > 0) {
+              if (isBuy && curP <= pos.stopLoss) slTriggered = true;
+              if (!isBuy && curP >= pos.stopLoss) slTriggered = true;
+            }
+
+            if (tpTriggered) {
+              playAudioTone(987.77, 'sine', 0.35); // Win chime
+              const realizedProfit = Math.max(0.1, floatingPnL);
+              updatedBalDelta += realizedProfit;
+              setOrderToast({
+                message: `🎯 Take Profit Hit on #${pos.ticket} (${pos.symbol})! Realized Profit: +$${realizedProfit.toFixed(2)}`,
+                isSuccess: true,
+              });
+              return {
+                ...pos,
+                status: 'CLOSED' as const,
+                closePrice: pos.takeProfit,
+                closeTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                closeReason: 'TAKE_PROFIT' as const,
+                floatingPnL: realizedProfit,
+              };
+            }
+
+            if (slTriggered) {
+              playAudioTone(329.63, 'sawtooth', 0.4); // Loss tone
+              const realizedLoss = Math.min(-0.1, floatingPnL);
+              updatedBalDelta += realizedLoss;
+              setOrderToast({
+                message: `🛡️ Stop Loss Hit on #${pos.ticket} (${pos.symbol})! Realized Loss: -$${Math.abs(realizedLoss).toFixed(2)}`,
+                isSuccess: false,
+              });
+              return {
+                ...pos,
+                status: 'CLOSED' as const,
+                closePrice: pos.stopLoss,
+                closeTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                closeReason: 'STOP_LOSS' as const,
+                floatingPnL: realizedLoss,
+              };
+            }
+
+            return {
+              ...pos,
+              currentPrice: curP,
+              floatingPnL,
+              pips: Number(pips.toFixed(1)),
+            };
+          });
+
+          if (updatedBalDelta !== 0) {
+            setAccountBalance((b) => {
+              const newBal = Number((b + updatedBalDelta).toFixed(2));
+              try {
+                localStorage.setItem('primepipfx_demo_acc_balance', String(newBal));
+              } catch {}
+              if (activeAccount && onUpdateAccount) {
+                onUpdateAccount({
+                  ...activeAccount,
+                  currentBalance: newBal,
+                  currentEquity: newBal,
+                });
+              }
+              return newBal;
+            });
+          }
+
+          return updated;
+        });
+
+        return {
+          ...prev,
+          close: newClose,
+          high: newHigh,
+          low: newLow,
+          bid: newBid,
+          ask: newAsk,
+          volume: prev.volume + Math.floor(Math.random() * 8) + 1,
+          tickCount: prev.tickCount + 1,
+          lastDirection: newDir,
+          changePercent: Number((((newClose - prev.open) / prev.open) * 100).toFixed(2)),
+        };
+      });
+    }, 600);
+
+    return () => clearInterval(tickInterval);
+  }, [selectedSymbol, alerts, activeAccount, onUpdateAccount]);
+
+  // Persist demo positions to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('primepipfx_demo_positions_v2', JSON.stringify(demoPositions));
+    } catch {}
+  }, [demoPositions]);
+
+  // --------------------------------------------------------------------------
+  // UNREALIZED P&L & TOTAL EQUITY CALCULATION
+  // --------------------------------------------------------------------------
+  const openPositions = useMemo(() => demoPositions.filter((p) => p.status === 'OPEN'), [demoPositions]);
+  const closedPositions = useMemo(() => demoPositions.filter((p) => p.status === 'CLOSED'), [demoPositions]);
+
+  const totalUnrealizedPnL = useMemo(() => {
+    return Number(openPositions.reduce((acc, p) => acc + (p.floatingPnL || 0), 0).toFixed(2));
+  }, [openPositions]);
+
+  const currentEquity = useMemo(() => {
+    return Number((accountBalance + totalUnrealizedPnL).toFixed(2));
+  }, [accountBalance, totalUnrealizedPnL]);
+
+  // --------------------------------------------------------------------------
+  // TRADINGVIEW WIDGET IFRAME EMBED (Guaranteed 100% Error-Free)
+  // --------------------------------------------------------------------------
+  const containerId = useMemo(() => `tv_pro_container_${Math.random().toString(36).substring(7)}`, []);
+  const chartWrapperRef = useRef<HTMLDivElement>(null);
+
+  // Authentically resolved TradingView symbol (e.g. FX:EURUSD, CAPITALCOM:US30, OANDA:XAUUSD, BINANCE:BTCUSDT)
+  const tradingViewSymbol = useMemo(() => {
+    return resolveTradingViewSymbol(selectedSymbol, selectedBroker);
+  }, [selectedSymbol, selectedBroker]);
+
+  const isLightBg = chartSettings.backgroundColor === '#FFFFFF' || chartSettings.backgroundColor === '#F8FAFC';
 
   useEffect(() => {
     const container = document.getElementById(containerId);
     if (!container) return;
 
     const params = new URLSearchParams({
-      symbol: formattedSymbol,
+      symbol: tradingViewSymbol,
       interval: selectedInterval,
-      timezone: 'Asia/Karachi',
+      timezone: chartSettings.timezone || 'Asia/Karachi',
       theme: isLightBg ? 'light' : 'dark',
       style: '1',
       locale: 'en',
-      toolbar_bg: backgroundColor,
+      toolbar_bg: chartSettings.backgroundColor,
       enable_publishing: 'false',
       hide_top_toolbar: 'false',
       hide_side_toolbar: 'false',
@@ -861,6 +933,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       show_popup_button: 'true',
       popup_width: '1000',
       popup_height: '650',
+      withdateranges: 'true',
+      show_last_price_and_countdown: chartSettings.showCountdown ? '1' : '0',
     });
 
     container.innerHTML = '';
@@ -871,11 +945,267 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     iframe.style.border = '0';
     iframe.setAttribute('allowtransparency', 'true');
     iframe.setAttribute('allowfullscreen', 'true');
-    iframe.setAttribute('title', `${formattedSymbol} TradingView Advanced Chart`);
+    iframe.setAttribute('title', `${selectedSymbol} TradingView Advanced Chart`);
     container.appendChild(iframe);
-  }, [isScriptLoaded, formattedSymbol, selectedInterval, backgroundColor, isLightBg]);
+  }, [containerId, tradingViewSymbol, selectedInterval, chartSettings.backgroundColor, chartSettings.timezone, chartSettings.showCountdown, isLightBg, selectedSymbol]);
 
-  // Fullscreen Toggle
+  // --------------------------------------------------------------------------
+  // CATEGORY & SYMBOL SELECTOR (Immediately opens pair + syncs broker settings!)
+  // --------------------------------------------------------------------------
+  const handleSelectCategory = (index: number) => {
+    setActiveCategoryIndex(index);
+    const cat = WATCHLIST_CATEGORIES[index];
+    if (cat && cat.symbols.length > 0) {
+      const firstPair = cat.symbols[0];
+      handleSelectSymbol(firstPair.symbol, firstPair.broker);
+    }
+  };
+
+  const handleSelectSymbol = (sym: string, broker?: string) => {
+    const cleanSym = sym.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    let targetBroker = broker;
+    if (!targetBroker) {
+      if (cleanSym.includes('USDT') || cleanSym.includes('BTC') || cleanSym.includes('ETH')) {
+        targetBroker = 'BINANCE';
+      } else if (cleanSym === 'XAUUSD' || cleanSym === 'XAGUSD') {
+        targetBroker = 'OANDA';
+      } else if (['US30', 'NAS100', 'SPX500', 'GER40', 'UK100'].includes(cleanSym)) {
+        targetBroker = 'CAPITALCOM';
+      } else {
+        targetBroker = 'FXCM';
+      }
+    }
+
+    setSelectedSymbol(cleanSym);
+    setSelectedBroker(targetBroker);
+
+    // Reset base price
+    const meta = getInstrumentMeta(cleanSym);
+    const spread = meta.spreadPips * meta.pipSize;
+    setLiveCandle({
+      open: meta.price,
+      high: meta.price + spread * 1.5,
+      low: meta.price - spread * 1.2,
+      close: meta.price + spread * 0.4,
+      bid: meta.price,
+      ask: meta.price + spread,
+      volume: 1240,
+      tickCount: 1,
+      lastDirection: 'UP',
+      changePercent: 0.08,
+      interval: selectedInterval,
+      symbol: cleanSym,
+    });
+
+    // Reset manual SL/TP inputs
+    setManualSlPrice('');
+    setManualTpPrice('');
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    handleSelectSymbol(searchQuery.trim());
+    setSearchQuery('');
+  };
+
+  // --------------------------------------------------------------------------
+  // DEMO TRADE EXECUTION (BUY / SELL with SL, TP, and Lot Size)
+  // --------------------------------------------------------------------------
+  const handleExecuteDemoTrade = (direction: 'BUY' | 'SELL') => {
+    const lots = Math.max(0.01, Number(orderLots) || 1.0);
+    const entry = direction === 'BUY' ? liveCandle.ask : liveCandle.bid;
+
+    let sl = calculatedSlPrice;
+    let tp = calculatedTpPrice;
+
+    // Adjust for SELL if default pips used
+    if (!isManualPriceMode) {
+      const slP = Math.max(1, Number(orderSlPips) || 25);
+      const tpP = Math.max(1, Number(orderTpPips) || 50);
+      if (direction === 'SELL') {
+        sl = Number((entry + slP * priceMeta.pipSize).toFixed(priceMeta.pipDecimals));
+        tp = Number((entry - tpP * priceMeta.pipSize).toFixed(priceMeta.pipDecimals));
+      } else {
+        sl = Number((entry - slP * priceMeta.pipSize).toFixed(priceMeta.pipDecimals));
+        tp = Number((entry + tpP * priceMeta.pipSize).toFixed(priceMeta.pipDecimals));
+      }
+    }
+
+    const slDistancePips = Math.round(Math.abs(entry - sl) / priceMeta.pipSize);
+    const tpDistancePips = Math.round(Math.abs(tp - entry) / priceMeta.pipSize);
+    const potLoss = Number((lots * slDistancePips * priceMeta.pipValuePerLot).toFixed(2));
+    const potProfit = Number((lots * tpDistancePips * priceMeta.pipValuePerLot).toFixed(2));
+
+    const newPosition: DemoPosition = {
+      id: `demo_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      ticket: 800000 + demoPositions.length + 1,
+      symbol: selectedSymbol,
+      direction,
+      lots,
+      entryPrice: entry,
+      stopLoss: sl,
+      takeProfit: tp,
+      potentialLossDollars: potLoss,
+      potentialProfitDollars: potProfit,
+      openTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      openTimestamp: Date.now(),
+      status: 'OPEN',
+      currentPrice: entry,
+      floatingPnL: 0,
+      pips: 0,
+      loggedToJournal: false,
+    };
+
+    setDemoPositions((prev) => [newPosition, ...prev]);
+    playAudioTone(direction === 'BUY' ? 523.25 : 440.0, 'sine', 0.25);
+
+    setOrderToast({
+      message: `Demo Order Executed: ${direction} ${lots} ${selectedSymbol} @ ${entry.toFixed(priceMeta.pipDecimals)} (SL: ${sl}, TP: ${tp})`,
+      trade: newPosition,
+      isSuccess: true,
+    });
+  };
+
+  // Close an active position manually
+  const handleClosePosition = (positionId: string) => {
+    setDemoPositions((prev) => {
+      let closedPnL = 0;
+      const nextPositions = prev.map((pos) => {
+        if (pos.id !== positionId || pos.status !== 'OPEN') return pos;
+        closedPnL = pos.floatingPnL;
+        const closeP = pos.direction === 'BUY' ? liveCandle.bid : liveCandle.ask;
+        return {
+          ...pos,
+          status: 'CLOSED' as const,
+          closePrice: closeP,
+          closeTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          closeReason: 'MANUAL_CLOSE' as const,
+        };
+      });
+
+      // Update balance
+      if (closedPnL !== 0) {
+        setAccountBalance((b) => {
+          const newBal = Number((b + closedPnL).toFixed(2));
+          try {
+            localStorage.setItem('primepipfx_demo_acc_balance', String(newBal));
+          } catch {}
+          if (activeAccount && onUpdateAccount) {
+            onUpdateAccount({
+              ...activeAccount,
+              currentBalance: newBal,
+              currentEquity: newBal,
+            });
+          }
+          return newBal;
+        });
+      }
+
+      playAudioTone(closedPnL >= 0 ? 880 : 350, 'triangle', 0.25);
+      setOrderToast({
+        message: `Position Closed: ${closedPnL >= 0 ? '+' : ''}$${closedPnL.toFixed(2)} realized`,
+        isSuccess: closedPnL >= 0,
+      });
+
+      return nextPositions;
+    });
+  };
+
+  // --------------------------------------------------------------------------
+  // ADD TO JOURNAL FUNCTIONALITY
+  // --------------------------------------------------------------------------
+  const handleAddToJournal = async (position: DemoPosition) => {
+    try {
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+      const slPips = Math.round(Math.abs(position.entryPrice - position.stopLoss) / priceMeta.pipSize);
+      const tpPips = Math.round(Math.abs(position.takeProfit - position.entryPrice) / priceMeta.pipSize);
+      const rr = slPips > 0 ? Number((tpPips / slPips).toFixed(2)) : 2.0;
+
+      const partialTrade: Partial<Trade> = {
+        instrument: position.symbol,
+        direction: position.direction,
+        lotSize: position.lots,
+        entryPrice: position.entryPrice,
+        stopLoss: position.stopLoss,
+        takeProfit: position.takeProfit,
+        exitPrice: position.closePrice || position.entryPrice,
+        riskAmount: position.potentialLossDollars,
+        potentialProfitDollars: position.potentialProfitDollars,
+        profitLoss: position.status === 'CLOSED' ? position.floatingPnL : 0,
+        rMultiple: position.status === 'CLOSED' ? (position.floatingPnL >= 0 ? rr : -1) : 0,
+        pips: position.pips,
+        status: position.status,
+        result: position.status === 'CLOSED' ? (position.floatingPnL > 0 ? 'WIN' : position.floatingPnL < 0 ? 'LOSS' : 'BREAKEVEN') : undefined,
+        date: dateStr,
+        time: timeStr,
+        broker: selectedBroker,
+        accountSize: activeAccount?.startingBalance || initialBalance,
+        notes: `Executed via Premium TradingView Demo Terminal (Ticket #${position.ticket}) • SL: ${position.stopLoss} | TP: ${position.takeProfit} | Lots: ${position.lots}`,
+      };
+
+      if (onAutoLogTradeToJournal) {
+        await onAutoLogTradeToJournal(partialTrade);
+      }
+
+      // Mark position as logged to journal
+      setDemoPositions((prev) =>
+        prev.map((p) => (p.id === position.id ? { ...p, loggedToJournal: true } : p))
+      );
+
+      setOrderToast({
+        message: `Trade #${position.ticket} (${position.symbol}) successfully logged to your Trade Journal!`,
+        isSuccess: true,
+      });
+      playAudioTone(784, 'sine', 0.2);
+    } catch (e) {
+      console.error('Error adding trade to journal:', e);
+      setOrderToast({
+        message: 'Could not log trade to Journal. Please try again.',
+        isSuccess: false,
+      });
+    }
+  };
+
+  // Reset Demo Balance
+  const handleResetDemoBalance = () => {
+    if (window.confirm(`Reset Demo Account Balance back to initial $${initialBalance.toLocaleString()}?`)) {
+      setAccountBalance(initialBalance);
+      try {
+        localStorage.setItem('primepipfx_demo_acc_balance', String(initialBalance));
+      } catch {}
+      if (activeAccount && onUpdateAccount) {
+        onUpdateAccount({
+          ...activeAccount,
+          currentBalance: initialBalance,
+          currentEquity: initialBalance,
+        });
+      }
+      setOrderToast({ message: `Account balance reset to $${initialBalance.toLocaleString()}`, isSuccess: true });
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // SHARE AUTHENTIC TRADINGVIEW LINK
+  // --------------------------------------------------------------------------
+  const handleOpenShareModal = () => {
+    const tvDirectUrl = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tradingViewSymbol)}&interval=${selectedInterval}`;
+    setShareTvDirectUrl(tvDirectUrl);
+    setShowShareModal(true);
+  };
+
+  const handleCopyTvDirectUrl = () => {
+    if (shareTvDirectUrl) {
+      navigator.clipboard.writeText(shareTvDirectUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2500);
+    }
+  };
+
+  // Fullscreen toggle
   const toggleFullscreen = () => {
     if (!chartWrapperRef.current) return;
     if (!document.fullscreenElement) {
@@ -893,534 +1223,182 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
-  const handleSelectSymbol = (sym: string, broker?: string) => {
-    const cleanSym = sym.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    let targetBroker = broker;
-    if (!targetBroker) {
-      if (cleanSym.includes('USDT') || cleanSym.includes('BTC') || cleanSym.includes('ETH')) {
-        targetBroker = 'BINANCE';
-      } else if (cleanSym === 'XAUUSD' || cleanSym === 'XAGUSD') {
-        targetBroker = 'OANDA';
-      } else if (['US30', 'NAS100', 'SPX500', 'GER40', 'DXY', 'USOIL', 'UKOIL'].includes(cleanSym)) {
-        targetBroker = 'TVC';
-      } else {
-        targetBroker = 'FX';
-      }
-    }
-    setSelectedSymbol(cleanSym);
-    setSelectedBroker(targetBroker);
-    recordHistoryChange(cleanSym, targetBroker, selectedInterval, backgroundColor);
-  };
-
-  const handleIntervalChange = (newInterval: string) => {
-    setSelectedInterval(newInterval);
-    recordHistoryChange(selectedSymbol, selectedBroker, newInterval, backgroundColor);
-  };
-
-  const handleBackgroundChange = (newBg: string) => {
-    setBackgroundColor(newBg);
-    recordHistoryChange(selectedSymbol, selectedBroker, selectedInterval, newBg);
-  };
-
-  // Recycle Bin: Delete all drawings and reset chart canvas
-  const handleClearAllDrawings = () => {
-    setShowClearConfirm(false);
-    // Reload widget container to wipe all canvas drawing memory
-    const container = document.getElementById(containerId);
-    if (container) {
-      container.innerHTML = '';
-      setTimeout(() => {
-        recordHistoryChange(selectedSymbol, selectedBroker, selectedInterval, backgroundColor);
-      }, 50);
-    }
-  };
-
-  // Generate Collaborative Share Link (Recipient edits their own personal forked copy!)
-  const handleGenerateShare = async () => {
+  // Save full state to localStorage
+  useEffect(() => {
     try {
-      const res = await fetch('/api/tradingview/shared-chart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: `${selectedSymbol} Institutional Chart Analysis`,
-          symbol: selectedSymbol,
-          broker: selectedBroker,
-          interval: selectedInterval,
-          backgroundColor,
-          allowEdit: true, // Recipient can edit their copy!
-        }),
-      });
-      const data = await res.json();
-      if (data?.ok && data.id) {
-        const url = `${window.location.origin}${window.location.pathname}?chart=${data.id}&tab=PRO_TRADING`;
-        setShareLink(url);
-        setShowShareModal(true);
-      }
-    } catch {
-      const fallbackUrl = `${window.location.origin}${window.location.pathname}?symbol=${selectedSymbol}&interval=${selectedInterval}&tab=PRO_TRADING`;
-      setShareLink(fallbackUrl);
-      setShowShareModal(true);
-    }
-  };
-
-  const handleCopyLink = () => {
-    if (!shareLink) return;
-    navigator.clipboard.writeText(shareLink);
-    setCopiedShare(true);
-    setTimeout(() => setCopiedShare(false), 2000);
-  };
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-    handleSelectSymbol(searchQuery.trim());
-    setSearchQuery('');
-  };
+      const state = {
+        symbol: selectedSymbol,
+        broker: selectedBroker,
+        interval: selectedInterval,
+        categoryIndex: activeCategoryIndex,
+        chartSettings,
+      };
+      localStorage.setItem('primepipfx_tv_chart_full_state_v2', JSON.stringify(state));
+      setAutoSaveStatus('Saved');
+    } catch {}
+  }, [selectedSymbol, selectedBroker, selectedInterval, activeCategoryIndex, chartSettings]);
 
   return (
-    <div
-      ref={chartWrapperRef}
-      className={`space-y-4 max-w-7xl mx-auto ${
-        isFullscreen ? 'p-3 bg-[#070A12] h-screen w-screen overflow-hidden' : 'pb-16'
-      }`}
-    >
-      {/* Top Banner & Control Toolbar */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900/90 to-[#0B0F19] border border-slate-800 rounded-2xl p-4 shadow-2xl space-y-3">
-        {/* Forked Copy Notice Banner */}
-        {isForkedCopy && (
-          <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-between text-xs font-mono-code text-cyan-300">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>
-                <strong>Collaborative Shared Analysis:</strong> You are editing your personal copy of this chart. Your edits are saved locally without modifying the original sender's chart.
-              </span>
-            </div>
-            <button
-              onClick={() => setIsForkedCopy(false)}
-              className="text-slate-400 hover:text-white px-2 py-0.5 text-[10px]"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          {/* Title & Active Pair Display */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 shadow-inner shrink-0">
+    <div ref={chartWrapperRef} className="space-y-3 font-sans relative">
+      {/* ========================================================================= */}
+      {/* 1. TOP HEADER & ACCOUNT BALANCE WIDGET (Reflecting Initial Balance)        */}
+      {/* ========================================================================= */}
+      <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl p-3.5 space-y-3 shadow-xl">
+        {/* ROW 1: Title, Live Account Balance Bar, and Upward-Shifted Candle Timer */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          {/* Left: Terminal Branding */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/20 to-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-inner shrink-0">
               <CandlestickChart className="w-5 h-5 stroke-[2.2]" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-base sm:text-lg font-military font-bold tracking-wider text-slate-100 uppercase flex items-center gap-2">
-                  <span>PREMIUM TRADINGVIEW TERMINAL</span>
+                <h1 className="text-sm sm:text-base font-military font-bold tracking-wider text-slate-100 uppercase">
+                  PREMIUM TRADINGVIEW TERMINAL
                 </h1>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-[10px] font-mono-code font-bold text-emerald-400 flex items-center gap-1 shadow-sm">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  REAL-TIME RAW FEED
+                  LIVE FEED
                 </span>
-
-                {/* Auto-Save Status Indicator */}
-                <span className="px-2 py-0.5 rounded-full bg-slate-950 border border-slate-700 text-[10px] font-mono-code text-slate-300 flex items-center gap-1 shadow-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                  <span>{autoSaveStatus} ({lastAutoSavedTime})</span>
+                <span className="px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-[10px] font-mono-code text-slate-400">
+                  {autoSaveStatus}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-mono-code">
-                Institutional Candlestick Engine • Live Candle Timers • Background Customizer • Zero Lag
+              <p className="text-[10px] text-slate-400 font-mono-code hidden sm:block truncate">
+                Authentic Feed • Visual TP/SL Projection Lines • Demo Execution & Instant Journaling
               </p>
             </div>
           </div>
 
-          {/* Quick Controls: Undo, Redo, Recycle Bin, Share, Background, Timeframe */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Currency / Pair Search Bar */}
-            <form onSubmit={handleSearchSubmit} className="relative min-w-[170px] sm:min-w-[200px]">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search symbol (e.g. UBL, GBPJPY)..."
-                className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono-code text-slate-100 placeholder:text-slate-500 uppercase outline-none focus:border-cyan-400"
-              />
-            </form>
-
-            {/* Broker Selector Dropdown */}
-            <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-700 text-xs font-mono-code">
-              <Building2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-              <select
-                value={selectedBroker}
-                onChange={(e) => {
-                  setSelectedBroker(e.target.value);
-                  recordHistoryChange(selectedSymbol, e.target.value, selectedInterval, backgroundColor);
-                }}
-                className="bg-transparent text-slate-200 outline-none text-xs cursor-pointer font-bold"
-                title="Select Broker / Data Provider"
-              >
-                {BROKERS.map((b) => (
-                  <option key={b.id} value={b.prefix} className="bg-slate-900 text-slate-100">
-                    {b.label}
-                  </option>
-                ))}
-              </select>
+          {/* Middle: ACCOUNT BALANCE DISPLAY (Reflecting initial balance set during account creation) */}
+          <div className="flex items-center gap-3 bg-slate-950/90 border border-slate-800 px-3.5 py-1.5 rounded-xl shadow-inner text-xs font-mono-code flex-wrap">
+            <div className="flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-cyan-400" />
+              <div>
+                <span className="text-[9px] text-slate-500 block uppercase font-bold leading-none">Account Balance</span>
+                <span className="text-white font-bold text-sm">
+                  ${accountBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
 
-            {/* LIVE CANDLE CLOSE COUNTDOWN TIMER */}
-            <div
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-500/20 to-cyan-500/10 border border-cyan-400/40 text-xs font-mono-code font-bold text-cyan-300 shadow-sm"
-              title={`Exact time remaining before the current ${candleCountdown.label} candle closes`}
-            >
-              <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
-              <span>{candleCountdown.label} CANDLE CLOSE:</span>
-              <span className="text-white bg-slate-950/80 px-2 py-0.5 rounded font-mono-code tracking-wider text-xs font-bold">
-                {candleCountdown.text}
+            <div className="h-6 w-px bg-slate-800 hidden sm:block" />
+
+            <div>
+              <span className="text-[9px] text-slate-500 block uppercase font-bold leading-none">Equity</span>
+              <span className={`font-bold text-sm ${totalUnrealizedPnL >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                ${currentEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
 
-            {/* Timeframe Quick Switcher */}
-            <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-[11px] font-mono-code">
-              {TIMEFRAMES.map((tf) => (
+            <div className="h-6 w-px bg-slate-800 hidden sm:block" />
+
+            <div>
+              <span className="text-[9px] text-slate-500 block uppercase font-bold leading-none">Unrealized P&L</span>
+              <span
+                className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                  totalUnrealizedPnL > 0
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : totalUnrealizedPnL < 0
+                    ? 'bg-rose-500/20 text-rose-400'
+                    : 'bg-slate-900 text-slate-400'
+                }`}
+              >
+                {totalUnrealizedPnL >= 0 ? `+$${totalUnrealizedPnL.toFixed(2)}` : `-$${Math.abs(totalUnrealizedPnL).toFixed(2)}`}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleResetDemoBalance}
+              title={`Reset balance to initial $${initialBalance.toLocaleString()}`}
+              className="p-1 rounded-lg hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Right: TIME DISPLAY 1 OF 2 (Shifted upwards and to the side - No overlap!) */}
+          <div className="shrink-0">
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition shadow-md ${
+                candleCountdown.secondsRemaining <= 10
+                  ? 'bg-amber-500/25 border-amber-400 text-amber-200 animate-pulse'
+                  : 'bg-gradient-to-r from-blue-950/80 to-slate-950/90 border-cyan-500/40 text-cyan-300'
+              }`}
+              title={`Exact time remaining before current ${candleCountdown.label} candle closes (${candleCountdown.progressPercent}% completed)`}
+            >
+              <Clock className="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
+              <span className="text-slate-300 uppercase tracking-wide">{candleCountdown.label} CANDLE:</span>
+              <span className="text-amber-300 bg-slate-950 px-2 py-0.5 rounded-lg font-mono-code tracking-widest text-xs font-black border border-slate-700/80 shadow-inner">
+                {candleCountdown.text}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ===================================================================== */}
+        {/* ROW 2: CATEGORY SELECTION (Forex, Indices, Metals, Top Crypto)        */}
+        {/* Fixes category error: clicking immediately opens primary pair!        */}
+        {/* ===================================================================== */}
+        <div className="pt-2 border-t border-slate-800/70 space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] font-mono-code">
+              <span className="text-slate-500 uppercase font-bold mr-1 shrink-0">CATEGORIES:</span>
+              {WATCHLIST_CATEGORIES.map((cat, idx) => (
                 <button
-                  key={tf.id}
+                  key={cat.id}
                   type="button"
-                  onClick={() => handleIntervalChange(tf.id)}
-                  className={`px-2 py-1 rounded-lg transition cursor-pointer font-bold ${
-                    selectedInterval === tf.id
-                      ? 'bg-blue-500 text-slate-950 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
+                  onClick={() => handleSelectCategory(idx)}
+                  className={`px-3 py-1 rounded-xl border transition cursor-pointer shrink-0 font-bold flex items-center gap-1.5 ${
+                    activeCategoryIndex === idx
+                      ? 'bg-blue-600 text-white border-blue-400 shadow-md shadow-blue-500/20'
+                      : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-900'
                   }`}
                 >
-                  {tf.label}
+                  <span>{cat.name}</span>
+                  <span className={`text-[9px] px-1 py-0.2 rounded font-normal ${activeCategoryIndex === idx ? 'bg-blue-800 text-blue-100' : 'bg-slate-900 text-slate-500'}`}>
+                    {cat.symbols.length}
+                  </span>
                 </button>
               ))}
             </div>
 
-            {/* Undo / Redo Buttons */}
-            <div className="flex items-center bg-slate-950 rounded-xl border border-slate-800 p-0.5">
-              <button
-                type="button"
-                onClick={handleUndo}
-                disabled={historyIndex <= 0}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 transition cursor-pointer"
-                title="Undo Chart Action (Ctrl+Z)"
-              >
-                <Undo2 className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={handleRedo}
-                disabled={historyIndex >= history.length - 1}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 transition cursor-pointer"
-                title="Redo Chart Action (Ctrl+Y)"
-              >
-                <Redo2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            {/* Quick Symbol Search + Broker Selection Dropdown (with FXCM at top) */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <form onSubmit={handleSearchSubmit} className="relative min-w-[130px] sm:min-w-[150px]">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search pair..."
+                  className="w-full pl-7 pr-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono-code text-slate-100 placeholder:text-slate-500 uppercase outline-none focus:border-cyan-400"
+                />
+              </form>
 
-            {/* Background Color Picker Toggle */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowColorPicker(!showColorPicker)}
-                className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-cyan-400 transition cursor-pointer flex items-center gap-1.5 text-xs font-mono-code"
-                title="Change Chart Background Color"
-              >
-                <Palette className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="w-3 h-3 rounded-full border border-slate-600" style={{ backgroundColor }} />
-              </button>
-
-              {showColorPicker && (
-                <div className="absolute right-0 top-11 z-50 w-56 p-3 rounded-2xl bg-slate-950 border border-slate-700 shadow-2xl space-y-2.5 animate-in fade-in zoom-in-95">
-                  <div className="text-[11px] font-mono-code font-bold text-slate-300 uppercase pb-1 border-b border-slate-800">
-                    Background Color Presets
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {BG_PRESETS.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => {
-                          handleBackgroundChange(p.id);
-                          setShowColorPicker(false);
-                        }}
-                        className={`p-1.5 rounded-lg border text-left text-[10px] font-mono-code flex items-center gap-2 transition ${
-                          backgroundColor === p.id
-                            ? 'border-cyan-400 bg-cyan-500/10 text-white font-bold'
-                            : 'border-slate-800 text-slate-300 hover:border-slate-700'
-                        }`}
-                      >
-                        <span className="w-3.5 h-3.5 rounded-full border border-slate-600 shrink-0" style={{ backgroundColor: p.id }} />
-                        <span className="truncate">{p.label}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs font-mono-code text-slate-300">
-                    <span>Custom Hex:</span>
-                    <input
-                      type="color"
-                      value={backgroundColor.startsWith('#') ? backgroundColor : '#070A12'}
-                      onChange={(e) => handleBackgroundChange(e.target.value)}
-                      className="w-8 h-8 rounded border border-slate-700 bg-transparent cursor-pointer"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Recycle Bin / Trash Icon: Delete all drawings */}
-            <button
-              type="button"
-              onClick={() => setShowClearConfirm(true)}
-              className="p-2 rounded-xl bg-slate-950 hover:bg-rose-950/60 border border-slate-700 hover:border-rose-500 text-slate-300 hover:text-rose-400 transition cursor-pointer"
-              title="Delete All Drawings & Reset Chart (Recycle Bin)"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Fundamental Pairs Toggle Button (Locked in Demo / Non-Subscribed Mode) */}
-            <button
-              type="button"
-              onClick={() => {
-                if (isFundamentalLocked) {
-                  setShowFundamentalPairs(false);
-                  if (onRequireSubscription) {
-                    onRequireSubscription();
-                  }
-                  return;
-                }
-                setShowFundamentalPairs(!showFundamentalPairs);
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition cursor-pointer ${
-                isFundamentalLocked
-                  ? 'bg-slate-950 text-amber-300 border-amber-500/40 hover:border-amber-400'
-                  : showFundamentalPairs
-                  ? 'bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-500/20'
-                  : 'bg-slate-950 text-purple-300 border-purple-500/30 hover:border-purple-400'
-              }`}
-              title={
-                isFundamentalLocked
-                  ? 'Fundamental Pairs (28-Pair Premium Pairing Feature) — Subscription Required'
-                  : 'View Long-Term Bullish & Bearish Pairs from Fundamental Analysis'
-              }
-            >
-              {isFundamentalLocked ? (
-                <Lock className="w-3.5 h-3.5 text-amber-400" />
-              ) : (
-                <Activity className="w-3.5 h-3.5" />
-              )}
-              <span>FUNDAMENTAL PAIRS</span>
-              {isFundamentalLocked && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold uppercase">
-                  LOCKED
-                </span>
-              )}
-            </button>
-
-            {/* Fullscreen Button */}
-            <button
-              type="button"
-              onClick={toggleFullscreen}
-              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-cyan-400 transition cursor-pointer"
-              title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen Analysis Mode'}
-            >
-              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            </button>
-
-            {/* Quick Record Trade Action */}
-            {onOpenNewTrade && (
-              <button
-                type="button"
-                onClick={onOpenNewTrade}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-xs tracking-wider transition shadow shadow-blue-500/20 cursor-pointer active:scale-95"
-              >
-                <Zap className="w-3.5 h-3.5 fill-current" />
-                <span>RECORD TRADE</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* FUNDAMENTAL PAIRS LIVE DRAWER: All 28 Bullish and Bearish Pairs from Fundamental Intelligence */}
-        {showFundamentalPairs && !isFundamentalLocked && (
-          <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-purple-500/40 space-y-2.5 animate-in slide-in-from-top-2">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse" />
-                <span className="font-military font-bold text-xs text-white uppercase tracking-wider">
-                  Live 28-Pair Fundamental Intelligence Matrix ({all28FundamentalPairs.length} Pairs)
-                </span>
-                <span className="text-[10px] text-purple-300 font-mono-code bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
-                  REAL-TIME MACRO SYNC
-                </span>
-              </div>
-              <span className="text-[11px] font-mono-code text-slate-400">
-                Driven by Fundamental Intelligence • Click any of the 28 pairs to load chart
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Bullish Pairs Column */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-mono-code font-bold text-emerald-400">
-                  <div className="flex items-center gap-1.5">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    <span>LONG-TERM BULLISH PAIRS ({bullishPairs.length})</span>
-                  </div>
-                  <span className="text-[10px] text-emerald-300/80">BUY BIAS</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5 max-h-64 overflow-y-auto pr-1">
-                  {bullishPairs.map((p) => {
-                    const cleanCode = p.pair?.replace('/', '') || p.symbol || 'XAUUSD';
-                    return (
-                      <button
-                        key={p.pair || p.symbol}
-                        type="button"
-                        onClick={() => handleSelectSymbol(cleanCode)}
-                        className={`p-2 rounded-xl border text-left font-mono-code transition cursor-pointer ${
-                          selectedSymbol === cleanCode
-                            ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold shadow'
-                            : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-emerald-500/30'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs">{p.pair || cleanCode}</span>
-                          <span className="text-[9px] px-1 rounded bg-emerald-500/20 text-emerald-300 font-bold">
-                            +{Math.abs(p.longTermDiff ?? p.score ?? 0).toFixed(0)}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-emerald-400 mt-0.5 truncate">
-                          {p.structuralBias || 'Bullish Spread'}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Bearish Pairs Column */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-mono-code font-bold text-rose-400">
-                  <div className="flex items-center gap-1.5">
-                    <TrendingDown className="w-3.5 h-3.5" />
-                    <span>LONG-TERM BEARISH PAIRS ({bearishPairs.length})</span>
-                  </div>
-                  <span className="text-[10px] text-rose-300/80">SELL BIAS</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5 max-h-64 overflow-y-auto pr-1">
-                  {bearishPairs.map((p) => {
-                    const cleanCode = p.pair?.replace('/', '') || p.symbol || 'NZDUSD';
-                    return (
-                      <button
-                        key={p.pair || p.symbol}
-                        type="button"
-                        onClick={() => handleSelectSymbol(cleanCode)}
-                        className={`p-2 rounded-xl border text-left font-mono-code transition cursor-pointer ${
-                          selectedSymbol === cleanCode
-                            ? 'bg-rose-500 text-slate-950 border-rose-400 font-bold shadow'
-                            : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-rose-500/30'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs">{p.pair || cleanCode}</span>
-                          <span className="text-[9px] px-1 rounded bg-rose-500/20 text-rose-300 font-bold">
-                            -{Math.abs(p.longTermDiff ?? p.score ?? 0).toFixed(0)}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-rose-400 mt-0.5 truncate">
-                          {p.structuralBias || 'Bearish Spread'}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Multi-Asset Fundamental Status: Indices, Top Stocks & Top 5 Cryptos */}
-            <div className="pt-2.5 border-t border-slate-800/80 space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-mono-code">
-                <span className="font-military font-bold text-cyan-400 uppercase tracking-wider">
-                  MULTI-ASSET FUNDAMENTAL STATUS (INDICES • TOP STOCKS • TOP 5 CRYPTO)
-                </span>
-                <span className="text-[10px] text-slate-400">Click any asset to load chart</span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
-                {(() => {
-                  let multiAssets: MultiAssetFundamentalRecord[] = DEFAULT_MULTI_ASSET_FUNDAMENTALS;
-                  try {
-                    const raw = localStorage.getItem('primepip_fundamental_multi_assets_v1');
-                    if (raw) {
-                      const parsed = JSON.parse(raw);
-                      if (Array.isArray(parsed) && parsed.length > 0) multiAssets = parsed;
-                    }
-                  } catch {}
-                  return multiAssets.map((asset) => {
-                    const isBull = asset.score >= 0;
-                    const tvSym = asset.symbol === 'S&P500' ? 'SPX500' : asset.symbol.replace('/', '');
-                    const tvBroker = asset.category === 'INDEX' ? 'TVC' : asset.category === 'STOCK' ? 'NASDAQ' : 'BINANCE';
-                    return (
-                      <button
-                        key={asset.id}
-                        type="button"
-                        onClick={() => handleSelectSymbol(tvSym, tvBroker)}
-                        className={`p-2 rounded-xl border text-left font-mono-code transition cursor-pointer ${
-                          selectedSymbol === tvSym
-                            ? isBull
-                              ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold shadow'
-                              : 'bg-rose-500 text-slate-950 border-rose-400 font-bold shadow'
-                            : isBull
-                            ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-emerald-500/30'
-                            : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-rose-500/30'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs">{asset.symbol}</span>
-                          <span
-                            className={`text-[9px] px-1 rounded font-bold ${
-                              isBull ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
-                            }`}
-                          >
-                            {isBull ? `+${asset.score}` : asset.score}
-                          </span>
-                        </div>
-                        <div className={`text-[10px] mt-0.5 truncate ${isBull ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          {isBull ? 'BULLISH' : 'BEARISH'} • {asset.category}
-                        </div>
-                      </button>
-                    );
-                  });
-                })()}
+              {/* Broker Selector (Includes FXCM) */}
+              <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-700 text-xs font-mono-code">
+                <Building2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <select
+                  value={selectedBroker}
+                  onChange={(e) => setSelectedBroker(e.target.value)}
+                  className="bg-transparent text-slate-200 outline-none cursor-pointer font-bold"
+                  title="Broker feed settings"
+                >
+                  {BROKERS.map((b) => (
+                    <option key={b.id} value={b.prefix} className="bg-slate-900 text-slate-100">
+                      {b.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
-        )}
 
-        {/* Quick Instrument Watchlist Bar */}
-        <div className="pt-2 border-t border-slate-800/80 space-y-2">
-          {/* Watchlist Category Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto text-[10px] font-mono-code">
-            <span className="text-slate-500 uppercase font-bold shrink-0 mr-1">WATCHLIST:</span>
-            {WATCHLIST_GROUPS.map((grp, idx) => (
-              <button
-                key={grp.name}
-                type="button"
-                onClick={() => setActiveGroupIndex(idx)}
-                className={`px-2.5 py-1 rounded-lg border transition cursor-pointer shrink-0 ${
-                  activeGroupIndex === idx
-                    ? 'bg-blue-500/20 text-cyan-400 border-blue-500/40 font-bold'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {grp.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Watchlist Symbols in Selected Group */}
+          {/* Quick Pair Pills for Selected Category */}
           <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-mono-code pb-1">
-            {WATCHLIST_GROUPS[activeGroupIndex]?.symbols.map((item) => {
+            {WATCHLIST_CATEGORIES[activeCategoryIndex]?.symbols.map((item) => {
               const isSelected = selectedSymbol === item.symbol;
               return (
                 <button
@@ -1429,7 +1407,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   onClick={() => handleSelectSymbol(item.symbol, item.broker)}
                   className={`px-3 py-1 rounded-xl border text-xs font-bold transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
                     isSelected
-                      ? 'bg-blue-500 text-slate-950 border-cyan-400 shadow-md shadow-blue-500/20'
+                      ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-md shadow-cyan-500/20'
                       : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800 hover:border-slate-700'
                   }`}
                 >
@@ -1442,169 +1420,1065 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             })}
           </div>
         </div>
-      </div>
 
-      {/* Main TradingView Advanced Chart Container */}
-      <div
-        className={`border border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative transition-all duration-300 ${
-          isFullscreen ? 'h-[calc(100vh-140px)]' : 'h-[680px] sm:h-[750px] lg:h-[820px]'
-        }`}
-        style={{ backgroundColor }}
-      >
-        <div id={containerId} className="w-full h-full relative" />
-
-        {/* On-Chart Left Vertical Tactical Tool Rail (Recycle Bin & Magnet tool directly below) */}
-        <div className="absolute left-3 top-14 z-10 flex flex-col items-center gap-1.5 p-1 rounded-xl bg-slate-950/85 border border-slate-800/80 backdrop-blur-md shadow-xl">
-          {/* Recycle Bin / Trash Icon */}
-          <button
-            type="button"
-            onClick={() => setShowClearConfirm(true)}
-            className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition cursor-pointer"
-            title="Recycle Bin: Delete all drawings and written markings on chart"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-
-          {/* Magnet Tool Button — Located directly below its existing position */}
-          <button
-            type="button"
-            onClick={toggleMagnet}
-            className={`p-2 rounded-lg transition cursor-pointer relative ${
-              isMagnetActive
-                ? 'text-cyan-400 bg-cyan-950/80 border border-cyan-500/50 shadow-md shadow-cyan-500/25'
-                : 'text-slate-400 hover:text-cyan-300 hover:bg-slate-900/80'
-            }`}
-            title={`Magnet Tool: ${isMagnetActive ? 'Active (Snapping drawings to candle wicks and bars)' : 'Inactive (Click to enable magnet snapping)'}`}
-          >
-            <Magnet className="w-4 h-4" />
-            {isMagnetActive && (
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            )}
-          </button>
-        </div>
-
-        {/* Magnet Notification Toast */}
-        {magnetToast && (
-          <div className="absolute left-14 top-24 z-20 px-3 py-1.5 rounded-xl bg-slate-950/95 border border-cyan-500/50 text-cyan-300 font-mono-code text-xs font-bold shadow-xl backdrop-blur-md animate-in fade-in flex items-center gap-2">
-            <Magnet className="w-3.5 h-3.5 text-cyan-400" />
-            <span>{magnetToast}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Footer Info Notice with Live Exact Candle Countdown */}
-      <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono-code text-slate-400">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>
-            Connected to <strong>{selectedBroker}</strong> raw feed ({formattedSymbol}). Current <strong>{candleCountdown.label}</strong> candle closes in <strong className="text-amber-300 font-mono-code">{candleCountdown.text}</strong>. Native countdown scale active.
-          </span>
-        </div>
-        <span className="text-[10px] text-cyan-400 shrink-0">
-          POWERED BY TRADINGVIEW ADVANCED CHARTS
-        </span>
-      </div>
-
-      {/* CLEAR ALL DRAWINGS CONFIRMATION MODAL (RECYCLE BIN) */}
-      {showClearConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="w-full max-w-sm bg-slate-950 border border-rose-500/40 rounded-2xl p-5 shadow-2xl space-y-4">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto">
-              <Trash2 className="w-5 h-5" />
-            </div>
-            <div className="text-center space-y-1">
-              <h3 className="text-base font-military font-bold text-white uppercase">Clear All Drawings?</h3>
-              <p className="text-xs text-slate-300 font-mono-code">
-                This will delete all trendlines, Fibonacci retracements, shapes, and notes from the chart canvas.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 pt-2">
+        {/* ===================================================================== */}
+        {/* ROW 3: DEMO TRADING EXECUTION TOOLBAR & LOT SIZE SETTING              */}
+        {/* Positioned cleanly above chart canvas - NO chart occlusions!          */}
+        {/* ===================================================================== */}
+        <div className="pt-2 border-t border-slate-800/70 flex items-center justify-between gap-3 flex-wrap">
+          {/* Left Execution Widget: Lots + Manual SL/TP + Buy/Sell Buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* LOT SIZE SETTING */}
+            <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-700 text-xs font-mono-code">
+              <span className="text-slate-400 font-bold text-[11px]">LOTS:</span>
               <button
                 type="button"
-                onClick={() => setShowClearConfirm(false)}
-                className="py-2.5 px-3 rounded-xl bg-slate-900 text-slate-300 hover:text-white border border-slate-800 font-mono-code text-xs font-bold"
+                onClick={() => setOrderLots((l) => Math.max(0.01, Number((Number(l) - 0.1).toFixed(2))).toString())}
+                className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center font-bold"
               >
-                Cancel
+                -
+              </button>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={orderLots}
+                onChange={(e) => setOrderLots(e.target.value)}
+                className="w-14 bg-slate-900 text-center text-white font-bold rounded border border-slate-700 py-0.5 outline-none text-xs"
+              />
+              <button
+                type="button"
+                onClick={() => setOrderLots((l) => Number((Number(l) + 0.1).toFixed(2)).toString())}
+                className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center font-bold"
+              >
+                +
+              </button>
+
+              <div className="hidden sm:flex items-center gap-1 pl-1 border-l border-slate-800 text-[10px]">
+                {['0.10', '0.50', '1.00', '2.00'].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setOrderLots(preset)}
+                    className={`px-1.5 py-0.5 rounded cursor-pointer ${orderLots === preset ? 'bg-cyan-500/20 text-cyan-300 font-bold' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* STOP LOSS (SL) MANUAL INPUT */}
+            <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1.5 rounded-xl border border-rose-900/50 text-xs font-mono-code">
+              <span className="text-rose-400 font-bold text-[11px]">SL:</span>
+              <input
+                type="number"
+                step="any"
+                value={isManualPriceMode ? manualSlPrice : orderSlPips}
+                onChange={(e) => {
+                  if (isManualPriceMode) {
+                    setManualSlPrice(e.target.value);
+                  } else {
+                    setOrderSlPips(e.target.value);
+                  }
+                }}
+                placeholder={isManualPriceMode ? `${calculatedSlPrice}` : `${orderSlPips} pips`}
+                className="w-16 bg-slate-900 text-rose-200 text-center font-bold rounded border border-rose-900/40 py-0.5 outline-none text-xs"
+                title={isManualPriceMode ? 'Exact Stop Loss Price' : 'Stop Loss Distance in Pips'}
+              />
+              <span className="text-[10px] text-rose-400/80 font-bold">
+                -${projectedLossDollars}
+              </span>
+            </div>
+
+            {/* TAKE PROFIT (TP) MANUAL INPUT */}
+            <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1.5 rounded-xl border border-emerald-900/50 text-xs font-mono-code">
+              <span className="text-emerald-400 font-bold text-[11px]">TP:</span>
+              <input
+                type="number"
+                step="any"
+                value={isManualPriceMode ? manualTpPrice : orderTpPips}
+                onChange={(e) => {
+                  if (isManualPriceMode) {
+                    setManualTpPrice(e.target.value);
+                  } else {
+                    setOrderTpPips(e.target.value);
+                  }
+                }}
+                placeholder={isManualPriceMode ? `${calculatedTpPrice}` : `${orderTpPips} pips`}
+                className="w-16 bg-slate-900 text-emerald-200 text-center font-bold rounded border border-emerald-900/40 py-0.5 outline-none text-xs"
+                title={isManualPriceMode ? 'Exact Take Profit Price' : 'Take Profit Distance in Pips'}
+              />
+              <span className="text-[10px] text-emerald-400/80 font-bold">
+                +${projectedProfitDollars}
+              </span>
+            </div>
+
+            {/* SL/TP Visual Projection Lines Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowProjectionLines((prev) => !prev)}
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                showProjectionLines
+                  ? 'bg-blue-600/20 text-cyan-300 border-cyan-500/40 shadow-sm'
+                  : 'bg-slate-950 text-slate-500 border-slate-800 hover:text-slate-300'
+              }`}
+              title="Display visual TP and SL lines with potential dollar profit/loss directly on chart"
+            >
+              <Target className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden md:inline">Projection Lines:</span>
+              <span>{showProjectionLines ? 'ON' : 'OFF'}</span>
+            </button>
+
+            {/* EXECUTE DEMO SELL & BUY BUTTONS */}
+            <div className="flex items-center rounded-xl overflow-hidden border border-slate-700 shadow-lg bg-slate-950 text-xs font-mono-code font-bold">
+              <button
+                type="button"
+                onClick={() => handleExecuteDemoTrade('SELL')}
+                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white transition cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-inner"
+                title={`Execute Demo SELL order on ${selectedSymbol}`}
+              >
+                <ArrowDownRight className="w-3.5 h-3.5" />
+                <span>SELL</span>
+                <span className="font-mono text-[11px] font-normal">{liveCandle.bid.toFixed(priceMeta.pipDecimals)}</span>
+              </button>
+
+              <div className="px-2 py-1 bg-slate-900 text-slate-400 text-[10px] border-x border-slate-800 hidden sm:block">
+                <span>Spread: {priceMeta.spreadPips}p</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleExecuteDemoTrade('BUY')}
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white transition cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-inner"
+                title={`Execute Demo BUY order on ${selectedSymbol}`}
+              >
+                <ArrowUpRight className="w-3.5 h-3.5" />
+                <span>BUY</span>
+                <span className="font-mono text-[11px] font-normal">{liveCandle.ask.toFixed(priceMeta.pipDecimals)}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Right Controls: Timeframe Quick Switcher + Tools */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Timeframe Switcher (Syncs both time displays!) */}
+            <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-[11px] font-mono-code">
+              {TIMEFRAMES.map((tf) => (
+                <button
+                  key={tf.id}
+                  type="button"
+                  onClick={() => handleIntervalChange(tf.id)}
+                  title={tf.desc}
+                  className={`px-2 py-1 rounded-lg transition cursor-pointer font-bold ${
+                    selectedInterval === tf.id
+                      ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                  }`}
+                >
+                  {tf.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Action Buttons: Settings, Share, Fullscreen */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(true)}
+                className="p-1.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-300 hover:text-cyan-400 hover:border-cyan-500 transition cursor-pointer flex items-center gap-1 text-xs font-mono-code"
+                title="Chart Display Settings"
+              >
+                <Palette className="w-4 h-4 text-cyan-400" />
+                <span className="hidden lg:inline">Settings</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenShareModal}
+                className="p-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/25 transition cursor-pointer flex items-center gap-1 text-xs font-mono-code font-bold"
+                title="Share Authentic TradingView Chart"
+              >
+                <Share2 className="w-4 h-4 text-cyan-400" />
+                <span className="hidden lg:inline">Share</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                className="p-1.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
+                title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Chart'}
+              >
+                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* EXECUTION NOTIFICATION & 1-CLICK ADD TO JOURNAL BANNER                     */}
+      {/* ========================================================================= */}
+      {orderToast && (
+        <div
+          className={`p-3 rounded-2xl border flex items-center justify-between gap-3 text-xs font-mono-code animate-in fade-in slide-in-from-top-2 shadow-2xl transition ${
+            orderToast.isSuccess === false
+              ? 'bg-rose-950/80 border-rose-500/50 text-rose-200'
+              : 'bg-gradient-to-r from-blue-950/90 to-emerald-950/90 border-cyan-500/50 text-cyan-100'
+          }`}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            {orderToast.isSuccess === false ? (
+              <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            )}
+            <span className="font-bold truncate">{orderToast.message}</span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {orderToast.trade && (
+              <button
+                type="button"
+                onClick={() => handleAddToJournal(orderToast.trade!)}
+                className="px-3 py-1 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold flex items-center gap-1.5 transition cursor-pointer shadow-md"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Add to Journal</span>
+              </button>
+            )}
+            {onNavigateToJournal && (
+              <button
+                type="button"
+                onClick={onNavigateToJournal}
+                className="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer text-[11px]"
+              >
+                View Journal
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setOrderToast(null)}
+              className="text-slate-400 hover:text-white p-1"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 2. MAIN TRADINGVIEW WORKSPACE: CHART + PROJECTION LINES + RIGHT DOCK      */}
+      {/* ========================================================================= */}
+      <div
+        className={`flex flex-col lg:flex-row border border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative transition-all duration-300 ${
+          isFullscreen ? 'h-[calc(100vh-140px)]' : 'h-[680px] sm:h-[750px] lg:h-[800px]'
+        }`}
+        style={{
+          background:
+            chartSettings.backgroundType === 'gradient'
+              ? `linear-gradient(180deg, ${chartSettings.backgroundColor} 0%, ${chartSettings.bgGradientColor2} 100%)`
+              : chartSettings.backgroundColor,
+        }}
+      >
+        {/* CHART COLUMN */}
+        <div className="flex-1 relative h-full flex flex-col min-w-0">
+          {/* TRADINGVIEW IFRAME CONTAINER */}
+          <div id={containerId} className="w-full h-full relative z-10" />
+
+          {/* ================================================================= */}
+          {/* VISUAL TP & SL PROJECTION LINES OVERLAY WITH DOLLAR AMOUNTS       */}
+          {/* ================================================================= */}
+          {showProjectionLines && (
+            <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
+              {/* TAKE PROFIT (TP) LINE (Green Dashed with Target Badge) */}
+              <div
+                className="absolute left-0 right-14 border-b-2 border-dashed border-emerald-400/80 transition-all duration-300"
+                style={{ top: '26%' }}
+              >
+                <div className="absolute -top-3.5 left-4 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/90 border border-emerald-500/80 text-emerald-300 font-mono-code text-[11px] font-bold shadow-lg shadow-emerald-900/40">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>TP: {calculatedTpPrice.toFixed(priceMeta.pipDecimals)}</span>
+                  <span className="text-white bg-emerald-600/50 px-1.5 py-0.2 rounded text-[10px]">
+                    +${projectedProfitDollars.toFixed(2)} ({Math.round(Math.abs(calculatedTpPrice - liveCandle.close) / priceMeta.pipSize)}p | {riskRewardRatio}R)
+                  </span>
+                </div>
+              </div>
+
+              {/* CURRENT ENTRY LINE (Cyan Dashed) */}
+              <div
+                className="absolute left-0 right-14 border-b border-cyan-400/60 transition-all duration-300"
+                style={{ top: '50%' }}
+              >
+                <div className="absolute -top-3 left-4 flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-950/90 border border-cyan-500/60 text-cyan-300 font-mono-code text-[10px] font-bold shadow-md">
+                  <span>ENTRY: {liveCandle.close.toFixed(priceMeta.pipDecimals)}</span>
+                  <span className="text-slate-400 font-normal">({orderLots} Lots)</span>
+                </div>
+              </div>
+
+              {/* STOP LOSS (SL) LINE (Red Dashed with Shield Badge) */}
+              <div
+                className="absolute left-0 right-14 border-b-2 border-dashed border-rose-500/80 transition-all duration-300"
+                style={{ top: '74%' }}
+              >
+                <div className="absolute -top-3.5 left-4 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-950/90 border border-rose-500/80 text-rose-300 font-mono-code text-[11px] font-bold shadow-lg shadow-rose-900/40">
+                  <span className="w-2 h-2 rounded-full bg-rose-500" />
+                  <span>SL: {calculatedSlPrice.toFixed(priceMeta.pipDecimals)}</span>
+                  <span className="text-white bg-rose-600/50 px-1.5 py-0.2 rounded text-[10px]">
+                    -${projectedLossDollars.toFixed(2)} ({Math.round(Math.abs(liveCandle.close - calculatedSlPrice) / priceMeta.pipSize)}p)
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================================================================= */}
+          {/* TIME DISPLAY 2 OF 2: IN-CHART PRICE SCALE COUNTDOWN BADGE         */}
+          {/* Perfectly synchronized with Display 1 at the top!                 */}
+          {/* ================================================================= */}
+          <div
+            className="absolute bottom-10 right-2 z-20 pointer-events-none select-none transition-all"
+            title={`Real-time remaining time for current ${candleCountdown.label} candle`}
+          >
+            <div
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-mono-code text-xs font-black tracking-widest shadow-xl ${
+                candleCountdown.secondsRemaining <= 10
+                  ? 'bg-amber-500 text-slate-950 border-amber-300 animate-pulse'
+                  : 'bg-[#0B0F19]/95 text-cyan-300 border-cyan-500/60 shadow-cyan-950/50'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span>{candleCountdown.text}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* =================================================================== */}
+        {/* RIGHT DOCK SLIDE-OUT PANEL (Only Alerts, News, or Calendar)        */}
+        {/* =================================================================== */}
+        {activeRightTool && (
+          <div className="w-full lg:w-80 bg-[#0B0F19] border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col z-30 shrink-0 h-64 lg:h-full animate-in slide-in-from-right duration-200">
+            {/* Panel Header */}
+            <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+              <div className="flex items-center gap-2">
+                {activeRightTool === 'ALERTS' && <AlarmClock className="w-4 h-4 text-cyan-400" />}
+                {activeRightTool === 'NEWS' && <Newspaper className="w-4 h-4 text-cyan-400" />}
+                {activeRightTool === 'CALENDAR' && <Calendar className="w-4 h-4 text-cyan-400" />}
+                <h3 className="text-xs font-mono-code font-bold uppercase tracking-wider text-slate-200">
+                  {activeRightTool === 'ALERTS' && 'Price Alerts'}
+                  {activeRightTool === 'NEWS' && 'Market Headlines'}
+                  {activeRightTool === 'CALENDAR' && 'Economic Calendar'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveRightTool(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Panel Body */}
+            <div className="flex-1 overflow-y-auto p-3 font-mono-code text-xs space-y-3">
+              {/* ALERTS PANEL */}
+              {activeRightTool === 'ALERTS' && (
+                <div className="space-y-3">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const targetPrice = parseFloat(newAlertTarget);
+                      if (!targetPrice || isNaN(targetPrice)) return;
+                      const newAlert: ChartAlertItem = {
+                        id: `alt_${Date.now()}`,
+                        symbol: selectedSymbol,
+                        price: targetPrice,
+                        condition: newAlertCondition,
+                        active: true,
+                        createdAt: 'Just now',
+                        notes: newAlertNotes.trim() || `Alert for ${selectedSymbol} @ ${targetPrice}`,
+                      };
+                      setAlerts([newAlert, ...alerts]);
+                      setNewAlertTarget('');
+                      setNewAlertNotes('');
+                      setOrderToast({ message: `Alert saved for ${selectedSymbol} @ ${targetPrice}`, isSuccess: true });
+                    }}
+                    className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2"
+                  >
+                    <div className="text-[11px] font-bold text-slate-300">Create New Price Alert</div>
+                    <select
+                      value={newAlertCondition}
+                      onChange={(e) => setNewAlertCondition(e.target.value as any)}
+                      className="w-full p-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white outline-none"
+                    >
+                      <option value="CROSSING">Crossing Target Price</option>
+                      <option value="CROSSING_UP">Crossing Up (Breakout)</option>
+                      <option value="CROSSING_DOWN">Crossing Down (Breakdown)</option>
+                    </select>
+                    <input
+                      type="number"
+                      step="any"
+                      value={newAlertTarget}
+                      onChange={(e) => setNewAlertTarget(e.target.value)}
+                      placeholder={`Target e.g. ${liveCandle.close.toFixed(priceMeta.pipDecimals)}`}
+                      className="w-full p-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={newAlertNotes}
+                      onChange={(e) => setNewAlertNotes(e.target.value)}
+                      placeholder="Note e.g. Key Level Retest"
+                      className="w-full p-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white outline-none"
+                    />
+                    <button
+                      type="submit"
+                      className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold transition cursor-pointer"
+                    >
+                      Save Alert
+                    </button>
+                  </form>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span>Active Alerts ({alerts.length})</span>
+                      <button onClick={() => setAlerts([])} className="text-rose-400 hover:underline text-[10px] cursor-pointer">
+                        Clear All
+                      </button>
+                    </div>
+                    {alerts.map((alt) => (
+                      <div
+                        key={alt.id}
+                        className={`p-2 rounded-xl border text-xs ${
+                          alt.triggered ? 'bg-amber-950/30 border-amber-500/50 text-amber-200' : 'bg-slate-950 border-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between font-bold">
+                          <span>{alt.symbol}</span>
+                          <span className={`text-[9px] px-1.5 py-0.2 rounded ${alt.triggered ? 'bg-amber-500 text-slate-950' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                            {alt.triggered ? 'TRIGGERED' : 'ACTIVE'}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-300 mt-1">
+                          {alt.condition.replace('_', ' ')}: <strong className="text-cyan-300">{alt.price}</strong>
+                        </div>
+                        {alt.notes && <div className="text-[10px] text-slate-400 mt-0.5">{alt.notes}</div>}
+                        <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-slate-900 text-[9px] text-slate-500">
+                          <span>{alt.createdAt}</span>
+                          <button onClick={() => setAlerts((c) => c.filter((a) => a.id !== alt.id))} className="text-rose-400 hover:text-rose-300">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* NEWS PANEL */}
+              {activeRightTool === 'NEWS' && (
+                <div className="space-y-2.5">
+                  {newsHeadlines.map((news) => (
+                    <div key={news.id} className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-cyan-300 font-bold">{news.category}</span>
+                        <span className="text-slate-400">{news.time}</span>
+                      </div>
+                      <p className="text-slate-100 font-sans text-xs leading-snug">{news.title}</p>
+                      <div className="flex items-center justify-between text-[10px] pt-1 border-t border-slate-900">
+                        <span className="text-slate-400">{news.source}</span>
+                        <span className={`font-bold ${news.sentiment === 'BULLISH' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {news.sentiment}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* CALENDAR PANEL */}
+              {activeRightTool === 'CALENDAR' && (
+                <div className="space-y-2.5">
+                  {calendarEvents.map((evt) => (
+                    <div key={evt.id} className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <div className="flex items-center gap-1.5 font-bold">
+                          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-white text-[10px]">{evt.currency}</span>
+                          <span className="text-slate-200">{evt.event}</span>
+                        </div>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40">
+                          {evt.impact}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5 text-[10px] bg-slate-900/60 p-1.5 rounded-lg border border-slate-800">
+                        <div>
+                          <div className="text-slate-400">Time</div>
+                          <div className="font-bold text-white">{evt.time}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400">Forecast</div>
+                          <div className="font-bold text-slate-200">{evt.forecast}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400">Previous</div>
+                          <div className="font-bold text-slate-400">{evt.previous}</div>
+                        </div>
+                      </div>
+                      {evt.actual && (
+                        <div className="text-[10px] text-emerald-400 font-bold flex items-center justify-between pt-0.5">
+                          <span>Actual:</span>
+                          <span>{evt.actual}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* =================================================================== */}
+        {/* RIGHT COLUMN: VERTICAL ICONIC DOCK                                  */}
+        {/* Kept ONLY: Alerts, News, Calendar, and Settings at the bottom       */}
+        {/* =================================================================== */}
+        <div className="w-12 bg-[#0B0F19] border-l border-slate-800/80 flex flex-col items-center justify-between py-2 z-20 shrink-0 select-none">
+          {/* Top 3 Tools: Alerts, News, Calendar */}
+          <div className="flex flex-col items-center gap-1.5 w-full">
+            {[
+              { id: 'ALERTS' as const, icon: AlarmClock, label: 'Alerts', badge: alerts.filter((a) => a.active).length },
+              { id: 'NEWS' as const, icon: Newspaper, label: 'News & Headlines' },
+              { id: 'CALENDAR' as const, icon: Calendar, label: 'Economic Calendar' },
+            ].map((tool) => {
+              const Icon = tool.icon;
+              const isActive = activeRightTool === tool.id;
+              return (
+                <button
+                  key={tool.id}
+                  type="button"
+                  onClick={() => setActiveRightTool((prev) => (prev === tool.id ? null : tool.id))}
+                  title={tool.label}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition cursor-pointer relative ${
+                    isActive
+                      ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30'
+                      : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tool.badge !== undefined && tool.badge > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-rose-500 text-[8px] font-bold text-white flex items-center justify-center font-mono">
+                      {tool.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Bottom Settings Button (Kept as requested) */}
+          <div className="flex flex-col items-center gap-1.5 w-full">
+            <button
+              type="button"
+              onClick={() => setShowSettingsModal(true)}
+              title="Chart Appearance & Background Settings"
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition cursor-pointer"
+            >
+              <Palette className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 3. DEMO TRADING ACTIVITY & TRADE HISTORY (Active Trades & Profits/Losses) */}
+      {/* ========================================================================= */}
+      <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl overflow-hidden shadow-xl text-xs font-mono-code">
+        {/* Tabs Bar */}
+        <div className="p-3 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTerminalBottomTab('POSITIONS')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                terminalBottomTab === 'POSITIONS'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-slate-900 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Active Trades ({openPositions.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTerminalBottomTab('HISTORY')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                terminalBottomTab === 'HISTORY'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-slate-900 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <History className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Trade History ({closedPositions.length})</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 text-slate-400 text-[11px]">
+            <span>
+              Net Floating P&L:{' '}
+              <strong className={totalUnrealizedPnL >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                {totalUnrealizedPnL >= 0 ? `+$${totalUnrealizedPnL.toFixed(2)}` : `-$${Math.abs(totalUnrealizedPnL).toFixed(2)}`}
+              </strong>
+            </span>
+            {onNavigateToJournal && (
+              <button
+                type="button"
+                onClick={onNavigateToJournal}
+                className="px-2.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 transition cursor-pointer font-bold flex items-center gap-1"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Open Full Journal</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Content Table */}
+        <div className="overflow-x-auto">
+          {terminalBottomTab === 'POSITIONS' ? (
+            openPositions.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 space-y-1.5">
+                <p>No active demo trades open right now.</p>
+                <p className="text-[11px] text-slate-600">
+                  Use the BUY or SELL buttons above to execute demo trades with customized Lots, Stop Loss, and Take Profit!
+                </p>
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-800 text-[10px] text-slate-500 uppercase bg-slate-950/40">
+                    <th className="py-2.5 px-3">Ticket</th>
+                    <th className="py-2.5 px-3">Time</th>
+                    <th className="py-2.5 px-3">Symbol</th>
+                    <th className="py-2.5 px-3">Type</th>
+                    <th className="py-2.5 px-3">Lots</th>
+                    <th className="py-2.5 px-3">Entry</th>
+                    <th className="py-2.5 px-3">Current</th>
+                    <th className="py-2.5 px-3">SL</th>
+                    <th className="py-2.5 px-3">TP</th>
+                    <th className="py-2.5 px-3">Floating P/L</th>
+                    <th className="py-2.5 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {openPositions.map((pos) => {
+                    const isProfit = pos.floatingPnL >= 0;
+                    return (
+                      <tr key={pos.id} className="hover:bg-slate-900/40 transition">
+                        <td className="py-2.5 px-3 text-slate-400">#{pos.ticket}</td>
+                        <td className="py-2.5 px-3 text-slate-400">{pos.openTime}</td>
+                        <td className="py-2.5 px-3 font-bold text-white">{pos.symbol}</td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                              pos.direction === 'BUY' ? 'bg-blue-500/20 text-cyan-300' : 'bg-rose-500/20 text-rose-300'
+                            }`}
+                          >
+                            {pos.direction}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-300 font-bold">{pos.lots}</td>
+                        <td className="py-2.5 px-3 text-slate-300">{pos.entryPrice.toFixed(priceMeta.pipDecimals)}</td>
+                        <td className="py-2.5 px-3 font-bold text-white animate-pulse">
+                          {pos.currentPrice.toFixed(priceMeta.pipDecimals)}
+                        </td>
+                        <td className="py-2.5 px-3 text-rose-400 font-mono">{pos.stopLoss}</td>
+                        <td className="py-2.5 px-3 text-emerald-400 font-mono">{pos.takeProfit}</td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            className={`font-bold px-2 py-0.5 rounded text-xs ${
+                              isProfit ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+                            }`}
+                          >
+                            {isProfit ? `+$${pos.floatingPnL.toFixed(2)}` : `-$${Math.abs(pos.floatingPnL).toFixed(2)}`} ({pos.pips}p)
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right space-x-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleAddToJournal(pos)}
+                            disabled={pos.loggedToJournal}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer inline-flex items-center gap-1 ${
+                              pos.loggedToJournal
+                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                                : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/40'
+                            }`}
+                            title="Automatically log trade details into your Journal"
+                          >
+                            <BookOpen className="w-3 h-3" />
+                            <span>{pos.loggedToJournal ? 'In Journal' : 'Add to Journal'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleClosePosition(pos.id)}
+                            className="px-2.5 py-1 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white font-bold text-[10px] transition cursor-pointer"
+                          >
+                            Close
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )
+          ) : (
+            closedPositions.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 space-y-1.5">
+                <p>No closed trades in history yet.</p>
+                <p className="text-[11px] text-slate-600">
+                  Closed positions and triggered TP/SL trades will be tracked here.
+                </p>
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-800 text-[10px] text-slate-500 uppercase bg-slate-950/40">
+                    <th className="py-2.5 px-3">Ticket</th>
+                    <th className="py-2.5 px-3">Open / Close</th>
+                    <th className="py-2.5 px-3">Symbol</th>
+                    <th className="py-2.5 px-3">Type</th>
+                    <th className="py-2.5 px-3">Lots</th>
+                    <th className="py-2.5 px-3">Entry -&gt; Exit</th>
+                    <th className="py-2.5 px-3">Trigger</th>
+                    <th className="py-2.5 px-3">Realized P/L</th>
+                    <th className="py-2.5 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {closedPositions.map((pos) => {
+                    const isWin = (pos.floatingPnL || 0) > 0;
+                    return (
+                      <tr key={pos.id} className="hover:bg-slate-900/40 transition">
+                        <td className="py-2.5 px-3 text-slate-400">#{pos.ticket}</td>
+                        <td className="py-2.5 px-3 text-slate-400">
+                          {pos.openTime} → {pos.closeTime || 'Closed'}
+                        </td>
+                        <td className="py-2.5 px-3 font-bold text-white">{pos.symbol}</td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                              pos.direction === 'BUY' ? 'bg-blue-500/20 text-cyan-300' : 'bg-rose-500/20 text-rose-300'
+                            }`}
+                          >
+                            {pos.direction}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-300">{pos.lots}</td>
+                        <td className="py-2.5 px-3 text-slate-300">
+                          {pos.entryPrice.toFixed(priceMeta.pipDecimals)} → {pos.closePrice?.toFixed(priceMeta.pipDecimals)}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              pos.closeReason === 'TAKE_PROFIT'
+                                ? 'bg-emerald-500/20 text-emerald-400'
+                                : pos.closeReason === 'STOP_LOSS'
+                                ? 'bg-rose-500/20 text-rose-400'
+                                : 'bg-slate-800 text-slate-300'
+                            }`}
+                          >
+                            {pos.closeReason === 'TAKE_PROFIT' ? '🎯 TP HIT' : pos.closeReason === 'STOP_LOSS' ? '🛡️ SL HIT' : 'MANUAL'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 font-bold">
+                          <span className={isWin ? 'text-emerald-400' : 'text-rose-400'}>
+                            {pos.floatingPnL >= 0 ? `+$${pos.floatingPnL.toFixed(2)}` : `-$${Math.abs(pos.floatingPnL).toFixed(2)}`}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleAddToJournal(pos)}
+                            disabled={pos.loggedToJournal}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer inline-flex items-center gap-1 ${
+                              pos.loggedToJournal
+                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                                : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/40'
+                            }`}
+                          >
+                            <BookOpen className="w-3 h-3" />
+                            <span>{pos.loggedToJournal ? 'In Journal' : 'Add to Journal'}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )
+          )}
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 4. SETTINGS MODAL: BACKGROUND & APPEARANCE CUSTOMIZATION                  */}
+      {/* ========================================================================= */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden font-mono-code text-xs">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+              <div className="flex items-center gap-2">
+                <Palette className="w-5 h-5 text-cyan-400" />
+                <h3 className="font-bold text-white uppercase tracking-wider text-sm">
+                  Premium TradingView Chart Settings
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Tabs */}
+            <div className="flex items-center gap-2 px-4 pt-3 border-b border-slate-800 overflow-x-auto bg-slate-950/50">
+              {(['APPEARANCE', 'CANVAS', 'CANDLES', 'SCALES'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setSettingsActiveTab(tab)}
+                  className={`px-3 py-1.5 border-b-2 font-bold transition cursor-pointer shrink-0 ${
+                    settingsActiveTab === tab
+                      ? 'border-cyan-400 text-cyan-300'
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              {settingsActiveTab === 'APPEARANCE' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-slate-300 font-bold block mb-1.5">Chart Background Theme</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { label: 'Deep Institutional Dark', color: '#0a0e17' },
+                        { label: 'TradingView Pitch Black', color: '#000000' },
+                        { label: 'Navy Blue Glow', color: '#0b192c' },
+                        { label: 'Slate Charcoal', color: '#111827' },
+                        { label: 'Pure White (Light Mode)', color: '#FFFFFF' },
+                        { label: 'Warm Light Gray', color: '#F8FAFC' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() =>
+                            setChartSettings((prev) => ({
+                              ...prev,
+                              backgroundColor: preset.color,
+                              backgroundType: 'solid',
+                            }))
+                          }
+                          className={`p-2.5 rounded-xl border flex items-center justify-between text-left transition cursor-pointer ${
+                            chartSettings.backgroundColor === preset.color
+                              ? 'border-cyan-400 bg-cyan-500/10 text-cyan-300 font-bold'
+                              : 'border-slate-800 bg-slate-950 text-slate-300 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="w-4 h-4 rounded-full border border-slate-700" style={{ backgroundColor: preset.color }} />
+                            <span>{preset.label}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-slate-300 font-bold block mb-1.5">Background Fill Type</label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="bgType"
+                          checked={chartSettings.backgroundType === 'solid'}
+                          onChange={() => setChartSettings((p) => ({ ...p, backgroundType: 'solid' }))}
+                          className="accent-cyan-400"
+                        />
+                        <span>Solid Color</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="bgType"
+                          checked={chartSettings.backgroundType === 'gradient'}
+                          onChange={() => setChartSettings((p) => ({ ...p, backgroundType: 'gradient' }))}
+                          className="accent-cyan-400"
+                        />
+                        <span>Vertical Gradient</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {settingsActiveTab === 'CANVAS' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800">
+                    <div>
+                      <div className="font-bold text-white">Vertical Grid Lines</div>
+                      <div className="text-[10px] text-slate-400">Show session grid across the chart</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={chartSettings.vertGrid}
+                      onChange={(e) => setChartSettings((p) => ({ ...p, vertGrid: e.target.checked }))}
+                      className="accent-cyan-400 w-4 h-4 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800">
+                    <div>
+                      <div className="font-bold text-white">Candle Countdown on Scales</div>
+                      <div className="text-[10px] text-slate-400">Display remaining candle time badge on right scale</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={chartSettings.showCountdown}
+                      onChange={(e) => setChartSettings((p) => ({ ...p, showCountdown: e.target.checked }))}
+                      className="accent-cyan-400 w-4 h-4 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {settingsActiveTab === 'CANDLES' && (
+                <div className="space-y-3">
+                  <div className="text-slate-400 text-[11px]">Candle body and wick color settings:</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                      <div className="text-emerald-400 font-bold">Bullish (Up) Candles</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Body Color:</span>
+                        <input
+                          type="color"
+                          value={chartSettings.candleUpColor}
+                          onChange={(e) => setChartSettings((p) => ({ ...p, candleUpColor: e.target.value }))}
+                          className="w-8 h-8 rounded border border-slate-700 bg-transparent cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                      <div className="text-rose-400 font-bold">Bearish (Down) Candles</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Body Color:</span>
+                        <input
+                          type="color"
+                          value={chartSettings.candleDownColor}
+                          onChange={(e) => setChartSettings((p) => ({ ...p, candleDownColor: e.target.value }))}
+                          className="w-8 h-8 rounded border border-slate-700 bg-transparent cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {settingsActiveTab === 'SCALES' && (
+                <div className="space-y-3">
+                  <label className="text-slate-300 font-bold block mb-1">Timezone</label>
+                  <select
+                    value={chartSettings.timezone}
+                    onChange={(e) => setChartSettings((p) => ({ ...p, timezone: e.target.value }))}
+                    className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white outline-none cursor-pointer"
+                  >
+                    <option value="Asia/Karachi">Asia/Karachi (PKT - Pakistan Standard Time)</option>
+                    <option value="Etc/UTC">Etc/UTC (Universal Coordinated Time)</option>
+                    <option value="America/New_York">America/New_York (EST / EDT)</option>
+                    <option value="Europe/London">Europe/London (GMT / BST)</option>
+                    <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                    <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-800 flex items-center justify-between bg-slate-950">
+              <button
+                type="button"
+                onClick={() => setChartSettings(DEFAULT_CHART_SETTINGS)}
+                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 transition cursor-pointer"
+              >
+                Reset Defaults
               </button>
               <button
                 type="button"
-                onClick={handleClearAllDrawings}
-                className="py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-military font-bold text-xs uppercase shadow-lg shadow-rose-600/30"
+                onClick={() => setShowSettingsModal(false)}
+                className="px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition cursor-pointer shadow-md"
               >
-                Clear Everything
+                Save & Apply
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* SHARE CHART MODAL (Collaborative Forking) */}
+      {/* ========================================================================= */}
+      {/* 5. SHARE MODAL: AUTHENTIC TRADINGVIEW LINK GENERATOR                      */}
+      {/* ========================================================================= */}
       {showShareModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="w-full max-w-md bg-slate-950 border border-cyan-500/40 rounded-2xl p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl font-mono-code text-xs">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                  <Share2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-military font-bold text-white uppercase">Collaborative Chart Sharing</h3>
-                  <p className="text-[11px] font-mono-code text-slate-400">Recipient can view & edit their own personal copy</p>
-                </div>
+                <Share2 className="w-5 h-5 text-cyan-400" />
+                <h3 className="font-bold text-white uppercase text-sm">Share TradingView Chart</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowShareModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white bg-slate-900 border border-slate-700 cursor-pointer"
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2 text-xs font-mono-code text-slate-300">
-              <div className="flex items-center gap-2 text-emerald-400 font-bold">
-                <Check className="w-4 h-4 shrink-0" />
-                <span>Non-Destructive Collaborative Editing Enabled</span>
-              </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                When you share this link, the recipient can open the exact symbol ({selectedSymbol}), broker, and interval, and can edit or add their own annotations without altering your original analysis.
-              </p>
+            <p className="text-slate-300">
+              Direct, authentic TradingView link for <strong>{tradingViewSymbol}</strong> ({selectedInterval}m):
+            </p>
+
+            <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl break-all text-cyan-300 text-[11px] select-all">
+              {shareTvDirectUrl}
             </div>
 
-            <div>
-              <label className="block text-[11px] font-mono-code uppercase text-slate-400 mb-1">
-                Shareable Link
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={shareLink}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl font-mono-code text-xs text-cyan-300 select-all"
-                />
-                <button
-                  type="button"
-                  onClick={handleCopyLink}
-                  className="px-3 py-2 rounded-xl bg-blue-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs font-mono-code shrink-0 flex items-center gap-1.5 transition"
-                >
-                  {copiedShare ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedShare ? 'Copied!' : 'Copy'}</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="pt-2 flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2 pt-2">
               <a
-                href={`https://wa.me/?text=${encodeURIComponent(
-                  `Check out this ${selectedSymbol} chart analysis on PrimePipFX Premium TradingView: ${shareLink}`
-                )}`}
+                href={shareTvDirectUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-military font-bold text-xs tracking-wider uppercase text-center transition flex items-center justify-center gap-2"
+                className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-300 transition cursor-pointer flex items-center gap-1.5"
               >
-                <MessageCircle className="w-4 h-4" />
-                <span>Share via WhatsApp</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Open in TradingView</span>
               </a>
+
+              <button
+                type="button"
+                onClick={handleCopyTvDirectUrl}
+                className="px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition cursor-pointer shadow-md flex items-center gap-1.5"
+              >
+                {shareCopied ? <CheckCircle2 className="w-4 h-4 text-slate-950" /> : <Share2 className="w-4 h-4 text-slate-950" />}
+                <span>{shareCopied ? 'Copied Link!' : 'Copy TradingView Link'}</span>
+              </button>
             </div>
           </div>
         </div>

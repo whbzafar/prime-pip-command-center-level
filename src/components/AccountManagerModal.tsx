@@ -23,6 +23,7 @@ import {
 } from '../utils/fundedRiskEngine';
 import { FundedAccountConfigPanel } from './FundedAccountConfigPanel';
 import { CreateAccountWizard } from './account/CreateAccountWizard';
+import { SetupWizard } from './SetupWizard';
 
 interface AccountManagerModalProps {
   isOpen: boolean;
@@ -419,12 +420,13 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
 
           {view === 'CREATE' && (
             <div className="py-1">
-              <CreateAccountWizard
+              <SetupWizard
                 onAccountCreated={(newAcc) => {
                   onCreateAccount(newAcc);
                   setView('LIST');
                 }}
                 onCancel={() => setView('LIST')}
+                existingAccountsCount={accounts.length}
               />
             </div>
           )}

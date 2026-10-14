@@ -726,6 +726,7 @@ export interface AccountSettings {
   maxRiskPerTradePercent: number;
   maxDailyRiskPercent?: number;
   maxConsecutiveLosses?: number;
+  rulesConfig?: import('./riskEngine').RulesConfig;
   disciplineAlarms?: DisciplineAlarms;
   createdAt?: string;
   updatedAt?: string;

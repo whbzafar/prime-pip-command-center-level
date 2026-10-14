@@ -49,6 +49,7 @@ import { LockedCategoryModal } from './components/LockedCategoryModal';
 import { Meta5PremiumTerminal } from './components/meta5/Meta5PremiumTerminal';
 import { PostTradeGuidanceModal } from './components/account/PostTradeGuidanceModal';
 import { CreateAccountWizard } from './components/account/CreateAccountWizard';
+import { SetupWizard } from './components/SetupWizard';
 import { PostTradeImpactSummary } from './types';
 import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
 
@@ -1139,6 +1140,7 @@ export default function App() {
           setIsEntryModalOpen(true);
         }}
         onOpenAccountManager={() => setIsAccountManagerOpen(true)}
+        onOpenCreateAccount={() => setIsCreateAccountWizardOpen(true)}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         currentUser={currentUser}
         onOpenLogin={() => setIsLoginModalOpen(true)}
@@ -1248,6 +1250,19 @@ export default function App() {
           activeTab === 'FUNDAMENTAL_INDICATORS' ? 'max-w-[1750px]' : 'max-w-7xl'
         }`}
       >
+        {activeTab === 'SETUP' && (
+          <div className="py-2">
+            <SetupWizard
+              onAccountCreated={(newAcc) => {
+                handleAccountCreated(newAcc);
+                setActiveTab('DASHBOARD');
+              }}
+              onCancel={() => setActiveTab('DASHBOARD')}
+              existingAccountsCount={accounts.length}
+            />
+          </div>
+        )}
+
         {activeTab === 'DASHBOARD' && (
           <MainDashboard
             metrics={metrics}
@@ -1419,6 +1434,11 @@ export default function App() {
             onOpenNewTrade={() => setIsEntryModalOpen(true)}
             currentUser={currentUser}
             isDemoMode={isDemoMode}
+            activeAccount={activeAccount}
+            trades={trades}
+            onAutoLogTradeToJournal={handleAutoLogMeta5Trade}
+            onUpdateAccount={handleUpdateAccount}
+            onNavigateToJournal={() => handleSelectTab('JOURNAL')}
             onRequireSubscription={() => {
               setLockedCategoryModal({
                 id: 'FUNDAMENTAL_INDICATORS',
@@ -1785,12 +1805,13 @@ export default function App() {
       {isCreateAccountWizardOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto animate-in fade-in">
           <div className="w-full max-w-4xl my-auto">
-            <CreateAccountWizard
+            <SetupWizard
               onAccountCreated={(newAcc) => {
                 handleAccountCreated(newAcc);
                 setIsCreateAccountWizardOpen(false);
               }}
               onCancel={() => setIsCreateAccountWizardOpen(false)}
+              existingAccountsCount={accounts.length}
             />
           </div>
         </div>

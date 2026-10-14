@@ -103,6 +103,17 @@ export const META5_BROKERS: Meta5Broker[] = [
 
   // Leading Global MT5 Live Brokers
   {
+    id: 'fxcm',
+    name: 'FXCM',
+    category: 'BROKER',
+    logoText: 'FXCM',
+    badgeColor: 'from-blue-600 to-indigo-800',
+    servers: ['FXCM-Demo', 'FXCM-Real01', 'FXCM-Real02', 'FXCM-Real03'],
+    defaultLeverage: '1:400',
+    website: 'fxcm.com',
+    description: 'Leading international Forex & CFD broker with institutional direct market execution.',
+  },
+  {
     id: 'icmarkets',
     name: 'IC Markets Global',
     category: 'BROKER',

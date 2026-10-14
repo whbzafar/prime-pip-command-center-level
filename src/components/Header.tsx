@@ -51,6 +51,7 @@ import {
   Minus,
   Bookmark,
   CandlestickChart,
+  Sliders,
 } from 'lucide-react';
 import { BrightnessController } from './BrightnessController';
 import { applyInterfaceTemplate, getTemplateById } from '../data/interfaceTemplates';
@@ -67,6 +68,7 @@ import { GlobalTimeSessionModal } from './GlobalTimeSessionModal';
 import { GlobalSearch } from './GlobalSearch';
 
 export type MainNavTab =
+  | 'SETUP'
   | 'DASHBOARD'
   | 'JOURNAL'
   | 'PERFORMANCE'
@@ -400,6 +402,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Complete List of All 20 Navigation Categories in STRICT Order (01-20)
   const allNavCategories = [
+    { id: 'SETUP' as MainNavTab, label: '00. ACCOUNT SETUP WIZARD', icon: Sliders, highlight: true },
     { id: 'DASHBOARD' as MainNavTab, label: '01. DASHBOARD', icon: Activity },
     { id: 'JOURNAL' as MainNavTab, label: '02. TRADE JOURNAL', icon: BookOpen },
     { id: 'SBT_MODELS' as MainNavTab, label: '03. SBT MODELS', icon: Layers, highlight: true },
@@ -429,7 +432,9 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   const handleNavClick = (id: MainNavTab) => {
-    if (id === 'ACCOUNTS') {
+    if (id === 'SETUP') {
+      switchTab('SETUP');
+    } else if (id === 'ACCOUNTS') {
       if (onOpenAccountManager) {
         onOpenAccountManager();
       } else {
@@ -827,39 +832,50 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Account Quick Badge & Switcher Trigger */}
         {account && (
-          <button
-            onClick={onOpenAccountManager}
-            title="Manage or Switch Accounts"
-            className="hidden lg:flex items-center gap-2 bg-slate-950/80 hover:bg-slate-800/90 border border-slate-800 hover:border-blue-500/50 px-2.5 py-1 rounded-md transition text-left cursor-pointer group"
-          >
-            <div className="w-6 h-6 rounded bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition">
-              <Wallet className="w-3 h-3" />
-            </div>
-            <div>
-              <div className="text-[9px] uppercase font-mono-code text-slate-400 flex items-center gap-1">
-                <span>{account.accountName}</span>
-                {account.isCentAccount || account.accountType === 'CENT_ACCOUNT' || account.currency === 'USC' || account.currency === 'Cent' ? (
-                  <span className="text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1 rounded text-[8px] font-bold">
-                    🪙 CENT ACCOUNT (¢)
-                  </span>
-                ) : account.accountCategory === 'FUNDED' || account.fundedConfig?.enabled ? (
-                  <span className="text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1 rounded text-[8px] font-bold">
-                    PROP: {account.fundedConfig?.firmName || 'FUNDED'}
-                  </span>
-                ) : (
-                  <span className="text-cyan-400/80 text-[8px] font-bold">[{account.accountType.replace(/_/g, ' ')}]</span>
-                )}
+          <div className="hidden lg:flex items-center gap-1.5">
+            <button
+              onClick={onOpenAccountManager}
+              title="Manage or Switch Accounts"
+              className="flex items-center gap-2 bg-slate-950/80 hover:bg-slate-800/90 border border-slate-800 hover:border-blue-500/50 px-2.5 py-1 rounded-md transition text-left cursor-pointer group"
+            >
+              <div className="w-6 h-6 rounded bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition">
+                <Wallet className="w-3 h-3" />
               </div>
-              <div className="text-xs font-bold font-mono-code text-slate-100 flex items-center gap-1.5">
-                <span>
-                  {formatCurrency(account.currentBalance, account.currency)}
-                </span>
-                <span className="text-[9px] text-cyan-400 font-semibold bg-blue-500/10 border border-blue-500/20 px-1 rounded">
-                  SWITCH ▾
-                </span>
+              <div>
+                <div className="text-[9px] uppercase font-mono-code text-slate-400 flex items-center gap-1">
+                  <span>{account.accountName}</span>
+                  {account.isCentAccount || account.accountType === 'CENT_ACCOUNT' || account.currency === 'USC' || account.currency === 'Cent' ? (
+                    <span className="text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1 rounded text-[8px] font-bold">
+                      🪙 CENT ACCOUNT (¢)
+                    </span>
+                  ) : account.accountCategory === 'FUNDED' || account.fundedConfig?.enabled ? (
+                    <span className="text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1 rounded text-[8px] font-bold">
+                      PROP: {account.fundedConfig?.firmName || 'FUNDED'}
+                    </span>
+                  ) : (
+                    <span className="text-cyan-400/80 text-[8px] font-bold">[{account.accountType.replace(/_/g, ' ')}]</span>
+                  )}
+                </div>
+                <div className="text-xs font-bold font-mono-code text-slate-100 flex items-center gap-1.5">
+                  <span>
+                    {formatCurrency(account.currentBalance, account.currency)}
+                  </span>
+                  <span className="text-[9px] text-cyan-400 font-semibold bg-blue-500/10 border border-blue-500/20 px-1 rounded">
+                    SWITCH ▾
+                  </span>
+                </div>
               </div>
-            </div>
-          </button>
+            </button>
+            {onOpenCreateAccount && (
+              <button
+                onClick={onOpenCreateAccount}
+                title="Create New Trading Account Profile (Setup Wizard)"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-md bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-cyan-200 text-[10px] font-bold font-mono transition cursor-pointer"
+              >
+                <span>+ SETUP</span>
+              </button>
+            )}
+          </div>
         )}
 
         {/* Global discovery and account actions */}
