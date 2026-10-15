@@ -1,0 +1,27 @@
+{
+  "realtime_start": "2026-10-15",
+  "realtime_end": "2026-10-15",
+  "units": "lin",
+  "output_type": 4,
+  "file_type": "json",
+  "observations": [
+    {
+      "realtime_start": "2026-07-30",
+      "realtime_end": "2026-08-28",
+      "date": "2026-04-01",
+      "value": "22850.5"
+    },
+    {
+      "realtime_start": "2026-08-29",
+      "realtime_end": "2026-09-25",
+      "date": "2026-04-01",
+      "value": "22890.2"
+    },
+    {
+      "realtime_start": "2026-09-26",
+      "realtime_end": "2026-10-15",
+      "date": "2026-04-01",
+      "value": "22915.8"
+    }
+  ]
+}

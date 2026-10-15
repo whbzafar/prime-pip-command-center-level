@@ -1,0 +1,32 @@
+[
+  {
+    "cftc_contract_market_code": "099741",
+    "contract_market_name": "EURO FX - CHICAGO MERCANTILE EXCHANGE",
+    "report_date_as_yyyy_mm_dd": "2026-10-06T00:00:00.000",
+    "lev_money_positions_long_all": "125430",
+    "lev_money_positions_short_all": "85210",
+    "asset_mgr_positions_long_all": "250100",
+    "asset_mgr_positions_short_all": "310450",
+    "open_interest_all": "650200"
+  },
+  {
+    "cftc_contract_market_code": "099741",
+    "contract_market_name": "EURO FX - CHICAGO MERCANTILE EXCHANGE",
+    "report_date_as_yyyy_mm_dd": "2026-10-13T00:00:00.000",
+    "lev_money_positions_long_all": "130100",
+    "lev_money_positions_short_all": "82050",
+    "asset_mgr_positions_long_all": "255200",
+    "asset_mgr_positions_short_all": "308100",
+    "open_interest_all": "662500"
+  },
+  {
+    "cftc_contract_market_code": "098662",
+    "contract_market_name": "USD INDEX - ICE FUTURES U.S.",
+    "report_date_as_yyyy_mm_dd": "2026-10-13T00:00:00.000",
+    "lev_money_positions_long_all": "18450",
+    "lev_money_positions_short_all": "8210",
+    "asset_mgr_positions_long_all": "32100",
+    "asset_mgr_positions_short_all": "19400",
+    "open_interest_all": "48500"
+  }
+]

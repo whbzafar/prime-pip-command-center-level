@@ -1,0 +1,82 @@
+name: Pro Fundamentals Historical Backfill (Manual Only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Data provider source to backfill'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'fred'
+          - 'cftc'
+      indicator:
+        description: 'Specific indicator code (optional, leave blank for all in source)'
+        required: false
+        type: string
+      years:
+        description: 'Historical depth in years (default 15)'
+        required: true
+        default: '15'
+        type: string
+      dry_run:
+        description: 'Dry run (simulate without writing to database)'
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: pro-fundamentals-collectors
+  cancel-in-progress: false
+
+jobs:
+  run-backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Execute Historical Backfill
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          CFTC_APP_TOKEN: ${{ secrets.CFTC_APP_TOKEN }}
+        run: |
+          ARGS="--source ${{ github.event.inputs.source }} --years ${{ github.event.inputs.years }}"
+          if [ -n "${{ github.event.inputs.indicator }}" ]; then
+            ARGS="$ARGS --indicator ${{ github.event.inputs.indicator }}"
+          fi
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          echo "Executing: npx tsx backend/jobs/runBackfill.ts $ARGS"
+          npx tsx backend/jobs/runBackfill.ts $ARGS
+
+      - name: Notify on Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `🚨 [ProFundamentals] Historical Backfill Job Failed: ${new Date().toISOString()}`;
+            const body = `Historical backfill job failed.\n\nWorkflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['pipeline-failure', 'backfill-job']
+            });

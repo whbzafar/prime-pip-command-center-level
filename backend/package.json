@@ -1,0 +1,33 @@
+{
+  "name": "pro-fundamentals-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Autonomous backend data pipeline and scoring engine for Pro Fundamentals",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "job:collect": "tsx jobs/runCollectors.ts",
+    "job:backfill": "tsx jobs/runBackfill.ts",
+    "job:score": "tsx jobs/runScoring.ts",
+    "job:backfill-scoring": "tsx jobs/runBackfillScoring.ts",
+    "report:calibration": "tsx jobs/generateCalibrationReport.ts",
+    "job:explain": "tsx jobs/runExplanations.ts",
+    "job:quality": "tsx jobs/runQualityChecks.ts",
+    "job:all": "tsx jobs/runCollectors.ts && tsx jobs/runScoring.ts && tsx jobs/runExplanations.ts && tsx jobs/runQualityChecks.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.19",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  }
+}

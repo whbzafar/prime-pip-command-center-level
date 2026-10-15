@@ -1,0 +1,84 @@
+name: Pro Fundamentals Manual Ingestion Dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Data provider source to poll'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'fred'
+          - 'cftc'
+      indicator:
+        description: 'Specific indicator code (optional, e.g. USD_NONFARM_PAYROLLS)'
+        required: false
+        type: string
+      since:
+        description: 'Earliest observation date YYYY-MM-DD (optional)'
+        required: false
+        type: string
+      dry_run:
+        description: 'Dry run (simulate without writing to database)'
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: pro-fundamentals-collectors
+  cancel-in-progress: false
+
+jobs:
+  run-manual-collector:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Run Targeted Collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          CFTC_APP_TOKEN: ${{ secrets.CFTC_APP_TOKEN }}
+        run: |
+          ARGS="--source ${{ github.event.inputs.source }}"
+          if [ -n "${{ github.event.inputs.indicator }}" ]; then
+            ARGS="$ARGS --indicator ${{ github.event.inputs.indicator }}"
+          fi
+          if [ -n "${{ github.event.inputs.since }}" ]; then
+            ARGS="$ARGS --since ${{ github.event.inputs.since }}"
+          fi
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          echo "Executing: npx tsx backend/jobs/runCollectors.ts $ARGS"
+          npx tsx backend/jobs/runCollectors.ts $ARGS
+
+      - name: Notify on Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `🚨 [ProFundamentals] Manual Collector Run Failed: ${new Date().toISOString()}`;
+            const body = `Manual collector dispatch failed.\n\nWorkflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['pipeline-failure', 'manual-dispatch']
+            });

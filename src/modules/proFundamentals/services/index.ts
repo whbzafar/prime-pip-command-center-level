@@ -1,26 +1,42 @@
 import { FundamentalsDataService } from './types';
 import { MockDataProvider } from './mockProvider';
+import { RealApiProvider } from './realApiProvider';
 
 /**
  * Data Provider Configuration Flag
- * To migrate to a live real-time API, implement `RealApiProvider implements FundamentalsDataService`
- * and set `CURRENT_PROVIDER_MODE = 'real'`.
- * The entire UI layer remains 100% unchanged!
+ *
+ * Switch between mock data and real Supabase PostgreSQL backend with one flag:
+ * - 'mock': Local deterministic baseline data (zero network required)
+ * - 'real': Live Supabase PostgreSQL REST API, Views (v_pair_scores, v_latest_asset_scores) and RPCs
+ *
+ * Can also be configured at build/runtime via VITE_PRO_FUNDAMENTALS_PROVIDER='real' | 'mock'.
  */
 export type ProviderMode = 'mock' | 'real';
 
-export const CURRENT_PROVIDER_MODE: ProviderMode = 'mock';
+const envMode = (
+  typeof import.meta !== 'undefined' && import.meta.env?.VITE_PRO_FUNDAMENTALS_PROVIDER
+    ? String(import.meta.env.VITE_PRO_FUNDAMENTALS_PROVIDER).toLowerCase()
+    : 'mock'
+) as ProviderMode;
+
+export const CURRENT_PROVIDER_MODE: ProviderMode = envMode === 'real' ? 'real' : 'mock';
 
 class FundamentalsServiceProxy implements FundamentalsDataService {
   private activeProvider: FundamentalsDataService;
+  private currentMode: ProviderMode;
 
   constructor(mode: ProviderMode = CURRENT_PROVIDER_MODE) {
-    if (mode === 'mock') {
-      this.activeProvider = new MockDataProvider();
-    } else {
-      // Stub for future RealApiProvider
-      this.activeProvider = new MockDataProvider();
-    }
+    this.currentMode = mode;
+    this.activeProvider = mode === 'real' ? new RealApiProvider() : new MockDataProvider();
+  }
+
+  setProviderMode(mode: ProviderMode): void {
+    this.currentMode = mode;
+    this.activeProvider = mode === 'real' ? new RealApiProvider() : new MockDataProvider();
+  }
+
+  getProviderMode(): ProviderMode {
+    return this.currentMode;
   }
 
   getCurrencyScores(horizon: 'short' | 'long') {
@@ -48,5 +64,11 @@ class FundamentalsServiceProxy implements FundamentalsDataService {
   }
 }
 
-export const fundamentalsService: FundamentalsDataService = new FundamentalsServiceProxy();
+export const fundamentalsService: FundamentalsDataService & {
+  setProviderMode: (mode: ProviderMode) => void;
+  getProviderMode: () => ProviderMode;
+} = new FundamentalsServiceProxy();
+
 export * from './types';
+export * from './mockProvider';
+export * from './realApiProvider';

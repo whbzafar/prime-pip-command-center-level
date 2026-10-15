@@ -1,0 +1,53 @@
+name: Pro Fundamentals Weekly CFTC COT Pipeline
+
+on:
+  schedule:
+    # CFTC reports are published Friday 15:30 US Eastern (~20:30 UTC in DST / 21:30 UTC in winter).
+    # Schedule: Friday 21:30 UTC (5:30 PM ET) + Saturday 02:00 UTC (retry if Friday publication was delayed)
+    - cron: '30 21 * * 5'
+    - cron: '0 2 * * 6'
+  workflow_dispatch:
+
+concurrency:
+  group: pro-fundamentals-collectors
+  cancel-in-progress: false
+
+jobs:
+  run-weekly-cot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Run Incremental CFTC Collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CFTC_APP_TOKEN: ${{ secrets.CFTC_APP_TOKEN }}
+        run: npx tsx backend/jobs/runCollectors.ts --source cftc
+
+      - name: Notify on Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `🚨 [ProFundamentals] Weekly CFTC Collector Failed: ${new Date().toISOString()}`;
+            const body = `The weekly CFTC Commitments of Traders ingestion failed.\n\nWorkflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\nReview ingestion_runs in Supabase for stack trace.`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['pipeline-failure', 'cftc-collector']
+            });

@@ -1,0 +1,41 @@
+{
+  "description": "Synthetic multi-indicator macroeconomic dataset with known point-in-time releases, revisions, and positioning for scoring engine validation",
+  "asOfTestDate": "2026-06-01T00:00:00Z",
+  "indicators": [
+    { "id": "ind_dff", "code": "USD_FEDFUNDS", "frequency": "daily", "polarity": "higher_bullish", "weight": 1.0 },
+    { "id": "ind_dgs2", "code": "USD_2Y_TREASURY_YIELD", "frequency": "daily", "polarity": "higher_bullish", "weight": 1.0 },
+    { "id": "ind_dgs10", "code": "USD_10Y_TREASURY_YIELD", "frequency": "daily", "polarity": "higher_bullish", "weight": 1.0 },
+    { "id": "ind_cpi", "code": "USD_CPI_HEADLINE_YOY", "frequency": "monthly", "polarity": "higher_bullish", "weight": 1.0 },
+    { "id": "ind_unrate", "code": "USD_UNEMPLOYMENT_RATE", "frequency": "monthly", "polarity": "higher_bearish", "weight": 1.0 },
+    { "id": "ind_cftc_net", "code": "USD_CFTC_LEV_NET", "frequency": "weekly", "polarity": "contrarian_extreme", "weight": 1.0 },
+    { "id": "ind_cftc_oi", "code": "USD_CFTC_OPEN_INTEREST", "frequency": "weekly", "polarity": "neutral_context", "weight": 1.0 }
+  ],
+  "observations": [
+    { "indicator_id": "ind_dff", "period_date": "2026-04-01", "value": 5.25, "released_at": "2026-04-02T09:00:00Z" },
+    { "indicator_id": "ind_dff", "period_date": "2026-05-01", "value": 5.25, "released_at": "2026-05-02T09:00:00Z" },
+    { "indicator_id": "ind_dff", "period_date": "2026-05-28", "value": 5.33, "released_at": "2026-05-29T09:00:00Z" },
+    { "indicator_id": "ind_dff", "period_date": "2026-07-01", "value": 5.00, "released_at": "2026-07-02T09:00:00Z" },
+
+    { "indicator_id": "ind_dgs2", "period_date": "2026-04-01", "value": 4.80, "released_at": "2026-04-01T21:00:00Z" },
+    { "indicator_id": "ind_dgs2", "period_date": "2026-05-01", "value": 4.90, "released_at": "2026-05-01T21:00:00Z" },
+    { "indicator_id": "ind_dgs2", "period_date": "2026-05-28", "value": 4.95, "released_at": "2026-05-28T21:00:00Z" },
+
+    { "indicator_id": "ind_dgs10", "period_date": "2026-04-01", "value": 4.40, "released_at": "2026-04-01T21:00:00Z" },
+    { "indicator_id": "ind_dgs10", "period_date": "2026-05-01", "value": 4.55, "released_at": "2026-05-01T21:00:00Z" },
+    { "indicator_id": "ind_dgs10", "period_date": "2026-05-28", "value": 4.60, "released_at": "2026-05-28T21:00:00Z" },
+
+    { "indicator_id": "ind_cpi", "period_date": "2026-03-01", "value": 310.0, "released_at": "2026-04-10T12:30:00Z" },
+    { "indicator_id": "ind_cpi", "period_date": "2026-04-01", "value": 312.0, "released_at": "2026-05-12T12:30:00Z", "is_revision": false },
+    { "indicator_id": "ind_cpi", "period_date": "2026-04-01", "value": 312.5, "released_at": "2026-06-15T12:30:00Z", "is_revision": true },
+    { "indicator_id": "ind_cpi", "period_date": "2026-05-01", "value": 313.2, "released_at": "2026-06-12T12:30:00Z" },
+
+    { "indicator_id": "ind_unrate", "period_date": "2026-03-01", "value": 3.8, "released_at": "2026-04-05T12:30:00Z" },
+    { "indicator_id": "ind_unrate", "period_date": "2026-04-01", "value": 3.9, "released_at": "2026-05-08T12:30:00Z" },
+    { "indicator_id": "ind_unrate", "period_date": "2026-05-01", "value": 4.1, "released_at": "2026-06-05T12:30:00Z" },
+
+    { "indicator_id": "ind_cftc_net", "period_date": "2026-05-19", "value": 45000, "released_at": "2026-05-22T20:30:00Z" },
+    { "indicator_id": "ind_cftc_net", "period_date": "2026-05-26", "value": 48000, "released_at": "2026-05-29T20:30:00Z" },
+    { "indicator_id": "ind_cftc_oi", "period_date": "2026-05-19", "value": 250000, "released_at": "2026-05-22T20:30:00Z" },
+    { "indicator_id": "ind_cftc_oi", "period_date": "2026-05-26", "value": 260000, "released_at": "2026-05-29T20:30:00Z" }
+  ]
+}
