@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
+import { fetchLatestReportDate } from './cotService.js';
 
 export interface CalendarEvent {
   id: string;
@@ -421,6 +422,82 @@ export async function fetchTradingViewRange(from: Date, to: Date): Promise<Calen
   return events;
 }
 
+async function injectCotReleaseEvents(events: CalendarEvent[], from: Date, to: Date): Promise<CalendarEvent[]> {
+  const result = [...events];
+  try {
+    const latestDate = await fetchLatestReportDate().catch(() => null);
+    const now = Date.now();
+
+    const cur = new Date(from.getTime());
+    cur.setUTCHours(0, 0, 0, 0);
+
+    while (cur.getTime() <= to.getTime()) {
+      if (cur.getUTCDay() === 5) { // Friday
+        const releaseTime = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth(), cur.getUTCDate(), 19, 30, 0));
+        const timestamp = releaseTime.getTime();
+        const dateKey = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, '0')}-${String(cur.getUTCDate()).padStart(2, '0')}`;
+
+        const exists = result.some(
+          (e) => e.id === `cftc-cot-weekly-${dateKey}` || (e.eventName.includes('Commitments of Traders') && e.id.includes(dateKey))
+        );
+
+        if (!exists) {
+          const { timePkt, timeShortPkt, datePkt, dayOfWeekPkt, pktDateKey, year, month } = formatToKarachiTime(timestamp);
+          const isPastOrDue = timestamp <= now;
+          const actualText = isPastOrDue
+            ? latestDate
+              ? `Released (As of ${latestDate})`
+              : 'Released'
+            : '—';
+
+          const cotEvent: CalendarEvent = {
+            id: `cftc-cot-weekly-${dateKey}`,
+            utcTimestamp: timestamp,
+            date: releaseTime.toISOString(),
+            pktDateKey,
+            dayOfWeekPkt,
+            timeShortPkt,
+            timeUtc: '19:30',
+            timePkt,
+            datePkt,
+            year,
+            month,
+            country: 'United States',
+            currency: 'USD',
+            eventName: 'CFTC Commitments of Traders (COT) Release',
+            indicator: 'COT Weekly Positioning',
+            period: `Week of ${dateKey}`,
+            category: 'SURVEY',
+            importance: 'HIGH',
+            forecast: 'Speculator / Hedger Positioning',
+            previous: 'Tuesday Snapshot',
+            actual: actualText,
+            source: 'Commodity Futures Trading Commission (CFTC)',
+            sourceUrl: 'https://publicreporting.cftc.gov',
+            whatItMeasures: 'Aggregated futures positioning of Non-Commercial speculators and Commercial hedgers across currencies, commodities, and index futures.',
+            historicalReaction: 'Extremes in net speculator positioning frequently precede multi-week exhaustion, short squeezes, and macro reversals.',
+            whyItImpactsVolatility: 'Speculators (hedge funds) versus Commercials (hedgers) positioning divergence reveals where institutional smart money is placing exposure.',
+            recommendedPosture: 'Cross-reference COT Smart Money Index with higher-timeframe order blocks and market structure shifts.',
+            marketRelevance: {
+              usd: 'Primary catalyst for institutional macro sentiment on the US Dollar Index (DXY) and Treasury yields.',
+              gold: 'Crucial gauge for large institutional speculator exposure on COMEX Gold (GC) and Silver (SI).',
+              forex: 'Covers all major CME currency futures (EUR, GBP, JPY, AUD, CAD, CHF, NZD).',
+              indices: 'Monitors institutional hedge fund exposure across S&P 500, Nasdaq 100, and Dow Jones futures.',
+            },
+          };
+          result.push(cotEvent);
+        }
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+
+    result.sort((a, b) => a.utcTimestamp - b.utcTimestamp);
+  } catch (err) {
+    console.warn('[COT Event Injection Warning]:', err);
+  }
+  return result;
+}
+
 export async function getRange(from: Date, to: Date): Promise<CalendarEvent[]> {
   const key = `${from.toISOString().slice(0, 10)}:${to.toISOString().slice(0, 10)}`;
   const cached = cache.get(key);
@@ -428,10 +505,11 @@ export async function getRange(from: Date, to: Date): Promise<CalendarEvent[]> {
     return cached.events;
   }
   try {
-    const events = await fetchTradingViewRange(from, to);
-    if (events.length > 0) {
-      cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, events });
-      return events;
+    const rawEvents = await fetchTradingViewRange(from, to);
+    if (rawEvents.length > 0) {
+      const enriched = await injectCotReleaseEvents(rawEvents, from, to);
+      cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, events: enriched });
+      return enriched;
     }
   } catch (err: any) {
     console.warn('[TradingView Calendar] Live fetch warning:', err?.message || err);
@@ -444,7 +522,8 @@ export async function getRange(from: Date, to: Date): Promise<CalendarEvent[]> {
   const base = loadBaseEvents();
   const s = from.getTime();
   const e = to.getTime();
-  return base.filter((ev) => ev.utcTimestamp >= s && ev.utcTimestamp <= e);
+  const filtered = base.filter((ev) => ev.utcTimestamp >= s && ev.utcTimestamp <= e);
+  return injectCotReleaseEvents(filtered, from, to);
 }
 
 export async function getCalendarEvents(year = new Date().getUTCFullYear()): Promise<CalendarEvent[]> {
