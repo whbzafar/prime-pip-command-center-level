@@ -50,6 +50,7 @@ import { Meta5PremiumTerminal } from './components/meta5/Meta5PremiumTerminal';
 import { PostTradeGuidanceModal } from './components/account/PostTradeGuidanceModal';
 import { CreateAccountWizard } from './components/account/CreateAccountWizard';
 import { SetupWizard } from './components/SetupWizard';
+import { CommunityReviewsModal } from './components/CommunityReviewsModal';
 import { PostTradeImpactSummary } from './types';
 import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
 

@@ -393,7 +393,7 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
                 >
                   {VERIFIED_FUNDED_PRESETS.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.label} (Daily Max: {p.dailyDrawdownPct}%, Overall: {p.overallDrawdownPct}%)
+                      {p.accountProduct} (Daily Max: {p.dailyDrawdownPct}%, Overall: {p.overallDrawdownPct}%)
                     </option>
                   ))}
                 </select>

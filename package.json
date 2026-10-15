@@ -10,7 +10,7 @@
     "preview": "npm run build && node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx src/riskEngine.test.ts"
+    "test": "tsx src/riskEngine.test.ts && tsx src/cotEngine.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",

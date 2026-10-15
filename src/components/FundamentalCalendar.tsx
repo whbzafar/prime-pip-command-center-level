@@ -28,6 +28,7 @@ import {
   Building2,
   Scale,
   Zap,
+  BarChart2,
 } from 'lucide-react';
 import {
   CalendarEvent,
@@ -38,6 +39,7 @@ import {
   syncCalendar,
   getCalendarMeta,
 } from '../services/economicCalendarService';
+import { CotReportModule } from './cot/CotReportModule';
 
 // Classic Forex Factory Folder Icon SVG (Color-coded by impact)
 const ForexFactoryFolderIcon: React.FC<{
@@ -247,7 +249,60 @@ function formatCountdown(msRemaining: number): string {
   return `${mins}m ${secs}s`;
 }
 
+function getWeeklyCotEvent(startDate: Date, endDate: Date, nowMs: number): CalendarEvent | null {
+  const current = new Date(startDate.getTime());
+  while (current <= endDate) {
+    if (current.getUTCDay() === 5) {
+      const releaseUtc = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate(), 19, 30, 0));
+      const isReleased = nowMs >= releaseUtc.getTime();
+      const pktDateKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(releaseUtc);
+      const timePkt = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true }).format(releaseUtc);
+      const datePktFormatted = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Karachi', month: 'short', day: 'numeric', year: 'numeric' }).format(releaseUtc);
+      const dayOfWeekPkt = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Karachi', weekday: 'short' }).format(releaseUtc);
+
+      return {
+        id: `cftc-cot-release-${pktDateKey}`,
+        utcTimestamp: releaseUtc.getTime(),
+        date: releaseUtc.toISOString().slice(0, 10),
+        pktDateKey,
+        dayOfWeekPkt,
+        timeShortPkt: timePkt,
+        timeUtc: '19:30',
+        timePkt,
+        datePkt: datePktFormatted,
+        year: releaseUtc.getUTCFullYear(),
+        month: releaseUtc.getUTCMonth() + 1,
+        country: 'United States',
+        currency: 'USD',
+        eventName: 'CFTC Commitments of Traders (COT) Weekly Release',
+        indicator: 'COT Positioning Report',
+        period: 'Weekly',
+        category: 'SURVEY',
+        importance: 'HIGH',
+        forecast: '—',
+        previous: '—',
+        actual: isReleased ? 'Released' : 'Pending',
+        source: 'Commodity Futures Trading Commission (CFTC)',
+        sourceUrl: 'https://publicreporting.cftc.gov',
+        whatItMeasures: 'Institutional commitments and open interest breakdown across Non-Commercial speculators and Commercial hedgers.',
+        historicalReaction: 'High market sensitivity when large speculator net positioning reaches multi-year percentile extremes.',
+        whyItImpactsVolatility: 'Institutional positioning extremes often lead to multi-week trend exhaustion or short-squeeze reversals.',
+        recommendedPosture: 'Cross-reference current positioning in the COT Report tab with technical order flow.',
+        marketRelevance: {
+          usd: 'DXY speculator net positioning indicates macro USD dollar sentiment.',
+          gold: 'Managed money positioning in COMEX gold futures signals smart money conviction.',
+          forex: 'Currencies show institutional net long/short differential against the USD.',
+          indices: 'Asset managers vs leveraged funds positioning on E-mini S&P 500.',
+        },
+      };
+    }
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return null;
+}
+
 export const FundamentalCalendar: React.FC = () => {
+  const [activeCalendarTab, setActiveCalendarTab] = useState<'CALENDAR' | 'COT'>('CALENDAR');
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [meta, setMeta] = useState<CalendarMeta | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -320,6 +375,11 @@ export const FundamentalCalendar: React.FC = () => {
           activeWeekBounds.end.toISOString()
         );
       }
+      const cotEv = getWeeklyCotEvent(activeWeekBounds.start, activeWeekBounds.end, Date.now());
+      if (cotEv && !fetched.some((e) => e.id === cotEv.id)) {
+        fetched.push(cotEv);
+        fetched.sort((a, b) => a.utcTimestamp - b.utcTimestamp);
+      }
       setEvents(fetched);
       const latestMeta = await getCalendarMeta();
       setMeta(latestMeta);
@@ -338,15 +398,22 @@ export const FundamentalCalendar: React.FC = () => {
   useEffect(() => {
     const refreshTimer = setInterval(async () => {
       try {
+        let fetched: CalendarEvent[] = [];
         if (periodPreset === 'THIS_MONTH') {
-          const fetched = await fetchMonthEvents(selectedYear, selectedMonth);
-          if (fetched.length > 0) setEvents(fetched);
+          fetched = await fetchMonthEvents(selectedYear, selectedMonth);
         } else {
-          const fetched = await fetchWeekEvents(
+          fetched = await fetchWeekEvents(
             activeWeekBounds.start.toISOString(),
             activeWeekBounds.end.toISOString()
           );
-          if (fetched.length > 0) setEvents(fetched);
+        }
+        if (fetched.length > 0) {
+          const cotEv = getWeeklyCotEvent(activeWeekBounds.start, activeWeekBounds.end, Date.now());
+          if (cotEv && !fetched.some((e) => e.id === cotEv.id)) {
+            fetched.push(cotEv);
+            fetched.sort((a, b) => a.utcTimestamp - b.utcTimestamp);
+          }
+          setEvents(fetched);
         }
       } catch {}
     }, 60_000);
@@ -585,8 +652,37 @@ export const FundamentalCalendar: React.FC = () => {
             </div>
           </div>
 
-          {/* FOREX FACTORY CONTROL BAR: Date Navigation + Folder Impact Filters + Currency Filter */}
-          <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-2.5">
+          {/* SECTION TABS: Economic Calendar vs COT Report */}
+          <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center gap-2">
+            <button
+              onClick={() => setActiveCalendarTab('CALENDAR')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-mono-code font-bold transition flex items-center gap-2 cursor-pointer ${
+                activeCalendarTab === 'CALENDAR'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow'
+                  : 'text-slate-400 hover:text-white bg-slate-900/50 border border-slate-800'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Economic Calendar</span>
+            </button>
+            <button
+              onClick={() => setActiveCalendarTab('COT')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-mono-code font-bold transition flex items-center gap-2 cursor-pointer ${
+                activeCalendarTab === 'COT'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow'
+                  : 'text-slate-400 hover:text-white bg-slate-900/50 border border-slate-800'
+              }`}
+            >
+              <BarChart2 className="w-3.5 h-3.5 text-cyan-400" />
+              <span>COT Report</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                CFTC SODA
+              </span>
+            </button>
+          </div>
+
+          {activeCalendarTab === 'CALENDAR' && (
+            <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-2.5">
             {/* Period & Week Navigation */}
             <div className="flex flex-wrap items-center gap-1.5">
               <div className="inline-flex items-center bg-[#060a10] border border-slate-800 rounded-lg p-0.5">
@@ -799,11 +895,18 @@ export const FundamentalCalendar: React.FC = () => {
               </button>
             </div>
           </div>
+          )}
         </div>
       </div>
 
-      {/* HIGH-IMPACT LIVE RADAR BANNER */}
-      <div className="max-w-[1440px] mx-auto px-3 sm:px-6 mt-4">
+      {activeCalendarTab === 'COT' ? (
+        <div className="max-w-[1440px] mx-auto px-3 sm:px-6 py-4">
+          <CotReportModule />
+        </div>
+      ) : (
+        <>
+          {/* HIGH-IMPACT LIVE RADAR BANNER */}
+          <div className="max-w-[1440px] mx-auto px-3 sm:px-6 mt-4">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
           {/* Card 1: Next Immediate Release Countdown */}
           <div className="bg-[#0c121e] border border-slate-800/90 rounded-xl p-3.5 flex items-center justify-between">
@@ -1492,6 +1595,8 @@ export const FundamentalCalendar: React.FC = () => {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };

@@ -179,6 +179,7 @@ import {
   validateScreenshotTradeSetup,
   saveScreenshotTradeAtomically,
 } from "./server/tradingviewScreenshotService.js";
+import { cotRouter, verifyCftcDatasetAtBoot } from "./server/cotService.js";
 
 dotenv.config();
 
@@ -6694,6 +6695,9 @@ app.get('/api/fundamental-intelligence/test-suite', async (_req, res) => {
   }
 });
 
+// CFTC Commitments of Traders (COT) Proxy & Analytics Routes
+app.use('/api/cot', cotRouter);
+
 // Vite middleware / static files (only run when launched standalone, not in Vercel serverless)
 async function startServer() {
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
@@ -6735,6 +6739,7 @@ async function startServer() {
     console.log(`[PRIMEPIPFX COMMAND CENTER] Server active on port ${PORT}`);
     startAutonomousEvolution();
     console.log("[EvolutionEngine] Autonomous safe-sandbox scheduler started (5 minute interval)");
+    void verifyCftcDatasetAtBoot();
   });
 }
 
