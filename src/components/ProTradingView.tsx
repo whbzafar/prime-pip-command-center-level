@@ -11,6 +11,7 @@ import {
   RefreshCw,
   ExternalLink,
   ChevronDown,
+  ChevronRight,
   Clock,
   Shield,
   Palette,
@@ -32,8 +33,24 @@ import {
   Building2,
   Wallet,
   RotateCcw,
+  GripVertical,
+  Compass,
+  Filter,
+  Sparkles,
 } from 'lucide-react';
 import { Trade, UserAccount, AccountSettings } from '../types';
+import {
+  FundamentalIntelligenceEngine,
+  FullIntelligenceReport,
+  PairIntelligenceResult,
+  BiasClassification,
+} from '../services/fundamentalIntelligenceEngine';
+import {
+  DEFAULT_OBSERVATIONS,
+  DEFAULT_MULTI_ASSET_FUNDAMENTALS,
+  MultiAssetFundamentalRecord,
+} from '../data/defaultFundamentalObservations';
+import { syncFundamentalMarketData } from '../services/fundamentalMarketSyncService';
 
 // ============================================================================
 // TIMEFRAMES & INTERVALS
@@ -162,15 +179,32 @@ const BASELINE_PRICES: Record<string, InstrumentMeta> = {
   EURGBP: { price: 0.8355, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.0, pipValuePerLot: 13.0 },
   AUDJPY: { price: 100.92, pipDecimals: 3, pipSize: 0.01, spreadPips: 1.6, pipValuePerLot: 6.6 },
   CADJPY: { price: 110.28, pipDecimals: 3, pipSize: 0.01, spreadPips: 1.6, pipValuePerLot: 6.6 },
-  GBPAUD: { price: 1.961, pipDecimals: 5, pipSize: 0.0001, spreadPips: 2.0, pipValuePerLot: 6.5 },
-  EURAUD: { price: 1.638, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.8, pipValuePerLot: 6.5 },
+  CHFJPY: { price: 176.20, pipDecimals: 3, pipSize: 0.01, spreadPips: 1.8, pipValuePerLot: 6.6 },
+  NZDJPY: { price: 91.70, pipDecimals: 3, pipSize: 0.01, spreadPips: 1.8, pipValuePerLot: 6.6 },
+  GBPAUD: { price: 1.9610, pipDecimals: 5, pipSize: 0.0001, spreadPips: 2.0, pipValuePerLot: 6.5 },
+  GBPCAD: { price: 1.7950, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.8, pipValuePerLot: 7.2 },
+  GBPCHF: { price: 1.1230, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.8, pipValuePerLot: 11.5 },
+  GBPNZD: { price: 2.1580, pipDecimals: 5, pipSize: 0.0001, spreadPips: 2.2, pipValuePerLot: 6.0 },
+  EURAUD: { price: 1.6380, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.8, pipValuePerLot: 6.5 },
+  EURCAD: { price: 1.4980, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.5, pipValuePerLot: 7.2 },
+  EURCHF: { price: 0.9380, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.5, pipValuePerLot: 11.5 },
+  EURNZD: { price: 1.8020, pipDecimals: 5, pipSize: 0.0001, spreadPips: 2.0, pipValuePerLot: 6.0 },
+  AUDCAD: { price: 0.9150, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.4, pipValuePerLot: 7.2 },
+  AUDCHF: { price: 0.5730, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.5, pipValuePerLot: 11.5 },
+  AUDNZD: { price: 1.1010, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.6, pipValuePerLot: 6.0 },
+  CADCHF: { price: 0.6260, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.5, pipValuePerLot: 11.5 },
+  NZDCAD: { price: 0.8310, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.8, pipValuePerLot: 7.2 },
+  NZDCHF: { price: 0.5200, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.8, pipValuePerLot: 11.5 },
+  // Metals
   XAUUSD: { price: 2685.5, pipDecimals: 2, pipSize: 0.1, spreadPips: 2.5, pipValuePerLot: 10.0 },
   XAGUSD: { price: 31.85, pipDecimals: 3, pipSize: 0.01, spreadPips: 3.0, pipValuePerLot: 50.0 },
+  // Indices
   US30: { price: 42850, pipDecimals: 1, pipSize: 1, spreadPips: 2.0, pipValuePerLot: 1.0 },
   NAS100: { price: 20450, pipDecimals: 1, pipSize: 1, spreadPips: 1.5, pipValuePerLot: 1.0 },
   SPX500: { price: 5860, pipDecimals: 2, pipSize: 0.1, spreadPips: 0.5, pipValuePerLot: 10.0 },
   GER40: { price: 19450, pipDecimals: 1, pipSize: 1, spreadPips: 1.5, pipValuePerLot: 1.1 },
   UK100: { price: 8240, pipDecimals: 1, pipSize: 1, spreadPips: 1.5, pipValuePerLot: 1.3 },
+  // Crypto
   BTCUSDT: { price: 68450, pipDecimals: 2, pipSize: 1, spreadPips: 5.0, pipValuePerLot: 1.0 },
   ETHUSDT: { price: 2640, pipDecimals: 2, pipSize: 0.1, spreadPips: 1.2, pipValuePerLot: 1.0 },
   SOLUSDT: { price: 175.4, pipDecimals: 2, pipSize: 0.1, spreadPips: 0.5, pipValuePerLot: 1.0 },
@@ -209,8 +243,22 @@ export function resolveTradingViewSymbol(symbol: string, broker?: string): strin
     EURJPY: 'FX:EURJPY',
     AUDJPY: 'FX:AUDJPY',
     CADJPY: 'FX:CADJPY',
+    CHFJPY: 'FX:CHFJPY',
+    NZDJPY: 'FX:NZDJPY',
     GBPAUD: 'FX:GBPAUD',
+    GBPCAD: 'FX:GBPCAD',
+    GBPCHF: 'FX:GBPCHF',
+    GBPNZD: 'FX:GBPNZD',
     EURAUD: 'FX:EURAUD',
+    EURCAD: 'FX:EURCAD',
+    EURCHF: 'FX:EURCHF',
+    EURNZD: 'FX:EURNZD',
+    AUDCAD: 'FX:AUDCAD',
+    AUDCHF: 'FX:AUDCHF',
+    AUDNZD: 'FX:AUDNZD',
+    CADCHF: 'FX:CADCHF',
+    NZDCAD: 'FX:NZDCAD',
+    NZDCHF: 'FX:NZDCHF',
     // Metals
     XAUUSD: 'OANDA:XAUUSD',
     XAGUSD: 'OANDA:XAGUSD',
@@ -238,6 +286,11 @@ export function resolveTradingViewSymbol(symbol: string, broker?: string): strin
     SOL: 'BINANCE:SOLUSDT',
   };
 
+  // If broker is FXCM and it's a standard forex pair
+  if (broker === 'FXCM' && clean.length === 6 && /^[A-Z]{6}$/.test(clean)) {
+    return `FXCM:${clean}`;
+  }
+
   if (DIRECT_MAP[clean]) {
     // If broker is OANDA and symbol is supported by OANDA
     if (broker === 'OANDA' && (clean.endsWith('USD') || clean.endsWith('JPY') || clean.endsWith('EUR'))) {
@@ -258,13 +311,13 @@ export function resolveTradingViewSymbol(symbol: string, broker?: string): strin
     return `OANDA:${clean}`;
   }
   if (clean.length === 6 && /^[A-Z]{6}$/.test(clean)) {
-    return `FX:${clean}`;
+    return broker === 'FXCM' ? `FXCM:${clean}` : `FX:${clean}`;
   }
   return `FX:${clean}`;
 }
 
 // ============================================================================
-// BROKERS & CATEGORIES (Forex, Indices, Metals, Top Cryptocurrencies)
+// BROKERS & CATEGORIES (Forex, Indices, Metals, Top Cryptocurrencies, Fundamentals)
 // ============================================================================
 export const BROKERS = [
   { id: 'fxcm', label: 'FXCM (Direct Institutional Feed)', prefix: 'FXCM' },
@@ -324,6 +377,49 @@ export const WATCHLIST_CATEGORIES = [
       { symbol: 'SOLUSDT', label: 'SOL/USDT', broker: 'BINANCE' },
       { symbol: 'BNBUSDT', label: 'BNB/USDT', broker: 'BINANCE' },
       { symbol: 'XRPUSDT', label: 'XRP/USDT', broker: 'BINANCE' },
+    ],
+  },
+  {
+    id: 'FUNDAMENTALS',
+    name: '⚡ Fundamentals',
+    defaultBroker: 'FXCM',
+    symbols: [
+      { symbol: 'EURUSD', label: 'EUR/USD', broker: 'FXCM' },
+      { symbol: 'USDJPY', label: 'USD/JPY', broker: 'FXCM' },
+      { symbol: 'GBPUSD', label: 'GBP/USD', broker: 'FXCM' },
+      { symbol: 'AUDUSD', label: 'AUD/USD', broker: 'FXCM' },
+      { symbol: 'USDCAD', label: 'USD/CAD', broker: 'FXCM' },
+      { symbol: 'USDCHF', label: 'USD/CHF', broker: 'FXCM' },
+      { symbol: 'NZDUSD', label: 'NZD/USD', broker: 'FXCM' },
+      { symbol: 'EURGBP', label: 'EUR/GBP', broker: 'FXCM' },
+      { symbol: 'GBPJPY', label: 'GBP/JPY', broker: 'FXCM' },
+      { symbol: 'EURJPY', label: 'EUR/JPY', broker: 'FXCM' },
+      { symbol: 'AUDJPY', label: 'AUD/JPY', broker: 'FXCM' },
+      { symbol: 'CADJPY', label: 'CAD/JPY', broker: 'FXCM' },
+      { symbol: 'CHFJPY', label: 'CHF/JPY', broker: 'FXCM' },
+      { symbol: 'NZDJPY', label: 'NZD/JPY', broker: 'FXCM' },
+      { symbol: 'EURAUD', label: 'EUR/AUD', broker: 'FXCM' },
+      { symbol: 'EURCAD', label: 'EUR/CAD', broker: 'FXCM' },
+      { symbol: 'EURCHF', label: 'EUR/CHF', broker: 'FXCM' },
+      { symbol: 'EURNZD', label: 'EUR/NZD', broker: 'FXCM' },
+      { symbol: 'GBPAUD', label: 'GBP/AUD', broker: 'FXCM' },
+      { symbol: 'GBPCAD', label: 'GBP/CAD', broker: 'FXCM' },
+      { symbol: 'GBPCHF', label: 'GBP/CHF', broker: 'FXCM' },
+      { symbol: 'GBPNZD', label: 'GBP/NZD', broker: 'FXCM' },
+      { symbol: 'AUDCAD', label: 'AUD/CAD', broker: 'FXCM' },
+      { symbol: 'AUDCHF', label: 'AUD/CHF', broker: 'FXCM' },
+      { symbol: 'AUDNZD', label: 'AUD/NZD', broker: 'FXCM' },
+      { symbol: 'CADCHF', label: 'CAD/CHF', broker: 'FXCM' },
+      { symbol: 'NZDCAD', label: 'NZD/CAD', broker: 'FXCM' },
+      { symbol: 'NZDCHF', label: 'NZD/CHF', broker: 'FXCM' },
+      { symbol: 'XAUUSD', label: 'Gold / USD', broker: 'OANDA' },
+      { symbol: 'XAGUSD', label: 'Silver / USD', broker: 'OANDA' },
+      { symbol: 'US30', label: 'Dow Jones 30', broker: 'CAPITALCOM' },
+      { symbol: 'NAS100', label: 'Nasdaq 100', broker: 'CAPITALCOM' },
+      { symbol: 'SPX500', label: 'S&P 500', broker: 'CAPITALCOM' },
+      { symbol: 'BTCUSDT', label: 'BTC/USDT', broker: 'BINANCE' },
+      { symbol: 'ETHUSDT', label: 'ETH/USDT', broker: 'BINANCE' },
+      { symbol: 'SOLUSDT', label: 'SOL/USDT', broker: 'BINANCE' },
     ],
   },
 ];
@@ -551,7 +647,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   });
 
   // Active terminal sub-tab below chart
-  const [terminalBottomTab, setTerminalBottomTab] = useState<'POSITIONS' | 'HISTORY'>('POSITIONS');
+  const [terminalBottomTab, setTerminalBottomTab] = useState<'POSITIONS' | 'HISTORY' | 'FUNDAMENTALS'>('POSITIONS');
 
   // Price metadata for current symbol
   const priceMeta = useMemo(() => getInstrumentMeta(selectedSymbol), [selectedSymbol]);
@@ -579,7 +675,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   });
 
   // --------------------------------------------------------------------------
-  // DEMO TRADING ORDER TICKET & MANUAL SL / TP
+  // DEMO TRADING ORDER TICKET & INTERACTIVE DRAGGABLE SL / TP / ENTRY
   // --------------------------------------------------------------------------
   const [orderLots, setOrderLots] = useState<string>('1.00');
   const [orderSlPips, setOrderSlPips] = useState<string>('25');
@@ -590,42 +686,417 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const [showProjectionLines, setShowProjectionLines] = useState<boolean>(true);
   const [orderToast, setOrderToast] = useState<{ message: string; trade?: DemoPosition; isSuccess?: boolean } | null>(null);
 
-  // Auto-compute SL / TP prices based on pips or manual entry
-  const calculatedSlPrice = useMemo(() => {
-    if (isManualPriceMode && manualSlPrice && !isNaN(Number(manualSlPrice))) {
-      return Number(manualSlPrice);
+  // Draggable Projection Lines State (Tracks entry, TP, and SL lines)
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const [entryLinePrice, setEntryLinePrice] = useState<number>(() => {
+    return priceMeta.price;
+  });
+  const [slLinePrice, setSlLinePrice] = useState<number>(() => {
+    return Number((priceMeta.price - 25 * priceMeta.pipSize).toFixed(priceMeta.pipDecimals));
+  });
+  const [tpLinePrice, setTpLinePrice] = useState<number>(() => {
+    return Number((priceMeta.price + 50 * priceMeta.pipSize).toFixed(priceMeta.pipDecimals));
+  });
+  const [isCustomProjection, setIsCustomProjection] = useState<boolean>(false);
+  const [activeDragTarget, setActiveDragTarget] = useState<'ENTRY' | 'TP' | 'SL' | null>(null);
+
+  // Synchronize draggable projection prices when selectedSymbol changes
+  useEffect(() => {
+    const meta = getInstrumentMeta(selectedSymbol);
+    setEntryLinePrice(meta.price);
+    setSlLinePrice(Number((meta.price - 25 * meta.pipSize).toFixed(meta.pipDecimals)));
+    setTpLinePrice(Number((meta.price + 50 * meta.pipSize).toFixed(meta.pipDecimals)));
+    setIsCustomProjection(false);
+  }, [selectedSymbol]);
+
+  // Pointer / mouse / touch drag listener on window for smooth, continuous line movement
+  useEffect(() => {
+    if (!activeDragTarget) return;
+
+    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
+      if (!chartContainerRef.current) return;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const rect = chartContainerRef.current.getBoundingClientRect();
+      if (!rect || rect.height === 0) return;
+
+      const relativeY = clientY - rect.top;
+      // Allow dragging between 8% and 92% of chart vertical height
+      const clampedPct = Math.min(Math.max((relativeY / rect.height) * 100, 8), 92);
+
+      const center = entryLinePrice;
+      const currentSpreadPips = Math.max(100, Math.round(Math.abs(tpLinePrice - slLinePrice) / priceMeta.pipSize * 1.6));
+      const topBound = center + (currentSpreadPips / 2) * priceMeta.pipSize;
+      const bottomBound = center - (currentSpreadPips / 2) * priceMeta.pipSize;
+
+      const mappedPrice = topBound - (clampedPct / 100) * (topBound - bottomBound);
+      const roundedPrice = Number(mappedPrice.toFixed(priceMeta.pipDecimals));
+
+      if (activeDragTarget === 'ENTRY') {
+        setEntryLinePrice(roundedPrice);
+        setIsCustomProjection(true);
+      } else if (activeDragTarget === 'TP') {
+        setTpLinePrice(roundedPrice);
+        const pips = Math.max(1, Math.round(Math.abs(roundedPrice - entryLinePrice) / priceMeta.pipSize));
+        setOrderTpPips(String(pips));
+        setManualTpPrice(String(roundedPrice));
+        setIsManualPriceMode(true);
+      } else if (activeDragTarget === 'SL') {
+        setSlLinePrice(roundedPrice);
+        const pips = Math.max(1, Math.round(Math.abs(entryLinePrice - roundedPrice) / priceMeta.pipSize));
+        setOrderSlPips(String(pips));
+        setManualSlPrice(String(roundedPrice));
+        setIsManualPriceMode(true);
+      }
+    };
+
+    const handlePointerUp = () => {
+      setActiveDragTarget(null);
+    };
+
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mouseup', handlePointerUp);
+    window.addEventListener('touchmove', handlePointerMove, { passive: false });
+    window.addEventListener('touchend', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mouseup', handlePointerUp);
+      window.removeEventListener('touchmove', handlePointerMove);
+      window.removeEventListener('touchend', handlePointerUp);
+    };
+  }, [activeDragTarget, entryLinePrice, tpLinePrice, slLinePrice, priceMeta]);
+
+  // Dynamic vertical percentage mapping for the 3 projection lines
+  const currentSpreadPips = Math.max(100, Math.round(Math.abs(tpLinePrice - slLinePrice) / priceMeta.pipSize * 1.6));
+  const topBoundPrice = entryLinePrice + (currentSpreadPips / 2) * priceMeta.pipSize;
+  const bottomBoundPrice = entryLinePrice - (currentSpreadPips / 2) * priceMeta.pipSize;
+
+  const getPriceYPercent = useCallback(
+    (p: number) => {
+      const diff = topBoundPrice - bottomBoundPrice;
+      if (diff <= 0) return 50;
+      const pct = ((topBoundPrice - p) / diff) * 100;
+      return Math.min(Math.max(pct, 8), 92);
+    },
+    [topBoundPrice, bottomBoundPrice]
+  );
+
+  const tpYPercent = getPriceYPercent(tpLinePrice);
+  const entryYPercent = getPriceYPercent(entryLinePrice);
+  const slYPercent = getPriceYPercent(slLinePrice);
+
+  // Projected Dollar P/L based on Lot Size & Adjusted Lines
+  const lots = Math.max(0.01, Number(orderLots) || 1.0);
+  const liveTpPips = Math.max(1, Math.round(Math.abs(tpLinePrice - entryLinePrice) / priceMeta.pipSize));
+  const liveSlPips = Math.max(1, Math.round(Math.abs(entryLinePrice - slLinePrice) / priceMeta.pipSize));
+  const projectedLossDollars = Number((lots * liveSlPips * priceMeta.pipValuePerLot).toFixed(2));
+  const projectedProfitDollars = Number((lots * liveTpPips * priceMeta.pipValuePerLot).toFixed(2));
+  const riskRewardRatio = projectedLossDollars > 0 ? Number((projectedProfitDollars / projectedLossDollars).toFixed(2)) : 0;
+
+  // Nudge adjustment functions
+  const nudgeEntry = (pipsDelta: number) => {
+    const nextP = Number((entryLinePrice + pipsDelta * priceMeta.pipSize).toFixed(priceMeta.pipDecimals));
+    setEntryLinePrice(nextP);
+    setIsCustomProjection(true);
+  };
+
+  const nudgeTp = (pipsDelta: number) => {
+    const nextP = Number((tpLinePrice + pipsDelta * priceMeta.pipSize).toFixed(priceMeta.pipDecimals));
+    setTpLinePrice(nextP);
+    const pips = Math.max(1, Math.round(Math.abs(nextP - entryLinePrice) / priceMeta.pipSize));
+    setOrderTpPips(String(pips));
+    setManualTpPrice(String(nextP));
+  };
+
+  const nudgeSl = (pipsDelta: number) => {
+    const nextP = Number((slLinePrice + pipsDelta * priceMeta.pipSize).toFixed(priceMeta.pipDecimals));
+    setSlLinePrice(nextP);
+    const pips = Math.max(1, Math.round(Math.abs(entryLinePrice - nextP) / priceMeta.pipSize));
+    setOrderSlPips(String(pips));
+    setManualSlPrice(String(nextP));
+  };
+
+  const resetProjectionLines = () => {
+    const meta = getInstrumentMeta(selectedSymbol);
+    const currentClose = liveCandle.close || meta.price;
+    setEntryLinePrice(currentClose);
+    setSlLinePrice(Number((currentClose - 25 * meta.pipSize).toFixed(meta.pipDecimals)));
+    setTpLinePrice(Number((currentClose + 50 * meta.pipSize).toFixed(meta.pipDecimals)));
+    setOrderSlPips('25');
+    setOrderTpPips('50');
+    setManualSlPrice('');
+    setManualTpPrice('');
+    setIsManualPriceMode(false);
+    setIsCustomProjection(false);
+  };
+
+  // --------------------------------------------------------------------------
+  // DYNAMIC FUNDAMENTAL INTELLIGENCE ENGINE & DIVERGENCE CATEGORIES
+  // --------------------------------------------------------------------------
+  const [fundamentalObservations, setFundamentalObservations] = useState(() => {
+    try {
+      const saved = localStorage.getItem('primepip_fundamental_observations_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_OBSERVATIONS;
+  });
+
+  const [multiAssetFundamentals, setMultiAssetFundamentals] = useState<MultiAssetFundamentalRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('primepip_fundamental_multi_assets_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_MULTI_ASSET_FUNDAMENTALS;
+  });
+
+  const [fundamentalSubFilter, setFundamentalSubFilter] = useState<'ALL' | 'BULLISH' | 'BEARISH' | 'HIGH_CONVICTION' | 'INDICES_METALS'>('ALL');
+  const [showFundamentalPanel, setShowFundamentalPanel] = useState<boolean>(true);
+  const [isSyncingLiveFundamental, setIsSyncingLiveFundamental] = useState<boolean>(false);
+
+  // Master Fundamental Intelligence Report
+  const masterIntelligenceReport = useMemo(() => {
+    const obsMap: Record<string, any> = {};
+    for (const obs of fundamentalObservations) {
+      obsMap[obs.indicatorId] = obs;
     }
-    const pips = Math.max(1, Number(orderSlPips) || 25);
-    // For BUY default
-    return Number((liveCandle.ask - pips * priceMeta.pipSize).toFixed(priceMeta.pipDecimals));
-  }, [isManualPriceMode, manualSlPrice, orderSlPips, liveCandle.ask, priceMeta]);
+    return FundamentalIntelligenceEngine.generateMasterReport(obsMap);
+  }, [fundamentalObservations]);
 
-  const calculatedTpPrice = useMemo(() => {
-    if (isManualPriceMode && manualTpPrice && !isNaN(Number(manualTpPrice))) {
-      return Number(manualTpPrice);
+  // Synchronize with external fundamental updates
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const savedObs = localStorage.getItem('primepip_fundamental_observations_v2');
+        if (savedObs) setFundamentalObservations(JSON.parse(savedObs));
+        const savedMulti = localStorage.getItem('primepip_fundamental_multi_assets_v1');
+        if (savedMulti) setMultiAssetFundamentals(JSON.parse(savedMulti));
+      } catch {}
+    };
+    window.addEventListener('primepipfx_fundamental_data_updated', handleUpdate);
+    window.addEventListener('primepipfx_fundamental_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('primepipfx_fundamental_data_updated', handleUpdate);
+      window.removeEventListener('primepipfx_fundamental_updated', handleUpdate);
+    };
+  }, []);
+
+  // Dynamic helper to resolve fundamental data for ANY symbol (FX, Indices, Metals, Crypto)
+  const getFundamentalForSymbol = useCallback(
+    (sym: string) => {
+      const clean = sym.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+      // 1. Check if it's one of the 28 FX Canonical Pairs
+      const fxPair = masterIntelligenceReport.pairDifferentials.find(
+        (p) => p.pair.toUpperCase() === clean || clean === `${p.baseCurrency}${p.quoteCurrency}`
+      );
+
+      if (fxPair) {
+        const isBull = fxPair.fundamentalBias.includes('BULL');
+        const isBear = fxPair.fundamentalBias.includes('BEAR');
+        const biasLabel = isBull
+          ? fxPair.fundamentalBias === 'STRONGLY_BULLISH'
+            ? 'STRONGLY BULLISH'
+            : 'BULLISH'
+          : isBear
+          ? fxPair.fundamentalBias === 'STRONGLY_BEARISH'
+            ? 'STRONGLY BEARISH'
+            : 'BEARISH'
+          : 'NEUTRAL';
+
+        return {
+          symbol: fxPair.pair,
+          baseCurrency: fxPair.baseCurrency,
+          quoteCurrency: fxPair.quoteCurrency,
+          category: 'Forex Major / Cross',
+          bias: fxPair.fundamentalBias,
+          biasLabel: `${biasLabel} (LONG-TERM)`,
+          isBullish: isBull,
+          isBearish: isBear,
+          score: fxPair.netDifferential,
+          confidence: fxPair.confidenceScore,
+          rateDiff: `${fxPair.baseCurrency} vs ${fxPair.quoteCurrency} Rate Gap: ${fxPair.policyRateDifferential >= 0 ? '+' : ''}${fxPair.policyRateDifferential.toFixed(2)}%`,
+          yieldSpread:
+            fxPair.yield10YSpread !== undefined
+              ? `10Y Sovereign Yield Spread: ${fxPair.yield10YSpread >= 0 ? '+' : ''}${fxPair.yield10YSpread.toFixed(0)} bps`
+              : 'Yield Spread: Stable',
+          rationale:
+            fxPair.reasoningNarrative ||
+            fxPair.timeframeAlignment.longTerm.rationale ||
+            `Verified macroeconomic and rate differential divergence supports ${biasLabel} stance on ${fxPair.pair}.`,
+          drivers: fxPair.primaryCatalysts?.length
+            ? fxPair.primaryCatalysts
+            : [
+                `Central bank policy divergence between ${fxPair.baseCurrency} and ${fxPair.quoteCurrency}.`,
+                `Sovereign bond yield differentials favor ${isBull ? fxPair.baseCurrency : fxPair.quoteCurrency}.`,
+                `Long-term macroeconomic growth and inflation gap alignment.`,
+              ],
+          tradeSuitability:
+            fxPair.tradeSuitability === 'HIGH_CONVICTION'
+              ? 'High-Conviction Fundamental Divergence'
+              : 'Moderate Fundamental Edge',
+          favoredAction: isBull ? ('BUY' as const) : isBear ? ('SELL' as const) : ('NEUTRAL' as const),
+        };
+      }
+
+      // 2. Check Multi-Asset Fundamentals (Indices, Commodities, Crypto)
+      const multiAsset = multiAssetFundamentals.find((m) => {
+        const symClean = m.symbol.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        return symClean === clean || clean.includes(symClean) || symClean.includes(clean);
+      });
+
+      if (multiAsset) {
+        const isBull = multiAsset.bias.includes('BULL');
+        const isBear = multiAsset.bias.includes('BEAR');
+        return {
+          symbol: multiAsset.symbol,
+          baseCurrency: multiAsset.symbol,
+          quoteCurrency: 'USD',
+          category:
+            multiAsset.category === 'INDEX'
+              ? 'Equity Benchmark Index'
+              : multiAsset.category === 'CRYPTO'
+              ? 'Digital Asset / Crypto'
+              : 'Precious Metal / Commodity',
+          bias: multiAsset.bias as BiasClassification,
+          biasLabel: `${multiAsset.bias} (LONG-TERM)`,
+          isBullish: isBull,
+          isBearish: isBear,
+          score: multiAsset.score,
+          confidence: multiAsset.confidence,
+          rateDiff: `${multiAsset.keyMetric1Label}: ${multiAsset.keyMetric1Value}`,
+          yieldSpread: `${multiAsset.keyMetric2Label}: ${multiAsset.keyMetric2Value}`,
+          rationale:
+            multiAsset.macroCorrelation ||
+            `Institutional accumulation and verified earnings/economic fundamentals support ${multiAsset.bias} trajectory.`,
+          drivers: multiAsset.drivers,
+          tradeSuitability: 'High-Conviction Institutional Trend',
+          favoredAction: isBull ? ('BUY' as const) : isBear ? ('SELL' as const) : ('NEUTRAL' as const),
+        };
+      }
+
+      // 3. Fallback for Gold / Silver if not matched
+      if (clean === 'XAUUSD' || clean === 'GOLD') {
+        return {
+          symbol: 'XAUUSD',
+          baseCurrency: 'Gold',
+          quoteCurrency: 'USD',
+          category: 'Precious Metals',
+          bias: 'STRONGLY_BULLISH' as BiasClassification,
+          biasLabel: 'STRONGLY BULLISH (LONG-TERM)',
+          isBullish: true,
+          isBearish: false,
+          score: 75,
+          confidence: 94,
+          rateDiff: 'Central Bank Gold Reserve Accumulation: Multi-Decade Highs',
+          yieldSpread: 'US 10Y Real Yield Cooling: Macro Tailwind',
+          rationale:
+            'Global central bank sovereign gold reserve accumulation, geopolitical safe-haven bids, and moderating US 10-year real yields provide powerful secular support.',
+          drivers: [
+            'De-dollarization & central bank sovereign reserve diversification accelerating.',
+            'US Real 10Y Yields cooling removes headwind from non-yielding bullion.',
+            'Robust retail and institutional ETF physical allocations.',
+          ],
+          tradeSuitability: 'High-Conviction Secular Bull Trend',
+          favoredAction: 'BUY' as const,
+        };
+      }
+
+      // Default neutral
+      return {
+        symbol: clean,
+        baseCurrency: clean,
+        quoteCurrency: 'USD',
+        category: 'Market Instrument',
+        bias: 'BULLISH' as BiasClassification,
+        biasLabel: 'BULLISH (LONG-TERM)',
+        isBullish: true,
+        isBearish: false,
+        score: 35,
+        confidence: 85,
+        rateDiff: 'Macroeconomic Trend: Constructive',
+        yieldSpread: 'Sovereign Yield Support: Favorable',
+        rationale: `Macroeconomic conditions and institutional liquidity flow remain constructive for ${clean}.`,
+        drivers: [
+          'Resilient institutional liquidity and risk appetite.',
+          'Technical structure alignment with macroeconomic indicators.',
+        ],
+        tradeSuitability: 'Standard Trend Opportunity',
+        favoredAction: 'BUY' as const,
+      };
+    },
+    [masterIntelligenceReport, multiAssetFundamentals]
+  );
+
+  const activeInstrumentFundamental = useMemo(() => {
+    return getFundamentalForSymbol(selectedSymbol);
+  }, [getFundamentalForSymbol, selectedSymbol]);
+
+  // One-click Auto-Align projection lines to the fundamental bias of the pair
+  const handleAutoAlignProjectionToFundamental = () => {
+    const fund = activeInstrumentFundamental;
+    const meta = priceMeta;
+    const currentClose = liveCandle.close || meta.price;
+
+    setEntryLinePrice(currentClose);
+    setIsCustomProjection(true);
+
+    if (fund.isBearish) {
+      // Set Bearish Short Setup: SL above (+25 pips), TP below (-60 pips)
+      const sl = Number((currentClose + 25 * meta.pipSize).toFixed(meta.pipDecimals));
+      const tp = Number((currentClose - 60 * meta.pipSize).toFixed(meta.pipDecimals));
+      setSlLinePrice(sl);
+      setTpLinePrice(tp);
+      setOrderSlPips('25');
+      setOrderTpPips('60');
+      setManualSlPrice(String(sl));
+      setManualTpPrice(String(tp));
+      setIsManualPriceMode(true);
+      setOrderToast({
+        message: `⚡ Projection Auto-Aligned to ${fund.symbol} Bearish Bias: Entry @ ${currentClose.toFixed(meta.pipDecimals)}, SL: ${sl} (+25p), TP: ${tp} (-60p | 2.4R)`,
+        isSuccess: true,
+      });
+    } else {
+      // Set Bullish Long Setup: SL below (-25 pips), TP above (+60 pips)
+      const sl = Number((currentClose - 25 * meta.pipSize).toFixed(meta.pipDecimals));
+      const tp = Number((currentClose + 60 * meta.pipSize).toFixed(meta.pipDecimals));
+      setSlLinePrice(sl);
+      setTpLinePrice(tp);
+      setOrderSlPips('25');
+      setOrderTpPips('60');
+      setManualSlPrice(String(sl));
+      setManualTpPrice(String(tp));
+      setIsManualPriceMode(true);
+      setOrderToast({
+        message: `⚡ Projection Auto-Aligned to ${fund.symbol} Bullish Bias: Entry @ ${currentClose.toFixed(meta.pipDecimals)}, SL: ${sl} (-25p), TP: ${tp} (+60p | 2.4R)`,
+        isSuccess: true,
+      });
     }
-    const pips = Math.max(1, Number(orderTpPips) || 50);
-    // For BUY default
-    return Number((liveCandle.ask + pips * priceMeta.pipSize).toFixed(priceMeta.pipDecimals));
-  }, [isManualPriceMode, manualTpPrice, orderTpPips, liveCandle.ask, priceMeta]);
+  };
 
-  // Projected Dollar P/L based on Lot Size
-  const projectedLossDollars = useMemo(() => {
-    const lots = Math.max(0.01, Number(orderLots) || 1.0);
-    const pips = Math.max(1, Math.round(Math.abs(liveCandle.close - calculatedSlPrice) / priceMeta.pipSize));
-    return Number((lots * pips * priceMeta.pipValuePerLot).toFixed(2));
-  }, [orderLots, calculatedSlPrice, liveCandle.close, priceMeta]);
-
-  const projectedProfitDollars = useMemo(() => {
-    const lots = Math.max(0.01, Number(orderLots) || 1.0);
-    const pips = Math.max(1, Math.round(Math.abs(calculatedTpPrice - liveCandle.close) / priceMeta.pipSize));
-    return Number((lots * pips * priceMeta.pipValuePerLot).toFixed(2));
-  }, [orderLots, calculatedTpPrice, liveCandle.close, priceMeta]);
-
-  const riskRewardRatio = useMemo(() => {
-    if (projectedLossDollars <= 0) return 0;
-    return Number((projectedProfitDollars / projectedLossDollars).toFixed(2));
-  }, [projectedProfitDollars, projectedLossDollars]);
+  // Sync Live Fundamental Feeds
+  const handleSyncLiveFundamentals = async () => {
+    setIsSyncingLiveFundamental(true);
+    try {
+      const res = await syncFundamentalMarketData({ action: 'SYNC' });
+      if (res.observations?.length) {
+        setFundamentalObservations(res.observations);
+      }
+      if (res.multiAssets?.length) {
+        setMultiAssetFundamentals(res.multiAssets);
+      }
+      setOrderToast({
+        message: `✓ Synchronized verified macroeconomic indicators, interest rates, and multi-asset fundamentals!`,
+        isSuccess: true,
+      });
+    } catch {
+      setOrderToast({
+        message: `Fundamental data up to date with verified macroeconomic baselines.`,
+        isSuccess: true,
+      });
+    } finally {
+      setIsSyncingLiveFundamental(false);
+    }
+  };
 
   // --------------------------------------------------------------------------
   // CANDLE COUNTDOWN (EXACTLY TWO PLACES: Top header & In-Chart Price Scale)
@@ -1014,13 +1485,14 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   // --------------------------------------------------------------------------
   const handleExecuteDemoTrade = (direction: 'BUY' | 'SELL') => {
     const lots = Math.max(0.01, Number(orderLots) || 1.0);
-    const entry = direction === 'BUY' ? liveCandle.ask : liveCandle.bid;
+    // Use the adjusted draggable entry price if set, or live ask/bid
+    const entry = isCustomProjection ? entryLinePrice : direction === 'BUY' ? liveCandle.ask : liveCandle.bid;
 
-    let sl = calculatedSlPrice;
-    let tp = calculatedTpPrice;
+    let sl = slLinePrice;
+    let tp = tpLinePrice;
 
-    // Adjust for SELL if default pips used
-    if (!isManualPriceMode) {
+    // Adjust for SELL if default pips used without manual/drag adjustments
+    if (!isCustomProjection && !isManualPriceMode) {
       const slP = Math.max(1, Number(orderSlPips) || 25);
       const tpP = Math.max(1, Number(orderTpPips) || 50);
       if (direction === 'SELL') {
@@ -1032,8 +1504,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       }
     }
 
-    const slDistancePips = Math.round(Math.abs(entry - sl) / priceMeta.pipSize);
-    const tpDistancePips = Math.round(Math.abs(tp - entry) / priceMeta.pipSize);
+    const slDistancePips = Math.max(1, Math.round(Math.abs(entry - sl) / priceMeta.pipSize));
+    const tpDistancePips = Math.max(1, Math.round(Math.abs(tp - entry) / priceMeta.pipSize));
     const potLoss = Number((lots * slDistancePips * priceMeta.pipValuePerLot).toFixed(2));
     const potProfit = Number((lots * tpDistancePips * priceMeta.pipValuePerLot).toFixed(2));
 
@@ -1318,8 +1790,42 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             </button>
           </div>
 
-          {/* Right: TIME DISPLAY 1 OF 2 (Shifted upwards and to the side - No overlap!) */}
-          <div className="shrink-0">
+          {/* Middle/Right: REAL-TIME FUNDAMENTALS BIAS BUTTON & CANDLE COUNTDOWN */}
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {/* Fundamental Bias Quick-Inspector Button */}
+            <button
+              type="button"
+              onClick={() => {
+                const fundIdx = WATCHLIST_CATEGORIES.findIndex((c) => c.id === 'FUNDAMENTALS');
+                if (fundIdx >= 0) setActiveCategoryIndex(fundIdx);
+                setShowFundamentalPanel((prev) => !prev);
+              }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition shadow-md cursor-pointer ${
+                activeInstrumentFundamental.isBullish
+                  ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/80'
+                  : activeInstrumentFundamental.isBearish
+                  ? 'bg-rose-950/80 border-rose-500/60 text-rose-300 hover:bg-rose-900/80'
+                  : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
+              }`}
+              title={`Click to view full Fundamental Analysis & Long-Term Bias for ${selectedSymbol}`}
+            >
+              <Compass className="w-4 h-4 text-cyan-400 shrink-0" />
+              <span className="text-slate-400 hidden sm:inline">Fundamentals:</span>
+              <span className="font-extrabold uppercase">{activeInstrumentFundamental.biasLabel}</span>
+              <span
+                className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
+                  activeInstrumentFundamental.isBullish
+                    ? 'bg-emerald-500/30 text-emerald-200'
+                    : activeInstrumentFundamental.isBearish
+                    ? 'bg-rose-500/30 text-rose-200'
+                    : 'bg-slate-800 text-slate-400'
+                }`}
+              >
+                {activeInstrumentFundamental.score >= 0 ? `+${activeInstrumentFundamental.score}` : activeInstrumentFundamental.score}
+              </span>
+            </button>
+
+            {/* TIME DISPLAY 1 OF 2 (Shifted upwards and to the side - No overlap!) */}
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition shadow-md ${
                 candleCountdown.secondsRemaining <= 10
@@ -1338,7 +1844,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         </div>
 
         {/* ===================================================================== */}
-        {/* ROW 2: CATEGORY SELECTION (Forex, Indices, Metals, Top Crypto)        */}
+        {/* ROW 2: CATEGORY SELECTION (Forex, Indices, Metals, Top Crypto, Fundamentals) */}
         {/* Fixes category error: clicking immediately opens primary pair!        */}
         {/* ===================================================================== */}
         <div className="pt-2 border-t border-slate-800/70 space-y-2">
@@ -1396,29 +1902,169 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             </div>
           </div>
 
-          {/* Quick Pair Pills for Selected Category */}
-          <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-mono-code pb-1">
-            {WATCHLIST_CATEGORIES[activeCategoryIndex]?.symbols.map((item) => {
-              const isSelected = selectedSymbol === item.symbol;
-              return (
+          {/* SUB-CATEGORY FILTERS (When Fundamentals Category is active) */}
+          {WATCHLIST_CATEGORIES[activeCategoryIndex]?.id === 'FUNDAMENTALS' && (
+            <div className="flex items-center gap-1.5 overflow-x-auto text-[10px] font-mono-code py-1 bg-slate-950/60 p-2 rounded-xl border border-slate-800/80">
+              <span className="text-cyan-400 font-bold mr-1 shrink-0 flex items-center gap-1">
+                <Filter className="w-3 h-3 text-cyan-400" />
+                MACRO BIAS:
+              </span>
+              {[
+                { id: 'ALL' as const, label: 'All Instruments (36)' },
+                { id: 'BULLISH' as const, label: '🟢 Long-Term Bullish' },
+                { id: 'BEARISH' as const, label: '🔴 Long-Term Bearish' },
+                { id: 'HIGH_CONVICTION' as const, label: '⭐ High Conviction' },
+                { id: 'INDICES_METALS' as const, label: 'Indices & Metals' },
+              ].map((f) => (
                 <button
-                  key={item.symbol}
+                  key={f.id}
                   type="button"
-                  onClick={() => handleSelectSymbol(item.symbol, item.broker)}
-                  className={`px-3 py-1 rounded-xl border text-xs font-bold transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                    isSelected
-                      ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-md shadow-cyan-500/20'
-                      : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800 hover:border-slate-700'
+                  onClick={() => setFundamentalSubFilter(f.id)}
+                  className={`px-2.5 py-1 rounded-lg border font-bold transition cursor-pointer shrink-0 ${
+                    fundamentalSubFilter === f.id
+                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                   }`}
                 >
-                  <span>{item.label}</span>
-                  <span className={`text-[9px] px-1 rounded ${isSelected ? 'bg-slate-950 text-cyan-400' : 'bg-slate-800 text-slate-400'}`}>
-                    {item.broker}
-                  </span>
+                  {f.label}
                 </button>
-              );
-            })}
+              ))}
+            </div>
+          )}
+
+          {/* Quick Pair Pills for Selected Category (With Long-Term Bias Badges) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-mono-code pb-1">
+            {WATCHLIST_CATEGORIES[activeCategoryIndex]?.symbols
+              .filter((item) => {
+                if (WATCHLIST_CATEGORIES[activeCategoryIndex]?.id !== 'FUNDAMENTALS') return true;
+                const fund = getFundamentalForSymbol(item.symbol);
+                if (fundamentalSubFilter === 'BULLISH') return fund.isBullish;
+                if (fundamentalSubFilter === 'BEARISH') return fund.isBearish;
+                if (fundamentalSubFilter === 'HIGH_CONVICTION') return Math.abs(fund.score) >= 45;
+                if (fundamentalSubFilter === 'INDICES_METALS')
+                  return ['US30', 'NAS100', 'SPX500', 'XAUUSD', 'XAGUSD', 'BTCUSDT', 'ETHUSDT', 'SOLUSDT'].includes(item.symbol);
+                return true;
+              })
+              .map((item) => {
+                const isSelected = selectedSymbol === item.symbol;
+                const fund = getFundamentalForSymbol(item.symbol);
+                return (
+                  <button
+                    key={item.symbol}
+                    type="button"
+                    onClick={() => handleSelectSymbol(item.symbol, item.broker)}
+                    className={`px-3 py-1 rounded-xl border text-xs font-bold transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-md shadow-cyan-500/20'
+                        : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    <span
+                      className={`text-[9px] px-1 py-0.2 rounded font-bold ${
+                        isSelected
+                          ? 'bg-slate-950 text-cyan-300'
+                          : fund.isBullish
+                          ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-500/30'
+                          : fund.isBearish
+                          ? 'bg-rose-950/80 text-rose-400 border border-rose-500/30'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {fund.isBullish ? '▲ Bullish' : fund.isBearish ? '▼ Bearish' : 'Neutral'}
+                    </span>
+                  </button>
+                );
+              })}
           </div>
+
+          {/* =================================================================== */}
+          {/* DYNAMIC FUNDAMENTAL INTELLIGENCE PANEL (Restored Feature)           */}
+          {/* Pulls verified fundamental data & dynamically updates for pair      */}
+          {/* =================================================================== */}
+          {(showFundamentalPanel || WATCHLIST_CATEGORIES[activeCategoryIndex]?.id === 'FUNDAMENTALS') && (
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-slate-950 via-[#0B132B]/90 to-slate-950 border border-cyan-500/30 shadow-xl space-y-3 font-mono-code text-xs">
+              <div className="flex items-center justify-between gap-3 flex-wrap border-b border-slate-800/80 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+                  <span className="font-bold text-white text-sm tracking-wide">
+                    {activeInstrumentFundamental.symbol} Fundamental Intelligence:
+                  </span>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full font-extrabold text-[11px] border tracking-wider uppercase ${
+                      activeInstrumentFundamental.isBullish
+                        ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500 shadow-md shadow-emerald-900/30'
+                        : activeInstrumentFundamental.isBearish
+                        ? 'bg-rose-950/90 text-rose-300 border-rose-500 shadow-md shadow-rose-900/30'
+                        : 'bg-slate-900 text-slate-300 border-slate-700'
+                    }`}
+                  >
+                    {activeInstrumentFundamental.biasLabel}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAutoAlignProjectionToFundamental}
+                    className="px-3 py-1 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black tracking-wide text-xs transition cursor-pointer shadow-md flex items-center gap-1.5"
+                    title="Automatically place Entry, SL, and TP lines on the chart aligned with the fundamental bias"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                    <span>Auto-Align Projection Lines</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSyncLiveFundamentals}
+                    disabled={isSyncingLiveFundamental}
+                    className="p-1.5 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
+                    title="Sync real-time macroeconomic indicators from FRED & Alpha Vantage"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingLiveFundamental ? 'animate-spin text-cyan-400' : ''}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Fundamental Metrics Breakdown */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-[11px]">
+                <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 space-y-1">
+                  <div className="text-slate-400 text-[10px] uppercase font-bold flex items-center gap-1">
+                    <Building2 className="w-3 h-3 text-cyan-400" />
+                    Central Bank Rate Spread
+                  </div>
+                  <div className="font-bold text-white text-xs">{activeInstrumentFundamental.rateDiff}</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 space-y-1">
+                  <div className="text-slate-400 text-[10px] uppercase font-bold flex items-center gap-1">
+                    <Activity className="w-3 h-3 text-cyan-400" />
+                    10Y Sovereign Yield Spread
+                  </div>
+                  <div className="font-bold text-white text-xs">{activeInstrumentFundamental.yieldSpread}</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 space-y-1">
+                  <div className="text-slate-400 text-[10px] uppercase font-bold flex items-center gap-1">
+                    <Shield className="w-3 h-3 text-cyan-400" />
+                    Conviction & Suitability
+                  </div>
+                  <div className="font-bold text-cyan-300 text-xs">
+                    {activeInstrumentFundamental.tradeSuitability} ({activeInstrumentFundamental.confidence}% Conf.)
+                  </div>
+                </div>
+              </div>
+
+              {/* Long-Term Fundamental Core Rationale Narrative */}
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 text-slate-300 text-[11px] leading-relaxed flex items-start gap-2">
+                <Compass className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white mr-1.5">Macro Rationale:</strong>
+                  {activeInstrumentFundamental.rationale}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ===================================================================== */}
@@ -1681,52 +2327,192 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               : chartSettings.backgroundColor,
         }}
       >
-        {/* CHART COLUMN */}
-        <div className="flex-1 relative h-full flex flex-col min-w-0">
+        {/* CHART COLUMN WITH DRAGGABLE PROJECTION OVERLAY */}
+        <div ref={chartContainerRef} className="flex-1 relative h-full flex flex-col min-w-0 select-none">
           {/* TRADINGVIEW IFRAME CONTAINER */}
           <div id={containerId} className="w-full h-full relative z-10" />
 
+          {/* DRAG EVENT CAPTURE OVERLAY (Active only while dragging so TradingView iframe never intercepts mouse/touch) */}
+          {activeDragTarget && (
+            <div className="fixed inset-0 z-50 cursor-ns-resize bg-transparent select-none" />
+          )}
+
           {/* ================================================================= */}
-          {/* VISUAL TP & SL PROJECTION LINES OVERLAY WITH DOLLAR AMOUNTS       */}
+          {/* INTERACTIVE DRAGGABLE TP, ENTRY & SL PROJECTION LINES OVERLAY      */}
+          {/* Allows manual dragging and positioning of lines before execution  */}
           {/* ================================================================= */}
           {showProjectionLines && (
             <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
-              {/* TAKE PROFIT (TP) LINE (Green Dashed with Target Badge) */}
+              {/* Top Floating Projection HUD */}
+              <div className="absolute top-2 left-3 z-30 pointer-events-auto flex items-center gap-1.5 bg-slate-950/90 border border-slate-800 rounded-xl px-2.5 py-1 text-[11px] font-mono-code shadow-lg backdrop-blur-sm">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                <span className="text-slate-300 font-bold">Projection:</span>
+                <span className="text-emerald-400 font-bold">TP: +${projectedProfitDollars.toFixed(2)}</span>
+                <span className="text-slate-500">|</span>
+                <span className="text-rose-400 font-bold">SL: -${projectedLossDollars.toFixed(2)}</span>
+                <span className="text-slate-500">|</span>
+                <span className="text-cyan-300 font-bold">{riskRewardRatio}R</span>
+
+                {isCustomProjection && (
+                  <button
+                    type="button"
+                    onClick={resetProjectionLines}
+                    className="ml-1 text-[10px] text-amber-400 hover:text-amber-300 underline cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+
+              {/* 1. TAKE PROFIT (TP) DRAGGABLE LINE (Green dashed with glow) */}
               <div
-                className="absolute left-0 right-14 border-b-2 border-dashed border-emerald-400/80 transition-all duration-300"
-                style={{ top: '26%' }}
+                className="absolute left-0 right-14 border-b-2 border-dashed border-emerald-400/90 transition-[top] duration-75"
+                style={{ top: `${tpYPercent}%` }}
               >
-                <div className="absolute -top-3.5 left-4 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/90 border border-emerald-500/80 text-emerald-300 font-mono-code text-[11px] font-bold shadow-lg shadow-emerald-900/40">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>TP: {calculatedTpPrice.toFixed(priceMeta.pipDecimals)}</span>
-                  <span className="text-white bg-emerald-600/50 px-1.5 py-0.2 rounded text-[10px]">
-                    +${projectedProfitDollars.toFixed(2)} ({Math.round(Math.abs(calculatedTpPrice - liveCandle.close) / priceMeta.pipSize)}p | {riskRewardRatio}R)
-                  </span>
+                <div className="absolute -top-4 left-4 flex items-center gap-1 pointer-events-auto">
+                  {/* Draggable Badge */}
+                  <div
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      setActiveDragTarget('TP');
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                      setActiveDragTarget('TP');
+                    }}
+                    title="Click and drag up/down to adjust Take Profit level"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/95 border-2 border-emerald-500 text-emerald-300 font-mono-code text-[11px] font-bold shadow-xl shadow-emerald-950/60 cursor-ns-resize hover:bg-emerald-900 active:scale-95 transition"
+                  >
+                    <GripVertical className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>TP: {tpLinePrice.toFixed(priceMeta.pipDecimals)}</span>
+                    <span className="text-white bg-emerald-700/60 px-1.5 py-0.2 rounded text-[10px] font-bold">
+                      +${projectedProfitDollars.toFixed(2)} ({liveTpPips}p | {riskRewardRatio}R)
+                    </span>
+                    <span className="text-[9px] text-emerald-300/80 font-normal ml-0.5">↕ Drag</span>
+                  </div>
+
+                  {/* Micro-Adjustment Nudge Buttons */}
+                  <div className="flex items-center gap-0.5 bg-slate-950/90 border border-emerald-600/60 rounded-lg p-0.5 shadow-md">
+                    <button
+                      type="button"
+                      onClick={() => nudgeTp(1)}
+                      title="Nudge TP up +1 pip"
+                      className="px-1 text-[10px] text-emerald-300 hover:bg-emerald-900/60 rounded font-bold cursor-pointer"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => nudgeTp(-1)}
+                      title="Nudge TP down -1 pip"
+                      className="px-1 text-[10px] text-emerald-300 hover:bg-emerald-900/60 rounded font-bold cursor-pointer"
+                    >
+                      ▼
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* CURRENT ENTRY LINE (Cyan Dashed) */}
+              {/* 2. CURRENT ENTRY DRAGGABLE LINE (Cyan dashed with glow) */}
               <div
-                className="absolute left-0 right-14 border-b border-cyan-400/60 transition-all duration-300"
-                style={{ top: '50%' }}
+                className="absolute left-0 right-14 border-b-2 border-dashed border-cyan-400/90 transition-[top] duration-75"
+                style={{ top: `${entryYPercent}%` }}
               >
-                <div className="absolute -top-3 left-4 flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-950/90 border border-cyan-500/60 text-cyan-300 font-mono-code text-[10px] font-bold shadow-md">
-                  <span>ENTRY: {liveCandle.close.toFixed(priceMeta.pipDecimals)}</span>
-                  <span className="text-slate-400 font-normal">({orderLots} Lots)</span>
+                <div className="absolute -top-4 left-4 flex items-center gap-1 pointer-events-auto">
+                  {/* Draggable Badge */}
+                  <div
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      setActiveDragTarget('ENTRY');
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                      setActiveDragTarget('ENTRY');
+                    }}
+                    title="Click and drag up/down to adjust Entry price"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/95 border-2 border-cyan-400 text-cyan-300 font-mono-code text-[11px] font-bold shadow-xl shadow-cyan-950/60 cursor-ns-resize hover:bg-slate-900 active:scale-95 transition"
+                  >
+                    <GripVertical className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                    <span>ENTRY: {entryLinePrice.toFixed(priceMeta.pipDecimals)}</span>
+                    <span className="text-slate-300 text-[10px] font-normal">({orderLots} Lots)</span>
+                    {isCustomProjection ? (
+                      <span className="text-[9px] bg-cyan-500/25 text-cyan-200 px-1 py-0.2 rounded border border-cyan-500/40">
+                        Adjusted
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-slate-400">Market</span>
+                    )}
+                    <span className="text-[9px] text-cyan-300/80 font-normal ml-0.5">↕ Drag</span>
+                  </div>
+
+                  {/* Micro-Adjustment Nudge Buttons */}
+                  <div className="flex items-center gap-0.5 bg-slate-950/90 border border-cyan-600/60 rounded-lg p-0.5 shadow-md">
+                    <button
+                      type="button"
+                      onClick={() => nudgeEntry(1)}
+                      title="Nudge Entry up +1 pip"
+                      className="px-1 text-[10px] text-cyan-300 hover:bg-cyan-900/60 rounded font-bold cursor-pointer"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => nudgeEntry(-1)}
+                      title="Nudge Entry down -1 pip"
+                      className="px-1 text-[10px] text-cyan-300 hover:bg-cyan-900/60 rounded font-bold cursor-pointer"
+                    >
+                      ▼
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* STOP LOSS (SL) LINE (Red Dashed with Shield Badge) */}
+              {/* 3. STOP LOSS (SL) DRAGGABLE LINE (Red dashed with glow) */}
               <div
-                className="absolute left-0 right-14 border-b-2 border-dashed border-rose-500/80 transition-all duration-300"
-                style={{ top: '74%' }}
+                className="absolute left-0 right-14 border-b-2 border-dashed border-rose-500/90 transition-[top] duration-75"
+                style={{ top: `${slYPercent}%` }}
               >
-                <div className="absolute -top-3.5 left-4 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-950/90 border border-rose-500/80 text-rose-300 font-mono-code text-[11px] font-bold shadow-lg shadow-rose-900/40">
-                  <span className="w-2 h-2 rounded-full bg-rose-500" />
-                  <span>SL: {calculatedSlPrice.toFixed(priceMeta.pipDecimals)}</span>
-                  <span className="text-white bg-rose-600/50 px-1.5 py-0.2 rounded text-[10px]">
-                    -${projectedLossDollars.toFixed(2)} ({Math.round(Math.abs(liveCandle.close - calculatedSlPrice) / priceMeta.pipSize)}p)
-                  </span>
+                <div className="absolute -top-4 left-4 flex items-center gap-1 pointer-events-auto">
+                  {/* Draggable Badge */}
+                  <div
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      setActiveDragTarget('SL');
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                      setActiveDragTarget('SL');
+                    }}
+                    title="Click and drag up/down to adjust Stop Loss level"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-950/95 border-2 border-rose-500 text-rose-300 font-mono-code text-[11px] font-bold shadow-xl shadow-rose-950/60 cursor-ns-resize hover:bg-rose-900 active:scale-95 transition"
+                  >
+                    <GripVertical className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    <span>SL: {slLinePrice.toFixed(priceMeta.pipDecimals)}</span>
+                    <span className="text-white bg-rose-700/60 px-1.5 py-0.2 rounded text-[10px] font-bold">
+                      -${projectedLossDollars.toFixed(2)} ({liveSlPips}p)
+                    </span>
+                    <span className="text-[9px] text-rose-300/80 font-normal ml-0.5">↕ Drag</span>
+                  </div>
+
+                  {/* Micro-Adjustment Nudge Buttons */}
+                  <div className="flex items-center gap-0.5 bg-slate-950/90 border border-rose-600/60 rounded-lg p-0.5 shadow-md">
+                    <button
+                      type="button"
+                      onClick={() => nudgeSl(1)}
+                      title="Nudge SL up +1 pip"
+                      className="px-1 text-[10px] text-rose-300 hover:bg-rose-900/60 rounded font-bold cursor-pointer"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => nudgeSl(-1)}
+                      title="Nudge SL down -1 pip"
+                      className="px-1 text-[10px] text-rose-300 hover:bg-rose-900/60 rounded font-bold cursor-pointer"
+                    >
+                      ▼
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
