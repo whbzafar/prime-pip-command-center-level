@@ -53,10 +53,11 @@ export const AppFooter: React.FC<AppFooterProps> = ({ onOpenReviews }) => (
           <button
             type="button"
             onClick={onOpenReviews}
-            title="Community Ratings & Reviews"
-            className="sm:hidden flex items-center justify-center p-1 rounded-md border border-amber-500/40 bg-amber-500/15 text-[10px] text-amber-300 transition hover:bg-amber-500/25"
+            title="Community Ratings & Reviews — Share your feedback or rate the app"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-amber-500/50 bg-amber-500/15 text-[11px] font-military font-bold text-amber-300 transition hover:bg-amber-500/25 shadow-sm cursor-pointer mr-1"
           >
-            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+            <span>REVIEWS</span>
           </button>
         )}
 

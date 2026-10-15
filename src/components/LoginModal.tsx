@@ -214,7 +214,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   )}`;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/98 backdrop-blur-2xl overflow-y-auto p-4 selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-slate-950/98 backdrop-blur-2xl overflow-y-auto p-3 sm:p-4 pt-3 sm:pt-6 selection:bg-cyan-500/30 selection:text-cyan-200">
       {/* Dynamic Ambient Blur Orbs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
@@ -226,7 +226,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
         transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-md my-auto"
+        className="relative w-full max-w-md my-0 sm:my-auto"
       >
         {/* Iridescent Rim Glow */}
         <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-cyan-500 via-blue-600 to-amber-500 opacity-80 blur-[2px]" />

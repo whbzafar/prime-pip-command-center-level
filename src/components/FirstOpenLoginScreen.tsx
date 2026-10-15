@@ -322,7 +322,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={handleMouseLeave}
-      className="min-h-screen min-h-[100dvh] w-full bg-[#030712] text-slate-100 flex items-center justify-center p-3 sm:p-6 lg:p-8 relative overflow-x-hidden overflow-y-auto selection:bg-cyan-500/30 selection:text-cyan-200"
+      className="min-h-screen min-h-[100dvh] w-full bg-[#030712] text-slate-100 flex flex-col items-center justify-start sm:justify-center p-2.5 sm:p-6 pt-2 sm:pt-6 relative overflow-x-hidden overflow-y-auto selection:bg-cyan-500/30 selection:text-cyan-200"
       style={{ perspective: '1200px' }}
     >
       {/* Dynamic Ambient Background Elements */}
@@ -341,64 +341,64 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         />
       </div>
 
-      {/* Top Mobile Status Ticker (Visible on mobile/tablet screens < lg) */}
-      <div className="absolute top-[calc(env(safe-area-inset-top)+4.5rem)] left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-md lg:hidden z-20">
-        <div className="flex items-center justify-between gap-2 px-3.5 py-2 rounded-full bg-slate-900/80 border border-slate-800/80 backdrop-blur-md shadow-lg text-[11px] font-mono-code text-slate-300">
-          <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+      {/* Compact Top Mobile/Desktop Status Bar (Natural flow, no blank displacement) */}
+      <div className="w-full max-w-md mx-auto mb-2.5 z-20">
+        <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 backdrop-blur-md shadow-md text-[10px] sm:text-[11px] font-mono-code text-slate-300">
+          <div className="flex items-center gap-1 text-emerald-400 font-semibold truncate">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
             <span>XAUUSD 2,634.80</span>
           </div>
-          <div className="text-slate-500">|</div>
-          <div className="flex items-center gap-1.5 text-cyan-400">
-            <Award className="w-3.5 h-3.5" />
+          <div className="text-slate-600">|</div>
+          <div className="flex items-center gap-1 text-cyan-400 shrink-0">
+            <Award className="w-3 h-3" />
             <span>84.6% WIN RATE</span>
           </div>
-          <div className="text-slate-500">|</div>
-          <div className="flex items-center gap-1.5 text-amber-400">
-            <Users className="w-3.5 h-3.5" />
-            <span>24 TRADERS</span>
+          <div className="text-slate-600">|</div>
+          <div className="flex items-center gap-1 text-amber-400 shrink-0">
+            <Users className="w-3 h-3" />
+            <span>{studentCount} TRADERS</span>
           </div>
         </div>
       </div>
 
-      {/* Hero Capsule Prompt (Inspired by the Video Entry Sequence) */}
+      {/* Hero Capsule Prompt (Compact inline badge) */}
       <motion.div
-        initial={{ opacity: 0, y: -20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="absolute top-[max(0.75rem,env(safe-area-inset-top))] left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-md z-20"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-md mx-auto mb-2.5 z-20"
       >
-        <div className="relative group p-[1px] rounded-full bg-gradient-to-r from-cyan-500/40 via-blue-500/20 to-amber-500/40 shadow-xl shadow-cyan-950/40 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-2.5 rounded-full bg-slate-950/80 border border-white/5">
-            <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="w-6 h-6 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shrink-0 text-cyan-400">
-                <Terminal className="w-3.5 h-3.5" />
+        <div className="relative group p-[1px] rounded-full bg-gradient-to-r from-cyan-500/40 via-blue-500/20 to-amber-500/40 shadow-md shadow-cyan-950/30 backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 border border-white/5 text-xs">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <div className="w-5 h-5 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shrink-0 text-cyan-400">
+                <Terminal className="w-3 h-3" />
               </div>
               <AnimatePresence mode="wait">
                 <motion.span
                   key={promptIndex}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
-                  className="text-xs sm:text-sm font-military tracking-wide text-slate-200 truncate font-semibold"
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-[11px] sm:text-xs font-military tracking-wide text-slate-200 truncate font-semibold"
                 >
                   {heroPrompts[promptIndex]}
                 </motion.span>
               </AnimatePresence>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="hidden sm:inline-block text-[10px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
+              <span className="text-[9px] font-mono-code font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
                 v2.6 LIVE
               </span>
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Main 3D Container Holding Central Card & Desktop Floating HUD Elements */}
-      <div className="relative w-full max-w-6xl min-h-[100dvh] mx-auto flex items-center justify-center z-10 py-16 sm:py-12">
+      {/* Main Container Holding Central Card & Desktop Floating HUD Elements */}
+      <div className="relative w-full max-w-5xl mx-auto flex items-center justify-center z-10 pt-0 pb-4">
         {/* Floating HUD Card 1: Top-Left (Desktop Only) */}
         <motion.div
           animate={{
@@ -526,61 +526,30 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
           <div className="absolute -inset-[1.5px] rounded-3xl bg-gradient-to-r from-cyan-400 via-blue-600 to-violet-500 opacity-85 blur-[2px] transition duration-500" />
 
           {/* Core Frosted Glass Card Body */}
-          <div className="relative rounded-3xl bg-slate-950/90 border border-white/10 p-6 sm:p-8 backdrop-blur-2xl shadow-2xl shadow-cyan-950/50 overflow-hidden ring-1 ring-cyan-400/10">
+          <div className="relative rounded-3xl bg-slate-950/95 border border-white/10 p-5 sm:p-6 backdrop-blur-2xl shadow-2xl shadow-cyan-950/50 overflow-hidden ring-1 ring-cyan-400/10">
             {/* Top Glossy Reflection Sheen */}
-            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+            <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
 
-            {/* 5-STAR RATING & REVIEWS SHOWCASE AT TOP */}
-            <div className="mb-5 p-3 rounded-2xl bg-gradient-to-r from-amber-500/15 via-slate-900/90 to-cyan-500/15 border border-amber-500/30 shadow-lg shadow-amber-500/5 text-center relative z-10">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <div className="flex text-amber-400">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <Star key={s} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  ))}
+            {/* Compact Brand Header */}
+            <div className="text-center mb-4 relative z-10">
+              <div className="inline-flex items-center gap-2 mb-1">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-transparent border border-cyan-500/40 text-cyan-300 shadow-md">
+                  <Shield className="w-5 h-5" />
                 </div>
-                <span className="text-xs font-military font-bold text-amber-300 tracking-wider">5.0 / 5.0 OUTSTANDING</span>
-                <span className="text-[10px] font-mono-code text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded border border-emerald-500/30 font-bold">
-                  VERIFIED
-                </span>
+                <h1 className="text-xl sm:text-2xl font-military font-black tracking-wider text-white uppercase">
+                  PRIMEPIP<span className="text-cyan-400">FX</span>
+                </h1>
               </div>
-              <p className="text-[11px] font-mono-code text-cyan-300 font-semibold truncate">
-                "World's #1 Institutional Trading Suite — Everything Under One Roof"
-              </p>
-              <AnimatePresence mode="wait">
-                <motion.p
-                  key={reviewIndex}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.3 }}
-                  className="text-[10px] font-sans text-slate-300 italic mt-1 leading-snug"
-                >
-                  "{topReviews[reviewIndex].quote}" —{' '}
-                  <span className="text-amber-300 font-mono-code font-bold not-italic">
-                    {topReviews[reviewIndex].author}
-                  </span>
-                </motion.p>
-              </AnimatePresence>
-            </div>
-
-            {/* Brand Header */}
-            <div className="text-center mb-6 relative z-10">
-              <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-transparent border border-cyan-500/40 text-cyan-300 mb-3 shadow-lg shadow-cyan-500/20">
-                <Shield className="w-8 h-8" />
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-military font-black tracking-wider text-white uppercase flex items-center justify-center gap-2">
-                <span>PRIMEPIPFX</span>
-              </h1>
-              <h2 className="text-xs sm:text-sm font-military font-bold tracking-widest text-cyan-400 uppercase mt-0.5">
+              <p className="text-[11px] text-cyan-300 font-military font-bold tracking-widest uppercase">
                 TRADING COMMAND CENTER
-              </h2>
-              <p className="text-xs text-slate-400 font-mono-code mt-1.5">
-                {step === 'CHANGE_PASSWORD'
-                  ? 'First login detected. Set your personal permanent password.'
-                  : step === 'LINK_STORAGE'
-                  ? 'Initial Setup: Link free cloud storage for automatic backup.'
-                  : 'Institutional Risk, Discipline & Execution Terminal'}
               </p>
+              <div className="flex items-center justify-center gap-2 text-[10px] font-mono-code text-slate-400 mt-1">
+                <span className="flex items-center gap-1 text-amber-300 font-bold">
+                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> 5.0 Rating
+                </span>
+                <span>•</span>
+                <span className="text-emerald-400 font-semibold">{studentCount} Active Students</span>
+              </div>
             </div>
 
             {/* Error Alert Banner */}
@@ -588,36 +557,19 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
               <motion.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono-code flex flex-col gap-2"
+                className="mb-3 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono-code flex flex-col gap-1.5"
               >
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
                   <span>{error}</span>
                 </div>
-                <div className="text-[11px] text-slate-300 bg-slate-900/80 p-2.5 rounded-lg border border-slate-700/60 leading-relaxed">
-                  <span className="text-amber-400 font-bold block mb-1">🔑 Login Credentials:</span>
-                  <div>Enter your authorized username and password manually to initialize the terminal.</div>
-                </div>
               </motion.div>
             )}
 
-            {/* LIVE VERIFIED STUDENTS TRUST HEADLINE */}
-            <div className="mb-4 p-2.5 rounded-xl bg-gradient-to-r from-emerald-500/15 via-slate-900 to-cyan-500/15 border border-emerald-500/30 flex items-center justify-between text-xs font-mono-code shadow-sm relative z-10">
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400" />
-                <span className="font-military font-bold tracking-wider text-slate-100 text-xs sm:text-sm">
-                  {studentCount} VERIFIED STUDENTS ENROLLED
-                </span>
-              </div>
-              <span className="text-[10px] font-mono-code font-bold text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/40">
-                LIVE DATABASE
-              </span>
-            </div>
-
-            {/* Sign In Header - Single Authentic Terminal Login Option */}
+            {/* Sign In Header - Placed Upfront Directly Above Inputs */}
             {step === 'LOGIN' && (
-              <div className="py-2.5 px-3 bg-blue-500/15 border border-cyan-400/30 rounded-xl mb-4 text-center font-military font-bold text-xs tracking-wider text-cyan-300 uppercase shadow-inner">
-                INSTITUTIONAL TERMINAL SIGN IN
+              <div className="py-1.5 px-3 bg-cyan-500/10 border border-cyan-400/25 rounded-xl mb-3.5 text-center font-military font-bold text-[11px] tracking-wider text-cyan-300 uppercase">
+                AUTHORIZED TRADER LOGIN
               </div>
             )}
 

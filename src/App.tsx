@@ -136,6 +136,7 @@ export default function App() {
   const [postTradeImpactSummary, setPostTradeImpactSummary] = useState<PostTradeImpactSummary | null>(null);
   const [isPostTradeModalOpen, setIsPostTradeModalOpen] = useState<boolean>(false);
   const [isCreateAccountWizardOpen, setIsCreateAccountWizardOpen] = useState<boolean>(false);
+  const [isReviewsOpen, setIsReviewsOpen] = useState<boolean>(false);
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
@@ -1575,7 +1576,7 @@ export default function App() {
         )}
 
         <div className="w-full pb-14 md:pb-0">
-          <AppFooter />
+          <AppFooter onOpenReviews={() => setIsReviewsOpen(true)} />
         </div>
       </main>
 
@@ -1816,6 +1817,13 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Community Ratings & Reviews Modal */}
+      <CommunityReviewsModal
+        isOpen={isReviewsOpen}
+        onClose={() => setIsReviewsOpen(false)}
+        currentUser={currentUser}
+      />
 
     </div>
   );

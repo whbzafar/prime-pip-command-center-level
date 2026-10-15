@@ -52,38 +52,6 @@ export function subscribeToSignalsSync(callback: () => void): () => void {
 
 export async function fetchSignalsFromServer(): Promise<{ activeSignals: SignalItem[]; closedSignals: SignalItem[] }> {
   try {
-    // Check if there are any orphaned local signals that need auto-syncing to the server
-    try {
-      const cachedActiveRaw = localStorage.getItem(STORAGE_ACTIVE_SIGNALS);
-      if (cachedActiveRaw) {
-        const localList: SignalItem[] = JSON.parse(cachedActiveRaw);
-        const unsynced = localList.filter((s) => s.id?.startsWith('sig_local_'));
-        if (unsynced.length > 0) {
-          for (const s of unsynced) {
-            await fetch('/api/signals', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({
-                pair: s.pair,
-                direction: s.direction,
-                timeframe: s.timeframe,
-                entryPrice: s.entryPrice,
-                stopLoss: s.stopLoss,
-                takeProfit1: s.takeProfit1,
-                takeProfit2: s.takeProfit2,
-                takeProfit3: s.takeProfit3,
-                recommendedRiskPercent: s.recommendedRiskPercent,
-                strategyNotes: s.strategyNotes,
-                imageUrl: s.imageUrl,
-                imageName: s.imageName,
-                imageMimeType: s.imageMimeType,
-              }),
-            }).catch(() => {});
-          }
-        }
-      }
-    } catch {}
 
     const res = await fetch(`/api/signals?_t=${Date.now()}`, {
       cache: 'no-store',
@@ -156,53 +124,16 @@ export async function createSignalServer(signalData: {
         notifySignalsUpdated();
         return data.signal;
       }
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData?.error || 'Failed to create signal on server. Admin credentials required.');
     }
-  } catch (err) {
-    console.warn('[SIGNALS] Server create failed, saving locally:', err);
+  } catch (err: any) {
+    console.error('[SIGNALS] Server create failed:', err);
+    throw err;
   }
 
-  // Local fallback
-  const now = new Date();
-  const pktTimeStr = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Karachi',
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  }).format(now) + ' PKT';
-
-  const newSignal: SignalItem = {
-    id: `sig_local_${Date.now()}`,
-    pair: signalData.pair.toUpperCase().trim(),
-    direction: signalData.direction,
-    timeframe: signalData.timeframe || 'H1',
-    entryPrice: signalData.entryPrice,
-    stopLoss: signalData.stopLoss,
-    takeProfit1: signalData.takeProfit1,
-    takeProfit2: signalData.takeProfit2,
-    takeProfit3: signalData.takeProfit3,
-    strategyNotes: signalData.strategyNotes || '',
-    recommendedRiskPercent: signalData.recommendedRiskPercent || 1.0,
-    imageUrl: signalData.imageUrl,
-    imageName: signalData.imageName,
-    imageMimeType: signalData.imageMimeType,
-    status: 'ACTIVE',
-    createdAt: pktTimeStr,
-    updatedAt: pktTimeStr,
-    author: 'Admin / Chief Institutional Analyst',
-  };
-
-  try {
-    const cached = localStorage.getItem(STORAGE_ACTIVE_SIGNALS);
-    const list: SignalItem[] = cached ? JSON.parse(cached) : [];
-    list.unshift(newSignal);
-    localStorage.setItem(STORAGE_ACTIVE_SIGNALS, JSON.stringify(list));
-  } catch {}
-
-  notifySignalsUpdated();
-  return newSignal;
+  throw new Error('Signal creation failed');
 }
 
 export async function updateSignalStatusServer(
