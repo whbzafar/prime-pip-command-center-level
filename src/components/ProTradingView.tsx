@@ -2128,7 +2128,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                     setOrderSlPips(e.target.value);
                   }
                 }}
-                placeholder={isManualPriceMode ? `${calculatedSlPrice}` : `${orderSlPips} pips`}
+                placeholder={isManualPriceMode ? `${slLinePrice}` : `${orderSlPips} pips`}
                 className="w-16 bg-slate-900 text-rose-200 text-center font-bold rounded border border-rose-900/40 py-0.5 outline-none text-xs"
                 title={isManualPriceMode ? 'Exact Stop Loss Price' : 'Stop Loss Distance in Pips'}
               />
@@ -2151,7 +2151,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                     setOrderTpPips(e.target.value);
                   }
                 }}
-                placeholder={isManualPriceMode ? `${calculatedTpPrice}` : `${orderTpPips} pips`}
+                placeholder={isManualPriceMode ? `${tpLinePrice}` : `${orderTpPips} pips`}
                 className="w-16 bg-slate-900 text-emerald-200 text-center font-bold rounded border border-emerald-900/40 py-0.5 outline-none text-xs"
                 title={isManualPriceMode ? 'Exact Take Profit Price' : 'Take Profit Distance in Pips'}
               />
