@@ -180,6 +180,7 @@ import {
   saveScreenshotTradeAtomically,
 } from "./server/tradingviewScreenshotService.js";
 import { cotRouter, verifyCftcDatasetAtBoot } from "./server/cotService.js";
+import newsCalendarRouter from "./server/routes/newsCalendarRoutes.js";
 
 dotenv.config();
 
@@ -6697,6 +6698,9 @@ app.get('/api/fundamental-intelligence/test-suite', async (_req, res) => {
 
 // CFTC Commitments of Traders (COT) Proxy & Analytics Routes
 app.use('/api/cot', cotRouter);
+
+// Real-Time Live News Headlines & TradingView Calendar Feeds
+app.use('/api', newsCalendarRouter);
 
 // Vite middleware / static files (only run when launched standalone, not in Vercel serverless)
 async function startServer() {
