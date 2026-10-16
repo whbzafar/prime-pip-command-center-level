@@ -41,6 +41,8 @@ import {
   Check,
   Copy,
   Flame,
+  Info,
+  Layers,
 } from 'lucide-react';
 import { Trade, UserAccount, AccountSettings } from '../types';
 import {
@@ -50,12 +52,31 @@ import {
   BiasClassification,
 } from '../services/fundamentalIntelligenceEngine';
 import {
+  CurrencyCode,
+  CurrencyScoreResult,
+  PairDifferentialResult,
+} from '../types/fundamentalIndicatorTypes';
+import {
+  calculateCurrencyScore,
+  calculatePairDifferential,
+  PRIMARY_PAIR_MATRIX_28,
+} from '../utils/fundamentalCalculationEngine';
+import {
+  CURRENCY_METADATA,
+  DEFAULT_CATEGORY_WEIGHTS,
+} from '../data/fundamentalRegistryData';
+import {
   DEFAULT_OBSERVATIONS,
+  DEFAULT_COT_RECORDS,
+  DEFAULT_SENTIMENT_RECORDS,
+  DEFAULT_INTEREST_RATES,
+  DEFAULT_RETAIL_POSITIONING,
   DEFAULT_MULTI_ASSET_FUNDAMENTALS,
   MultiAssetFundamentalRecord,
 } from '../data/defaultFundamentalObservations';
 import { syncFundamentalMarketData } from '../services/fundamentalMarketSyncService';
 import { fetchUpcomingEvents, CalendarEvent } from '../services/economicCalendarService';
+import { PairDeepDiveModal } from './fundamental/PairDeepDiveModal';
 
 // ============================================================================
 // TIMEFRAMES & INTERVALS
@@ -228,23 +249,25 @@ const BASELINE_PRICES: Record<string, InstrumentMeta> = {
 };
 
 export function parseSymbolAndBroker(input: string, fallbackBroker?: string): { symbol: string; broker: string } {
-  if (!input) return { symbol: 'EURUSD', broker: 'FX' };
+  if (!input) return { symbol: 'EURUSD', broker: 'FXCM' };
   let raw = input.trim();
-  let detectedBroker = fallbackBroker || 'FX';
+  let detectedBroker = fallbackBroker || 'FXCM';
+  if (detectedBroker.toUpperCase() === 'FCM') detectedBroker = 'FXCM';
 
   if (raw.includes(':')) {
     const parts = raw.split(':');
     detectedBroker = parts[0].toUpperCase();
+    if (detectedBroker === 'FCM') detectedBroker = 'FXCM';
     raw = parts[1] || '';
   } else if (raw.includes('/')) {
     raw = raw.replace('/', '');
   }
 
   // Remove known broker prefixes if accidentally concatenated (e.g., FXCMEURUSD -> EURUSD)
-  const KNOWN_PREFIXES = ['CAPITALCOM', 'PEPPERSTONE', 'BLACKBULL', 'FOREXCOM', 'BINANCE', 'NASDAQ', 'OANDA', 'FXCM', 'TVC', 'FX'];
+  const KNOWN_PREFIXES = ['CAPITALCOM', 'PEPPERSTONE', 'BLACKBULL', 'FOREXCOM', 'BINANCE', 'NASDAQ', 'OANDA', 'FXCM', 'FCM', 'TVC', 'FX'];
   for (const p of KNOWN_PREFIXES) {
     if (raw.toUpperCase().startsWith(p) && raw.length > p.length + 2) {
-      detectedBroker = p;
+      detectedBroker = p === 'FCM' ? 'FXCM' : p;
       raw = raw.substring(p.length);
       break;
     }
@@ -916,7 +939,8 @@ export const CANONICAL_28_FUNDAMENTALS: Record<string, CanonicalFundamentalRecor
 export function resolveTradingViewSymbol(symbol: string, broker?: string): string {
   const parsed = parseSymbolAndBroker(symbol, broker);
   const clean = parsed.symbol;
-  const requestedBroker = (broker || parsed.broker || 'FXCM').toUpperCase();
+  let requestedBroker = (broker || parsed.broker || 'FXCM').toUpperCase();
+  if (requestedBroker === 'FCM') requestedBroker = 'FXCM';
   if (!clean) return 'FXCM:EURUSD';
 
   // 1. All 28 Canonical Currency Pairs (100% verified available on FXCM & OANDA)
@@ -928,7 +952,7 @@ export function resolveTradingViewSymbol(symbol: string, broker?: string): strin
   ]);
 
   if (CANONICAL_28.has(clean)) {
-    if (requestedBroker === 'FXCM') return `FXCM:${clean}`;
+    if (requestedBroker === 'FXCM' || requestedBroker === 'FCM') return `FXCM:${clean}`;
     if (requestedBroker === 'OANDA') return `OANDA:${clean}`;
     if (requestedBroker === 'CAPITALCOM') return `CAPITALCOM:${clean}`;
     if (requestedBroker === 'FOREXCOM') return `FOREXCOM:${clean}`;
@@ -1009,7 +1033,7 @@ export function resolveTradingViewSymbol(symbol: string, broker?: string): strin
 // BROKERS & CATEGORIES (Forex, Indices, Metals, Cryptos, Stocks, Fundamentals)
 // ============================================================================
 export const BROKERS = [
-  { id: 'fxcm', label: 'FXCM (Direct Institutional Feed)', prefix: 'FXCM' },
+  { id: 'fxcm', label: 'FXCM / FCM (Direct Institutional Feed)', prefix: 'FXCM' },
   { id: 'oanda', label: 'OANDA (Institutional Raw)', prefix: 'OANDA' },
   { id: 'capitalcom', label: 'CAPITALCOM (Zero Spread Multi-Asset)', prefix: 'CAPITALCOM' },
   { id: 'forexcom', label: 'FOREX.COM (Global ECN Feed)', prefix: 'FOREXCOM' },
@@ -1655,6 +1679,82 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     return DEFAULT_MULTI_ASSET_FUNDAMENTALS;
   });
 
+  const [interestRates, setInterestRates] = useState(() => {
+    try {
+      const saved = localStorage.getItem('primepip_fundamental_rates_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_INTEREST_RATES;
+  });
+
+  const [cotRecords, setCotRecords] = useState(() => {
+    try {
+      const saved = localStorage.getItem('primepip_fundamental_cot_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_COT_RECORDS;
+  });
+
+  const [sentimentRecords, setSentimentRecords] = useState(() => {
+    try {
+      const saved = localStorage.getItem('primepip_fundamental_sentiment_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_SENTIMENT_RECORDS;
+  });
+
+  const [retailPositioning, setRetailPositioning] = useState(() => {
+    try {
+      const saved = localStorage.getItem('primepip_fundamental_retail_positioning_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_RETAIL_POSITIONING;
+  });
+
+  const [categoryWeights, setCategoryWeights] = useState(() => {
+    try {
+      const saved = localStorage.getItem('primepip_fundamental_weights_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_CATEGORY_WEIGHTS;
+  });
+
+  // Calculate currency scores for all 8 currencies matching Fundamental Category:
+  const currencyScores = useMemo(() => {
+    const currencies = Object.keys(CURRENCY_METADATA) as CurrencyCode[];
+    const result: Record<CurrencyCode, CurrencyScoreResult> = {} as any;
+    currencies.forEach((code) => {
+      result[code] = calculateCurrencyScore(
+        code,
+        fundamentalObservations,
+        categoryWeights,
+        cotRecords,
+        sentimentRecords,
+        interestRates,
+        retailPositioning
+      );
+    });
+    return result;
+  }, [fundamentalObservations, categoryWeights, cotRecords, sentimentRecords, interestRates, retailPositioning]);
+
+  // Calculate pair differentials for all 28 currency pairs directly matching Fundamental Category:
+  const pairDifferentials = useMemo(() => {
+    const currencies = Object.keys(CURRENCY_METADATA) as CurrencyCode[];
+    const pairs: PairDifferentialResult[] = [];
+    for (let i = 0; i < currencies.length; i++) {
+      for (let j = i + 1; j < currencies.length; j++) {
+        const base = currencies[i];
+        const quote = currencies[j];
+        pairs.push(calculatePairDifferential(base, quote, currencyScores));
+      }
+    }
+    return pairs;
+  }, [currencyScores]);
+
+  // Active Pair Modal for Deep-Dive Modal (Fixed: opens on any PS selection)
+  const [activePairModal, setActivePairModal] = useState<PairDifferentialResult | null>(null);
+  const [showIndicatorsModal, setShowIndicatorsModal] = useState<boolean>(false);
+
   const [fundamentalSubFilter, setFundamentalSubFilter] = useState<'ALL' | 'FOREX_28' | 'BULLISH' | 'BEARISH' | 'HIGH_CONVICTION' | 'COMMODITIES_INDICES' | 'STOCKS'>('ALL');
   const [showFundamentalPanel, setShowFundamentalPanel] = useState<boolean>(true);
   const [isSyncingLiveFundamental, setIsSyncingLiveFundamental] = useState<boolean>(false);
@@ -1676,6 +1776,16 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         if (savedObs) setFundamentalObservations(JSON.parse(savedObs));
         const savedMulti = localStorage.getItem('primepip_fundamental_multi_assets_v1');
         if (savedMulti) setMultiAssetFundamentals(JSON.parse(savedMulti));
+        const savedRates = localStorage.getItem('primepip_fundamental_rates_v2');
+        if (savedRates) setInterestRates(JSON.parse(savedRates));
+        const savedCot = localStorage.getItem('primepip_fundamental_cot_v2');
+        if (savedCot) setCotRecords(JSON.parse(savedCot));
+        const savedSent = localStorage.getItem('primepip_fundamental_sentiment_v2');
+        if (savedSent) setSentimentRecords(JSON.parse(savedSent));
+        const savedWeights = localStorage.getItem('primepip_fundamental_weights_v2');
+        if (savedWeights) setCategoryWeights(JSON.parse(savedWeights));
+        const savedRetail = localStorage.getItem('primepip_fundamental_retail_positioning_v1');
+        if (savedRetail) setRetailPositioning(JSON.parse(savedRetail));
       } catch {}
     };
     window.addEventListener('primepipfx_fundamental_data_updated', handleUpdate);
@@ -1691,42 +1801,46 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     (sym: string) => {
       const clean = sym.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 
-      // 1. Check if it's one of the 28 FX Canonical Pairs
+      // 1. Check if it's one of the 28 FX Canonical Pairs (Calculated directly from Fundamental Category)
+      const fxPair = pairDifferentials.find(
+        (p) => p.pair.toUpperCase() === clean || clean === `${p.baseCurrency}${p.quoteCurrency}`
+      );
+
+      if (fxPair) {
+        const canonical = CANONICAL_28_FUNDAMENTALS[clean];
+        const isBull = fxPair.fundamentalBias.includes('BULL');
+        const isBear = fxPair.fundamentalBias.includes('BEAR');
+        return {
+          symbol: fxPair.pair,
+          baseCurrency: fxPair.baseCurrency,
+          quoteCurrency: fxPair.quoteCurrency,
+          category: 'Forex Major / Cross',
+          bias: fxPair.fundamentalBias as BiasClassification,
+          biasLabel: `${fxPair.biasLabel} (LONG-TERM)`,
+          isBullish: isBull,
+          isBearish: isBear,
+          score: fxPair.netDifferential,
+          confidence: fxPair.confidenceScore || 92,
+          rateDiff: `${fxPair.baseCurrency} (${fxPair.baseInterestRate.toFixed(2)}%) vs ${fxPair.quoteCurrency} (${fxPair.quoteInterestRate.toFixed(2)}%) Spread: ${fxPair.interestRateSpread >= 0 ? '+' : ''}${fxPair.interestRateSpread.toFixed(2)}%`,
+          yieldSpread: `10Y Sovereign Yield Spread: ${fxPair.tenYearSpread >= 0 ? '+' : ''}${fxPair.tenYearSpread.toFixed(0)} bps`,
+          rationale: fxPair.reasoningNarrative || canonical?.rationale || `Fundamental macro divergence between ${fxPair.baseCurrency} and ${fxPair.quoteCurrency}.`,
+          drivers: fxPair.primaryDrivers?.length
+            ? fxPair.primaryDrivers
+            : canonical?.drivers || [
+                `Base currency ${fxPair.baseCurrency} composite score: ${fxPair.baseScore >= 0 ? '+' : ''}${fxPair.baseScore}`,
+                `Quote currency ${fxPair.quoteCurrency} composite score: ${fxPair.quoteScore >= 0 ? '+' : ''}${fxPair.quoteScore}`,
+                `Central bank policy rate spread: ${fxPair.interestRateSpread >= 0 ? '+' : ''}${fxPair.interestRateSpread.toFixed(2)}%`,
+              ],
+          tradeSuitability:
+            Math.abs(fxPair.netDifferential) >= 20
+              ? 'High-Conviction Fundamental Divergence'
+              : 'Moderate Fundamental Edge',
+          favoredAction: isBull ? ('BUY' as const) : isBear ? ('SELL' as const) : ('NEUTRAL' as const),
+        };
+      }
+
       if (CANONICAL_28_FUNDAMENTALS[clean]) {
         const canonical = CANONICAL_28_FUNDAMENTALS[clean];
-        const fxPair = masterIntelligenceReport?.pairDifferentials?.find(
-          (p) => p.pair.toUpperCase() === clean || clean === `${p.baseCurrency}${p.quoteCurrency}`
-        );
-
-        if (fxPair && fxPair.fundamentalBias !== 'NEUTRAL' && fxPair.fundamentalBias !== 'INSUFFICIENT_DATA') {
-          const isBull = fxPair.fundamentalBias.includes('BULL');
-          const isBear = fxPair.fundamentalBias.includes('BEAR');
-          return {
-            symbol: fxPair.pair,
-            baseCurrency: fxPair.baseCurrency,
-            quoteCurrency: fxPair.quoteCurrency,
-            category: 'Forex Major / Cross',
-            bias: fxPair.fundamentalBias as BiasClassification,
-            biasLabel: `${fxPair.biasLabel} (LONG-TERM)`,
-            isBullish: isBull,
-            isBearish: isBear,
-            score: fxPair.netDifferential,
-            confidence: fxPair.confidenceScore,
-            rateDiff: `${fxPair.baseCurrency} vs ${fxPair.quoteCurrency} Rate Gap: ${fxPair.policyRateDifferential >= 0 ? '+' : ''}${fxPair.policyRateDifferential.toFixed(2)}%`,
-            yieldSpread:
-              fxPair.yield10YSpread !== undefined
-                ? `10Y Sovereign Yield Spread: ${fxPair.yield10YSpread >= 0 ? '+' : ''}${fxPair.yield10YSpread.toFixed(0)} bps`
-                : canonical.yieldSpread,
-            rationale: fxPair.reasoningNarrative || canonical.rationale,
-            drivers: fxPair.primaryCatalysts?.length ? fxPair.primaryCatalysts : canonical.drivers,
-            tradeSuitability:
-              fxPair.tradeSuitability === 'HIGH_CONVICTION'
-                ? 'High-Conviction Fundamental Divergence'
-                : 'Moderate Fundamental Edge',
-            favoredAction: isBull ? ('BUY' as const) : isBear ? ('SELL' as const) : ('NEUTRAL' as const),
-          };
-        }
-
         return {
           symbol: canonical.symbol,
           baseCurrency: canonical.baseCurrency,
@@ -1934,12 +2048,48 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         favoredAction: 'BUY' as const,
       };
     },
-    [masterIntelligenceReport, multiAssetFundamentals]
+    [pairDifferentials, masterIntelligenceReport, multiAssetFundamentals]
   );
 
   const activeInstrumentFundamental = useMemo(() => {
     return getFundamentalForSymbol(selectedSymbol);
   }, [getFundamentalForSymbol, selectedSymbol]);
+
+  // Open Pair Deep Dive Modal (Ensures modal opens for any pair selected without errors)
+  const handleOpenPairModal = useCallback((sym: string) => {
+    const clean = sym.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const found = pairDifferentials.find(
+      (p) => p.pair.toUpperCase() === clean || clean === `${p.baseCurrency}${p.quoteCurrency}`
+    );
+    if (found) {
+      setActivePairModal(found);
+    } else {
+      const fund = getFundamentalForSymbol(sym);
+      const baseCode = (clean.length === 6 ? clean.slice(0, 3) : 'USD') as CurrencyCode;
+      const quoteCode = (clean.length === 6 ? clean.slice(3, 6) : 'USD') as CurrencyCode;
+      setActivePairModal({
+        pair: clean,
+        baseCurrency: baseCode,
+        quoteCurrency: quoteCode,
+        baseScore: currencyScores[baseCode]?.finalCompositeScore || fund.score,
+        quoteScore: currencyScores[quoteCode]?.finalCompositeScore || 0,
+        differential: fund.score,
+        netDifferential: fund.score,
+        fundamentalBias: fund.bias,
+        biasLabel: fund.biasLabel,
+        interestRateSpread: 0,
+        tenYearSpread: 0,
+        baseInterestRate: 0,
+        quoteInterestRate: 0,
+        divergenceTier: 'TIER_1',
+        confidenceScore: fund.confidence,
+        tradeSuitability: 'HIGH_CONVICTION',
+        primaryDrivers: fund.drivers,
+        conflicts: [],
+        reasoningNarrative: fund.rationale,
+      });
+    }
+  }, [pairDifferentials, currencyScores, getFundamentalForSymbol]);
 
   // One-click Auto-Align projection lines to the fundamental bias of the pair
   const handleAutoAlignProjectionToFundamental = () => {
@@ -2829,7 +2979,28 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   }, [selectedSymbol, selectedBroker, selectedInterval, activeCategoryIndex, chartSettings]);
 
   return (
-    <div ref={chartWrapperRef} className="space-y-3 font-sans relative">
+    <div
+      ref={chartWrapperRef}
+      className={
+        isFullscreen
+          ? 'fixed inset-0 z-[999999] w-screen h-screen bg-[#070A11] p-2 sm:p-4 flex flex-col overflow-y-auto space-y-3 font-sans'
+          : 'space-y-3 font-sans relative'
+      }
+    >
+      {/* Floating Exit Fullscreen Button in top right when in Fullscreen Mode */}
+      {isFullscreen && (
+        <div className="fixed top-3 right-4 z-[1000000] flex items-center gap-2 pointer-events-auto animate-in fade-in">
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono-code font-bold text-xs uppercase shadow-2xl flex items-center gap-2 cursor-pointer border border-blue-400 active:scale-95 transition"
+            title="Exit Fullscreen Mode (Esc)"
+          >
+            <Minimize2 className="w-4 h-4" />
+            <span>Exit Full-Screen (Esc)</span>
+          </button>
+        </div>
+      )}
       {/* ========================================================================= */}
       {/* 1. TOP HEADER & ACCOUNT BALANCE WIDGET (Reflecting Initial Balance)        */}
       {/* ========================================================================= */}
@@ -2916,7 +3087,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               onClick={() => {
                 const fundIdx = WATCHLIST_CATEGORIES.findIndex((c) => c.id === 'FUNDAMENTALS');
                 if (fundIdx >= 0) setActiveCategoryIndex(fundIdx);
-                setShowFundamentalPanel((prev) => !prev);
+                setShowFundamentalPanel(true);
+                handleOpenPairModal(selectedSymbol);
               }}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition shadow-md cursor-pointer ${
                 activeInstrumentFundamental.isBullish
@@ -2925,7 +3097,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   ? 'bg-rose-950/80 border-rose-500/60 text-rose-300 hover:bg-rose-900/80'
                   : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
               }`}
-              title={`Click to view full Fundamental Analysis & Long-Term Bias for ${selectedSymbol}`}
+              title={`Click to open full Fundamental Deep-Dive Modal for ${selectedSymbol}`}
             >
               <Compass className="w-4 h-4 text-cyan-400 shrink-0" />
               <span className="text-slate-400 hidden sm:inline">Fundamentals:</span>
@@ -3079,31 +3251,60 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 const isSelected = selectedSymbol === item.symbol;
                 const fund = getFundamentalForSymbol(item.symbol);
                 return (
-                  <button
+                  <div
                     key={item.symbol}
-                    type="button"
-                    onClick={() => handleSelectSymbol(item.symbol, (item as any).broker)}
-                    className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer shrink-0 flex items-center gap-2 ${
+                    className={`inline-flex items-center rounded-xl border text-xs font-bold transition shrink-0 shadow-sm ${
                       isSelected
-                        ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-md shadow-cyan-500/20'
+                        ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-cyan-500/20'
                         : 'bg-slate-900/90 hover:bg-slate-800 text-slate-300 border-slate-800 hover:border-slate-700'
                     }`}
                   >
-                    <span>{item.label}</span>
-                    <span
-                      className={`text-[9px] px-1.5 py-0.5 rounded font-extrabold flex items-center gap-1 ${
-                        isSelected
-                          ? 'bg-slate-950 text-cyan-300'
-                          : fund.isBullish
-                          ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 shadow-sm'
-                          : fund.isBearish
-                          ? 'bg-rose-950/90 text-rose-300 border border-rose-500/50 shadow-sm'
-                          : 'bg-slate-800 text-slate-400'
-                      }`}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleSelectSymbol(item.symbol, (item as any).broker);
+                        if (WATCHLIST_CATEGORIES[activeCategoryIndex]?.id === 'FUNDAMENTALS') {
+                          handleOpenPairModal(item.symbol);
+                        }
+                      }}
+                      className="px-3 py-1.5 flex items-center gap-2 cursor-pointer"
+                      title={`Load ${item.symbol} on chart (FXCM Feed)`}
                     >
-                      {fund.isBullish ? `🟢 ▲ Bullish (${fund.score >= 0 ? '+' : ''}${fund.score})` : fund.isBearish ? `🔴 ▼ Bearish (${fund.score})` : '● Neutral'}
-                    </span>
-                  </button>
+                      <span>{item.label}</span>
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded font-extrabold flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-slate-950 text-cyan-300'
+                            : fund.isBullish
+                            ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 shadow-sm'
+                            : fund.isBearish
+                            ? 'bg-rose-950/90 text-rose-300 border border-rose-500/50 shadow-sm'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {fund.isBullish ? `🟢 ▲ Bullish (${fund.score >= 0 ? '+' : ''}${fund.score})` : fund.isBearish ? `🔴 ▼ Bearish (${fund.score})` : '● Neutral'}
+                      </span>
+                    </button>
+
+                    {WATCHLIST_CATEGORIES[activeCategoryIndex]?.id === 'FUNDAMENTALS' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectSymbol(item.symbol, (item as any).broker);
+                          handleOpenPairModal(item.symbol);
+                        }}
+                        className={`px-2 py-1.5 border-l text-[10px] uppercase font-mono font-bold cursor-pointer transition ${
+                          isSelected
+                            ? 'border-cyan-600 hover:bg-cyan-600 text-slate-950'
+                            : 'border-slate-800 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300'
+                        }`}
+                        title={`Open Deep-Dive Analysis Modal for ${item.symbol}`}
+                      >
+                        Modal
+                      </button>
+                    )}
+                  </div>
                 );
               })}
           </div>
@@ -3133,7 +3334,17 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenPairModal(selectedSymbol)}
+                    className="px-3 py-1 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 font-bold tracking-wide text-xs transition cursor-pointer shadow-md flex items-center gap-1.5"
+                    title="Open Detailed Fundamental Analysis Modal for this pair"
+                  >
+                    <Scale className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Deep-Dive Modal</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={handleAutoAlignProjectionToFundamental}
@@ -3360,25 +3571,39 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           {/* Right Controls: Timeframe Quick Switcher + Tools */}
           <div className="flex items-center gap-2 flex-wrap">
             {/* Timeframe Switcher (Syncs both time displays!) */}
-            <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-[11px] font-mono-code">
-              {TIMEFRAMES.map((tf) => (
-                <button
-                  key={tf.id}
-                  type="button"
-                  onClick={() => handleIntervalChange(tf.id)}
-                  title={tf.desc}
-                  className={`px-2 py-1 rounded-lg transition cursor-pointer font-bold ${
-                    selectedInterval === tf.id
-                      ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-                  }`}
-                >
-                  {tf.label}
-                </button>
-              ))}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-[11px] font-mono-code">
+                {TIMEFRAMES.map((tf) => (
+                  <button
+                    key={tf.id}
+                    type="button"
+                    onClick={() => handleIntervalChange(tf.id)}
+                    title={tf.desc}
+                    className={`px-2 py-1 rounded-lg transition cursor-pointer font-bold ${
+                      selectedInterval === tf.id
+                        ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                    }`}
+                  >
+                    {tf.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Timeframe indicator alongside active candle duration remaining */}
+              <div
+                className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono-code shadow-inner shrink-0"
+                title={`Active Timeframe: ${candleCountdown.label} | Duration remaining before current candle closes: ${candleCountdown.text}`}
+              >
+                <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
+                <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-black border border-cyan-500/40 text-[10px] uppercase">
+                  {candleCountdown.label}
+                </span>
+                <span className="text-amber-300 font-bold tracking-wider">{candleCountdown.text}</span>
+              </div>
             </div>
 
-            {/* Action Buttons: Camera, Settings, Share, Fullscreen */}
+            {/* Action Buttons: Camera, Settings, Share, Indicators, Fullscreen */}
             <div className="flex items-center gap-1.5">
               {/* CAMERA SNAPSHOT BUTTON */}
               <button
@@ -3411,18 +3636,34 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 <span className="hidden lg:inline">Share</span>
               </button>
 
+              {/* INDICATORS BUTTON (Directly next to Full-Screen) */}
+              <button
+                type="button"
+                onClick={() => setShowIndicatorsModal((prev) => !prev)}
+                className={`p-1.5 rounded-xl border transition cursor-pointer flex items-center gap-1.5 text-xs font-mono-code font-bold ${
+                  showIndicatorsModal
+                    ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-md shadow-cyan-500/20'
+                    : 'bg-slate-950 border-slate-700 text-slate-300 hover:text-white hover:border-cyan-400'
+                }`}
+                title="Technical Indicators (RSI, MACD, EMA, Bollinger, SuperTrend)"
+              >
+                <Activity className="w-4 h-4 text-cyan-400" />
+                <span>Indicators</span>
+              </button>
+
+              {/* FULL-SCREEN BUTTON (Directly next to Indicators) */}
               <button
                 type="button"
                 onClick={toggleFullscreen}
                 className={`p-1.5 rounded-xl border transition cursor-pointer flex items-center gap-1 text-xs font-mono-code font-bold ${
                   isFullscreen
                     ? 'bg-blue-600 text-white border-blue-400 shadow-md shadow-blue-500/30'
-                    : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-white'
+                    : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-white hover:border-cyan-400'
                 }`}
                 title={isFullscreen ? 'Exit Fullscreen (Minimize)' : 'View Chart in Fullscreen Mode'}
               >
                 {isFullscreen ? <Minimize2 className="w-4 h-4 text-white" /> : <Maximize2 className="w-4 h-4 text-cyan-400" />}
-                <span className="hidden sm:inline">{isFullscreen ? 'Minimize' : 'Full-Screen'}</span>
+                <span className="hidden sm:inline">{isFullscreen ? 'Exit Fullscreen' : 'Full-Screen'}</span>
               </button>
             </div>
           </div>
@@ -3485,7 +3726,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       {/* ========================================================================= */}
       <div
         className={`flex flex-col lg:flex-row border border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative transition-all duration-300 ${
-          isFullscreen ? 'h-[calc(100vh-140px)]' : 'h-[680px] sm:h-[750px] lg:h-[800px]'
+          isFullscreen ? 'flex-1 min-h-[550px] h-[calc(100vh-140px)]' : 'h-[680px] sm:h-[750px] lg:h-[800px]'
         }`}
         style={{
           background:
@@ -3750,7 +3991,10 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   : 'bg-[#0B0F19]/95 text-cyan-300 border-cyan-500/60 shadow-cyan-950/50'
               }`}
             >
-              <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
+              <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[9px] font-bold uppercase">
+                {candleCountdown.label}
+              </span>
               <span>{candleCountdown.text}</span>
             </div>
           </div>

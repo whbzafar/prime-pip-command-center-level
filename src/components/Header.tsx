@@ -1162,10 +1162,18 @@ export const Header: React.FC<HeaderProps> = ({
                       LOCKED
                     </span>
                   )}
+                  {item.id === 'FUNDAMENTAL_CALENDAR' && (
+                    <span className="text-[8px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded font-bold uppercase shadow-sm">
+                      FREE
+                    </span>
+                  )}
+                  {item.id === 'FUNDAMENTAL_INDICATORS' && (
+                    <span className="text-[8px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded font-bold uppercase shadow-sm">
+                      FREE COT
+                    </span>
+                  )}
                   {isDemoMode &&
                   (item.id === 'PRE_TRADE_PLAN' ||
-                    item.id === 'FUNDAMENTAL_CALENDAR' ||
-                    item.id === 'FUNDAMENTAL_INDICATORS' ||
                     item.id === 'SIGNALS' ||
                     item.id === 'PERFORMANCE' ||
                     item.id === 'DAILY_DEV' ||

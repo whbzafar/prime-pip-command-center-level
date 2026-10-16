@@ -70,6 +70,8 @@ const ALLOWED_DEMO_CATEGORIES: string[] = [
   'GOALS',
   'SUBSCRIPTION',
   'REFERRALS',
+  'FUNDAMENTAL_CALENDAR',
+  'FUNDAMENTAL_INDICATORS',
 ];
 import { apiRecordTelemetrySignal } from './utils/evolutionClient';
 import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin } from './utils/authClient';
@@ -1308,7 +1310,11 @@ export default function App() {
         )}
 
         {activeTab === 'FUNDAMENTAL_INDICATORS' && (
-          <FundamentalIndicators />
+          <FundamentalIndicators
+            currentUser={currentUser}
+            isDemoMode={isDemoMode}
+            onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
+          />
         )}
 
         {activeTab === 'SITUATION_SAVER' && (

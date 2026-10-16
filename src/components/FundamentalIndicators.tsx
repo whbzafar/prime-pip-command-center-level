@@ -98,6 +98,7 @@ import {
   RefreshCw,
   Building2,
   Coins,
+  Lock,
 } from 'lucide-react';
 import {
   fetchFundamentalObservations,
@@ -139,9 +140,31 @@ const LOCAL_STORAGE_COT_KEY = 'primepip_fundamental_cot_v2';
 const LOCAL_STORAGE_RATES_KEY = 'primepip_fundamental_rates_v2';
 const LOCAL_STORAGE_RETAIL_POSITIONING_KEY = 'primepip_fundamental_retail_positioning_v1';
 
-export const FundamentalIndicators: React.FC = () => {
+export interface FundamentalIndicatorsProps {
+  currentUser?: any;
+  isDemoMode?: boolean;
+  onOpenSubscription?: () => void;
+}
+
+export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = ({
+  currentUser,
+  isDemoMode,
+  onOpenSubscription,
+}) => {
   const [fundamentalUser, setFundamentalUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<FundamentalDashboardTab>('OVERVIEW');
+
+  const effectiveUser = currentUser || fundamentalUser;
+  const isUnsubscribed = useMemo(() => {
+    if (isDemoMode) return true;
+    if (!effectiveUser) return true;
+    if (effectiveUser.role === 'ADMIN' || effectiveUser.role === 'DEVELOPER' || effectiveUser.isDeveloper) return false;
+    if (effectiveUser.subscriptionStatus === 'ACTIVE' || effectiveUser.subscriptionStatus === 'LIFETIME') return false;
+    return true;
+  }, [isDemoMode, effectiveUser]);
+
+  const [activeTab, setActiveTab] = useState<FundamentalDashboardTab>(() => {
+    return isUnsubscribed ? 'COT_REPORT' : 'OVERVIEW';
+  });
   const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>('USD');
   const [isImageExtractorOpen, setIsImageExtractorOpen] = useState(false);
   const [imageExtractorSelection, setImageExtractorSelection] = useState<SupportedSelection>('ALL');
@@ -1152,6 +1175,9 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
             {navTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
+              const isFreeUnlocked = tab.id === 'COT_REPORT' || tab.id === 'MARKET_SENTIMENT';
+              const isLockedForUser = isUnsubscribed && !isFreeUnlocked;
+
               return (
                 <button
                   key={tab.id}
@@ -1168,6 +1194,16 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
                 >
                   <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-slate-950 stroke-[2.5]' : 'text-slate-400'}`} />
                   <span>{tab.label}</span>
+                  {isFreeUnlocked && (
+                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${
+                      isActive ? 'bg-slate-950 text-emerald-300' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    }`}>
+                      Free
+                    </span>
+                  )}
+                  {isLockedForUser && (
+                    <Lock className={`w-3 h-3 shrink-0 ${isActive ? 'text-slate-950' : 'text-amber-400/80'}`} />
+                  )}
                 </button>
               );
             })}
@@ -1198,13 +1234,68 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
         observations={observations}
         activeCurrency={activeCurrency}
         onSelectCurrency={(c) => {
-          setActiveCurrency(c);
-          setActiveTab('WORKSPACES');
+          if (isUnsubscribed) {
+            setActiveTab('COT_REPORT');
+          } else {
+            setActiveCurrency(c);
+            setActiveTab('WORKSPACES');
+          }
         }}
-        onSelectTab={(tab) => setActiveTab(tab)}
+        onSelectTab={(tab) => {
+          if (isUnsubscribed && tab !== 'COT_REPORT' && tab !== 'MARKET_SENTIMENT') {
+            setActiveTab('COT_REPORT');
+          } else {
+            setActiveTab(tab);
+          }
+        }}
       />
 
-      {activeTab === 'OVERVIEW' && (
+      {/* Subscription Lock Overlay for Unsubscribed / Demo Users on Locked Sub-Tabs */}
+      {isUnsubscribed && activeTab !== 'COT_REPORT' && activeTab !== 'MARKET_SENTIMENT' && (
+        <div className="max-w-2xl mx-auto my-8 p-6 sm:p-8 rounded-3xl bg-slate-950/90 border border-amber-500/40 shadow-2xl space-y-5 text-center font-mono-code backdrop-blur-xl animate-in fade-in">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
+            <Lock className="w-7 h-7" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-lg sm:text-xl font-military font-bold text-white tracking-wide uppercase">
+              Institutional Fundamental Suite Locked
+            </h2>
+            <p className="text-xs text-slate-300 max-w-lg mx-auto leading-relaxed">
+              In Demo Mode, the <strong className="text-emerald-300 font-bold">COT Report</strong> and <strong className="text-emerald-300 font-bold">Market Sentiment</strong> sections are unlocked and available 100% free! All other macro intelligence models and central bank workspaces require an active subscription ($55).
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('COT_REPORT')}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-military font-bold text-xs uppercase cursor-pointer hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/20"
+            >
+              Explore COT Report (Free)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('MARKET_SENTIMENT')}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 font-military font-bold text-xs uppercase cursor-pointer hover:from-cyan-400 hover:to-blue-400 shadow-lg shadow-cyan-500/20"
+            >
+              Explore Sentiment (Free)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenSubscription) onOpenSubscription();
+              }}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-military font-bold text-xs uppercase cursor-pointer hover:from-amber-400 hover:to-yellow-300 shadow-lg shadow-amber-500/20"
+            >
+              Subscribe for Full Access ($55)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {(!isUnsubscribed || activeTab === 'COT_REPORT' || activeTab === 'MARKET_SENTIMENT') && (
+        <>
+          {activeTab === 'OVERVIEW' && (
         <FundamentalAssetCommandCenter
           currencyScores={currencyScores}
           commodityObservations={commodityObservations}
@@ -1392,6 +1483,8 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
 
       {activeTab === 'METHODOLOGY' && (
         <FundamentalMethodologyView />
+      )}
+        </>
       )}
 
       {/* Transparent Audit Modal */}
