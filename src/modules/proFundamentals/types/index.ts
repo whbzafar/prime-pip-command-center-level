@@ -72,9 +72,11 @@ export interface CurrencyFundamentalProfile {
   name: string;
   flag: string;
   centralBank: string;
+  status?: 'active' | 'insufficient_data' | 'error';
+  insufficientReason?: string;
   scores: {
-    short: number; // -100 to +100
-    long: number;
+    short: number | null; // -100 to +100 or null if insufficient
+    long: number | null;
   };
   confidence: {
     short: ConfidenceLevel;
@@ -92,9 +94,11 @@ export interface PairFundamentalProfile {
   pair: string; // e.g. "EUR/USD"
   base: CurrencyCode;
   quote: CurrencyCode;
+  status?: 'active' | 'insufficient_data' | 'error';
+  insufficientReason?: string;
   scores: {
-    short: number; // baseScore - quoteScore clamped -100..+100
-    long: number;
+    short: number | null; // baseScore - quoteScore clamped -100..+100 or null if insufficient
+    long: number | null;
   };
   confidence: {
     short: ConfidenceLevel;

@@ -15,7 +15,9 @@
     "job:backfill": "tsx jobs/runBackfill.ts",
     "job:score": "tsx jobs/runScoring.ts",
     "job:backfill-scoring": "tsx jobs/runBackfillScoring.ts",
+    "config:publish": "tsx jobs/publishModelConfig.ts",
     "report:calibration": "tsx jobs/generateCalibrationReport.ts",
+    "report:validation": "tsx jobs/runValidationReport.ts",
     "job:explain": "tsx jobs/runExplanations.ts",
     "job:quality": "tsx jobs/runQualityChecks.ts",
     "job:all": "tsx jobs/runCollectors.ts && tsx jobs/runScoring.ts && tsx jobs/runExplanations.ts && tsx jobs/runQualityChecks.ts"

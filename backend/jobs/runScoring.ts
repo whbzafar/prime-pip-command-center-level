@@ -1,14 +1,16 @@
 import { getDbClient } from '../shared/db.js';
 import { logger } from '../shared/logger.js';
 import { config } from '../shared/config.js';
-import { Horizon, IngestionRunRecord } from '../shared/types.js';
+import { Horizon, IngestionRunRecord, CurrencyCode } from '../shared/types.js';
 import {
   INDICATOR_TRANSFORM_REGISTRY,
   SCORING_MODEL_CONFIG,
+  CALIBRATION_SCALE_BY_CURRENCY,
+  verifyModelVersionInDb,
 } from '../scoring/modelConfig.js';
 import { getSeriesAsOf, PointInTimeObservation } from '../scoring/data.js';
 import { applyTransform, computeDerivedSeries } from '../scoring/transform.js';
-import { computeRobustZScore } from '../scoring/normalize.js';
+import { computeDetailedRobustZScore, computePercentileRank } from '../scoring/normalize.js';
 import { applyPolarity } from '../scoring/polarity.js';
 import { aggregatePillarScore, ScoredIndicatorInput } from '../scoring/pillars.js';
 import { aggregateAssetScore, WeightedPillarScore } from '../scoring/aggregate.js';
@@ -24,6 +26,9 @@ export interface RunScoringOptions {
 export async function runScoring(options: RunScoringOptions = {}): Promise<{
   rowsWritten: number;
   assetsProcessed: number;
+  assetScoresWritten: number;
+  modelVersion: string;
+  configHash: string;
 }> {
   const startedAt = new Date().toISOString();
   const asOf = options.asOf || startedAt;
@@ -34,9 +39,14 @@ export async function runScoring(options: RunScoringOptions = {}): Promise<{
 
   let rowsWritten = 0;
   let assetsProcessed = 0;
+  let assetScoresWritten = 0;
   const db = getDbClient();
 
   try {
+    // 0. Verify model configuration hash against database model_versions table
+    const { hash: configHash } = await verifyModelVersionInDb(db, modelVersion);
+    logger.info(`[Job:${jobName}] Verified model version ${modelVersion} (hash: ${configHash.slice(0, 12)}).`);
+
     // 1. Fetch active assets
     let assetQuery = db.from('assets').select('*').eq('is_active', true);
     if (options.assetIds && options.assetIds.length > 0) {
@@ -52,18 +62,31 @@ export async function runScoring(options: RunScoringOptions = {}): Promise<{
       .order('sort_order', { ascending: true });
     if (pillarErr) throw new Error(`Failed to query pillars: ${pillarErr.message}`);
 
-    // 3. Fetch pillar weights
-    const { data: pillarWeights, error: weightErr } = await db
+    // 3. Fetch pillar weights for active model version
+    // Check for exact modelVersion or fallback to v0.1-initial
+    let { data: pillarWeights, error: weightErr } = await db
       .from('pillar_weights')
       .select('*')
       .eq('model_version_id', modelVersion);
-    if (weightErr) throw new Error(`Failed to query pillar weights: ${weightErr.message}`);
+
+    if (weightErr || !pillarWeights || pillarWeights.length === 0) {
+      const { data: fallbackWeights } = await db
+        .from('pillar_weights')
+        .select('*')
+        .eq('model_version_id', 'v0.1-initial');
+      pillarWeights = fallbackWeights || [];
+    }
 
     const horizons: Horizon[] = ['short', 'long'];
 
+    // Regime indicators cache (USD 10Y-2Y and VIX) for confidence regime stability factor
+    let cachedYieldCurve10y2y: number | null = null;
+    let cachedVixLevel: number | null = null;
+
     // 4. Score each asset
     for (const asset of assets || []) {
-      logger.info(`[Scoring] Processing asset ${asset.symbol} (${asset.id})...`);
+      const symbol = asset.symbol as CurrencyCode;
+      logger.info(`[Scoring] Processing asset ${symbol} (${asset.id})...`);
 
       // Fetch indicators for this asset
       const { data: indicators, error: indErr } = await db
@@ -72,9 +95,9 @@ export async function runScoring(options: RunScoringOptions = {}): Promise<{
         .eq('asset_id', asset.id)
         .eq('is_active', true);
 
-      if (indErr) throw new Error(`Failed to fetch indicators for ${asset.symbol}: ${indErr.message}`);
+      if (indErr) throw new Error(`Failed to fetch indicators for ${symbol}: ${indErr.message}`);
 
-      // Map raw series for primary and derived indicators
+      // Map raw series for primary indicators
       const rawSeriesMap = new Map<string, PointInTimeObservation[]>();
       const indicatorDataMap = new Map<string, any>();
 
@@ -103,17 +126,35 @@ export async function runScoring(options: RunScoringOptions = {}): Promise<{
         }
       }
 
+      // Extract regime indicators for USD if present
+      if (symbol === 'USD') {
+        const vixSeries = rawSeriesMap.get('USD_CBOE_VIX') || [];
+        if (vixSeries.length > 0) {
+          cachedVixLevel = vixSeries[vixSeries.length - 1].value;
+        }
+        const curveSeries = rawSeriesMap.get('USD_YIELD_CURVE_SLOPE') || [];
+        if (curveSeries.length > 0) {
+          cachedYieldCurve10y2y = curveSeries[curveSeries.length - 1].value;
+        }
+      }
+
       // Process both horizons: short & long
       for (const horizon of horizons) {
         const horizonPillarInputs: WeightedPillarScore[] = [];
         const horizonContributors: IndicatorContributionItem[] = [];
         const allFreshnessFactors: number[] = [];
-        let totalPossibleIndicatorWeight = 0;
-        let activeIndicatorWeightSum = 0;
-        let pillarsWithFreshData = 0;
+        let totalConfiguredIndicatorWeight = 0;
+        let availableIndicatorWeight = 0;
+        let anySuspiciousJump = false;
+
+        const pillarScoreMap = new Map<string, {
+          score: number | null;
+          pillarRes: any;
+          configuredWeight: number;
+        }>();
 
         for (const pillar of pillars || []) {
-          // Weight configured for this pillar and horizon
+          // Find weight configured for this pillar and horizon
           const pWeightRecord = (pillarWeights || []).find(
             (pw) => pw.pillar_id === pillar.id && pw.horizon === horizon && pw.asset_class === asset.asset_class
           );
@@ -140,34 +181,53 @@ export async function runScoring(options: RunScoringOptions = {}): Promise<{
             const transformedVals = transformed.map((t) => t.value);
             const latestVal = transformedVals.length > 0 ? transformedVals[transformedVals.length - 1] : 0;
 
-            // Robust z-score
-            const zScore = transformedVals.length >= 2
-              ? computeRobustZScore(latestVal, transformedVals)
+            // Robust z-score computation
+            const zResult = transformedVals.length >= 2
+              ? computeDetailedRobustZScore(latestVal, transformedVals)
+              : { isAvailable: false, zScore: 0, baseScore: 0, method: 'unavailable', median: 0, mad: 0 };
+
+            // Compute percentile rank in rolling window for contrarian_extreme polarity
+            const pRank = transformedVals.length > 0 ? computePercentileRank(latestVal, transformedVals) : 0.5;
+
+            // Directional score with risk-sentiment adjustment
+            const indScore = zResult.isAvailable
+              ? applyPolarity(zResult.zScore, polarity, {
+                  percentileRank: pRank,
+                  currency: symbol,
+                  isRiskIndicator: modelConf?.isRiskIndicator,
+                  riskAssetType: modelConf?.riskAssetType,
+                })
               : 0;
 
-            // Directional score
-            const indScore = applyPolarity(zScore, polarity);
-
-            // Write indicator_scores
-            if (!options.dryRun && transformed.length > 0) {
-              await db.from('indicator_scores').insert({
-                indicator_id: ind.id,
-                computed_at: asOf,
-                model_version_id: modelVersion,
-                raw_value: latestVal,
-                z_score: Number(zScore.toFixed(4)),
-                score: Number(indScore.toFixed(2)),
-              });
-              rowsWritten++;
-            }
-
-            const baseWeight = Number(ind.weight_in_pillar || 1.0);
-            const freshness = pit?.freshnessFactor ?? 1.0;
+            const baseWeight = Number(ind.weight_in_pillar || modelConf?.weightInPillar || 1.0);
+            const freshness = pit?.freshnessFactor ?? (transformed.length > 0 ? 1.0 : 0.0);
             const hasJump = pit?.hasSuspiciousJump ?? false;
 
-            allFreshnessFactors.push(freshness);
-            totalPossibleIndicatorWeight += baseWeight;
-            activeIndicatorWeightSum += baseWeight * freshness * (hasJump ? SCORING_MODEL_CONFIG.jumpDownweightFactor : 1.0);
+            if (hasJump) anySuspiciousJump = true;
+            if (freshness > 0) allFreshnessFactors.push(freshness);
+            totalConfiguredIndicatorWeight += baseWeight;
+
+            const isAvailable = zResult.isAvailable && freshness > 0;
+            if (isAvailable) {
+              const jumpMult = hasJump ? SCORING_MODEL_CONFIG.jumpDownweightFactor : 1.0;
+              availableIndicatorWeight += baseWeight * freshness * jumpMult;
+            }
+
+            // Write indicator_scores (upsert with idempotency)
+            if (!options.dryRun && zResult.isAvailable) {
+              await db.from('indicator_scores').upsert(
+                {
+                  indicator_id: ind.id,
+                  computed_at: asOf,
+                  model_version_id: modelVersion,
+                  raw_value: latestVal,
+                  z_score: Number(zResult.zScore.toFixed(4)),
+                  score: Number(indScore.toFixed(2)),
+                },
+                { onConflict: 'indicator_id,computed_at,model_version_id' }
+              );
+              rowsWritten++;
+            }
 
             scoredIndInputs.push({
               indicatorId: ind.id,
@@ -177,9 +237,10 @@ export async function runScoring(options: RunScoringOptions = {}): Promise<{
               baseWeight,
               freshnessFactor: freshness,
               hasSuspiciousJump: hasJump,
+              isAvailable: zResult.isAvailable,
             });
 
-            // Store for driver evaluation
+            // Intermediate item for driver attribution
             horizonContributors.push({
               indicatorId: ind.id,
               code: ind.code,
@@ -187,9 +248,12 @@ export async function runScoring(options: RunScoringOptions = {}): Promise<{
               pillarId: pillar.id,
               pillarName: pillar.name,
               rawValue: latestVal,
-              zScore,
+              zScore: zResult.zScore,
               score: indScore,
-              weightInAsset: 0, // will be computed after pillar normalization
+              effectiveWeightInPillar: 0,
+              sumEffectiveWeightsInPillar: 0,
+              effectivePillarWeightInAsset: 0,
+              effectiveWeightInAsset: 0,
               contribution: 0,
               unit: ind.unit,
               periodDate: pit?.latestObservation?.periodDate,
@@ -198,48 +262,101 @@ export async function runScoring(options: RunScoringOptions = {}): Promise<{
 
           // Aggregate pillar
           const pillarRes = aggregatePillarScore(scoredIndInputs);
-          if (pillarRes.freshIndicatorCount > 0) {
-            pillarsWithFreshData++;
-          }
+          pillarScoreMap.set(pillar.id, {
+            score: pillarRes.score,
+            pillarRes,
+            configuredWeight: pillarBaseWeight,
+          });
 
           horizonPillarInputs.push({
             pillarId: pillar.id,
+            pillarCode: pillar.code,
             score: pillarRes.score,
             weight: pillarBaseWeight,
-            isEmpty: pillarRes.isEmpty,
           });
 
-          // Write pillar_scores
-          if (!options.dryRun) {
-            await db.from('pillar_scores').insert({
-              asset_id: asset.id,
-              pillar_id: pillar.id,
-              horizon,
-              computed_at: asOf,
-              model_version_id: modelVersion,
-              score: Number(pillarRes.score.toFixed(2)),
-            });
+          // Write pillar_scores if non-null (upsert with idempotency)
+          if (!options.dryRun && pillarRes.score !== null) {
+            await db.from('pillar_scores').upsert(
+              {
+                asset_id: asset.id,
+                pillar_id: pillar.id,
+                horizon,
+                computed_at: asOf,
+                model_version_id: modelVersion,
+                score: Number(pillarRes.score.toFixed(2)),
+              },
+              { onConflict: 'asset_id,pillar_id,horizon,computed_at,model_version_id' }
+            );
             rowsWritten++;
           }
         }
 
-        // Aggregate asset score across pillars with rescaling
-        const assetRes = aggregateAssetScore(horizonPillarInputs);
+        // Aggregate asset score across non-null pillars
+        const calibrationScale = CALIBRATION_SCALE_BY_CURRENCY[symbol] ?? 1.0;
+        const assetRes = aggregateAssetScore(horizonPillarInputs, calibrationScale);
 
-        // Compute normalized asset weights for driver attribution
+        if (!assetRes.isSufficient || assetRes.score === null) {
+          logger.info(`[Scoring] Skipping asset_scores for ${symbol} (${horizon}): ${assetRes.insufficientReason}`);
+          continue;
+        }
+
+        // Compute exact driver contributions using the mathematical invariant:
+        // effective_weight_in_asset = (effective_weight_in_pillar / sum(effective_weight_in_pillar)) * effective_pillar_weight_in_asset * calibrationScale
+        // contribution = effective_weight_in_asset * indicator_score
+        // sum(contributions) == asset_score
+        const nonNullPillarScores: number[] = [];
+
         for (const cont of horizonContributors) {
-          const effPillarWeight = assetRes.effectivePillarWeights.get(cont.pillarId) || 0;
-          // Count indicators in pillar to allocate weight evenly if not explicitly stored
-          const countInPillar = horizonContributors.filter((c) => c.pillarId === cont.pillarId).length;
-          cont.weightInAsset = countInPillar > 0 ? effPillarWeight / countInPillar : 0;
-          cont.contribution = Number((cont.weightInAsset * cont.score).toFixed(2));
+          const pData = pillarScoreMap.get(cont.pillarId);
+          if (!pData || pData.score === null) {
+            cont.effectiveWeightInAsset = 0;
+            cont.contribution = 0;
+            continue;
+          }
+
+          const effPillarWeightInAsset = assetRes.effectivePillarWeights.get(cont.pillarId) || 0;
+          const normalizedWeightInPillar = pData.pillarRes.indicatorWeightsInPillar.get(cont.indicatorId) || 0;
+
+          cont.effectivePillarWeightInAsset = effPillarWeightInAsset;
+          cont.effectiveWeightInPillar = normalizedWeightInPillar;
+          cont.sumEffectiveWeightsInPillar = pData.pillarRes.activeWeightSum;
+
+          // Exact formula
+          cont.effectiveWeightInAsset = normalizedWeightInPillar * effPillarWeightInAsset * calibrationScale;
+          cont.contribution = cont.effectiveWeightInAsset * cont.score;
+        }
+
+        for (const pInput of horizonPillarInputs) {
+          if (pInput.score !== null) {
+            nonNullPillarScores.push(pInput.score);
+          }
         }
 
         // Attribution: top 3 bullish, top 3 bearish
-        const attribution = computeDriverAttribution(asset.symbol, horizon, horizonContributors);
+        const attribution = computeDriverAttribution(symbol, horizon, horizonContributors);
 
-        // Store drivers
+        // Calculate confidence
+        const conf = calculateConfidence({
+          totalConfiguredIndicatorWeight,
+          availableIndicatorWeight,
+          availableFreshnessFactors: allFreshnessFactors,
+          nonNullPillarScores,
+          yieldCurve10y2y: cachedYieldCurve10y2y,
+          vixLevel: cachedVixLevel,
+          hasSuspiciousJumpFlag: anySuspiciousJump,
+        });
+
+        // Store drivers: clean replace for this asset/horizon/asOf/model to avoid orphan rows
         if (!options.dryRun) {
+          await db
+            .from('drivers')
+            .delete()
+            .eq('asset_id', asset.id)
+            .eq('horizon', horizon)
+            .eq('computed_at', asOf)
+            .eq('model_version_id', modelVersion);
+
           for (const d of attribution.allDrivers) {
             await db.from('drivers').insert({
               asset_id: asset.id,
@@ -257,38 +374,29 @@ export async function runScoring(options: RunScoringOptions = {}): Promise<{
             });
             rowsWritten++;
           }
-        }
 
-        // Calculate confidence
-        const topBull = attribution.bullishDrivers[0]?.contribution || 0;
-        const topBear = attribution.bearishDrivers[0]?.contribution || 0;
-
-        const conf = calculateConfidence({
-          totalPossibleIndicatorWeight,
-          activeIndicatorWeight: activeIndicatorWeightSum,
-          freshnessFactors: allFreshnessFactors,
-          totalPillarsCount: (pillars || []).length,
-          pillarsWithFreshDataCount: pillarsWithFreshData,
-          topBullishContribution: topBull,
-          topBearishContribution: topBear,
-        });
-
-        // Store asset_scores
-        if (!options.dryRun) {
-          await db.from('asset_scores').insert({
-            asset_id: asset.id,
-            horizon,
-            computed_at: asOf,
-            model_version_id: modelVersion,
-            score: Number(assetRes.score.toFixed(2)),
-            confidence: conf.confidence,
-            confidence_detail: {
-              ...conf.confidenceDetail,
-              warning_flags: conf.warningFlags,
-              is_rescaled: assetRes.isRescaled,
+          // Store asset_scores (upsert with idempotency)
+          await db.from('asset_scores').upsert(
+            {
+              asset_id: asset.id,
+              horizon,
+              computed_at: asOf,
+              model_version_id: modelVersion,
+              score: Number(assetRes.score.toFixed(2)),
+              confidence: conf.confidence,
+              confidence_detail: {
+                ...conf.confidenceDetail,
+                warning_flags: conf.warningFlags,
+                is_rescaled: assetRes.isRescaled,
+                available_pillars: assetRes.nonNullPillarCount,
+                total_pillars: assetRes.totalPillarCount,
+                driver_contribution_sum: attribution.totalContributionSum,
+              },
             },
-          });
+            { onConflict: 'asset_id,horizon,computed_at,model_version_id' }
+          );
           rowsWritten++;
+          assetScoresWritten++;
         }
       }
 
@@ -308,8 +416,17 @@ export async function runScoring(options: RunScoringOptions = {}): Promise<{
       await db.from('ingestion_runs').insert(runRecord);
     }
 
-    logger.info(`[Job:${jobName}] Scoring complete: ${assetsProcessed} assets processed, ${rowsWritten} rows written.`);
-    return { rowsWritten, assetsProcessed };
+    logger.info(
+      `[Job:${jobName}] Scoring complete: ${assetsProcessed} assets processed, ${assetScoresWritten} asset scores written, ${rowsWritten} total rows.`
+    );
+
+    return {
+      rowsWritten,
+      assetsProcessed,
+      assetScoresWritten,
+      modelVersion,
+      configHash,
+    };
   } catch (fatalErr: any) {
     logger.error(`[Job:${jobName}] Scoring failed: ${fatalErr?.message || fatalErr}`);
     try {
@@ -327,7 +444,8 @@ export async function runScoring(options: RunScoringOptions = {}): Promise<{
 }
 
 if (process.argv[1]?.endsWith('runScoring.ts') || process.argv[1]?.endsWith('runScoring.js')) {
-  runScoring().catch(() => {
+  runScoring().catch((err) => {
+    logger.error(`runScoring execution error: ${err?.message || err}`);
     process.exitCode = 1;
   });
 }

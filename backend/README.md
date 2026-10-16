@@ -217,3 +217,144 @@ ORDER BY q.created_at DESC;
 > **CRITICAL SCHEDULING CAVEAT**:
 > GitHub automatically disables scheduled cron workflows if a repository has no commits or activity for 60 consecutive days.
 > To ensure continuous operation on quiet repositories, either push periodic maintenance commits, or use an external ping / uptime service (e.g., cron-job.org or AWS EventBridge) to trigger the workflow via `workflow_dispatch` webhook.
+
+---
+
+## 8. Quantitative Scoring Engine Pipeline
+
+### 8.1 Scoring Pipeline Diagram (ASCII)
+
+```
+                       [ Point-in-Time Observations ]
+                                     |
+                                     v
+                       [ 1. Point-in-Time Filter ]
+                       (released_at <= asOf; resolve revisions;
+                        filter out_of_range/missing; downweight jumps)
+                                     |
+                                     v
+                       [ 2. Transform Layer ]
+                       (level, change_n, pct_change_n, yoy,
+                        annualized_3m, avg_n, percentile_rank)
+                                     |
+                                     v
+                       [ 3. Robust Normalization ]
+                       (Rolling 8Y window, 1st/99th % winsorization,
+                        Z = (x - median)/(1.4826*MAD), standard Z fallback,
+                        clamped [-3, 3], base score = 100 * z / 3)
+                                     |
+                                     v
+                       [ 4. Polarity & Risk Signs ]
+                       - higher_bullish / higher_bearish
+                       - contrarian_extreme piecewise curve
+                       - risk_sign (USD +1.0, JPY +1.0, AUD -1.0...)
+                                     |
+                                     v
+                      +-----------------------------+
+                      | indicator_scores (DB table) |
+                      +-----------------------------+
+                                     |
+                                     v
+                       [ 5. Pillar Aggregation ]
+                       (Effective weight = base * freshness * jump;
+                        insufficient if available weight < 50%)
+                                     |
+                                     v
+                      +--------------------------+
+                      | pillar_scores (DB table) |
+                      +--------------------------+
+                                     |
+                                     v
+                       [ 6. Asset Score Aggregation ]
+                       (Requires >= 4 non-null pillars & >= 60% weight;
+                        sum(pillar_weight * pillar_score) / sum(avail);
+                        apply calibration_scale; clamp [-100, 100])
+                                     |
+                     +---------------+---------------+
+                     |                               |
+                     v                               v
+          [ 7. Confidence & Flags ]       [ 8. Exact Driver Attribution ]
+          (A, C, F, D; index formula;     (Exact sum == unclamped asset score;
+           VIX > 90th % stress cap;        rank top 12; deterministic templates;
+           price_divergence, crowded)      zero LLM generation)
+                     |                               |
+                     v                               v
+         +-------------------------+      +--------------------+
+         | asset_scores (DB table) |      | drivers (DB table) |
+         +-------------------------+      +--------------------+
+                     |
+                     v
+         [ 9. Pair Differentials (View) ]
+         v_pair_scores: clamp(base_score - quote_score, -100, 100)
+         (NEVER stored in a table; single source of truth)
+```
+
+### 8.2 How Each Score is Built
+
+1. **Point-in-Time Correctness**: `getSeriesAsOf` only reads observations with `released_at <= asOf`. Any revision published after the calculation timestamp is strictly ignored.
+2. **Transform Layer**: Converts raw observations into economic signals (e.g., 3-month annualized CPI inflation rate, 20-day yield change, or rolling percentile rank).
+3. **Winsorized Robust Z-Score**:
+   $$Z = \frac{X - \text{median}}{1.4826 \times \text{MAD}}$$
+   Computed on a rolling 8-year window, winsorized at the 1st and 99th percentiles. If $\text{MAD} < 10^{-9}$ or fewer than 30 observations exist, falls back to standard $Z = (X - \text{mean}) / \text{stdDev}$. If fewer than 2 points exist or variance is zero, the indicator is marked **unavailable** (`null`).
+4. **Polarity**:
+   - `higher_bullish`: $\text{Score} = \text{BaseScore}$
+   - `higher_bearish`: $\text{Score} = -\text{BaseScore}$
+   - `contrarian_extreme`: For percentile $p \in [0, 1]$:
+     - $0.20 \le p \le 0.80 \implies \text{Score} = 0$
+     - $p > 0.80 \implies \text{Score} = -100 \times \frac{p - 0.80}{0.20}$ (crowded long is bearish)
+     - $p < 0.20 \implies \text{Score} = +100 \times \frac{0.20 - p}{0.20}$ (crowded short is bullish squeeze)
+   - Risk Indicators (VIX, credit spread, NFCI) are scaled by currency `risk_sign` (USD +1.0, AUD -1.0). Equities (S&P 500) use the inverse sign (rising equities = risk-on).
+5. **Pillar Aggregation**: Requires at least 50% of the pillar's configured weight to be available; otherwise the pillar is insufficient (`null`).
+6. **Asset Aggregation**: Requires at least 4 non-null pillars and at least 60% of total configured weight. Currencies without sufficient data (e.g. non-USD currencies before multi-pillar data ingestion) do **not** write an `asset_scores` row, logging "insufficient data" instead.
+7. **Pair Differentials**: Dynamic database view `v_pair_scores` computes $\text{PairScore}(A, B) = \text{clamp}(\text{Score}_A - \text{Score}_B, -100, 100)$. Pairs are never stored in a table, guaranteeing zero synchronization drift.
+
+### 8.3 The Model Configuration File (`model-v0.1.json`)
+
+All quantitative hyperparameters live in `/backend/scoring/config/model-v0.1.json`:
+- `calibrationScale`: Multiplier applied before clamping (default `1.0`).
+- `riskSigns`: Directional sensitivity to global risk appetite per currency.
+- `freshnessTolerances`: Fresh and stale thresholds per release frequency.
+- `confidenceCoefficients`: Weights for Agreement (0.40), Coverage (0.25), Freshness (0.20), Dispersion (0.15).
+- `indicatorTransforms`: Complete mapping of every indicator's short and long transform specs and polarities.
+
+### 8.4 How to Bump the Model Version
+
+1. Copy `/backend/scoring/config/model-v0.1.json` to a new file (e.g. `model-v0.2.json`) or edit `modelVersion` in the file.
+2. Publish the new configuration to Supabase:
+   ```bash
+   npx tsx backend/jobs/publishModelConfig.ts
+   ```
+   This computes the canonical SHA-256 hash and updates `public.model_versions`.
+3. `runScoring` automatically checks the file's hash against `model_versions.config_hash` and will refuse to execute if an un-audited file modification is detected.
+
+### 8.5 How to Read `confidence_detail`
+
+The `confidence_detail` JSON object in `public.asset_scores` provides a complete audit trail:
+- `A` (Pillar Agreement, 0-1): Fraction of pillar weights that agree with the asset score direction.
+- `C` (Coverage, 0-1): Ratio of active effective indicator weights to total configured weight.
+- `F` (Freshness, 0-1): Weighted average freshness factor across indicators.
+- `D` (Dispersion): Weighted standard deviation of pillar scores.
+- `confidence_index` (0-1): Composite index $0.40A + 0.25C + 0.20F + 0.15(1 - \min(1, D/50))$.
+- `regime`: `'normal'` or `'stress'`. If VIX percentile $> 0.90$, regime is `'stress'` and confidence is capped at `medium`.
+- `flags`: Warning indicators such as `price_divergence`, `crowded_positioning`, `low_coverage`, `stale_inputs`.
+- `unavailable_indicators` & `stale_indicators`: List of specific series needing attention.
+
+### 8.6 Known Simplifications & Explicit Assumptions
+
+1. **Inflation Polarity Assumption**: In the current model, higher inflation is treated as `higher_bullish` under the prevailing central bank hiking / tight rate regime. In stagflation or recessionary regimes where inflation degrades real growth, this relationship can decouple.
+2. **Risk Sign Assumptions**: Fixed baseline heuristic signs (USD +1.0, JPY +1.0, CHF +1.0, EUR -0.3, GBP -0.5, CAD -0.6, AUD -1.0, NZD -1.0). To be calibrated and validated in future backtesting steps.
+3. **USD Positioning Proxy**: CFTC USD Index futures (contract `098662`) are used as the aggregate proxy for US Dollar speculative positioning.
+4. **Missing ISM PMI Data**: ISM Manufacturing PMI is proprietary to the Institute for Supply Management; it is automatically skipped (`unavailable`) and never faked with synthetic numbers.
+
+### 8.7 Calibration Procedure
+
+After running historical backfill:
+```bash
+# Run 90-day daily historical backfill
+npx tsx backend/jobs/runScoring.ts --backfill-days 90
+
+# Generate empirical calibration report
+npx tsx backend/jobs/generateCalibrationReport.ts
+```
+The report displays score percentiles, label bucket shares, and recommends an updated `calibrationScale` so roughly 10% of days land in the conviction Strong Bearish / Strong Bullish buckets. The scale is **never applied automatically**; a human researcher reviews the output, updates `model-v0.X.json`, and publishes the ratified version.
+

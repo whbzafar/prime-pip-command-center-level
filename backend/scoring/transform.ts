@@ -47,13 +47,11 @@ export function applyTransform(
     }
 
     case 'yoy': {
-      // Look back n periods (e.g. 12 for monthly, 4 for quarterly, 252 for daily)
       const lookback = spec.n ?? 12;
       for (let i = 0; i < series.length; i++) {
         if (i < lookback) continue;
         const prev = series[i - lookback].value;
         const curr = series[i].value;
-        // Absolute difference (for rates/percentage points) or percentage change
         const change = curr - prev;
         result.push({
           periodDate: series[i].periodDate,
@@ -65,7 +63,7 @@ export function applyTransform(
     }
 
     case 'annualized_3m': {
-      // 3-month annualized growth: ((1 + 3m_change / prev)^4 - 1) * 100
+      // 3-month annualized growth: ((curr / prev_3m)^4 - 1) * 100
       const periods = spec.n ?? 3;
       for (let i = 0; i < series.length; i++) {
         if (i < periods) continue;
@@ -97,6 +95,38 @@ export function applyTransform(
       return result;
     }
 
+    case 'avg_change_n': {
+      // Average of last n monthly changes (e.g. PAYEMS)
+      for (let i = 0; i < series.length; i++) {
+        if (i < n) continue;
+        let sumDelta = 0;
+        for (let j = 0; j < n; j++) {
+          sumDelta += (series[i - j].value - series[i - j - 1].value);
+        }
+        result.push({
+          periodDate: series[i].periodDate,
+          value: sumDelta / n,
+          releasedAt: series[i].releasedAt,
+        });
+      }
+      return result;
+    }
+
+    case 'avg_level_change_20d': {
+      // High yield spread: level plus change 20d averaged
+      for (let i = 0; i < series.length; i++) {
+        if (i < n) continue;
+        const delta = series[i].value - series[i - n].value;
+        const blended = (series[i].value + delta) / 2.0;
+        result.push({
+          periodDate: series[i].periodDate,
+          value: blended,
+          releasedAt: series[i].releasedAt,
+        });
+      }
+      return result;
+    }
+
     case 'return_n': {
       for (let i = 0; i < series.length; i++) {
         if (i < n) continue;
@@ -106,6 +136,30 @@ export function applyTransform(
         result.push({
           periodDate: series[i].periodDate,
           value: ret,
+          releasedAt: series[i].releasedAt,
+        });
+      }
+      return result;
+    }
+
+    case 'return_plus_ma_distance': {
+      // DTWEXBGS: return 120d plus ma_distance 200d
+      const retPeriods = spec.n ?? 120;
+      const maPeriods = spec.ma_n ?? 200;
+      const requiredLookback = Math.max(retPeriods, maPeriods);
+      for (let i = 0; i < series.length; i++) {
+        if (i < requiredLookback) continue;
+        const prev = series[i - retPeriods].value;
+        const curr = series[i].value;
+        const ret = prev !== 0 ? ((curr - prev) / Math.abs(prev)) * 100 : 0;
+
+        const maWindow = series.slice(i - maPeriods + 1, i + 1);
+        const ma = maWindow.reduce((s, it) => s + it.value, 0) / maPeriods;
+        const dist = ma !== 0 ? ((curr - ma) / Math.abs(ma)) * 100 : 0;
+
+        result.push({
+          periodDate: series[i].periodDate,
+          value: (ret + dist) / 2.0,
           releasedAt: series[i].releasedAt,
         });
       }
@@ -136,7 +190,7 @@ export function applyTransform(
         const curr = series[i].value;
         const strictlyLess = windowVals.filter((v) => v < curr).length;
         const equals = windowVals.filter((v) => v === curr).length;
-        const rank = ((strictlyLess + 0.5 * equals) / windowVals.length) * 100;
+        const rank = ((strictlyLess + 0.5 * equals) / windowVals.length);
         result.push({
           periodDate: series[i].periodDate,
           value: rank,
@@ -153,7 +207,7 @@ export function applyTransform(
 
 /**
  * Computes derived macroeconomic and positioning indicators from primary series.
- * Inputs are matched strictly on identical period_date (point-in-time alignment).
+ * Inputs are matched on period_date with backward-fill fallback for cross-frequency series.
  */
 export function computeDerivedSeries(
   formula: 'us_2y_minus_fedfunds' | 'yield_curve_slope' | 'real_yield' | 'cftc_net_spec_pct_oi',
@@ -164,16 +218,28 @@ export function computeDerivedSeries(
     return [];
   }
 
-  // Create lookup map for series B by period_date
+  // Exact lookup map for series B by period_date
   const mapB = new Map<string, PointInTimeObservation>();
   for (const item of seriesB) {
     mapB.set(item.periodDate, item);
   }
 
+  const sortedB = [...seriesB].sort((a, b) => a.periodDate.localeCompare(b.periodDate));
   const result: PointInTimeObservation[] = [];
 
   for (const itemA of seriesA) {
-    const itemB = mapB.get(itemA.periodDate);
+    let itemB = mapB.get(itemA.periodDate);
+
+    // If no exact date match (e.g. daily DGS2 vs monthly FEDFUNDS), find the latest B on or before A
+    if (!itemB) {
+      for (let i = sortedB.length - 1; i >= 0; i--) {
+        if (sortedB[i].periodDate <= itemA.periodDate) {
+          itemB = sortedB[i];
+          break;
+        }
+      }
+    }
+
     if (!itemB) continue;
 
     let derivedValue = 0;
@@ -201,7 +267,6 @@ export function computeDerivedSeries(
         break;
     }
 
-    // Released timestamp is the later of the two releases (conservative auditability)
     const relA = new Date(itemA.releasedAt).getTime();
     const relB = new Date(itemB.releasedAt).getTime();
     const laterReleasedAt = relA >= relB ? itemA.releasedAt : itemB.releasedAt;

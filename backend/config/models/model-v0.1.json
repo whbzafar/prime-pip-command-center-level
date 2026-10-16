@@ -1,0 +1,320 @@
+{
+  "version": "v0.1",
+  "description": "Institutional 7-pillar macroeconomic relative strength model with robust MAD rolling normalization and dynamic positioning contrarian curve.",
+  "calibrationScales": {
+    "USD": 1.0,
+    "EUR": 1.0,
+    "JPY": 1.0,
+    "GBP": 1.0,
+    "CHF": 1.0,
+    "AUD": 1.0,
+    "CAD": 1.0,
+    "NZD": 1.0
+  },
+  "sanityThresholds": {
+    "minScore": -100.0,
+    "maxScore": 100.0,
+    "maxDailyScoreJump": 25.0
+  },
+  "riskSignByCurrency": {
+    "USD": 1.0,
+    "JPY": 1.0,
+    "CHF": 1.0,
+    "EUR": -0.3,
+    "GBP": -0.5,
+    "CAD": -0.6,
+    "AUD": -1.0,
+    "NZD": -1.0
+  },
+  "confidenceCoefficients": {
+    "dataCompleteness": 0.35,
+    "freshness": 0.25,
+    "pillarAgreement": 0.25,
+    "regimeStability": 0.15
+  },
+  "freshnessTolerances": {
+    "daily": { "freshDays": 3, "staleDays": 7 },
+    "weekly": { "freshDays": 14, "staleDays": 28 },
+    "monthly": { "freshDays": 45, "staleDays": 90 },
+    "quarterly": { "freshDays": 120, "staleDays": 180 },
+    "event": { "freshDays": 90, "staleDays": 180 }
+  },
+  "normalization": {
+    "windowYears": 8,
+    "minObservations": 30,
+    "winsorizeLower": 0.01,
+    "winsorizeUpper": 0.99
+  },
+  "contrarianPercentiles": {
+    "lowerThreshold": 0.20,
+    "upperThreshold": 0.80
+  },
+  "indicatorConfigs": {
+    "USD_FEDFUNDS": {
+      "code": "USD_FEDFUNDS",
+      "pillarId": "curr_monetary",
+      "weightInPillar": 0.25,
+      "polarity": "higher_bullish",
+      "frequency": "daily",
+      "shortTransform": { "type": "change_n", "n": 20, "description": "20-day policy rate change" },
+      "longTransform": { "type": "level", "description": "Absolute Fed Funds level" }
+    },
+    "USD_2Y_TREASURY_YIELD": {
+      "code": "USD_2Y_TREASURY_YIELD",
+      "pillarId": "curr_monetary",
+      "weightInPillar": 0.25,
+      "polarity": "higher_bullish",
+      "frequency": "daily",
+      "shortTransform": { "type": "change_n", "n": 20, "description": "1-month 2Y Treasury yield change" },
+      "longTransform": { "type": "level", "description": "Absolute 2Y Treasury yield level" }
+    },
+    "USD_10Y_TREASURY_YIELD": {
+      "code": "USD_10Y_TREASURY_YIELD",
+      "pillarId": "curr_monetary",
+      "weightInPillar": 0.20,
+      "polarity": "higher_bullish",
+      "frequency": "daily",
+      "shortTransform": { "type": "change_n", "n": 20, "description": "1-month 10Y Treasury yield change" },
+      "longTransform": { "type": "level", "description": "Absolute 10Y Treasury yield level" }
+    },
+    "USD_10Y_TIPS_REAL_YIELD": {
+      "code": "USD_10Y_TIPS_REAL_YIELD",
+      "pillarId": "curr_monetary",
+      "weightInPillar": 0.15,
+      "polarity": "higher_bullish",
+      "frequency": "daily",
+      "shortTransform": { "type": "change_n", "n": 20, "description": "1-month 10Y real TIPS yield change" },
+      "longTransform": { "type": "level", "description": "Absolute 10Y real yield level" }
+    },
+    "USD_2Y_MINUS_FEDFUNDS": {
+      "code": "USD_2Y_MINUS_FEDFUNDS",
+      "pillarId": "curr_monetary",
+      "weightInPillar": 0.15,
+      "polarity": "higher_bullish",
+      "frequency": "daily",
+      "isDerived": true,
+      "derivedFormula": "us_2y_minus_fedfunds",
+      "constituentCodes": ["USD_2Y_TREASURY_YIELD", "USD_FEDFUNDS"],
+      "shortTransform": { "type": "level", "description": "2Y minus Fed Funds policy lead spread" },
+      "longTransform": { "type": "avg_n", "n": 60, "description": "3-month average yield curve lead" }
+    },
+    "USD_YIELD_CURVE_SLOPE": {
+      "code": "USD_YIELD_CURVE_SLOPE",
+      "pillarId": "curr_monetary",
+      "weightInPillar": 0.10,
+      "polarity": "higher_bullish",
+      "frequency": "daily",
+      "isDerived": true,
+      "derivedFormula": "yield_curve_slope",
+      "constituentCodes": ["USD_10Y_TREASURY_YIELD", "USD_2Y_TREASURY_YIELD"],
+      "shortTransform": { "type": "level", "description": "10Y minus 2Y Treasury yield curve slope" },
+      "longTransform": { "type": "avg_n", "n": 60, "description": "3-month average yield curve slope" }
+    },
+    "USD_CPI_HEADLINE_YOY": {
+      "code": "USD_CPI_HEADLINE_YOY",
+      "pillarId": "curr_inflation",
+      "weightInPillar": 0.30,
+      "polarity": "higher_bullish",
+      "frequency": "monthly",
+      "shortTransform": { "type": "annualized_3m", "n": 3, "description": "3-month annualized CPI inflation rate" },
+      "longTransform": { "type": "yoy", "n": 12, "description": "12-month headline CPI YoY" }
+    },
+    "USD_CORE_CPI_YOY": {
+      "code": "USD_CORE_CPI_YOY",
+      "pillarId": "curr_inflation",
+      "weightInPillar": 0.30,
+      "polarity": "higher_bullish",
+      "frequency": "monthly",
+      "shortTransform": { "type": "annualized_3m", "n": 3, "description": "3-month annualized core CPI" },
+      "longTransform": { "type": "yoy", "n": 12, "description": "12-month core CPI YoY" }
+    },
+    "USD_CORE_PCE_PRICE_INDEX": {
+      "code": "USD_CORE_PCE_PRICE_INDEX",
+      "pillarId": "curr_inflation",
+      "weightInPillar": 0.20,
+      "polarity": "higher_bullish",
+      "frequency": "monthly",
+      "shortTransform": { "type": "annualized_3m", "n": 3, "description": "3-month annualized core PCE" },
+      "longTransform": { "type": "yoy", "n": 12, "description": "12-month core PCE YoY" }
+    },
+    "USD_PRODUCER_PRICE_INDEX": {
+      "code": "USD_PRODUCER_PRICE_INDEX",
+      "pillarId": "curr_inflation",
+      "weightInPillar": 0.10,
+      "polarity": "higher_bullish",
+      "frequency": "monthly",
+      "shortTransform": { "type": "change_n", "n": 1, "description": "Monthly PPI pipeline pressure change" },
+      "longTransform": { "type": "yoy", "n": 12, "description": "12-month PPI YoY rate" }
+    },
+    "USD_AVG_HOURLY_EARNINGS": {
+      "code": "USD_AVG_HOURLY_EARNINGS",
+      "pillarId": "curr_inflation",
+      "weightInPillar": 0.10,
+      "polarity": "higher_bullish",
+      "frequency": "monthly",
+      "shortTransform": { "type": "change_n", "n": 3, "description": "3-month wage momentum" },
+      "longTransform": { "type": "yoy", "n": 12, "description": "12-month wage growth" }
+    },
+    "USD_NONFARM_PAYROLLS": {
+      "code": "USD_NONFARM_PAYROLLS",
+      "pillarId": "curr_growth_labor",
+      "weightInPillar": 0.30,
+      "polarity": "higher_bullish",
+      "frequency": "monthly",
+      "shortTransform": { "type": "change_n", "n": 1, "description": "Monthly net payrolls added (thousands)" },
+      "longTransform": { "type": "yoy", "n": 12, "description": "12-month employment growth" }
+    },
+    "USD_UNEMPLOYMENT_RATE": {
+      "code": "USD_UNEMPLOYMENT_RATE",
+      "pillarId": "curr_growth_labor",
+      "weightInPillar": 0.25,
+      "polarity": "higher_bearish",
+      "frequency": "monthly",
+      "shortTransform": { "type": "change_n", "n": 3, "description": "3-month unemployment drift" },
+      "longTransform": { "type": "level", "description": "Civilian unemployment rate level" }
+    },
+    "USD_INITIAL_JOBLESS_CLAIMS": {
+      "code": "USD_INITIAL_JOBLESS_CLAIMS",
+      "pillarId": "curr_growth_labor",
+      "weightInPillar": 0.15,
+      "polarity": "higher_bearish",
+      "frequency": "weekly",
+      "shortTransform": { "type": "avg_n", "n": 4, "description": "4-week moving average jobless claims" },
+      "longTransform": { "type": "change_n", "n": 13, "description": "13-week claims trend" }
+    },
+    "USD_REAL_GDP_QOQ": {
+      "code": "USD_REAL_GDP_QOQ",
+      "pillarId": "curr_growth_labor",
+      "weightInPillar": 0.15,
+      "polarity": "higher_bullish",
+      "frequency": "quarterly",
+      "shortTransform": { "type": "pct_change_n", "n": 1, "description": "Quarterly real GDP expansion pace" },
+      "longTransform": { "type": "yoy", "n": 4, "description": "Annual real GDP growth" }
+    },
+    "USD_RETAIL_SALES": {
+      "code": "USD_RETAIL_SALES",
+      "pillarId": "curr_growth_labor",
+      "weightInPillar": 0.10,
+      "polarity": "higher_bullish",
+      "frequency": "monthly",
+      "shortTransform": { "type": "pct_change_n", "n": 1, "description": "Monthly retail sales momentum" },
+      "longTransform": { "type": "yoy", "n": 12, "description": "12-month consumer spending growth" }
+    },
+    "USD_CONSUMER_SENTIMENT": {
+      "code": "USD_CONSUMER_SENTIMENT",
+      "pillarId": "curr_growth_labor",
+      "weightInPillar": 0.05,
+      "polarity": "higher_bullish",
+      "frequency": "monthly",
+      "shortTransform": { "type": "change_n", "n": 3, "description": "3-month sentiment direction" },
+      "longTransform": { "type": "level", "description": "Consumer sentiment index level" }
+    },
+    "USD_CBOE_VIX": {
+      "code": "USD_CBOE_VIX",
+      "pillarId": "curr_risk_sentiment",
+      "weightInPillar": 0.35,
+      "polarity": "higher_bullish",
+      "isRiskIndicator": true,
+      "riskAssetType": "volatility",
+      "frequency": "daily",
+      "shortTransform": { "type": "level", "description": "Instantaneous equity volatility (safe-haven proxy)" },
+      "longTransform": { "type": "avg_n", "n": 60, "description": "3-month volatility regime" }
+    },
+    "USD_HIGH_YIELD_CREDIT_SPREAD": {
+      "code": "USD_HIGH_YIELD_CREDIT_SPREAD",
+      "pillarId": "curr_risk_sentiment",
+      "weightInPillar": 0.35,
+      "polarity": "higher_bullish",
+      "isRiskIndicator": true,
+      "riskAssetType": "credit_spread",
+      "frequency": "daily",
+      "shortTransform": { "type": "change_n", "n": 20, "description": "1-month high yield spread widening/tightening" },
+      "longTransform": { "type": "level", "description": "High yield credit risk premium level" }
+    },
+    "USD_FINANCIAL_CONDITIONS_INDEX": {
+      "code": "USD_FINANCIAL_CONDITIONS_INDEX",
+      "pillarId": "curr_risk_sentiment",
+      "weightInPillar": 0.15,
+      "polarity": "higher_bearish",
+      "isRiskIndicator": true,
+      "riskAssetType": "stress_index",
+      "frequency": "weekly",
+      "shortTransform": { "type": "level", "description": "Financial conditions tightness index" },
+      "longTransform": { "type": "avg_n", "n": 12, "description": "12-week financial stress condition" }
+    },
+    "USD_SP500_LEVEL": {
+      "code": "USD_SP500_LEVEL",
+      "pillarId": "curr_risk_sentiment",
+      "weightInPillar": 0.15,
+      "polarity": "neutral_context",
+      "isRiskIndicator": true,
+      "riskAssetType": "equity_index",
+      "frequency": "daily",
+      "shortTransform": { "type": "return_n", "n": 20, "description": "1-month S&P 500 equity return" },
+      "longTransform": { "type": "return_n", "n": 252, "description": "1-year equity return" }
+    },
+    "USD_CFTC_LEV_NET": {
+      "code": "USD_CFTC_LEV_NET",
+      "pillarId": "curr_positioning",
+      "weightInPillar": 0.50,
+      "polarity": "contrarian_extreme",
+      "frequency": "weekly",
+      "shortTransform": { "type": "level", "description": "Net speculative contracts" },
+      "longTransform": { "type": "avg_n", "n": 12, "description": "12-week average net position" }
+    },
+    "USD_CFTC_LEV_NET_PCT_OI": {
+      "code": "USD_CFTC_LEV_NET_PCT_OI",
+      "pillarId": "curr_positioning",
+      "weightInPillar": 0.30,
+      "polarity": "contrarian_extreme",
+      "frequency": "weekly",
+      "shortTransform": { "type": "level", "description": "Leveraged net positioning as % of open interest" },
+      "longTransform": { "type": "avg_n", "n": 12, "description": "12-week average net % OI" }
+    },
+    "USD_CFTC_OPEN_INTEREST": {
+      "code": "USD_CFTC_OPEN_INTEREST",
+      "pillarId": "curr_positioning",
+      "weightInPillar": 0.20,
+      "polarity": "neutral_context",
+      "frequency": "weekly",
+      "shortTransform": { "type": "change_n", "n": 4, "description": "4-week open interest expansion" },
+      "longTransform": { "type": "level", "description": "Total market open interest level" }
+    },
+    "USD_TRADE_BALANCE": {
+      "code": "USD_TRADE_BALANCE",
+      "pillarId": "curr_structural_flows",
+      "weightInPillar": 0.40,
+      "polarity": "higher_bullish",
+      "frequency": "monthly",
+      "shortTransform": { "type": "change_n", "n": 3, "description": "3-month trade balance deficit change" },
+      "longTransform": { "type": "avg_n", "n": 12, "description": "12-month trade deficit average" }
+    },
+    "USD_CURRENT_ACCOUNT": {
+      "code": "USD_CURRENT_ACCOUNT",
+      "pillarId": "curr_structural_flows",
+      "weightInPillar": 0.30,
+      "polarity": "higher_bullish",
+      "frequency": "quarterly",
+      "shortTransform": { "type": "change_n", "n": 1, "description": "Quarterly current account change" },
+      "longTransform": { "type": "level", "description": "Current account balance level" }
+    },
+    "USD_FEDERAL_DEBT_TO_GDP": {
+      "code": "USD_FEDERAL_DEBT_TO_GDP",
+      "pillarId": "curr_structural_flows",
+      "weightInPillar": 0.30,
+      "polarity": "higher_bearish",
+      "frequency": "quarterly",
+      "shortTransform": { "type": "change_n", "n": 2, "description": "2-quarter debt-to-GDP trajectory" },
+      "longTransform": { "type": "level", "description": "Federal debt % of GDP level" }
+    },
+    "USD_INDEX_TREND": {
+      "code": "USD_INDEX_TREND",
+      "pillarId": "curr_technical_momentum",
+      "weightInPillar": 1.0,
+      "polarity": "higher_bullish",
+      "frequency": "daily",
+      "shortTransform": { "type": "ma_distance", "n": 50, "description": "Distance from 50-day moving average" },
+      "longTransform": { "type": "ma_distance", "n": 200, "description": "Distance from 200-day moving average" }
+    }
+  }
+}

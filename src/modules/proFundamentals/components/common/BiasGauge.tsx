@@ -3,7 +3,7 @@ import { BiasLabel } from '../../types';
 import { scoreToBiasLabel, scoreToBullishPct, getSemanticStyle, ProThemeMode } from '../../config/theme';
 
 export interface BiasGaugeProps {
-  score: number; // -100 to +100
+  score: number | null | undefined; // -100 to +100 or null if insufficient
   size?: 'small' | 'medium' | 'large';
   showLabel?: boolean;
   showPercent?: boolean;
@@ -19,6 +19,19 @@ export const BiasGauge: React.FC<BiasGaugeProps> = ({
   sublabel,
   themeMode = 'dark',
 }) => {
+  if (score === null || score === undefined) {
+    return (
+      <div className="flex flex-col items-center justify-center select-none text-center p-3 rounded-xl border border-slate-700/50 bg-slate-800/20 my-auto">
+        <div className="text-slate-400 font-mono text-xs uppercase tracking-wider font-semibold">
+          Insufficient Data
+        </div>
+        <div className="text-[10px] text-slate-500 mt-1 max-w-[150px] leading-tight">
+          {sublabel || 'Awaiting multi-pillar fundamental dataset'}
+        </div>
+      </div>
+    );
+  }
+
   const bullishPct = scoreToBullishPct(score);
   const biasLabel: BiasLabel = scoreToBiasLabel(score);
   const semantic = getSemanticStyle(biasLabel, themeMode);

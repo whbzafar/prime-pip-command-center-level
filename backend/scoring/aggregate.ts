@@ -2,33 +2,46 @@ import { clamp } from '../shared/validation.js';
 
 export interface WeightedPillarScore {
   pillarId: string;
-  score: number; // -100 to +100
-  weight: number; // Configured weight (e.g. 0.30)
-  isEmpty?: boolean; // Flagged true if pillar has zero usable active indicators
+  pillarCode?: string;
+  score: number | null; // null if insufficient data in pillar
+  weight: number; // Configured weight from pillar_weights table for active model version
 }
 
 export interface AggregateAssetResult {
-  score: number;
+  score: number | null; // null if insufficient data (< 4 pillars or < 60% total weight)
+  isSufficient: boolean;
+  insufficientReason?: string;
   availableWeightSum: number;
   totalConfiguredWeight: number;
+  nonNullPillarCount: number;
+  totalPillarCount: number;
   isRescaled: boolean;
   effectivePillarWeights: Map<string, number>; // Normalized weights summing to 1.0 across available pillars
 }
 
 /**
- * Aggregates pillar scores into an overall asset fundamental score for a specific horizon.
+ * Aggregates non-null pillar scores into an overall asset fundamental score.
  *
- * Formula: sum(pillar_score * pillar_weight) / sum(available_pillar_weights)
- *
- * Rescales by the sum of available pillar weights so missing or stale pillars
- * do not artificially drag the asset score towards zero.
+ * Rules:
+ * 1. Asset score = sum(pillar_weight[horizon] * pillar_score) / sum(pillar_weight of non-null pillars).
+ * 2. Strict threshold: Require at least 4 non-null pillars AND at least 60% of total configured pillar weight.
+ *    Otherwise returns score: null and isSufficient: false with logged reason.
+ * 3. Multiplies by calibration scale (default 1.0) and clamps to [-100, +100].
+ * 4. Weights must come dynamically from pillar_weights; never hardcoded.
  */
-export function aggregateAssetScore(pillars: WeightedPillarScore[]): AggregateAssetResult {
+export function aggregateAssetScore(
+  pillars: WeightedPillarScore[],
+  calibrationScale = 1.0
+): AggregateAssetResult {
   if (!pillars || pillars.length === 0) {
     return {
-      score: 0,
+      score: null,
+      isSufficient: false,
+      insufficientReason: 'No pillars supplied for evaluation.',
       availableWeightSum: 0,
       totalConfiguredWeight: 0,
+      nonNullPillarCount: 0,
+      totalPillarCount: 0,
       isRescaled: false,
       effectivePillarWeights: new Map(),
     };
@@ -39,39 +52,61 @@ export function aggregateAssetScore(pillars: WeightedPillarScore[]): AggregateAs
   let weightedScoreSum = 0;
   const effectivePillarWeights = new Map<string, number>();
 
-  const availableList: Array<{ pillarId: string; score: number; weight: number }> = [];
+  const nonNullPillars: Array<{ pillarId: string; score: number; weight: number }> = [];
 
   for (const p of pillars) {
     totalConfiguredWeight += p.weight;
-    if (!p.isEmpty && p.weight > 0) {
+    if (p.score !== null && !isNaN(p.score) && p.weight > 0) {
       availableWeightSum += p.weight;
       weightedScoreSum += p.score * p.weight;
-      availableList.push({ pillarId: p.pillarId, score: p.score, weight: p.weight });
+      nonNullPillars.push({ pillarId: p.pillarId, score: p.score, weight: p.weight });
     }
   }
 
-  if (availableWeightSum <= 0) {
+  const nonNullPillarCount = nonNullPillars.length;
+  const totalPillarCount = pillars.length;
+
+  const weightCoverageRatio = totalConfiguredWeight > 0 ? availableWeightSum / totalConfiguredWeight : 0;
+
+  // Threshold validation: >= 4 non-null pillars AND >= 60% total configured weight
+  const hasMinPillars = nonNullPillarCount >= 4;
+  const hasMinWeight = weightCoverageRatio >= 0.60;
+
+  if (!hasMinPillars || !hasMinWeight) {
+    const reasons: string[] = [];
+    if (!hasMinPillars) reasons.push(`only ${nonNullPillarCount}/${totalPillarCount} non-null pillars (minimum 4 required)`);
+    if (!hasMinWeight) reasons.push(`only ${(weightCoverageRatio * 100).toFixed(1)}% configured weight available (minimum 60% required)`);
+
     return {
-      score: 0,
-      availableWeightSum: 0,
+      score: null,
+      isSufficient: false,
+      insufficientReason: `Insufficient data: ${reasons.join(', ')}.`,
+      availableWeightSum,
       totalConfiguredWeight,
+      nonNullPillarCount,
+      totalPillarCount,
       isRescaled: false,
       effectivePillarWeights,
     };
   }
 
-  // Calculate normalized effective weight per available pillar
-  for (const item of availableList) {
+  // Calculate normalized effective weights across available pillars summing to 1.0
+  for (const item of nonNullPillars) {
     effectivePillarWeights.set(item.pillarId, item.weight / availableWeightSum);
   }
 
   const rawScore = weightedScoreSum / availableWeightSum;
+  const scaledScore = rawScore * calibrationScale;
+  const clampedScore = clamp(scaledScore, -100.0, 100.0);
   const isRescaled = Math.abs(availableWeightSum - totalConfiguredWeight) > 0.001;
 
   return {
-    score: clamp(rawScore, -100, 100),
+    score: clampedScore,
+    isSufficient: true,
     availableWeightSum,
     totalConfiguredWeight,
+    nonNullPillarCount,
+    totalPillarCount,
     isRescaled,
     effectivePillarWeights,
   };

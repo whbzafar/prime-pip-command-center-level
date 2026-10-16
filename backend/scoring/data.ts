@@ -18,7 +18,7 @@ export interface IndicatorPointInTimeResult {
   latestObservation: PointInTimeObservation | null;
   freshnessFactor: number; // 1.0 (fresh), 0.5 (stale), 0.0 (very_stale)
   hasSuspiciousJump: boolean;
-  activeWeightMultiplier: number; // 1.0 or 0.5
+  activeWeightMultiplier: number; // 1.0 or 0.5 (or 0.0 if excluded)
   warningFlags: string[];
 }
 
@@ -29,7 +29,8 @@ export interface IndicatorPointInTimeResult {
  * 2. Resolves revisions: for each period_date, picks the latest vintage with released_at <= asOf.
  * 3. Filters out observations flagged as out_of_range or missing.
  * 4. Down-weights indicators with suspicious_jump flags.
- * 5. Calculates freshness factor according to release frequency.
+ * 5. Calculates freshness factor according to release frequency and configurable tolerances.
+ * 6. Forward-fill logic: the latest known value prior to asOf is used, with freshness factor tracking staleness.
  */
 export function filterObservationsPointInTime(
   rawObservations: ObservationRecord[],
@@ -47,7 +48,7 @@ export function filterObservationsPointInTime(
   const asOfTime = new Date(asOf).getTime();
   const warningFlags: string[] = [];
 
-  // Build lookup of bad observation IDs / dates
+  // Lookup of bad observation IDs / period dates
   const rejectedObservationIds = new Set<string>();
   const suspiciousJumpPeriods = new Set<string>();
   let hasSuspiciousJumpGlobal = false;
@@ -111,6 +112,7 @@ export function filterObservationsPointInTime(
     };
   }
 
+  // Latest observation represents the forward-filled current level
   const latest = sorted[sorted.length - 1];
 
   // 4. Check for suspicious jump downweighting
@@ -150,24 +152,26 @@ export function filterObservationsPointInTime(
 
 /**
  * Loads point-in-time observation history from Supabase for a given indicator as of a specific timestamp.
+ * Accepts either indicator UUID (id) or unique code.
  */
 export async function getSeriesAsOf(
-  indicatorId: string,
+  indicatorIdentifier: string,
   asOf: string,
   db?: SupabaseClient
 ): Promise<IndicatorPointInTimeResult> {
   const client = db || getDbClient();
 
   try {
-    // 1. Fetch indicator metadata
+    // 1. Fetch indicator metadata (support query by id or code)
     const { data: indicator, error: indErr } = await client
       .from('indicators')
       .select('id, code, frequency')
-      .eq('id', indicatorId)
-      .single();
+      .or(`id.eq.${indicatorIdentifier},code.eq.${indicatorIdentifier}`)
+      .limit(1)
+      .maybeSingle();
 
-    if (indErr) {
-      throw new Error(`Failed to query indicator ${indicatorId}: ${indErr.message}`);
+    if (indErr || !indicator) {
+      throw new Error(`Failed to query indicator ${indicatorIdentifier}: ${indErr?.message || 'not found'}`);
     }
 
     const frequency: IndicatorFrequency = indicator.frequency || 'monthly';
@@ -176,33 +180,33 @@ export async function getSeriesAsOf(
     const { data: rawObs, error: obsErr } = await client
       .from('observations')
       .select('id, indicator_id, period_date, value, released_at, is_revision')
-      .eq('indicator_id', indicatorId)
+      .eq('indicator_id', indicator.id)
       .lte('released_at', asOf)
       .order('period_date', { ascending: true })
       .order('released_at', { ascending: false });
 
     if (obsErr) {
-      throw new Error(`Failed to fetch observations for ${indicatorId}: ${obsErr.message}`);
+      throw new Error(`Failed to fetch observations for ${indicator.code}: ${obsErr.message}`);
     }
 
     // 3. Fetch data quality flags created <= asOf
     const { data: flags } = await client
       .from('data_quality_flags')
       .select('*')
-      .eq('indicator_id', indicatorId)
+      .eq('indicator_id', indicator.id)
       .lte('created_at', asOf);
 
     const filtered = filterObservationsPointInTime(rawObs || [], asOf, flags || [], frequency);
 
     return {
-      indicatorId,
+      indicatorId: indicator.id,
       code: indicator.code,
       ...filtered,
     };
   } catch (err: any) {
-    logger.warn(`[PointInTimeData] getSeriesAsOf error for ${indicatorId}: ${err?.message || err}`);
+    logger.warn(`[PointInTimeData] getSeriesAsOf error for ${indicatorIdentifier}: ${err?.message || err}`);
     return {
-      indicatorId,
+      indicatorId: indicatorIdentifier,
       series: [],
       latestObservation: null,
       freshnessFactor: 0.0,

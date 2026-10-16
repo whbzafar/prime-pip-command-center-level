@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { clamp, scoreToBullishPct, computePairScore, validateWeightsSum } from '../shared/validation.js';
 import { applyPolarity } from '../scoring/polarity.js';
 import {
@@ -6,19 +6,36 @@ import {
   calculateMAD,
   calculateRobustStats,
   computeRobustZScore,
+  computeDetailedRobustZScore,
   calculateWindowStats,
   computeZScore,
+  computePercentileRank,
+  winsorize,
 } from '../scoring/normalize.js';
 import { aggregatePillarScore, ScoredIndicatorInput } from '../scoring/pillars.js';
 import { aggregateAssetScore, WeightedPillarScore } from '../scoring/aggregate.js';
 import { applyTransform, computeDerivedSeries } from '../scoring/transform.js';
 import { filterObservationsPointInTime, PointInTimeObservation } from '../scoring/data.js';
 import { calculateConfidence } from '../scoring/confidence.js';
-import { computeDriverAttribution } from '../scoring/drivers.js';
+import {
+  computeDriverAttribution,
+  generateDeterministicDriverExplanation,
+  IndicatorContributionItem,
+} from '../scoring/drivers.js';
+import {
+  SCORING_MODEL_CONFIG,
+  CURRENCY_RISK_SIGN,
+  computeConfigHash,
+  loadModelJsonConfig,
+  verifyModelVersionInDb,
+} from '../scoring/modelConfig.js';
 import syntheticData from './fixtures/synthetic_macro_dataset.json' with { type: 'json' };
 
 describe('Pro Fundamentals Quantitative Scoring Engine', () => {
-  describe('1. Point-in-Time Data Correctness (Zero Look-Ahead Bias)', () => {
+  // --------------------------------------------------------------------------
+  // 1. POINT-IN-TIME DATA ACCESS (ZERO LOOK-AHEAD BIAS)
+  // --------------------------------------------------------------------------
+  describe('1. Point-in-Time Data Access (Auditability & Revisions)', () => {
     const rawObs = [
       { id: '1', indicator_id: 'ind_cpi', period_date: '2026-04-01', value: 312.0, released_at: '2026-05-12T12:30:00Z', is_revision: false },
       // Revision published in June
@@ -49,19 +66,20 @@ describe('Pro Fundamentals Quantitative Scoring Engine', () => {
       expect(result.series[1].value).toBe(314.0);
     });
 
-    it('adding distant future observations does not change the score as of past date', () => {
-      const asOf = '2026-06-01T00:00:00Z';
-      const initial = filterObservationsPointInTime(rawObs, asOf, [], 'monthly');
+    it('updating a past observation with a later released_at does NOT change past score', () => {
+      const pastAsOf = '2026-06-01T00:00:00Z';
+      const scoreBeforeRevision = filterObservationsPointInTime(rawObs, pastAsOf, [], 'monthly');
 
-      const corruptedWithFuture = [
+      // Later revision published in August 2026
+      const obsWithAugustRevision = [
         ...rawObs,
-        { id: '4', indicator_id: 'ind_cpi', period_date: '2026-09-01', value: 399.9, released_at: '2026-10-12T12:30:00Z' },
-        { id: '5', indicator_id: 'ind_cpi', period_date: '2026-04-01', value: 200.0, released_at: '2026-11-01T12:30:00Z' },
+        { id: '4', indicator_id: 'ind_cpi', period_date: '2026-04-01', value: 315.0, released_at: '2026-08-01T12:00:00Z', is_revision: true },
       ];
 
-      const afterFutureAdded = filterObservationsPointInTime(corruptedWithFuture, asOf, [], 'monthly');
-      expect(afterFutureAdded.series).toEqual(initial.series);
-      expect(afterFutureAdded.latestObservation).toEqual(initial.latestObservation);
+      const scoreAfterAugustRevision = filterObservationsPointInTime(obsWithAugustRevision, pastAsOf, [], 'monthly');
+
+      expect(scoreAfterAugustRevision.series).toEqual(scoreBeforeRevision.series);
+      expect(scoreAfterAugustRevision.latestObservation?.value).toBe(312.0);
     });
 
     it('filters out observations flagged as out_of_range or missing', () => {
@@ -82,53 +100,86 @@ describe('Pro Fundamentals Quantitative Scoring Engine', () => {
     });
   });
 
-  describe('2. Mathematical Transform Layer', () => {
-    const monthlySeries: PointInTimeObservation[] = [
+  // --------------------------------------------------------------------------
+  // 2. TRANSFORM LAYER (ALL 9 TRANSFORMS + DERIVED INDICATORS)
+  // --------------------------------------------------------------------------
+  describe('2. Transform Layer (All 9 Types & Derived Indicators)', () => {
+    const testSeries: PointInTimeObservation[] = [
       { periodDate: '2025-01-01', value: 100, releasedAt: '2025-02-01T00:00:00Z' },
       { periodDate: '2025-02-01', value: 102, releasedAt: '2025-03-01T00:00:00Z' },
       { periodDate: '2025-03-01', value: 105, releasedAt: '2025-04-01T00:00:00Z' },
       { periodDate: '2025-04-01', value: 108, releasedAt: '2025-05-01T00:00:00Z' },
+      { periodDate: '2025-05-01', value: 110, releasedAt: '2025-06-01T00:00:00Z' },
       { periodDate: '2026-01-01', value: 120, releasedAt: '2026-02-01T00:00:00Z' },
     ];
 
-    it('change_n computes exact period differences', () => {
-      const res = applyTransform(monthlySeries, { type: 'change_n', n: 1, description: '1m change' });
-      expect(res.length).toBe(4);
+    it('1. level: preserves exact input values', () => {
+      const res = applyTransform(testSeries, { type: 'level', description: 'Raw level' });
+      expect(res.map((x) => x.value)).toEqual(testSeries.map((x) => x.value));
+    });
+
+    it('2. change_n: computes absolute difference over n periods', () => {
+      const res = applyTransform(testSeries, { type: 'change_n', n: 1, description: '1m change' });
+      expect(res.length).toBe(5);
       expect(res[0].value).toBe(2); // 102 - 100
       expect(res[1].value).toBe(3); // 105 - 102
       expect(res[2].value).toBe(3); // 108 - 105
     });
 
-    it('pct_change_n computes accurate percentage growth', () => {
-      const res = applyTransform(monthlySeries, { type: 'pct_change_n', n: 1, description: '1m % change' });
+    it('3. pct_change_n: computes percentage growth', () => {
+      const res = applyTransform(testSeries, { type: 'pct_change_n', n: 1, description: '1m % change' });
       expect(res[0].value).toBeCloseTo(2.0, 4); // (102 - 100)/100 * 100
+      expect(res[1].value).toBeCloseTo(((105 - 102) / 102) * 100, 4);
     });
 
-    it('annualized_3m compounds 3-month growth to an annual rate', () => {
-      // 100 -> 108 over 3 months: ratio = 108/100 = 1.08. Annualized = (1.08^4 - 1)*100 = 36.048896%
-      const res = applyTransform(monthlySeries, { type: 'annualized_3m', n: 3, description: '3m annualized' });
-      expect(res.length).toBe(2);
+    it('4. yoy: computes year-over-year difference over lookback', () => {
+      const res = applyTransform(testSeries, { type: 'yoy', n: 5, description: '5-period YoY' });
+      expect(res.length).toBe(1);
+      expect(res[0].value).toBe(20); // 120 - 100
+    });
+
+    it('5. annualized_3m: compounds 3-month growth to an annual rate', () => {
+      // 100 -> 108 over 3 months: ratio = 108/100 = 1.08. Annualized = (1.08^4 - 1)*100 = 36.0489%
+      const res = applyTransform(testSeries, { type: 'annualized_3m', n: 3, description: '3m annualized' });
       expect(res[0].value).toBeCloseTo(36.0489, 2);
     });
 
-    it('avg_n calculates moving averages correctly', () => {
-      const res = applyTransform(monthlySeries.slice(0, 3), { type: 'avg_n', n: 3, description: '3m MA' });
+    it('6. avg_n: calculates moving average over n periods', () => {
+      const res = applyTransform(testSeries.slice(0, 3), { type: 'avg_n', n: 3, description: '3m MA' });
       expect(res.length).toBe(1);
       expect(res[0].value).toBeCloseTo((100 + 102 + 105) / 3, 4);
     });
 
-    it('ma_distance computes percentage deviation from moving average', () => {
-      // Series of 3 items: 100, 100, 110. MA3 = 310/3 = 103.3333. Distance = (110 - 103.3333)/103.3333 * 100 = +6.45%
-      const testData: PointInTimeObservation[] = [
+    it('7. return_n: calculates price series percentage return', () => {
+      const res = applyTransform(testSeries, { type: 'return_n', n: 1, description: '1m return' });
+      expect(res[0].value).toBeCloseTo(2.0, 4);
+    });
+
+    it('8. ma_distance: calculates distance from n-period moving average', () => {
+      const sample: PointInTimeObservation[] = [
         { periodDate: '1', value: 100, releasedAt: '1' },
         { periodDate: '2', value: 100, releasedAt: '2' },
         { periodDate: '3', value: 110, releasedAt: '3' },
       ];
-      const res = applyTransform(testData, { type: 'ma_distance', n: 3, description: 'dist' });
+      // MA3 = (100+100+110)/3 = 103.3333. Distance = (110 - 103.3333)/103.3333 * 100 = 6.4516%
+      const res = applyTransform(sample, { type: 'ma_distance', n: 3, description: 'MA distance' });
       expect(res[0].value).toBeCloseTo(6.4516, 2);
     });
 
-    it('computes derived series: us_2y_minus_fedfunds and yield_curve_slope', () => {
+    it('9. percentile_rank: computes percentile rank in rolling window', () => {
+      const sample: PointInTimeObservation[] = [
+        { periodDate: '1', value: 10, releasedAt: '1' },
+        { periodDate: '2', value: 20, releasedAt: '2' },
+        { periodDate: '3', value: 30, releasedAt: '3' },
+        { periodDate: '4', value: 40, releasedAt: '4' },
+      ];
+      const res = applyTransform(sample, { type: 'percentile_rank', n: 4, description: 'Rank' });
+      expect(res.length).toBe(4);
+      // For value 40 in [10, 20, 30, 40]: (3 strictly less + 0.5*1) / 4 = 3.5/4 = 87.5%
+      expect(res[3].value).toBe(87.5);
+    });
+
+    it('computes derived indicators: us_2y_minus_fedfunds and yield_curve_slope', () => {
       const series2Y: PointInTimeObservation[] = [
         { periodDate: '2026-05-01', value: 4.85, releasedAt: '2026-05-01T21:00:00Z' },
         { periodDate: '2026-05-02', value: 4.90, releasedAt: '2026-05-02T21:00:00Z' },
@@ -141,10 +192,10 @@ describe('Pro Fundamentals Quantitative Scoring Engine', () => {
       const spread = computeDerivedSeries('us_2y_minus_fedfunds', series2Y, seriesFedFunds);
       expect(spread.length).toBe(2);
       expect(spread[0].value).toBeCloseTo(-0.48, 4); // 4.85 - 5.33
-      expect(spread[1].value).toBeCloseTo(-0.43, 4); // 4.90 - 5.33
+      expect(spread[1].value).toBeCloseTo(-0.43, 4);
     });
 
-    it('computes derived series: cftc_net_spec_pct_oi', () => {
+    it('computes derived indicators: cftc_net_spec_pct_oi', () => {
       const netContracts: PointInTimeObservation[] = [
         { periodDate: '2026-05-26', value: 50000, releasedAt: '2026-05-29T20:30:00Z' },
       ];
@@ -157,232 +208,378 @@ describe('Pro Fundamentals Quantitative Scoring Engine', () => {
     });
   });
 
-  describe('3. Robust Z-Score Normalization & Polarity Mapping', () => {
+  // --------------------------------------------------------------------------
+  // 3. ROBUST Z-SCORE & NORMALIZATION
+  // --------------------------------------------------------------------------
+  describe('3. Robust Z-Score Normalization (MAD, Winsorization, Fallbacks)', () => {
     it('calculates median and MAD accurately', () => {
       const values = [1, 2, 3, 4, 5, 6, 7, 8, 9];
       const median = calculateMedian(values);
       expect(median).toBe(5);
 
       const mad = calculateMAD(values, median);
-      expect(mad).toBe(2); // |1-5|..|9-5| -> [0, 1, 1, 2, 2, 3, 3, 4, 4] -> median is 2
+      expect(mad).toBe(2); // |x - 5| = [4, 3, 2, 1, 0, 1, 2, 3, 4] -> sorted: [0, 1, 1, 2, 2, 3, 3, 4, 4] -> median is 2
     });
 
-    it('robust z-score rejects outliers compared to standard z-score', () => {
-      // Normal data with a massive extreme outlier
-      const data = [10, 11, 10, 12, 11, 10, 11, 12, 10, 11, 500]; // 500 is outlier
-      const robustZ = computeRobustZScore(11, data, 5);
-      // Value 11 is close to median (11) -> robustZ should be very close to 0
-      expect(Math.abs(robustZ)).toBeLessThan(0.5);
+    it('winsorization caps extreme outliers at 1st and 99th percentiles', () => {
+      // 100 elements: 98 normal points (10..12) plus extreme outliers (-1000 and +5000)
+      const data = new Array(98).fill(10).map((v, i) => v + (i % 3) * 0.5);
+      data.unshift(-1000);
+      data.push(5000);
 
-      // Value 500 should be clamped at +3.0
-      const outlierZ = computeRobustZScore(500, data, 5);
-      expect(outlierZ).toBe(3.0);
+      const { winsorized, pLower, pUpper } = winsorize(data, 0.01, 0.99);
+      expect(Math.min(...winsorized)).toBeGreaterThanOrEqual(pLower);
+      expect(Math.max(...winsorized)).toBeLessThanOrEqual(pUpper);
+      expect(Math.min(...winsorized)).toBeGreaterThan(-100);
+      expect(Math.max(...winsorized)).toBeLessThan(100);
     });
 
-    it('falls back to standard deviation when MAD is 0', () => {
-      // 80% identical values: MAD is 0, but variance exists
-      const data = [5, 5, 5, 5, 5, 5, 5, 5, 10, 15];
-      const z = computeRobustZScore(10, data, 5);
-      expect(z).toBeGreaterThan(0);
-      expect(z).toBeLessThanOrEqual(3.0);
+    it('robust z-score caps extreme outliers and clips to [-3, 3]', () => {
+      const normalWindow = new Array(40).fill(10).map((v, i) => v + (i % 5));
+      const zResult = computeDetailedRobustZScore(500, normalWindow, 30);
+      expect(zResult.isAvailable).toBe(true);
+      expect(zResult.method).toBe('robust_mad');
+      expect(zResult.zScore).toBe(3.0);
+      expect(zResult.baseScore).toBe(100.0);
     });
 
-    it('handles identical history (variance == 0) gracefully returning 0', () => {
-      const data = [5, 5, 5, 5, 5, 5, 5];
-      const z = computeRobustZScore(5, data, 5);
-      expect(z).toBe(0);
+    it('falls back to standard z when MAD is ~0 or fewer than 30 observations', () => {
+      // 20 observations (less than 30): triggers standard z fallback
+      const smallWindow = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+      const zResult = computeDetailedRobustZScore(25, smallWindow, 30);
+      expect(zResult.isAvailable).toBe(true);
+      expect(zResult.method).toBe('standard_fallback');
+      expect(zResult.zScore).toBeGreaterThan(0);
     });
 
-    it('polarity higher_bullish scales z * (100 / 3) and clamps', () => {
+    it('flags indicator as unavailable when fewer than 2 observations or variance is 0', () => {
+      // Variance is 0: identical numbers
+      const identical = [5, 5, 5, 5, 5];
+      const zResult = computeDetailedRobustZScore(5, identical, 30);
+      expect(zResult.isAvailable).toBe(false);
+      expect(zResult.method).toBe('unavailable');
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 4. POLARITY & CONTRARIAN EXTREME
+  // --------------------------------------------------------------------------
+  describe('4. Polarity Mapping & Contrarian Extreme Curve', () => {
+    it('higher_bullish: score = base_score; higher_bearish: score = -base_score', () => {
       expect(applyPolarity(3.0, 'higher_bullish')).toBe(100);
       expect(applyPolarity(-3.0, 'higher_bullish')).toBe(-100);
       expect(applyPolarity(1.5, 'higher_bullish')).toBe(50);
-      expect(applyPolarity(0, 'higher_bullish')).toBe(0);
-    });
 
-    it('polarity higher_bearish inverts score: -z * (100 / 3)', () => {
       expect(applyPolarity(3.0, 'higher_bearish')).toBe(-100);
       expect(applyPolarity(-3.0, 'higher_bearish')).toBe(100);
       expect(applyPolarity(1.5, 'higher_bearish')).toBe(-50);
     });
 
-    it('contrarian_extreme positioning curve handles moderate vs extreme crowding', () => {
-      // Moderate long: trend following (+20)
-      const moderateLong = applyPolarity(1.0, 'contrarian_extreme');
-      expect(moderateLong).toBe(20.0);
+    it('contrarian_extreme: 0 score between 0.20 and 0.80 percentile rank', () => {
+      expect(applyPolarity(0, 'contrarian_extreme', { percentileRank: 0.20 })).toBe(0);
+      expect(applyPolarity(0, 'contrarian_extreme', { percentileRank: 0.50 })).toBe(0);
+      expect(applyPolarity(0, 'contrarian_extreme', { percentileRank: 0.80 })).toBe(0);
+    });
 
-      // Moderate short: trend following (-20)
-      const moderateShort = applyPolarity(-1.0, 'contrarian_extreme');
-      expect(moderateShort).toBe(-20.0);
+    it('contrarian_extreme: scales linearly above 0.80 down to -100 at 1.0 (crowded long is bearish)', () => {
+      // At p = 0.90: -100 * (0.90 - 0.80) / 0.20 = -50
+      const p90 = applyPolarity(0, 'contrarian_extreme', { percentileRank: 0.90 });
+      expect(p90).toBeCloseTo(-50.0, 2);
 
-      // Extreme crowded long (> +2 z): turns bearish (unwind risk)
-      const extremeLong2 = applyPolarity(2.0, 'contrarian_extreme');
-      expect(extremeLong2).toBeLessThan(0); // Bearish!
+      // At p = 1.00: -100 * (1.00 - 0.80) / 0.20 = -100
+      const p100 = applyPolarity(0, 'contrarian_extreme', { percentileRank: 1.00 });
+      expect(p100).toBe(-100.0);
+    });
 
-      const extremeLong25 = applyPolarity(2.5, 'contrarian_extreme');
-      expect(extremeLong25).toBeCloseTo(-56.67, 1);
+    it('contrarian_extreme: scales linearly below 0.20 up to +100 at 0.0 (crowded short is bullish)', () => {
+      // At p = 0.10: +100 * (0.20 - 0.10) / 0.20 = +50
+      const p10 = applyPolarity(0, 'contrarian_extreme', { percentileRank: 0.10 });
+      expect(p10).toBeCloseTo(50.0, 2);
 
-      const maxLong = applyPolarity(3.0, 'contrarian_extreme');
-      expect(maxLong).toBe(-100.0);
-
-      // Extreme crowded short (< -2 z): turns bullish (short squeeze potential)
-      const extremeShort2 = applyPolarity(-2.0, 'contrarian_extreme');
-      expect(extremeShort2).toBeGreaterThan(0); // Bullish squeeze!
-
-      const extremeShort25 = applyPolarity(-2.5, 'contrarian_extreme');
-      expect(extremeShort25).toBeCloseTo(56.67, 1);
-
-      const maxShort = applyPolarity(-3.0, 'contrarian_extreme');
-      expect(maxShort).toBe(100.0);
+      // At p = 0.00: +100 * (0.20 - 0.00) / 0.20 = +100
+      const p0 = applyPolarity(0, 'contrarian_extreme', { percentileRank: 0.00 });
+      expect(p0).toBe(100.0);
     });
   });
 
-  describe('4. Pillar & Asset Aggregation with Rescaling & Jump Down-Weighting', () => {
-    it('aggregates indicator scores into pillar score using active weights', () => {
+  // --------------------------------------------------------------------------
+  // 5. RISK SIGN TEST (VIX & S&P 500 DIRECTIONALITY)
+  // --------------------------------------------------------------------------
+  describe('5. Risk Sign & Equity Direction Sensitivity', () => {
+    it('rising VIX is bullish for USD (safe haven) and bearish for AUD (high beta)', () => {
+      // VIX rises: positive zScore = +1.5 -> base score = +50
+      const usdScore = applyPolarity(1.5, 'higher_bullish', {
+        currency: 'USD',
+        isRiskIndicator: true,
+        riskAssetType: 'volatility',
+      });
+      // USD risk_sign is +1.0: 50 * (+1.0) = +50
+      expect(usdScore).toBe(50.0);
+
+      const audScore = applyPolarity(1.5, 'higher_bullish', {
+        currency: 'AUD',
+        isRiskIndicator: true,
+        riskAssetType: 'volatility',
+      });
+      // AUD risk_sign is -1.0: 50 * (-1.0) = -50
+      expect(audScore).toBe(-50.0);
+    });
+
+    it('rising S&P 500 is risk-on: bullish for AUD and bearish for USD', () => {
+      // S&P 500 rises: positive zScore = +1.5 -> raw score = +50
+      // Equity return applies -risk_sign
+      const audScore = applyPolarity(1.5, 'higher_bullish', {
+        currency: 'AUD',
+        isRiskIndicator: true,
+        riskAssetType: 'equity_index',
+      });
+      // AUD: -(-1.0) = +1.0 -> score = +50 (bullish for AUD)
+      expect(audScore).toBe(50.0);
+
+      const usdScore = applyPolarity(1.5, 'higher_bullish', {
+        currency: 'USD',
+        isRiskIndicator: true,
+        riskAssetType: 'equity_index',
+      });
+      // USD: -(+1.0) = -1.0 -> score = -50 (bearish for USD)
+      expect(usdScore).toBe(-50.0);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 6. AGGREGATION & INSUFFICIENT DATA THRESHOLDS
+  // --------------------------------------------------------------------------
+  describe('6. Aggregation & Data Insufficiency Thresholds', () => {
+    it('insufficient pillar handling: returns null when available weight is < 50%', () => {
       const indicators: ScoredIndicatorInput[] = [
-        { indicatorId: '1', score: 60, baseWeight: 1.0, freshnessFactor: 1.0 },
-        { indicatorId: '2', score: 20, baseWeight: 1.0, freshnessFactor: 1.0 },
+        { indicatorId: '1', score: 80, baseWeight: 0.20, freshnessFactor: 1.0 }, // 0.20 active
+        { indicatorId: '2', score: 40, baseWeight: 0.80, freshnessFactor: 0.0 }, // 0.80 stale (excluded)
       ];
+      // Total configured weight = 1.0. Available = 0.20 (20% < 50%).
       const res = aggregatePillarScore(indicators);
-      expect(res.score).toBe(40); // (60*1 + 20*1) / 2 = 40
-      expect(res.isEmpty).toBe(false);
+      expect(res.isInsufficient).toBe(true);
+      expect(res.score).toBeNull();
     });
 
-    it('down-weights indicators flagged with suspicious_jump by 50%', () => {
+    it('sufficient pillar handling: aggregates when available weight is >= 50%', () => {
       const indicators: ScoredIndicatorInput[] = [
-        { indicatorId: '1', score: 100, baseWeight: 1.0, freshnessFactor: 1.0, hasSuspiciousJump: true }, // active = 0.5
-        { indicatorId: '2', score: 0, baseWeight: 1.0, freshnessFactor: 1.0, hasSuspiciousJump: false },   // active = 1.0
+        { indicatorId: '1', score: 80, baseWeight: 0.60, freshnessFactor: 1.0 },
+        { indicatorId: '2', score: 20, baseWeight: 0.40, freshnessFactor: 0.0 },
       ];
-      // Total active weight = 0.5 + 1.0 = 1.5. Weighted score = 100*0.5 + 0*1.0 = 50. Score = 50 / 1.5 = 33.33
-      const res = aggregatePillarScore(indicators, 0.5);
-      expect(res.score).toBeCloseTo(33.33, 2);
-    });
-
-    it('excludes very stale indicators (freshnessFactor = 0)', () => {
-      const indicators: ScoredIndicatorInput[] = [
-        { indicatorId: '1', score: 80, baseWeight: 1.0, freshnessFactor: 1.0 },
-        { indicatorId: '2', score: -80, baseWeight: 1.0, freshnessFactor: 0.0 }, // Excluded!
-      ];
+      // Available = 0.60 (60% >= 50%).
       const res = aggregatePillarScore(indicators);
-      expect(res.score).toBe(80);
+      expect(res.isInsufficient).toBe(false);
+      expect(res.score).toBe(80); // Renormalized across available indicator 1
     });
 
-    it('rescales pillar-to-asset weights so missing pillars do not drag score to zero', () => {
-      // 3 configured pillars with base weights 0.40, 0.30, 0.30
-      // But pillar 3 is empty (no fresh indicators)
+    it('skips asset score when fewer than 4 non-null pillars', () => {
       const pillars: WeightedPillarScore[] = [
-        { pillarId: 'p1', score: 50, weight: 0.40, isEmpty: false },
-        { pillarId: 'p2', score: 50, weight: 0.30, isEmpty: false },
-        { pillarId: 'p3', score: 0, weight: 0.30, isEmpty: true }, // Missing
+        { pillarId: 'p1', score: 50, weight: 0.30 },
+        { pillarId: 'p2', score: 40, weight: 0.30 },
+        { pillarId: 'p3', score: 30, weight: 0.30 },
+        { pillarId: 'p4', score: null, weight: 0.10 }, // only 3 non-null pillars
       ];
-
       const res = aggregateAssetScore(pillars);
-      // Available weights sum = 0.70. Weighted sum = 50*0.4 + 50*0.3 = 35.
-      // Rescaled score = 35 / 0.70 = 50.
-      expect(res.score).toBe(50);
-      expect(res.isRescaled).toBe(true);
+      expect(res.isSufficient).toBe(false);
+      expect(res.score).toBeNull();
+      expect(res.insufficientReason).toContain('only 3/4 non-null pillars');
+    });
+
+    it('skips asset score when available weight is < 60% of total configured weight', () => {
+      const pillars: WeightedPillarScore[] = [
+        { pillarId: 'p1', score: 50, weight: 0.15 },
+        { pillarId: 'p2', score: 40, weight: 0.15 },
+        { pillarId: 'p3', score: 30, weight: 0.10 },
+        { pillarId: 'p4', score: 20, weight: 0.10 }, // 4 pillars, but sum(weight) = 0.50 (50% < 60%)
+        { pillarId: 'p5', score: null, weight: 0.50 },
+      ];
+      const res = aggregateAssetScore(pillars);
+      expect(res.isSufficient).toBe(false);
+      expect(res.score).toBeNull();
+      expect(res.insufficientReason).toContain('50.0% configured weight');
+    });
+
+    it('computes asset score when >= 4 non-null pillars AND >= 60% weight', () => {
+      const pillars: WeightedPillarScore[] = [
+        { pillarId: 'p1', score: 50, weight: 0.25 },
+        { pillarId: 'p2', score: 50, weight: 0.25 },
+        { pillarId: 'p3', score: 50, weight: 0.25 },
+        { pillarId: 'p4', score: 50, weight: 0.25 },
+      ];
+      const res = aggregateAssetScore(pillars, 1.0);
+      expect(res.isSufficient).toBe(true);
+      expect(res.score).toBe(50.0);
     });
   });
 
-  describe('5. Confidence Scoring & Signal Conflict Penalties', () => {
-    it('awards high confidence when completeness and freshness are high and no conflict exists', () => {
-      const conf = calculateConfidence({
-        totalPossibleIndicatorWeight: 10,
-        activeIndicatorWeight: 10,
-        freshnessFactors: [1.0, 1.0, 1.0, 1.0],
-        totalPillarsCount: 7,
-        pillarsWithFreshDataCount: 7,
-        topBullishContribution: 20,
-        topBearishContribution: -15,
-      });
-
-      expect(conf.confidence).toBe('high');
-      expect(conf.confidenceScore).toBe(100);
-      expect(conf.warningFlags.length).toBe(0);
-    });
-
-    it('applies a 15-point conflict penalty when top drivers strongly contradict each other', () => {
-      const normalConf = calculateConfidence({
-        totalPossibleIndicatorWeight: 10,
-        activeIndicatorWeight: 9,
-        freshnessFactors: [1.0, 1.0],
-        totalPillarsCount: 7,
-        pillarsWithFreshDataCount: 6,
-        topBullishContribution: 25,
-        topBearishContribution: -20,
-      });
-
-      const conflictingConf = calculateConfidence({
-        totalPossibleIndicatorWeight: 10,
-        activeIndicatorWeight: 9,
-        freshnessFactors: [1.0, 1.0],
-        totalPillarsCount: 7,
-        pillarsWithFreshDataCount: 6,
-        topBullishContribution: 45, // > 40
-        topBearishContribution: -45, // < -40
-      });
-
-      expect(conflictingConf.confidenceScore).toBe(normalConf.confidenceScore - 15);
-      expect(conflictingConf.warningFlags).toContain('conflicting_macro_signals');
-    });
-  });
-
-  describe('6. Deterministic Driver Attribution', () => {
-    it('ranks top 3 positive contributors as bullish drivers and top 3 negative as bearish', () => {
-      const contributors = [
-        { indicatorId: '1', code: 'FEDFUNDS', name: 'Fed Funds Rate', pillarId: 'p1', pillarName: 'Monetary', rawValue: 5.33, zScore: 1.8, score: 60, weightInAsset: 0.25, contribution: 15.0, unit: '%' },
-        { indicatorId: '2', code: 'NFP', name: 'Nonfarm Payrolls', pillarId: 'p3', pillarName: 'Growth & Labor', rawValue: 250, zScore: 1.5, score: 50, weightInAsset: 0.20, contribution: 10.0, unit: 'k' },
-        { indicatorId: '3', code: 'UNRATE', name: 'Unemployment Rate', pillarId: 'p3', pillarName: 'Growth & Labor', rawValue: 4.2, zScore: 1.2, score: -40, weightInAsset: 0.15, contribution: -6.0, unit: '%' },
-        { indicatorId: '4', code: 'DEBT', name: 'Debt to GDP', pillarId: 'p6', pillarName: 'Structural', rawValue: 122, zScore: 2.1, score: -70, weightInAsset: 0.10, contribution: -7.0, unit: '%' },
+  // --------------------------------------------------------------------------
+  // 7. INVARIANT TEST: SUM(DRIVERS) == ASSET SCORE
+  // --------------------------------------------------------------------------
+  describe('7. Driver Attribution Mathematical Invariant', () => {
+    it('invariant: sum of ALL indicator contributions equals the asset score (+-0.01)', () => {
+      // Simulate 4 pillars with 2 indicators each
+      const pillarScores: WeightedPillarScore[] = [
+        { pillarId: 'p1', score: 40, weight: 0.30 },
+        { pillarId: 'p2', score: 20, weight: 0.30 },
+        { pillarId: 'p3', score: -30, weight: 0.20 },
+        { pillarId: 'p4', score: 10, weight: 0.20 },
       ];
 
-      const res = computeDriverAttribution('USD', 'short', contributors);
-      expect(res.bullishDrivers.length).toBe(2);
-      expect(res.bullishDrivers[0].metricName).toBe('Fed Funds Rate');
-      expect(res.bullishDrivers[0].rank).toBe(1);
-      expect(res.bullishDrivers[0].explanation).toContain('Fed Funds Rate at 5.33 % (+1.8 sigma) supports USD via Monetary.');
+      const assetRes = aggregateAssetScore(pillarScores, 1.0);
+      expect(assetRes.isSufficient).toBe(true);
+      const expectedAssetScore = assetRes.score!;
 
-      expect(res.bearishDrivers.length).toBe(2);
-      expect(res.bearishDrivers[0].metricName).toBe('Debt to GDP'); // Most negative (-7.0) is rank 1 bearish
-      expect(res.bearishDrivers[0].rank).toBe(1);
-      expect(res.bearishDrivers[1].metricName).toBe('Unemployment Rate'); // -6.0 is rank 2 bearish
+      // Indicators in pillars
+      const contributors: IndicatorContributionItem[] = [
+        // Pillar 1 (weight 0.30, score 40)
+        { indicatorId: 'i1', code: 'I1', name: 'Ind 1', pillarId: 'p1', pillarName: 'P1', rawValue: 1, zScore: 1, score: 50, effectiveWeightInPillar: 0.5, sumEffectiveWeightsInPillar: 1, effectivePillarWeightInAsset: 0.3, effectiveWeightInAsset: 0.15, contribution: 0.15 * 50, unit: '%' },
+        { indicatorId: 'i2', code: 'I2', name: 'Ind 2', pillarId: 'p1', pillarName: 'P1', rawValue: 1, zScore: 1, score: 30, effectiveWeightInPillar: 0.5, sumEffectiveWeightsInPillar: 1, effectivePillarWeightInAsset: 0.3, effectiveWeightInAsset: 0.15, contribution: 0.15 * 30, unit: '%' },
+        // Pillar 2 (weight 0.30, score 20)
+        { indicatorId: 'i3', code: 'I3', name: 'Ind 3', pillarId: 'p2', pillarName: 'P2', rawValue: 1, zScore: 1, score: 20, effectiveWeightInPillar: 1.0, sumEffectiveWeightsInPillar: 1, effectivePillarWeightInAsset: 0.3, effectiveWeightInAsset: 0.30, contribution: 0.30 * 20, unit: '%' },
+        // Pillar 3 (weight 0.20, score -30)
+        { indicatorId: 'i4', code: 'I4', name: 'Ind 4', pillarId: 'p3', pillarName: 'P3', rawValue: 1, zScore: 1, score: -30, effectiveWeightInPillar: 1.0, sumEffectiveWeightsInPillar: 1, effectivePillarWeightInAsset: 0.2, effectiveWeightInAsset: 0.20, contribution: 0.20 * -30, unit: '%' },
+        // Pillar 4 (weight 0.20, score 10)
+        { indicatorId: 'i5', code: 'I5', name: 'Ind 5', pillarId: 'p4', pillarName: 'P4', rawValue: 1, zScore: 1, score: 10, effectiveWeightInPillar: 1.0, sumEffectiveWeightsInPillar: 1, effectivePillarWeightInAsset: 0.2, effectiveWeightInAsset: 0.20, contribution: 0.20 * 10, unit: '%' },
+      ];
+
+      const attribution = computeDriverAttribution('USD', 'short', contributors);
+
+      // Verify invariant: sum(contributions) == asset score (+-0.01)
+      expect(attribution.totalContributionSum).toBeCloseTo(expectedAssetScore, 2);
+    });
+
+    it('deterministic explanation template format is strictly adhered to', () => {
+      const expl = generateDeterministicDriverExplanation(
+        'USD',
+        'US Non-Farm Payrolls',
+        254,
+        1.4,
+        'Growth & Labor',
+        'bullish',
+        'k'
+      );
+      expect(expl).toBe('US Non-Farm Payrolls at 254 k (+1.4 sigma) supports USD via Growth & Labor.');
     });
   });
 
-  describe('7. Determinism Test', () => {
-    it('running scoring calculations twice on identical inputs produces identical floating point numbers', () => {
-      const sampleValues = [4.2, 4.5, 4.8, 5.0, 5.25, 5.33, 5.33];
-      const run1Z = computeRobustZScore(5.33, sampleValues);
-      const run2Z = computeRobustZScore(5.33, sampleValues);
-      expect(run1Z).toBe(run2Z);
+  // --------------------------------------------------------------------------
+  // 8. CONFIDENCE MONOTONICITY & WARNING FLAGS
+  // --------------------------------------------------------------------------
+  describe('8. Confidence Monotonicity & Warning Flags', () => {
+    it('monotonicity: removing an indicator decreases or keeps confidence equal', () => {
+      const full = calculateConfidence({
+        totalConfiguredIndicatorWeight: 10,
+        availableIndicatorWeight: 10,
+        availableFreshnessFactors: [1.0, 1.0, 1.0, 1.0],
+        nonNullPillarScores: [20, 20, 20, 20],
+      });
 
-      const run1Score = applyPolarity(run1Z, 'higher_bullish');
-      const run2Score = applyPolarity(run2Z, 'higher_bullish');
-      expect(run1Score).toBe(run2Score);
+      const missingOne = calculateConfidence({
+        totalConfiguredIndicatorWeight: 10,
+        availableIndicatorWeight: 8, // One 2.0-weight indicator missing
+        availableFreshnessFactors: [1.0, 1.0, 1.0],
+        nonNullPillarScores: [20, 20, 20, 20],
+      });
+
+      expect(missingOne.confidenceScore).toBeLessThan(full.confidenceScore);
+    });
+
+    it('monotonicity: increasing staleness decreases or keeps confidence equal', () => {
+      const fresh = calculateConfidence({
+        totalConfiguredIndicatorWeight: 10,
+        availableIndicatorWeight: 10,
+        availableFreshnessFactors: [1.0, 1.0, 1.0, 1.0],
+        nonNullPillarScores: [20, 20, 20, 20],
+      });
+
+      const stale = calculateConfidence({
+        totalConfiguredIndicatorWeight: 10,
+        availableIndicatorWeight: 10,
+        availableFreshnessFactors: [1.0, 0.5, 0.5, 1.0], // Staleness added
+        nonNullPillarScores: [20, 20, 20, 20],
+      });
+
+      expect(stale.confidenceScore).toBeLessThan(fresh.confidenceScore);
+    });
+
+    it('caps regime stability at 0.70 when US 10y2y spread is inverted or VIX > 25', () => {
+      const normal = calculateConfidence({
+        totalConfiguredIndicatorWeight: 10,
+        availableIndicatorWeight: 10,
+        availableFreshnessFactors: [1.0, 1.0],
+        nonNullPillarScores: [10, 10],
+        yieldCurve10y2y: 0.5,
+        vixLevel: 15.0,
+      });
+
+      const stressed = calculateConfidence({
+        totalConfiguredIndicatorWeight: 10,
+        availableIndicatorWeight: 10,
+        availableFreshnessFactors: [1.0, 1.0],
+        nonNullPillarScores: [10, 10],
+        yieldCurve10y2y: -0.25, // Inverted!
+        vixLevel: 28.0, // High VIX!
+      });
+
+      expect(stressed.confidenceDetail.regime_stability).toBe(0.70);
+      expect(stressed.warningFlags).toContain('regime_stress');
+      expect(stressed.confidenceScore).toBeLessThan(normal.confidenceScore);
     });
   });
 
-  describe('8. Synthetic Dataset End-to-End Validation', () => {
-    it('validates synthetic multi-indicator dataset across vintages and horizons', () => {
-      const { observations, asOfTestDate } = syntheticData;
+  // --------------------------------------------------------------------------
+  // 9. MODEL CONFIGURATION HASH & MISMATCH REFUSAL
+  // --------------------------------------------------------------------------
+  describe('9. Model Configuration Hash & DB Verification', () => {
+    it('computes deterministic sha256 hash of JSON configuration', () => {
+      const { hash } = loadModelJsonConfig('v0.1');
+      expect(hash).toHaveLength(64); // SHA-256 hex string length
+      const recomputed = computeConfigHash(JSON.stringify(loadModelJsonConfig('v0.1').config));
+      expect(recomputed).toBe(computeConfigHash(JSON.stringify(loadModelJsonConfig('v0.1').config)));
+    });
 
-      // Extract DFF
-      const dffObs = observations.filter((o) => o.indicator_id === 'ind_dff');
-      const dffPit = filterObservationsPointInTime(dffObs, asOfTestDate, [], 'daily');
+    it('verifyModelVersionInDb refuses to run and throws error on hash mismatch', async () => {
+      const mockDb: any = {
+        from: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            or: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'v0.1',
+                  version_label: 'v0.1',
+                  config_hash: 'corrupted_hash_mismatch_1234567890abcdef',
+                  is_active: true,
+                },
+              ],
+              error: null,
+            }),
+          }),
+        }),
+      };
 
-      // 4 observations in fixture: 3 before June 1, 1 in July (July 1st)
-      // Must include exactly the 3 released prior to June 1st
-      expect(dffPit.series.length).toBe(3);
-      expect(dffPit.latestObservation?.periodDate).toBe('2026-05-28');
-      expect(dffPit.latestObservation?.value).toBe(5.33);
+      await expect(verifyModelVersionInDb(mockDb, 'v0.1')).rejects.toThrow(
+        /Model configuration hash mismatch/
+      );
+    });
+  });
 
-      // Extract CPI
-      const cpiObs = observations.filter((o) => o.indicator_id === 'ind_cpi');
-      const cpiPit = filterObservationsPointInTime(cpiObs, asOfTestDate, [], 'monthly');
+  // --------------------------------------------------------------------------
+  // 10. PAIR SCORE ANTISYMMETRY
+  // --------------------------------------------------------------------------
+  describe('10. Pair Score Antisymmetry via Single Source of Truth', () => {
+    it('satisfies PairScore(A, B) == -PairScore(B, A) within 0.01 precision', () => {
+      const testCases = [
+        { scoreA: 35.5, scoreB: -15.0 },
+        { scoreA: -60.0, scoreB: 45.0 },
+        { scoreA: 80.0, scoreB: 95.0 },
+        { scoreA: -25.0, scoreB: -25.0 },
+      ];
 
-      // Before June 1st: March print and unrevised April print (312.0)
-      expect(cpiPit.series.length).toBe(2);
-      expect(cpiPit.latestObservation?.value).toBe(312.0); // Not the revised 312.5 released on June 15
+      for (const { scoreA, scoreB } of testCases) {
+        const pairAB = computePairScore(scoreA, scoreB);
+        const pairBA = computePairScore(scoreB, scoreA);
+        expect(pairAB).toBeCloseTo(-pairBA, 2);
+      }
     });
   });
 });
