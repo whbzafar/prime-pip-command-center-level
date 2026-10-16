@@ -181,6 +181,8 @@ import {
 } from "./server/tradingviewScreenshotService.js";
 import { cotRouter, verifyCftcDatasetAtBoot } from "./server/cotService.js";
 import newsCalendarRouter from "./server/routes/newsCalendarRoutes.js";
+import { sentimentRouter } from "./server/routes/sentimentRoutes.js";
+import { sentimentService } from "./server/sentiment/sentimentService.js";
 
 dotenv.config();
 
@@ -6701,6 +6703,12 @@ app.use('/api/cot', cotRouter);
 
 // Real-Time Live News Headlines & TradingView Calendar Feeds
 app.use('/api', newsCalendarRouter);
+
+// Retail Positioning Sentiment Engine Routes
+app.use('/api/sentiment', sentimentRouter);
+
+// Initialize background sentiment polling
+sentimentService.init();
 
 // Vite middleware / static files (only run when launched standalone, not in Vercel serverless)
 async function startServer() {

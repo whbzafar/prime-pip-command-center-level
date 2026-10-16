@@ -1053,6 +1053,7 @@ export const WATCHLIST_CATEGORIES = [
       { symbol: 'NZDCAD', label: 'NZD/CAD' },
       { symbol: 'NZDCHF', label: 'NZD/CHF' },
     ],
+  },
   {
     id: 'INDICES',
     name: 'Indices',
@@ -3081,7 +3082,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   <button
                     key={item.symbol}
                     type="button"
-                    onClick={() => handleSelectSymbol(item.symbol, item.broker)}
+                    onClick={() => handleSelectSymbol(item.symbol, (item as any).broker)}
                     className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer shrink-0 flex items-center gap-2 ${
                       isSelected
                         ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-md shadow-cyan-500/20'

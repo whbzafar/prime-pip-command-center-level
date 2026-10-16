@@ -1,0 +1,1727 @@
+{
+  "cache": {
+    "BTCUSDT": {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.9,
+      "shortPct": 38.1,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000,
+      "fetchedAt": 1792165625188
+    },
+    "ETHUSDT": {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 72,
+      "shortPct": 28,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000,
+      "fetchedAt": 1792165625188
+    },
+    "SOLUSDT": {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000,
+      "fetchedAt": 1792165625188
+    },
+    "XRPUSDT": {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.4,
+      "shortPct": 26.6,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000,
+      "fetchedAt": 1792165625188
+    },
+    "BNBUSDT": {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000,
+      "fetchedAt": 1792165625188
+    },
+    "DOGEUSDT": {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000,
+      "fetchedAt": 1792165625188
+    },
+    "ADAUSDT": {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.9,
+      "shortPct": 35.1,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000,
+      "fetchedAt": 1792165625188
+    },
+    "LINKUSDT": {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.5,
+      "shortPct": 38.5,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000,
+      "fetchedAt": 1792165625188
+    },
+    "EURUSD": {
+      "symbol": "EURUSD",
+      "assetClass": "FOREX",
+      "longPct": 42,
+      "shortPct": 58,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "GBPUSD": {
+      "symbol": "GBPUSD",
+      "assetClass": "FOREX",
+      "longPct": 46,
+      "shortPct": 54,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "USDJPY": {
+      "symbol": "USDJPY",
+      "assetClass": "FOREX",
+      "longPct": 68,
+      "shortPct": 32,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "USDCHF": {
+      "symbol": "USDCHF",
+      "assetClass": "FOREX",
+      "longPct": 74,
+      "shortPct": 26,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "AUDUSD": {
+      "symbol": "AUDUSD",
+      "assetClass": "FOREX",
+      "longPct": 38,
+      "shortPct": 62,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "USDCAD": {
+      "symbol": "USDCAD",
+      "assetClass": "FOREX",
+      "longPct": 65,
+      "shortPct": 35,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "NZDUSD": {
+      "symbol": "NZDUSD",
+      "assetClass": "FOREX",
+      "longPct": 36,
+      "shortPct": 64,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "EURGBP": {
+      "symbol": "EURGBP",
+      "assetClass": "FOREX",
+      "longPct": 52,
+      "shortPct": 48,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "EURJPY": {
+      "symbol": "EURJPY",
+      "assetClass": "FOREX",
+      "longPct": 62,
+      "shortPct": 38,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "EURCHF": {
+      "symbol": "EURCHF",
+      "assetClass": "FOREX",
+      "longPct": 69,
+      "shortPct": 31,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "EURAUD": {
+      "symbol": "EURAUD",
+      "assetClass": "FOREX",
+      "longPct": 56,
+      "shortPct": 44,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "EURCAD": {
+      "symbol": "EURCAD",
+      "assetClass": "FOREX",
+      "longPct": 48,
+      "shortPct": 52,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "EURNZD": {
+      "symbol": "EURNZD",
+      "assetClass": "FOREX",
+      "longPct": 58,
+      "shortPct": 42,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "GBPJPY": {
+      "symbol": "GBPJPY",
+      "assetClass": "FOREX",
+      "longPct": 59,
+      "shortPct": 41,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "GBPCHF": {
+      "symbol": "GBPCHF",
+      "assetClass": "FOREX",
+      "longPct": 67,
+      "shortPct": 33,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "GBPAUD": {
+      "symbol": "GBPAUD",
+      "assetClass": "FOREX",
+      "longPct": 54,
+      "shortPct": 46,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "GBPCAD": {
+      "symbol": "GBPCAD",
+      "assetClass": "FOREX",
+      "longPct": 47,
+      "shortPct": 53,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "GBPNZD": {
+      "symbol": "GBPNZD",
+      "assetClass": "FOREX",
+      "longPct": 55,
+      "shortPct": 45,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "AUDJPY": {
+      "symbol": "AUDJPY",
+      "assetClass": "FOREX",
+      "longPct": 64,
+      "shortPct": 36,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "AUDCAD": {
+      "symbol": "AUDCAD",
+      "assetClass": "FOREX",
+      "longPct": 45,
+      "shortPct": 55,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "AUDCHF": {
+      "symbol": "AUDCHF",
+      "assetClass": "FOREX",
+      "longPct": 71,
+      "shortPct": 29,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "AUDNZD": {
+      "symbol": "AUDNZD",
+      "assetClass": "FOREX",
+      "longPct": 51,
+      "shortPct": 49,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "NZDJPY": {
+      "symbol": "NZDJPY",
+      "assetClass": "FOREX",
+      "longPct": 63,
+      "shortPct": 37,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "NZDCAD": {
+      "symbol": "NZDCAD",
+      "assetClass": "FOREX",
+      "longPct": 44,
+      "shortPct": 56,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "NZDCHF": {
+      "symbol": "NZDCHF",
+      "assetClass": "FOREX",
+      "longPct": 72,
+      "shortPct": 28,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "CADJPY": {
+      "symbol": "CADJPY",
+      "assetClass": "FOREX",
+      "longPct": 61,
+      "shortPct": 39,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "CADCHF": {
+      "symbol": "CADCHF",
+      "assetClass": "FOREX",
+      "longPct": 68,
+      "shortPct": 32,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "CHFJPY": {
+      "symbol": "CHFJPY",
+      "assetClass": "FOREX",
+      "longPct": 58,
+      "shortPct": 42,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "XAUUSD": {
+      "symbol": "XAUUSD",
+      "assetClass": "COMMODITIES",
+      "longPct": 76.1,
+      "shortPct": 23.9,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000,
+      "fetchedAt": 1792165625188
+    },
+    "XAGUSD": {
+      "symbol": "XAGUSD",
+      "assetClass": "COMMODITIES",
+      "longPct": 90.6,
+      "shortPct": 9.4,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000,
+      "fetchedAt": 1792165625188
+    },
+    "USOIL": {
+      "symbol": "USOIL",
+      "assetClass": "COMMODITIES",
+      "longPct": 78,
+      "shortPct": 22,
+      "source": "Myfxbook Oil Sentiment & Retail Broker Index",
+      "timestamp": 1792165623118,
+      "fetchedAt": 1792165623119
+    },
+    "NATGAS": {
+      "symbol": "NATGAS",
+      "assetClass": "COMMODITIES",
+      "longPct": 39.2,
+      "shortPct": 60.8,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000,
+      "fetchedAt": 1792165625188
+    }
+  },
+  "snapshots": [
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.6,
+      "shortPct": 38.4,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.2,
+      "shortPct": 26.8,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.7,
+      "shortPct": 28.3,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 65,
+      "shortPct": 35,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.5,
+      "shortPct": 38.5,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.6,
+      "shortPct": 38.4,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.2,
+      "shortPct": 26.8,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.7,
+      "shortPct": 28.3,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 65,
+      "shortPct": 35,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.5,
+      "shortPct": 38.5,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.6,
+      "shortPct": 38.4,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.2,
+      "shortPct": 26.8,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.7,
+      "shortPct": 28.3,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 65,
+      "shortPct": 35,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.5,
+      "shortPct": 38.5,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.6,
+      "shortPct": 38.4,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.7,
+      "shortPct": 28.3,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 65,
+      "shortPct": 35,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.5,
+      "shortPct": 38.5,
+      "source": "Binance Futures",
+      "timestamp": 1792163700000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.5,
+      "shortPct": 38.5,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.6,
+      "shortPct": 38.4,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.2,
+      "shortPct": 26.8,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.7,
+      "shortPct": 28.3,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 65,
+      "shortPct": 35,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.5,
+      "shortPct": 38.5,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.2,
+      "shortPct": 26.8,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.7,
+      "shortPct": 28.3,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 65,
+      "shortPct": 35,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.6,
+      "shortPct": 38.4,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.3,
+      "shortPct": 26.7,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.7,
+      "shortPct": 28.3,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 65,
+      "shortPct": 35,
+      "source": "Binance Futures",
+      "timestamp": 1792164000000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.9,
+      "shortPct": 35.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.6,
+      "shortPct": 38.4,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.9,
+      "shortPct": 28.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.3,
+      "shortPct": 26.7,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.9,
+      "shortPct": 35.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.6,
+      "shortPct": 38.4,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.7,
+      "shortPct": 38.3,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.3,
+      "shortPct": 26.7,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.8,
+      "shortPct": 35.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.6,
+      "shortPct": 38.4,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.3,
+      "shortPct": 26.7,
+      "source": "Binance Futures",
+      "timestamp": 1792164300000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.6,
+      "shortPct": 38.4,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.4,
+      "shortPct": 26.6,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.7,
+      "shortPct": 38.3,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.9,
+      "shortPct": 28.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.4,
+      "shortPct": 26.6,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.8,
+      "shortPct": 35.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.6,
+      "shortPct": 38.4,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.7,
+      "shortPct": 38.3,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.9,
+      "shortPct": 28.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.4,
+      "shortPct": 26.6,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.8,
+      "shortPct": 35.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.6,
+      "shortPct": 38.4,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.8,
+      "shortPct": 38.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.8,
+      "shortPct": 35.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.6,
+      "shortPct": 38.4,
+      "source": "Binance Futures",
+      "timestamp": 1792164600000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.4,
+      "shortPct": 38.6,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.8,
+      "shortPct": 38.2,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.9,
+      "shortPct": 28.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.4,
+      "shortPct": 26.6,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.8,
+      "shortPct": 35.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.4,
+      "shortPct": 38.6,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.9,
+      "shortPct": 28.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.4,
+      "shortPct": 26.6,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.8,
+      "shortPct": 35.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.5,
+      "shortPct": 38.5,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 72,
+      "shortPct": 28,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.4,
+      "shortPct": 26.6,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.8,
+      "shortPct": 35.2,
+      "source": "Binance Futures",
+      "timestamp": 1792164900000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.8,
+      "shortPct": 35.2,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "EURUSD",
+      "assetClass": "FOREX",
+      "longPct": 42,
+      "shortPct": 58,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "GBPUSD",
+      "assetClass": "FOREX",
+      "longPct": 46,
+      "shortPct": 54,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "USDJPY",
+      "assetClass": "FOREX",
+      "longPct": 68,
+      "shortPct": 32,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "USDCHF",
+      "assetClass": "FOREX",
+      "longPct": 74,
+      "shortPct": 26,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "AUDUSD",
+      "assetClass": "FOREX",
+      "longPct": 38,
+      "shortPct": 62,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "USDCAD",
+      "assetClass": "FOREX",
+      "longPct": 65,
+      "shortPct": 35,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "NZDUSD",
+      "assetClass": "FOREX",
+      "longPct": 36,
+      "shortPct": 64,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "EURGBP",
+      "assetClass": "FOREX",
+      "longPct": 52,
+      "shortPct": 48,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "EURJPY",
+      "assetClass": "FOREX",
+      "longPct": 62,
+      "shortPct": 38,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "EURCHF",
+      "assetClass": "FOREX",
+      "longPct": 69,
+      "shortPct": 31,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "EURAUD",
+      "assetClass": "FOREX",
+      "longPct": 56,
+      "shortPct": 44,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "EURCAD",
+      "assetClass": "FOREX",
+      "longPct": 48,
+      "shortPct": 52,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "EURNZD",
+      "assetClass": "FOREX",
+      "longPct": 58,
+      "shortPct": 42,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "GBPJPY",
+      "assetClass": "FOREX",
+      "longPct": 59,
+      "shortPct": 41,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "GBPCHF",
+      "assetClass": "FOREX",
+      "longPct": 67,
+      "shortPct": 33,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "GBPAUD",
+      "assetClass": "FOREX",
+      "longPct": 54,
+      "shortPct": 46,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "GBPCAD",
+      "assetClass": "FOREX",
+      "longPct": 47,
+      "shortPct": 53,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "GBPNZD",
+      "assetClass": "FOREX",
+      "longPct": 55,
+      "shortPct": 45,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "AUDJPY",
+      "assetClass": "FOREX",
+      "longPct": 64,
+      "shortPct": 36,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "AUDCAD",
+      "assetClass": "FOREX",
+      "longPct": 45,
+      "shortPct": 55,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "AUDCHF",
+      "assetClass": "FOREX",
+      "longPct": 71,
+      "shortPct": 29,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "AUDNZD",
+      "assetClass": "FOREX",
+      "longPct": 51,
+      "shortPct": 49,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "NZDJPY",
+      "assetClass": "FOREX",
+      "longPct": 63,
+      "shortPct": 37,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "NZDCAD",
+      "assetClass": "FOREX",
+      "longPct": 44,
+      "shortPct": 56,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "NZDCHF",
+      "assetClass": "FOREX",
+      "longPct": 72,
+      "shortPct": 28,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "CADJPY",
+      "assetClass": "FOREX",
+      "longPct": 61,
+      "shortPct": 39,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "CADCHF",
+      "assetClass": "FOREX",
+      "longPct": 68,
+      "shortPct": 32,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "CHFJPY",
+      "assetClass": "FOREX",
+      "longPct": 58,
+      "shortPct": 42,
+      "source": "Myfxbook Community Outlook & Broker Aggregate",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "XAUUSD",
+      "assetClass": "COMMODITIES",
+      "longPct": 76,
+      "shortPct": 24,
+      "source": "Myfxbook Gold Sentiment & Retail Broker Index",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "XAGUSD",
+      "assetClass": "COMMODITIES",
+      "longPct": 82,
+      "shortPct": 18,
+      "source": "Myfxbook Silver Sentiment & Retail Broker Index",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "USOIL",
+      "assetClass": "COMMODITIES",
+      "longPct": 78,
+      "shortPct": 22,
+      "source": "Myfxbook Oil Sentiment & Retail Broker Index",
+      "timestamp": 1792165520403
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.8,
+      "shortPct": 38.2,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 72,
+      "shortPct": 28,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.4,
+      "shortPct": 26.6,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.8,
+      "shortPct": 29.2,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.9,
+      "shortPct": 35.1,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.5,
+      "shortPct": 38.5,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "NATGAS",
+      "assetClass": "FOREX",
+      "longPct": 39.1,
+      "shortPct": 60.9,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.9,
+      "shortPct": 38.1,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.9,
+      "shortPct": 29.1,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.4,
+      "shortPct": 26.6,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.5,
+      "shortPct": 38.5,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "NATGAS",
+      "assetClass": "FOREX",
+      "longPct": 39.1,
+      "shortPct": 60.9,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 73.4,
+      "shortPct": 26.6,
+      "source": "Binance Futures",
+      "timestamp": 1792165200000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.5,
+      "shortPct": 38.5,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000
+    },
+    {
+      "symbol": "NATGAS",
+      "assetClass": "COMMODITIES",
+      "longPct": 39.2,
+      "shortPct": 60.8,
+      "source": "Binance Futures",
+      "timestamp": 1792165500000
+    }
+  ],
+  "lastUpdated": 1792165625188
+}

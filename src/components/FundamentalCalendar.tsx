@@ -29,6 +29,7 @@ import {
   Scale,
   Zap,
   BarChart2,
+  Users,
 } from 'lucide-react';
 import {
   CalendarEvent,
@@ -39,7 +40,7 @@ import {
   syncCalendar,
   getCalendarMeta,
 } from '../services/economicCalendarService';
-import { CotReportModule } from './cot/CotReportModule';
+import { RetailSentimentView } from './sentiment/RetailSentimentView';
 
 // Classic Forex Factory Folder Icon SVG (Color-coded by impact)
 const ForexFactoryFolderIcon: React.FC<{
@@ -302,7 +303,7 @@ function getWeeklyCotEvent(startDate: Date, endDate: Date, nowMs: number): Calen
 }
 
 export const FundamentalCalendar: React.FC = () => {
-  const [activeCalendarTab, setActiveCalendarTab] = useState<'CALENDAR' | 'COT'>('CALENDAR');
+  const [activeCalendarTab, setActiveCalendarTab] = useState<'CALENDAR' | 'SENTIMENT'>('CALENDAR');
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [meta, setMeta] = useState<CalendarMeta | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -666,17 +667,17 @@ export const FundamentalCalendar: React.FC = () => {
               <span>Economic Calendar</span>
             </button>
             <button
-              onClick={() => setActiveCalendarTab('COT')}
+              onClick={() => setActiveCalendarTab('SENTIMENT')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-mono-code font-bold transition flex items-center gap-2 cursor-pointer ${
-                activeCalendarTab === 'COT'
+                activeCalendarTab === 'SENTIMENT'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow'
                   : 'text-slate-400 hover:text-white bg-slate-900/50 border border-slate-800'
               }`}
             >
-              <BarChart2 className="w-3.5 h-3.5 text-cyan-400" />
-              <span>COT Report</span>
+              <Users className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Sentiment</span>
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                CFTC SODA
+                Retail
               </span>
             </button>
           </div>
@@ -899,10 +900,8 @@ export const FundamentalCalendar: React.FC = () => {
         </div>
       </div>
 
-      {activeCalendarTab === 'COT' ? (
-        <div className="max-w-[1440px] mx-auto px-3 sm:px-6 py-4">
-          <CotReportModule />
-        </div>
+      {activeCalendarTab === 'SENTIMENT' ? (
+        <RetailSentimentView />
       ) : (
         <>
           {/* HIGH-IMPACT LIVE RADAR BANNER */}

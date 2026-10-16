@@ -40,6 +40,8 @@ import { EconomicDataMasterView } from './fundamental/EconomicDataMasterView';
 import { CurrencyStrengthMatrixView } from './fundamental/CurrencyStrengthMatrixView';
 import { PairDifferentialScannerView } from './fundamental/PairDifferentialScannerView';
 import { RatesAndYieldsView } from './fundamental/RatesAndYieldsView';
+import { CotReportModule } from './cot/CotReportModule';
+import { RetailSentimentView } from './sentiment/RetailSentimentView';
 import { CotTradingView } from './fundamental/CotTradingView';
 import { MarketSentimentView } from './fundamental/MarketSentimentView';
 import { CommoditiesMacroView } from './fundamental/CommoditiesMacroView';
@@ -1311,27 +1313,13 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
       )}
 
       {activeTab === 'COT_REPORT' && (
-        <CotTradingView
-          activeCurrency={activeCurrency}
-          cotData={cotRecords}
-          onUpdateCotRecord={(updated) => {
-            setCotRecords((prev) => prev.map((r) => (r.currency === updated.currency ? updated : r)));
-          }}
-          onUpdateCotRecords={(records) => {
-            setCotRecords(records);
-          }}
-          onSelectCurrency={(c) => {
-            setActiveCurrency(c);
-            setActiveTab('WORKSPACES');
-          }}
-        />
+        <div className="max-w-[1440px] mx-auto px-3 sm:px-6 py-4">
+          <CotReportModule />
+        </div>
       )}
 
       {activeTab === 'MARKET_SENTIMENT' && (
-        <MarketSentimentView
-          retailPositioning={retailPositioning}
-          onUpdateRetailPositioning={handleUpdateRetailPositioning}
-        />
+        <RetailSentimentView />
       )}
 
       {activeTab === 'COMMODITIES' && (
