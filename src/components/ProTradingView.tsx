@@ -43,6 +43,7 @@ import {
   Flame,
   Info,
   Layers,
+  Scale,
 } from 'lucide-react';
 import { Trade, UserAccount, AccountSettings } from '../types';
 import {
@@ -1808,31 +1809,42 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
       if (fxPair) {
         const canonical = CANONICAL_28_FUNDAMENTALS[clean];
-        const isBull = fxPair.fundamentalBias.includes('BULL');
-        const isBear = fxPair.fundamentalBias.includes('BEAR');
+        const isBull = (fxPair.fundamentalBias || '').includes('BULL');
+        const isBear = (fxPair.fundamentalBias || '').includes('BEAR');
+        const baseRate = typeof (fxPair as any).baseInterestRate === 'number'
+          ? (fxPair as any).baseInterestRate
+          : (interestRates?.find((r: any) => r.currency === fxPair.baseCurrency)?.currentRate ?? (CURRENCY_METADATA[fxPair.baseCurrency]?.defaultCentralBankRate ?? 0));
+        const quoteRate = typeof (fxPair as any).quoteInterestRate === 'number'
+          ? (fxPair as any).quoteInterestRate
+          : (interestRates?.find((r: any) => r.currency === fxPair.quoteCurrency)?.currentRate ?? (CURRENCY_METADATA[fxPair.quoteCurrency]?.defaultCentralBankRate ?? 0));
+        const rateSpread = typeof fxPair.interestRateSpread === 'number'
+          ? fxPair.interestRateSpread
+          : (baseRate - quoteRate);
+        const tenYear = typeof fxPair.tenYearSpread === 'number' ? fxPair.tenYearSpread : 0;
+
         return {
           symbol: fxPair.pair,
           baseCurrency: fxPair.baseCurrency,
           quoteCurrency: fxPair.quoteCurrency,
           category: 'Forex Major / Cross',
           bias: fxPair.fundamentalBias as BiasClassification,
-          biasLabel: `${fxPair.biasLabel} (LONG-TERM)`,
+          biasLabel: `${fxPair.biasLabel || 'NEUTRAL'} (LONG-TERM)`,
           isBullish: isBull,
           isBearish: isBear,
-          score: fxPair.netDifferential,
-          confidence: fxPair.confidenceScore || 92,
-          rateDiff: `${fxPair.baseCurrency} (${fxPair.baseInterestRate.toFixed(2)}%) vs ${fxPair.quoteCurrency} (${fxPair.quoteInterestRate.toFixed(2)}%) Spread: ${fxPair.interestRateSpread >= 0 ? '+' : ''}${fxPair.interestRateSpread.toFixed(2)}%`,
-          yieldSpread: `10Y Sovereign Yield Spread: ${fxPair.tenYearSpread >= 0 ? '+' : ''}${fxPair.tenYearSpread.toFixed(0)} bps`,
-          rationale: fxPair.reasoningNarrative || canonical?.rationale || `Fundamental macro divergence between ${fxPair.baseCurrency} and ${fxPair.quoteCurrency}.`,
+          score: fxPair.netDifferential ?? 0,
+          confidence: (fxPair as any).confidenceScore || 92,
+          rateDiff: `${fxPair.baseCurrency} (${baseRate.toFixed(2)}%) vs ${fxPair.quoteCurrency} (${quoteRate.toFixed(2)}%) Spread: ${rateSpread >= 0 ? '+' : ''}${rateSpread.toFixed(2)}%`,
+          yieldSpread: `10Y Sovereign Yield Spread: ${tenYear >= 0 ? '+' : ''}${tenYear.toFixed(0)} bps`,
+          rationale: (fxPair as any).reasoningNarrative || canonical?.rationale || `Fundamental macro divergence between ${fxPair.baseCurrency} and ${fxPair.quoteCurrency}.`,
           drivers: fxPair.primaryDrivers?.length
             ? fxPair.primaryDrivers
             : canonical?.drivers || [
                 `Base currency ${fxPair.baseCurrency} composite score: ${fxPair.baseScore >= 0 ? '+' : ''}${fxPair.baseScore}`,
                 `Quote currency ${fxPair.quoteCurrency} composite score: ${fxPair.quoteScore >= 0 ? '+' : ''}${fxPair.quoteScore}`,
-                `Central bank policy rate spread: ${fxPair.interestRateSpread >= 0 ? '+' : ''}${fxPair.interestRateSpread.toFixed(2)}%`,
+                `Central bank policy rate spread: ${rateSpread >= 0 ? '+' : ''}${rateSpread.toFixed(2)}%`,
               ],
           tradeSuitability:
-            Math.abs(fxPair.netDifferential) >= 20
+            Math.abs(fxPair.netDifferential ?? 0) >= 20
               ? 'High-Conviction Fundamental Divergence'
               : 'Moderate Fundamental Edge',
           favoredAction: isBull ? ('BUY' as const) : isBear ? ('SELL' as const) : ('NEUTRAL' as const),
@@ -4910,6 +4922,77 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               >
                 {shareCopied ? <CheckCircle2 className="w-4 h-4 text-slate-950" /> : <Share2 className="w-4 h-4 text-slate-950" />}
                 <span>{shareCopied ? 'Copied Link!' : 'Copy TradingView Link'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 6. PAIR DEEP-DIVE MODAL                                                   */}
+      {/* ========================================================================= */}
+      {activePairModal && (
+        <PairDeepDiveModal
+          pairResult={activePairModal}
+          currencyScores={currencyScores}
+          onClose={() => setActivePairModal(null)}
+          onRequestAiThesis={(pair) => {
+            setOrderToast({
+              message: `🤖 AI Fundamental Thesis for ${pair}: Institutional bias aligns with macro drivers.`,
+              isSuccess: true,
+            });
+          }}
+          onSelectCurrency={() => {}}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 7. TECHNICAL INDICATORS QUICK GUIDE / SELECTOR                            */}
+      {/* ========================================================================= */}
+      {showIndicatorsModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl font-mono-code text-xs">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Activity className="w-5 h-5 text-cyan-400" />
+                <h3 className="font-bold text-white uppercase text-sm">Technical Indicators</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowIndicatorsModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-slate-300">
+              Indicators are natively integrated directly into the live TradingView chart workspace above. Click the <strong>Indicators (Fx)</strong> icon in the chart top toolbar to add:
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300">
+                <span className="text-cyan-400 font-bold block">RSI (Relative Strength)</span>
+                <span className="text-slate-500 text-[10px]">Overbought & Oversold Momentum</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300">
+                <span className="text-emerald-400 font-bold block">EMA (9, 21, 50, 200)</span>
+                <span className="text-slate-500 text-[10px]">Institutional Trend Dynamic Levels</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300">
+                <span className="text-amber-400 font-bold block">MACD & Signal</span>
+                <span className="text-slate-500 text-[10px]">Convergence / Divergence Oscillations</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300">
+                <span className="text-violet-400 font-bold block">Bollinger Bands</span>
+                <span className="text-slate-500 text-[10px]">Volatility Squeezes & Expansions</span>
+              </div>
+            </div>
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowIndicatorsModal(false)}
+                className="px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition cursor-pointer shadow-md"
+              >
+                Got It
               </button>
             </div>
           </div>

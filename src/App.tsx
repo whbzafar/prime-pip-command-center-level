@@ -104,6 +104,7 @@ import { CommunicationNotifications } from './components/CommunicationNotificati
 import { SituationSaver } from './components/situationSaver/SituationSaver';
 import { PairSaver } from './components/pairSaver/PairSaver';
 import { ProTradingView } from './components/ProTradingView';
+import { TabErrorBoundary } from './components/common/TabErrorBoundary';
 
 export default function App() {
   // Navigation State
@@ -1438,31 +1439,33 @@ export default function App() {
         )}
 
         {activeTab === 'PRO_TRADING' && (
-          <ProTradingView
-            onOpenNewTrade={() => setIsEntryModalOpen(true)}
-            currentUser={currentUser}
-            isDemoMode={isDemoMode}
-            activeAccount={activeAccount}
-            trades={trades}
-            onAutoLogTradeToJournal={handleAutoLogMeta5Trade}
-            onUpdateAccount={handleUpdateAccount}
-            onNavigateToJournal={() => handleSelectTab('JOURNAL')}
-            onRequireSubscription={() => {
-              setLockedCategoryModal({
-                id: 'FUNDAMENTAL_INDICATORS',
-                name: 'Fundamental Pairs (Premium Pairing Feature)',
-                shortDesc: '🔒 Locked in Demo Mode — Subscription Required ($55 or Free via Referrals)',
-                overview:
-                  'The Fundamental Pair option (28-Pair Bullish & Bearish Differential Matrix & Multi-Asset Pairing Engine) inside Premium TradingView is restricted to subscribed members. Subscribe for $55 — OR get the Course & Terminal 100% FREE if you refer 5 students to the course or if 2 students purchase it!',
-                keyFeatures: [
-                  'Live 28-Pair Long-Term Bullish & Bearish Differential Matrix',
-                  'Real-Time Central Bank Rate Spread & 10Y Bond Yield Differentials',
-                  'Multi-Asset Fundamental Status (Indices, Top Stocks & Top 5 Crypto)',
-                  'One-click chart loading for highest-probability fundamental pairs',
-                ],
-              });
-            }}
-          />
+          <TabErrorBoundary tabName="Premium TradingView">
+            <ProTradingView
+              onOpenNewTrade={() => setIsEntryModalOpen(true)}
+              currentUser={currentUser}
+              isDemoMode={isDemoMode}
+              activeAccount={activeAccount}
+              trades={trades}
+              onAutoLogTradeToJournal={handleAutoLogMeta5Trade}
+              onUpdateAccount={handleUpdateAccount}
+              onNavigateToJournal={() => handleSelectTab('JOURNAL')}
+              onRequireSubscription={() => {
+                setLockedCategoryModal({
+                  id: 'FUNDAMENTAL_INDICATORS',
+                  name: 'Fundamental Pairs (Premium Pairing Feature)',
+                  shortDesc: '🔒 Locked in Demo Mode — Subscription Required ($55 or Free via Referrals)',
+                  overview:
+                    'The Fundamental Pair option (28-Pair Bullish & Bearish Differential Matrix & Multi-Asset Pairing Engine) inside Premium TradingView is restricted to subscribed members. Subscribe for $55 — OR get the Course & Terminal 100% FREE if you refer 5 students to the course or if 2 students purchase it!',
+                  keyFeatures: [
+                    'Live 28-Pair Long-Term Bullish & Bearish Differential Matrix',
+                    'Real-Time Central Bank Rate Spread & 10Y Bond Yield Differentials',
+                    'Multi-Asset Fundamental Status (Indices, Top Stocks & Top 5 Crypto)',
+                    'One-click chart loading for highest-probability fundamental pairs',
+                  ],
+                });
+              }}
+            />
+          </TabErrorBoundary>
         )}
 
         {activeTab === 'META5_PREMIUM' && (
