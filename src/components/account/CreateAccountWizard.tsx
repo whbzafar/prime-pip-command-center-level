@@ -60,6 +60,10 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
   const [dailyLossCapPct, setDailyLossCapPct] = useState<number>(4.0);
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
+
   // Card select handler
   const handleSelectAccountKind = (kind: AccountKind) => {
     setSelectedKind(kind);
@@ -268,8 +272,9 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
                     RISK FREE
                   </span>
                 </div>
-                <h3 className="font-bold text-sm text-white group-hover:text-cyan-300 transition">
-                  Demo Sandbox
+                <h3 className="font-bold text-sm text-white group-hover:text-cyan-300 transition flex items-center gap-2">
+                  <span>Demo Account</span>
+                  <span className="text-[10px] text-cyan-400 font-normal">(Virtual Sandbox)</span>
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 leading-snug">
                   Practice high-probability SBT models with virtual balance without risking live capital.
@@ -318,8 +323,9 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
                     LIVE BROKER
                   </span>
                 </div>
-                <h3 className="font-bold text-sm text-white group-hover:text-emerald-300 transition">
-                  Personal Live Account
+                <h3 className="font-bold text-sm text-white group-hover:text-emerald-300 transition flex items-center gap-2">
+                  <span>Personal Account</span>
+                  <span className="text-[10px] text-emerald-400 font-normal">(Live Broker)</span>
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 leading-snug">
                   Standard broker account (USD, EUR, GBP) with daily trade and loss caps.

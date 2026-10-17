@@ -238,9 +238,10 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
               if (onContinueDemo) onContinueDemo();
               onClose();
             }}
-            className="w-full py-2 text-slate-400 hover:text-slate-200 text-xs font-mono-code transition text-center cursor-pointer active:scale-95"
+            className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 text-xs font-mono-code font-bold transition text-center cursor-pointer active:scale-95 flex items-center justify-center gap-1.5"
           >
-            CONTINUE IN DEMO MODE (READ-ONLY)
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span>CONTINUE WITH FREE TIER / DEMO ACCESS</span>
           </button>
         </div>
       </div>

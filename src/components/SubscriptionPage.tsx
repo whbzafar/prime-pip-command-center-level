@@ -272,8 +272,70 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
         )}
       </div>
 
-      {/* Pricing Tiers Grid: Standard, Recommended ($55), and Lifetime Reward */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Pricing Tiers Grid: Free Tier, Standard, Recommended ($55), and Lifetime Reward */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Tier 0: Free Tier / Community Access */}
+        <div className="bg-slate-950/80 border border-emerald-500/40 rounded-2xl p-6 flex flex-col justify-between shadow-xl">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-military font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                FREE TIER
+              </span>
+              <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                100% FREE
+              </span>
+            </div>
+
+            <div className="flex items-baseline gap-1.5 mb-4">
+              <span className="text-4xl font-mono-code font-black text-emerald-400">$0</span>
+              <span className="text-xs font-mono-code text-slate-400">USD</span>
+              <span className="text-xs font-mono-code text-emerald-400 font-bold">FREE FOREVER</span>
+            </div>
+
+            <p className="text-xs font-mono-code text-slate-300 mb-6">
+              Full access to essential institutional tools, journal, playbook models, pre-trade planner, and TradingView workspace.
+            </p>
+
+            <ul className="space-y-2.5 text-xs font-mono-code text-slate-300">
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Full Isolated Trading Journal & Analytics</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>All 10 SBT Institutional Playbook Models</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Pre-Trade Plan & 1% Lot Size Calculator</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>TradingView Chart & Economic Calendar</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Explore Long-Term Bullish Setups & COT</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="mt-8 pt-4 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={() => {
+                if (onContinueDemo) onContinueDemo();
+                if (onClose) onClose();
+              }}
+              className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer"
+            >
+              <CheckCircle2 className="w-4 h-4 text-slate-950" />
+              <span>ACTIVATE FREE TIER</span>
+            </button>
+          </div>
+        </div>
+
         {/* Tier 1: Standard Access */}
         <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
           <div>

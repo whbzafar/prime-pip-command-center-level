@@ -205,9 +205,10 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         }
 
         setTimeout(() => {
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
           setShowCongratulations(false);
           proceedAfterAuth(result.user!, result.token);
-        }, 2200);
+        }, 600);
       } else {
         setError(result.error || 'Invalid credentials. Please verify your username and password.');
       }
@@ -218,18 +219,9 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   };
 
   const proceedAfterAuth = (user: UserAccount, token?: string) => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     googleDriveService.setCurrentUserId(user.id);
-    const alreadyPrompted = googleDriveService.hasPromptedInitialLink(user.id);
-    const alreadyConnected = googleDriveService.isConnected();
-
-    // Option to link account appears ONLY during initial login without prompting repeatedly afterward
-    if (!alreadyPrompted && !alreadyConnected) {
-      setPendingUser(user);
-      setPendingToken(token || null);
-      setStep('LINK_STORAGE');
-      return;
-    }
-
+    // Directly transition to account onboarding so the user immediately sees the account options
     onLoginSuccess(user, token, { isCentAccount: accountUnit === 'CENT' });
   };
 
@@ -245,6 +237,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         setDriveLinkSuccess(true);
         triggerBurst();
         setTimeout(() => {
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
           onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountUnit === 'CENT' });
         }, 800);
       } else {
@@ -261,6 +254,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
     if (pendingUser) {
       // Mark as prompted so user is never prompted repeatedly on subsequent logins
       googleDriveService.setPromptedInitialLink(pendingUser.id, true);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountUnit === 'CENT' });
     }
   };

@@ -56,6 +56,7 @@ import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
 
 const ALLOWED_DEMO_CATEGORIES: string[] = [
   'DASHBOARD',
+  'PRE_TRADE_PLAN',
   'SBT_MODELS',
   'JOURNAL',
   'RISK',
@@ -501,6 +502,8 @@ export default function App() {
 
   const handleAuthenticatedUser = useCallback(
     async (user: UserAccount, token?: string, options?: { isCentAccount?: boolean }) => {
+      // Immediately scroll to the very top so the account setup screen is visibly framed
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       setCurrentUser(user);
       setIsDemoMode(false);
       try {
@@ -543,7 +546,7 @@ export default function App() {
       } else {
         const loadedAccounts = await getAllAccounts();
         if (loadedAccounts.length === 0) {
-          setIsCreateAccountWizardOpen(true);
+          setIsCreateAccountWizardOpen(false); // Let AccountOnboardingModal handle the primary creation screen directly
         }
       }
     },
@@ -1108,12 +1111,10 @@ export default function App() {
   // If no account exists yet, force Onboarding Screen unless in demo mode
   if (!activeAccount || accounts.length === 0) {
     return (
-      <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col items-center justify-center p-4">
-        <AccountOnboardingModal
-          onAccountCreated={handleAccountCreated}
-          onExploreDemo={handleEnterDemoMode}
-        />
-      </div>
+      <AccountOnboardingModal
+        onAccountCreated={handleAccountCreated}
+        onExploreDemo={handleEnterDemoMode}
+      />
     );
   }
 
@@ -1450,19 +1451,7 @@ export default function App() {
               onUpdateAccount={handleUpdateAccount}
               onNavigateToJournal={() => handleSelectTab('JOURNAL')}
               onRequireSubscription={() => {
-                setLockedCategoryModal({
-                  id: 'FUNDAMENTAL_INDICATORS',
-                  name: 'Fundamental Pairs (Premium Pairing Feature)',
-                  shortDesc: '🔒 Locked in Demo Mode — Subscription Required ($55 or Free via Referrals)',
-                  overview:
-                    'The Fundamental Pair option (28-Pair Bullish & Bearish Differential Matrix & Multi-Asset Pairing Engine) inside Premium TradingView is restricted to subscribed members. Subscribe for $55 — OR get the Course & Terminal 100% FREE if you refer 5 students to the course or if 2 students purchase it!',
-                  keyFeatures: [
-                    'Live 28-Pair Long-Term Bullish & Bearish Differential Matrix',
-                    'Real-Time Central Bank Rate Spread & 10Y Bond Yield Differentials',
-                    'Multi-Asset Fundamental Status (Indices, Top Stocks & Top 5 Crypto)',
-                    'One-click chart loading for highest-probability fundamental pairs',
-                  ],
-                });
+                setIsSubscriptionModalOpen(true);
               }}
             />
           </TabErrorBoundary>

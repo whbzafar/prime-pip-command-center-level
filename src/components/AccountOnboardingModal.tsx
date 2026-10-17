@@ -25,9 +25,30 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
   const [sendNotes, setSendNotes] = useState('');
   const [sendSuccess, setSendSuccess] = useState(false);
 
-  const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto animate-in fade-in">
-      <div className="w-full max-w-4xl my-auto space-y-4">
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (typeof document !== 'undefined') {
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+    }
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 0;
+    }
+    const timer = setTimeout(() => {
+      window.scrollTo(0, 0);
+      if (containerRef.current) containerRef.current.scrollTop = 0;
+    }, 40);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full min-h-screen min-h-[100dvh] bg-[#030712] text-slate-100 flex flex-col items-center justify-start p-3 sm:p-6 pt-3 sm:pt-5 overflow-y-auto selection:bg-cyan-500/30 selection:text-cyan-200 relative"
+    >
+      <div className="w-full max-w-4xl space-y-4 pb-12">
         {/* Master Create Account Wizard */}
         <CreateAccountWizard
           onAccountCreated={onAccountCreated}
