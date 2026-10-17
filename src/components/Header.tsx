@@ -51,6 +51,7 @@ import {
   Minus,
   Bookmark,
   CandlestickChart,
+  PlayCircle,
   Sliders,
 } from 'lucide-react';
 import { BrightnessController } from './BrightnessController';
@@ -96,6 +97,8 @@ export type MainNavTab =
   | 'SITUATION_SAVER'
   | 'PAIR_SAVER'
   | 'PRO_TRADING'
+  | 'BACKTEST_REPLAY'
+  | 'CHART_ANALYSIS'
   | 'META5_PREMIUM';
 
 interface HeaderProps {
@@ -413,7 +416,9 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'FUNDAMENTAL_INDICATORS' as MainNavTab, label: '08. FUNDAMENTAL INDICATORS', icon: Globe, highlight: true },
     { id: 'SIGNALS' as MainNavTab, label: '09. PREMIUM SIGNALS', icon: Radio, highlight: true, comingSoon: false, locked: false, isLive: true },
     { id: 'PRO_TRADING' as MainNavTab, label: '10. PREMIUM TRADINGVIEW', icon: CandlestickChart, highlight: true },
-    { id: 'META5_PREMIUM' as MainNavTab, label: '11. META 5', icon: Smartphone, highlight: false, locked: true, comingSoon: false },
+    { id: 'BACKTEST_REPLAY' as MainNavTab, label: '11. BACKTESTING REPLAY PRO', icon: PlayCircle, highlight: true },
+    { id: 'CHART_ANALYSIS' as MainNavTab, label: '12. UNLIMITED CHART ANALYSIS', icon: Activity, highlight: true },
+    { id: 'META5_PREMIUM' as MainNavTab, label: '13. META 5', icon: Smartphone, highlight: false, locked: true, comingSoon: false },
     { id: 'COMPOUNDING' as MainNavTab, label: '12. COMPOUNDING TOOLS', icon: Calculator },
     { id: 'PERFORMANCE' as MainNavTab, label: '11. PERFORMANCE REPORT', icon: BarChart3 },
     { id: 'DAILY_DEV' as MainNavTab, label: '12. DAILY DEVELOPMENT', icon: Award },

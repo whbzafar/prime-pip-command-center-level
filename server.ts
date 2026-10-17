@@ -183,6 +183,8 @@ import { cotRouter, verifyCftcDatasetAtBoot } from "./server/cotService.js";
 import newsCalendarRouter from "./server/routes/newsCalendarRoutes.js";
 import { sentimentRouter } from "./server/routes/sentimentRoutes.js";
 import { sentimentService } from "./server/sentiment/sentimentService.js";
+import { backtestRouter } from "./server/backtestReplayService.js";
+import { chartAnalysisRouter } from "./server/chartAnalysisService.js";
 
 dotenv.config();
 
@@ -6706,6 +6708,12 @@ app.use('/api', newsCalendarRouter);
 
 // Retail Positioning Sentiment Engine Routes
 app.use('/api/sentiment', sentimentRouter);
+
+// Backtesting Replay Pro Data Service Routes (Dukascopy & Binance historical feeds)
+app.use('/api/backtest', backtestRouter);
+
+// Unlimited Chart Analysis Data Service Routes (Twelve Data / OANDA / Binance)
+app.use('/api/charts', chartAnalysisRouter);
 
 // Initialize background sentiment polling
 sentimentService.init();

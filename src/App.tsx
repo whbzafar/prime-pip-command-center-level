@@ -53,6 +53,8 @@ import { SetupWizard } from './components/SetupWizard';
 import { CommunityReviewsModal } from './components/CommunityReviewsModal';
 import { PostTradeImpactSummary } from './types';
 import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
+import { BacktestingReplayPro } from './components/backtest/BacktestingReplayPro';
+import { UnlimitedChartAnalysis } from './components/chartAnalysis/UnlimitedChartAnalysis';
 
 const ALLOWED_DEMO_CATEGORIES: string[] = [
   'DASHBOARD',
@@ -62,6 +64,8 @@ const ALLOWED_DEMO_CATEGORIES: string[] = [
   'RISK',
   'LOT_SIZE',
   'PRO_TRADING',
+  'BACKTEST_REPLAY',
+  'CHART_ANALYSIS',
   'COMPOUNDING',
   'BACKTESTING',
   'FREEHAND_WORKSPACE',
@@ -1453,6 +1457,29 @@ export default function App() {
               onRequireSubscription={() => {
                 setIsSubscriptionModalOpen(true);
               }}
+            />
+          </TabErrorBoundary>
+        )}
+
+        {activeTab === 'BACKTEST_REPLAY' && (
+          <TabErrorBoundary tabName="Backtesting Replay Pro">
+            <BacktestingReplayPro
+              activeAccount={activeAccount}
+              onAutoLogTrade={handleAutoLogMeta5Trade}
+              onNavigateToJournal={() => handleSelectTab('JOURNAL')}
+            />
+          </TabErrorBoundary>
+        )}
+
+        {activeTab === 'CHART_ANALYSIS' && (
+          <TabErrorBoundary tabName="Unlimited Chart Analysis">
+            <UnlimitedChartAnalysis
+              activeAccount={activeAccount}
+              onOpenNewTrade={(prefill) => {
+                if (prefill) setPrefilledTradeData(prefill);
+                setIsEntryModalOpen(true);
+              }}
+              onNavigateToTab={(tab) => handleSelectTab(tab as any)}
             />
           </TabErrorBoundary>
         )}

@@ -30,6 +30,7 @@ import {
   Clock,
   Bookmark,
   CandlestickChart,
+  PlayCircle,
   Smartphone,
 } from 'lucide-react';
 import { MainNavTab } from './Header';
@@ -146,6 +147,26 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
     desc: 'Full TradingView charting terminal with real-time multi-asset quotes, broker selection, indicators, candle countdowns, and collaborative chart sharing.',
     section: 'Intelligence & Setups',
     icon: CandlestickChart,
+    highlight: true,
+  },
+  {
+    id: 'BACKTEST_REPLAY',
+    num: '11',
+    label: 'Backtesting Replay',
+    name: 'Backtesting Replay Pro',
+    desc: 'Candle-by-candle market replay video player with simulated orders, Dukascopy Forex & Binance Crypto feeds, and journal auto-logging.',
+    section: 'Intelligence & Setups',
+    icon: PlayCircle,
+    highlight: true,
+  },
+  {
+    id: 'CHART_ANALYSIS',
+    num: '12',
+    label: 'Chart Analysis',
+    name: 'Unlimited Chart Analysis',
+    desc: 'Unrestricted live full-featured price charts for all Forex & Crypto pairs with technical indicators and sub-second streaming.',
+    section: 'Intelligence & Setups',
+    icon: Activity,
     highlight: true,
   },
   {

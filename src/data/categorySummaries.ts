@@ -118,6 +118,33 @@ export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
     overview: 'Full-featured TradingView terminal with real-time multi-asset quotes, broker selection, indicators, candle countdowns, and collaborative chart sharing.',
     keyFeatures: ['Full Drawing Suite', 'Candle Close Countdown', 'Fundamental Pairs tab', 'Auto-Save & Sharing'],
   },
+  BACKTEST_REPLAY: {
+    id: 'BACKTEST_REPLAY',
+    name: '11. Backtesting Replay Pro',
+    shortDesc: 'Candle-by-candle market replay video player with simulated orders and auto journal logging.',
+    overview: 'High-precision strategy backtesting terminal powered by Dukascopy Forex feeds and Binance Crypto feeds. Replay historical price action candle-by-candle with zero look-ahead bias, place simulated market and pending orders, and automatically sync completed trades into your journal.',
+    keyFeatures: [
+      'Candle-by-candle video player playback (Play, Pause, Step, Speed 1x-10x)',
+      'Real historical data from Dukascopy (Forex) and Binance (Crypto)',
+      'Local IndexedDB and server-side disk caching for zero repeat lag',
+      'Automated position sizing using active account risk management',
+      'Automatic sync to Trade Journal with Backtest tag',
+    ],
+  },
+  CHART_ANALYSIS: {
+    id: 'CHART_ANALYSIS',
+    name: '12. Unlimited Chart Analysis',
+    shortDesc: 'Unrestricted live full-featured price charts for all Forex & Crypto pairs.',
+    overview: 'Clean, unthrottled live technical analysis workspace powered by Twelve Data / OANDA Forex feeds and Binance Crypto sub-second WebSocket feeds. View, analyze, and monitor any currency or crypto pair with technical indicators, drawing tools, and instant switching cache with no session caps or paywalls.',
+    keyFeatures: [
+      'Unrestricted charting with no pair limits, duration caps, or paywall gates',
+      'Live crypto sub-second WebSocket streaming via Binance',
+      'Forex free-tier live feed via Twelve Data / OANDA with smart rate throttling',
+      'In-memory & client caching for 0ms latency when switching between active pairs',
+      'Full technical indicator suite (EMA 20/50/200, Bollinger Bands, RSI, MACD, Volume)',
+      '1-click integration with Pre-Trade Plan, Lot Size Calculator, and Trade Journal',
+    ],
+  },
   COMPOUNDING: {
     id: 'COMPOUNDING',
     name: '11. Compounding Engine',

@@ -43,7 +43,7 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
-  return (
+  const modalContent = (
     <div
       ref={containerRef}
       className="w-full min-h-screen min-h-[100dvh] bg-[#030712] text-slate-100 flex flex-col items-center justify-start p-3 sm:p-6 pt-3 sm:pt-5 overflow-y-auto selection:bg-cyan-500/30 selection:text-cyan-200 relative"
