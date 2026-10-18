@@ -250,15 +250,15 @@ const BASELINE_PRICES: Record<string, InstrumentMeta> = {
 };
 
 export function parseSymbolAndBroker(input: string, fallbackBroker?: string): { symbol: string; broker: string } {
-  if (!input) return { symbol: 'EURUSD', broker: 'FXCM' };
+  if (!input) return { symbol: 'EURUSD', broker: 'FX' };
   let raw = input.trim();
-  let detectedBroker = fallbackBroker || 'FXCM';
-  if (detectedBroker.toUpperCase() === 'FCM') detectedBroker = 'FXCM';
+  let detectedBroker = fallbackBroker || 'FX';
+  if (detectedBroker.toUpperCase() === 'FCM' || detectedBroker.toUpperCase() === 'FXCM') detectedBroker = 'FX';
 
   if (raw.includes(':')) {
     const parts = raw.split(':');
     detectedBroker = parts[0].toUpperCase();
-    if (detectedBroker === 'FCM') detectedBroker = 'FXCM';
+    if (detectedBroker === 'FCM' || detectedBroker === 'FXCM') detectedBroker = 'FX';
     raw = parts[1] || '';
   } else if (raw.includes('/')) {
     raw = raw.replace('/', '');
@@ -268,7 +268,7 @@ export function parseSymbolAndBroker(input: string, fallbackBroker?: string): { 
   const KNOWN_PREFIXES = ['CAPITALCOM', 'PEPPERSTONE', 'BLACKBULL', 'FOREXCOM', 'BINANCE', 'NASDAQ', 'OANDA', 'FXCM', 'FCM', 'TVC', 'FX'];
   for (const p of KNOWN_PREFIXES) {
     if (raw.toUpperCase().startsWith(p) && raw.length > p.length + 2) {
-      detectedBroker = p === 'FCM' ? 'FXCM' : p;
+      detectedBroker = (p === 'FCM' || p === 'FXCM') ? 'FX' : p;
       raw = raw.substring(p.length);
       break;
     }
@@ -940,11 +940,11 @@ export const CANONICAL_28_FUNDAMENTALS: Record<string, CanonicalFundamentalRecor
 export function resolveTradingViewSymbol(symbol: string, broker?: string): string {
   const parsed = parseSymbolAndBroker(symbol, broker);
   const clean = parsed.symbol;
-  let requestedBroker = (broker || parsed.broker || 'FXCM').toUpperCase();
-  if (requestedBroker === 'FCM') requestedBroker = 'FXCM';
-  if (!clean) return 'FXCM:EURUSD';
+  let requestedBroker = (broker || parsed.broker || 'FX').toUpperCase();
+  if (requestedBroker === 'FCM' || requestedBroker === 'FXCM') requestedBroker = 'FX';
+  if (!clean) return 'FX:EURUSD';
 
-  // 1. All 28 Canonical Currency Pairs (100% verified available on FXCM & OANDA)
+  // 1. All 28 Canonical Currency Pairs (100% verified active on TradingView FX / OANDA feeds)
   const CANONICAL_28 = new Set([
     'EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'USDCHF', 'NZDUSD',
     'EURGBP', 'GBPJPY', 'EURJPY', 'AUDJPY', 'CADJPY', 'CHFJPY', 'NZDJPY',
@@ -953,11 +953,10 @@ export function resolveTradingViewSymbol(symbol: string, broker?: string): strin
   ]);
 
   if (CANONICAL_28.has(clean)) {
-    if (requestedBroker === 'FXCM' || requestedBroker === 'FCM') return `FXCM:${clean}`;
     if (requestedBroker === 'OANDA') return `OANDA:${clean}`;
     if (requestedBroker === 'CAPITALCOM') return `CAPITALCOM:${clean}`;
     if (requestedBroker === 'FOREXCOM') return `FOREXCOM:${clean}`;
-    return `FXCM:${clean}`;
+    return `FX:${clean}`;
   }
 
   // 2. Metals & Commodities (Verified working TradingView symbols)
@@ -1024,17 +1023,17 @@ export function resolveTradingViewSymbol(symbol: string, broker?: string): strin
     if (requestedBroker === 'OANDA') return `OANDA:${clean}`;
     if (requestedBroker === 'CAPITALCOM') return `CAPITALCOM:${clean}`;
     if (requestedBroker === 'FOREXCOM') return `FOREXCOM:${clean}`;
-    return `FXCM:${clean}`;
+    return `FX:${clean}`;
   }
 
-  return requestedBroker ? `${requestedBroker}:${clean}` : `FXCM:${clean}`;
+  return requestedBroker && requestedBroker !== 'FXCM' && requestedBroker !== 'FCM' ? `${requestedBroker}:${clean}` : `FX:${clean}`;
 }
 
 // ============================================================================
 // BROKERS & CATEGORIES (Forex, Indices, Metals, Cryptos, Stocks, Fundamentals)
 // ============================================================================
 export const BROKERS = [
-  { id: 'fxcm', label: 'FXCM / FCM (Direct Institutional Feed)', prefix: 'FXCM' },
+  { id: 'fx', label: 'FX (TradingView Official Direct Feed)', prefix: 'FX' },
   { id: 'oanda', label: 'OANDA (Institutional Raw)', prefix: 'OANDA' },
   { id: 'capitalcom', label: 'CAPITALCOM (Zero Spread Multi-Asset)', prefix: 'CAPITALCOM' },
   { id: 'forexcom', label: 'FOREX.COM (Global ECN Feed)', prefix: 'FOREXCOM' },
@@ -1047,7 +1046,7 @@ export const WATCHLIST_CATEGORIES = [
   {
     id: 'FOREX',
     name: 'Forex (28 Pairs)',
-    defaultBroker: 'FXCM',
+    defaultBroker: 'FX',
     symbols: [
       { symbol: 'EURUSD', label: 'EUR/USD' },
       { symbol: 'GBPUSD', label: 'GBP/USD' },
@@ -1131,7 +1130,7 @@ export const WATCHLIST_CATEGORIES = [
   {
     id: 'FUNDAMENTALS',
     name: '⚡ Fundamentals',
-    defaultBroker: 'FXCM',
+    defaultBroker: 'FX',
     symbols: [
       // All 28 Currency Pairs
       { symbol: 'EURUSD', label: 'EUR/USD' },
@@ -1353,10 +1352,12 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     return defaultSymbol;
   });
 
-  // Default to FXCM as requested
+  // Default to FX official direct feed
   const [selectedBroker, setSelectedBroker] = useState<string>(() => {
-    if (savedFullState?.broker) return savedFullState.broker;
-    return 'FXCM';
+    if (savedFullState?.broker && savedFullState.broker !== 'FXCM' && savedFullState.broker !== 'FCM') {
+      return savedFullState.broker;
+    }
+    return 'FX';
   });
 
   const [selectedInterval, setSelectedInterval] = useState<string>(() => {
@@ -1450,7 +1451,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const [manualSlPrice, setManualSlPrice] = useState<string>('');
   const [manualTpPrice, setManualTpPrice] = useState<string>('');
   const [isManualPriceMode, setIsManualPriceMode] = useState<boolean>(false);
-  const [showProjectionLines, setShowProjectionLines] = useState<boolean>(true);
+  const [showProjectionLines, setShowProjectionLines] = useState<boolean>(false);
   const [orderToast, setOrderToast] = useState<{ message: string; trade?: DemoPosition; isSuccess?: boolean } | null>(null);
 
   // Draggable Projection Lines State (Tracks entry, TP, and SL lines)
@@ -1492,6 +1493,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     setTpLinePrice(Number((curPrice + 50 * meta.pipSize).toFixed(meta.pipDecimals)));
     setProjectionSpanPips(140);
     setIsCustomProjection(false);
+    // Projection lines strictly remain hidden until explicitly clicked
+    setShowProjectionLines(false);
   }, [selectedSymbol]);
 
   // Pointer / mouse / touch drag listener on window for ultra-smooth continuous line movement
@@ -2681,9 +2684,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         targetBroker = 'OANDA';
       }
     } else {
-      // 28 currency pairs: support FXCM, OANDA, CAPITALCOM, FOREXCOM
-      if (!['FXCM', 'OANDA', 'CAPITALCOM', 'FOREXCOM'].includes(targetBroker)) {
-        targetBroker = 'FXCM';
+      // 28 currency pairs: support FX, OANDA, CAPITALCOM, FOREXCOM (FX is TradingView official direct feed)
+      if (targetBroker === 'FXCM' || targetBroker === 'FCM' || !['FX', 'OANDA', 'CAPITALCOM', 'FOREXCOM'].includes(targetBroker)) {
+        targetBroker = 'FX';
       }
     }
 

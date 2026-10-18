@@ -118,6 +118,21 @@ export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
     overview: 'Full-featured TradingView terminal with real-time multi-asset quotes, broker selection, indicators, candle countdowns, and collaborative chart sharing.',
     keyFeatures: ['Full Drawing Suite', 'Candle Close Countdown', 'Fundamental Pairs tab', 'Auto-Save & Sharing'],
   },
+  BACKTESTING: {
+    id: 'BACKTESTING',
+    name: '11. Backtesting',
+    shortDesc: 'TradingView candlestick charting, drawing tools, indicators, bar-by-bar replay, and multi-source historical feeds.',
+    overview: 'Full-featured TradingView-style Backtesting module with candlestick charts, complete drawing tools toolbar, core indicators (SMA/EMA, RSI, MACD, Bollinger Bands, Stochastic, Volume), bar-by-bar historical replay, paper trade execution, and an automated data layer spanning Twelve Data, Dukascopy, Yahoo Finance, and Binance.',
+    keyFeatures: [
+      'Interactive TradingView lightweight-charts with green/red candlestick styling',
+      'Complete drawing suite: Trendlines, Horizontal S/R, Fibonacci Retracements, Rectangles, Long/Short Position tools',
+      'Core technical indicators: Moving Averages (SMA/EMA), RSI, MACD, Bollinger Bands, Stochastic, Volume',
+      'Multi-source data layer: Twelve Data API, Dukascopy historical feed, Yahoo Finance, and Binance',
+      'Intelligent local disk caching for zero repeat network requests',
+      'Bar-by-bar replay with Jump to Bar, Play/Pause, Step Forward/Back, and adjustable speeds',
+      'Paper trading simulator with market Buy/Sell, SL/TP risk lines, and 1-click log to Trade Journal',
+    ],
+  },
   BACKTEST_REPLAY: {
     id: 'BACKTEST_REPLAY',
     name: '11. Backtesting Replay Pro',

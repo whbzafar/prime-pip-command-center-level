@@ -54,6 +54,7 @@ import { CommunityReviewsModal } from './components/CommunityReviewsModal';
 import { PostTradeImpactSummary } from './types';
 import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
 import { BacktestingReplayPro } from './components/backtest/BacktestingReplayPro';
+import { BacktestingSuite } from './components/backtest/BacktestingSuite';
 import { UnlimitedChartAnalysis } from './components/chartAnalysis/UnlimitedChartAnalysis';
 
 const ALLOWED_DEMO_CATEGORIES: string[] = [
@@ -1461,9 +1462,9 @@ export default function App() {
           </TabErrorBoundary>
         )}
 
-        {activeTab === 'BACKTEST_REPLAY' && (
-          <TabErrorBoundary tabName="Backtesting Replay Pro">
-            <BacktestingReplayPro
+        {(activeTab === 'BACKTESTING' || activeTab === 'BACKTEST_REPLAY') && (
+          <TabErrorBoundary tabName="Backtesting">
+            <BacktestingSuite
               activeAccount={activeAccount}
               onAutoLogTrade={handleAutoLogMeta5Trade}
               onNavigateToJournal={() => handleSelectTab('JOURNAL')}
@@ -1492,7 +1493,7 @@ export default function App() {
           />
         )}
 
-        {(activeTab === 'DAILY_DEV' || activeTab === 'IMPROVEMENT' || activeTab === 'BACKTESTING') && (
+        {(activeTab === 'DAILY_DEV' || activeTab === 'IMPROVEMENT') && (
           <PersonalImprovementHub
             account={activeAccount}
             trades={trades}

@@ -98,6 +98,7 @@ export type MainNavTab =
   | 'PAIR_SAVER'
   | 'PRO_TRADING'
   | 'BACKTEST_REPLAY'
+  | 'BACKTESTING'
   | 'CHART_ANALYSIS'
   | 'META5_PREMIUM';
 
@@ -416,7 +417,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'FUNDAMENTAL_INDICATORS' as MainNavTab, label: '08. FUNDAMENTAL INDICATORS', icon: Globe, highlight: true },
     { id: 'SIGNALS' as MainNavTab, label: '09. PREMIUM SIGNALS', icon: Radio, highlight: true, comingSoon: false, locked: false, isLive: true },
     { id: 'PRO_TRADING' as MainNavTab, label: '10. PREMIUM TRADINGVIEW', icon: CandlestickChart, highlight: true },
-    { id: 'BACKTEST_REPLAY' as MainNavTab, label: '11. BACKTESTING REPLAY PRO', icon: PlayCircle, highlight: true },
+    { id: 'BACKTESTING' as MainNavTab, label: '11. BACKTESTING', icon: PlayCircle, highlight: true },
     { id: 'CHART_ANALYSIS' as MainNavTab, label: '12. UNLIMITED CHART ANALYSIS', icon: Activity, highlight: true },
     { id: 'META5_PREMIUM' as MainNavTab, label: '13. META 5', icon: Smartphone, highlight: false, locked: true, comingSoon: false },
     { id: 'COMPOUNDING' as MainNavTab, label: '12. COMPOUNDING TOOLS', icon: Calculator },
