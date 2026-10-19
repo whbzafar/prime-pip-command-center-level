@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Shield } from 'lucide-react';
 import { AccountSettings } from '../types';
 import { CreateAccountWizard } from './account/CreateAccountWizard';
@@ -196,7 +195,5 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
     </div>
   );
 
-  return typeof document !== 'undefined'
-    ? createPortal(modalContent, document.body)
-    : null;
+  return modalContent;
 };

@@ -43,6 +43,42 @@ export interface VerifiedFundedPreset {
 }
 
 export const VERIFIED_FUNDED_PRESETS: VerifiedFundedPreset[] = [
+  // 0. Custom 2-Step $100,000 Evaluation Profile (Draft Default)
+  {
+    id: 'custom_100k_2step_evaluation',
+    firmName: 'Custom Evaluation',
+    accountProduct: 'Custom 2-Step Evaluation ($100,000 Draft Profile)',
+    challengeType: '2-Step Evaluation',
+    accountSize: 100000,
+    currency: 'USD',
+    phases: ['PHASE_1', 'PHASE_2', 'FUNDED_LIVE'],
+    phase1TargetPct: 10,
+    phase2TargetPct: 5,
+    dailyDrawdownPct: 5,
+    dailyDrawdownCalculation: 'EQUITY_BASED',
+    overallDrawdownPct: 10,
+    drawdownType: 'STATIC',
+    trailingBasis: 'EQUITY',
+    unrealizedProfitAffectsTrailing: false,
+    lockAtStartingBalance: false,
+    dailyResetTime: '00:00 Europe/Prague',
+    timezone: 'Europe/Prague',
+    minimumTradingDays: 4,
+    newsRestriction: false,
+    weekendHoldingRestriction: false,
+    consistencyRule: 'None',
+    officialSourceUrl: 'Draft Custom Evaluation Profile',
+    lastVerificationDate: '2026-10-18',
+    effectiveDate: '2026-10-18',
+    ruleProfileVersion: 'CUSTOM-DRAFT-2026-v1.0',
+    calculationMethodology:
+      'Daily loss limit (5%) calculated on equity basis resetting at 00:00 Europe/Prague. Maximum overall loss (10%) is static from initial $100,000 capital. Phase 1 profit target is 10%, Phase 2 profit target is 5%, minimum qualifying trading days 4 per phase, and Prime Pip FX safety buffer is 20% of remaining loss allowance. These parameters are draft settings, not official rules of any proprietary trading firm.',
+    knownLimitations: [
+      'Draft settings: Not official rules of any proprietary trading firm.',
+      'Daily reset at 00:00 Europe/Prague.',
+    ],
+    verificationStatus: 'UNVERIFIED',
+  },
   // 1. FTMO Standard (2-Step)
   {
     id: 'ftmo_10k_standard',

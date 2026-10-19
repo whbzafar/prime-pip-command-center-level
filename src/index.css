@@ -723,6 +723,12 @@ html[data-theme='arc-neon'] {
      for position:fixed overlays and make the Theme Studio appear off-screen. */
 }
 
+#root:empty {
+  min-height: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
 html {
   scroll-behavior: smooth;
   overflow-x: clip;

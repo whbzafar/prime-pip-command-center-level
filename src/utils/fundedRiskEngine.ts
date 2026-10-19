@@ -234,19 +234,19 @@ export const PROP_FIRM_PRESETS: PropFirmPreset[] = [
 ];
 
 export function createDefaultFundedConfig(
-  startingBalance = 5000,
-  firmName = 'My Prop Firm',
+  startingBalance = 100000,
+  firmName = 'Custom Evaluation',
   phase: FundedPhase = 'PHASE_1'
 ): FundedAccountConfig {
-  const safeStart = Math.max(100, safeNumber(startingBalance, 5000));
+  const safeStart = Math.max(100, safeNumber(startingBalance, 100000));
   const phase1TargetPct = 10;
   const phase2TargetPct = 5;
-  const dailyDdPct = 4; // $200 on $5,000
-  const overallDdPct = 10; // $500 on $5,000
+  const dailyDdPct = 5; // $5,000 on $100,000 (5%)
+  const overallDdPct = 10; // $10,000 on $100,000 (10%)
 
   return {
     enabled: true,
-    firmName: firmName || 'My Prop Firm',
+    firmName: firmName || 'Custom Evaluation',
     accountName: `${firmName || 'Prop'} $${Math.round(safeStart / 1000)}K`,
     accountSize: safeStart,
     phase,
@@ -266,10 +266,10 @@ export function createDefaultFundedConfig(
     overallDrawdownPercent: overallDdPct,
     drawdownType: 'STATIC',
     trailingConfig: {
-      trailingBasis: 'BALANCE',
+      trailingBasis: 'EQUITY',
       activationLevelProfitDollars: 0,
       unrealizedProfitAffectsTrailing: false,
-      lockAtStartingBalance: true,
+      lockAtStartingBalance: false,
       customLockBalanceLevel: null,
       manualHighWaterMark: null,
     },
@@ -281,8 +281,8 @@ export function createDefaultFundedConfig(
     maxConsecutiveLossesThreshold: 3,
     newsRestriction: false,
     weekendHoldingRestriction: false,
-    minimumTradingDays: 5,
-    dailyResetTime: 'PKT / 00:00',
+    minimumTradingDays: 4,
+    dailyResetTime: '00:00 Europe/Prague',
     todayStartingBalanceOverride: null,
     todayStartingEquityOverride: null,
     openFloatingPnL: 0,
@@ -2040,9 +2040,10 @@ export function evaluateTradeRiskDeterministic(
       ? Number((stopDistancePrice / spec.pipSize).toFixed(1))
       : 0;
 
-  // Stale / unverified rule check
+  const ruleWarnings: string[] = [];
+  // Informative draft notice for custom unverified accounts (does not block calculation)
   if (account.accountCategory === 'FUNDED' && account.ruleVerificationStatus === 'UNVERIFIED') {
-    missingOrStaleInputs.push('Prop firm rules are marked Unverified. Review official rules documentation before trading.');
+    ruleWarnings.push('Custom draft settings: These parameters are draft settings, not official rules of any proprietary trading firm.');
   }
 
   if (missingOrStaleInputs.length > 0) {
@@ -2056,7 +2057,7 @@ export function evaluateTradeRiskDeterministic(
       overallLossCapacityRemaining: 0,
       personalLimitsRemaining: 0,
       safetyBuffer: config.safetyBufferPercent || 20,
-      exactReason: `Calculation cannot proceed with unverified or missing inputs: ${missingOrStaleInputs.join(' ')}`,
+      exactReason: `Calculation cannot proceed with incomplete trade parameters: ${missingOrStaleInputs.join(' ')}`,
       missingOrStaleInputs,
       nextAction: 'Verify and supply required trade entry inputs (symbol, entry price, stop-loss price, and valid balance).',
       ruleProfileVersion,
@@ -2073,7 +2074,7 @@ export function evaluateTradeRiskDeterministic(
       potentialProfitDollars: 0,
       riskRewardRatio: 0,
       isAllowed: false,
-      warnings: missingOrStaleInputs,
+      warnings: [...missingOrStaleInputs, ...ruleWarnings],
     };
   }
 
@@ -2147,11 +2148,21 @@ export function evaluateTradeRiskDeterministic(
     }
   }
 
-  const dailyRemainingAfterTrade = Number((dailyRes.remainingDailyDrawdown - proposedRisk).toFixed(2));
-  const overallRemainingAfterTrade = Number((overallRes.remainingOverallDrawdown - proposedRisk).toFixed(2));
+  const openTrades = trades.filter((t) => t.status === 'OPEN');
+  const existingOpenExposure = openTrades.reduce(
+    (acc, t) => acc + safeNumber(t.riskAmount, safeNumber(t.riskDollars, 0)),
+    0
+  );
+
+  const dailyRemainingAfterTrade = Number(
+    (dailyRes.remainingDailyDrawdown - proposedRisk - existingOpenExposure).toFixed(2)
+  );
+  const overallRemainingAfterTrade = Number(
+    (overallRes.remainingOverallDrawdown - proposedRisk - existingOpenExposure).toFixed(2)
+  );
 
   // 4. CHECK DECISION STATES: STOP, REDUCE, TAKE
-  const warnings: string[] = [];
+  const warnings: string[] = [...ruleWarnings];
 
   // STATE A: STOP
   // Account is breached, trading restricted, daily limit hit, or proposed risk breaks boundary
