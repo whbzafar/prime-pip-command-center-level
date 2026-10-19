@@ -40,7 +40,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onContinueDemo,
 }) => {
   const [step, setStep] = useState<'LOGIN' | 'CHANGE_PASSWORD' | 'LINK_STORAGE'>('LOGIN');
-  const [accountCurrencyType, setAccountCurrencyType] = useState<'STANDARD' | 'CENT'>('STANDARD');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -129,8 +128,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
-    if (onSuccess) onSuccess(user, token, { isCentAccount: accountCurrencyType === 'CENT' });
-    if (onLoginSuccess) onLoginSuccess(user, token, { isCentAccount: accountCurrencyType === 'CENT' });
+    if (onSuccess) onSuccess(user, token);
+    if (onLoginSuccess) onLoginSuccess(user, token);
     onClose();
   };
 
@@ -146,8 +145,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         setDriveLinkSuccess(true);
         triggerBurst();
         setTimeout(() => {
-          if (onSuccess) onSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountCurrencyType === 'CENT' });
-          if (onLoginSuccess) onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountCurrencyType === 'CENT' });
+          if (onSuccess) onSuccess(pendingUser, pendingToken || undefined);
+          if (onLoginSuccess) onLoginSuccess(pendingUser, pendingToken || undefined);
           onClose();
         }, 800);
       } else {
@@ -164,8 +163,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     if (pendingUser) {
       // Mark as prompted so never prompted again
       googleDriveService.setPromptedInitialLink(pendingUser.id, true);
-      if (onSuccess) onSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountCurrencyType === 'CENT' });
-      if (onLoginSuccess) onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountCurrencyType === 'CENT' });
+      if (onSuccess) onSuccess(pendingUser, pendingToken || undefined);
+      if (onLoginSuccess) onLoginSuccess(pendingUser, pendingToken || undefined);
       onClose();
     }
   };
@@ -462,44 +461,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </div>
               </div>
 
-              {/* Specific Function: ACCOUNT BASE CURRENCY / TYPE */}
-              <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800">
-                <div className="flex items-center justify-between mb-2 px-0.5">
-                  <span className="text-[11px] font-mono-code text-slate-300 font-bold uppercase tracking-wider">
-                    ACCOUNT BASE CURRENCY / TYPE
-                  </span>
-                  <span className="text-[11px] font-mono-code font-bold text-cyan-400">
-                    {accountCurrencyType === 'CENT' ? 'Cent Account (¢)' : 'Standard USD ($)'}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAccountCurrencyType('STANDARD')}
-                    className={`py-2 px-3 rounded-xl font-mono-code text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      accountCurrencyType === 'STANDARD'
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 border border-cyan-400'
-                        : 'bg-slate-950/80 hover:bg-slate-900 text-slate-400 border border-slate-800'
-                    }`}
-                  >
-                    <span>💵</span>
-                    <span>Standard ($)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAccountCurrencyType('CENT')}
-                    className={`py-2 px-3 rounded-xl font-mono-code text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      accountCurrencyType === 'CENT'
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 border border-cyan-400'
-                        : 'bg-slate-950/80 hover:bg-slate-900 text-slate-400 border border-slate-800'
-                    }`}
-                  >
-                    <span>🪙</span>
-                    <span>Cent Account (¢)</span>
-                  </button>
-                </div>
-              </div>
-
               {/* Persistent Session / Remember Me option */}
               <div className="flex items-center justify-between py-1 px-1">
                 <label className="flex items-center gap-2 text-xs font-mono-code text-slate-300 cursor-pointer select-none">
@@ -533,18 +494,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           {/* Demo Mode Button & Help */}
           <div className="mt-4 pt-4 border-t border-slate-800 flex flex-col gap-2.5 relative z-10">
             {step === 'LOGIN' && (
-              <button
-                type="button"
-                onClick={() => {
-                  triggerBurst();
-                  if (onContinueDemo) onContinueDemo({ isCentAccount: accountCurrencyType === 'CENT' });
-                  onClose();
-                }}
-                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-mono-code text-xs font-bold rounded-xl border border-slate-700 hover:border-cyan-500/40 transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                <span>EXPLORE IN DEMO / PREVIEW MODE</span>
-              </button>
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerBurst();
+                    if (onContinueDemo) onContinueDemo();
+                    onClose();
+                  }}
+                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-cyan-300 hover:text-white font-military text-xs font-bold rounded-xl border border-cyan-500/30 hover:border-cyan-400 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>EXPLORE IN DEMO / PREVIEW MODE</span>
+                </button>
+                <p className="text-[10px] text-center text-slate-400 font-mono-code">
+                  Instant Access: Pre-made trade plans, performance reports, live news calendar &amp; trading tool suite.
+                </p>
+              </div>
             )}
 
             {/* Need Access / WhatsApp */}

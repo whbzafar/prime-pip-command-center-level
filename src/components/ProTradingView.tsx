@@ -44,6 +44,7 @@ import {
   Info,
   Layers,
   Scale,
+  Lock,
 } from 'lucide-react';
 import { Trade, UserAccount, AccountSettings } from '../types';
 import {
@@ -1326,11 +1327,13 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   onOpenNewTrade,
   defaultSymbol = 'EURUSD',
   currentUser,
+  isDemoMode = false,
   activeAccount,
   trades = [],
   onAutoLogTradeToJournal,
   onUpdateAccount,
   onNavigateToJournal,
+  onRequireSubscription,
 }) => {
   // --------------------------------------------------------------------------
   // SAVED FULL STATE & PERSISTENCE
@@ -3119,6 +3122,10 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             <button
               type="button"
               onClick={() => {
+                if (isDemoMode) {
+                  if (onRequireSubscription) onRequireSubscription();
+                  return;
+                }
                 const fundIdx = WATCHLIST_CATEGORIES.findIndex((c) => c.id === 'FUNDAMENTALS');
                 if (fundIdx >= 0) setActiveCategoryIndex(fundIdx);
                 setShowFundamentalPanel(true);
@@ -3131,7 +3138,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   ? 'bg-rose-950/80 border-rose-500/60 text-rose-300 hover:bg-rose-900/80'
                   : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
               }`}
-              title={`Click to open full Fundamental Deep-Dive Modal for ${selectedSymbol}`}
+              title={isDemoMode ? 'Fundamental analysis is locked in preview mode. Click to subscribe.' : `Click to open full Fundamental Deep-Dive Modal for ${selectedSymbol}`}
             >
               <Compass className="w-4 h-4 text-cyan-400 shrink-0" />
               <span className="text-slate-400 hidden sm:inline">Fundamentals:</span>
@@ -3147,6 +3154,12 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               >
                 {activeInstrumentFundamental.score >= 0 ? `+${activeInstrumentFundamental.score}` : activeInstrumentFundamental.score}
               </span>
+              {isDemoMode && (
+                <span className="flex items-center gap-1 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
+                  <Lock className="w-2.5 h-2.5 text-amber-400" />
+                  LOCKED
+                </span>
+              )}
             </button>
 
             {/* TIME DISPLAY 1 OF 2 (Shifted upwards and to the side - No overlap!) */}
@@ -3175,23 +3188,39 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] font-mono-code">
               <span className="text-slate-500 uppercase font-bold mr-1 shrink-0">CATEGORIES:</span>
-              {WATCHLIST_CATEGORIES.map((cat, idx) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => handleSelectCategory(idx)}
-                  className={`px-3 py-1 rounded-xl border transition cursor-pointer shrink-0 font-bold flex items-center gap-1.5 ${
-                    activeCategoryIndex === idx
-                      ? 'bg-blue-600 text-white border-blue-400 shadow-md shadow-blue-500/20'
-                      : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-                  }`}
-                >
-                  <span>{cat.name}</span>
-                  <span className={`text-[9px] px-1 py-0.2 rounded font-normal ${activeCategoryIndex === idx ? 'bg-blue-800 text-blue-100' : 'bg-slate-900 text-slate-500'}`}>
-                    {cat.symbols.length}
-                  </span>
-                </button>
-              ))}
+              {WATCHLIST_CATEGORIES.map((cat, idx) => {
+                const isCatLocked = isDemoMode && cat.id === 'FUNDAMENTALS';
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      if (isCatLocked) {
+                        if (onRequireSubscription) onRequireSubscription();
+                        return;
+                      }
+                      handleSelectCategory(idx);
+                    }}
+                    className={`px-3 py-1 rounded-xl border transition cursor-pointer shrink-0 font-bold flex items-center gap-1.5 ${
+                      activeCategoryIndex === idx
+                        ? 'bg-blue-600 text-white border-blue-400 shadow-md shadow-blue-500/20'
+                        : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                    }`}
+                  >
+                    <span>{cat.name}</span>
+                    {isCatLocked ? (
+                      <span className="flex items-center gap-1 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
+                        <Lock className="w-2.5 h-2.5 text-amber-400" />
+                        LOCKED
+                      </span>
+                    ) : (
+                      <span className={`text-[9px] px-1 py-0.2 rounded font-normal ${activeCategoryIndex === idx ? 'bg-blue-800 text-blue-100' : 'bg-slate-900 text-slate-500'}`}>
+                        {cat.symbols.length}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Quick Symbol Search + Broker Selection Dropdown (with FXCM at top) */}

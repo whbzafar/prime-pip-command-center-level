@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { MainNavTab } from './Header';
 import { UserAccount } from '../types';
+import { isCategoryLockedInDemo } from '../data/categorySummaries';
 
 interface MobileBottomNavProps {
   activeTab: MainNavTab;
@@ -324,12 +325,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                           <span className="font-military font-bold text-xs tracking-wider">
                             {item.label}
                           </span>
-                          {(item.id === 'META5_PREMIUM' ||
-                            (isDemo &&
-                              (item.id === 'BACKTESTING' ||
-                                item.id === 'CHART_ANALYSIS' ||
-                                item.id === 'FUNDAMENTAL_CALENDAR' ||
-                                item.id === 'FUNDAMENTAL_INDICATORS'))) ? (
+                          {isCategoryLockedInDemo(item.id, isDemo) ? (
                             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
                               <Lock className="w-2.5 h-2.5 text-amber-400" />
                               <span>LOCKED</span>

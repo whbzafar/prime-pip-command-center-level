@@ -7,6 +7,35 @@ export interface CategorySummary {
   roleRequired?: string;
 }
 
+export const ALLOWED_DEMO_CATEGORIES: string[] = [
+  'DASHBOARD',            // 01. Dashboard
+  'JOURNAL',              // 02. Trade Journal (Trading Tool Suite)
+  'SBT_MODELS',           // 03. SBT Models (Trading Tool Suite)
+  'LOT_SIZE',             // 04. Lot Size Calculator (Trading Tool Suite)
+  'RISK',                 // 05. Risk Management Engine (Trading Tool Suite)
+  'PRE_TRADE_PLAN',       // 06. Pre-Trade Plan Gatekeeper (Pre-made trade plans)
+  'FUNDAMENTAL_CALENDAR', // 07. Live News Calendar (TradingView × Forex Factory — Unlocked per user request)
+  'PRO_TRADING',          // 10. Premium TradingView
+  'COMPOUNDING',          // 12. Compounding Engine (Trading Tool Suite)
+  'PERFORMANCE',          // 11. Performance Report (Performance reports)
+  'REPORTS',              // Performance reports
+  'CALMING_TOOLS',        // 14. Trading Tool Suite (Unlocked per user request: "keep it unlocked")
+  'RESEARCH',             // 15. Academic Research (Unlocked per user request: 'Academy Research')
+  'FREEHAND_WORKSPACE',   // 16. Freehand Canvas (Unlocked per user request: 'Free-hand Canvas')
+  'SITUATION_SAVER',      // 17. Situation Saver (Unlocked per user request: 'Situation Saver')
+  'PAIR_SAVER',           // 18. Pair Saver (Unlocked per user request: 'Peer Saver')
+  'PRO_LEARNING',         // 19. Pro Learning / Academy (Unlocked per user request: 'Pro Learning Trading')
+  'BOOK_SESSION',         // 21. Book a Session (Unlocked per user request: 'the book section')
+  'SETTINGS',             // 22. Data Export & Backup (Unlocked per user request: 'Data Export/Backup')
+  'SETUP',                // 00. Account Setup Wizard
+];
+
+export const isCategoryLockedInDemo = (categoryId: string, isDemoMode: boolean = false): boolean => {
+  if (categoryId === 'META5_PREMIUM') return true; // MetaTrader terminal requires broker subscription
+  if (!isDemoMode) return false;
+  return !ALLOWED_DEMO_CATEGORIES.includes(categoryId);
+};
+
 export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
   DASHBOARD: {
     id: 'DASHBOARD',

@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { MainNavTab } from './Header';
 import { UserAccount } from '../types';
+import { isCategoryLockedInDemo } from '../data/categorySummaries';
 
 export interface CategoryItem {
   id: MainNavTab;
@@ -548,12 +549,7 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
                               ACTIVE
                             </span>
                           )}
-                          {(cat.id === 'META5_PREMIUM' ||
-                            (isDemoMode &&
-                              (cat.id === 'BACKTESTING' ||
-                                cat.id === 'CHART_ANALYSIS' ||
-                                cat.id === 'FUNDAMENTAL_CALENDAR' ||
-                                cat.id === 'FUNDAMENTAL_INDICATORS'))) ? (
+                          {isCategoryLockedInDemo(cat.id, isDemoMode) ? (
                             <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/50 uppercase shadow-xs">
                               <Lock className="w-2.5 h-2.5 text-amber-400" />
                               <span>LOCKED</span>

@@ -69,8 +69,6 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   isModal = false,
 }) => {
   const [step, setStep] = useState<'LOGIN' | 'CHANGE_PASSWORD' | 'LINK_STORAGE'>('LOGIN');
-  // Account currency type selection: Standard ($) vs Cent Account (¢)
-  const [accountCurrencyType, setAccountCurrencyType] = useState<'STANDARD' | 'CENT'>('STANDARD');
   // Live Gold Quote directly connected to Premium Trading category feed
   const [goldQuote, setGoldQuote] = useState<{ price: number; change24h: number; isLive: boolean }>({
     price: 4173.30,
@@ -289,7 +287,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         setTimeout(() => {
           window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
           setShowCongratulations(false);
-          proceedAfterAuth(result.user!, result.token, { isCentAccount: accountCurrencyType === 'CENT' });
+          proceedAfterAuth(result.user!, result.token);
         }, 600);
       } else {
         setError(result.error || 'Invalid credentials. Please verify your username and password.');
@@ -304,7 +302,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     googleDriveService.setCurrentUserId(user.id);
     // Directly transition to account onboarding so the user immediately sees the account options
-    onLoginSuccess(user, token, options || { isCentAccount: accountCurrencyType === 'CENT' });
+    onLoginSuccess(user, token, options);
   };
 
   const handleLinkDrive = async () => {
@@ -320,7 +318,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         triggerBurst();
         setTimeout(() => {
           window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-          onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountCurrencyType === 'CENT' });
+          onLoginSuccess(pendingUser, pendingToken || undefined);
         }, 800);
       } else {
         setLinkingDrive(false);
@@ -336,7 +334,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
     if (!pendingUser) return;
     googleDriveService.setPromptedInitialLink(pendingUser.id, true);
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountCurrencyType === 'CENT' });
+    onLoginSuccess(pendingUser, pendingToken || undefined);
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -368,7 +366,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         setStoredUser(updatedUser);
 
         setTimeout(() => {
-          proceedAfterAuth(updatedUser, tokenToUse, { isCentAccount: accountCurrencyType === 'CENT' });
+          proceedAfterAuth(updatedUser, tokenToUse);
         }, 900);
       } else {
         setError(res.error || 'Failed to update password. Please try again.');
@@ -382,7 +380,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const handleDemoClick = () => {
     triggerBurst();
     setTimeout(() => {
-      onExploreDemo({ isCentAccount: accountCurrencyType === 'CENT' });
+      onExploreDemo();
     }, 300);
   };
 
@@ -794,44 +792,6 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   </div>
                 </div>
 
-                {/* Specific Function: ACCOUNT BASE CURRENCY / TYPE */}
-                <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800">
-                  <div className="flex items-center justify-between mb-2 px-0.5">
-                    <span className="text-[11px] font-mono-code text-slate-300 font-bold uppercase tracking-wider">
-                      ACCOUNT BASE CURRENCY / TYPE
-                    </span>
-                    <span className="text-[11px] font-mono-code font-bold text-cyan-400">
-                      {accountCurrencyType === 'CENT' ? 'Cent Account (¢)' : 'Standard USD ($)'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setAccountCurrencyType('STANDARD')}
-                      className={`py-2 px-3 rounded-xl font-mono-code text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                        accountCurrencyType === 'STANDARD'
-                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 border border-cyan-400'
-                          : 'bg-slate-950/80 hover:bg-slate-900 text-slate-400 border border-slate-800'
-                      }`}
-                    >
-                      <span>💵</span>
-                      <span>Standard ($)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAccountCurrencyType('CENT')}
-                      className={`py-2 px-3 rounded-xl font-mono-code text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                        accountCurrencyType === 'CENT'
-                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 border border-cyan-400'
-                          : 'bg-slate-950/80 hover:bg-slate-900 text-slate-400 border border-slate-800'
-                      }`}
-                    >
-                      <span>🪙</span>
-                      <span>Cent Account (¢)</span>
-                    </button>
-                  </div>
-                </div>
-
                 {/* Persistent Session / Remember Me Option */}
                 <div className="flex items-center justify-between py-1 px-1">
                   <label className="flex items-center gap-2 text-xs font-mono-code text-slate-300 cursor-pointer select-none">
@@ -861,15 +821,19 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </motion.button>
 
-                {/* Secondary Action: Explore in Demo / Preview Mode Matching Image 2 */}
+                {/* Secondary Action: Explore in Demo Mode — Unlocks Trade Plans, Reports, Live News Calendar & Trading Tools */}
                 <button
                   type="button"
                   onClick={handleDemoClick}
-                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-mono-code text-xs font-bold rounded-xl border border-slate-700 hover:border-cyan-500/40 transition flex items-center justify-center gap-2 cursor-pointer mt-2"
+                  className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-cyan-300 hover:text-white font-military text-xs font-bold rounded-xl border border-cyan-500/30 hover:border-cyan-400 transition flex items-center justify-center gap-2 cursor-pointer mt-2 shadow-sm"
+                  title="Explore Command Center: Unlocks Pre-made Trade Plans, Performance Reports, Live News Calendar & Trading Tool Suite"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>EXPLORE IN DEMO / PREVIEW MODE</span>
+                  <Sparkles className="w-4 h-4 text-cyan-400" />
+                  <span className="tracking-wider uppercase">EXPLORE (PREVIEW DEMO)</span>
                 </button>
+                <p className="text-[10px] text-center text-slate-400 font-mono-code mt-1.5">
+                  Instant Access: Pre-made trade plans, performance reports, live news calendar &amp; trading tool suite.
+                </p>
               </form>
             ) : step === 'LINK_STORAGE' ? (
               /* Step: Initial Login Google Drive Cloud Linking */

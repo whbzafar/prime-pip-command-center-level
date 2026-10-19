@@ -44,7 +44,7 @@ import { UserProfileModal } from './components/UserProfileModal';
 import { TraderExperienceProfileModal } from './components/evolution/TraderExperienceProfileModal';
 import { EvolutionCommandCenter } from './components/evolution/EvolutionCommandCenter';
 import { CalmingSuiteMaster } from './components/calming/CalmingSuiteMaster';
-import { CATEGORY_SUMMARIES, CategorySummary } from './data/categorySummaries';
+import { CATEGORY_SUMMARIES, CategorySummary, ALLOWED_DEMO_CATEGORIES, isCategoryLockedInDemo } from './data/categorySummaries';
 import { LockedCategoryModal } from './components/LockedCategoryModal';
 import { Meta5PremiumTerminal } from './components/meta5/Meta5PremiumTerminal';
 import { PostTradeGuidanceModal } from './components/account/PostTradeGuidanceModal';
@@ -56,39 +56,6 @@ import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
 import { BacktestingReplayPro } from './components/backtest/BacktestingReplayPro';
 import { BacktestingSuite } from './components/backtest/BacktestingSuite';
 import { UnlimitedChartAnalysis } from './components/chartAnalysis/UnlimitedChartAnalysis';
-
-const ALLOWED_DEMO_CATEGORIES: string[] = [
-  'DASHBOARD',
-  'PRE_TRADE_PLAN',     // Unlocked pre-made trade plans
-  'PERFORMANCE',        // Unlocked performance reports
-  'REPORTS',            // Unlocked performance reports
-  'JOURNAL',            // Unlocked trading tool suite
-  'RISK',               // Unlocked trading tool suite
-  'LOT_SIZE',           // Unlocked trading tool suite
-  'COMPOUNDING',        // Unlocked trading tool suite
-  'SBT_MODELS',         // Unlocked trading tool suite
-  'FREEHAND_WORKSPACE', // Unlocked trading tool suite
-  'RESEARCH',
-  'PAIR_SAVER',
-  'SITUATION_SAVER',
-  'DAILY_DEV',
-  'PSYCHOLOGY',
-  'CALMING_TOOLS',
-  'BOOK_SESSION',
-  'GOALS',
-  'PRO_TRADING',        // Unlocked charting execution suite
-  'COMMUNITY',
-  'PRO_LEARNING',
-  'SIGNALS',
-  'SUBSCRIPTION',
-  'REFERRALS',
-  // LOCKED in Demo Mode (Per user instruction):
-  // - BACKTESTING & BACKTEST_REPLAY
-  // - CHART_ANALYSIS (Unlimited Chart Analysis)
-  // - FUNDAMENTAL_CALENDAR
-  // - FUNDAMENTAL_INDICATORS
-  // - META5_PREMIUM
-];
 import { apiRecordTelemetrySignal } from './utils/evolutionClient';
 import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin } from './utils/authClient';
 import {
@@ -283,24 +250,28 @@ export default function App() {
 
   // Enter Demo Mode Helper
   const handleEnterDemoMode = useCallback(
-    async (options?: { isCentAccount?: boolean }) => {
+    async (options?: { isCentAccount?: boolean; quickStart?: boolean }) => {
       setIsDemoMode(true);
       try {
         localStorage.setItem('primepipfx_demo_mode', 'true');
       } catch {}
       setIsLoginModalOpen(false);
       setIsSubscriptionModalOpen(false);
+      setLockedCategoryModal(null);
       setActiveTab('DASHBOARD');
 
       const isCent = options?.isCentAccount || false;
+      const quickStart = options?.quickStart || false;
 
-      // If no account is loaded or cent requested, provide a demo preview account immediately
-      if (!activeAccount || accounts.length === 0 || (isCent && !activeAccount.isCentAccount)) {
+      // If user specifically requested quickStart (e.g. skip link) or cent account requested directly
+      if (quickStart || (isCent && (!activeAccount || !activeAccount.isCentAccount))) {
         const demoAccount: AccountSettings = {
           id: isCent ? 'acc-demo-cent' : 'acc-demo-preview',
           traderName: 'DEMO TRADER',
           accountName: isCent ? 'Demo Cent Account (USC)' : 'Demo Preview Account',
           accountType: isCent ? 'CENT_ACCOUNT' : 'DEMO',
+          accountKind: isCent ? 'CENT' : 'DEMO',
+          accountCategory: 'PERSONAL',
           isCentAccount: isCent,
           initialBalance: isCent ? 10000 : 5000,
           currentBalance: isCent ? 10000 : 5000,
@@ -318,6 +289,19 @@ export default function App() {
         setActiveAccount(demoAccount);
         await saveAccount(demoAccount);
         await loadAccountData(demoAccount);
+        setIsCreateAccountWizardOpen(false);
+        return;
+      }
+
+      // Standard user flow: Present an option to create an account
+      // Similar to standard flow after entering login credentials, user is prompted to set up an account
+      // (e.g. 'Fund Account', 'Personal Account', etc.)
+      if (!activeAccount || accounts.length === 0) {
+        // App will display AccountOnboardingModal which embeds CreateAccountWizard
+        setIsCreateAccountWizardOpen(false);
+      } else {
+        // User already has an existing account in storage; open the CreateAccountWizard modal so they can create a new one
+        setIsCreateAccountWizardOpen(true);
       }
     },
     [activeAccount, accounts, loadAccountData]
@@ -1128,7 +1112,11 @@ export default function App() {
     return (
       <AccountOnboardingModal
         onAccountCreated={handleAccountCreated}
-        onExploreDemo={handleEnterDemoMode}
+        onExploreDemo={() => handleEnterDemoMode({ quickStart: true })}
+        onOpenSignIn={() => {
+          setIsDemoMode(false);
+          setIsLoginModalOpen(true);
+        }}
       />
     );
   }
@@ -1721,18 +1709,17 @@ export default function App() {
         />
       )}
 
-      {/* User Login Modal */}
+      {/* User Login Modal - Renders authentic first screen in modal mode */}
       {isLoginModalOpen && (
-        <LoginModal
-          isOpen={isLoginModalOpen}
+        <FirstOpenLoginScreen
+          isModal={true}
           onClose={() => setIsLoginModalOpen(false)}
           onLoginSuccess={handleAuthenticatedUser}
-          onSuccess={handleAuthenticatedUser}
+          onExploreDemo={handleEnterDemoMode}
           onOpenSubscription={() => {
             setIsLoginModalOpen(false);
             setIsSubscriptionModalOpen(true);
           }}
-          onContinueDemo={handleEnterDemoMode}
         />
       )}
 
@@ -1839,17 +1826,21 @@ export default function App() {
         />
       )}
 
-      {/* Standalone Create Account Wizard Modal */}
+      {/* Standalone Create Account Wizard Modal (Fund Account, Personal Account, Cent, Demo) */}
       {isCreateAccountWizardOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto animate-in fade-in">
           <div className="w-full max-w-4xl my-auto">
-            <SetupWizard
+            <CreateAccountWizard
               onAccountCreated={(newAcc) => {
                 handleAccountCreated(newAcc);
                 setIsCreateAccountWizardOpen(false);
               }}
-              onCancel={() => setIsCreateAccountWizardOpen(false)}
-              existingAccountsCount={accounts.length}
+              onCancel={() => {
+                if (!activeAccount) {
+                  handleEnterDemoMode({ quickStart: true });
+                }
+                setIsCreateAccountWizardOpen(false);
+              }}
             />
           </div>
         </div>
