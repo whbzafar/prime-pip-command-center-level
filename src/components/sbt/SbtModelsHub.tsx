@@ -30,7 +30,9 @@ import {
   X,
   ExternalLink,
   QrCode,
+  Bot,
 } from 'lucide-react';
+import { SbtBotShowcaseModal } from './SbtBotShowcaseModal';
 
 const SBT_SOURCE_TIMEFRAMES: Record<number, string> = {
   6: 'Daily / Weekly HTF → H1 execution',
@@ -114,6 +116,7 @@ export const SbtModelsHub: React.FC = () => {
   const [displayMode, setDisplayMode] = useState<'SOURCE_ASSET' | 'VECTOR_STUDIO'>('SOURCE_ASSET');
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isFullscreenModelOpen, setIsFullscreenModelOpen] = useState(false);
+  const [isSbtBotModalOpen, setIsSbtBotModalOpen] = useState(false);
 
   // Persisted studied models tracking
   const [studiedModels, setStudiedModels] = useState<string[]>(() => {
@@ -313,11 +316,59 @@ export const SbtModelsHub: React.FC = () => {
           <Award className="w-3.5 h-3.5" />
           <span>SBT Progress</span>
         </button>
+
+        <div className="w-px h-5 bg-slate-800 mx-1 shrink-0" />
+
+        <button
+          type="button"
+          onClick={() => setIsSbtBotModalOpen(true)}
+          className="px-3.5 py-2 rounded-lg font-bold transition shrink-0 cursor-pointer flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-amber-500/20 text-amber-300 border border-amber-500/40 hover:border-amber-400 hover:text-white shadow-sm shadow-amber-500/20"
+        >
+          <Bot className="w-3.5 h-3.5 animate-pulse text-amber-400" />
+          <span>SBT Bot 2027</span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-black">NEW YEAR</span>
+        </button>
       </div>
 
       {/* VIEW 1: ALL MODELS (Catalog Overview) */}
       {activeView === 'ALL_MODELS' && (
         <div className="space-y-6">
+          {/* Official New Year 2027 SBT Bot Launch Banner */}
+          <div
+            onClick={() => setIsSbtBotModalOpen(true)}
+            className="p-[1.5px] rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-300 to-cyan-400 shadow-xl shadow-amber-500/15 hover:shadow-amber-500/30 transition-all cursor-pointer group"
+          >
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-amber-500/30 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500/20 via-yellow-500/10 to-cyan-500/20 border border-amber-400/50 flex items-center justify-center shrink-0 text-amber-300 shadow-md shadow-amber-500/20 group-hover:scale-105 transition">
+                  <Bot className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-[9px] font-mono-code font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 shadow-xs">
+                      SBT BOT COMING SOON
+                    </span>
+                    <span className="text-[10px] font-mono-code text-amber-300 font-bold uppercase tracking-wide">
+                      LAUNCHING FOR NEW YEAR 2027 • WORLD'S #1
+                    </span>
+                  </div>
+                  <h3 className="text-sm sm:text-base font-military font-bold text-white uppercase tracking-wider group-hover:text-amber-200 transition">
+                    Autonomous Institutional SBT Execution Engine — All 10 Models Automated
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono-code mt-0.5 hidden sm:block">
+                    Zero emotion • Sub-14ms latency • Prop firm drawdown armor • Pre-register for exclusive VIP beta.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-military font-bold text-xs uppercase shadow-md shadow-amber-500/25 group-hover:from-amber-400 group-hover:to-yellow-300 transition flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>PREVIEW SHOWCASE ❯</span>
+                </span>
+              </div>
+            </div>
+          </div>
           {/* Filter and Search Bar */}
           <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono-code">
             <div className="relative flex-1 min-w-[240px]">
@@ -805,6 +856,12 @@ export const SbtModelsHub: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* SBT Bot New Year 2027 Worldwide Launch Showcase Modal */}
+      <SbtBotShowcaseModal
+        isOpen={isSbtBotModalOpen}
+        onClose={() => setIsSbtBotModalOpen(false)}
+      />
     </div>
   );
 };

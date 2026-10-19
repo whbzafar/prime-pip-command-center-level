@@ -1336,6 +1336,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   onUpdateAccount,
   onNavigateToJournal,
   onRequireSubscription,
+  onNavigateToFundamental,
 }) => {
   const isSubscriber = useMemo(() => {
     if (isDemoMode) return false;

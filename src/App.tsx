@@ -1477,6 +1477,7 @@ export default function App() {
               onRequireSubscription={() => {
                 setIsSubscriptionModalOpen(true);
               }}
+              onNavigateToFundamental={() => handleSelectTab('FUNDAMENTAL_INDICATORS')}
             />
           </TabErrorBoundary>
         )}

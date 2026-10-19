@@ -26,7 +26,9 @@ import {
   Radio,
   Layers,
   X,
+  Bot,
 } from 'lucide-react';
+import { SbtBotShowcaseModal } from './sbt/SbtBotShowcaseModal';
 import {
   apiLogin,
   apiChangePassword,
@@ -40,6 +42,7 @@ import { googleDriveService } from '../services/googleDriveService';
 import { fetchLiveGoldQuote } from '../services/liveChartDataService';
 
 const TICKER_ANNOUNCEMENTS = [
+  { tag: 'SBT BOT COMING SOON', text: 'SBT Bot Launching for New Year 2027 — The World\'s #1 Institutional Trading Bot', color: 'from-amber-400 via-yellow-300 to-amber-500' },
   { tag: 'NEW RELEASE', text: 'SBT Model Pro Available — All 10 Institutional Models Active', color: 'from-amber-400 to-yellow-500' },
   { tag: 'PREMIUM TRADING', text: 'Live Multi-Asset Charts & Spot Gold Live Order Flow', color: 'from-cyan-400 to-blue-500' },
   { tag: 'SBT STRATEGIES', text: '10 Systematic Institutional Setups with Exact Rules', color: 'from-emerald-400 to-teal-500' },
@@ -88,6 +91,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const [isSuccessBurst, setIsSuccessBurst] = useState(false);
   const [showCongratulations, setShowCongratulations] = useState(false);
   const [congratsUser, setCongratsUser] = useState<UserAccount | null>(null);
+  const [isSbtBotModalOpen, setIsSbtBotModalOpen] = useState<boolean>(false);
 
   // First-time developer/customer password change state
   const [pendingUser, setPendingUser] = useState<UserAccount | null>(null);
@@ -464,7 +468,11 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         className="w-full max-w-md mx-auto mb-2.5 z-20"
       >
         <div className="relative group p-[1px] rounded-full bg-gradient-to-r from-cyan-500/50 via-amber-500/40 to-blue-500/50 shadow-md shadow-cyan-950/30 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 border border-white/5 text-xs overflow-hidden">
+          <div
+            onClick={() => setIsSbtBotModalOpen(true)}
+            className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 border border-white/5 text-xs overflow-hidden cursor-pointer hover:bg-slate-900/90 transition"
+            title="Click to view SBT Bot New Year 2027 Launch Showcase"
+          >
             <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
               <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-300">
                 <Radio className="w-3 h-3 animate-pulse" />
@@ -699,26 +707,32 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
               </p>
             </div>
 
-            {/* Announcement Section Above Username & Password Fields */}
-            <div className="mb-4 p-[1px] rounded-2xl bg-gradient-to-r from-cyan-500/50 via-amber-500/40 to-blue-500/50 shadow-md">
-              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-slate-950/90 border border-white/5 text-xs">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-300">
-                    <Radio className="w-3 h-3 animate-pulse" />
+            {/* Announcement Section Above Username & Password Fields — SBT Bot New Year 2027 Launch */}
+            <div
+              onClick={() => setIsSbtBotModalOpen(true)}
+              className="mb-4 p-[1.5px] rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-300 to-cyan-400 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/35 transition-all duration-300 cursor-pointer group"
+              title="Click to explore the World's #1 SBT Bot New Year 2027 Launch Showcase"
+            >
+              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-slate-950/95 border border-amber-500/30 text-xs backdrop-blur-md group-hover:bg-slate-900/95 transition">
+                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400/25 to-yellow-500/15 border border-amber-400/60 flex items-center justify-center shrink-0 text-amber-300 shadow-sm shadow-amber-500/30 group-hover:scale-105 transition">
+                    <Bot className="w-3.5 h-3.5 animate-pulse" />
                   </div>
                   <div className="flex items-center gap-1.5 truncate">
-                    <span className="text-[9px] font-mono-code font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shrink-0">
-                      NEW RELEASE
+                    <span className="text-[9px] font-mono-code font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shrink-0 shadow-xs shadow-amber-500/30">
+                      SBT BOT COMING SOON
                     </span>
-                    <span className="text-[11px] font-military tracking-wide text-slate-200 truncate font-semibold">
-                      SBT Model Pro Available — All 10 Institutional Models Active
+                    <span className="text-[11px] font-military tracking-wide text-white truncate font-bold group-hover:text-amber-200 transition">
+                      Launching for New Year 2027 — The World's #1 Institutional Trading Bot
                     </span>
                   </div>
                 </div>
-                <span className="text-[9px] font-mono-code font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 flex items-center gap-1 shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-                  LIVE
-                </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[9px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 flex items-center gap-1 shadow-xs group-hover:bg-amber-400 group-hover:text-slate-950 transition">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                    <span>SHOWCASE ❯</span>
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -1026,6 +1040,16 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* SBT Bot New Year 2027 Worldwide Launch Showcase Modal */}
+      <SbtBotShowcaseModal
+        isOpen={isSbtBotModalOpen}
+        onClose={() => setIsSbtBotModalOpen(false)}
+        onExploreModels={() => {
+          setIsSbtBotModalOpen(false);
+          handleDemoClick();
+        }}
+      />
     </div>
   );
 };
