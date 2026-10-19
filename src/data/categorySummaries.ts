@@ -1,3 +1,5 @@
+import { hasFullAccess, getStoredUser } from '../utils/authClient';
+
 export interface CategorySummary {
   id: string;
   name: string;
@@ -15,6 +17,7 @@ export const ALLOWED_DEMO_CATEGORIES: string[] = [
   'RISK',                 // 05. Risk Management Engine (Trading Tool Suite)
   'PRE_TRADE_PLAN',       // 06. Pre-Trade Plan Gatekeeper (Pre-made trade plans)
   'FUNDAMENTAL_CALENDAR', // 07. Live News Calendar (TradingView × Forex Factory — Unlocked per user request)
+  'FUNDAMENTAL_INDICATORS', // 08. Fundamental Indicators Engine (Free COT & Sentiment in Demo)
   'PRO_TRADING',          // 10. Premium TradingView
   'COMPOUNDING',          // 12. Compounding Engine (Trading Tool Suite)
   'PERFORMANCE',          // 11. Performance Report (Performance reports)
@@ -30,10 +33,34 @@ export const ALLOWED_DEMO_CATEGORIES: string[] = [
   'SETUP',                // 00. Account Setup Wizard
 ];
 
-export const isCategoryLockedInDemo = (categoryId: string, isDemoMode: boolean = false): boolean => {
+export const isCategoryLockedInDemo = (
+  categoryId: string,
+  isDemoMode: boolean = false,
+  user?: any
+): boolean => {
   if (categoryId === 'META5_PREMIUM') return true; // MetaTrader terminal requires broker subscription
-  if (!isDemoMode) return false;
-  return !ALLOWED_DEMO_CATEGORIES.includes(categoryId);
+  
+  const effectiveUser = user !== undefined ? user : getStoredUser();
+  const hasSub = hasFullAccess(effectiveUser);
+
+  // Psychological Center is strictly locked wherever it appears for any user without an active subscription
+  if (categoryId === 'PSYCHOLOGY') {
+    return !hasSub;
+  }
+
+  // Active subscribers have full access to remaining modules
+  if (hasSub) return false;
+
+  // Fundamental section is marked free to allow exploring COT reports and sentiment
+  if (categoryId === 'FUNDAMENTAL_INDICATORS' || categoryId === 'FUNDAMENTAL_CALENDAR') {
+    return false;
+  }
+
+  if (isDemoMode) {
+    return !ALLOWED_DEMO_CATEGORIES.includes(categoryId);
+  }
+
+  return false;
 };
 
 export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
@@ -118,14 +145,14 @@ export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
   },
   FUNDAMENTAL_INDICATORS: {
     id: 'FUNDAMENTAL_INDICATORS',
-    name: '08. Fundamental Indicators Engine',
-    shortDesc: 'Deterministic 8-currency macro scoring, central bank rates, and currency differentials.',
-    overview: 'The definitive macroeconomic intelligence suite. Calculates currency strength scores from -10 to +10 using central bank policy rates, inflation, GDP growth, employment, and retail sentiment.',
+    name: '08. Fundamental Indicators Engine (Free COT & Sentiment)',
+    shortDesc: '100% Free COT Reports and Market Sentiment; advanced macro scoring & raw models available with subscription.',
+    overview: 'The definitive macroeconomic intelligence suite. In Demo and Free mode, both institutional COT (Commitments of Traders) reports and retail sentiment data are 100% accessible for free. Advanced central bank ledger models, currency strength matrices, and raw yield models require an active subscription.',
     keyFeatures: [
-      'Deterministic currency strength scoring across USD, EUR, GBP, JPY, CAD, AUD, CHF, NZD',
-      'Central Bank policy rate and bond yield tracking',
-      'COT institutional positioning and retail sentiment contrarian gauges',
-      'Multi-currency PDF/image data extraction and instant updates',
+      '100% Free Institutional COT (Commitments of Traders) positioning data',
+      '100% Free Contrarian Retail Sentiment & positioning gauges',
+      'Deterministic currency strength scoring across 8 major currencies (Pro)',
+      'Central Bank policy rates, bond yields & multi-asset differentials (Pro)',
     ],
   },
   SIGNALS: {
@@ -222,11 +249,11 @@ export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
   },
   PSYCHOLOGY: {
     id: 'PSYCHOLOGY',
-    name: '13. Psychological Center',
-    shortDesc: 'Emotional state monitoring, cognitive bias audit, and mental resilience tools.',
-    overview: 'Cognitive defense against FOMO, greed, fear, and revenge trading. Audit your psychological state before taking risk and build iron-clad trading discipline.',
+    name: '13. Psychological Center (Pro)',
+    shortDesc: '🔒 Locked for non-subscribers. Emotional state monitoring, cognitive bias audit, and mental resilience tools.',
+    overview: 'Cognitive defense against FOMO, greed, fear, and revenge trading. Access to the Psychological Center requires an active PrimePipFX subscription. Audit your psychological state before taking risk and build iron-clad trading discipline.',
     keyFeatures: [
-      'Pre-trade emotional state check and tilt detector',
+      'Pre-trade emotional state check and tilt detector (Pro)',
       'Cognitive bias identification (sunk cost, confirmation bias, recency bias)',
       'Revenge trading lockout circuit breaker',
       'Psychological timeline tracking your emotional evolution over time',

@@ -109,6 +109,7 @@ import {
   getFundamentalProviderStatuses,
   ProviderStatusInfo,
 } from '../services/fundamentalMarketSyncService';
+import { hasFullAccess } from '../utils/authClient';
 
 export type FundamentalDashboardTab =
   | 'OVERVIEW'
@@ -157,13 +158,11 @@ export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = ({
   const isUnsubscribed = useMemo(() => {
     if (isDemoMode) return true;
     if (!effectiveUser) return true;
-    if (effectiveUser.role === 'ADMIN' || effectiveUser.role === 'DEVELOPER' || effectiveUser.isDeveloper) return false;
-    if (effectiveUser.subscriptionStatus === 'ACTIVE' || effectiveUser.subscriptionStatus === 'LIFETIME') return false;
-    return true;
+    return !hasFullAccess(effectiveUser);
   }, [isDemoMode, effectiveUser]);
 
   const [activeTab, setActiveTab] = useState<FundamentalDashboardTab>(() => {
-    return 'LONG_TERM_RANKINGS';
+    return 'COT_REPORT';
   });
   const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>('USD');
   const [isImageExtractorOpen, setIsImageExtractorOpen] = useState(false);
@@ -1177,10 +1176,7 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
               const isActive = activeTab === tab.id;
               const isFreeUnlocked =
                 tab.id === 'COT_REPORT' ||
-                tab.id === 'MARKET_SENTIMENT' ||
-                tab.id === 'LONG_TERM_RANKINGS' ||
-                tab.id === 'OVERVIEW' ||
-                tab.id === 'PAIRS';
+                tab.id === 'MARKET_SENTIMENT';
               const isLockedForUser = isUnsubscribed && !isFreeUnlocked;
 
               return (
@@ -1250,31 +1246,21 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
       {/* Subscription Lock Overlay for Unsubscribed / Demo Users on Locked Sub-Tabs */}
       {isUnsubscribed &&
         activeTab !== 'COT_REPORT' &&
-        activeTab !== 'MARKET_SENTIMENT' &&
-        activeTab !== 'LONG_TERM_RANKINGS' &&
-        activeTab !== 'OVERVIEW' &&
-        activeTab !== 'PAIRS' && (
+        activeTab !== 'MARKET_SENTIMENT' && (
         <div className="max-w-2xl mx-auto my-8 p-6 sm:p-8 rounded-3xl bg-slate-950/90 border border-amber-500/40 shadow-2xl space-y-5 text-center font-mono-code backdrop-blur-xl animate-in fade-in">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
             <Lock className="w-7 h-7" />
           </div>
           <div className="space-y-2">
             <h2 className="text-lg sm:text-xl font-military font-bold text-white tracking-wide uppercase">
-              Institutional Fundamental Model Locked
+              Fundamental Analysis Model Locked
             </h2>
             <p className="text-xs text-slate-300 max-w-lg mx-auto leading-relaxed">
-              In Free &amp; Demo Mode, the <strong className="text-emerald-300 font-bold">Long-Term Bullish Setups</strong>, <strong className="text-emerald-300 font-bold">28 Currency Pairs</strong>, <strong className="text-emerald-300 font-bold">Macro Overview</strong>, <strong className="text-emerald-300 font-bold">COT Report</strong> and <strong className="text-emerald-300 font-bold">Market Sentiment</strong> sections are unlocked and 100% free! Advanced raw central bank ledger models require full subscription ($55).
+              In Demo &amp; Free Mode, the <strong className="text-emerald-300 font-bold">COT Reports</strong> and <strong className="text-emerald-300 font-bold">Market Sentiment</strong> are 100% accessible for free! Advanced raw currency matrices, central bank rate differentials, and sovereign yield models require an active subscription ($55).
             </p>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab('LONG_TERM_RANKINGS')}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-military font-bold text-xs uppercase cursor-pointer hover:from-purple-500 hover:to-indigo-500 shadow-lg shadow-purple-500/20"
-            >
-              Explore Long-Term Bullish Setups (Free)
-            </button>
             <button
               type="button"
               onClick={() => setActiveTab('COT_REPORT')}
@@ -1304,10 +1290,7 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
 
       {(!isUnsubscribed ||
         activeTab === 'COT_REPORT' ||
-        activeTab === 'MARKET_SENTIMENT' ||
-        activeTab === 'LONG_TERM_RANKINGS' ||
-        activeTab === 'OVERVIEW' ||
-        activeTab === 'PAIRS') && (
+        activeTab === 'MARKET_SENTIMENT') && (
         <>
           {activeTab === 'OVERVIEW' && (
         <FundamentalAssetCommandCenter

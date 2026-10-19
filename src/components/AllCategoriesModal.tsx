@@ -549,13 +549,18 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
                               ACTIVE
                             </span>
                           )}
-                          {isCategoryLockedInDemo(cat.id, isDemoMode) ? (
+                          {isCategoryLockedInDemo(cat.id, isDemoMode, currentUser) ? (
                             <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/50 uppercase shadow-xs">
                               <Lock className="w-2.5 h-2.5 text-amber-400" />
                               <span>LOCKED</span>
                             </span>
                           ) : (
                             <>
+                              {cat.id === 'FUNDAMENTAL_INDICATORS' && (
+                                <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase shadow-xs">
+                                  <span>FREE</span>
+                                </span>
+                              )}
                               {cat.comingSoon && cat.id !== 'META5_PREMIUM' && (
                                 <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/40 uppercase">
                                   COMING SOON

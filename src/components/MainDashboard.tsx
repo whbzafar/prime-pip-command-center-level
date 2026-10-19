@@ -48,7 +48,7 @@ import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
 import { FundamentalNotificationBanner } from './fundamental/FundamentalNotificationBanner';
 import { TradeApprovalModal } from './TradeApprovalModal';
 import { PersonalizedAccountDashboard } from './account/PersonalizedAccountDashboard';
-import { isFundamentalSurpriseLocked } from '../utils/authClient';
+import { isFundamentalSurpriseLocked, hasFullAccess } from '../utils/authClient';
 
 interface MainDashboardProps {
   metrics: DashboardMetrics;

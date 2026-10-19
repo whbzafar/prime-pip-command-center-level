@@ -57,7 +57,7 @@ import { BacktestingReplayPro } from './components/backtest/BacktestingReplayPro
 import { BacktestingSuite } from './components/backtest/BacktestingSuite';
 import { UnlimitedChartAnalysis } from './components/chartAnalysis/UnlimitedChartAnalysis';
 import { apiRecordTelemetrySignal } from './utils/evolutionClient';
-import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin } from './utils/authClient';
+import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin, hasFullAccess } from './utils/authClient';
 import {
   getAllAccounts,
   saveAccount,
@@ -75,7 +75,7 @@ import {
   saveScreenshotTradeGuaranteed,
 } from './utils/db';
 import { googleDriveService } from './services/googleDriveService';
-import { Loader2, Shield, AlertTriangle, X } from 'lucide-react';
+import { Loader2, Shield, AlertTriangle, X, Lock } from 'lucide-react';
 import { playDisciplineAlert } from './utils/audioAlerts';
 import { getKarachiDate, getKarachiTime } from './utils/time';
 import { AppearanceControls } from './components/AppearanceControls';
@@ -322,6 +322,27 @@ export default function App() {
           ...summary,
           name: '11. Meta 5 Terminal',
           shortDesc: '🔒 Category Locked',
+        });
+        return;
+      }
+      // Psychological Center is strictly locked for any user without an active subscription
+      if (tab === 'PSYCHOLOGY' && !hasFullAccess(currentUser)) {
+        const summary = CATEGORY_SUMMARIES['PSYCHOLOGY'] || {
+          id: 'PSYCHOLOGY',
+          name: '13. Psychological Center (Pro)',
+          shortDesc: '🔒 Subscription Required',
+          overview: 'The Psychological Center is locked for users without an active subscription. Upgrade to access real-time tilt monitoring, cognitive bias audits, and CBT discipline reframing tools.',
+          keyFeatures: [
+            'Pre-trade emotional state check and tilt radar',
+            'Cognitive bias identification and CBT thought reframing',
+            'Revenge trading lockout circuit breaker',
+            'Psychological timeline tracking your emotional evolution over time',
+          ],
+        };
+        setLockedCategoryModal({
+          ...summary,
+          name: '13. Psychological Center (Pro)',
+          shortDesc: '🔒 Subscription Required',
         });
         return;
       }
@@ -1517,14 +1538,46 @@ export default function App() {
         )}
 
         {activeTab === 'PSYCHOLOGY' && (
-          <PsychologyCenter
-            trades={trades}
-            account={activeAccount}
-            currentUser={currentUser}
-            onUpdateTrade={handleSaveTrade}
-            onOpenNewTrade={() => setIsEntryModalOpen(true)}
-            onClose={() => setActiveTab('DASHBOARD')}
-          />
+          hasFullAccess(currentUser) ? (
+            <PsychologyCenter
+              trades={trades}
+              account={activeAccount}
+              currentUser={currentUser}
+              onUpdateTrade={handleSaveTrade}
+              onOpenNewTrade={() => setIsEntryModalOpen(true)}
+              onClose={() => setActiveTab('DASHBOARD')}
+            />
+          ) : (
+            <div className="max-w-2xl mx-auto my-12 p-8 rounded-3xl bg-slate-950/90 border border-amber-500/40 shadow-2xl space-y-6 text-center font-mono-code backdrop-blur-xl animate-in fade-in">
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
+                <Lock className="w-8 h-8" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl sm:text-2xl font-military font-bold text-white tracking-wide uppercase">
+                  Psychological Command Center Locked
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
+                  For users without an active subscription, the Psychological Center is locked. Subscribe to unlock real-time tilt monitoring, cognitive bias audits, and mental discipline tools.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSubscriptionModalOpen(true)}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-military font-bold text-xs uppercase cursor-pointer hover:from-amber-400 hover:to-yellow-300 shadow-lg shadow-amber-500/20"
+                >
+                  Unlock Access ($55)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('DASHBOARD')}
+                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-military font-bold text-xs uppercase cursor-pointer"
+                >
+                  Return to Dashboard
+                </button>
+              </div>
+            </div>
+          )
         )}
 
         {activeTab === 'CALMING_TOOLS' && (

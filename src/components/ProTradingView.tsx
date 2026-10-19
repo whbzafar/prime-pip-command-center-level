@@ -45,7 +45,9 @@ import {
   Layers,
   Scale,
   Lock,
+  Lightbulb,
 } from 'lucide-react';
+import { hasFullAccess } from '../utils/authClient';
 import { Trade, UserAccount, AccountSettings } from '../types';
 import {
   FundamentalIntelligenceEngine,
@@ -1218,7 +1220,7 @@ export interface DemoPosition {
   loggedToJournal?: boolean;
 }
 
-export type RightSideToolId = 'ALERTS' | 'NEWS' | 'CALENDAR';
+export type RightSideToolId = 'ALERTS' | 'NEWS' | 'CALENDAR' | 'IDEAS';
 
 export interface ChartAlertItem {
   id: string;
@@ -1335,6 +1337,10 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   onNavigateToJournal,
   onRequireSubscription,
 }) => {
+  const isSubscriber = useMemo(() => {
+    if (isDemoMode) return false;
+    return hasFullAccess(currentUser);
+  }, [isDemoMode, currentUser]);
   // --------------------------------------------------------------------------
   // SAVED FULL STATE & PERSISTENCE
   // --------------------------------------------------------------------------
@@ -2076,6 +2082,10 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
   // Open Pair Deep Dive Modal (Ensures modal opens for any pair selected without errors)
   const handleOpenPairModal = useCallback((sym: string) => {
+    if (!isSubscriber) {
+      if (onRequireSubscription) onRequireSubscription();
+      return;
+    }
     const clean = sym.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
     const found = pairDifferentials.find(
       (p) => p.pair.toUpperCase() === clean || clean === `${p.baseCurrency}${p.quoteCurrency}`
@@ -2108,10 +2118,14 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         reasoningNarrative: fund.rationale,
       });
     }
-  }, [pairDifferentials, currencyScores, getFundamentalForSymbol]);
+  }, [isSubscriber, onRequireSubscription, pairDifferentials, currencyScores, getFundamentalForSymbol]);
 
   // One-click Auto-Align projection lines to the fundamental bias of the pair
   const handleAutoAlignProjectionToFundamental = () => {
+    if (!isSubscriber) {
+      if (onRequireSubscription) onRequireSubscription();
+      return;
+    }
     const fund = activeInstrumentFundamental;
     const meta = priceMeta;
     const currentClose = liveCandle.close || meta.price;
@@ -2630,7 +2644,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       hide_side_toolbar: 'false',
       allow_symbol_change: 'true',
       save_image: 'true',
-      hideideas: 'true',
+      hideideas: 'false',
       show_popup_button: 'true',
       popup_width: '1000',
       popup_height: '650',
@@ -3122,7 +3136,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             <button
               type="button"
               onClick={() => {
-                if (isDemoMode) {
+                if (!isSubscriber) {
                   if (onRequireSubscription) onRequireSubscription();
                   return;
                 }
@@ -3132,33 +3146,41 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 handleOpenPairModal(selectedSymbol);
               }}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition shadow-md cursor-pointer ${
-                activeInstrumentFundamental.isBullish
+                !isSubscriber
+                  ? 'bg-slate-900 border-slate-700/80 text-slate-400 hover:border-amber-500/50 hover:text-amber-300'
+                  : activeInstrumentFundamental.isBullish
                   ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/80'
                   : activeInstrumentFundamental.isBearish
                   ? 'bg-rose-950/80 border-rose-500/60 text-rose-300 hover:bg-rose-900/80'
                   : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
               }`}
-              title={isDemoMode ? 'Fundamental analysis is locked in preview mode. Click to subscribe.' : `Click to open full Fundamental Deep-Dive Modal for ${selectedSymbol}`}
+              title={!isSubscriber ? 'Fundamental analysis is locked for non-subscribers. Click to upgrade.' : `Click to open full Fundamental Deep-Dive Modal for ${selectedSymbol}`}
             >
               <Compass className="w-4 h-4 text-cyan-400 shrink-0" />
               <span className="text-slate-400 hidden sm:inline">Fundamentals:</span>
-              <span className="font-extrabold uppercase">{activeInstrumentFundamental.biasLabel}</span>
-              <span
-                className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
-                  activeInstrumentFundamental.isBullish
-                    ? 'bg-emerald-500/30 text-emerald-200'
-                    : activeInstrumentFundamental.isBearish
-                    ? 'bg-rose-500/30 text-rose-200'
-                    : 'bg-slate-800 text-slate-400'
-                }`}
-              >
-                {activeInstrumentFundamental.score >= 0 ? `+${activeInstrumentFundamental.score}` : activeInstrumentFundamental.score}
-              </span>
-              {isDemoMode && (
-                <span className="flex items-center gap-1 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
-                  <Lock className="w-2.5 h-2.5 text-amber-400" />
-                  LOCKED
-                </span>
+              {!isSubscriber ? (
+                <>
+                  <span className="font-extrabold uppercase text-slate-400">PRO ONLY</span>
+                  <span className="flex items-center gap-1 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
+                    <Lock className="w-2.5 h-2.5 text-amber-400" />
+                    LOCKED
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="font-extrabold uppercase">{activeInstrumentFundamental.biasLabel}</span>
+                  <span
+                    className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
+                      activeInstrumentFundamental.isBullish
+                        ? 'bg-emerald-500/30 text-emerald-200'
+                        : activeInstrumentFundamental.isBearish
+                        ? 'bg-rose-500/30 text-rose-200'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {activeInstrumentFundamental.score >= 0 ? `+${activeInstrumentFundamental.score}` : activeInstrumentFundamental.score}
+                  </span>
+                </>
               )}
             </button>
 
@@ -3189,7 +3211,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] font-mono-code">
               <span className="text-slate-500 uppercase font-bold mr-1 shrink-0">CATEGORIES:</span>
               {WATCHLIST_CATEGORIES.map((cat, idx) => {
-                const isCatLocked = isDemoMode && cat.id === 'FUNDAMENTALS';
+                const isCatLocked = !isSubscriber && cat.id === 'FUNDAMENTALS';
                 return (
                   <button
                     key={cat.id}
@@ -3377,6 +3399,52 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           {/* Pulls verified fundamental data & dynamically updates for pair      */}
           {/* =================================================================== */}
           {(showFundamentalPanel || WATCHLIST_CATEGORIES[activeCategoryIndex]?.id === 'FUNDAMENTALS') && (
+            !isSubscriber ? (
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-slate-950 via-[#0B132B]/90 to-slate-950 border border-amber-500/40 shadow-xl space-y-3 font-mono-code text-xs">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                      <Lock className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white text-sm tracking-wide">
+                          {selectedSymbol} Fundamental Data Locked
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
+                          Subscription Required
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Macro currency scores, interest rate differentials, and sovereign yield models require an active subscription. COT Reports &amp; Market Sentiment remain free under the Fundamental tab.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onNavigateToFundamental) {
+                          onNavigateToFundamental();
+                        }
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 font-military font-bold text-xs uppercase cursor-pointer"
+                    >
+                      View Free COT &amp; Sentiment
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onRequireSubscription) onRequireSubscription();
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-military font-bold text-xs uppercase cursor-pointer shadow-md shadow-amber-500/20"
+                    >
+                      Upgrade Access ($55)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
             <div className="p-3.5 rounded-2xl bg-gradient-to-r from-slate-950 via-[#0B132B]/90 to-slate-950 border border-cyan-500/30 shadow-xl space-y-3 font-mono-code text-xs">
               <div className="flex items-center justify-between gap-3 flex-wrap border-b border-slate-800/80 pb-2.5">
                 <div className="flex items-center gap-2">
@@ -3468,6 +3536,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 </div>
               </div>
             </div>
+            )
           )}
         </div>
 

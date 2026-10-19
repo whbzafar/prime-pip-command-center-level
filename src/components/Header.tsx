@@ -68,6 +68,7 @@ import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
 import { GlobalTimeSessionModal } from './GlobalTimeSessionModal';
 import { GlobalSearch } from './GlobalSearch';
 import { isCategoryLockedInDemo } from '../data/categorySummaries';
+import { hasFullAccess } from '../utils/authClient';
 
 export type MainNavTab =
   | 'SETUP'
@@ -173,6 +174,8 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const switchTab = onSelectTab || setActiveTab || (() => {});
   const displayScore = overallScore ?? scores?.overallTradingScore ?? 76;
+  const isSubscriber = hasFullAccess(currentUser);
+  const isPsychLocked = !isSubscriber;
   const [isTimeModalOpen, setIsTimeModalOpen] = React.useState<boolean>(false);
   const [liveClockStr, setLiveClockStr] = React.useState<string>('');
   const [activeSessionSummary, setActiveSessionSummary] = React.useState<string>('');
@@ -946,20 +949,28 @@ export const Header: React.FC<HeaderProps> = ({
                 id="header-psychological-center-btn"
                 type="button"
                 onClick={() => switchTab('PSYCHOLOGY')}
-                title="Psychological Center — Train your mindset. Protect your discipline. Improve your execution."
+                title={isPsychLocked ? "Psychological Center is locked — Active subscription required. Click to view." : "Psychological Center — Train your mindset. Protect your discipline. Improve your execution."}
                 className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition-all duration-200 cursor-pointer shadow-sm group ${
                   activeTab === 'PSYCHOLOGY'
                     ? 'bg-gradient-to-r from-blue-500 to-amber-600 text-slate-950 border-cyan-400 shadow-blue-500/25 ring-1 ring-cyan-400'
+                    : isPsychLocked
+                    ? 'bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-amber-300 border-slate-800 hover:border-amber-500/40'
                     : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-amber-300 border-slate-800 hover:border-blue-500/50'
                 }`}
               >
                 <div className={`w-4 h-4 rounded flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
-                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-cyan-400'
+                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : isPsychLocked ? 'text-amber-400' : 'text-cyan-400'
                 }`}>
                   <Brain className="w-3.5 h-3.5 stroke-[2.2]" />
                 </div>
-                <div className="text-left flex flex-col justify-center leading-tight">
+                <div className="text-left flex items-center gap-1.5 leading-tight">
                   <span className="whitespace-nowrap">Psych Center</span>
+                  {isPsychLocked && (
+                    <span className="flex items-center gap-0.5 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1 py-0.2 rounded font-bold uppercase shadow-xs">
+                      <Lock className="w-2 h-2 text-amber-400" />
+                      LOCKED
+                    </span>
+                  )}
                 </div>
               </button>
 
@@ -1008,21 +1019,25 @@ export const Header: React.FC<HeaderProps> = ({
                 id="header-psychological-center-guest-btn"
                 type="button"
                 onClick={() => switchTab('PSYCHOLOGY')}
-                title="Psychological Center — Train your mindset. Protect your discipline. Improve your execution."
+                title="Psychological Center is locked — Active subscription required. Click to view."
                 className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition-all duration-200 cursor-pointer shadow-sm group prime-ios-touch ${
                   activeTab === 'PSYCHOLOGY'
                     ? 'bg-gradient-to-r from-blue-500 to-amber-600 text-slate-950 border-cyan-400 shadow-blue-500/25 ring-1 ring-cyan-400'
-                    : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-cyan-300 border-cyan-500/40 hover:border-cyan-400'
+                    : 'bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-amber-300 border-amber-500/40 hover:border-amber-400'
                 }`}
               >
                 <div className={`w-4 h-4 rounded flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
-                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-cyan-400'
+                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-amber-400'
                 }`}>
                   <Brain className="w-3.5 h-3.5 stroke-[2.2]" />
                 </div>
                 <div className="text-left flex items-center gap-1 leading-tight">
                   <span className="whitespace-nowrap hidden sm:inline">Psych Center</span>
                   <span className="sm:hidden font-mono-code text-[10px]">MINDSET</span>
+                  <span className="flex items-center gap-0.5 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1 py-0.2 rounded font-bold uppercase shadow-xs">
+                    <Lock className="w-2 h-2 text-amber-400" />
+                    LOCKED
+                  </span>
                 </div>
               </button>
             </div>
@@ -1171,13 +1186,18 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : item.highlight ? 'text-cyan-400' : 'text-slate-300'}`} />
                   <span className="text-[11px] font-mono-code font-bold tracking-tight uppercase">{item.label}</span>
-                  {isCategoryLockedInDemo(item.id, isDemoMode) ? (
+                  {isCategoryLockedInDemo(item.id, isDemoMode, currentUser) ? (
                     <span className="flex items-center gap-1 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
                       <Lock className="w-2.5 h-2.5 text-amber-400" />
                       LOCKED
                     </span>
                   ) : (
                     <>
+                      {item.id === 'FUNDAMENTAL_INDICATORS' && (
+                        <span className="flex items-center gap-1 text-[8px] bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
+                          FREE
+                        </span>
+                      )}
                       {isComingSoon && (
                         <span className="text-[8px] bg-blue-500/20 text-cyan-300 border border-blue-500/40 px-1 rounded uppercase">
                           SOON
