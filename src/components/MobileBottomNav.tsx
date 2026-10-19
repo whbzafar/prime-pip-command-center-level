@@ -170,9 +170,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               }`}
             >
               <ShieldAlert className="w-4 h-4 stroke-[2.2]" />
-              {isDemo && (
-                <Lock className="w-2.5 h-2.5 text-amber-400 absolute -top-0.5 -right-0.5" />
-              )}
             </div>
             <span className="text-[10px] font-military tracking-tight mt-0.5 select-none">Pre-Plan</span>
             {activeTab === 'PRE_TRADE_PLAN' && (
@@ -327,23 +324,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                           <span className="font-military font-bold text-xs tracking-wider">
                             {item.label}
                           </span>
-                          {isDemo &&
-                          (item.id === 'PRE_TRADE_PLAN' ||
-                            item.id === 'FUNDAMENTAL_CALENDAR' ||
-                            item.id === 'FUNDAMENTAL_INDICATORS' ||
-                            item.id === 'SIGNALS' ||
-                            item.id === 'PERFORMANCE' ||
-                            item.id === 'DAILY_DEV' ||
-                            item.id === 'PSYCHOLOGY' ||
-                            item.id === 'CALMING_TOOLS' ||
-                            item.id === 'SITUATION_SAVER' ||
-                            item.id === 'PRO_LEARNING' ||
-                            item.id === 'COMMUNITY') ? (
-                            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
-                              <Lock className="w-2.5 h-2.5 text-amber-400" />
-                              <span>LOCKED</span>
-                            </span>
-                          ) : item.id === 'META5_PREMIUM' ? (
+                          {(item.id === 'META5_PREMIUM' ||
+                            (isDemo &&
+                              (item.id === 'BACKTESTING' ||
+                                item.id === 'CHART_ANALYSIS' ||
+                                item.id === 'FUNDAMENTAL_CALENDAR' ||
+                                item.id === 'FUNDAMENTAL_INDICATORS'))) ? (
                             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-code font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
                               <Lock className="w-2.5 h-2.5 text-amber-400" />
                               <span>LOCKED</span>

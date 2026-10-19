@@ -77,6 +77,9 @@ const ALLOWED_DEMO_CATEGORIES: string[] = [
   'BOOK_SESSION',
   'GOALS',
   'PRO_TRADING',        // Unlocked charting execution suite
+  'COMMUNITY',
+  'PRO_LEARNING',
+  'SIGNALS',
   'SUBSCRIPTION',
   'REFERRALS',
   // LOCKED in Demo Mode (Per user instruction):
@@ -84,6 +87,7 @@ const ALLOWED_DEMO_CATEGORIES: string[] = [
   // - CHART_ANALYSIS (Unlimited Chart Analysis)
   // - FUNDAMENTAL_CALENDAR
   // - FUNDAMENTAL_INDICATORS
+  // - META5_PREMIUM
 ];
 import { apiRecordTelemetrySignal } from './utils/evolutionClient';
 import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin } from './utils/authClient';

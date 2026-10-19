@@ -548,24 +548,12 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
                               ACTIVE
                             </span>
                           )}
-                          {cat.id === 'META5_PREMIUM' && (
-                            <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase shadow-xs">
-                              <Lock className="w-2.5 h-2.5 text-amber-400" />
-                              <span>LOCKED</span>
-                            </span>
-                          )}
-                          {isDemoMode &&
-                          (cat.id === 'PRE_TRADE_PLAN' ||
-                            cat.id === 'FUNDAMENTAL_CALENDAR' ||
-                            cat.id === 'FUNDAMENTAL_INDICATORS' ||
-                            cat.id === 'SIGNALS' ||
-                            cat.id === 'PERFORMANCE' ||
-                            cat.id === 'DAILY_DEV' ||
-                            cat.id === 'PSYCHOLOGY' ||
-                            cat.id === 'CALMING_TOOLS' ||
-                            cat.id === 'SITUATION_SAVER' ||
-                            cat.id === 'PRO_LEARNING' ||
-                            cat.id === 'COMMUNITY') ? (
+                          {(cat.id === 'META5_PREMIUM' ||
+                            (isDemoMode &&
+                              (cat.id === 'BACKTESTING' ||
+                                cat.id === 'CHART_ANALYSIS' ||
+                                cat.id === 'FUNDAMENTAL_CALENDAR' ||
+                                cat.id === 'FUNDAMENTAL_INDICATORS'))) ? (
                             <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/50 uppercase shadow-xs">
                               <Lock className="w-2.5 h-2.5 text-amber-400" />
                               <span>LOCKED</span>

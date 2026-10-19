@@ -16,6 +16,7 @@ import {
   X,
   ArrowRight,
   Cloud,
+  Radio,
 } from 'lucide-react';
 import { apiLogin, apiChangePassword, setStoredUser } from '../utils/authClient';
 import { UserAccount } from '../types';
@@ -39,6 +40,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onContinueDemo,
 }) => {
   const [step, setStep] = useState<'LOGIN' | 'CHANGE_PASSWORD' | 'LINK_STORAGE'>('LOGIN');
+  const [accountCurrencyType, setAccountCurrencyType] = useState<'STANDARD' | 'CENT'>('STANDARD');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -127,8 +129,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
-    if (onSuccess) onSuccess(user, token);
-    if (onLoginSuccess) onLoginSuccess(user, token);
+    if (onSuccess) onSuccess(user, token, { isCentAccount: accountCurrencyType === 'CENT' });
+    if (onLoginSuccess) onLoginSuccess(user, token, { isCentAccount: accountCurrencyType === 'CENT' });
     onClose();
   };
 
@@ -144,8 +146,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         setDriveLinkSuccess(true);
         triggerBurst();
         setTimeout(() => {
-          if (onSuccess) onSuccess(pendingUser, pendingToken || undefined);
-          if (onLoginSuccess) onLoginSuccess(pendingUser, pendingToken || undefined);
+          if (onSuccess) onSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountCurrencyType === 'CENT' });
+          if (onLoginSuccess) onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountCurrencyType === 'CENT' });
           onClose();
         }, 800);
       } else {
@@ -162,8 +164,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     if (pendingUser) {
       // Mark as prompted so never prompted again
       googleDriveService.setPromptedInitialLink(pendingUser.id, true);
-      if (onSuccess) onSuccess(pendingUser, pendingToken || undefined);
-      if (onLoginSuccess) onLoginSuccess(pendingUser, pendingToken || undefined);
+      if (onSuccess) onSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountCurrencyType === 'CENT' });
+      if (onLoginSuccess) onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountCurrencyType === 'CENT' });
       onClose();
     }
   };
@@ -242,7 +244,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </button>
 
           {/* Header */}
-          <div className="text-center mb-5 relative z-10">
+          <div className="text-center mb-4 relative z-10">
             <div className="inline-flex p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 mb-2.5 shadow-lg shadow-cyan-500/15">
               <Shield className="w-6 h-6" />
             </div>
@@ -255,6 +257,31 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 : 'Authorized Trader & Developer Access'}
             </p>
           </div>
+
+          {/* Announcement Banner above Username & Password Fields */}
+          {step === 'LOGIN' && (
+            <div className="mb-4 p-[1px] rounded-2xl bg-gradient-to-r from-cyan-500/50 via-amber-500/40 to-blue-500/50 shadow-md">
+              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-slate-950/90 border border-white/5 text-xs">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-300">
+                    <Radio className="w-3 h-3 animate-pulse" />
+                  </div>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="text-[9px] font-mono-code font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shrink-0">
+                      NEW RELEASE
+                    </span>
+                    <span className="text-[11px] font-military tracking-wide text-slate-200 truncate font-semibold">
+                      SBT Model Pro Available — All 10 Institutional Models Active
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[9px] font-mono-code font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 flex items-center gap-1 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                  LIVE
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Error Alert */}
           {error && (
@@ -435,6 +462,44 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </div>
               </div>
 
+              {/* Specific Function: ACCOUNT BASE CURRENCY / TYPE */}
+              <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800">
+                <div className="flex items-center justify-between mb-2 px-0.5">
+                  <span className="text-[11px] font-mono-code text-slate-300 font-bold uppercase tracking-wider">
+                    ACCOUNT BASE CURRENCY / TYPE
+                  </span>
+                  <span className="text-[11px] font-mono-code font-bold text-cyan-400">
+                    {accountCurrencyType === 'CENT' ? 'Cent Account (¢)' : 'Standard USD ($)'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAccountCurrencyType('STANDARD')}
+                    className={`py-2 px-3 rounded-xl font-mono-code text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      accountCurrencyType === 'STANDARD'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 border border-cyan-400'
+                        : 'bg-slate-950/80 hover:bg-slate-900 text-slate-400 border border-slate-800'
+                    }`}
+                  >
+                    <span>💵</span>
+                    <span>Standard ($)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAccountCurrencyType('CENT')}
+                    className={`py-2 px-3 rounded-xl font-mono-code text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      accountCurrencyType === 'CENT'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 border border-cyan-400'
+                        : 'bg-slate-950/80 hover:bg-slate-900 text-slate-400 border border-slate-800'
+                    }`}
+                  >
+                    <span>🪙</span>
+                    <span>Cent Account (¢)</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Persistent Session / Remember Me option */}
               <div className="flex items-center justify-between py-1 px-1">
                 <label className="flex items-center gap-2 text-xs font-mono-code text-slate-300 cursor-pointer select-none">
@@ -472,7 +537,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 type="button"
                 onClick={() => {
                   triggerBurst();
-                  if (onContinueDemo) onContinueDemo();
+                  if (onContinueDemo) onContinueDemo({ isCentAccount: accountCurrencyType === 'CENT' });
                   onClose();
                 }}
                 className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-mono-code text-xs font-bold rounded-xl border border-slate-700 hover:border-cyan-500/40 transition flex items-center justify-center gap-2 cursor-pointer"

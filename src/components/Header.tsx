@@ -999,17 +999,17 @@ export const Header: React.FC<HeaderProps> = ({
                 id="header-psychological-center-guest-btn"
                 type="button"
                 onClick={() => switchTab('PSYCHOLOGY')}
-                title="Psychological Center — Subscription Required in Demo Mode"
+                title="Psychological Center — Train your mindset. Protect your discipline. Improve your execution."
                 className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition-all duration-200 cursor-pointer shadow-sm group prime-ios-touch ${
                   activeTab === 'PSYCHOLOGY'
                     ? 'bg-gradient-to-r from-blue-500 to-amber-600 text-slate-950 border-cyan-400 shadow-blue-500/25 ring-1 ring-cyan-400'
-                    : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-amber-300 border-amber-500/40 hover:border-amber-400'
+                    : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-cyan-300 border-cyan-500/40 hover:border-cyan-400'
                 }`}
               >
                 <div className={`w-4 h-4 rounded flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
-                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-amber-400'
+                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-cyan-400'
                 }`}>
-                  <Lock className="w-3.5 h-3.5 stroke-[2.2]" />
+                  <Brain className="w-3.5 h-3.5 stroke-[2.2]" />
                 </div>
                 <div className="text-left flex items-center gap-1 leading-tight">
                   <span className="whitespace-nowrap hidden sm:inline">Psych Center</span>
@@ -1162,44 +1162,25 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : item.highlight ? 'text-cyan-400' : 'text-slate-300'}`} />
                   <span className="text-[11px] font-mono-code font-bold tracking-tight uppercase">{item.label}</span>
-                  {item.id === 'META5_PREMIUM' && (
-                    <span className="flex items-center gap-1 text-[8px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
-                      <Lock className="w-2.5 h-2.5 text-amber-400" />
-                      LOCKED
-                    </span>
-                  )}
-                  {item.id === 'FUNDAMENTAL_CALENDAR' && (
-                    <span className="text-[8px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded font-bold uppercase shadow-sm">
-                      FREE
-                    </span>
-                  )}
-                  {item.id === 'FUNDAMENTAL_INDICATORS' && (
-                    <span className="text-[8px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded font-bold uppercase shadow-sm">
-                      FREE COT
-                    </span>
-                  )}
-                  {isDemoMode &&
-                  (item.id === 'PRE_TRADE_PLAN' ||
-                    item.id === 'SIGNALS' ||
-                    item.id === 'PERFORMANCE' ||
-                    item.id === 'DAILY_DEV' ||
-                    item.id === 'PSYCHOLOGY' ||
-                    item.id === 'CALMING_TOOLS' ||
-                    item.id === 'SITUATION_SAVER' ||
-                    item.id === 'PRO_LEARNING' ||
-                    item.id === 'COMMUNITY') ? (
+                  {(item.id === 'META5_PREMIUM' ||
+                    (isDemoMode &&
+                      (item.id === 'BACKTESTING' ||
+                        item.id === 'BACKTEST_REPLAY' ||
+                        item.id === 'CHART_ANALYSIS' ||
+                        item.id === 'FUNDAMENTAL_CALENDAR' ||
+                        item.id === 'FUNDAMENTAL_INDICATORS'))) ? (
                     <span className="flex items-center gap-1 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
                       <Lock className="w-2.5 h-2.5 text-amber-400" />
                       LOCKED
                     </span>
                   ) : (
                     <>
-                      {isComingSoon && item.id !== 'META5_PREMIUM' && (
+                      {isComingSoon && (
                         <span className="text-[8px] bg-blue-500/20 text-cyan-300 border border-blue-500/40 px-1 rounded uppercase">
                           SOON
                         </span>
                       )}
-                      {(item as any).isLive && item.id !== 'META5_PREMIUM' && (
+                      {(item as any).isLive && (
                         <span className="flex items-center gap-1 text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-1.5 py-0.5 rounded font-bold uppercase shadow-sm">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                           LIVE

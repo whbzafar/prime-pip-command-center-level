@@ -40,7 +40,7 @@ import { googleDriveService } from '../services/googleDriveService';
 import { fetchLiveGoldQuote } from '../services/liveChartDataService';
 
 const TICKER_ANNOUNCEMENTS = [
-  { tag: 'NEW RELEASE', text: 'SPT Model Pro Available — All 10 Institutional Models Active', color: 'from-amber-400 to-yellow-500' },
+  { tag: 'NEW RELEASE', text: 'SBT Model Pro Available — All 10 Institutional Models Active', color: 'from-amber-400 to-yellow-500' },
   { tag: 'PREMIUM TRADING', text: 'Live Multi-Asset Charts & Spot Gold Live Order Flow', color: 'from-cyan-400 to-blue-500' },
   { tag: 'SBT STRATEGIES', text: '10 Systematic Institutional Setups with Exact Rules', color: 'from-emerald-400 to-teal-500' },
   { tag: 'FREEHAND WORKSPACE', text: 'Tactical Multi-Timeframe Canvases & Custom Drawing Tools', color: 'from-purple-400 to-indigo-500' },
@@ -69,6 +69,8 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   isModal = false,
 }) => {
   const [step, setStep] = useState<'LOGIN' | 'CHANGE_PASSWORD' | 'LINK_STORAGE'>('LOGIN');
+  // Account currency type selection: Standard ($) vs Cent Account (¢)
+  const [accountCurrencyType, setAccountCurrencyType] = useState<'STANDARD' | 'CENT'>('STANDARD');
   // Live Gold Quote directly connected to Premium Trading category feed
   const [goldQuote, setGoldQuote] = useState<{ price: number; change24h: number; isLive: boolean }>({
     price: 4173.30,
@@ -287,7 +289,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         setTimeout(() => {
           window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
           setShowCongratulations(false);
-          proceedAfterAuth(result.user!, result.token);
+          proceedAfterAuth(result.user!, result.token, { isCentAccount: accountCurrencyType === 'CENT' });
         }, 600);
       } else {
         setError(result.error || 'Invalid credentials. Please verify your username and password.');
@@ -298,11 +300,11 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
     }
   };
 
-  const proceedAfterAuth = (user: UserAccount, token?: string) => {
+  const proceedAfterAuth = (user: UserAccount, token?: string, options?: { isCentAccount?: boolean }) => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     googleDriveService.setCurrentUserId(user.id);
     // Directly transition to account onboarding so the user immediately sees the account options
-    onLoginSuccess(user, token);
+    onLoginSuccess(user, token, options || { isCentAccount: accountCurrencyType === 'CENT' });
   };
 
   const handleLinkDrive = async () => {
@@ -318,7 +320,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         triggerBurst();
         setTimeout(() => {
           window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-          onLoginSuccess(pendingUser, pendingToken || undefined);
+          onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountCurrencyType === 'CENT' });
         }, 800);
       } else {
         setLinkingDrive(false);
@@ -331,12 +333,10 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   };
 
   const handleSkipDriveLink = () => {
-    if (pendingUser) {
-      // Mark as prompted so user is never prompted repeatedly on subsequent logins
-      googleDriveService.setPromptedInitialLink(pendingUser.id, true);
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-      onLoginSuccess(pendingUser, pendingToken || undefined);
-    }
+    if (!pendingUser) return;
+    googleDriveService.setPromptedInitialLink(pendingUser.id, true);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountCurrencyType === 'CENT' });
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -368,7 +368,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         setStoredUser(updatedUser);
 
         setTimeout(() => {
-          proceedAfterAuth(updatedUser, tokenToUse);
+          proceedAfterAuth(updatedUser, tokenToUse, { isCentAccount: accountCurrencyType === 'CENT' });
         }, 900);
       } else {
         setError(res.error || 'Failed to update password. Please try again.');
@@ -382,7 +382,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const handleDemoClick = () => {
     triggerBurst();
     setTimeout(() => {
-      onExploreDemo();
+      onExploreDemo({ isCentAccount: accountCurrencyType === 'CENT' });
     }, 300);
   };
 
@@ -672,30 +672,55 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
           {/* Iridescent Cyber Rim Glow */}
           <div className="absolute -inset-[1.5px] rounded-3xl bg-gradient-to-r from-cyan-400 via-blue-600 to-violet-500 opacity-85 blur-[2px] transition duration-500" />
 
-          {/* Core Frosted Glass Card Body */}
-          <div className="relative rounded-3xl bg-slate-950/95 border border-white/10 p-5 sm:p-6 backdrop-blur-2xl shadow-2xl shadow-cyan-950/50 overflow-hidden ring-1 ring-cyan-400/10">
+          {/* Core Frosted Glass Card Body Matching Image 2 */}
+          <div className="relative rounded-3xl bg-slate-950/95 border border-white/10 p-5 sm:p-7 backdrop-blur-2xl shadow-2xl shadow-cyan-950/50 overflow-hidden ring-1 ring-cyan-400/10">
             {/* Top Glossy Reflection Sheen */}
             <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
 
-            {/* Compact Brand Header */}
-            <div className="text-center mb-4 relative z-10">
-              <div className="inline-flex items-center gap-2 mb-1">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-transparent border border-cyan-500/40 text-cyan-300 shadow-md">
-                  <Shield className="w-5 h-5" />
-                </div>
-                <h1 className="text-xl sm:text-2xl font-military font-black tracking-wider text-white uppercase">
-                  PRIMEPIP<span className="text-cyan-400">FX</span>
-                </h1>
+            {/* Modal / Demo Dismiss button */}
+            <button
+              type="button"
+              onClick={onClose || handleDemoClick}
+              className="absolute top-4 left-4 p-2 text-slate-400 hover:text-white transition rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/60 cursor-pointer z-20"
+              aria-label="Dismiss to Demo"
+              title="Explore in Demo Mode"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Header: Shield Icon & Title Matching Image 2 */}
+            <div className="text-center mb-4 relative z-10 pt-1">
+              <div className="inline-flex p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 mb-2 shadow-lg shadow-cyan-500/15">
+                <Shield className="w-6 h-6" />
               </div>
-              <p className="text-[11px] text-cyan-300 font-military font-bold tracking-widest uppercase">
-                TRADING COMMAND CENTER
+              <h2 className="text-lg sm:text-xl font-military font-bold tracking-wider text-slate-100 uppercase">
+                PRIMEPIPFX COMMAND CENTER
+              </h2>
+              <p className="text-xs text-slate-400 font-mono-code mt-0.5">
+                Authorized Trader & Developer Access
               </p>
-              <div className="flex items-center justify-center gap-2 text-[10px] font-mono-code text-slate-400 mt-1">
-                <span className="flex items-center gap-1 text-amber-300 font-bold">
-                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> 5.0 Rating
+            </div>
+
+            {/* Announcement Section Above Username & Password Fields */}
+            <div className="mb-4 p-[1px] rounded-2xl bg-gradient-to-r from-cyan-500/50 via-amber-500/40 to-blue-500/50 shadow-md">
+              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-slate-950/90 border border-white/5 text-xs">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-300">
+                    <Radio className="w-3 h-3 animate-pulse" />
+                  </div>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="text-[9px] font-mono-code font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shrink-0">
+                      NEW RELEASE
+                    </span>
+                    <span className="text-[11px] font-military tracking-wide text-slate-200 truncate font-semibold">
+                      SBT Model Pro Available — All 10 Institutional Models Active
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[9px] font-mono-code font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 flex items-center gap-1 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                  LIVE
                 </span>
-                <span>•</span>
-                <span className="text-emerald-400 font-semibold">{studentCount} Active Students</span>
               </div>
             </div>
 
@@ -713,19 +738,12 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
               </motion.div>
             )}
 
-            {/* Sign In Header - Placed Upfront Directly Above Inputs */}
-            {step === 'LOGIN' && (
-              <div className="py-1.5 px-3 bg-cyan-500/10 border border-cyan-400/25 rounded-xl mb-3.5 text-center font-military font-bold text-[11px] tracking-wider text-cyan-300 uppercase">
-                AUTHORIZED TRADER LOGIN
-              </div>
-            )}
-
-            {/* Step 1: Sign In Form Only */}
+            {/* Step 1: Sign In Form Matching Image 2 */}
             {step === 'LOGIN' ? (
               <form onSubmit={handleLoginSubmit} className="space-y-4 relative z-10">
                 <div>
-                  <label className="block text-xs font-mono-code text-slate-300 uppercase mb-1.5 font-bold">
-                    Username or Email
+                  <label className="text-xs font-mono-code text-slate-300 font-bold block mb-1.5 uppercase">
+                    USERNAME OR ID
                   </label>
                   <div className="relative">
                     <input
@@ -740,15 +758,15 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                       onBlur={() => setIsTypingActive(false)}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="Enter username or email"
-                      className="w-full pl-10 pr-4 py-3 bg-slate-900/80 border border-slate-700/80 rounded-xl font-mono-code text-base sm:text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/25 transition-all placeholder:text-slate-600"
+                      className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-700/80 rounded-xl font-mono-code text-base sm:text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 placeholder:text-slate-600"
                     />
                     <User className="w-4 h-4 text-cyan-400 absolute left-3.5 top-3.5" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono-code text-slate-300 uppercase mb-1.5 font-bold">
-                    Password
+                  <label className="text-xs font-mono-code text-slate-300 font-bold block mb-1.5 uppercase">
+                    PASSWORD
                   </label>
                   <div className="relative">
                     <input
@@ -762,7 +780,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                       onBlur={() => setIsTypingActive(false)}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter password"
-                      className="w-full pl-10 pr-11 py-3 bg-slate-900/80 border border-slate-700/80 rounded-xl font-mono-code text-base sm:text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/25 transition-all placeholder:text-slate-600"
+                      className="w-full pl-10 pr-11 py-3 bg-slate-900 border border-slate-700/80 rounded-xl font-mono-code text-base sm:text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 placeholder:text-slate-600"
                     />
                     <KeyRound className="w-4 h-4 text-cyan-400 absolute left-3.5 top-3.5" />
                     <button
@@ -776,53 +794,45 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   </div>
                 </div>
 
-                {/* ANIMATED BADGES: TRUSTPILOT & TOP GLOBAL ORGANIZATIONS */}
-                <div
-                  className={`p-3 rounded-2xl border transition-all duration-300 ${
-                    isTypingActive
-                      ? 'bg-slate-900/95 border-cyan-400/60 shadow-lg shadow-cyan-500/15 ring-1 ring-cyan-400/20'
-                      : 'bg-slate-950/70 border-slate-800/80'
-                  }`}
-                >
-                  {/* Verified by Trustpilot Badge */}
-                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800/80">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-4 h-4 rounded bg-emerald-500 flex items-center justify-center text-slate-950 font-bold text-[10px] shadow-xs">
-                        ★
-                      </div>
-                      <span className="text-[11px] font-bold tracking-tight text-white font-sans">Verified by Trustpilot</span>
-                      <div className="flex text-emerald-400 text-xs">
-                        {'★★★★★'}
-                      </div>
-                    </div>
-                    <span className="text-[9px] font-mono-code text-emerald-300 font-bold bg-emerald-500/15 px-1.5 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      TrustScore 4.9 | Excellent
+                {/* Specific Function: ACCOUNT BASE CURRENCY / TYPE */}
+                <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800">
+                  <div className="flex items-center justify-between mb-2 px-0.5">
+                    <span className="text-[11px] font-mono-code text-slate-300 font-bold uppercase tracking-wider">
+                      ACCOUNT BASE CURRENCY / TYPE
+                    </span>
+                    <span className="text-[11px] font-mono-code font-bold text-cyan-400">
+                      {accountCurrencyType === 'CENT' ? 'Cent Account (¢)' : 'Standard USD ($)'}
                     </span>
                   </div>
-
-                  {/* Badges from Top Global Organizations */}
-                  <div className="grid grid-cols-2 gap-1.5 pt-2 text-[9px] font-mono-code text-slate-400">
-                    <div className="flex items-center gap-1">
-                      <Shield className="w-3 h-3 text-cyan-400 shrink-0" />
-                      <span>ISO 27001 Security</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Activity className="w-3 h-3 text-emerald-400 shrink-0" />
-                      <span>Tier-1 Macro Telemetry</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Award className="w-3 h-3 text-amber-400 shrink-0" />
-                      <span>CFA Macro Standards</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-blue-400 shrink-0" />
-                      <span>Bloomberg Confluence</span>
-                    </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAccountCurrencyType('STANDARD')}
+                      className={`py-2 px-3 rounded-xl font-mono-code text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        accountCurrencyType === 'STANDARD'
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 border border-cyan-400'
+                          : 'bg-slate-950/80 hover:bg-slate-900 text-slate-400 border border-slate-800'
+                      }`}
+                    >
+                      <span>💵</span>
+                      <span>Standard ($)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAccountCurrencyType('CENT')}
+                      className={`py-2 px-3 rounded-xl font-mono-code text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        accountCurrencyType === 'CENT'
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 border border-cyan-400'
+                          : 'bg-slate-950/80 hover:bg-slate-900 text-slate-400 border border-slate-800'
+                      }`}
+                    >
+                      <span>🪙</span>
+                      <span>Cent Account (¢)</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Remember Me Option */}
+                {/* Persistent Session / Remember Me Option */}
                 <div className="flex items-center justify-between py-1 px-1">
                   <label className="flex items-center gap-2 text-xs font-mono-code text-slate-300 cursor-pointer select-none">
                     <input
@@ -838,30 +848,28 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   </span>
                 </div>
 
-                {/* Primary Login Button with Liquid Morph Glow */}
+                {/* Primary Action Button Matching Image 2 */}
                 <motion.button
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-2 py-3.5 px-4 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-military font-bold text-sm tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full mt-2 py-3.5 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-military font-bold text-sm tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <Lock className="w-4 h-4" />
-                  <span>{loading ? 'AUTHENTICATING...' : 'INITIALIZE TERMINAL'}</span>
+                  <span>{loading ? 'AUTHENTICATING...' : 'ENTER COMMAND CENTER'}</span>
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </motion.button>
 
-                {/* Explore Demo Mode Button */}
-                <motion.button
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
+                {/* Secondary Action: Explore in Demo / Preview Mode Matching Image 2 */}
+                <button
                   type="button"
                   onClick={handleDemoClick}
-                  className="w-full py-3 px-4 bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-mono-code text-xs font-bold rounded-xl border border-slate-700/80 hover:border-cyan-500/40 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-mono-code text-xs font-bold rounded-xl border border-slate-700 hover:border-cyan-500/40 transition flex items-center justify-center gap-2 cursor-pointer mt-2"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>EXPLORE LIVE DEMO TERMINAL</span>
-                </motion.button>
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>EXPLORE IN DEMO / PREVIEW MODE</span>
+                </button>
               </form>
             ) : step === 'LINK_STORAGE' ? (
               /* Step: Initial Login Google Drive Cloud Linking */
