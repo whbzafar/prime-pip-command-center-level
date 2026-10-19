@@ -77,6 +77,7 @@ import {
 } from '../data/defaultFundamentalObservations';
 import { syncFundamentalMarketData } from '../services/fundamentalMarketSyncService';
 import { fetchUpcomingEvents, CalendarEvent } from '../services/economicCalendarService';
+import { fetchLiveGoldQuote } from '../services/liveChartDataService';
 import { PairDeepDiveModal } from './fundamental/PairDeepDiveModal';
 
 // ============================================================================
@@ -223,7 +224,7 @@ const BASELINE_PRICES: Record<string, InstrumentMeta> = {
   NZDCAD: { price: 0.8310, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.8, pipValuePerLot: 7.2 },
   NZDCHF: { price: 0.5200, pipDecimals: 5, pipSize: 0.0001, spreadPips: 1.8, pipValuePerLot: 11.5 },
   // Metals & Commodities
-  XAUUSD: { price: 2685.5, pipDecimals: 2, pipSize: 0.1, spreadPips: 2.5, pipValuePerLot: 10.0 },
+  XAUUSD: { price: 4173.30, pipDecimals: 2, pipSize: 0.1, spreadPips: 2.5, pipValuePerLot: 10.0 },
   XAGUSD: { price: 31.85, pipDecimals: 3, pipSize: 0.01, spreadPips: 3.0, pipValuePerLot: 50.0 },
   USOIL: { price: 71.50, pipDecimals: 2, pipSize: 0.01, spreadPips: 2.5, pipValuePerLot: 10.0 },
   BRENT: { price: 75.80, pipDecimals: 2, pipSize: 0.01, spreadPips: 2.5, pipValuePerLot: 10.0 },
@@ -2722,6 +2723,24 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     setManualTpPrice('');
     setIsManualPriceMode(false);
     setIsCustomProjection(false);
+
+    if (cleanSym === 'XAUUSD') {
+      fetchLiveGoldQuote().then((q) => {
+        if (q && q.price > 0) {
+          setLiveCandle((prev) => ({
+            ...prev,
+            close: q.price,
+            bid: q.price,
+            ask: Number((q.price + spread).toFixed(meta.pipDecimals)),
+            changePercent: q.change24h,
+          }));
+          setProjectionAnchorCenter(q.price);
+          setEntryLinePrice(q.price);
+          setSlLinePrice(Number((q.price - 25 * meta.pipSize).toFixed(meta.pipDecimals)));
+          setTpLinePrice(Number((q.price + 50 * meta.pipSize).toFixed(meta.pipDecimals)));
+        }
+      }).catch(() => {});
+    }
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {

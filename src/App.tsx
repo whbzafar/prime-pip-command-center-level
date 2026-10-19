@@ -59,25 +59,31 @@ import { UnlimitedChartAnalysis } from './components/chartAnalysis/UnlimitedChar
 
 const ALLOWED_DEMO_CATEGORIES: string[] = [
   'DASHBOARD',
-  'PRE_TRADE_PLAN',
-  'SBT_MODELS',
-  'JOURNAL',
-  'RISK',
-  'LOT_SIZE',
-  'PRO_TRADING',
-  'BACKTEST_REPLAY',
-  'CHART_ANALYSIS',
-  'COMPOUNDING',
-  'BACKTESTING',
-  'FREEHAND_WORKSPACE',
+  'PRE_TRADE_PLAN',     // Unlocked pre-made trade plans
+  'PERFORMANCE',        // Unlocked performance reports
+  'REPORTS',            // Unlocked performance reports
+  'JOURNAL',            // Unlocked trading tool suite
+  'RISK',               // Unlocked trading tool suite
+  'LOT_SIZE',           // Unlocked trading tool suite
+  'COMPOUNDING',        // Unlocked trading tool suite
+  'SBT_MODELS',         // Unlocked trading tool suite
+  'FREEHAND_WORKSPACE', // Unlocked trading tool suite
   'RESEARCH',
   'PAIR_SAVER',
+  'SITUATION_SAVER',
+  'DAILY_DEV',
+  'PSYCHOLOGY',
+  'CALMING_TOOLS',
   'BOOK_SESSION',
   'GOALS',
+  'PRO_TRADING',        // Unlocked charting execution suite
   'SUBSCRIPTION',
   'REFERRALS',
-  'FUNDAMENTAL_CALENDAR',
-  'FUNDAMENTAL_INDICATORS',
+  // LOCKED in Demo Mode (Per user instruction):
+  // - BACKTESTING & BACKTEST_REPLAY
+  // - CHART_ANALYSIS (Unlimited Chart Analysis)
+  // - FUNDAMENTAL_CALENDAR
+  // - FUNDAMENTAL_INDICATORS
 ];
 import { apiRecordTelemetrySignal } from './utils/evolutionClient';
 import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin } from './utils/authClient';

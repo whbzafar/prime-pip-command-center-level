@@ -39,7 +39,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onContinueDemo,
 }) => {
   const [step, setStep] = useState<'LOGIN' | 'CHANGE_PASSWORD' | 'LINK_STORAGE'>('LOGIN');
-  const [accountUnit, setAccountUnit] = useState<'STANDARD' | 'CENT'>('STANDARD');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -128,8 +127,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
-    if (onSuccess) onSuccess(user, token, { isCentAccount: accountUnit === 'CENT' });
-    if (onLoginSuccess) onLoginSuccess(user, token, { isCentAccount: accountUnit === 'CENT' });
+    if (onSuccess) onSuccess(user, token);
+    if (onLoginSuccess) onLoginSuccess(user, token);
     onClose();
   };
 
@@ -145,8 +144,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         setDriveLinkSuccess(true);
         triggerBurst();
         setTimeout(() => {
-          if (onSuccess) onSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountUnit === 'CENT' });
-          if (onLoginSuccess) onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountUnit === 'CENT' });
+          if (onSuccess) onSuccess(pendingUser, pendingToken || undefined);
+          if (onLoginSuccess) onLoginSuccess(pendingUser, pendingToken || undefined);
           onClose();
         }, 800);
       } else {
@@ -163,8 +162,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     if (pendingUser) {
       // Mark as prompted so never prompted again
       googleDriveService.setPromptedInitialLink(pendingUser.id, true);
-      if (onSuccess) onSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountUnit === 'CENT' });
-      if (onLoginSuccess) onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountUnit === 'CENT' });
+      if (onSuccess) onSuccess(pendingUser, pendingToken || undefined);
+      if (onLoginSuccess) onLoginSuccess(pendingUser, pendingToken || undefined);
       onClose();
     }
   };
@@ -436,51 +435,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </div>
               </div>
 
-              {/* Cent Account / Standard Account Environment Selection */}
-              <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-mono-code text-slate-300 font-bold uppercase flex items-center gap-1.5">
-                    <span>Account Base Currency / Type</span>
-                  </label>
-                  <span className="text-[10px] font-mono-code text-cyan-400 font-semibold">
-                    {accountUnit === 'CENT' ? '1 USD = 100¢' : 'Standard USD ($)'}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAccountUnit('STANDARD')}
-                    className={`py-2 px-3 rounded-xl border text-xs font-mono-code font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      accountUnit === 'STANDARD'
-                        ? 'bg-blue-600/30 border-cyan-400 text-white shadow-md shadow-blue-500/20'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                    }`}
-                  >
-                    <span>💵 Standard ($)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAccountUnit('CENT')}
-                    className={`py-2 px-3 rounded-xl border text-xs font-mono-code font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      accountUnit === 'CENT'
-                        ? 'bg-amber-500/25 border-amber-400 text-amber-200 shadow-md shadow-amber-500/20'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                    }`}
-                  >
-                    <span>🪙 Cent Account (¢)</span>
-                  </button>
-                </div>
-                {accountUnit === 'CENT' && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] font-mono-code text-amber-300 leading-relaxed"
-                  >
-                    🪙 <strong>Cent Account Selected:</strong> 1 USD = 100 Cents. Calculations, position sizes, risk, and compounding will operate in Cents (¢).
-                  </motion.div>
-                )}
-              </div>
-
               {/* Persistent Session / Remember Me option */}
               <div className="flex items-center justify-between py-1 px-1">
                 <label className="flex items-center gap-2 text-xs font-mono-code text-slate-300 cursor-pointer select-none">
@@ -518,7 +472,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 type="button"
                 onClick={() => {
                   triggerBurst();
-                  if (onContinueDemo) onContinueDemo({ isCentAccount: accountUnit === 'CENT' });
+                  if (onContinueDemo) onContinueDemo();
                   onClose();
                 }}
                 className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-mono-code text-xs font-bold rounded-xl border border-slate-700 hover:border-cyan-500/40 transition flex items-center justify-center gap-2 cursor-pointer"

@@ -252,6 +252,7 @@ export interface Trade {
   exitPrice: number;
   lotSize: number;
   riskAmount: number; // in $
+  riskDollars?: number; // alias for riskAmount
   riskPercent?: number; // % of account
   potentialProfitDollars?: number; // Potential dollar gain if Take-Profit is hit
   profitLoss: number; // in $

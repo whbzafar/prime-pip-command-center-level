@@ -79,7 +79,8 @@ async function fetchBinanceCandles(symbol: string, interval: string, limit: numb
   let cleanSym = symbol.toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (cleanSym === 'EURUSD') cleanSym = 'EURUSDT';
   if (cleanSym === 'GBPUSD') cleanSym = 'GBPUSDT';
-  if (!cleanSym.endsWith('USDT') && !cleanSym.endsWith('USD') && !cleanSym.endsWith('BTC')) {
+  if (cleanSym === 'XAUUSD' || cleanSym === 'GOLD') cleanSym = 'PAXGUSDT';
+  else if (!cleanSym.endsWith('USDT') && !cleanSym.endsWith('USD') && !cleanSym.endsWith('BTC')) {
     cleanSym = `${cleanSym}USDT`;
   }
 
@@ -197,6 +198,9 @@ chartAnalysisRouter.get('/candles', async (req, res) => {
       cleanSym.includes('XRP') ||
       cleanSym.includes('DOGE') ||
       cleanSym.includes('ADA') ||
+      cleanSym === 'XAUUSD' ||
+      cleanSym === 'GOLD' ||
+      cleanSym === 'PAXGUSDT' ||
       cleanSym.endsWith('USDT');
 
     const intervals = normalizeIntervals(timeframe);
@@ -263,3 +267,83 @@ chartAnalysisRouter.get('/candles', async (req, res) => {
     });
   }
 });
+
+interface PriceCacheEntry {
+  price: number;
+  change24h: number;
+  timestamp: number;
+  source: string;
+}
+
+const priceCache = new Map<string, PriceCacheEntry>();
+
+/**
+ * GET /api/charts/price
+ * Query parameters:
+ *  - symbol: XAUUSD, EURUSD, BTCUSDT, etc.
+ */
+chartAnalysisRouter.get('/price', async (req, res) => {
+  try {
+    const rawSymbol = String(req.query.symbol || 'XAUUSD').trim().toUpperCase();
+    const cleanSym = rawSymbol.replace(/[^A-Z0-9]/g, '');
+    const now = Date.now();
+
+    const cached = priceCache.get(cleanSym);
+    if (cached && now - cached.timestamp < 10000) {
+      return res.json({
+        ok: true,
+        symbol: rawSymbol,
+        price: cached.price,
+        change24h: cached.change24h,
+        source: cached.source,
+        timestamp: cached.timestamp,
+      });
+    }
+
+    let binanceTickerSym = cleanSym;
+    if (cleanSym === 'XAUUSD' || cleanSym === 'GOLD') binanceTickerSym = 'PAXGUSDT';
+    else if (cleanSym === 'EURUSD') binanceTickerSym = 'EURUSDT';
+    else if (cleanSym === 'GBPUSD') binanceTickerSym = 'GBPUSDT';
+    else if (!binanceTickerSym.endsWith('USDT') && !binanceTickerSym.endsWith('USD') && !binanceTickerSym.endsWith('BTC')) {
+      binanceTickerSym = `${binanceTickerSym}USDT`;
+    }
+
+    try {
+      const bRes = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceTickerSym}`, {
+        headers: { Accept: 'application/json', 'User-Agent': 'PrimePipFX-Ticker/1.0' },
+      });
+      if (bRes.ok) {
+        const bData = await bRes.json();
+        const price = parseFloat(bData.lastPrice);
+        const change24h = parseFloat(bData.priceChangePercent || '0');
+        if (!isNaN(price) && price > 0) {
+          priceCache.set(cleanSym, { price, change24h, timestamp: now, source: 'binance' });
+          return res.json({
+            ok: true,
+            symbol: rawSymbol,
+            price,
+            change24h,
+            source: 'binance',
+            timestamp: now,
+          });
+        }
+      }
+    } catch (binErr: any) {
+      console.warn(`[CHART PRICE] Binance ticker note for ${binanceTickerSym}:`, binErr?.message);
+    }
+
+    // Fallback baseline for gold if external API is unreachable
+    const fallbackPrice = cleanSym === 'XAUUSD' || cleanSym === 'GOLD' ? 4173.30 : 1.0845;
+    return res.json({
+      ok: true,
+      symbol: rawSymbol,
+      price: cached ? cached.price : fallbackPrice,
+      change24h: cached ? cached.change24h : 0.32,
+      source: 'baseline_fallback',
+      timestamp: now,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ ok: false, error: error?.message || 'Failed to fetch price.' });
+  }
+});
+

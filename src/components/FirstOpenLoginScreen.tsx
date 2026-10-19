@@ -23,6 +23,9 @@ import {
   ExternalLink,
   Sparkles,
   Star,
+  Radio,
+  Layers,
+  X,
 } from 'lucide-react';
 import {
   apiLogin,
@@ -34,20 +37,46 @@ import {
 import { syncStudentsFromCloud, saveLocalStudent, getLocalStudents } from '../utils/localAuthStore';
 import { UserAccount } from '../types';
 import { googleDriveService } from '../services/googleDriveService';
+import { fetchLiveGoldQuote } from '../services/liveChartDataService';
+
+const TICKER_ANNOUNCEMENTS = [
+  { tag: 'NEW RELEASE', text: 'SPT Model Pro Available — All 10 Institutional Models Active', color: 'from-amber-400 to-yellow-500' },
+  { tag: 'PREMIUM TRADING', text: 'Live Multi-Asset Charts & Spot Gold Live Order Flow', color: 'from-cyan-400 to-blue-500' },
+  { tag: 'SBT STRATEGIES', text: '10 Systematic Institutional Setups with Exact Rules', color: 'from-emerald-400 to-teal-500' },
+  { tag: 'FREEHAND WORKSPACE', text: 'Tactical Multi-Timeframe Canvases & Custom Drawing Tools', color: 'from-purple-400 to-indigo-500' },
+  { tag: 'RISK ARMOR', text: 'Prop Firm Drawdown Guard & Real-Time Position Sizing', color: 'from-rose-400 to-amber-500' },
+  { tag: 'PSYCHOLOGY CENTER', text: 'Real-Time Tilt Radar, Emotional State Tracker & CBT Sorter', color: 'from-blue-400 to-cyan-500' },
+  { tag: 'FUNDAMENTALS', text: 'CFTC COT Positioning, Macro Yields & 28-Pair Differential', color: 'from-emerald-400 to-cyan-500' },
+  { tag: 'BACKTESTING PRO', text: 'Tick-by-Tick Historical Market Simulator & Replay Engine', color: 'from-amber-400 to-rose-500' },
+  { tag: 'AI TRADING COACH', text: 'Tactical Officer Combat Briefings & Performance Diagnostics', color: 'from-cyan-400 to-teal-500' },
+  { tag: 'COMPOUNDING ENGINE', text: 'Exponential Lot Size & Equity Curve Scaling Simulator', color: 'from-yellow-400 to-amber-500' },
+  { tag: 'COMMUNITY NETWORK', text: 'Encrypted Trader Messaging & WebRTC Video/Voice Calling', color: 'from-indigo-400 to-purple-500' },
+];
 
 interface FirstOpenLoginScreenProps {
   onLoginSuccess: (user: UserAccount, token?: string, options?: { isCentAccount?: boolean }) => void;
   onExploreDemo: (options?: { isCentAccount?: boolean }) => void;
   onOpenSubscription?: () => void;
+  onClose?: () => void;
+  isModal?: boolean;
 }
 
 export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   onLoginSuccess,
   onExploreDemo,
   onOpenSubscription,
+  onClose,
+  isModal = false,
 }) => {
   const [step, setStep] = useState<'LOGIN' | 'CHANGE_PASSWORD' | 'LINK_STORAGE'>('LOGIN');
-  const [accountUnit, setAccountUnit] = useState<'STANDARD' | 'CENT'>('STANDARD');
+  // Live Gold Quote directly connected to Premium Trading category feed
+  const [goldQuote, setGoldQuote] = useState<{ price: number; change24h: number; isLive: boolean }>({
+    price: 4173.30,
+    change24h: 0.32,
+    isLive: false,
+  });
+  // Category & Announcements Scrolling Ticker Index
+  const [tickerIndex, setTickerIndex] = useState(0);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -71,6 +100,30 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Full HD / 4K / Standard Display Options
+  const [displayResolution, setDisplayResolution] = useState<'FULL_HD' | '4K' | 'STANDARD'>(() => {
+    try {
+      return (localStorage.getItem('primepip_display_resolution') as any) || 'FULL_HD';
+    } catch {
+      return 'FULL_HD';
+    }
+  });
+
+  const handleResolutionChange = (res: 'FULL_HD' | '4K' | 'STANDARD') => {
+    setDisplayResolution(res);
+    try {
+      localStorage.setItem('primepip_display_resolution', res);
+      document.documentElement.setAttribute('data-display-resolution', res);
+      if (res === '4K') {
+        document.documentElement.style.fontSize = '16.5px';
+      } else if (res === 'FULL_HD') {
+        document.documentElement.style.fontSize = '16px';
+      } else {
+        document.documentElement.style.fontSize = '15px';
+      }
+    } catch {}
+  };
 
   // Dynamic verified students count from local and cloud store
   const [studentCount, setStudentCount] = useState<number>(() => {
@@ -114,6 +167,33 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       setPromptIndex((prev) => (prev + 1) % heroPrompts.length);
     }, 3800);
     return () => clearInterval(interval);
+  }, []);
+
+  // Category and Announcements Ticker Interval
+  useEffect(() => {
+    const tickInterval = setInterval(() => {
+      setTickerIndex((prev) => (prev + 1) % TICKER_ANNOUNCEMENTS.length);
+    }, 3400);
+    return () => clearInterval(tickInterval);
+  }, []);
+
+  // Real-Time Live Gold Price Sync connected to Premium Trading category feed
+  useEffect(() => {
+    let isMounted = true;
+    const syncGoldPrice = async () => {
+      try {
+        const q = await fetchLiveGoldQuote();
+        if (isMounted && q && q.price > 0) {
+          setGoldQuote({ price: q.price, change24h: q.change24h, isLive: true });
+        }
+      } catch {}
+    };
+    syncGoldPrice();
+    const goldInterval = setInterval(syncGoldPrice, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(goldInterval);
+    };
   }, []);
 
   useEffect(() => {
@@ -222,7 +302,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     googleDriveService.setCurrentUserId(user.id);
     // Directly transition to account onboarding so the user immediately sees the account options
-    onLoginSuccess(user, token, { isCentAccount: accountUnit === 'CENT' });
+    onLoginSuccess(user, token);
   };
 
   const handleLinkDrive = async () => {
@@ -238,7 +318,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         triggerBurst();
         setTimeout(() => {
           window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-          onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountUnit === 'CENT' });
+          onLoginSuccess(pendingUser, pendingToken || undefined);
         }, 800);
       } else {
         setLinkingDrive(false);
@@ -255,7 +335,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       // Mark as prompted so user is never prompted repeatedly on subsequent logins
       googleDriveService.setPromptedInitialLink(pendingUser.id, true);
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-      onLoginSuccess(pendingUser, pendingToken || undefined, { isCentAccount: accountUnit === 'CENT' });
+      onLoginSuccess(pendingUser, pendingToken || undefined);
     }
   };
 
@@ -302,7 +382,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const handleDemoClick = () => {
     triggerBurst();
     setTimeout(() => {
-      onExploreDemo({ isCentAccount: accountUnit === 'CENT' });
+      onExploreDemo();
     }, 300);
   };
 
@@ -316,9 +396,26 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={handleMouseLeave}
-      className="min-h-screen min-h-[100dvh] w-full bg-[#030712] text-slate-100 flex flex-col items-center justify-start sm:justify-center p-2.5 sm:p-6 pt-2 sm:pt-6 relative overflow-x-hidden overflow-y-auto selection:bg-cyan-500/30 selection:text-cyan-200"
+      className={`${
+        isModal
+          ? 'fixed inset-0 z-[200] overflow-y-auto bg-[#030712]/95 backdrop-blur-2xl'
+          : 'min-h-screen min-h-[100dvh]'
+      } w-full bg-[#030712] text-slate-100 flex flex-col items-center justify-start sm:justify-center p-2.5 sm:p-6 pt-3 sm:pt-6 relative overflow-x-hidden selection:bg-cyan-500/30 selection:text-cyan-200`}
       style={{ perspective: '1200px' }}
     >
+      {/* Modal Dismiss / Close button if rendered as a modal */}
+      {isModal && (
+        <button
+          type="button"
+          onClick={onClose || onExploreDemo}
+          className="fixed top-4 right-4 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/95 border border-slate-700/80 hover:border-cyan-400 text-slate-300 hover:text-white text-xs font-mono-code font-bold transition shadow-xl cursor-pointer"
+          title="Return to Demo Terminal"
+        >
+          <X className="w-4 h-4 text-slate-400 hover:text-white" />
+          <span>RETURN TO DEMO</span>
+        </button>
+      )}
+
       {/* Dynamic Ambient Background Elements */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-cyan-500/10 via-blue-600/10 to-transparent rounded-full blur-3xl" />
@@ -338,9 +435,15 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       {/* Compact Top Mobile/Desktop Status Bar (Natural flow, no blank displacement) */}
       <div className="w-full max-w-md mx-auto mb-2.5 z-20">
         <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 backdrop-blur-md shadow-md text-[10px] sm:text-[11px] font-mono-code text-slate-300">
-          <div className="flex items-center gap-1 text-emerald-400 font-semibold truncate">
+          <div className="flex items-center gap-1.5 text-emerald-400 font-semibold truncate" title="Live Gold Spot Price — Connected to Premium Trading Feed">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <span>XAUUSD 2,634.80</span>
+            <span className="text-cyan-400 font-bold">XAUUSD</span>
+            <span className="text-white font-mono-code font-bold tracking-tight">
+              {goldQuote.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+            <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${goldQuote.change24h >= 0 ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'}`}>
+              {goldQuote.change24h >= 0 ? `+${goldQuote.change24h.toFixed(2)}%` : `${goldQuote.change24h.toFixed(2)}%`}
+            </span>
           </div>
           <div className="text-slate-600">|</div>
           <div className="flex items-center gap-1 text-cyan-400 shrink-0">
@@ -355,41 +458,91 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         </div>
       </div>
 
-      {/* Hero Capsule Prompt (Compact inline badge) */}
+      {/* Hero Capsule — Scrolling Ticker for Announcements & Available Categories */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
         className="w-full max-w-md mx-auto mb-2.5 z-20"
       >
-        <div className="relative group p-[1px] rounded-full bg-gradient-to-r from-cyan-500/40 via-blue-500/20 to-amber-500/40 shadow-md shadow-cyan-950/30 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 border border-white/5 text-xs">
-            <div className="flex items-center gap-2 overflow-hidden">
-              <div className="w-5 h-5 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shrink-0 text-cyan-400">
-                <Terminal className="w-3 h-3" />
+        <div className="relative group p-[1px] rounded-full bg-gradient-to-r from-cyan-500/50 via-amber-500/40 to-blue-500/50 shadow-md shadow-cyan-950/30 backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 border border-white/5 text-xs overflow-hidden">
+            <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
+              <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-300">
+                <Radio className="w-3 h-3 animate-pulse" />
               </div>
               <AnimatePresence mode="wait">
-                <motion.span
-                  key={promptIndex}
-                  initial={{ opacity: 0, y: 6 }}
+                <motion.div
+                  key={tickerIndex}
+                  initial={{ opacity: 0, y: 7 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.2 }}
-                  className="text-[11px] sm:text-xs font-military tracking-wide text-slate-200 truncate font-semibold"
+                  exit={{ opacity: 0, y: -7 }}
+                  transition={{ duration: 0.25 }}
+                  className="flex items-center gap-1.5 truncate min-w-0"
                 >
-                  {heroPrompts[promptIndex]}
-                </motion.span>
+                  <span className={`text-[9px] font-mono-code font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gradient-to-r ${TICKER_ANNOUNCEMENTS[tickerIndex].color} text-slate-950 shrink-0`}>
+                    {TICKER_ANNOUNCEMENTS[tickerIndex].tag}
+                  </span>
+                  <span className="text-[11px] sm:text-xs font-military tracking-wide text-slate-200 truncate font-semibold">
+                    {TICKER_ANNOUNCEMENTS[tickerIndex].text}
+                  </span>
+                </motion.div>
               </AnimatePresence>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-[9px] font-mono-code font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
-                v2.6 LIVE
+            <div className="flex items-center gap-1.5 shrink-0 pl-1.5 border-l border-slate-800">
+              <span className="text-[9px] font-mono-code font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                LIVE
               </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
             </div>
           </div>
         </div>
       </motion.div>
+
+      {/* Full HD & Display Resolution Selector Bar */}
+      <div className="w-full max-w-md mx-auto mb-2.5 z-20">
+        <div className="flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[10px] font-mono-code shadow-md backdrop-blur-md">
+          <span className="text-slate-400 font-bold flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-cyan-400" />
+            <span>DISPLAY:</span>
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => handleResolutionChange('FULL_HD')}
+              className={`px-2 py-0.5 rounded-md font-bold transition flex items-center gap-1 cursor-pointer ${
+                displayResolution === 'FULL_HD'
+                  ? 'bg-cyan-500 text-slate-950 shadow-sm shadow-cyan-500/30'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <span>⚡ FULL HD</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleResolutionChange('4K')}
+              className={`px-2 py-0.5 rounded-md font-bold transition flex items-center gap-1 cursor-pointer ${
+                displayResolution === '4K'
+                  ? 'bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 shadow-sm shadow-amber-500/30'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <span>💎 4K ULTRA</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleResolutionChange('STANDARD')}
+              className={`px-1.5 py-0.5 rounded-md font-bold transition cursor-pointer ${
+                displayResolution === 'STANDARD'
+                  ? 'bg-slate-700 text-white'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <span>STANDARD</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Main Container Holding Central Card & Desktop Floating HUD Elements */}
       <div className="relative w-full max-w-5xl mx-auto flex items-center justify-center z-10 pt-0 pb-4">
@@ -442,10 +595,10 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
           </div>
           <div className="text-xl font-military font-bold text-white tracking-wider">
-            XAUUSD <span className="text-xs font-mono-code text-amber-300 font-normal">2,634.80</span>
+            XAUUSD <span className="text-xs font-mono-code text-amber-300 font-normal">{goldQuote.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
           <div className="text-[11px] font-mono-code text-emerald-400 flex items-center gap-1">
-            <span>+1.42% Bullish Momentum</span>
+            <span>{goldQuote.change24h >= 0 ? `+${goldQuote.change24h.toFixed(2)}%` : `${goldQuote.change24h.toFixed(2)}%`} Live Momentum</span>
           </div>
           <div className="text-[10px] font-mono-code text-slate-500 border-t border-slate-800 pt-1 mt-0.5">
             Institutional Liquidity Sweep Verified
@@ -667,56 +820,6 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                       <span>Bloomberg Confluence</span>
                     </div>
                   </div>
-                </div>
-
-                {/* Cent Account / Standard Account Environment Selection */}
-                <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-mono-code text-slate-300 font-bold uppercase flex items-center gap-1.5">
-                      <span>Account Base Currency / Type</span>
-                    </label>
-                    <span className="text-[10px] font-mono-code text-cyan-400 font-semibold">
-                      {accountUnit === 'CENT' ? '1 USD = 100¢' : 'Standard USD ($)'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setAccountUnit('STANDARD')}
-                      className={`py-2 px-3 rounded-xl border text-xs font-mono-code font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                        accountUnit === 'STANDARD'
-                          ? 'bg-blue-600/30 border-cyan-400 text-white shadow-md shadow-blue-500/20'
-                          : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                      }`}
-                    >
-                      <span>💵 Standard ($)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAccountUnit('CENT')}
-                      className={`py-2 px-3 rounded-xl border text-xs font-mono-code font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                        accountUnit === 'CENT'
-                          ? 'bg-amber-500/25 border-amber-400 text-amber-200 shadow-md shadow-amber-500/20'
-                          : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                      }`}
-                    >
-                      <span>🪙 Cent Account (¢)</span>
-                    </button>
-                  </div>
-                  {accountUnit === 'CENT' && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] font-mono-code text-amber-300 leading-relaxed"
-                    >
-                      <div className="font-bold flex items-center gap-1 mb-0.5">
-                        <span>🪙 Cent Account Active (1 USD = 100¢)</span>
-                      </div>
-                      <div>
-                        All subsequent parameters—such as lot sizes, potential loss/TP, risk calculations, and compounding—will operate and calculate in Cents (¢).
-                      </div>
-                    </motion.div>
-                  )}
                 </div>
 
                 {/* Remember Me Option */}
