@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { Shield } from 'lucide-react';
+import { Shield, Lock } from 'lucide-react';
 import { AccountSettings } from '../types';
 import { CreateAccountWizard } from './account/CreateAccountWizard';
+import { ExploreLockedModal } from './subscription/ExploreLockedModal';
+import { hasFullAccess, getStoredUser } from '../utils/authClient';
 
 interface AccountOnboardingModalProps {
   onAccountCreated: (account: AccountSettings) => void;
   onExploreDemo?: () => void;
   onOpenSignIn?: () => void;
   onOpenSendAccount?: () => void;
+  onOpenSubscription?: () => void;
   onClose?: () => void;
 }
 
@@ -16,9 +19,11 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
   onExploreDemo,
   onOpenSignIn,
   onOpenSendAccount,
+  onOpenSubscription,
   onClose,
 }) => {
   const [isSendAccountOpen, setIsSendAccountOpen] = useState(false);
+  const [isExploreLockedOpen, setIsExploreLockedOpen] = useState(false);
   const [sendName, setSendName] = useState('');
   const [sendPhone, setSendPhone] = useState('');
   const [sendNotes, setSendNotes] = useState('');
@@ -70,10 +75,22 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
             {onExploreDemo && (
               <button
                 type="button"
-                onClick={onExploreDemo}
-                className="text-slate-400 hover:text-slate-200 transition"
+                onClick={() => {
+                  const user = getStoredUser();
+                  if (!hasFullAccess(user)) {
+                    setIsExploreLockedOpen(true);
+                  } else {
+                    onExploreDemo();
+                  }
+                }}
+                className="text-amber-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"
+                title="Explore Command Center (Subscription required)"
               >
-                Explore in demo preview mode
+                <Lock className="w-3.5 h-3.5 text-amber-400" />
+                <span>Explore in demo preview mode</span>
+                <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold">
+                  🔒 LOCKED
+                </span>
               </button>
             )}
           </div>
@@ -190,7 +207,16 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
               )}
             </div>
           </div>
-        )}
+        {/* Subscription Lock Modal encountered by non-subscribed users clicking Explore */}
+        <ExploreLockedModal
+          isOpen={isExploreLockedOpen}
+          onClose={() => setIsExploreLockedOpen(false)}
+          onProceedDemo={() => {
+            setIsExploreLockedOpen(false);
+            if (onExploreDemo) onExploreDemo();
+          }}
+          onOpenSubscription={onOpenSubscription}
+        />
       </div>
     </div>
   );

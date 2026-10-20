@@ -1008,3 +1008,45 @@ export function isCentAccount(
   const c = (currency || account?.currency || '').trim().toUpperCase();
   return c === 'CENT' || c === 'USC' || c === 'CENTS' || c === '¢';
 }
+
+// ----------------------------------------------------
+// PINE SCRIPT INDICATOR & SIGNALS SYSTEM
+// ----------------------------------------------------
+export type PineIndicatorCategory =
+  | 'SBT_STRUCTURE'
+  | 'TREND'
+  | 'OSCILLATOR'
+  | 'VOLATILITY'
+  | 'LIQUIDITY'
+  | 'CUSTOM';
+
+export interface PineScriptIndicator {
+  id: string;
+  title: string;
+  shortName: string;
+  description: string;
+  category: PineIndicatorCategory;
+  overlay: boolean; // true = renders on main price chart, false = sub-pane
+  color: string;
+  version: string;
+  author: string;
+  updatedAt: string;
+  defaultEnabled?: boolean;
+  isOfficial?: boolean;
+  // scriptCode is strictly restricted to ADMIN users. It is omitted / stripped for non-admins
+  scriptCode?: string;
+  parameters?: Record<string, number | string | boolean>;
+}
+
+export interface PineIndicatorSignal {
+  id: string;
+  indicatorId: string;
+  indicatorName: string;
+  symbol: string;
+  timeframe: string;
+  type: 'BUY' | 'SELL' | 'ALERT' | 'SWEEP' | 'FVG';
+  price: number;
+  message: string;
+  timestamp: number;
+  color?: string;
+}

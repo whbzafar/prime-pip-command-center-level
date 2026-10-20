@@ -282,10 +282,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[9px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 flex items-center gap-1 shadow-xs group-hover:bg-amber-400 group-hover:text-slate-950 transition">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsSbtBotModalOpen(true);
+                    }}
+                    className="text-[9px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 flex items-center gap-1 shadow-xs hover:bg-amber-400 hover:text-slate-950 transition cursor-pointer"
+                  >
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
                     <span>SHOWCASE ❯</span>
-                  </span>
+                  </button>
                 </div>
               </div>
             </div>

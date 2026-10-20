@@ -1138,6 +1138,7 @@ export default function App() {
           setIsDemoMode(false);
           setIsLoginModalOpen(true);
         }}
+        onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
       />
     );
   }

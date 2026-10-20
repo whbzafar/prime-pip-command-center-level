@@ -28,6 +28,8 @@ import {
   Wheat,
 } from 'lucide-react';
 
+import { SbtBotShowcaseModal } from './sbt/SbtBotShowcaseModal';
+
 type MainSectionTab = 'STRATEGIES' | 'EXECUTION_COURSES' | 'BOTS_AUTOMATION';
 type CoursePhaseTab = 'PHASE_1_BASIC' | 'PHASE_2_INTERMEDIATE' | 'PHASE_3_ADVANCED';
 type AssetClassType = 'FOREX' | 'STOCKS' | 'INDICES' | 'CRYPTO' | 'COMMODITIES';
@@ -43,6 +45,7 @@ export const ProLearningTrading: React.FC<ProLearningTradingProps> = ({ onNaviga
   const [activePhase, setActivePhase] = useState<CoursePhaseTab>('PHASE_1_BASIC');
   const [activeBasicChapter, setActiveBasicChapter] = useState<number>(1);
   const [language, setLanguage] = useState<'EN' | 'UR'>('EN');
+  const [showSbtBotModal, setShowSbtBotModal] = useState(false);
 
   // Interactive Chapter 3 & 4 state
   const [selectedAsset, setSelectedAsset] = useState<AssetClassType>('FOREX');
@@ -199,30 +202,54 @@ export const ProLearningTrading: React.FC<ProLearningTradingProps> = ({ onNaviga
           <button
             type="button"
             onClick={() => setActiveSection('BOTS_AUTOMATION')}
-            className={`p-3.5 rounded-2xl border text-left transition flex items-center justify-between cursor-pointer ${
+            className={`p-3.5 rounded-2xl border text-left transition flex flex-col justify-between cursor-pointer relative group ${
               activeSection === 'BOTS_AUTOMATION'
                 ? 'bg-amber-500/15 border-amber-400 text-white shadow-lg shadow-amber-500/10'
-                : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-amber-500/40 hover:text-slate-200'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <div
-                className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                  activeSection === 'BOTS_AUTOMATION' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-slate-800 text-amber-400'
-                }`}
-              >
-                <Bot className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-xs font-military font-bold uppercase tracking-wider">
-                  {isUrdu ? '3. ٹریڈنگ بوٹس اور آٹومیشن' : '3. Trading Bots & Automation'}
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    activeSection === 'BOTS_AUTOMATION' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-slate-800 text-amber-400'
+                  }`}
+                >
+                  <Bot className="w-4 h-4" />
                 </div>
-                <div className="text-[10px] font-mono-code text-slate-400">
-                  {isUrdu ? 'الگورتھمک لاجک اور ویب ہکس' : 'Algorithmic SBT logic & Webhooks'}
+                <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="text-xs font-military font-bold uppercase tracking-wider text-slate-100">
+                      {isUrdu ? '3. ٹریڈنگ بوٹس اور آٹومیشن' : '3. Trading Bots & Automation'}
+                    </div>
+                    <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-mono-code font-bold">
+                      COMING SOON
+                    </span>
+                  </div>
+                  <div className="text-[10px] font-mono-code text-slate-400">
+                    {isUrdu ? 'الگورتھمک لاجک اور مارکیٹ اسٹرکچر' : 'Algorithmic SBT logic & 85% Accuracy'}
+                  </div>
                 </div>
               </div>
+              {activeSection === 'BOTS_AUTOMATION' && <ChevronRight className="w-4 h-4 text-amber-400 shrink-0" />}
             </div>
-            {activeSection === 'BOTS_AUTOMATION' && <ChevronRight className="w-4 h-4 text-amber-400" />}
+
+            {/* Explicit User Requested Note Under the Bot Option */}
+            <div className="mt-2.5 pt-2 border-t border-amber-500/20 flex items-center justify-between gap-2 w-full">
+              <div className="flex items-center gap-1.5 text-[11px] font-mono-code font-bold text-amber-400">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0 animate-pulse" />
+                <span>SBT Bot Coming Soon – Launching around the HAPPY New Year.</span>
+              </div>
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSbtBotModal(true);
+                }}
+                className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 hover:bg-yellow-300 transition text-[9px] font-mono-code font-bold uppercase cursor-pointer shrink-0 shadow-xs"
+              >
+                Showcase ❯
+              </span>
+            </div>
           </button>
         </div>
       </section>
@@ -1336,34 +1363,90 @@ export const ProLearningTrading: React.FC<ProLearningTradingProps> = ({ onNaviga
 
       {/* SECTION 3: TRADING BOTS & AUTOMATION */}
       {activeSection === 'BOTS_AUTOMATION' && (
-        <div className="rounded-2xl border border-amber-500/20 bg-slate-950/90 p-6 shadow-xl space-y-6">
-          <div className="flex items-center gap-2 text-amber-400 text-xs font-mono-code font-bold uppercase tracking-wider">
-            <Bot className="w-4 h-4" />
-            <span>SECTION 3 • TRADING BOTS & AUTOMATION</span>
+        <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 p-6 sm:p-8 shadow-2xl space-y-6 font-mono-code">
+          {/* Main Bot Announcement Hero Banner */}
+          <div className="p-6 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-cyan-500/15 border border-amber-400/40 shadow-lg relative overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400 text-slate-950 text-xs font-bold uppercase tracking-wider shadow-sm">
+                <Sparkles className="w-3.5 h-3.5 text-slate-950 animate-spin" style={{ animationDuration: '6s' }} />
+                <span>SBT BOT COMING SOON – LAUNCHING AROUND THE HAPPY NEW YEAR</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold">
+                  85% ACCURACY RATE
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                  FULL AUTOMATION
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+              <div className="space-y-2 max-w-2xl">
+                <h2 className="text-xl sm:text-2xl font-military font-bold text-white tracking-wide">
+                  PRIMEPIPFX AUTONOMOUS SBT TRADING BOT
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
+                  The bot performs automated trading with an <strong>85% accuracy rate</strong>, handles full market structure analysis, identifies trend bias, determines the appropriate SBT model and execution timeframes, and collects all real-time tick and macro data for you. <em>God willing (Inshallah), it will be an excellent tool for every student and professional trader!</em>
+                </p>
+                <div className="text-[11px] text-amber-300/90 font-mono-code font-semibold pt-1">
+                  📅 Launching around the HAPPY New Year (2027) • Fully Integrated with SBT Playbook
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowSbtBotModal(true)}
+                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-military font-bold text-xs uppercase tracking-wider hover:brightness-110 transition cursor-pointer shadow-lg shadow-amber-500/30 shrink-0 flex items-center gap-2"
+              >
+                <Bot className="w-4 h-4 text-slate-950" />
+                <span>Open Bot Showcase & Instructions ❯</span>
+              </button>
+            </div>
           </div>
-          <h2 className="text-xl sm:text-2xl font-military font-bold text-white">
-            PRIME PIP FX QUANTITATIVE BOTS & ALGORITHMIC ARCHITECTURE
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-5 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
-              <div className="text-xs font-military font-bold text-amber-300 uppercase">
-                1. Webhook Alert Execution
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
+              <div className="text-xs font-military font-bold text-cyan-400 uppercase">
+                1. 85% Accuracy Engine
               </div>
               <p className="text-xs text-slate-300 leading-relaxed font-sans">
-                Connect TradingView automated alerts directly to execution endpoints via secure JSON webhooks, triggering instant limit and market orders upon price reaching Fair Value Gaps or Order Blocks.
+                Rigorous multi-timeframe confirmation filter combining institutional liquidity sweeps with FVG imbalance retests.
               </p>
             </div>
-            <div className="p-5 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
+            <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
               <div className="text-xs font-military font-bold text-amber-300 uppercase">
-                2. Automated Risk Guardrails
+                2. Market Structure & Trend
               </div>
               <p className="text-xs text-slate-300 leading-relaxed font-sans">
-                Algorithmic position sizing based on live account balance and stop loss distance. Auto-killswitch locks execution if daily drawdown reaches 4%, protecting prop firm capital.
+                Real-time BOS (Break of Structure) & CHoCH (Change of Character) detection across 1M, 5M, 15M, 1H, and Daily.
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
+              <div className="text-xs font-military font-bold text-emerald-400 uppercase">
+                3. SBT Model Selector
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                Dynamically maps price conditions to SBT Models 01 through 10, selecting the exact optimal timeframe and risk-to-reward.
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
+              <div className="text-xs font-military font-bold text-purple-400 uppercase">
+                4. Automated Data Collection
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                Continuous gathering of COT institutional positioning, retail sentiment, and high-impact macro news releases.
               </p>
             </div>
           </div>
         </div>
       )}
+
+      {/* SBT Bot Showcase Modal */}
+      <SbtBotShowcaseModal
+        isOpen={showSbtBotModal}
+        onClose={() => setShowSbtBotModal(false)}
+      />
     </div>
   );
 };

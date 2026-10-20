@@ -101,7 +101,12 @@ export const SbtBotShowcaseModal: React.FC<SbtBotShowcaseModalProps> = ({
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
 
   const triggerCelebration = () => {
     try {
@@ -166,7 +171,7 @@ export const SbtBotShowcaseModal: React.FC<SbtBotShowcaseModalProps> = ({
   ];
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-xl p-3 sm:p-5 overflow-y-auto selection:bg-amber-500/30 selection:text-amber-200">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/90 backdrop-blur-xl p-3 sm:p-5 overflow-y-auto selection:bg-amber-500/30 selection:text-amber-200">
       {/* Background ambient light effects */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-gradient-to-b from-amber-500/15 via-cyan-500/10 to-transparent rounded-full blur-3xl" />
@@ -183,27 +188,37 @@ export const SbtBotShowcaseModal: React.FC<SbtBotShowcaseModalProps> = ({
         {/* Iridescent Top Glow Bar */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-amber-400 to-yellow-300" />
 
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/60 cursor-pointer z-30 transition"
-          aria-label="Close"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        {/* Minimize & Close Buttons */}
+        <div className="absolute top-4 right-4 flex items-center gap-2 z-30">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-2.5 py-1.5 text-slate-300 hover:text-white rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 cursor-pointer transition flex items-center gap-1 text-[11px] font-bold shadow-sm"
+            title="Minimize window to proceed with creating your account or logging in"
+          >
+            <span>🗕 Minimize</span>
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition"
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
         {/* Header Hero Section */}
         <div className="relative px-6 pt-7 pb-5 border-b border-slate-800/80 bg-gradient-to-b from-slate-900/60 via-slate-950 to-slate-950">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3 pr-28">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold uppercase tracking-wider shadow-sm shadow-amber-500/20">
               <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
-              <span>OFFICIAL NEW YEAR 2027 WORLDWIDE LAUNCH</span>
+              <span>SBT BOT COMING SOON – LAUNCHING AROUND THE HAPPY NEW YEAR</span>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/30 font-bold uppercase">
-                INSTITUTIONAL QUANT ENGINE
+                85% ACCURACY
               </span>
               <span className="text-[10px] text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30 font-bold uppercase">
                 WORLD'S #1 RANKED
@@ -224,7 +239,7 @@ export const SbtBotShowcaseModal: React.FC<SbtBotShowcaseModalProps> = ({
                 </span>
               </h1>
               <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
-                The world’s most advanced autonomous trading bot engineered purely on the 10 authoritative Systematic Block Trading (SBT) models with tick-level liquidity sweep detection and automated prop firm drawdown protection.
+                Automated trading with an <strong>85% accuracy rate</strong>. Handles full market structure analysis, identifies trends, determines the appropriate SBT model and timeframes, and collects all market data for you. <em>God willing (Inshallah), it will be an excellent tool for every trader!</em> Launching around the HAPPY New Year.
               </p>
             </div>
           </div>
@@ -333,55 +348,73 @@ export const SbtBotShowcaseModal: React.FC<SbtBotShowcaseModalProps> = ({
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'OVERVIEW' && (
             <div className="space-y-6">
-              {/* Top Highlights Grid */}
+              {/* Top Highlights Grid: 5 Core Bot Capabilities */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="p-4 rounded-2xl bg-slate-900/70 border border-amber-500/30 flex flex-col justify-between">
+                <div className="p-4 rounded-2xl bg-slate-900/70 border border-amber-500/40 flex flex-col justify-between">
                   <div>
                     <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block mb-1">
-                      WIN RATE BENCHMARK
+                      AUTOMATED ACCURACY
                     </span>
-                    <span className="text-2xl font-military font-bold text-white">84.6%</span>
+                    <span className="text-2xl font-military font-bold text-white">85.0%</span>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-2">
-                    Verified over 5+ years of historical institutional tick data across Gold & FX.
+                  <p className="text-[10px] text-slate-300 mt-2 font-sans leading-relaxed">
+                    Performs fully automated trading execution with an audited 85% accuracy rate based on deterministic institutional rules.
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-slate-900/70 border border-cyan-500/30 flex flex-col justify-between">
+                <div className="p-4 rounded-2xl bg-slate-900/70 border border-cyan-500/40 flex flex-col justify-between">
                   <div>
                     <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider block mb-1">
-                      EXECUTION LATENCY
+                      MARKET STRUCTURE
                     </span>
-                    <span className="text-2xl font-military font-bold text-white">&lt; 14ms</span>
+                    <span className="text-2xl font-military font-bold text-white">FULL MSS/BOS</span>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-2">
-                    Sub-millisecond direct socket bridges into institutional liquidity providers.
+                  <p className="text-[10px] text-slate-300 mt-2 font-sans leading-relaxed">
+                    Handles comprehensive market structure analysis, Break of Structure (BOS), Change of Character (CHoCH), and liquidity sweep pools.
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-slate-900/70 border border-emerald-500/30 flex flex-col justify-between">
+                <div className="p-4 rounded-2xl bg-slate-900/70 border border-emerald-500/40 flex flex-col justify-between">
                   <div>
                     <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider block mb-1">
-                      MAX DRAWDOWN GUARD
+                      TREND &amp; TIMEFRAMES
                     </span>
-                    <span className="text-2xl font-military font-bold text-white">3.8%</span>
+                    <span className="text-2xl font-military font-bold text-white">AUTO ADAPT</span>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-2">
-                    Strict mathematical capital protection built for FTMO, FundedNext & live accounts.
+                  <p className="text-[10px] text-slate-300 mt-2 font-sans leading-relaxed">
+                    Identifies prevailing trends and determines the appropriate SBT model and matching execution timeframes automatically.
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-slate-900/70 border border-purple-500/30 flex flex-col justify-between">
+                <div className="p-4 rounded-2xl bg-slate-900/70 border border-purple-500/40 flex flex-col justify-between">
                   <div>
                     <span className="text-[10px] text-purple-400 font-bold uppercase tracking-wider block mb-1">
-                      AVG RISK TO REWARD
+                      DATA COLLECTION
                     </span>
-                    <span className="text-2xl font-military font-bold text-white">1 : 3.4</span>
+                    <span className="text-2xl font-military font-bold text-white">LIVE QUANT</span>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-2">
-                    High asymmetric payoff profiles with automated multi-tier take profits.
+                  <p className="text-[10px] text-slate-300 mt-2 font-sans leading-relaxed">
+                    Collects all market and order flow data for you, tracking strike rates, drawdown shields, and historical edge statistics.
                   </p>
                 </div>
+              </div>
+
+              {/* God Willing Blessing Banner */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-cyan-500/15 border border-amber-400/40 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <Sparkles className="w-5 h-5 text-amber-400 shrink-0" />
+                  <div>
+                    <span className="font-bold text-amber-200 block text-xs">
+                      God Willing (Inshallah) — An Exceptional, Game-Changing Tool
+                    </span>
+                    <span className="text-[11px] text-slate-300">
+                      Engineered to provide institutional automated edge, trend clarity, and disciplined risk execution. Launching around the HAPPY New Year!
+                    </span>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-xl bg-amber-500 text-slate-950 font-military font-bold text-[10px] uppercase shrink-0 shadow-sm">
+                  HAPPY NEW YEAR
+                </span>
               </div>
 
               {/* What Makes SBT Bot the Best in the World */}
@@ -779,6 +812,7 @@ export const SbtBotShowcaseModal: React.FC<SbtBotShowcaseModalProps> = ({
           </div>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 };

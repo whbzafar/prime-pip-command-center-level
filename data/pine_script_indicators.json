@@ -1,0 +1,121 @@
+[
+  {
+    "id": "sbt-fvg-ob",
+    "title": "SBT Institutional FVG & Order Block Imbalance Radar",
+    "shortName": "SBT FVG/OB",
+    "description": "Algorithmic detection of Fair Value Gaps (FVG) and unmitigated institutional order blocks. Computes liquidity voids and generates rebalance entry triggers.",
+    "category": "SBT_STRUCTURE",
+    "overlay": true,
+    "color": "#00f0ff",
+    "version": "5.2.0",
+    "author": "PrimePipFX Admin Desk",
+    "updatedAt": "2026-10-19",
+    "defaultEnabled": true,
+    "isOfficial": true,
+    "parameters": {
+      "thresholdPips": 2.5,
+      "mitigationCheck": true,
+      "showZones": true
+    },
+    "scriptCode": "//@version=5\nindicator(\"SBT Institutional FVG & Order Block Radar\", overlay=true)\n\nthreshold = input.float(2.5, \"Imbalance Threshold (Pips)\", minval=0.5)\nshowZones = input.bool(true, \"Draw Liquidity Boxes\")\n\nbullishFVG = high[2] < low[0] and (low[0] - high[2]) >= (threshold * syminfo.mintick * 10)\nbearishFVG = low[2] > high[0] and (low[2] - high[0]) >= (threshold * syminfo.mintick * 10)\n\nisBullishOB = close[1] < open[1] and close > high[1] and volume > ta.sma(volume, 20)\nisBearishOB = close[1] > open[1] and close < low[1] and volume > ta.sma(volume, 20)\n\nplotshape(bullishFVG, title=\"Bullish FVG\", style=shape.triangleup, location=location.belowbar, color=color.new(#00f0ff, 0), size=size.small, text=\"FVG\")\nplotshape(bearishFVG, title=\"Bearish FVG\", style=shape.triangledown, location=location.abovebar, color=color.new(#f43f5e, 0), size=size.small, text=\"FVG\")\n\nplotshape(isBullishOB, title=\"Bullish OB Sweep\", style=shape.circle, location=location.belowbar, color=color.new(#10b981, 0), size=size.tiny, text=\"OB\")\nplotshape(isBearishOB, title=\"Bearish OB Sweep\", style=shape.circle, location=location.abovebar, color=color.new(#ef4444, 0), size=size.tiny, text=\"OB\")"
+  },
+  {
+    "id": "sbt-supertrend-mss",
+    "title": "SBT Precision SuperTrend & Market Structure Shift (MSS)",
+    "shortName": "SBT SuperTrend",
+    "description": "Dynamic volatility trailing barrier combined with break-of-structure confirmation. Employs ATR trailing offsets to safeguard trending positions.",
+    "category": "TREND",
+    "overlay": true,
+    "color": "#10b981",
+    "version": "5.1.0",
+    "author": "PrimePipFX Admin Desk",
+    "updatedAt": "2026-10-18",
+    "defaultEnabled": true,
+    "isOfficial": true,
+    "parameters": {
+      "atrLength": 10,
+      "multiplier": 3.0,
+      "showSignals": true
+    },
+    "scriptCode": "//@version=5\nindicator(\"SBT Precision SuperTrend & MSS\", overlay=true)\n\natrLength = input.int(10, \"ATR Length\", minval=1)\nmultiplier = input.float(3.0, \"ATR Factor\", minval=0.1, step=0.1)\n\n[superTrend, direction] = ta.supertrend(multiplier, atrLength)\n\nbodyMiddle = plot((open + close) / 2, display=display.none)\nupTrend = plot(direction < 0 ? superTrend : na, \"Bullish Dynamic Trailing SL\", color=color.new(#10b981, 0), style=plot.style_linebr)\ndownTrend = plot(direction > 0 ? superTrend : na, \"Bearish Dynamic Trailing SL\", color=color.new(#ef4444, 0), style=plot.style_linebr)\n\nfill(bodyMiddle, upTrend, color.new(#10b981, 90), fillgaps=false)\nfill(bodyMiddle, downTrend, color.new(#ef4444, 90), fillgaps=false)\n\nalertcondition(ta.change(direction) < 0, title=\"SBT SuperTrend Bullish Flip\", message=\"SBT Buy Signal: Trend shifted Bullish\")\nalertcondition(ta.change(direction) > 0, title=\"SBT SuperTrend Bearish Flip\", message=\"SBT Sell Signal: Trend shifted Bearish\")"
+  },
+  {
+    "id": "sbt-model09-turtle",
+    "title": "SBT Model 09: Turtle Soup 20-Day Liquidity Sweep",
+    "shortName": "Model 09 Turtle",
+    "description": "Detects false breakouts beyond key 20-day / Asian session highs and lows. Flags institutional liquidity engineering traps with instant rejection signals.",
+    "category": "SBT_STRUCTURE",
+    "overlay": true,
+    "color": "#f59e0b",
+    "version": "5.3.0",
+    "author": "PrimePipFX Admin Desk",
+    "updatedAt": "2026-10-17",
+    "defaultEnabled": false,
+    "isOfficial": true,
+    "parameters": {
+      "lookback": 20,
+      "wickThresholdPercent": 30
+    },
+    "scriptCode": "//@version=5\nindicator(\"SBT Model 09: Turtle Soup Sweeps\", overlay=true)\n\nlookback = input.int(20, \"Range Period\", minval=5)\nhighestHigh = ta.highest(high[1], lookback)\nlowestLow = ta.lowest(low[1], lookback)\n\nturtleSoupBuy = low < lowestLow and close > lowestLow and close > open\nturtleSoupSell = high > highestHigh and close < highestHigh and close < open\n\nplot(highestHigh, \"20-Period Range High\", color=color.new(#f59e0b, 40), linewidth=1, style=plot.style_stepline)\nplot(lowestLow, \"20-Period Range Low\", color=color.new(#38bdf8, 40), linewidth=1, style=plot.style_stepline)\n\nplotshape(turtleSoupBuy, title=\"Turtle Soup BUY Sweep\", style=shape.labelup, location=location.belowbar, color=color.new(#10b981, 0), text=\"TURTLE BUY\", textcolor=color.black, size=size.normal)\nplotshape(turtleSoupSell, title=\"Turtle Soup SELL Sweep\", style=shape.labeldown, location=location.abovebar, color=color.new(#ef4444, 0), text=\"TURTLE SELL\", textcolor=color.white, size=size.normal)"
+  },
+  {
+    "id": "sbt-model05-mcob",
+    "title": "SBT Model 05: Multi-Candle Order Block (MCOB) Breakout",
+    "shortName": "Model 05 MCOB",
+    "description": "Pinpoints multi-candle consolidation compression clusters and highlights explosive institutional breakout expansions.",
+    "category": "SBT_STRUCTURE",
+    "overlay": true,
+    "color": "#a855f7",
+    "version": "5.0.0",
+    "author": "PrimePipFX Admin Desk",
+    "updatedAt": "2026-10-15",
+    "defaultEnabled": false,
+    "isOfficial": true,
+    "parameters": {
+      "consolidationBars": 4,
+      "volumeExpansionFactor": 1.8
+    },
+    "scriptCode": "//@version=5\nindicator(\"SBT Model 05: MCOB Breakout Engine\", overlay=true)\n\nconsolBars = input.int(4, \"Consolidation Cluster Bars\", minval=3)\nvolFactor = input.float(1.8, \"Volume Expansion Threshold\", minval=1.2)\n\nrangeHigh = ta.highest(high[1], consolBars)\nrangeLow = ta.lowest(low[1], consolBars)\navgVol = ta.sma(volume, 20)\n\nisExpansionBull = close > rangeHigh and volume > (avgVol * volFactor)\nisExpansionBear = close < rangeLow and volume > (avgVol * volFactor)\n\nplotshape(isExpansionBull, title=\"MCOB Bullish Expansion\", style=shape.arrowup, location=location.belowbar, color=color.new(#a855f7, 0), size=size.normal, text=\"MCOB UP\")\nplotshape(isExpansionBear, title=\"MCOB Bearish Expansion\", style=shape.arrowdown, location=location.abovebar, color=color.new(#ec4899, 0), size=size.normal, text=\"MCOB DOWN\")"
+  },
+  {
+    "id": "sbt-4ema-ribbon",
+    "title": "SBT Institutional 4-EMA Ribbon (9, 21, 50, 200)",
+    "shortName": "SBT EMA Ribbon",
+    "description": "The authoritative trend alignment ribbon utilized for institutional bias confirmation across London and New York session killzones.",
+    "category": "TREND",
+    "overlay": true,
+    "color": "#3b82f6",
+    "version": "5.1.0",
+    "author": "PrimePipFX Admin Desk",
+    "updatedAt": "2026-10-16",
+    "defaultEnabled": false,
+    "isOfficial": true,
+    "parameters": {
+      "fastEma": 9,
+      "mediumEma": 21,
+      "trendEma": 50,
+      "macroEma": 200
+    },
+    "scriptCode": "//@version=5\nindicator(\"SBT Institutional 4-EMA Ribbon\", overlay=true)\n\nema9 = ta.ema(close, 9)\nema21 = ta.ema(close, 21)\nema50 = ta.ema(close, 50)\nema200 = ta.ema(close, 200)\n\nplot(ema9, \"Fast EMA (9)\", color=color.new(#38bdf8, 0), linewidth=1)\nplot(ema21, \"Medium EMA (21)\", color=color.new(#818cf8, 0), linewidth=1)\nplot(ema50, \"Trend EMA (50)\", color=color.new(#f59e0b, 0), linewidth=2)\nplot(ema200, \"Macro EMA (200)\", color=color.new(#ec4899, 0), linewidth=2)"
+  },
+  {
+    "id": "sbt-liquidity-delta",
+    "title": "SBT Volume Flow & Cumulative Delta Oscillator",
+    "shortName": "SBT Volume Delta",
+    "description": "Sub-pane institutional oscillator analyzing aggressive market orders versus passive resting limit orders at structural swing points.",
+    "category": "OSCILLATOR",
+    "overlay": false,
+    "color": "#22c55e",
+    "version": "5.0.0",
+    "author": "PrimePipFX Admin Desk",
+    "updatedAt": "2026-10-14",
+    "defaultEnabled": false,
+    "isOfficial": true,
+    "parameters": {
+      "smoothingPeriod": 14,
+      "overbought": 70,
+      "oversold": -70
+    },
+    "scriptCode": "//@version=5\nindicator(\"SBT Volume Flow & Delta Oscillator\", overlay=false)\n\nlength = input.int(14, \"Smoothing Length\")\ndelta = (close - open) / (high - low == 0 ? 1 : high - low) * volume\nsmoothedDelta = ta.ema(delta, length)\n\nplot(smoothedDelta, \"Liquidity Delta\", color=smoothedDelta >= 0 ? color.new(#22c55e, 0) : color.new(#ef4444, 0), style=plot.style_columns)\nhline(0, \"Equilibrium\", color=color.slate)"
+  }
+]

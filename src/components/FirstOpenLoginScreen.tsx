@@ -29,10 +29,13 @@ import {
   Bot,
 } from 'lucide-react';
 import { SbtBotShowcaseModal } from './sbt/SbtBotShowcaseModal';
+import { ExploreLockedModal } from './subscription/ExploreLockedModal';
 import {
   apiLogin,
   apiChangePassword,
   setStoredUser,
+  getStoredUser,
+  hasFullAccess,
   checkAndHandleActivationLink,
   getStoredToken,
 } from '../utils/authClient';
@@ -92,6 +95,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const [showCongratulations, setShowCongratulations] = useState(false);
   const [congratsUser, setCongratsUser] = useState<UserAccount | null>(null);
   const [isSbtBotModalOpen, setIsSbtBotModalOpen] = useState<boolean>(false);
+  const [isExploreLockedModalOpen, setIsExploreLockedModalOpen] = useState<boolean>(false);
 
   // First-time developer/customer password change state
   const [pendingUser, setPendingUser] = useState<UserAccount | null>(null);
@@ -382,6 +386,13 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   };
 
   const handleDemoClick = () => {
+    const user = getStoredUser();
+    const hasSubscription = hasFullAccess(user);
+    if (!hasSubscription) {
+      // Non-subscribed users encounter a lock modal when clicking Explore
+      setIsExploreLockedModalOpen(true);
+      return;
+    }
     triggerBurst();
     setTimeout(() => {
       onExploreDemo();
@@ -728,10 +739,17 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[9px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 flex items-center gap-1 shadow-xs group-hover:bg-amber-400 group-hover:text-slate-950 transition">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsSbtBotModalOpen(true);
+                    }}
+                    className="text-[9px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 flex items-center gap-1 shadow-xs hover:bg-amber-400 hover:text-slate-950 transition cursor-pointer"
+                  >
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
                     <span>SHOWCASE ❯</span>
-                  </span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -835,18 +853,21 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </motion.button>
 
-                {/* Secondary Action: Explore in Demo Mode — Unlocks Trade Plans, Reports, Live News Calendar & Trading Tools */}
+                {/* Secondary Action: Explore in Demo Mode — Locked with Subscription Verification */}
                 <button
                   type="button"
                   onClick={handleDemoClick}
-                  className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-cyan-300 hover:text-white font-military text-xs font-bold rounded-xl border border-cyan-500/30 hover:border-cyan-400 transition flex items-center justify-center gap-2 cursor-pointer mt-2 shadow-sm"
-                  title="Explore Command Center: Unlocks Pre-made Trade Plans, Performance Reports, Live News Calendar & Trading Tool Suite"
+                  className="w-full py-3 bg-slate-900/95 hover:bg-slate-800 text-amber-300 hover:text-white font-military text-xs font-bold rounded-xl border border-amber-500/40 hover:border-amber-400 transition flex items-center justify-center gap-2 cursor-pointer mt-2 shadow-sm group"
+                  title="Explore Command Center (Active Subscription Required)"
                 >
-                  <Sparkles className="w-4 h-4 text-cyan-400" />
-                  <span className="tracking-wider uppercase">EXPLORE (PREVIEW DEMO)</span>
+                  <Lock className="w-4 h-4 text-amber-400 group-hover:scale-110 transition" />
+                  <span className="tracking-wider uppercase">EXPLORE (SUBSCRIPTION REQUIRED)</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold">
+                    🔒 LOCKED
+                  </span>
                 </button>
                 <p className="text-[10px] text-center text-slate-400 font-mono-code mt-1.5">
-                  Instant Access: Pre-made trade plans, performance reports, live news calendar &amp; trading tool suite.
+                  Subscription required for full institutional suite. Click to unlock or preview.
                 </p>
               </form>
             ) : step === 'LINK_STORAGE' ? (
@@ -1049,6 +1070,20 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
           setIsSbtBotModalOpen(false);
           handleDemoClick();
         }}
+      />
+
+      {/* Subscription Lock Modal encountered by non-subscribed users clicking Explore */}
+      <ExploreLockedModal
+        isOpen={isExploreLockedModalOpen}
+        onClose={() => setIsExploreLockedModalOpen(false)}
+        onProceedDemo={() => {
+          setIsExploreLockedModalOpen(false);
+          triggerBurst();
+          setTimeout(() => {
+            onExploreDemo();
+          }, 300);
+        }}
+        onOpenSubscription={onOpenSubscription}
       />
     </div>
   );

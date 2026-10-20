@@ -46,9 +46,12 @@ import {
   Scale,
   Lock,
   Lightbulb,
+  Code2,
 } from 'lucide-react';
-import { hasFullAccess } from '../utils/authClient';
-import { Trade, UserAccount, AccountSettings } from '../types';
+import { hasFullAccess, isUserAdmin, getStoredUser } from '../utils/authClient';
+import { Trade, UserAccount, AccountSettings, PineScriptIndicator } from '../types';
+import { PineScriptIndicatorModal } from './pineScript/PineScriptIndicatorModal';
+import { pineScriptService } from '../services/pineScriptService';
 import {
   FundamentalIntelligenceEngine,
   FullIntelligenceReport,
@@ -1338,10 +1341,28 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   onRequireSubscription,
   onNavigateToFundamental,
 }) => {
+  const effectiveUser = currentUser || getStoredUser();
+  const isAdmin = useMemo(() => isUserAdmin(effectiveUser), [effectiveUser]);
   const isSubscriber = useMemo(() => {
     if (isDemoMode) return false;
-    return hasFullAccess(currentUser);
-  }, [isDemoMode, currentUser]);
+    return hasFullAccess(effectiveUser);
+  }, [isDemoMode, effectiveUser]);
+
+  const [activePineIndicators, setActivePineIndicators] = useState<PineScriptIndicator[]>(() =>
+    pineScriptService.getActiveIndicators()
+  );
+
+  useEffect(() => {
+    const handlePineChange = () => {
+      setActivePineIndicators(pineScriptService.getActiveIndicators());
+    };
+    window.addEventListener('primepipfx_pine_toggle_change', handlePineChange);
+    window.addEventListener('primepipfx_pine_indicators_updated', handlePineChange);
+    return () => {
+      window.removeEventListener('primepipfx_pine_toggle_change', handlePineChange);
+      window.removeEventListener('primepipfx_pine_indicators_updated', handlePineChange);
+    };
+  }, []);
   // --------------------------------------------------------------------------
   // SAVED FULL STATE & PERSISTENCE
   // --------------------------------------------------------------------------
@@ -3769,7 +3790,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 <span className="hidden lg:inline">Share</span>
               </button>
 
-              {/* INDICATORS BUTTON (Directly next to Full-Screen) */}
+              {/* INDICATORS BUTTON */}
               <button
                 type="button"
                 onClick={() => setShowIndicatorsModal((prev) => !prev)}
@@ -3778,10 +3799,35 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                     ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-md shadow-cyan-500/20'
                     : 'bg-slate-950 border-slate-700 text-slate-300 hover:text-white hover:border-cyan-400'
                 }`}
-                title="Technical Indicators (RSI, MACD, EMA, Bollinger, SuperTrend)"
+                title="Institutional Indicators (FVG, SuperTrend, Turtle Soup, EMA Ribbon)"
               >
                 <Activity className="w-4 h-4 text-cyan-400" />
                 <span>Indicators</span>
+                {activePineIndicators.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-cyan-400/20 text-cyan-300 border border-cyan-400/40">
+                    {activePineIndicators.length}
+                  </span>
+                )}
+              </button>
+
+              {/* PINE SCRIPT BUTTON */}
+              <button
+                type="button"
+                onClick={() => setShowIndicatorsModal(true)}
+                className={`p-1.5 rounded-xl border transition cursor-pointer flex items-center gap-1.5 text-xs font-mono-code font-bold ${
+                  isAdmin
+                    ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 hover:bg-amber-500/25'
+                    : 'bg-slate-950 border-slate-700 text-slate-300 hover:text-white hover:border-amber-400'
+                }`}
+                title={isAdmin ? "Admin Pine Script Code Editor & Quantitative Algorithm Deployment" : "Pine Script Institutional Indicators"}
+              >
+                <Code2 className="w-4 h-4 text-amber-400" />
+                <span>Pine Script</span>
+                {isAdmin && (
+                  <span className="px-1 py-0.2 rounded bg-amber-500/30 text-amber-300 text-[8px] font-bold">
+                    ADMIN
+                  </span>
+                )}
               </button>
 
               {/* FULL-SCREEN BUTTON (Directly next to Indicators) */}
@@ -3802,6 +3848,48 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Active Pine Script Indicators Bar */}
+      {activePineIndicators.length > 0 && (
+        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-mono-code overflow-x-auto shadow-sm">
+          <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1 shrink-0">
+            <Activity className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Active Indicators:</span>
+          </span>
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            {activePineIndicators.map((ind) => (
+              <div
+                key={ind.id}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700/80 text-[11px] shrink-0"
+              >
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ind.color }} />
+                <span className="font-bold text-white">{ind.shortName}</span>
+                <span className="text-[9px] text-emerald-400 bg-emerald-950/80 px-1 py-0.2 rounded border border-emerald-500/30">
+                  ON
+                </span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await pineScriptService.setIndicatorToggle(ind.id, false);
+                    setActivePineIndicators(pineScriptService.getActiveIndicators());
+                  }}
+                  className="text-slate-500 hover:text-rose-400 ml-1 transition cursor-pointer font-bold px-1 rounded hover:bg-slate-800"
+                  title={`Turn OFF ${ind.title}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowIndicatorsModal(true)}
+            className="text-[10px] text-cyan-400 hover:text-cyan-300 font-bold ml-auto shrink-0 cursor-pointer pl-2 flex items-center gap-1"
+          >
+            <span>+ Manage</span>
+          </button>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* EXECUTION NOTIFICATION & 1-CLICK ADD TO JOURNAL BANNER                     */}
@@ -5068,57 +5156,16 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* 7. TECHNICAL INDICATORS QUICK GUIDE / SELECTOR                            */}
+      {/* 7. PINE SCRIPT & TECHNICAL INDICATORS MODAL                                */}
+      {/* Role-governed: Only Admin can view/edit Pine Script code.                  */}
+      {/* Students have simple On/Off toggles; code is protected and hidden.         */}
       {/* ========================================================================= */}
-      {showIndicatorsModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl font-mono-code text-xs">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-cyan-400" />
-                <h3 className="font-bold text-white uppercase text-sm">Technical Indicators</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowIndicatorsModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="text-slate-300">
-              Indicators are natively integrated directly into the live TradingView chart workspace above. Click the <strong>Indicators (Fx)</strong> icon in the chart top toolbar to add:
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300">
-                <span className="text-cyan-400 font-bold block">RSI (Relative Strength)</span>
-                <span className="text-slate-500 text-[10px]">Overbought & Oversold Momentum</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300">
-                <span className="text-emerald-400 font-bold block">EMA (9, 21, 50, 200)</span>
-                <span className="text-slate-500 text-[10px]">Institutional Trend Dynamic Levels</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300">
-                <span className="text-amber-400 font-bold block">MACD & Signal</span>
-                <span className="text-slate-500 text-[10px]">Convergence / Divergence Oscillations</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300">
-                <span className="text-violet-400 font-bold block">Bollinger Bands</span>
-                <span className="text-slate-500 text-[10px]">Volatility Squeezes & Expansions</span>
-              </div>
-            </div>
-            <div className="pt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowIndicatorsModal(false)}
-                className="px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition cursor-pointer shadow-md"
-              >
-                Got It
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PineScriptIndicatorModal
+        isOpen={showIndicatorsModal}
+        onClose={() => setShowIndicatorsModal(false)}
+        currentSymbol={selectedSymbol}
+        currentTimeframe={selectedInterval}
+      />
     </div>
   );
 };

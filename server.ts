@@ -4072,6 +4072,135 @@ function requireDeveloper(req: express.Request, res: express.Response, next: exp
   next();
 }
 
+// ----------------------------------------------------
+// PINE SCRIPT INDICATOR & SCRIPT ENGINE ENDPOINTS
+// Strict Role Separation:
+// - ONLY Administrators can view, copy, edit, or add Pine Script source code.
+// - Other users (students) can only view indicator metadata and toggle them ON or OFF.
+// ----------------------------------------------------
+// Pine Script Quantitative Indicator Storage & Endpoints
+// Students can VIEW the indicator code (read-only) and toggle on/off.
+// ONLY Admin can create, edit, save, or delete indicator scripts.
+// ----------------------------------------------------
+app.get('/api/pine-scripts', (req, res) => {
+  try {
+    const token = getAuthToken(req);
+    const user = token ? getUserByToken(token) : null;
+    const isAdmin = Boolean(
+      user && (user.role === 'ADMIN' || user.role === 'DEVELOPER' || user.isDeveloper || user.username === 'primepipfx-admin')
+    );
+
+    const indicators = safeReadJsonFile<any[]>('pine_script_indicators.json', []);
+    const result = indicators.map((ind) => {
+      return {
+        ...ind,
+        // Students can view scriptCode, but canEdit is strictly admin-only
+        canEdit: isAdmin,
+        isReadOnly: !isAdmin,
+      };
+    });
+
+    return res.json({ ok: true, indicators: result, isAdmin });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to fetch Pine Script indicators.' });
+  }
+});
+
+// Admin-only: Create or update a Pine Script indicator
+app.post('/api/pine-scripts', requireDeveloper, (req, res) => {
+  try {
+    const { indicator } = req.body || {};
+    if (!indicator || !indicator.title) {
+      return res.status(400).json({ ok: false, error: 'Indicator object with title is required.' });
+    }
+
+    const indicators = safeReadJsonFile<any[]>('pine_script_indicators.json', []);
+    const cleanId = String(indicator.id || `pine_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`);
+
+    const newRecord = {
+      ...indicator,
+      id: cleanId,
+      updatedAt: new Date().toISOString().slice(0, 10),
+      author: (req as any).currentUser?.name || (req as any).currentUser?.username || 'PrimePipFX Chief Admin',
+      scriptCode: String(indicator.scriptCode || '').trim(),
+    };
+
+    const existingIdx = indicators.findIndex((i: any) => i.id === cleanId);
+    if (existingIdx >= 0) {
+      indicators[existingIdx] = newRecord;
+    } else {
+      indicators.unshift(newRecord);
+    }
+
+    safeWriteJsonFile('pine_script_indicators.json', indicators);
+    return res.json({ ok: true, indicator: newRecord, message: 'Pine Script saved and deployed successfully.' });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to save Pine Script.' });
+  }
+});
+
+// Admin-only: Update existing Pine Script
+app.put('/api/pine-scripts/:id', requireDeveloper, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { indicator } = req.body || {};
+    const indicators = safeReadJsonFile<any[]>('pine_script_indicators.json', []);
+    const existingIdx = indicators.findIndex((i: any) => i.id === id);
+
+    if (existingIdx < 0) {
+      return res.status(404).json({ ok: false, error: 'Pine Script indicator not found.' });
+    }
+
+    const updated = {
+      ...indicators[existingIdx],
+      ...indicator,
+      id,
+      updatedAt: new Date().toISOString().slice(0, 10),
+      author: (req as any).currentUser?.name || (req as any).currentUser?.username || indicators[existingIdx].author,
+      scriptCode: indicator?.scriptCode !== undefined ? String(indicator.scriptCode).trim() : indicators[existingIdx].scriptCode,
+    };
+
+    indicators[existingIdx] = updated;
+    safeWriteJsonFile('pine_script_indicators.json', indicators);
+    return res.json({ ok: true, indicator: updated, message: 'Pine Script updated successfully.' });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to update Pine Script.' });
+  }
+});
+
+// Admin-only: Delete an indicator
+app.delete('/api/pine-scripts/:id', requireDeveloper, (req, res) => {
+  try {
+    const { id } = req.params;
+    let indicators = safeReadJsonFile<any[]>('pine_script_indicators.json', []);
+    indicators = indicators.filter((i: any) => i.id !== id);
+    safeWriteJsonFile('pine_script_indicators.json', indicators);
+    return res.json({ ok: true, message: 'Pine Script indicator deleted successfully.' });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Failed to delete Pine Script.' });
+  }
+});
+
+// User toggle state endpoint (Accessible to all authenticated/guest users)
+app.post('/api/pine-scripts/:id/toggle', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { enabled } = req.body || {};
+    const token = getAuthToken(req);
+    const user = token ? getUserByToken(token) : null;
+    const userId = user?.id || 'default_user';
+
+    const store = safeReadJsonFile<Record<string, Record<string, boolean>>>('user_pine_toggles.json', {});
+    if (!store[userId]) store[userId] = {};
+    store[userId][id] = Boolean(enabled);
+    safeWriteJsonFile('user_pine_toggles.json', store);
+
+    return res.json({ ok: true, indicatorId: id, enabled: Boolean(enabled) });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
 // Route: List all customers (Developer/Admin only)
 app.get('/api/admin/customers', requireDeveloper, (req, res) => {
   const users = getAllCustomers().map(sanitizeUser);
