@@ -33,9 +33,24 @@ interface PreTradePlanProps {
   onNavigateToJournal?: () => void;
   onNavigateToLotSize?: () => void;
   onNavigateToCalendar?: () => void;
+  onNavigateToCot?: () => void;
 }
 
 const NEWS_SOURCES = [
+  {
+    name: 'PrimePipFX Live News Calendar (In-Terminal)',
+    desc: 'Real-time institutional economic calendar hosted directly within your command center terminal with event countdowns & deviations',
+    url: '#in-terminal-calendar',
+    tag: 'IN-TERMINAL • HOSTED',
+    isInternalCalendar: true,
+  },
+  {
+    name: 'Official Fundamental Analysis COT Report',
+    desc: 'Institutional CFTC Commitment of Traders report integrated directly into our fundamental analysis desk',
+    url: '#in-terminal-cot',
+    tag: 'FUNDAMENTAL COT • PRIMARY',
+    isInternalCot: true,
+  },
   {
     name: 'Forex Factory Calendar',
     desc: 'High-impact macro event schedule & consensus deviations',
@@ -66,12 +81,6 @@ const NEWS_SOURCES = [
     url: 'https://www.fxstreet.com/economic-calendar',
     tag: 'FAST EXECUTION',
   },
-  {
-    name: 'Tradingster COT Report (Commitment of Traders)',
-    desc: 'Weekly CFTC Commitment of Traders positioning for smart money institutional flow',
-    url: 'https://www.tradingster.com/cot',
-    tag: 'CHECK NEWS / COT • PRIMARY',
-  },
 ];
 
 export const PreTradePlan: React.FC<PreTradePlanProps> = ({
@@ -82,6 +91,7 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
   onNavigateToJournal,
   onNavigateToLotSize,
   onNavigateToCalendar,
+  onNavigateToCot,
 }) => {
   // Feature Lock State: Unlocked by default so traders can execute the 3-Phase protocol immediately
   const [isLocked, setIsLocked] = useState(false);
@@ -434,31 +444,73 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
               </button>
             </div>
 
-            {/* Direct Tradingster COT Callout Card */}
-            <div className="p-3.5 rounded-xl bg-gradient-to-r from-blue-950/70 via-slate-900/90 to-cyan-950/50 border border-blue-500/40 flex flex-wrap items-center justify-between gap-3 shadow-md shadow-blue-500/10">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono-code font-bold bg-blue-500/20 text-cyan-300 border border-blue-500/30 uppercase tracking-wider">
-                    PRIMARY INSTITUTIONAL POSITIONING
-                  </span>
-                  <span className="text-xs font-military font-bold text-slate-100">
-                    Tradingster COT Report
-                  </span>
+            {/* Dual In-Terminal Callout Cards: Fundamental COT Report & Live News Calendar */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* 1. Official Fundamental Analysis COT Report */}
+              <div className="p-3.5 rounded-xl bg-gradient-to-br from-blue-950/70 via-slate-900/90 to-cyan-950/50 border border-blue-500/40 flex flex-col justify-between gap-3 shadow-md shadow-blue-500/10">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono-code font-bold bg-blue-500/20 text-cyan-300 border border-blue-500/30 uppercase tracking-wider">
+                      PRIMARY INSTITUTIONAL POSITIONING
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-military font-bold text-slate-100 uppercase">
+                    Official Fundamental Analysis COT Report
+                  </h4>
+                  <p className="text-[11px] text-slate-300 leading-relaxed font-sans">
+                    Inspect the latest CFTC Commitment of Traders (COT) report used directly in our fundamental analysis to track commercial hedgers and institutional money managers before committing trade risk.
+                  </p>
                 </div>
-                <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
-                  Inspect the latest CFTC Commitment of Traders (COT) report on Tradingster for institutional asset managers and commercial hedger positioning before committing trade risk.
-                </p>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onNavigateToCot) {
+                      onNavigateToCot();
+                    } else {
+                      window.dispatchEvent(new CustomEvent('primepipfx_navigate_tab', { detail: { tab: 'FUNDAMENTAL_INDICATORS', subTab: 'COT_REPORT' } }));
+                      window.dispatchEvent(new CustomEvent('primepipfx_open_fundamental_tab', { detail: { tab: 'COT_REPORT' } }));
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-lg shadow-cyan-400/20 active:scale-98"
+                >
+                  <span>OPEN FUNDAMENTAL COT REPORT</span>
+                  <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                </button>
               </div>
 
-              <a
-                href="https://www.tradingster.com/cot"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-lg shadow-cyan-400/20"
-              >
-                <span>OPEN TRADINGSTER COT</span>
-                <ExternalLink className="w-3.5 h-3.5 stroke-[2.5]" />
-              </a>
+              {/* 2. Live News Calendar (Hosted in Terminal) */}
+              <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-950/70 via-slate-900/90 to-teal-950/50 border border-emerald-500/40 flex flex-col justify-between gap-3 shadow-md shadow-emerald-500/10">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono-code font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
+                      IN-TERMINAL LIVE MACRO RADAR
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-military font-bold text-slate-100 uppercase">
+                    Live Economic News Calendar
+                  </h4>
+                  <p className="text-[11px] text-slate-300 leading-relaxed font-sans">
+                    Access our live institutional economic calendar hosted directly within your terminal, featuring high-impact red macro releases, deviation barometers, and central bank event tracking.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onNavigateToCalendar) {
+                      onNavigateToCalendar();
+                    } else {
+                      window.dispatchEvent(new CustomEvent('primepipfx_navigate_tab', { detail: { tab: 'FUNDAMENTAL_CALENDAR' } }));
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-military font-bold tracking-wider transition cursor-pointer shadow-lg shadow-emerald-400/20 active:scale-98"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-slate-950" />
+                  <span>OPEN LIVE NEWS CALENDAR</span>
+                  <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                </button>
+              </div>
             </div>
 
             <p className="text-xs font-mono-code text-slate-400">
@@ -467,28 +519,87 @@ export const PreTradePlan: React.FC<PreTradePlanProps> = ({
 
             {/* Links Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-              {NEWS_SOURCES.map((source) => (
-                <a
-                  key={source.name}
-                  href={source.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-3 rounded-xl bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 hover:border-blue-500/40 transition group cursor-pointer"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-military font-bold text-slate-200 group-hover:text-cyan-400 transition">
-                      {source.name}
+              {NEWS_SOURCES.map((source: any) => {
+                if (source.isInternalCalendar) {
+                  return (
+                    <button
+                      key={source.name}
+                      type="button"
+                      onClick={() => {
+                        if (onNavigateToCalendar) onNavigateToCalendar();
+                        else window.dispatchEvent(new CustomEvent('primepipfx_navigate_tab', { detail: { tab: 'FUNDAMENTAL_CALENDAR' } }));
+                      }}
+                      className="p-3 rounded-xl bg-emerald-950/30 hover:bg-emerald-900/40 border border-emerald-500/40 text-left transition group cursor-pointer shadow-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-military font-bold text-emerald-300 group-hover:text-emerald-200 transition">
+                          {source.name}
+                        </span>
+                        <Calendar className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition" />
+                      </div>
+                      <span className="inline-block mt-1 text-[9px] font-mono-code text-emerald-300 bg-emerald-500/20 px-1.5 py-0.2 rounded border border-emerald-500/30">
+                        {source.tag}
+                      </span>
+                      <p className="text-[11px] text-slate-300 font-sans mt-1 leading-snug">
+                        {source.desc}
+                      </p>
+                    </button>
+                  );
+                }
+
+                if (source.isInternalCot) {
+                  return (
+                    <button
+                      key={source.name}
+                      type="button"
+                      onClick={() => {
+                        if (onNavigateToCot) onNavigateToCot();
+                        else {
+                          window.dispatchEvent(new CustomEvent('primepipfx_navigate_tab', { detail: { tab: 'FUNDAMENTAL_INDICATORS', subTab: 'COT_REPORT' } }));
+                          window.dispatchEvent(new CustomEvent('primepipfx_open_fundamental_tab', { detail: { tab: 'COT_REPORT' } }));
+                        }
+                      }}
+                      className="p-3 rounded-xl bg-blue-950/30 hover:bg-blue-900/40 border border-blue-500/40 text-left transition group cursor-pointer shadow-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-military font-bold text-cyan-300 group-hover:text-cyan-200 transition">
+                          {source.name}
+                        </span>
+                        <ArrowRight className="w-3.5 h-3.5 text-cyan-400 group-hover:translate-x-0.5 transition" />
+                      </div>
+                      <span className="inline-block mt-1 text-[9px] font-mono-code text-cyan-300 bg-blue-500/20 px-1.5 py-0.2 rounded border border-blue-500/30">
+                        {source.tag}
+                      </span>
+                      <p className="text-[11px] text-slate-300 font-sans mt-1 leading-snug">
+                        {source.desc}
+                      </p>
+                    </button>
+                  );
+                }
+
+                return (
+                  <a
+                    key={source.name}
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-3 rounded-xl bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 hover:border-blue-500/40 transition group cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-military font-bold text-slate-200 group-hover:text-cyan-400 transition">
+                        {source.name}
+                      </span>
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 transition" />
+                    </div>
+                    <span className="inline-block mt-1 text-[9px] font-mono-code text-cyan-400/80 bg-blue-500/10 px-1.5 py-0.2 rounded border border-blue-500/20">
+                      {source.tag}
                     </span>
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 transition" />
-                  </div>
-                  <span className="inline-block mt-1 text-[9px] font-mono-code text-cyan-400/80 bg-blue-500/10 px-1.5 py-0.2 rounded border border-blue-500/20">
-                    {source.tag}
-                  </span>
-                  <p className="text-[11px] text-slate-400 font-sans mt-1 leading-snug">
-                    {source.desc}
-                  </p>
-                </a>
-              ))}
+                    <p className="text-[11px] text-slate-400 font-sans mt-1 leading-snug">
+                      {source.desc}
+                    </p>
+                  </a>
+                );
+              })}
             </div>
           </div>
 

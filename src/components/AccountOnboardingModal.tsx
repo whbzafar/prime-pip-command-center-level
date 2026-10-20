@@ -207,6 +207,8 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
               )}
             </div>
           </div>
+        )}
+
         {/* Subscription Lock Modal encountered by non-subscribed users clicking Explore */}
         <ExploreLockedModal
           isOpen={isExploreLockedOpen}

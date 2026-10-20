@@ -19,6 +19,7 @@ export const DEFAULT_PINE_INDICATORS: PineScriptIndicator[] = [
     updatedAt: '2026-10-19',
     defaultEnabled: true,
     isOfficial: true,
+    slotNumber: 1,
     parameters: {
       thresholdPips: 2.5,
       mitigationCheck: true,
@@ -60,6 +61,7 @@ plotshape(isBearishOB, title="Bearish OB Sweep", style=shape.circle, location=lo
     updatedAt: '2026-10-18',
     defaultEnabled: true,
     isOfficial: true,
+    slotNumber: 2,
     parameters: {
       atrLength: 10,
       multiplier: 3.0,
@@ -97,6 +99,7 @@ alertcondition(ta.change(direction) > 0, title="SBT SuperTrend Bearish Flip", me
     updatedAt: '2026-10-17',
     defaultEnabled: false,
     isOfficial: true,
+    slotNumber: 3,
     parameters: {
       lookback: 20,
       wickThresholdPercent: 30,
@@ -133,6 +136,7 @@ plotshape(turtleSoupSell, title="Turtle Soup SELL Sweep", style=shape.labeldown,
     updatedAt: '2026-10-15',
     defaultEnabled: false,
     isOfficial: true,
+    slotNumber: 4,
     parameters: {
       consolidationBars: 4,
       volumeExpansionFactor: 1.8,
@@ -173,6 +177,7 @@ plotshape(isExpansionBear, title="MCOB Bearish Expansion", style=shape.arrowdown
       trendEma: 50,
       macroEma: 200,
     },
+    slotNumber: 5,
     scriptCode: `//@version=5
 indicator("SBT Institutional 4-EMA Ribbon", overlay=true)
 
@@ -185,35 +190,6 @@ plot(ema9, "Fast EMA (9)", color=color.new(#38bdf8, 0), linewidth=1)
 plot(ema21, "Medium EMA (21)", color=color.new(#818cf8, 0), linewidth=1)
 plot(ema50, "Trend EMA (50)", color=color.new(#f59e0b, 0), linewidth=2)
 plot(ema200, "Macro EMA (200)", color=color.new(#ec4899, 0), linewidth=2)
-`,
-  },
-  {
-    id: 'sbt-liquidity-delta',
-    title: 'SBT Volume Flow & Cumulative Delta Oscillator',
-    shortName: 'SBT Volume Delta',
-    description: 'Sub-pane institutional oscillator analyzing aggressive market orders versus passive resting limit orders at structural swing points.',
-    category: 'OSCILLATOR',
-    overlay: false,
-    color: '#22c55e',
-    version: '5.0.0',
-    author: 'Admin / Data Science',
-    updatedAt: '2026-10-14',
-    defaultEnabled: false,
-    isOfficial: true,
-    parameters: {
-      smoothingPeriod: 14,
-      overbought: 70,
-      oversold: -70,
-    },
-    scriptCode: `//@version=5
-indicator("SBT Volume Flow & Delta Oscillator", overlay=false)
-
-length = input.int(14, "Smoothing Length")
-delta = (close - open) / (high - low == 0 ? 1 : high - low) * volume
-smoothedDelta = ta.ema(delta, length)
-
-plot(smoothedDelta, "Liquidity Delta", color=smoothedDelta >= 0 ? color.new(#22c55e, 0) : color.new(#ef4444, 0), style=plot.style_columns)
-hline(0, "Equilibrium", color=color.slate)
 `,
   },
 ];
@@ -308,14 +284,28 @@ class PineScriptService {
   getIndicators(): PineScriptIndicator[] {
     if (!this.isLoaded) this.loadFromLocalStorage();
     const isAdmin = isUserAdmin(getStoredUser());
-    if (!isAdmin) {
-      // Security guardrail: strip scriptCode for non-admin viewers
-      return this.indicators.map((ind) => {
+    return this.indicators.map((ind, idx) => {
+      const slotNumber = ind.slotNumber || idx + 1;
+      const hasCode = Boolean(ind.scriptCode && ind.scriptCode.trim().length > 0);
+      if (!isAdmin) {
+        // Security guardrail: strip scriptCode for students/subscribers
         const { scriptCode, ...rest } = ind;
-        return rest as PineScriptIndicator;
-      });
-    }
-    return [...this.indicators];
+        return {
+          ...rest,
+          slotNumber,
+          hasCode,
+          canEdit: false,
+          canCopy: false,
+        } as PineScriptIndicator;
+      }
+      return {
+        ...ind,
+        slotNumber,
+        hasCode,
+        canEdit: true,
+        canCopy: true,
+      };
+    });
   }
 
   getIndicatorById(id: string): PineScriptIndicator | undefined {

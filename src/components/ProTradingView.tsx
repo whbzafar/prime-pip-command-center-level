@@ -3378,19 +3378,26 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                       title={`Load ${item.symbol} on chart (FXCM Feed)`}
                     >
                       <span>{item.label}</span>
-                      <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded font-extrabold flex items-center gap-1 ${
-                          isSelected
-                            ? 'bg-slate-950 text-cyan-300'
-                            : fund.isBullish
-                            ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 shadow-sm'
-                            : fund.isBearish
-                            ? 'bg-rose-950/90 text-rose-300 border border-rose-500/50 shadow-sm'
-                            : 'bg-slate-800 text-slate-400'
-                        }`}
-                      >
-                        {fund.isBullish ? `🟢 ▲ Bullish (${fund.score >= 0 ? '+' : ''}${fund.score})` : fund.isBearish ? `🔴 ▼ Bearish (${fund.score})` : '● Neutral'}
-                      </span>
+                      {isSubscriber ? (
+                        <span
+                          className={`text-[9px] px-1.5 py-0.5 rounded font-extrabold flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-slate-950 text-cyan-300'
+                              : fund.isBullish
+                              ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 shadow-sm'
+                              : fund.isBearish
+                              ? 'bg-rose-950/90 text-rose-300 border border-rose-500/50 shadow-sm'
+                              : 'bg-slate-800 text-slate-400'
+                          }`}
+                        >
+                          {fund.isBullish ? `🟢 ▲ Bullish (${fund.score >= 0 ? '+' : ''}${fund.score})` : fund.isBearish ? `🔴 ▼ Bearish (${fund.score})` : '● Neutral'}
+                        </span>
+                      ) : (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 flex items-center gap-1 font-mono font-medium">
+                          <Lock className="w-2.5 h-2.5 text-slate-500" />
+                          <span>PRO</span>
+                        </span>
+                      )}
                     </button>
 
                     {WATCHLIST_CATEGORIES[activeCategoryIndex]?.id === 'FUNDAMENTALS' && (

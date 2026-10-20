@@ -331,10 +331,19 @@ export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = ({
       }
     };
 
+    const handleOpenTabEvent = (e: any) => {
+      const targetTab = e?.detail?.tab;
+      if (targetTab) {
+        setActiveTab(targetTab);
+      }
+    };
+
     window.addEventListener('primepipfx_fundamental_patch_received', handlePatchReceived);
+    window.addEventListener('primepipfx_open_fundamental_tab', handleOpenTabEvent);
     return () => {
       isMounted = false;
       window.removeEventListener('primepipfx_fundamental_patch_received', handlePatchReceived);
+      window.removeEventListener('primepipfx_open_fundamental_tab', handleOpenTabEvent);
     };
   }, []);
 
@@ -1234,6 +1243,8 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
         interestRates={interestRates}
         observations={observations}
         activeCurrency={activeCurrency}
+        isLocked={isUnsubscribed}
+        onOpenSubscription={onOpenSubscription}
         onSelectCurrency={(c) => {
           setActiveCurrency(c);
           setActiveTab('LONG_TERM_RANKINGS');

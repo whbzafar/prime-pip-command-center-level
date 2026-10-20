@@ -96,26 +96,7 @@
       "trendEma": 50,
       "macroEma": 200
     },
+    "slotNumber": 5,
     "scriptCode": "//@version=5\nindicator(\"SBT Institutional 4-EMA Ribbon\", overlay=true)\n\nema9 = ta.ema(close, 9)\nema21 = ta.ema(close, 21)\nema50 = ta.ema(close, 50)\nema200 = ta.ema(close, 200)\n\nplot(ema9, \"Fast EMA (9)\", color=color.new(#38bdf8, 0), linewidth=1)\nplot(ema21, \"Medium EMA (21)\", color=color.new(#818cf8, 0), linewidth=1)\nplot(ema50, \"Trend EMA (50)\", color=color.new(#f59e0b, 0), linewidth=2)\nplot(ema200, \"Macro EMA (200)\", color=color.new(#ec4899, 0), linewidth=2)"
-  },
-  {
-    "id": "sbt-liquidity-delta",
-    "title": "SBT Volume Flow & Cumulative Delta Oscillator",
-    "shortName": "SBT Volume Delta",
-    "description": "Sub-pane institutional oscillator analyzing aggressive market orders versus passive resting limit orders at structural swing points.",
-    "category": "OSCILLATOR",
-    "overlay": false,
-    "color": "#22c55e",
-    "version": "5.0.0",
-    "author": "PrimePipFX Admin Desk",
-    "updatedAt": "2026-10-14",
-    "defaultEnabled": false,
-    "isOfficial": true,
-    "parameters": {
-      "smoothingPeriod": 14,
-      "overbought": 70,
-      "oversold": -70
-    },
-    "scriptCode": "//@version=5\nindicator(\"SBT Volume Flow & Delta Oscillator\", overlay=false)\n\nlength = input.int(14, \"Smoothing Length\")\ndelta = (close - open) / (high - low == 0 ? 1 : high - low) * volume\nsmoothedDelta = ta.ema(delta, length)\n\nplot(smoothedDelta, \"Liquidity Delta\", color=smoothedDelta >= 0 ? color.new(#22c55e, 0) : color.new(#ef4444, 0), style=plot.style_columns)\nhline(0, \"Equilibrium\", color=color.slate)"
   }
 ]

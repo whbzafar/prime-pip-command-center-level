@@ -4091,11 +4091,15 @@ app.get('/api/pine-scripts', (req, res) => {
     );
 
     const indicators = safeReadJsonFile<any[]>('pine_script_indicators.json', []);
-    const result = indicators.map((ind) => {
+    const result = indicators.map((ind, index) => {
       return {
         ...ind,
-        // Students can view scriptCode, but canEdit is strictly admin-only
+        slotNumber: index + 1,
+        hasCode: Boolean(ind.scriptCode && ind.scriptCode.trim().length > 0),
+        // Proprietary code protection: Students cannot view, edit, or copy the code
+        scriptCode: isAdmin ? ind.scriptCode : undefined,
         canEdit: isAdmin,
+        canCopy: isAdmin,
         isReadOnly: !isAdmin,
       };
     });

@@ -1325,6 +1325,12 @@ export default function App() {
             onNavigateToJournal={() => setActiveTab('JOURNAL')}
             onNavigateToLotSize={() => setActiveTab('LOT_SIZE')}
             onNavigateToCalendar={() => setActiveTab('FUNDAMENTAL_CALENDAR')}
+            onNavigateToCot={() => {
+              setActiveTab('FUNDAMENTAL_INDICATORS');
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('primepipfx_open_fundamental_tab', { detail: { tab: 'COT_REPORT' } }));
+              }, 50);
+            }}
           />
         )}
 

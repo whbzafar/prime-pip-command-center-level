@@ -338,7 +338,7 @@ plot(fastMA, "Simple Moving Average", color=color.cyan, linewidth=2)
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-military font-bold text-white uppercase tracking-wider">
-                  PINE SCRIPT &amp; TECHNICAL INDICATORS
+                  TRADINGVIEW PINE EDITOR &amp; QUANT SCRIPTS
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-cyan-500/15 border border-cyan-500/40 text-cyan-300">
                   v5.0 ENGINE
@@ -346,17 +346,17 @@ plot(fastMA, "Simple Moving Average", color=color.cyan, linewidth=2)
                 {isAdmin ? (
                   <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 border border-amber-500/50 text-amber-300 flex items-center gap-1">
                     <Shield className="w-2.5 h-2.5 text-amber-400" />
-                    ADMIN CONSOLE
+                    ADMIN AUTHORING CONSOLE
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-800 border border-slate-700 text-slate-400 flex items-center gap-1">
-                    <Lock className="w-2.5 h-2.5 text-slate-400" />
-                    PROTECTED ACCESS
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-800 border border-slate-700 text-slate-300 flex items-center gap-1">
+                    <Lock className="w-2.5 h-2.5 text-amber-400" />
+                    SUBSCRIBER ACCESS • PROTECTED CODE
                   </span>
                 )}
               </div>
               <p className="text-[11px] text-slate-400">
-                Institutional Algorithmic Overlays • Active on {currentSymbol} ({currentTimeframe}m) • {activeCount} Enabled
+                Institutional Algorithmic Overlays • Applies across all chart timeframes (1m, 5m, 15m, 1h, 4h, 1D, 1W) • {activeCount} Enabled
               </p>
             </div>
           </div>
@@ -371,7 +371,7 @@ plot(fastMA, "Simple Moving Average", color=color.cyan, linewidth=2)
           </button>
         </div>
 
-        {/* Navigation Tabs (Admin sees both; Students only see Toggles) */}
+        {/* Navigation Tabs (Admin sees full Editor; Students only toggle On/Off) */}
         <div className="flex items-center justify-between border-b border-slate-800/80 px-4 pt-2 bg-slate-950">
           <div className="flex items-center gap-2">
             <button
@@ -400,9 +400,9 @@ plot(fastMA, "Simple Moving Average", color=color.cyan, linewidth=2)
               }`}
             >
               <Code2 className="w-3.5 h-3.5 text-amber-400" />
-              <span>{isAdmin ? 'Pine Script Code Editor (Admin)' : 'Pine Script Code Viewer (Read-Only)'}</span>
-              <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${isAdmin ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-800 text-slate-300'}`}>
-                {isAdmin ? 'AUTHOR' : 'VIEW-ONLY'}
+              <span>{isAdmin ? 'Pine Script Code Editor (Admin)' : 'Pine Editor (Protected)'}</span>
+              <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${isAdmin ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-800 text-slate-400 flex items-center gap-1'}`}>
+                {isAdmin ? 'AUTHOR' : <><Lock className="w-2.5 h-2.5" /> ADMIN ONLY</>}
               </span>
             </button>
           </div>
@@ -410,14 +410,14 @@ plot(fastMA, "Simple Moving Average", color=color.cyan, linewidth=2)
           {/* Quick Notice */}
           <div className="hidden md:flex items-center gap-1.5 text-[10px] text-slate-400 py-1">
             {isAdmin ? (
-              <span className="text-amber-300/90 flex items-center gap-1">
+              <span className="text-amber-300/90 flex items-center gap-1 font-mono-code">
                 <Sparkles className="w-3 h-3 text-amber-400" />
-                Admin has full code editor &amp; deployment authority
+                Admin authoring mode: Edit, copy, paste &amp; compile code
               </span>
             ) : (
-              <span className="text-amber-300/80 flex items-center gap-1">
+              <span className="text-slate-400 flex items-center gap-1 font-mono-code">
                 <Lock className="w-3 h-3 text-amber-400" />
-                Students can view Pine Script source code • Editing restricted to Admin
+                Code protected: Students toggle indicators ON/OFF across all timeframes
               </span>
             )}
           </div>
@@ -678,14 +678,6 @@ plot(fastMA, "Simple Moving Average", color=color.cyan, linewidth=2)
                     </button>
                   </div>
                 )}
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTemplate('emaRibbon')}
-                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-blue-500/30 transition cursor-pointer"
-                  >
-                    EMA Ribbon
-                  </button>
-                </div>
               </div>
 
               {/* Indicator Metadata Inputs */}

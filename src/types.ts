@@ -1036,6 +1036,10 @@ export interface PineScriptIndicator {
   // scriptCode is strictly restricted to ADMIN users. It is omitted / stripped for non-admins
   scriptCode?: string;
   parameters?: Record<string, number | string | boolean>;
+  slotNumber?: number;
+  hasCode?: boolean;
+  canEdit?: boolean;
+  canCopy?: boolean;
 }
 
 export interface PineIndicatorSignal {

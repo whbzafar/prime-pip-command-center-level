@@ -33,6 +33,7 @@ import {
   Zap,
   Sliders,
   Scale,
+  Lock,
 } from 'lucide-react';
 
 export interface TrendConfidenceResult {
@@ -60,6 +61,8 @@ interface FundamentalSentimentMeterProps {
   activeCurrency?: CurrencyCode;
   onSelectCurrency?: (currency: CurrencyCode) => void;
   onSelectTab?: (tab: any) => void;
+  isLocked?: boolean;
+  onOpenSubscription?: () => void;
 }
 
 export type AssetCategoryFilter = 'ALL' | 'GLOBAL' | 'CURRENCIES' | 'COMMODITIES' | 'MAJORS' | 'CROSSES';
@@ -91,9 +94,12 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
   activeCurrency = 'USD',
   onSelectCurrency,
   onSelectTab,
+  isLocked = false,
+  onOpenSubscription,
 }) => {
   const [selectedTarget, setSelectedTarget] = useState<string>(activeCurrency || 'USD');
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  // Subscribed users have the sentiment meter minimized by default, can expand when viewed
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
   const [categoryFilter, setCategoryFilter] = useState<AssetCategoryFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -927,6 +933,58 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
     }
   };
 
+  // 100% Locked View for Users Without Subscription / In Demo Mode
+  if (isLocked) {
+    return (
+      <div className="bg-slate-950/95 border border-amber-500/40 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 backdrop-blur-xl relative overflow-hidden transition-all duration-300 font-mono-code">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3 relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl border bg-amber-500/15 border-amber-500/40 text-amber-400 flex items-center justify-center shadow-lg shadow-amber-500/15">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300 uppercase tracking-wider">
+                  AGGREGATED SENTIMENT GAUGE & CONVICTION METER
+                </span>
+                <span className="text-[9px] font-mono-code font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase tracking-wider flex items-center gap-1">
+                  <Lock className="w-2.5 h-2.5" />
+                  100% LOCKED IN DEMO MODE
+                </span>
+              </div>
+              <h2 className="text-base sm:text-lg font-military font-bold text-slate-100 tracking-wide mt-0.5 flex items-center gap-2">
+                <span>FUNDAMENTAL INTELLIGENCE SENTIMENT METER</span>
+              </h2>
+            </div>
+          </div>
+        </div>
+
+        <div className="py-8 px-4 rounded-2xl bg-slate-900/60 border border-amber-500/30 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
+            <Lock className="w-6 h-6" />
+          </div>
+          <div className="space-y-1.5 max-w-lg mx-auto">
+            <h3 className="text-sm sm:text-base font-military font-bold text-white uppercase tracking-wider">
+              Fundamental Intelligence Sentiment Meter Locked
+            </h3>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              The Fundamental Intelligence Sentiment Meter (synthesizing real-time macro sentiment and institutional volume conviction across 8 Currencies, 3 Commodities, and 28 Currency Pairs) is 100% locked for users in demo preview mode. An active subscription ($55) is required to access full telemetry.
+            </p>
+          </div>
+          {onOpenSubscription && (
+            <button
+              type="button"
+              onClick={onOpenSubscription}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-military font-bold text-xs uppercase cursor-pointer hover:from-amber-400 hover:to-yellow-300 shadow-lg shadow-amber-500/20 transition active:scale-95"
+            >
+              Unlock Sentiment Meter ($55)
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-slate-950/95 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4 backdrop-blur-xl relative overflow-hidden transition-all duration-300">
       {/* Dynamic ambient radial caustics based on selected asset sentiment */}
@@ -951,7 +1009,11 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
 
       {/* Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3 relative z-10">
-        <div className="flex items-center gap-3">
+        <div
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="flex items-center gap-3 cursor-pointer select-none group"
+          title={isCollapsed ? "Click to expand Sentiment Meter" : "Click to collapse Sentiment Meter"}
+        >
           <div
             className={`w-10 h-10 rounded-2xl border flex items-center justify-center shadow-lg transition-colors ${
               targetData.isBullish
@@ -1021,6 +1083,18 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
               Global Confidence: {globalSummary.avgConfidence}%
             </span>
           </div>
+
+          {isCollapsed && (
+            <button
+              type="button"
+              onClick={() => setIsCollapsed(false)}
+              className="px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-mono-code font-bold transition flex items-center gap-1.5 cursor-pointer"
+              title="Expand Sentiment Meter"
+            >
+              <span>EXPAND SENTIMENT METER</span>
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           <button
             type="button"
