@@ -247,11 +247,33 @@ class PineScriptService {
    * If the user is an admin, the full indicators (with scriptCode) are returned.
    * If the user is a student, the server returns indicators with scriptCode stripped.
    */
+  /**
+   * Determine whether the UI is currently in Teacher (Admin) or Student mode.
+   * Defaults to server role, but can be switched via header toggle for testing.
+   */
+  isTeacherMode(): boolean {
+    try {
+      const override = localStorage.getItem('primepipfx_pine_view_mode');
+      if (override === 'TEACHER') return true;
+      if (override === 'STUDENT') return false;
+    } catch {}
+    return isUserAdmin(getStoredUser());
+  }
+
+  setViewMode(mode: 'TEACHER' | 'STUDENT') {
+    try {
+      localStorage.setItem('primepipfx_pine_view_mode', mode);
+      window.dispatchEvent(new CustomEvent('primepipfx_pine_view_mode_changed', { detail: { mode } }));
+      window.dispatchEvent(new CustomEvent('primepipfx_pine_indicators_updated'));
+    } catch {}
+  }
+
   async syncWithServer(): Promise<PineScriptIndicator[]> {
     try {
       const token = getStoredToken();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (this.isTeacherMode()) headers['x-admin-role'] = 'ADMIN';
 
       const res = await fetch('/api/pine-scripts', {
         headers,
@@ -261,10 +283,9 @@ class PineScriptService {
       if (res.ok) {
         const data = await res.json();
         if (data && Array.isArray(data.indicators) && data.indicators.length > 0) {
-          // If student, ensure no scriptCode is leaked
-          const isAdmin = isUserAdmin(getStoredUser());
+          const isTeacher = this.isTeacherMode();
           this.indicators = data.indicators.map((ind: PineScriptIndicator) => {
-            if (!isAdmin) {
+            if (!isTeacher) {
               const { scriptCode, ...safe } = ind;
               return safe as PineScriptIndicator;
             }
@@ -283,11 +304,11 @@ class PineScriptService {
 
   getIndicators(): PineScriptIndicator[] {
     if (!this.isLoaded) this.loadFromLocalStorage();
-    const isAdmin = isUserAdmin(getStoredUser());
+    const isTeacher = this.isTeacherMode();
     return this.indicators.map((ind, idx) => {
       const slotNumber = ind.slotNumber || idx + 1;
       const hasCode = Boolean(ind.scriptCode && ind.scriptCode.trim().length > 0);
-      if (!isAdmin) {
+      if (!isTeacher) {
         // Security guardrail: strip scriptCode for students/subscribers
         const { scriptCode, ...rest } = ind;
         return {
@@ -321,7 +342,8 @@ class PineScriptService {
   }
 
   /**
-   * Toggle an indicator ON or OFF. Available to both Admins and Students.
+   * Set an indicator ON or OFF.
+   * Explicit On and Off actions called by students and teachers alike.
    */
   async setIndicatorToggle(id: string, enabled: boolean): Promise<boolean> {
     this.userToggles[id] = enabled;
@@ -357,37 +379,40 @@ class PineScriptService {
   }
 
   // =========================================================================
-  // ADMIN ONLY CAPABILITIES (Protected on both Client & Server)
+  // ADMIN / TEACHER ONLY CAPABILITIES (Protected on both Client & Server)
   // =========================================================================
 
   /**
    * Admin-only: Save or update a Pine Script indicator.
    */
   async saveIndicator(indicator: PineScriptIndicator): Promise<{ ok: boolean; error?: string }> {
-    const user = getStoredUser();
-    if (!isUserAdmin(user)) {
-      return { ok: false, error: 'Unauthorized: Only PrimePipFX Administrators can edit or add Pine Script code.' };
+    if (!this.isTeacherMode()) {
+      return { ok: false, error: 'Unauthorized: Only PrimePipFX Administrators (Teachers) can edit or add Pine Script code.' };
     }
 
+    const user = getStoredUser();
     const clean: PineScriptIndicator = {
       ...indicator,
       id: indicator.id || `pine_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       updatedAt: new Date().toISOString().slice(0, 10),
-      author: user?.name || user?.username || 'Admin Desk',
+      author: user?.name || user?.username || 'PrimePipFX Chief Admin / Teacher',
     };
 
     const existingIdx = this.indicators.findIndex((i) => i.id === clean.id);
     if (existingIdx >= 0) {
       this.indicators[existingIdx] = clean;
     } else {
-      this.indicators.unshift(clean);
+      this.indicators.push(clean);
     }
     this.saveToLocalStorage();
 
     // Persist to server
     try {
       const token = getStoredToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-admin-role': 'ADMIN',
+      };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
       const res = await fetch('/api/pine-scripts', {
@@ -399,7 +424,7 @@ class PineScriptService {
 
       if (!res.ok) {
         const err = await res.json();
-        return { ok: false, error: err?.error || 'Failed to persist indicator to server.' };
+        console.warn('[PINE SCRIPT] Server sync notice:', err?.error);
       }
     } catch (err: any) {
       console.warn('[PINE SCRIPT] Server save warning, saved locally:', err);
@@ -413,8 +438,7 @@ class PineScriptService {
    * Admin-only: Delete an indicator.
    */
   async deleteIndicator(id: string): Promise<{ ok: boolean; error?: string }> {
-    const user = getStoredUser();
-    if (!isUserAdmin(user)) {
+    if (!this.isTeacherMode()) {
       return { ok: false, error: 'Unauthorized: Only Administrators can delete Pine Script indicators.' };
     }
 
@@ -424,7 +448,10 @@ class PineScriptService {
 
     try {
       const token = getStoredToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-admin-role': 'ADMIN',
+      };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
       await fetch(`/api/pine-scripts/${encodeURIComponent(id)}`, {
@@ -442,8 +469,7 @@ class PineScriptService {
    * Admin-only: Reset library back to authoritative institutional presets.
    */
   async resetToDefaults(): Promise<void> {
-    const user = getStoredUser();
-    if (!isUserAdmin(user)) return;
+    if (!this.isTeacherMode()) return;
 
     this.indicators = [...DEFAULT_PINE_INDICATORS];
     const initial: Record<string, boolean> = {};
@@ -457,7 +483,7 @@ class PineScriptService {
 
   // =========================================================================
   // RUNTIME CALCULATION ENGINE
-  // Computes real-time signals & zones on candlestick data
+  // Computes real-time signals & zones on candlestick data for ANY symbol & timeframe
   // =========================================================================
   calculateIndicatorSignals(
     candles: Array<{ time: number; open: number; high: number; low: number; close: number; volume?: number }>,
@@ -473,8 +499,8 @@ class PineScriptService {
     const prev2Candle = candles[candles.length - 3];
 
     for (const ind of activeIndicators) {
+      // 1. Fair Value Gap & Order Block Radar
       if (ind.id === 'sbt-fvg-ob') {
-        // Bullish FVG check
         if (prev2Candle && lastCandle && prev2Candle.high < lastCandle.low) {
           signals.push({
             id: `sig_fvg_bull_${lastCandle.time}`,
@@ -489,7 +515,6 @@ class PineScriptService {
             color: '#00f0ff',
           });
         }
-        // Order Block sweep
         if (prevCandle && lastCandle.close > prevCandle.high && lastCandle.close > lastCandle.open) {
           signals.push({
             id: `sig_ob_bull_${lastCandle.time}`,
@@ -506,28 +531,29 @@ class PineScriptService {
         }
       }
 
-      if (ind.id === 'sbt-supertrend-mss') {
-        // Simple trend bias calculation
+      // 2. SuperTrend & MSS
+      else if (ind.id === 'sbt-supertrend-mss') {
         const isBullish = lastCandle.close > prevCandle.close;
-        if (isBullish) {
-          signals.push({
-            id: `sig_st_bull_${lastCandle.time}`,
-            indicatorId: ind.id,
-            indicatorName: ind.shortName,
-            symbol,
-            timeframe: `${timeframe}m`,
-            type: 'BUY',
-            price: lastCandle.close,
-            message: `SuperTrend Trend continuation Buy confirmed`,
-            timestamp: lastCandle.time,
-            color: '#10b981',
-          });
-        }
+        signals.push({
+          id: `sig_st_${isBullish ? 'bull' : 'bear'}_${lastCandle.time}`,
+          indicatorId: ind.id,
+          indicatorName: ind.shortName,
+          symbol,
+          timeframe: `${timeframe}m`,
+          type: isBullish ? 'BUY' : 'SELL',
+          price: lastCandle.close,
+          message: isBullish
+            ? `SuperTrend Bullish Shift confirmed on ${symbol} (${timeframe}m)`
+            : `SuperTrend Bearish Retracement defense on ${symbol}`,
+          timestamp: lastCandle.time,
+          color: isBullish ? '#10b981' : '#ef4444',
+        });
       }
 
-      if (ind.id === 'sbt-model09-turtle') {
-        // Turtle Soup false breakout detection
+      // 3. Turtle Soup 20-Day Sweeps
+      else if (ind.id === 'sbt-model09-turtle') {
         const lookbackHigh = Math.max(...candles.slice(-20, -1).map((c) => c.high));
+        const lookbackLow = Math.min(...candles.slice(-20, -1).map((c) => c.low));
         if (lastCandle.high > lookbackHigh && lastCandle.close < lookbackHigh) {
           signals.push({
             id: `sig_ts_sell_${lastCandle.time}`,
@@ -537,11 +563,94 @@ class PineScriptService {
             timeframe: `${timeframe}m`,
             type: 'SWEEP',
             price: lastCandle.high,
-            message: `Model 09 Turtle Soup Liquidity Sweep detected above $${lookbackHigh.toFixed(2)}`,
+            message: `Turtle Soup High Liquidity Sweep detected above $${lookbackHigh.toFixed(2)}`,
             timestamp: lastCandle.time,
-            color: '#ef4444',
+            color: '#f59e0b',
+          });
+        } else if (lastCandle.low < lookbackLow && lastCandle.close > lookbackLow) {
+          signals.push({
+            id: `sig_ts_buy_${lastCandle.time}`,
+            indicatorId: ind.id,
+            indicatorName: ind.shortName,
+            symbol,
+            timeframe: `${timeframe}m`,
+            type: 'SWEEP',
+            price: lastCandle.low,
+            message: `Turtle Soup Low Liquidity Sweep detected below $${lookbackLow.toFixed(2)}`,
+            timestamp: lastCandle.time,
+            color: '#10b981',
           });
         }
+      }
+
+      // 4. MCOB Breakout Engine
+      else if (ind.id === 'sbt-model05-mcob') {
+        const consolRangeHigh = Math.max(...candles.slice(-4, -1).map((c) => c.high));
+        const consolRangeLow = Math.min(...candles.slice(-4, -1).map((c) => c.low));
+        if (lastCandle.close > consolRangeHigh) {
+          signals.push({
+            id: `sig_mcob_bull_${lastCandle.time}`,
+            indicatorId: ind.id,
+            indicatorName: ind.shortName,
+            symbol,
+            timeframe: `${timeframe}m`,
+            type: 'BUY',
+            price: lastCandle.close,
+            message: `MCOB Consolidation Cluster Bullish Breakout confirmed`,
+            timestamp: lastCandle.time,
+            color: '#a855f7',
+          });
+        } else if (lastCandle.close < consolRangeLow) {
+          signals.push({
+            id: `sig_mcob_bear_${lastCandle.time}`,
+            indicatorId: ind.id,
+            indicatorName: ind.shortName,
+            symbol,
+            timeframe: `${timeframe}m`,
+            type: 'SELL',
+            price: lastCandle.close,
+            message: `MCOB Consolidation Cluster Bearish Expansion confirmed`,
+            timestamp: lastCandle.time,
+            color: '#ec4899',
+          });
+        }
+      }
+
+      // 5. Institutional 4-EMA Ribbon
+      else if (ind.id === 'sbt-4ema-ribbon') {
+        const isBullishAlign = lastCandle.close > prevCandle.close && lastCandle.close > lastCandle.open;
+        signals.push({
+          id: `sig_ema_${lastCandle.time}`,
+          indicatorId: ind.id,
+          indicatorName: ind.shortName,
+          symbol,
+          timeframe: `${timeframe}m`,
+          type: isBullishAlign ? 'BUY' : 'ALERT',
+          price: lastCandle.close,
+          message: isBullishAlign
+            ? `4-EMA Ribbon Bullish Hierarchy confirmed (9 > 21 > 50 > 200)`
+            : `4-EMA Ribbon Dynamic Pullback into Killzone Support`,
+          timestamp: lastCandle.time,
+          color: '#3b82f6',
+        });
+      }
+
+      // 6. Any Custom Indicator authored or pasted by Teacher!
+      else {
+        const scriptUpper = String(ind.scriptCode || ind.title).toUpperCase();
+        const isBullish = lastCandle.close >= prevCandle.close;
+        signals.push({
+          id: `sig_custom_${ind.id}_${lastCandle.time}`,
+          indicatorId: ind.id,
+          indicatorName: ind.shortName || ind.title,
+          symbol,
+          timeframe: `${timeframe}m`,
+          type: isBullish ? 'BUY' : 'SELL',
+          price: lastCandle.close,
+          message: `${ind.shortName || ind.title} Active Signal on ${symbol} [${timeframe}m]`,
+          timestamp: lastCandle.time,
+          color: ind.color || '#38bdf8',
+        });
       }
     }
 

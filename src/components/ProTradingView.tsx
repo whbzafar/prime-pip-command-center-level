@@ -51,6 +51,7 @@ import {
 import { hasFullAccess, isUserAdmin, getStoredUser } from '../utils/authClient';
 import { Trade, UserAccount, AccountSettings, PineScriptIndicator } from '../types';
 import { PineScriptIndicatorModal } from './pineScript/PineScriptIndicatorModal';
+import { PineEditorDock } from './pineScript/PineEditorDock';
 import { pineScriptService } from '../services/pineScriptService';
 import {
   FundamentalIntelligenceEngine,
@@ -1446,8 +1447,11 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     return [];
   });
 
+  // Pine Editor Dock visibility
+  const [isPineEditorOpen, setIsPineEditorOpen] = useState<boolean>(false);
+
   // Active terminal sub-tab below chart
-  const [terminalBottomTab, setTerminalBottomTab] = useState<'POSITIONS' | 'HISTORY' | 'FUNDAMENTALS'>('POSITIONS');
+  const [terminalBottomTab, setTerminalBottomTab] = useState<'POSITIONS' | 'HISTORY' | 'FUNDAMENTALS' | 'PINE_EDITOR' | 'INDICATORS'>('POSITIONS');
 
   // Price metadata for current symbol
   const priceMeta = useMemo(() => getInstrumentMeta(selectedSymbol), [selectedSymbol]);
@@ -3817,22 +3821,26 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 )}
               </button>
 
-              {/* PINE SCRIPT BUTTON */}
+              {/* PINE EDITOR DOCK TOGGLE BUTTON */}
               <button
                 type="button"
-                onClick={() => setShowIndicatorsModal(true)}
+                onClick={() => setIsPineEditorOpen((prev) => !prev)}
                 className={`p-1.5 rounded-xl border transition cursor-pointer flex items-center gap-1.5 text-xs font-mono-code font-bold ${
-                  isAdmin
-                    ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 hover:bg-amber-500/25'
+                  isPineEditorOpen
+                    ? 'bg-amber-500 text-slate-950 border-amber-300 shadow-md shadow-amber-500/30'
                     : 'bg-slate-950 border-slate-700 text-slate-300 hover:text-white hover:border-amber-400'
                 }`}
-                title={isAdmin ? "Admin Pine Script Code Editor & Quantitative Algorithm Deployment" : "Pine Script Institutional Indicators"}
+                title="Open TradingView Pine Editor Dock to paste code, create indicators, and apply to chart"
               >
                 <Code2 className="w-4 h-4 text-amber-400" />
-                <span>Pine Script</span>
-                {isAdmin && (
-                  <span className="px-1 py-0.2 rounded bg-amber-500/30 text-amber-300 text-[8px] font-bold">
-                    ADMIN
+                <span>Pine Editor</span>
+                {isPineEditorOpen ? (
+                  <span className="px-1 py-0.2 rounded bg-slate-950 text-amber-300 text-[8px] font-bold">
+                    DOCK OPEN
+                  </span>
+                ) : (
+                  <span className="px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[8px] font-bold">
+                    v5
                   </span>
                 )}
               </button>
@@ -3856,35 +3864,48 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         </div>
       </div>
 
-      {/* Active Pine Script Indicators Bar */}
+      {/* Active Pine Script Indicators Bar with Explicit ON / OFF Controls */}
       {activePineIndicators.length > 0 && (
         <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-mono-code overflow-x-auto shadow-sm">
           <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1 shrink-0">
             <Activity className="w-3.5 h-3.5 text-cyan-400" />
             <span>Active Indicators:</span>
           </span>
-          <div className="flex items-center gap-1.5 overflow-x-auto">
+          <div className="flex items-center gap-2 overflow-x-auto">
             {activePineIndicators.map((ind) => (
               <div
                 key={ind.id}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700/80 text-[11px] shrink-0"
+                className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-950 border border-slate-700/80 text-[11px] shrink-0"
               >
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ind.color }} />
-                <span className="font-bold text-white">{ind.shortName}</span>
-                <span className="text-[9px] text-emerald-400 bg-emerald-950/80 px-1 py-0.2 rounded border border-emerald-500/30">
-                  ON
-                </span>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await pineScriptService.setIndicatorToggle(ind.id, false);
-                    setActivePineIndicators(pineScriptService.getActiveIndicators());
-                  }}
-                  className="text-slate-500 hover:text-rose-400 ml-1 transition cursor-pointer font-bold px-1 rounded hover:bg-slate-800"
-                  title={`Turn OFF ${ind.title}`}
-                >
-                  ✕
-                </button>
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: ind.color }} />
+                <span className="font-bold text-white">{ind.shortName || ind.title}</span>
+
+                {/* Explicit ON and OFF Buttons directly on the chart pill */}
+                <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5 ml-1">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await pineScriptService.setIndicatorToggle(ind.id, true);
+                      setActivePineIndicators(pineScriptService.getActiveIndicators());
+                    }}
+                    className="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500 text-slate-950 flex items-center gap-1 shadow-xs"
+                    title={`[ON] ${ind.title} is currently active and applied to ${selectedSymbol}`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-pulse" />
+                    <span>ON</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await pineScriptService.setIndicatorToggle(ind.id, false);
+                      setActivePineIndicators(pineScriptService.getActiveIndicators());
+                    }}
+                    className="px-2 py-0.5 rounded text-[9px] font-bold text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition"
+                    title={`Click OFF to remove ${ind.title} from chart`}
+                  >
+                    <span>OFF</span>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -3893,7 +3914,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             onClick={() => setShowIndicatorsModal(true)}
             className="text-[10px] text-cyan-400 hover:text-cyan-300 font-bold ml-auto shrink-0 cursor-pointer pl-2 flex items-center gap-1"
           >
-            <span>+ Manage</span>
+            <span>+ Manage Indicators</span>
           </button>
         </div>
       )}
@@ -4649,12 +4670,29 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       </div>
 
       {/* ========================================================================= */}
+      {/* 2.5 TRADINGVIEW PINE EDITOR DOCK (Integrated bottom panel dock)           */}
+      {/* ========================================================================= */}
+      {isPineEditorOpen && (
+        <div className="border border-slate-800 rounded-2xl overflow-hidden shadow-2xl bg-[#0d1117] my-2 animate-in fade-in slide-in-from-top-2 duration-200">
+          <PineEditorDock
+            currentSymbol={selectedSymbol}
+            currentTimeframe={selectedInterval}
+            onOpenFullModal={() => setShowIndicatorsModal(true)}
+            onCloseDock={() => setIsPineEditorOpen(false)}
+            onIndicatorToggled={() => {
+              setActivePineIndicators(pineScriptService.getActiveIndicators());
+            }}
+          />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* 3. DEMO TRADING ACTIVITY & TRADE HISTORY (Active Trades & Profits/Losses) */}
       {/* ========================================================================= */}
       <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl overflow-hidden shadow-xl text-xs font-mono-code">
         {/* Tabs Bar */}
         <div className="p-3 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => setTerminalBottomTab('POSITIONS')}
@@ -4679,6 +4717,37 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             >
               <History className="w-3.5 h-3.5 text-cyan-400" />
               <span>Trade History ({closedPositions.length})</span>
+            </button>
+
+            {/* PINE EDITOR TAB (TradingView Style) */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsPineEditorOpen((prev) => !prev);
+              }}
+              className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                isPineEditorOpen
+                  ? 'bg-amber-500 text-slate-950 shadow-md font-military'
+                  : 'bg-slate-900 text-slate-400 hover:text-amber-300'
+              }`}
+              title="Toggle TradingView Pine Editor Dock"
+            >
+              <Code2 className="w-3.5 h-3.5 text-amber-400" />
+              <span>Pine Editor</span>
+              <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono font-bold">
+                {isPineEditorOpen ? 'OPEN' : 'v5'}
+              </span>
+            </button>
+
+            {/* INDICATORS TAB */}
+            <button
+              type="button"
+              onClick={() => setShowIndicatorsModal(true)}
+              className="px-3 py-1.5 rounded-xl font-bold transition cursor-pointer flex items-center gap-1.5 bg-slate-900 text-slate-400 hover:text-cyan-300"
+              title="Manage Pine Script indicators with explicit On/Off controls"
+            >
+              <Activity className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Indicators ({activePineIndicators.length})</span>
             </button>
           </div>
 

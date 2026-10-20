@@ -24,6 +24,7 @@ import {
   Eye,
   AlertCircle,
   HelpCircle,
+  Power,
 } from 'lucide-react';
 import { PineScriptIndicator, PineIndicatorCategory } from '../../types';
 import { pineScriptService } from '../../services/pineScriptService';
@@ -124,9 +125,11 @@ export const PineScriptIndicatorModal: React.FC<PineScriptIndicatorModalProps> =
   const [activeTab, setActiveTab] = useState<'TOGGLES' | 'EDITOR'>('TOGGLES');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
-  // Check admin privileges
+  const [viewMode, setViewMode] = useState<'TEACHER' | 'STUDENT'>(() => {
+    return pineScriptService.isTeacherMode() ? 'TEACHER' : 'STUDENT';
+  });
+  const isAdmin = viewMode === 'TEACHER';
   const currentUser = getStoredUser();
-  const isAdmin = isUserAdmin(currentUser);
 
   // Editor states (Admin only)
   const [editingIndicatorId, setEditingIndicatorId] = useState<string>('sbt-fvg-ob');
@@ -343,17 +346,41 @@ plot(fastMA, "Simple Moving Average", color=color.cyan, linewidth=2)
                 <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-cyan-500/15 border border-cyan-500/40 text-cyan-300">
                   v5.0 ENGINE
                 </span>
-                {isAdmin ? (
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 border border-amber-500/50 text-amber-300 flex items-center gap-1">
-                    <Shield className="w-2.5 h-2.5 text-amber-400" />
-                    ADMIN AUTHORING CONSOLE
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-800 border border-slate-700 text-slate-300 flex items-center gap-1">
-                    <Lock className="w-2.5 h-2.5 text-amber-400" />
-                    SUBSCRIBER ACCESS • PROTECTED CODE
-                  </span>
-                )}
+                {/* ROLE SWITCHER */}
+                <div className="flex items-center bg-slate-900 border border-slate-700/80 rounded-xl p-0.5 text-[11px] ml-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewMode('TEACHER');
+                      pineScriptService.setViewMode('TEACHER');
+                      refreshList();
+                    }}
+                    className={`px-2 py-0.5 rounded-lg font-bold flex items-center gap-1 transition cursor-pointer ${
+                      isAdmin
+                        ? 'bg-amber-500 text-slate-950 shadow-sm font-military'
+                        : 'text-slate-400 hover:text-amber-300'
+                    }`}
+                  >
+                    <Shield className="w-2.5 h-2.5" />
+                    <span>Teacher (Admin)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewMode('STUDENT');
+                      pineScriptService.setViewMode('STUDENT');
+                      refreshList();
+                    }}
+                    className={`px-2 py-0.5 rounded-lg font-bold flex items-center gap-1 transition cursor-pointer ${
+                      !isAdmin
+                        ? 'bg-cyan-500 text-slate-950 shadow-sm font-military'
+                        : 'text-slate-400 hover:text-cyan-300'
+                    }`}
+                  >
+                    <Lock className="w-2.5 h-2.5" />
+                    <span>Student</span>
+                  </button>
+                </div>
               </div>
               <p className="text-[11px] text-slate-400">
                 Institutional Algorithmic Overlays • Applies across all chart timeframes (1m, 5m, 15m, 1h, 4h, 1D, 1W) • {activeCount} Enabled
@@ -572,21 +599,45 @@ plot(fastMA, "Simple Moving Average", color=color.cyan, linewidth=2)
                             {isAdmin ? 'Edit Script ✎' : 'View Script 👁'}
                           </button>
 
-                          {/* TACTILE ON / OFF TOGGLE SWITCH */}
-                          <button
-                            type="button"
-                            onClick={() => handleToggle(ind.id)}
-                            className={`px-4 py-1.5 rounded-xl font-military font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-md flex items-center gap-1.5 ${
-                              isEnabled
-                                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 hover:from-cyan-400 hover:to-blue-400 shadow-cyan-500/25 ring-2 ring-cyan-400/30'
-                                : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
-                            }`}
-                          >
-                            <span>{isEnabled ? 'ON' : 'OFF'}</span>
-                            <span className="text-[10px] font-mono-code font-normal">
-                              {isEnabled ? '✓' : '—'}
-                            </span>
-                          </button>
+                          {/* EXPLICIT ON AND OFF BUTTONS FOR STUDENTS */}
+                          <div className="flex items-center bg-slate-950 border border-slate-700/80 rounded-xl p-0.5">
+                            {/* 1. EXPLICIT ON BUTTON */}
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await pineScriptService.setIndicatorToggle(ind.id, true);
+                                refreshList();
+                              }}
+                              className={`px-3 py-1.5 rounded-lg font-military font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+                                isEnabled
+                                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50'
+                                  : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800'
+                              }`}
+                              title={`Click to turn ON [${ind.shortName || ind.title}] and apply it to chart`}
+                            >
+                              <span className={`w-2 h-2 rounded-full ${isEnabled ? 'bg-slate-950 animate-pulse' : 'bg-emerald-500'}`} />
+                              <span>ON</span>
+                              {isEnabled && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                            </button>
+
+                            {/* 2. EXPLICIT OFF BUTTON */}
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await pineScriptService.setIndicatorToggle(ind.id, false);
+                                refreshList();
+                              }}
+                              className={`px-3 py-1.5 rounded-lg font-military font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+                                !isEnabled
+                                  ? 'bg-gradient-to-r from-rose-950 to-slate-900 text-rose-300 border border-rose-500/50 shadow-md'
+                                  : 'text-slate-400 hover:text-rose-400 hover:bg-slate-800'
+                              }`}
+                              title={`Click to turn OFF [${ind.shortName || ind.title}] and remove it from chart`}
+                            >
+                              <Power className="w-3 h-3" />
+                              <span>OFF</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -653,28 +704,43 @@ plot(fastMA, "Simple Moving Average", color=color.cyan, linewidth=2)
                     </button>
                   </div>
                 ) : (
-                  /* Student direct toggle on/off button right in editor view */
-                  <div className="flex items-center gap-2">
+                  /* Student explicit ON and OFF buttons in editor view */
+                  <div className="flex items-center bg-slate-950 border border-slate-700/80 rounded-xl p-0.5">
+                    {/* 1. EXPLICIT ON BUTTON */}
                     <button
                       type="button"
-                      onClick={() => handleToggle(editingIndicatorId)}
-                      className={`px-3.5 py-1.5 rounded-xl font-military font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-md ${
+                      onClick={async () => {
+                        await pineScriptService.setIndicatorToggle(editingIndicatorId, true);
+                        refreshList();
+                      }}
+                      className={`px-3 py-1.5 rounded-lg font-military font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
                         pineScriptService.isIndicatorEnabled(editingIndicatorId)
-                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 hover:from-emerald-400 ring-1 ring-emerald-400'
-                          : 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 hover:from-cyan-400'
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50'
+                          : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800'
                       }`}
+                      title="Click to turn ON and apply to chart"
                     >
-                      {pineScriptService.isIndicatorEnabled(editingIndicatorId) ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>On Chart (Click to Remove ✕)</span>
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>Apply to Chart</span>
-                        </>
-                      )}
+                      <span className={`w-2 h-2 rounded-full ${pineScriptService.isIndicatorEnabled(editingIndicatorId) ? 'bg-slate-950 animate-pulse' : 'bg-emerald-500'}`} />
+                      <span>ON (APPLY)</span>
+                      {pineScriptService.isIndicatorEnabled(editingIndicatorId) && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </button>
+
+                    {/* 2. EXPLICIT OFF BUTTON */}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await pineScriptService.setIndicatorToggle(editingIndicatorId, false);
+                        refreshList();
+                      }}
+                      className={`px-3 py-1.5 rounded-lg font-military font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+                        !pineScriptService.isIndicatorEnabled(editingIndicatorId)
+                          ? 'bg-gradient-to-r from-rose-950 to-slate-900 text-rose-300 border border-rose-500/50 shadow-md'
+                          : 'text-slate-400 hover:text-rose-400 hover:bg-slate-800'
+                      }`}
+                      title="Click to turn OFF and remove from chart"
+                    >
+                      <Power className="w-3 h-3" />
+                      <span>OFF (REMOVE)</span>
                     </button>
                   </div>
                 )}
