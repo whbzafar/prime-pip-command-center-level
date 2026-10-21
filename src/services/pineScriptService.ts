@@ -1,6 +1,7 @@
 import { PineScriptIndicator, PineIndicatorSignal } from '../types';
 import { getStoredToken, isUserAdmin, getStoredUser } from '../utils/authClient';
 import { MARKET_STRUCTURE_PINE_CODE } from '../data/marketStructurePineScript';
+import { PineScriptEngine } from './pineScriptEngine';
 
 const STORAGE_KEY_INDICATORS = 'primepipfx_pine_indicators_cache';
 const STORAGE_KEY_USER_TOGGLES = 'primepipfx_pine_user_toggles';
@@ -251,6 +252,16 @@ class PineScriptService {
         }
         this.userToggles = initial;
       }
+      // Ensure official indicators (especially sbt-ms-123) always have their authentic scriptCode
+      for (const def of DEFAULT_PINE_INDICATORS) {
+        const existing = this.indicators.find((i) => i.id === def.id);
+        if (!existing) {
+          this.indicators.push(def);
+        } else if (!existing.scriptCode || existing.scriptCode.trim().length === 0) {
+          existing.scriptCode = def.scriptCode;
+        }
+      }
+
       this.isLoaded = true;
     } catch (err) {
       this.indicators = [...DEFAULT_PINE_INDICATORS];
@@ -669,22 +680,49 @@ class PineScriptService {
         });
       }
 
-      // 6. Any Custom Indicator authored or pasted by Teacher!
+      // 6. Any Custom Indicator authored or pasted by User/Teacher!
       else {
-        const scriptUpper = String(ind.scriptCode || ind.title).toUpperCase();
-        const isBullish = lastCandle.close >= prevCandle.close;
-        signals.push({
-          id: `sig_custom_${ind.id}_${lastCandle.time}`,
-          indicatorId: ind.id,
-          indicatorName: ind.shortName || ind.title,
-          symbol,
-          timeframe: `${timeframe}m`,
-          type: isBullish ? 'BUY' : 'SELL',
-          price: lastCandle.close,
-          message: `${ind.shortName || ind.title} Active Signal on ${symbol} [${timeframe}m]`,
-          timestamp: lastCandle.time,
-          color: ind.color || '#38bdf8',
-        });
+        let extractedFromEngine = false;
+        if (ind.scriptCode && ind.scriptCode.trim()) {
+          try {
+            const compiled = PineScriptEngine.execute(ind.scriptCode, candles, ind.parameters || {});
+            if (compiled.success && compiled.shapes.length > 0) {
+              const recentShapes = compiled.shapes.slice(-3);
+              for (const sh of recentShapes) {
+                const isBuy = sh.style === 'triangleup' || sh.text?.toUpperCase().includes('BUY') || sh.text?.toUpperCase().includes('LONG');
+                signals.push({
+                  id: `sig_custom_engine_${ind.id}_${sh.time}`,
+                  indicatorId: ind.id,
+                  indicatorName: compiled.shortTitle || ind.shortName || ind.title,
+                  symbol,
+                  timeframe: `${timeframe}m`,
+                  type: isBuy ? 'BUY' : 'SELL',
+                  price: sh.price || lastCandle.close,
+                  message: `${compiled.shortTitle || ind.shortName || ind.title}: ${sh.text || (isBuy ? 'Bullish Trigger' : 'Bearish Trigger')} on ${symbol}`,
+                  timestamp: sh.time || lastCandle.time,
+                  color: sh.color || ind.color || '#38bdf8',
+                });
+              }
+              extractedFromEngine = true;
+            }
+          } catch {}
+        }
+
+        if (!extractedFromEngine) {
+          const isBullish = lastCandle.close >= prevCandle.close;
+          signals.push({
+            id: `sig_custom_${ind.id}_${lastCandle.time}`,
+            indicatorId: ind.id,
+            indicatorName: ind.shortName || ind.title,
+            symbol,
+            timeframe: `${timeframe}m`,
+            type: isBullish ? 'BUY' : 'SELL',
+            price: lastCandle.close,
+            message: `${ind.shortName || ind.title} Active Signal on ${symbol} [${timeframe}m]`,
+            timestamp: lastCandle.time,
+            color: ind.color || '#38bdf8',
+          });
+        }
       }
     }
 

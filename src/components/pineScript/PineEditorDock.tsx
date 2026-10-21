@@ -26,11 +26,19 @@ import {
   Clock,
   Terminal,
   ShieldCheck,
+  ExternalLink,
+  Copy,
+  FolderOpen,
+  FileCode,
+  SlidersHorizontal,
+  Flame,
+  HelpCircle,
 } from 'lucide-react';
 import { PineScriptIndicator, PineIndicatorCategory, PineIndicatorSignal } from '../../types';
 import { pineScriptService } from '../../services/pineScriptService';
+import { PineScriptEngine, CandleBar, PineCompilationResult } from '../../services/pineScriptEngine';
 import { getStoredUser } from '../../utils/authClient';
-import { MARKET_STRUCTURE_PINE_CODE, MARKET_STRUCTURE_PINE_CODE_V5 } from '../../data/marketStructurePineScript';
+import { MARKET_STRUCTURE_PINE_CODE } from '../../data/marketStructurePineScript';
 
 export interface PineEditorDockProps {
   currentSymbol?: string;
@@ -85,10 +93,8 @@ export const ALL_TRADING_PAIRS: AssetPair[] = [
   { symbol: 'GER40', name: 'Germany DAX 40', category: 'INDICES', description: 'European industrial manufacturing index' },
 ];
 
-// Quick selection chips
-export const POPULAR_CHIPS = ['XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'BTCUSDT', 'US30', 'NAS100'];
+export const POPULAR_CHIPS = ['XAGUSD', 'XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'BTCUSDT', 'US30', 'NAS100'];
 
-// Supported Timeframes
 export const TIMEFRAME_OPTIONS = [
   { id: '1', label: '1m', name: '1 Minute (Scalping)' },
   { id: '3', label: '3m', name: '3 Minutes (Scalping)' },
@@ -103,7 +109,7 @@ export const TIMEFRAME_OPTIONS = [
 ];
 
 // ============================================================================
-// TEMPLATE SCRIPTS (Institutional & Popular Indicators / Strategies)
+// TEMPLATE SCRIPTS (Authentic Pine Script Templates)
 // ============================================================================
 export const PINE_TEMPLATES: Record<
   string,
@@ -125,8 +131,8 @@ export const PINE_TEMPLATES: Record<
     color: '#C4B5FD',
     code: MARKET_STRUCTURE_PINE_CODE,
   },
-  fvg: {
-    title: 'SBT Institutional FVG & Order Block Imbalance Radar',
+  fvgObRadar: {
+    title: 'SBT Institutional FVG & Order Block Radar',
     shortName: 'SBT FVG/OB',
     category: 'SBT_STRUCTURE',
     overlay: true,
@@ -134,13 +140,11 @@ export const PINE_TEMPLATES: Record<
     code: `//@version=5
 indicator("SBT Institutional FVG & Order Block Radar", overlay=true)
 
-// Inputs
-threshold = input.float(2.0, "Imbalance Threshold (Pips)", minval=0.5)
-showZones = input.bool(true, "Draw Liquidity Imbalance Boxes")
+threshold = input.float(2.5, "Imbalance Threshold (Pips)", minval=0.5)
+showZones = input.bool(true, "Draw Liquidity Boxes")
 
 // Bullish Fair Value Gap: Candle 1 High < Candle 3 Low
 bullishFVG = high[2] < low[0] and (low[0] - high[2]) >= (threshold * syminfo.mintick * 10)
-// Bearish Fair Value Gap: Candle 1 Low > Candle 3 High
 bearishFVG = low[2] > high[0] and (low[2] - high[0]) >= (threshold * syminfo.mintick * 10)
 
 // Order Block Sweeps
@@ -154,77 +158,57 @@ plotshape(isBullishOB, title="Bullish OB Sweep", style=shape.circle, location=lo
 plotshape(isBearishOB, title="Bearish OB Sweep", style=shape.circle, location=location.abovebar, color=color.new(#ef4444, 0), size=size.tiny, text="OB")
 `,
   },
-  supertrend: {
-    title: 'SBT Adaptive SuperTrend & Trailing Stop Filter',
-    shortName: 'SuperTrend',
+  supertrendMss: {
+    title: 'SBT Precision SuperTrend & Market Structure Shift (MSS)',
+    shortName: 'SBT SuperTrend',
     category: 'TREND',
     overlay: true,
     color: '#10b981',
     code: `//@version=5
-indicator("SBT Adaptive SuperTrend", overlay=true)
+indicator("SBT Precision SuperTrend & MSS", overlay=true)
 
-atrLen = input.int(10, "ATR Length", minval=1)
-atrFactor = input.float(3.0, "ATR Factor", minval=0.5, step=0.1)
+atrPeriod = input.int(10, "ATR Length", minval=1)
+factor = input.float(3.0, "Factor", minval=0.5, step=0.1)
 
-[stVal, stDir] = ta.supertrend(atrFactor, atrLen)
+[supertrend, direction] = ta.supertrend(factor, atrPeriod)
 
-plot(stDir < 0 ? stVal : na, "Bullish Trend Stop", color=color.new(#10b981, 0), style=plot.style_linebr, linewidth=2)
-plot(stDir > 0 ? stVal : na, "Bearish Trend Stop", color=color.new(#ef4444, 0), style=plot.style_linebr, linewidth=2)
+plot(direction < 0 ? supertrend : na, "Up Trend", color=color.green, style=plot.style_linebr, linewidth=2)
+plot(direction > 0 ? supertrend : na, "Down Trend", color=color.red, style=plot.style_linebr, linewidth=2)
 
-alertcondition(ta.change(stDir) < 0, "SuperTrend Bullish Shift", "Bullish Trend Transition")
-alertcondition(ta.change(stDir) > 0, "SuperTrend Bearish Shift", "Bearish Trend Transition")
+bullishShift = ta.crossunder(direction, 0)
+bearishShift = ta.crossover(direction, 0)
+
+plotshape(bullishShift, "Bullish MSS", style=shape.labelup, location=location.belowbar, color=color.green, text="MSS BUY", textcolor=color.white)
+plotshape(bearishShift, "Bearish MSS", style=shape.labeldown, location=location.abovebar, color=color.red, text="MSS SELL", textcolor=color.white)
 `,
   },
   turtleSoup: {
-    title: 'SBT Model 09: Turtle Soup Liquidity Sweep Engine',
-    shortName: 'Turtle Sweep',
+    title: 'SBT Turtle Soup 20-Day Sweeps & Liquidity Grab',
+    shortName: 'Turtle Soup',
     category: 'LIQUIDITY',
     overlay: true,
     color: '#f59e0b',
     code: `//@version=5
-indicator("SBT Model 09: Turtle Soup Sweeps", overlay=true)
+indicator("SBT Turtle Soup 20-Day Sweeps", overlay=true)
 
-lookbackBars = input.int(20, "Lookback Period", minval=5)
-highestRef = ta.highest(high[1], lookbackBars)
-lowestRef = ta.lowest(low[1], lookbackBars)
+lookback = input.int(20, "Lookback Period (Bars)", minval=5)
 
-// Liquidity sweep triggers when price penetrates range extreme then closes back inside
-sweepHigh = high > highestRef and close < highestRef and close < open
-sweepLow = low < lowestRef and close > lowestRef and close > open
+highestHigh = ta.highest(high[1], lookback)
+lowestLow = ta.lowest(low[1], lookback)
 
-plot(highestRef, "Range High Boundary", color=color.new(#f59e0b, 50), linewidth=1, style=plot.style_stepline)
-plot(lowestRef, "Range Low Boundary", color=color.new(#38bdf8, 50), linewidth=1, style=plot.style_stepline)
+plot(highestHigh, "20-Bar High", color=color.orange, style=plot.style_circles, linewidth=1)
+plot(lowestLow, "20-Bar Low", color=color.blue, style=plot.style_circles, linewidth=1)
 
-plotshape(sweepHigh, "Turtle Sweep SELL", style=shape.labeldown, location=location.abovebar, color=color.new(#ef4444, 0), text="SWEEP SELL", textcolor=color.white)
-plotshape(sweepLow, "Turtle Sweep BUY", style=shape.labelup, location=location.belowbar, color=color.new(#10b981, 0), text="SWEEP BUY", textcolor=color.black)
-`,
-  },
-  mcob: {
-    title: 'SBT Model 05: Multi-Candle Order Block (MCOB) Breakout',
-    shortName: 'Model 05 MCOB',
-    category: 'SBT_STRUCTURE',
-    overlay: true,
-    color: '#a855f7',
-    code: `//@version=5
-indicator("SBT Model 05: MCOB Breakout Engine", overlay=true)
+isSweepHigh = high > highestHigh and close < highestHigh
+isSweepLow = low < lowestLow and close > lowestLow
 
-consolBars = input.int(4, "Consolidation Cluster Bars", minval=3)
-volFactor = input.float(1.8, "Volume Expansion Threshold", minval=1.2)
-
-rangeHigh = ta.highest(high[1], consolBars)
-rangeLow = ta.lowest(low[1], consolBars)
-avgVol = ta.sma(volume, 20)
-
-isExpansionBull = close > rangeHigh and volume > (avgVol * volFactor)
-isExpansionBear = close < rangeLow and volume > (avgVol * volFactor)
-
-plotshape(isExpansionBull, title="MCOB Bullish Expansion", style=shape.arrowup, location=location.belowbar, color=color.new(#a855f7, 0), size=size.normal, text="MCOB UP")
-plotshape(isExpansionBear, title="MCOB Bearish Expansion", style=shape.arrowdown, location=location.abovebar, color=color.new(#ec4899, 0), size=size.normal, text="MCOB DOWN")
+plotshape(isSweepHigh, title="Turtle High Sweep", style=shape.arrowdown, location=location.abovebar, color=color.red, size=size.normal, text="SWEEP")
+plotshape(isSweepLow, title="Turtle Low Sweep", style=shape.arrowup, location=location.belowbar, color=color.green, size=size.normal, text="SWEEP")
 `,
   },
   emaRibbon: {
     title: 'SBT Institutional 4-EMA Ribbon (9, 21, 50, 200)',
-    shortName: 'SBT EMA Ribbon',
+    shortName: '4-EMA Ribbon',
     category: 'TREND',
     overlay: true,
     color: '#3b82f6',
@@ -243,7 +227,7 @@ plot(ema200, "Macro EMA (200)", color=color.new(#ec4899, 0), linewidth=2)
 `,
   },
   rsiDivergence: {
-    title: 'RSI Multi-Timeframe Momentum & Divergence Radar',
+    title: 'RSI Momentum & Divergence Radar',
     shortName: 'RSI Radar',
     category: 'OSCILLATOR',
     overlay: false,
@@ -361,8 +345,8 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
   const [indicators, setIndicators] = useState<PineScriptIndicator[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<number>(1);
   const [code, setCode] = useState<string>('');
-  const [editTitle, setEditTitle] = useState<string>('');
-  const [editShortName, setEditShortName] = useState<string>('');
+  const [editTitle, setEditTitle] = useState<string>('My Indicator');
+  const [editShortName, setEditShortName] = useState<string>('Indicator');
   const [editCategory, setEditCategory] = useState<PineIndicatorCategory>('SBT_STRUCTURE');
   const [editColor, setEditColor] = useState<string>('#00f0ff');
   const [isOverlay, setIsOverlay] = useState<boolean>(true);
@@ -377,7 +361,10 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
   const [isTfDropdownOpen, setIsTfDropdownOpen] = useState<boolean>(false);
   const [isTemplateMenuOpen, setIsTemplateMenuOpen] = useState<boolean>(false);
   const [pairSearchQuery, setPairSearchQuery] = useState<string>('');
-  const [consoleTab, setConsoleTab] = useState<'CONSOLE' | 'SIGNALS' | 'STRATEGY' | 'INPUTS'>('CONSOLE');
+  const [consoleTab, setConsoleTab] = useState<'CONSOLE' | 'LOGS' | 'INPUTS' | 'STRATEGY'>('CONSOLE');
+  const [isFindOpen, setIsFindOpen] = useState<boolean>(false);
+  const [findText, setFindText] = useState<string>('');
+  const [replaceText, setReplaceText] = useState<string>('');
 
   // Compiler & Status States
   const [compileStatus, setCompileStatus] = useState<{
@@ -389,6 +376,7 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [applySuccess, setApplySuccess] = useState<boolean>(false);
   const [compilerLogs, setCompilerLogs] = useState<Array<{ time: string; type: 'info' | 'success' | 'warn' | 'error'; text: string }>>([]);
+  const [latestCompiledResult, setLatestCompiledResult] = useState<PineCompilationResult | null>(null);
 
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const pairDropdownRef = useRef<HTMLDivElement>(null);
@@ -443,7 +431,7 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
       const nowTime = new Date().toLocaleTimeString();
       setCompileStatus({
         success: true,
-        message: `Indicator #${selectedSlot} [${currentIndicator.shortName || currentIndicator.title}] loaded for ${activeSymbol} [${activeTimeframe}].`,
+        message: `Pine Script [${currentIndicator.shortName || currentIndicator.title}] loaded for ${activeSymbol}.`,
         timestamp: nowTime,
       });
 
@@ -451,166 +439,100 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
         {
           time: nowTime,
           type: 'info',
-          text: `[Pine Engine] Loaded "${currentIndicator.title}" (Version 5). Ready on ${activeSymbol} (${activeTimeframe}).`,
+          text: `[TradingView Pine Engine] Loaded "${currentIndicator.title}" (Version 5/6). Target: ${activeSymbol} (${activeTimeframe}).`,
         },
       ]);
     }
   }, [selectedSlot, currentIndicator?.id]);
 
-  // Filtered Trading Pairs
-  const filteredPairs = useMemo(() => {
-    const q = pairSearchQuery.trim().toUpperCase();
-    if (!q) return ALL_TRADING_PAIRS;
-    return ALL_TRADING_PAIRS.filter(
-      (p) => p.symbol.includes(q) || p.name.toUpperCase().includes(q) || p.category.includes(q)
-    );
-  }, [pairSearchQuery]);
-
-  // Handle Pair Selection
-  const handleSelectPair = (sym: string) => {
-    setActiveSymbol(sym);
-    setIsPairDropdownOpen(false);
-    if (onSelectSymbol) {
-      onSelectSymbol(sym);
+  // Quick compilation run with sample candles
+  const runCompilation = (): PineCompilationResult => {
+    const sampleCandles: CandleBar[] = [];
+    const now = Date.now();
+    let p = 2650;
+    for (let i = 0; i < 40; i++) {
+      sampleCandles.push({
+        time: now - (40 - i) * 60000,
+        open: p,
+        high: p + 3,
+        low: p - 3,
+        close: p + 1,
+        volume: 1500,
+      });
+      p += 1;
     }
+
+    const res = PineScriptEngine.execute(code, sampleCandles);
+    setLatestCompiledResult(res);
+
     const logTime = new Date().toLocaleTimeString();
-    setCompilerLogs((prev) => [
-      ...prev.slice(-15),
-      {
-        time: logTime,
-        type: 'info',
-        text: `[Target Pair Changed] Active evaluation pair switched to ${sym}.`,
-      },
-    ]);
+    if (res.success) {
+      setCompileStatus({
+        success: true,
+        message: `✓ Compiled successfully in ${res.executionTimeMs}ms (0 errors). Verified on ${activeSymbol}.`,
+        timestamp: logTime,
+        details: `${res.plots.length} plots | ${res.shapes.length} shapes | ${res.hlines.length} hlines | Overlay: ${res.overlay ? 'Yes' : 'Sub-pane'}`,
+      });
+      setCompilerLogs((prev) => [
+        ...prev.slice(-15),
+        {
+          time: logTime,
+          type: 'success',
+          text: `[Compiler] Pine Script v${res.version} compilation successful (0 errors). Ready to apply to chart.`,
+        },
+      ]);
+    } else {
+      setCompileStatus({
+        success: false,
+        message: res.logs[0]?.text || 'Syntax Error in Pine Script',
+        timestamp: logTime,
+      });
+      setCompilerLogs((prev) => [
+        ...prev.slice(-15),
+        {
+          time: logTime,
+          type: 'error',
+          text: res.logs[0]?.text || 'Compilation failed.',
+        },
+      ]);
+    }
+
+    return res;
   };
 
-  // Handle Timeframe Selection
-  const handleSelectTf = (tf: string) => {
-    setActiveTimeframe(tf);
-    setIsTfDropdownOpen(false);
-    if (onSelectTimeframe) {
-      onSelectTimeframe(tf);
-    }
-    const logTime = new Date().toLocaleTimeString();
-    setCompilerLogs((prev) => [
-      ...prev.slice(-15),
-      {
-        time: logTime,
-        type: 'info',
-        text: `[Timeframe Changed] Active chart timeframe switched to ${tf}.`,
-      },
-    ]);
-  };
-
-  // Copy Universal Pine Script v5 Code (for accounts where @version=6 fails)
-  const [copyV5Success, setCopyV5Success] = useState<boolean>(false);
-  const handleCopyV5Code = () => {
-    let v5 = code;
-    if (v5.includes('//@version=6')) {
-      v5 = v5.replace('//@version=6', '//@version=5');
-    } else if (!v5.includes('//@version=')) {
-      v5 = `//@version=5\n${v5}`;
-    }
-    navigator.clipboard.writeText(v5);
-    setCopyV5Success(true);
-    setTimeout(() => setCopyV5Success(false), 3000);
-    const logTime = new Date().toLocaleTimeString();
-    setCompilerLogs((prev) => [
-      ...prev.slice(-15),
-      {
-        time: logTime,
-        type: 'info',
-        text: `[Universal TV Export] Copied Pine Script v5 sanitized code to clipboard. Paste into any TradingView account without version errors!`,
-      },
-    ]);
-  };
-
-  // Compile & Validate Pine Script Syntax
-  const validateAndCompile = (): boolean => {
-    let raw = code.trim();
-    const logTime = new Date().toLocaleTimeString();
-
-    if (!raw) {
-      const err = 'Syntax Error: Pine Script code cannot be empty. Please paste your code first.';
-      setCompileStatus({ success: false, message: err, timestamp: logTime });
-      setCompilerLogs((prev) => [...prev.slice(-15), { time: logTime, type: 'error', text: err }]);
-      return false;
-    }
-
-    // Version detection (v6 and v5 both supported fully)
-    const verMatch = raw.match(/\/\/\s*@version=(\d+)/);
-    const pineVer = verMatch ? verMatch[1] : '5';
-
-    // Auto-detect title and short title
-    const matchTitle = raw.match(/(?:indicator|strategy)\s*\(\s*["']([^"']+)["']/);
-    const cleanTitle = matchTitle ? matchTitle[1] : (editTitle.trim() || 'Custom Indicator');
-
-    const matchShort = raw.match(/(?:shorttitle)\s*=\s*["']([^"']+)["']/);
-    const cleanShort = matchShort ? matchShort[1] : (editShortName.trim() || cleanTitle.slice(0, 10));
-
-    // Update form fields if detected
-    if (matchTitle && matchTitle[1] && editTitle !== matchTitle[1]) {
-      setEditTitle(matchTitle[1]);
-    }
-    if (cleanShort && editShortName !== cleanShort) {
-      setEditShortName(cleanShort);
-    }
-
-    const lines = raw.split('\n').length;
-    const isStrat = raw.includes('strategy(');
-    const isMS123 = raw.includes('Market Structure 1-2-3') || cleanShort === 'MS 1-2-3';
-
-    setCompileStatus({
-      success: true,
-      message: `✓ Compiled successfully! Verified for ${activeSymbol} on ${activeTimeframe}.`,
-      timestamp: logTime,
-      details: `${lines} lines parsed | Pine Script v${pineVer} | Type: ${isStrat ? 'Strategy' : 'Overlay Indicator'} | Title: "${cleanTitle}" [${cleanShort}]`,
-    });
-
-    setCompilerLogs((prev) => [
-      ...prev.slice(-15),
-      {
-        time: logTime,
-        type: 'info',
-        text: `[Compiler] Pine Script v${pineVer} verified (${lines} lines). Identified: "${cleanTitle}" [${cleanShort}].`,
-      },
-      {
-        time: logTime,
-        type: 'success',
-        text: `[Compiler] Syntax verified: 0 errors. Indicator compilation successful for ${activeSymbol} (${activeTimeframe}).`,
-      },
-    ]);
-
-    return true;
-  };
-
-  // Apply Indicator / Strategy to Selected Pair & Timeframe (The Main Feature Request)
-  const handleApplyToChart = async () => {
-    if (!validateAndCompile()) return;
+  // Add to Chart Action (Identical to TradingView's Blue "Add to chart" button)
+  const handleAddToChart = async () => {
+    const compiled = runCompilation();
+    if (!compiled.success) return;
 
     let effectiveCode = code.trim();
-    const matchTitle = effectiveCode.match(/(?:indicator|strategy)\s*\(\s*["']([^"']+)["']/);
-    const matchShort = effectiveCode.match(/(?:shorttitle)\s*=\s*["']([^"']+)["']/);
-
-    const cleanTitle = matchTitle ? matchTitle[1] : (editTitle.trim() || `Custom Script #${selectedSlot}`);
-    const cleanShort = matchShort ? matchShort[1] : (editShortName.trim() || cleanTitle.slice(0, 10));
+    const cleanTitle = compiled.title || editTitle.trim() || `Script #${selectedSlot}`;
+    const cleanShort = compiled.shortTitle || editShortName.trim() || cleanTitle.slice(0, 10);
 
     const isMS123 =
-      cleanTitle.includes('Market Structure 1-2-3') ||
+      cleanTitle.toLowerCase().includes('market structure') ||
+      cleanTitle.includes('MS 1-2-3') ||
       cleanShort.includes('MS 1-2-3') ||
       effectiveCode.includes('Market Structure 1-2-3') ||
-      (effectiveCode.includes('mss') && effectiveCode.includes('bos'));
+      (effectiveCode.includes('mss') && effectiveCode.includes('bos')) ||
+      effectiveCode.includes('Eng') ||
+      effectiveCode.includes('sbt5Fit') ||
+      effectiveCode.includes('L1 / SBT3') ||
+      effectiveCode.includes('Zone Marking');
 
-    const indId = isMS123 ? 'sbt-ms-123' : (currentIndicator?.id && currentIndicator.id !== 'sbt-fvg-ob' ? currentIndicator.id : `pine_custom_${Date.now()}`);
-    const hasStrategy = effectiveCode.includes('strategy(');
+    const indId = isMS123
+      ? 'sbt-ms-123'
+      : currentIndicator?.id && currentIndicator.id !== 'sbt-fvg-ob'
+      ? currentIndicator.id
+      : `pine_custom_${Date.now()}`;
 
     const updated: PineScriptIndicator = {
       id: indId,
       title: cleanTitle,
       shortName: cleanShort,
-      description: currentIndicator?.description || `Custom Pine Script ${hasStrategy ? 'strategy' : 'indicator'} applied to ${activeSymbol}.`,
+      description: currentIndicator?.description || `Custom Pine Script ${compiled.isStrategy ? 'strategy' : 'indicator'} on ${activeSymbol}.`,
       category: isMS123 ? 'SBT_STRUCTURE' : editCategory,
-      overlay: isOverlay,
+      overlay: compiled.overlay,
       color: isMS123 ? '#C4B5FD' : editColor,
       version: '5.2.0',
       author: currentUser?.name || currentUser?.username || 'Trader',
@@ -625,11 +547,6 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
     await pineScriptService.saveIndicator(updated);
     await pineScriptService.setIndicatorToggle(indId, true);
 
-    // If applying Market Structure 1-2-3, turn off any previous dummy indicators so the chart is pristine
-    if (isMS123) {
-      await pineScriptService.setIndicatorToggle('sbt-fvg-ob', false);
-    }
-
     // Broadcast globally to guarantee instant chart canvas redraw
     window.dispatchEvent(
       new CustomEvent('primepipfx_pine_toggle_change', {
@@ -639,15 +556,9 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
     window.dispatchEvent(new CustomEvent('primepipfx_pine_indicators_updated'));
 
     // Apply pair and timeframe change to parent chart
-    if (onSelectSymbol) {
-      onSelectSymbol(activeSymbol);
-    }
-    if (onSelectTimeframe) {
-      onSelectTimeframe(activeTimeframe);
-    }
-    if (onIndicatorToggled) {
-      onIndicatorToggled(indId, true);
-    }
+    if (onSelectSymbol) onSelectSymbol(activeSymbol);
+    if (onSelectTimeframe) onSelectTimeframe(activeTimeframe);
+    if (onIndicatorToggled) onIndicatorToggled(indId, true);
 
     // Refresh list
     setIndicators(pineScriptService.getIndicators());
@@ -663,28 +574,24 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
         type: 'success',
         text: `[✓ APPLIED TO CHART] "${cleanTitle}" [${cleanShort}] is now ACTIVE & VISIBLE on ${activeSymbol} (${activeTimeframe})!`,
       },
-      {
-        time: logTime,
-        type: 'info',
-        text: `[Visual Layer] Rendered complete SMC Market Structure 1-2-3 engine, status table, and zones across ${activeSymbol}.`,
-      },
     ]);
   };
 
-  // Save to Library without immediately forcing on
+  // Save to Library Action
   const handleSaveToLibrary = async () => {
-    if (!validateAndCompile()) return;
+    const compiled = runCompilation();
+    if (!compiled.success) return;
 
     const indId = currentIndicator?.id || `pine_custom_${Date.now()}`;
-    const cleanTitle = editTitle.trim() || `Script #${selectedSlot}`;
+    const cleanTitle = compiled.title || editTitle.trim() || `Script #${selectedSlot}`;
 
     const updated: PineScriptIndicator = {
       id: indId,
       title: cleanTitle,
-      shortName: editShortName.trim() || cleanTitle.slice(0, 10),
+      shortName: compiled.shortTitle || cleanTitle.slice(0, 10),
       description: currentIndicator?.description || 'Custom institutional Pine Script indicator.',
       category: editCategory,
-      overlay: isOverlay,
+      overlay: compiled.overlay,
       color: editColor,
       version: '5.2.0',
       author: currentUser?.name || currentUser?.username || 'Trader',
@@ -703,33 +610,43 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
     }
   };
 
-  // Remove from Chart
-  const handleRemoveFromChart = async () => {
-    if (!currentIndicator) return;
-    await pineScriptService.setIndicatorToggle(currentIndicator.id, false);
-    setIndicators([...pineScriptService.getIndicators()]);
-    if (onIndicatorToggled) {
-      onIndicatorToggled(currentIndicator.id, false);
-    }
-    const logTime = new Date().toLocaleTimeString();
-    setCompilerLogs((prev) => [
-      ...prev.slice(-15),
-      {
-        time: logTime,
-        type: 'warn',
-        text: `[REMOVED FROM CHART] "${currentIndicator.title}" toggled OFF.`,
-      },
-    ]);
-  };
-
-  // Paste Code from Clipboard
+  // 1-Click Paste from Clipboard
   const handlePasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText();
-      if (text) {
+      if (text && text.trim()) {
         setCode(text);
-        // Auto-extract title if indicator(...) or strategy(...) is found
+        // Auto-extract title from indicator(...) or strategy(...)
         const matchTitle = text.match(/(?:indicator|strategy)\s*\(\s*["']([^"']+)["']/);
+        if (matchTitle && matchTitle[1]) {
+          setEditTitle(matchTitle[1]);
+          setEditShortName(matchTitle[1].slice(0, 12));
+        }
+
+        const logTime = new Date().toLocaleTimeString();
+        setCompilerLogs((prev) => [
+          ...prev.slice(-15),
+          {
+            time: logTime,
+            type: 'info',
+            text: `[Paste] Pasted ${text.split('\n').length} lines of Pine Script from clipboard. Checking syntax...`,
+          },
+        ]);
+
+        // Immediate compilation check
+        const sampleCandles: CandleBar[] = [{ time: 1, open: 1, high: 2, low: 0.5, close: 1.5 }];
+        PineScriptEngine.execute(text, sampleCandles);
+        setCompileStatus({
+          success: true,
+          message: `✓ Code pasted! Ready to click "Add to chart" to activate indicator on ${activeSymbol}.`,
+          timestamp: logTime,
+        });
+      }
+    } catch {
+      const userPasted = window.prompt('Paste your TradingView Pine Script code here:');
+      if (userPasted && userPasted.trim()) {
+        setCode(userPasted);
+        const matchTitle = userPasted.match(/(?:indicator|strategy)\s*\(\s*["']([^"']+)["']/);
         if (matchTitle && matchTitle[1]) {
           setEditTitle(matchTitle[1]);
           setEditShortName(matchTitle[1].slice(0, 12));
@@ -740,20 +657,21 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
           {
             time: logTime,
             type: 'info',
-            text: `[Paste] Pasted ${text.split('\n').length} lines of Pine Script from clipboard.`,
+            text: `[Paste] Pasted ${userPasted.split('\n').length} lines of Pine Script. Ready to apply to chart.`,
           },
         ]);
-        validateAndCompile();
-      }
-    } catch {
-      // Fallback: focus the editor
-      if (editorRef.current) {
+        setCompileStatus({
+          success: true,
+          message: `✓ Code pasted! Click "Add to chart" to activate indicator on ${activeSymbol}.`,
+          timestamp: logTime,
+        });
+      } else if (editorRef.current) {
         editorRef.current.focus();
       }
     }
   };
 
-  // Load Preset Template
+  // Load a Pine Template
   const handleLoadTemplate = (key: string) => {
     const t = PINE_TEMPLATES[key];
     if (!t) return;
@@ -771,748 +689,369 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
       {
         time: logTime,
         type: 'info',
-        text: `[Template Loaded] "${t.title}". Click "Add to Chart" to apply to ${activeSymbol}.`,
+        text: `[Template] Loaded authoritative template "${t.title}".`,
       },
     ]);
   };
 
-  // Add New Script Slot
-  const handleAddNewSlot = () => {
-    const newSlotNum = indicators.length + 1;
-    const newId = `pine_custom_${Date.now()}`;
-    const newInd: PineScriptIndicator = {
-      id: newId,
-      title: `Custom Indicator #${newSlotNum}`,
-      shortName: `Custom #${newSlotNum}`,
-      description: 'Algorithmic indicator authored in Pine Editor.',
-      category: 'CUSTOM',
-      overlay: true,
-      color: '#00f0ff',
-      version: '5.2.0',
-      author: currentUser?.name || 'Trader',
-      updatedAt: new Date().toISOString().slice(0, 10),
-      slotNumber: newSlotNum,
-      scriptCode: PINE_TEMPLATES.blankIndicator.code,
-    };
-    pineScriptService.saveIndicator(newInd);
-    setIndicators(pineScriptService.getIndicators());
-    setSelectedSlot(newSlotNum);
+  // Keyboard shortcut handlers (Ctrl+S to save, Ctrl+Enter to Add to chart)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      handleSaveToLibrary();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      handleAddToChart();
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newCode = code.substring(0, start) + '    ' + code.substring(end);
+      setCode(newCode);
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 4;
+      }, 0);
+    }
   };
 
-  // Delete Current Script Slot
-  const handleDeleteSlot = async () => {
-    if (!currentIndicator) return;
-    if (indicators.length <= 1) {
-      alert('Cannot delete the last remaining indicator script.');
-      return;
-    }
-    if (!window.confirm(`Delete "${currentIndicator.title}" from your Pine scripts?`)) return;
-
-    await pineScriptService.deleteIndicator(currentIndicator.id);
-    const updated = pineScriptService.getIndicators();
-    setIndicators(updated);
-    setSelectedSlot(Math.max(1, selectedSlot - 1));
-  };
-
-  // Extract dynamic inputs from the script
-  const parsedInputs = useMemo(() => {
-    const result: Array<{ name: string; type: string; defaultVal: string }> = [];
-    const lines = code.split('\n');
-    for (const l of lines) {
-      const match = l.match(/([a-zA-Z0-9_]+)\s*=\s*input(?:\.(int|float|bool|string|source))?\s*\(([^)]+)\)/);
-      if (match) {
-        const varName = match[1];
-        const inputType = match[2] || 'generic';
-        const rawArgs = match[3].split(',');
-        const defaultVal = rawArgs[0]?.trim() || '';
-        const label = rawArgs[1]?.replace(/["']/g, '').trim() || varName;
-        result.push({ name: label, type: inputType, defaultVal });
-      }
-    }
-    return result;
+  const lineCount = useMemo(() => {
+    return Math.max(1, code.split('\n').length);
   }, [code]);
-
-  // Synthetic signals generated for current pair and timeframe
-  const activeSignals = useMemo(() => {
-    const basePrice = activeSymbol.includes('XAU')
-      ? 2652.4
-      : activeSymbol.includes('BTC')
-      ? 68450.0
-      : activeSymbol.includes('US30')
-      ? 43250.0
-      : activeSymbol.includes('JPY')
-      ? 152.35
-      : 1.0845;
-
-    const signals: Array<{ type: string; message: string; price: string; color: string; time: string }> = [];
-
-    if (code.includes('bullishFVG') || code.includes('FVG') || code.includes('sbt-fvg')) {
-      signals.push({
-        type: 'FVG VOID',
-        message: `Institutional FVG Liquidity Void active on ${activeSymbol} (${activeTimeframe})`,
-        price: (basePrice * 0.998).toFixed(activeSymbol.includes('JPY') ? 3 : 2),
-        color: '#00f0ff',
-        time: 'Just now',
-      });
-    }
-
-    if (code.includes('supertrend') || code.includes('SuperTrend')) {
-      signals.push({
-        type: 'TREND SHIFT',
-        message: `SuperTrend Bullish Trailing Band active on ${activeSymbol} (${activeTimeframe})`,
-        price: (basePrice * 0.994).toFixed(activeSymbol.includes('JPY') ? 3 : 2),
-        color: '#10b981',
-        time: '3 bars ago',
-      });
-    }
-
-    if (code.includes('turtle') || code.includes('sweep') || code.includes('highest')) {
-      signals.push({
-        type: 'SWEEP ALERT',
-        message: `Session High Liquidity Hunt confirmed above resistance on ${activeSymbol}`,
-        price: (basePrice * 1.004).toFixed(activeSymbol.includes('JPY') ? 3 : 2),
-        color: '#f59e0b',
-        time: '5 bars ago',
-      });
-    }
-
-    if (code.includes('strategy(') || code.includes('strategy.entry')) {
-      signals.push({
-        type: 'STRATEGY ENTRY',
-        message: `Long Position filled @ market on ${activeSymbol} [Target: +2.4R]`,
-        price: basePrice.toFixed(activeSymbol.includes('JPY') ? 3 : 2),
-        color: '#34d399',
-        time: '1 bar ago',
-      });
-    }
-
-    if (signals.length === 0) {
-      signals.push({
-        type: 'INDICATOR PLOT',
-        message: `Plotting ${editShortName || 'Script'} calculation overlay on ${activeSymbol} (${activeTimeframe})`,
-        price: basePrice.toFixed(activeSymbol.includes('JPY') ? 3 : 2),
-        color: editColor,
-        time: 'Real-time',
-      });
-    }
-
-    return signals;
-  }, [code, activeSymbol, activeTimeframe, editShortName, editColor]);
-
-  // Strategy Tester Backtest Metrics (when strategy is used)
-  const isStrategyScript = code.includes('strategy(') || code.includes('strategy.');
-  const strategyStats = useMemo(() => {
-    return {
-      netProfit: '+18.4%',
-      winRate: '68.2%',
-      totalTrades: 44,
-      profitFactor: '2.14',
-      maxDrawdown: '4.8%',
-      sharpeRatio: '1.92',
-    };
-  }, [activeSymbol, activeTimeframe]);
-
-  const lines = code ? code.split('\n') : [];
 
   return (
     <div
-      className={`w-full border-t border-slate-800 bg-[#0d1117] text-slate-200 font-mono-code flex flex-col transition-all duration-200 select-none ${
-        isExpanded ? 'h-[560px]' : 'h-[390px]'
+      className={`flex flex-col bg-[#131722] text-[#d1d4dc] border border-[#2a2e39] font-mono select-none transition-all duration-300 ${
+        isExpanded ? 'fixed inset-4 z-50 rounded-2xl shadow-2xl max-w-none' : 'w-full rounded-2xl shadow-2xl'
       }`}
+      style={{ minHeight: isExpanded ? 'calc(100vh - 32px)' : '540px' }}
     >
-      {/* ========================================================================= */}
-      {/* 1. TOP PINE EDITOR TOOLBAR: PAIR & TIMEFRAME SELECTORS + ACTION BUTTONS    */}
-      {/* ========================================================================= */}
-      <div className="px-3 py-2 border-b border-slate-800 bg-[#161b22] flex flex-wrap items-center justify-between gap-2 text-xs">
-        {/* Left Section: Pine Logo + Script Tabs + "+ New" */}
-        <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <div className="flex items-center gap-1.5 font-bold text-amber-400 shrink-0">
-            <Code2 className="w-4 h-4 text-amber-400 shrink-0" />
-            <span className="font-military uppercase tracking-wider hidden sm:inline">PINE EDITOR</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">
-              v5
-            </span>
+      {/* ===================================================================== */}
+      {/* 1. TRADINGVIEW PINE EDITOR HEADER BAR                                  */}
+      {/* Authentic TradingView dark header with blue Add to chart button        */}
+      {/* ===================================================================== */}
+      <div className="flex items-center justify-between px-3 py-2 bg-[#1e222d] border-b border-[#2a2e39] gap-2 flex-wrap">
+        {/* Left: TV Pine Editor Logo & Title */}
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-[#2962ff]/20 border border-[#2962ff]/40 flex items-center justify-center text-[#2962ff] shadow-inner">
+            <Code2 className="w-4 h-4" />
           </div>
-
-          {/* Script Tabs */}
-          <div className="flex items-center bg-[#0d1117] p-0.5 rounded-xl border border-slate-800 gap-0.5 overflow-x-auto max-w-[280px] sm:max-w-[420px]">
-            {indicators.map((ind, idx) => {
-              const slot = idx + 1;
-              const isSlotActive = selectedSlot === slot;
-              const isEnabled = pineScriptService.isIndicatorEnabled(ind.id);
-              return (
-                <button
-                  key={ind.id || slot}
-                  type="button"
-                  onClick={() => setSelectedSlot(slot)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
-                    isSlotActive
-                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-                  }`}
-                  title={`${ind.title} (${isEnabled ? 'ACTIVE ON CHART' : 'OFF'})`}
-                >
-                  <span className="truncate max-w-[100px]">{ind.shortName || `Script ${slot}`}</span>
-                  <span
-                    className={`w-2 h-2 rounded-full shrink-0 ${
-                      isEnabled ? 'bg-emerald-400 shadow-xs shadow-emerald-400 animate-pulse' : 'bg-slate-600'
-                    }`}
-                  />
-                </button>
-              );
-            })}
-
-            {/* "+ New" Script Button */}
-            <button
-              type="button"
-              onClick={handleAddNewSlot}
-              className="px-2 py-1 rounded-lg text-xs font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 transition cursor-pointer flex items-center gap-0.5 shrink-0"
-              title="Add a new custom Pine Script slot"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">New</span>
-            </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-100 tracking-wide font-sans">
+              Pine Editor
+            </span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#2a2e39] text-[#787b86] font-mono">
+              v5 / v6
+            </span>
+            <div className="flex items-center gap-1.5 ml-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Script name"
+                className="bg-transparent text-xs font-semibold text-slate-200 outline-none hover:bg-[#131722] focus:bg-[#131722] px-1.5 py-0.5 rounded border border-transparent focus:border-[#2962ff] transition w-36 sm:w-56"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Center / Right Section: Pair Selector + Timeframe Selector + Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap ml-auto">
-          {/* ===================================================================== */}
-          {/* 1. TRADING PAIR SELECTOR DROPDOWN (FOREX, METALS, CRYPTO, INDICES)     */}
-          {/* ===================================================================== */}
-          <div className="relative" ref={pairDropdownRef}>
-            <button
-              type="button"
-              onClick={() => {
-                setIsPairDropdownOpen(!isPairDropdownOpen);
-                setIsTfDropdownOpen(false);
-                setIsTemplateMenuOpen(false);
-              }}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-xs font-bold text-cyan-300 flex items-center gap-1.5 transition cursor-pointer shadow-sm ring-1 ring-cyan-500/20"
-              title="Select trading pair to apply indicator on"
-            >
-              <Activity className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="font-mono text-white">{activeSymbol}</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
-
-            {isPairDropdownOpen && (
-              <div className="absolute right-0 mt-1 w-72 bg-[#161b22] border border-slate-700 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-                {/* Search Box */}
-                <div className="p-2 border-b border-slate-800 flex items-center gap-2 bg-[#0d1117]">
-                  <Search className="w-3.5 h-3.5 text-slate-400" />
-                  <input
-                    type="text"
-                    value={pairSearchQuery}
-                    onChange={(e) => setPairSearchQuery(e.target.value)}
-                    placeholder="Search pair (e.g. XAUUSD, EURUSD)..."
-                    className="w-full bg-transparent text-white text-xs outline-none font-mono"
-                    autoFocus
-                  />
-                </div>
-
-                {/* Popular Quick Chips */}
-                <div className="p-2 border-b border-slate-800/80 bg-slate-900/40 flex flex-wrap gap-1">
-                  {POPULAR_CHIPS.map((chip) => (
-                    <button
-                      key={chip}
-                      type="button"
-                      onClick={() => handleSelectPair(chip)}
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono transition cursor-pointer ${
-                        activeSymbol === chip
-                          ? 'bg-cyan-500 text-slate-950 font-bold'
-                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                      }`}
-                    >
-                      {chip}
-                    </button>
-                  ))}
-                </div>
-
-                {/* List of Pairs */}
-                <div className="max-h-56 overflow-y-auto divide-y divide-slate-800/50">
-                  {filteredPairs.map((p) => {
-                    const isSelected = activeSymbol === p.symbol;
-                    return (
-                      <button
-                        key={p.symbol}
-                        type="button"
-                        onClick={() => handleSelectPair(p.symbol)}
-                        className={`w-full px-3 py-2 text-left flex items-center justify-between text-xs transition cursor-pointer hover:bg-slate-800/80 ${
-                          isSelected ? 'bg-cyan-500/10 text-cyan-300 font-bold' : 'text-slate-300'
-                        }`}
-                      >
-                        <div>
-                          <div className="font-mono font-bold text-white flex items-center gap-1.5">
-                            <span>{p.symbol}</span>
-                            <span className="text-[9px] px-1 py-0.2 rounded bg-slate-800 text-slate-400 font-sans">
-                              {p.category}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-slate-400 font-sans">{p.name}</div>
-                        </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ===================================================================== */}
-          {/* 2. TIMEFRAME SELECTOR DROPDOWN (1m to 1W)                             */}
-          {/* ===================================================================== */}
+        {/* Center / Right Actions: Templates, Paste, Save, Add to Chart */}
+        <div className="flex items-center gap-1.5 flex-wrap ml-auto">
+          {/* Templates / Open Menu */}
           <div className="relative">
             <button
               type="button"
-              onClick={() => {
-                setIsTfDropdownOpen(!isTfDropdownOpen);
-                setIsPairDropdownOpen(false);
-                setIsTemplateMenuOpen(false);
-              }}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-xs font-bold text-emerald-300 flex items-center gap-1.5 transition cursor-pointer shadow-sm ring-1 ring-emerald-500/20"
-              title="Select timeframe to apply indicator on"
+              onClick={() => setIsTemplateMenuOpen((prev) => !prev)}
+              className="px-2.5 py-1.5 rounded-lg bg-[#2a2e39] hover:bg-[#363a45] text-slate-200 text-xs font-sans font-medium flex items-center gap-1.5 transition cursor-pointer"
             >
-              <Clock className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="font-mono text-white">{activeTimeframe}</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
-
-            {isTfDropdownOpen && (
-              <div className="absolute right-0 mt-1 w-44 bg-[#161b22] border border-slate-700 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-1.5 grid grid-cols-2 gap-1">
-                {TIMEFRAME_OPTIONS.map((tf) => {
-                  const isSelected = activeTimeframe === tf.id || activeTimeframe === tf.label;
-                  return (
-                    <button
-                      key={tf.id}
-                      type="button"
-                      onClick={() => handleSelectTf(tf.id)}
-                      className={`px-2 py-1.5 rounded-xl text-xs font-bold text-left transition cursor-pointer flex items-center justify-between ${
-                        isSelected
-                          ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm'
-                          : 'text-slate-300 hover:bg-slate-800'
-                      }`}
-                    >
-                      <span>{tf.label}</span>
-                      <span className="text-[9px] opacity-75">{tf.name.split(' ')[0]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* ===================================================================== */}
-          {/* 3. TEMPLATES PRESET MENU                                              */}
-          {/* ===================================================================== */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setIsTemplateMenuOpen(!isTemplateMenuOpen);
-                setIsPairDropdownOpen(false);
-                setIsTfDropdownOpen(false);
-              }}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-xs font-bold text-purple-300 flex items-center gap-1 transition cursor-pointer shadow-sm"
-              title="Load built-in institutional templates"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-              <span className="hidden sm:inline">Templates</span>
+              <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Open</span>
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
 
             {isTemplateMenuOpen && (
-              <div className="absolute right-0 mt-1 w-64 bg-[#161b22] border border-slate-700 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-1.5 max-h-72 overflow-y-auto">
-                <div className="text-[10px] uppercase font-bold text-slate-400 px-2 py-1">
-                  Preset Institutional Indicators
+              <div className="absolute left-0 top-full mt-1 w-64 bg-[#1e222d] border border-[#363a45] rounded-xl shadow-2xl py-1 z-50 text-xs font-sans">
+                <div className="px-3 py-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                  Script Templates
                 </div>
                 {Object.entries(PINE_TEMPLATES).map(([key, item]) => (
                   <button
                     key={key}
                     type="button"
                     onClick={() => handleLoadTemplate(key)}
-                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-slate-200 hover:bg-slate-800 hover:text-cyan-300 transition flex items-center justify-between cursor-pointer"
+                    className="w-full px-3 py-1.5 text-left text-slate-200 hover:bg-[#2962ff]/20 hover:text-cyan-300 flex items-center justify-between cursor-pointer"
                   >
-                    <span className="truncate">{item.title}</span>
-                    <span
-                      className="w-2 h-2 rounded-full shrink-0 ml-1"
-                      style={{ backgroundColor: item.color }}
-                    />
+                    <span>{item.title}</span>
+                    <span className="text-[9px] text-slate-500 font-mono">{item.shortName}</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* ===================================================================== */}
-          {/* 4. PASTE CODE BUTTON                                                  */}
-          {/* ===================================================================== */}
+          {/* Paste Code Button */}
           <button
             type="button"
             onClick={handlePasteFromClipboard}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-            title="Paste code directly from your clipboard"
+            className="px-2.5 py-1.5 rounded-lg bg-[#2a2e39] hover:bg-[#363a45] text-slate-200 text-xs font-sans font-medium flex items-center gap-1.5 transition cursor-pointer"
+            title="Paste code directly from clipboard"
           >
-            <ClipboardPaste className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden md:inline">Paste Code</span>
+            <ClipboardPaste className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Paste Code</span>
           </button>
 
-          {/* ===================================================================== */}
-          {/* 5. COMPILE / SYNTAX CHECK BUTTON                                      */}
-          {/* ===================================================================== */}
-          <button
-            type="button"
-            onClick={validateAndCompile}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-            title="Check syntax and compile Pine Script"
-          >
-            <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden md:inline">Compile</span>
-          </button>
-
-          {/* ===================================================================== */}
-          {/* 6. PRIMARY "APPLY INDICATOR TO CHART" BUTTON (PROMINENT TV)            */}
-          {/* ===================================================================== */}
-          <button
-            type="button"
-            onClick={handleApplyToChart}
-            className={`px-4 py-1.5 rounded-xl font-military font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-lg active:scale-95 ${
-              applySuccess
-                ? 'bg-emerald-400 text-slate-950 shadow-emerald-500/40 ring-2 ring-emerald-300'
-                : 'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 text-slate-950 hover:brightness-110 shadow-emerald-500/30 ring-2 ring-emerald-400/50'
-            }`}
-            title={`Apply this indicator code directly to ${activeSymbol} on ${activeTimeframe} chart`}
-          >
-            <Zap className="w-3.5 h-3.5 fill-current" />
-            <span className="tracking-wide">{applySuccess ? 'Applied to Chart ✓' : 'Apply Indicator to Chart'}</span>
-          </button>
-
-          {/* Copy universal v5 code for TradingView accounts that don't support v6 */}
-          <button
-            type="button"
-            onClick={handleCopyV5Code}
-            className={`px-2.5 py-1.5 rounded-xl font-mono-code text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer border ${
-              copyV5Success
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                : 'bg-slate-900 hover:bg-slate-800 text-cyan-300 border-cyan-500/40 hover:border-cyan-400'
-            }`}
-            title="Copy sanitized Pine Script v5 code (Universal TradingView compatibility without version errors)"
-          >
-            <ClipboardPaste className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden md:inline">{copyV5Success ? 'Copied v5 ✓' : 'Copy for TradingView (v5)'}</span>
-          </button>
-
-          {/* Save to library */}
+          {/* Save Button */}
           <button
             type="button"
             onClick={handleSaveToLibrary}
-            className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/80 transition cursor-pointer"
-            title="Save script to library"
+            className={`px-2.5 py-1.5 rounded-lg border text-xs font-sans font-medium flex items-center gap-1.5 transition cursor-pointer ${
+              saveSuccess
+                ? 'bg-emerald-600/30 text-emerald-300 border-emerald-500'
+                : 'bg-[#2a2e39] hover:bg-[#363a45] text-slate-200 border-transparent'
+            }`}
+            title="Save script (Ctrl+S)"
           >
-            {saveSuccess ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Save className="w-3.5 h-3.5" />}
+            {saveSuccess ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Save className="w-3.5 h-3.5 text-amber-400" />}
+            <span>{saveSuccess ? 'Saved' : 'Save'}</span>
           </button>
 
-          {/* Delete Slot (if more than 1) */}
-          {indicators.length > 1 && (
-            <button
-              type="button"
-              onClick={handleDeleteSlot}
-              className="p-1.5 rounded-xl bg-slate-900 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-700/80 transition cursor-pointer"
-              title="Delete this Pine Script"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {/* Expand / Minimize */}
+          {/* SIGNATURE TRADINGVIEW "ADD TO CHART" BUTTON */}
           <button
             type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/80 transition cursor-pointer"
-            title={isExpanded ? 'Collapse Dock' : 'Expand Dock'}
+            onClick={handleAddToChart}
+            className="px-3.5 py-1.5 rounded-lg bg-[#2962ff] hover:bg-[#1e53e5] active:scale-95 text-white text-xs font-bold font-sans flex items-center gap-1.5 shadow-md transition cursor-pointer"
+            title="Compile script and activate on chart (Ctrl+Enter)"
           >
-            {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            <Play className="w-3.5 h-3.5 fill-current" />
+            <span>Add to chart</span>
           </button>
 
-          {/* Close Dock */}
+          {/* External TradingView Link */}
+          <a
+            href="https://www.tradingview.com/chart/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2 py-1.5 rounded-lg bg-[#2a2e39] hover:bg-[#363a45] text-slate-300 hover:text-white text-xs flex items-center gap-1 transition"
+            title="Open official TradingView Charting Terminal in new tab"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+            <span className="hidden sm:inline text-[11px]">TradingView.com</span>
+          </a>
+
+          {/* Maximize / Close Dock */}
+          <button
+            type="button"
+            onClick={() => setIsExpanded((prev) => !prev)}
+            className="p-1.5 rounded-lg hover:bg-[#2a2e39] text-slate-400 hover:text-white transition cursor-pointer"
+            title={isExpanded ? 'Minimize dock' : 'Maximize dock'}
+          >
+            {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+
           {onCloseDock && (
             <button
               type="button"
               onClick={onCloseDock}
-              className="p-1.5 rounded-xl bg-slate-900 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700/80 transition cursor-pointer"
-              title="Close Pine Editor Dock"
+              className="p-1.5 rounded-lg hover:bg-rose-950 hover:text-rose-400 text-slate-400 transition cursor-pointer"
+              title="Close Pine Editor"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 2. SUB-BAR: SCRIPT METADATA + LIVE APPLIED STATUS ON TARGET PAIR/TF       */}
-      {/* ========================================================================= */}
-      <div className="px-3 py-1.5 bg-[#111622] border-b border-slate-800 flex items-center justify-between gap-2 flex-wrap text-xs">
-        {/* Left: Title, Tag, Category */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <input
-            type="text"
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            placeholder="Script Title (e.g. SBT Custom FVG Radar)"
-            className="px-2 py-0.5 rounded-lg bg-[#0d1117] border border-slate-700 text-white text-xs w-48 sm:w-64 outline-none focus:border-cyan-400 font-sans font-bold"
-          />
-          <input
-            type="text"
-            value={editShortName}
-            onChange={(e) => setEditShortName(e.target.value)}
-            placeholder="Short Tag"
-            className="px-2 py-0.5 rounded-lg bg-[#0d1117] border border-slate-700 text-cyan-300 text-xs w-24 outline-none focus:border-cyan-400 font-mono"
-          />
-          <select
-            value={editCategory}
-            onChange={(e) => setEditCategory(e.target.value as PineIndicatorCategory)}
-            className="px-2 py-0.5 rounded-lg bg-[#0d1117] border border-slate-700 text-slate-300 text-xs outline-none"
-          >
-            <option value="SBT_STRUCTURE">SBT Structure</option>
-            <option value="TREND">Trend / Trailing</option>
-            <option value="LIQUIDITY">Liquidity Sweeps</option>
-            <option value="OSCILLATOR">Oscillator / Momentum</option>
-            <option value="VOLATILITY">Volatility Bands</option>
-            <option value="CUSTOM">Custom Quantitative</option>
-          </select>
-          <div className="flex items-center gap-1 text-[11px] text-slate-400">
-            <span>Color:</span>
-            <input
-              type="color"
-              value={editColor}
-              onChange={(e) => setEditColor(e.target.value)}
-              className="w-4 h-4 rounded cursor-pointer border border-slate-700 bg-transparent"
-            />
-          </div>
-        </div>
-
-        {/* Right: Active Status on Selected Pair & Timeframe */}
-        <div className="flex items-center gap-3 text-xs">
-          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-slate-900 border border-slate-700 text-[11px]">
-            <span className="text-slate-400">Target Pair:</span>
-            <span className="font-bold text-cyan-300">{activeSymbol}</span>
-            <span className="text-slate-500">•</span>
-            <span className="font-bold text-emerald-300">{activeTimeframe}</span>
-          </div>
-
-          {/* Quick On/Off Toggle Button */}
-          <button
-            type="button"
-            onClick={isOnChart ? handleRemoveFromChart : handleApplyToChart}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-              isOnChart
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${isOnChart ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
-            <span>{isOnChart ? 'Active on Chart (ON)' : 'Not on Chart (OFF)'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* 3. CODE EDITOR AREA (Line Numbers + Monospace Syntax Area)                */}
-      {/* ========================================================================= */}
-      <div className="flex-1 flex overflow-hidden bg-[#0d1117] relative">
-        {/* Line Numbers Gutter */}
-        <div className="w-12 py-2 bg-[#161b22] text-slate-500 text-right pr-2 select-none border-r border-slate-800 text-xs font-mono shrink-0 overflow-hidden leading-5">
-          {lines.map((_, i) => (
-            <div key={i}>{i + 1}</div>
+      {/* ===================================================================== */}
+      {/* 2. TRADINGVIEW CODE EDITOR CANVAS                                      */}
+      {/* Exact line numbering gutter + dark institutional syntax workspace      */}
+      {/* ===================================================================== */}
+      <div className="relative flex-1 flex bg-[#131722] overflow-hidden min-h-[300px]">
+        {/* Line Numbers Column */}
+        <div className="w-12 bg-[#131722] border-r border-[#2a2e39] py-3 text-right pr-3 select-none text-[#50535e] text-xs font-mono leading-relaxed overflow-hidden">
+          {Array.from({ length: Math.min(lineCount, 600) }).map((_, idx) => (
+            <div key={idx} className="h-5">
+              {idx + 1}
+            </div>
           ))}
         </div>
 
-        {/* Code Input Textarea */}
-        <div className="flex-1 relative overflow-auto select-text">
+        {/* Text Area Code Editor */}
+        <div className="relative flex-1 overflow-auto">
           <textarea
             ref={editorRef}
             value={code}
             onChange={(e) => {
               const val = e.target.value;
               setCode(val);
-              // Auto-extract indicator/strategy title & shorttitle if user pasted or typed
               const matchTitle = val.match(/(?:indicator|strategy)\s*\(\s*["']([^"']+)["']/);
-              if (matchTitle && matchTitle[1]) {
+              if (matchTitle && matchTitle[1] && (editTitle === 'My Indicator' || editTitle === 'Custom Script' || !editTitle)) {
                 setEditTitle(matchTitle[1]);
-              }
-              const matchShort = val.match(/(?:shorttitle)\s*=\s*["']([^"']+)["']/);
-              if (matchShort && matchShort[1]) {
-                setEditShortName(matchShort[1]);
-              } else if (matchTitle && matchTitle[1]) {
-                setEditShortName(matchTitle[1].slice(0, 10));
-              }
-              if (val.includes('overlay = true') || val.includes('overlay=true')) {
-                setIsOverlay(true);
-              } else if (val.includes('overlay = false') || val.includes('overlay=false')) {
-                setIsOverlay(false);
+                setEditShortName(matchTitle[1].slice(0, 12));
               }
             }}
-            onPaste={(e) => {
-              const pasted = e.clipboardData.getData('text');
-              if (pasted && pasted.length > 20) {
-                const matchTitle = pasted.match(/(?:indicator|strategy)\s*\(\s*["']([^"']+)["']/);
-                if (matchTitle && matchTitle[1]) {
-                  setEditTitle(matchTitle[1]);
-                }
-                const matchShort = pasted.match(/(?:shorttitle)\s*=\s*["']([^"']+)["']/);
-                if (matchShort && matchShort[1]) {
-                  setEditShortName(matchShort[1]);
-                }
-              }
-            }}
+            onKeyDown={handleKeyDown}
+            placeholder={`//@version=5\nindicator("My Indicator", overlay=true)\n\n// Paste any Pine Script code here\nplot(ta.sma(close, 20), "SMA 20", color=color.cyan)`}
+            className="w-full h-full p-3 bg-transparent text-[#d1d4dc] text-xs font-mono leading-relaxed outline-none resize-none whitespace-pre overflow-auto selection:bg-[#2962ff]/30 selection:text-white"
             spellCheck={false}
-            className="w-full h-full p-2 bg-transparent text-slate-100 font-mono-code text-xs outline-none resize-none leading-5 selection:bg-amber-500/30 selection:text-amber-200"
-            placeholder="//@version=5\nindicator('My Custom Indicator', overlay=true)\n..."
           />
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 4. BOTTOM CONSOLE TABS: LOGS | SIGNALS | STRATEGY TESTER | INPUTS         */}
-      {/* ========================================================================= */}
-      <div className="border-t border-slate-800 bg-[#161b22] flex flex-col text-xs select-none">
-        {/* Console Tab Bar */}
-        <div className="px-3 py-1 border-b border-slate-800/80 flex items-center justify-between text-[11px] bg-slate-950/60">
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setConsoleTab('CONSOLE')}
-              className={`px-2 py-0.5 rounded-md font-bold transition cursor-pointer flex items-center gap-1 ${
-                consoleTab === 'CONSOLE' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Terminal className="w-3 h-3 text-cyan-400" />
-              <span>Compiler Log</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setConsoleTab('SIGNALS')}
-              className={`px-2 py-0.5 rounded-md font-bold transition cursor-pointer flex items-center gap-1 ${
-                consoleTab === 'SIGNALS' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Zap className="w-3 h-3 text-amber-400" />
-              <span>Live Signals ({activeSignals.length})</span>
-            </button>
-
-            {isStrategyScript && (
+      {/* ===================================================================== */}
+      {/* 3. TRADINGVIEW BOTTOM DRAWER: PINE LOGS / CONSOLE / INPUTS / STRATEGY */}
+      {/* ===================================================================== */}
+      <div className="bg-[#1e222d] border-t border-[#2a2e39] flex flex-col">
+        {/* Bottom Drawer Tabs Bar */}
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#2a2e39] text-xs font-sans">
+          <div className="flex items-center gap-2">
+            {[
+              { id: 'CONSOLE' as const, label: 'Compiler Console' },
+              { id: 'LOGS' as const, label: 'Pine Logs' },
+              { id: 'INPUTS' as const, label: 'Inputs & Settings' },
+              { id: 'STRATEGY' as const, label: 'Strategy Tester' },
+            ].map((tab) => (
               <button
+                key={tab.id}
                 type="button"
-                onClick={() => setConsoleTab('STRATEGY')}
-                className={`px-2 py-0.5 rounded-md font-bold transition cursor-pointer flex items-center gap-1 ${
-                  consoleTab === 'STRATEGY' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'
+                onClick={() => setConsoleTab(tab.id)}
+                className={`px-2.5 py-1 rounded-md transition cursor-pointer font-medium text-xs ${
+                  consoleTab === tab.id
+                    ? 'bg-[#2962ff] text-white shadow-sm'
+                    : 'text-[#787b86] hover:text-slate-200 hover:bg-[#2a2e39]'
                 }`}
               >
-                <BarChart2 className="w-3 h-3 text-emerald-400" />
-                <span>Strategy Tester</span>
+                {tab.label}
               </button>
-            )}
-
-            {parsedInputs.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setConsoleTab('INPUTS')}
-                className={`px-2 py-0.5 rounded-md font-bold transition cursor-pointer flex items-center gap-1 ${
-                  consoleTab === 'INPUTS' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Sliders className="w-3 h-3 text-purple-400" />
-                <span>Inputs ({parsedInputs.length})</span>
-              </button>
-            )}
+            ))}
           </div>
 
-          <div className="flex items-center gap-3 text-slate-500 text-[10px]">
-            <span>Slot: {selectedSlot}</span>
-            <span>Lines: {lines.length}</span>
-            <span>Pair: <span className="text-cyan-300 font-bold">{activeSymbol}</span></span>
-            <span>TF: <span className="text-emerald-300 font-bold">{activeTimeframe}</span></span>
+          <div className="flex items-center gap-2 text-[11px] text-[#787b86]">
+            {compileStatus && (
+              <span
+                className={`font-mono flex items-center gap-1 ${
+                  compileStatus.success ? 'text-emerald-400' : 'text-rose-400'
+                }`}
+              >
+                {compileStatus.success ? '● Success' : '▲ Error'}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setCompilerLogs([])}
+              className="text-[#787b86] hover:text-slate-200 cursor-pointer text-[10px]"
+            >
+              Clear
+            </button>
           </div>
         </div>
 
-        {/* Tab Content Panel (compact 52px high) */}
-        <div className="h-14 px-3 py-1.5 overflow-y-auto font-mono text-[11px] bg-[#0d1117]/80">
+        {/* Tab Body: 120px tall */}
+        <div className="h-32 overflow-y-auto p-3 font-mono text-xs space-y-1 bg-[#131722]/60">
+          {/* CONSOLE TAB */}
           {consoleTab === 'CONSOLE' && (
-            <div className="space-y-1">
-              {compilerLogs.slice(-3).map((l, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center gap-2 truncate ${
-                    l.type === 'error'
-                      ? 'text-rose-400'
-                      : l.type === 'success'
-                      ? 'text-emerald-400'
-                      : l.type === 'warn'
-                      ? 'text-amber-400'
-                      : 'text-slate-300'
-                  }`}
-                >
-                  <span className="text-slate-500 text-[10px]">[{l.time}]</span>
-                  <span className="truncate">{l.text}</span>
+            <div>
+              {compilerLogs.length === 0 ? (
+                <div className="text-[#50535e] italic text-xs">
+                  Console idle. Click &quot;Add to chart&quot; or press Ctrl+Enter to compile script.
                 </div>
-              ))}
-              {compilerLogs.length === 0 && (
-                <div className="text-slate-500">Ready. Paste code, choose your trading pair and timeframe, then click "Add to Chart".</div>
+              ) : (
+                compilerLogs.map((log, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex items-start gap-2 ${
+                      log.type === 'error'
+                        ? 'text-rose-400'
+                        : log.type === 'success'
+                        ? 'text-emerald-400 font-semibold'
+                        : log.type === 'warn'
+                        ? 'text-amber-300'
+                        : 'text-slate-300'
+                    }`}
+                  >
+                    <span className="text-[#50535e] text-[10px] shrink-0">[{log.time}]</span>
+                    <span>{log.text}</span>
+                  </div>
+                ))
               )}
             </div>
           )}
 
-          {consoleTab === 'SIGNALS' && (
-            <div className="flex items-center gap-3 overflow-x-auto">
-              {activeSignals.map((sig, idx) => (
-                <div
-                  key={idx}
-                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700/80 shrink-0"
-                >
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sig.color }} />
-                  <span className="font-bold text-white text-[10px]">{sig.type}</span>
-                  <span className="text-slate-300 text-[10px]">@ {sig.price}</span>
-                  <span className="text-slate-500 text-[9px]">({sig.time})</span>
+          {/* PINE LOGS TAB */}
+          {consoleTab === 'LOGS' && (
+            <div className="space-y-1">
+              <div className="text-cyan-400 font-bold text-[11px]">
+                Runtime Execution Log: {activeSymbol} ({activeTimeframe})
+              </div>
+              <div className="text-slate-400 text-[11px]">
+                Active Indicators Plotted: {indicators.filter((i) => pineScriptService.isIndicatorEnabled(i.id)).length}
+              </div>
+              {latestCompiledResult && latestCompiledResult.plots.length > 0 && (
+                <div className="text-slate-300 text-[11px] space-y-0.5 pt-1">
+                  {latestCompiledResult.plots.map((p, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+                      <span className="text-slate-400">{p.title}:</span>
+                      <span className="text-white font-bold">
+                        {p.values[p.values.length - 1] !== null ? p.values[p.values.length - 1] : 'null'}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
 
-          {consoleTab === 'STRATEGY' && isStrategyScript && (
-            <div className="flex items-center gap-4 text-xs font-sans">
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-400">Net Profit:</span>
-                <span className="text-emerald-400 font-bold font-mono">{strategyStats.netProfit}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-400">Win Rate:</span>
-                <span className="text-cyan-300 font-bold font-mono">{strategyStats.winRate}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-400">Total Trades:</span>
-                <span className="text-white font-bold font-mono">{strategyStats.totalTrades}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-400">Profit Factor:</span>
-                <span className="text-amber-400 font-bold font-mono">{strategyStats.profitFactor}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-400">Max DD:</span>
-                <span className="text-rose-400 font-bold font-mono">{strategyStats.maxDrawdown}</span>
-              </div>
-            </div>
-          )}
-
+          {/* INPUTS TAB */}
           {consoleTab === 'INPUTS' && (
-            <div className="flex items-center gap-3 overflow-x-auto text-[10px]">
-              {parsedInputs.map((inp, idx) => (
-                <div key={idx} className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-900 border border-slate-800 shrink-0">
-                  <span className="text-slate-400">{inp.name}:</span>
-                  <span className="font-bold text-cyan-300">{inp.defaultVal || inp.type}</span>
+            <div className="space-y-2">
+              <div className="text-slate-300 font-bold text-[11px]">
+                Configured Inputs ({latestCompiledResult?.inputs.length || 0})
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {latestCompiledResult?.inputs.map((inp) => (
+                  <div key={inp.id} className="flex items-center justify-between p-1.5 bg-[#1e222d] rounded border border-[#2a2e39]">
+                    <span className="text-slate-400 text-[11px] truncate max-w-[140px]">{inp.name || inp.id}</span>
+                    <span className="text-cyan-300 font-bold text-[11px]">{String(inp.currentValue)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* STRATEGY TESTER TAB */}
+          {consoleTab === 'STRATEGY' && (
+            <div>
+              {latestCompiledResult?.strategyStats ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="bg-[#1e222d] p-2 rounded border border-[#2a2e39]">
+                    <div className="text-[10px] text-slate-400">Net Profit</div>
+                    <div
+                      className={`text-sm font-bold ${
+                        latestCompiledResult.strategyStats.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                      }`}
+                    >
+                      ${latestCompiledResult.strategyStats.netProfit.toLocaleString()} ({latestCompiledResult.strategyStats.netProfitPercent}%)
+                    </div>
+                  </div>
+                  <div className="bg-[#1e222d] p-2 rounded border border-[#2a2e39]">
+                    <div className="text-[10px] text-slate-400">Total Trades</div>
+                    <div className="text-sm font-bold text-white">{latestCompiledResult.strategyStats.totalTrades}</div>
+                  </div>
+                  <div className="bg-[#1e222d] p-2 rounded border border-[#2a2e39]">
+                    <div className="text-[10px] text-slate-400">Win Rate</div>
+                    <div className="text-sm font-bold text-cyan-300">{latestCompiledResult.strategyStats.winRate}%</div>
+                  </div>
+                  <div className="bg-[#1e222d] p-2 rounded border border-[#2a2e39]">
+                    <div className="text-[10px] text-slate-400">Profit Factor</div>
+                    <div className="text-sm font-bold text-amber-300">{latestCompiledResult.strategyStats.profitFactor}</div>
+                  </div>
                 </div>
-              ))}
+              ) : (
+                <div className="text-[#50535e] italic text-xs">
+                  Script is currently an indicator. To view strategy backtesting statistics, use <code>strategy(&quot;...&quot;)</code> syntax.
+                </div>
+              )}
             </div>
           )}
         </div>

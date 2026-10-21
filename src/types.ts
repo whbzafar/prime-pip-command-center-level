@@ -1048,7 +1048,7 @@ export interface PineIndicatorSignal {
   indicatorName: string;
   symbol: string;
   timeframe: string;
-  type: 'BUY' | 'SELL' | 'ALERT' | 'SWEEP' | 'FVG';
+  type: 'BUY' | 'SELL' | 'ALERT' | 'SWEEP' | 'FVG' | 'BOS' | 'MSS';
   price: number;
   message: string;
   timestamp: number;

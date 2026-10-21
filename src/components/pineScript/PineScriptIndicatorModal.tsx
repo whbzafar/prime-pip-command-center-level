@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { PineScriptIndicator, PineIndicatorCategory } from '../../types';
 import { pineScriptService } from '../../services/pineScriptService';
+import { PineScriptEngine } from '../../services/pineScriptEngine';
 import { isUserAdmin, getStoredUser } from '../../utils/authClient';
 import { MARKET_STRUCTURE_PINE_CODE } from '../../data/marketStructurePineScript';
 
@@ -227,30 +228,23 @@ plot(fastMA, "Simple Moving Average", color=color.cyan, linewidth=2)
       return;
     }
 
-    // Basic syntactic validation of Pine Script v5 conventions
-    if (!code.includes('indicator(')) {
+    const sampleCandles = [
+      { time: 1000, open: 100, high: 105, low: 95, close: 102 },
+      { time: 2000, open: 102, high: 108, low: 100, close: 106 },
+    ];
+    const res = PineScriptEngine.execute(code, sampleCandles);
+
+    if (res.success) {
+      setCompileStatus({
+        success: true,
+        message: `✓ Script compiled successfully! Verified v${res.version} ${res.isStrategy ? 'Strategy' : 'Indicator'} ("${res.title}").`,
+      });
+    } else {
       setCompileStatus({
         success: false,
-        message: 'Compilation Error: Missing indicator() declaration. Example: indicator("Title", overlay=true)',
+        message: res.logs[0]?.text || 'Compilation error in Pine Script.',
       });
-      return;
     }
-
-    // Bracket balance check
-    const openParens = (code.match(/\(/g) || []).length;
-    const closeParens = (code.match(/\)/g) || []).length;
-    if (openParens !== closeParens) {
-      setCompileStatus({
-        success: false,
-        message: `Syntax Error: Unbalanced parentheses. Found ${openParens} '(' and ${closeParens} ')'.`,
-      });
-      return;
-    }
-
-    setCompileStatus({
-      success: true,
-      message: '✓ Script compiled successfully! Syntax validated with 0 errors.',
-    });
   };
 
   const handleSaveIndicator = async () => {
