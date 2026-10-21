@@ -204,7 +204,7 @@ if (isSupabaseAuthEnabled) {
 const currentAppDir = process.cwd();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const presenceSockets = new Map<string, Set<WebSocket>>();
 
 function broadcastPresence() {
@@ -4108,11 +4108,10 @@ app.get('/api/pine-scripts', (req, res) => {
         ...ind,
         slotNumber: index + 1,
         hasCode: Boolean(ind.scriptCode && ind.scriptCode.trim().length > 0),
-        // Proprietary code protection: Students cannot view, edit, or copy the code
-        scriptCode: isAdmin ? ind.scriptCode : undefined,
-        canEdit: isAdmin,
-        canCopy: isAdmin,
-        isReadOnly: !isAdmin,
+        scriptCode: ind.scriptCode || '',
+        canEdit: true,
+        canCopy: true,
+        isReadOnly: false,
       };
     });
 
@@ -4122,9 +4121,11 @@ app.get('/api/pine-scripts', (req, res) => {
   }
 });
 
-// Admin-only: Create or update a Pine Script indicator
-app.post('/api/pine-scripts', requireDeveloper, (req, res) => {
+// Create or update a Pine Script indicator (Available to all traders in Pine Editor)
+app.post('/api/pine-scripts', (req, res) => {
   try {
+    const token = getAuthToken(req);
+    const user = token ? getUserByToken(token) : null;
     const { indicator } = req.body || {};
     if (!indicator || !indicator.title) {
       return res.status(400).json({ ok: false, error: 'Indicator object with title is required.' });
@@ -4137,7 +4138,7 @@ app.post('/api/pine-scripts', requireDeveloper, (req, res) => {
       ...indicator,
       id: cleanId,
       updatedAt: new Date().toISOString().slice(0, 10),
-      author: (req as any).currentUser?.name || (req as any).currentUser?.username || 'PrimePipFX Chief Admin',
+      author: user?.name || user?.username || 'Trader',
       scriptCode: String(indicator.scriptCode || '').trim(),
     };
 
@@ -4145,7 +4146,7 @@ app.post('/api/pine-scripts', requireDeveloper, (req, res) => {
     if (existingIdx >= 0) {
       indicators[existingIdx] = newRecord;
     } else {
-      indicators.unshift(newRecord);
+      indicators.push(newRecord);
     }
 
     safeWriteJsonFile('pine_script_indicators.json', indicators);
@@ -4155,9 +4156,11 @@ app.post('/api/pine-scripts', requireDeveloper, (req, res) => {
   }
 });
 
-// Admin-only: Update existing Pine Script
-app.put('/api/pine-scripts/:id', requireDeveloper, (req, res) => {
+// Update existing Pine Script
+app.put('/api/pine-scripts/:id', (req, res) => {
   try {
+    const token = getAuthToken(req);
+    const user = token ? getUserByToken(token) : null;
     const { id } = req.params;
     const { indicator } = req.body || {};
     const indicators = safeReadJsonFile<any[]>('pine_script_indicators.json', []);
@@ -4172,7 +4175,7 @@ app.put('/api/pine-scripts/:id', requireDeveloper, (req, res) => {
       ...indicator,
       id,
       updatedAt: new Date().toISOString().slice(0, 10),
-      author: (req as any).currentUser?.name || (req as any).currentUser?.username || indicators[existingIdx].author,
+      author: user?.name || user?.username || indicators[existingIdx].author,
       scriptCode: indicator?.scriptCode !== undefined ? String(indicator.scriptCode).trim() : indicators[existingIdx].scriptCode,
     };
 
@@ -4184,8 +4187,8 @@ app.put('/api/pine-scripts/:id', requireDeveloper, (req, res) => {
   }
 });
 
-// Admin-only: Delete an indicator
-app.delete('/api/pine-scripts/:id', requireDeveloper, (req, res) => {
+// Delete an indicator
+app.delete('/api/pine-scripts/:id', (req, res) => {
   try {
     const { id } = req.params;
     let indicators = safeReadJsonFile<any[]>('pine_script_indicators.json', []);

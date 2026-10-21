@@ -52,6 +52,7 @@ import { hasFullAccess, isUserAdmin, getStoredUser } from '../utils/authClient';
 import { Trade, UserAccount, AccountSettings, PineScriptIndicator } from '../types';
 import { PineScriptIndicatorModal } from './pineScript/PineScriptIndicatorModal';
 import { PineEditorDock } from './pineScript/PineEditorDock';
+import { PineScriptChartOverlay } from './pineScript/PineScriptChartOverlay';
 import { pineScriptService } from '../services/pineScriptService';
 import {
   FundamentalIntelligenceEngine,
@@ -3989,6 +3990,28 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           {/* TRADINGVIEW IFRAME CONTAINER */}
           <div id={containerId} className="w-full h-full relative z-10" />
 
+          {/* ACTIVE PINE SCRIPT INDICATOR & VISUAL DRAWING OVERLAY */}
+          {activePineIndicators.length > 0 && (
+            <PineScriptChartOverlay
+              symbol={selectedSymbol}
+              timeframe={selectedInterval}
+              indicators={activePineIndicators}
+              livePrice={liveCandle.close}
+              pipSize={priceMeta.pipSize}
+              topBoundPrice={topBoundPrice}
+              bottomBoundPrice={bottomBoundPrice}
+              getPriceYPercent={getPriceYPercent}
+              onRemoveIndicator={async (id) => {
+                await pineScriptService.setIndicatorToggle(id, false);
+                setActivePineIndicators(pineScriptService.getActiveIndicators());
+              }}
+              onToggleIndicator={async (id, enabled) => {
+                await pineScriptService.setIndicatorToggle(id, enabled);
+                setActivePineIndicators(pineScriptService.getActiveIndicators());
+              }}
+            />
+          )}
+
           {/* DRAG EVENT CAPTURE OVERLAY (Active only while dragging so TradingView iframe never intercepts mouse/touch) */}
           {activeDragTarget && (
             <div className="fixed inset-0 z-50 cursor-ns-resize bg-transparent select-none" />
@@ -4677,6 +4700,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           <PineEditorDock
             currentSymbol={selectedSymbol}
             currentTimeframe={selectedInterval}
+            onSelectSymbol={(sym) => handleSelectSymbol(sym)}
+            onSelectTimeframe={(tf) => setSelectedInterval(tf)}
             onOpenFullModal={() => setShowIndicatorsModal(true)}
             onCloseDock={() => setIsPineEditorOpen(false)}
             onIndicatorToggled={() => {

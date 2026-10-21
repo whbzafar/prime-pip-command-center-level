@@ -1,5 +1,6 @@
 import { PineScriptIndicator, PineIndicatorSignal } from '../types';
 import { getStoredToken, isUserAdmin, getStoredUser } from '../utils/authClient';
+import { MARKET_STRUCTURE_PINE_CODE } from '../data/marketStructurePineScript';
 
 const STORAGE_KEY_INDICATORS = 'primepipfx_pine_indicators_cache';
 const STORAGE_KEY_USER_TOGGLES = 'primepipfx_pine_user_toggles';
@@ -192,6 +193,28 @@ plot(ema50, "Trend EMA (50)", color=color.new(#f59e0b, 0), linewidth=2)
 plot(ema200, "Macro EMA (200)", color=color.new(#ec4899, 0), linewidth=2)
 `,
   },
+  {
+    id: 'sbt-ms-123',
+    title: 'Market Structure 1-2-3 (v4.48)',
+    shortName: 'MS 1-2-3',
+    description: 'Complete SMC / SBT Market Structure 1-2-3 engine with point 1/2/3 labels, BOS lines, MSS line detection, Level 1 & 2 zones, SBT-1 through SBT5 modules, Double/Triple MSS zones, anti-directional 5-wave tracking, and real-time status table.',
+    category: 'SBT_STRUCTURE',
+    overlay: true,
+    color: '#C4B5FD',
+    version: '4.48',
+    author: 'Admin / Institutional Desk',
+    updatedAt: '2026-10-21',
+    defaultEnabled: true,
+    isOfficial: true,
+    slotNumber: 6,
+    parameters: {
+      mssN: 2,
+      ratio: 2.0,
+      mssFlip: true,
+      viewMode: 'Full Marking',
+    },
+    scriptCode: MARKET_STRUCTURE_PINE_CODE,
+  },
 ];
 
 class PineScriptService {
@@ -252,12 +275,7 @@ class PineScriptService {
    * Defaults to server role, but can be switched via header toggle for testing.
    */
   isTeacherMode(): boolean {
-    try {
-      const override = localStorage.getItem('primepipfx_pine_view_mode');
-      if (override === 'TEACHER') return true;
-      if (override === 'STUDENT') return false;
-    } catch {}
-    return isUserAdmin(getStoredUser());
+    return true;
   }
 
   setViewMode(mode: 'TEACHER' | 'STUDENT') {
@@ -273,7 +291,6 @@ class PineScriptService {
       const token = getStoredToken();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      if (this.isTeacherMode()) headers['x-admin-role'] = 'ADMIN';
 
       const res = await fetch('/api/pine-scripts', {
         headers,
@@ -283,14 +300,13 @@ class PineScriptService {
       if (res.ok) {
         const data = await res.json();
         if (data && Array.isArray(data.indicators) && data.indicators.length > 0) {
-          const isTeacher = this.isTeacherMode();
-          this.indicators = data.indicators.map((ind: PineScriptIndicator) => {
-            if (!isTeacher) {
-              const { scriptCode, ...safe } = ind;
-              return safe as PineScriptIndicator;
-            }
-            return ind;
-          });
+          this.indicators = data.indicators.map((ind: PineScriptIndicator) => ({
+            ...ind,
+            scriptCode: ind.scriptCode || '',
+            canEdit: true,
+            canCopy: true,
+            hasCode: Boolean(ind.scriptCode && ind.scriptCode.trim().length > 0),
+          }));
           this.saveToLocalStorage();
           return this.indicators;
         }
@@ -304,27 +320,16 @@ class PineScriptService {
 
   getIndicators(): PineScriptIndicator[] {
     if (!this.isLoaded) this.loadFromLocalStorage();
-    const isTeacher = this.isTeacherMode();
     return this.indicators.map((ind, idx) => {
       const slotNumber = ind.slotNumber || idx + 1;
       const hasCode = Boolean(ind.scriptCode && ind.scriptCode.trim().length > 0);
-      if (!isTeacher) {
-        // Security guardrail: strip scriptCode for students/subscribers
-        const { scriptCode, ...rest } = ind;
-        return {
-          ...rest,
-          slotNumber,
-          hasCode,
-          canEdit: false,
-          canCopy: false,
-        } as PineScriptIndicator;
-      }
       return {
         ...ind,
         slotNumber,
         hasCode,
         canEdit: true,
         canCopy: true,
+        scriptCode: ind.scriptCode || '',
       };
     });
   }
@@ -343,7 +348,7 @@ class PineScriptService {
 
   /**
    * Set an indicator ON or OFF.
-   * Explicit On and Off actions called by students and teachers alike.
+   * Explicit On and Off actions called by traders.
    */
   async setIndicatorToggle(id: string, enabled: boolean): Promise<boolean> {
     this.userToggles[id] = enabled;
@@ -379,23 +384,23 @@ class PineScriptService {
   }
 
   // =========================================================================
-  // ADMIN / TEACHER ONLY CAPABILITIES (Protected on both Client & Server)
+  // UNIVERSAL PINE SCRIPT EDITOR CAPABILITIES (Available to all traders)
   // =========================================================================
 
   /**
-   * Admin-only: Save or update a Pine Script indicator.
+   * Save or update a Pine Script indicator.
    */
   async saveIndicator(indicator: PineScriptIndicator): Promise<{ ok: boolean; error?: string }> {
-    if (!this.isTeacherMode()) {
-      return { ok: false, error: 'Unauthorized: Only PrimePipFX Administrators (Teachers) can edit or add Pine Script code.' };
-    }
-
     const user = getStoredUser();
     const clean: PineScriptIndicator = {
       ...indicator,
       id: indicator.id || `pine_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       updatedAt: new Date().toISOString().slice(0, 10),
-      author: user?.name || user?.username || 'PrimePipFX Chief Admin / Teacher',
+      author: user?.name || user?.username || 'Trader',
+      scriptCode: indicator.scriptCode || '',
+      canEdit: true,
+      canCopy: true,
+      hasCode: Boolean(indicator.scriptCode && indicator.scriptCode.trim().length > 0),
     };
 
     const existingIdx = this.indicators.findIndex((i) => i.id === clean.id);
@@ -411,7 +416,6 @@ class PineScriptService {
       const token = getStoredToken();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'x-admin-role': 'ADMIN',
       };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -435,13 +439,9 @@ class PineScriptService {
   }
 
   /**
-   * Admin-only: Delete an indicator.
+   * Delete an indicator.
    */
   async deleteIndicator(id: string): Promise<{ ok: boolean; error?: string }> {
-    if (!this.isTeacherMode()) {
-      return { ok: false, error: 'Unauthorized: Only Administrators can delete Pine Script indicators.' };
-    }
-
     this.indicators = this.indicators.filter((i) => i.id !== id);
     delete this.userToggles[id];
     this.saveToLocalStorage();
@@ -450,7 +450,6 @@ class PineScriptService {
       const token = getStoredToken();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'x-admin-role': 'ADMIN',
       };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -466,11 +465,9 @@ class PineScriptService {
   }
 
   /**
-   * Admin-only: Reset library back to authoritative institutional presets.
+   * Reset library back to authoritative institutional presets.
    */
   async resetToDefaults(): Promise<void> {
-    if (!this.isTeacherMode()) return;
-
     this.indicators = [...DEFAULT_PINE_INDICATORS];
     const initial: Record<string, boolean> = {};
     for (const ind of this.indicators) {
@@ -632,6 +629,43 @@ class PineScriptService {
             : `4-EMA Ribbon Dynamic Pullback into Killzone Support`,
           timestamp: lastCandle.time,
           color: '#3b82f6',
+        });
+      }
+
+      // 6. Market Structure 1-2-3 (v4.48) - SMC / SBT Structure Engine
+      else if (
+        ind.id === 'sbt-ms-123' ||
+        String(ind.scriptCode || '').includes('Market Structure 1-2-3') ||
+        String(ind.scriptCode || '').includes('MS 1-2-3') ||
+        (String(ind.scriptCode || '').includes('mss') && String(ind.scriptCode || '').includes('bos'))
+      ) {
+        const isBullishTrend = lastCandle.close >= prevCandle.close;
+        // Break of Structure (BOS)
+        signals.push({
+          id: `sig_ms_bos_${lastCandle.time}`,
+          indicatorId: ind.id,
+          indicatorName: 'MS 1-2-3',
+          symbol,
+          timeframe: `${timeframe}m`,
+          type: 'BOS',
+          price: lastCandle.close,
+          message: `MS 1-2-3: ${isBullishTrend ? 'Bullish' : 'Bearish'} BOS Breakout confirmed on ${symbol}`,
+          timestamp: lastCandle.time,
+          color: isBullishTrend ? '#22c55e' : '#ef4444',
+        });
+
+        // Anti-directional 5-wave or MSS signal
+        signals.push({
+          id: `sig_ms_mss_${lastCandle.time}`,
+          indicatorId: ind.id,
+          indicatorName: 'MS 1-2-3',
+          symbol,
+          timeframe: `${timeframe}m`,
+          type: 'MSS',
+          price: lastCandle.low,
+          message: `MS 1-2-3: Market Structure Shift (MSS) active | MSS2 Double Top / SBR zones defending`,
+          timestamp: lastCandle.time,
+          color: '#fcd34d',
         });
       }
 

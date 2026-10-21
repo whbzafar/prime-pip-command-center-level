@@ -29,6 +29,7 @@ import {
 import { PineScriptIndicator, PineIndicatorCategory } from '../../types';
 import { pineScriptService } from '../../services/pineScriptService';
 import { isUserAdmin, getStoredUser } from '../../utils/authClient';
+import { MARKET_STRUCTURE_PINE_CODE } from '../../data/marketStructurePineScript';
 
 interface PineScriptIndicatorModalProps {
   isOpen: boolean;
@@ -38,6 +39,12 @@ interface PineScriptIndicatorModalProps {
 }
 
 const TEMPLATES: Record<string, { title: string; category: PineIndicatorCategory; overlay: boolean; code: string }> = {
+  ms123: {
+    title: 'Market Structure 1-2-3 (v4.48) - SMC / SBT Structure Engine',
+    category: 'SBT_STRUCTURE',
+    overlay: true,
+    code: MARKET_STRUCTURE_PINE_CODE,
+  },
   fvg: {
     title: 'SBT Custom Fair Value Gap (FVG) Radar',
     category: 'SBT_STRUCTURE',
