@@ -19,6 +19,9 @@ export const ALLOWED_DEMO_CATEGORIES: string[] = [
   'FUNDAMENTAL_CALENDAR', // 07. Live News Calendar (TradingView × Forex Factory — Unlocked per user request)
   'FUNDAMENTAL_INDICATORS', // 08. Fundamental Indicators Engine (Free COT & Sentiment in Demo)
   'PRO_TRADING',          // 10. Premium TradingView
+  'CHART_ANALYSIS',       // 12. Unlimited Chart Analysis (100% Free Unrestricted)
+  'BACKTESTING',          // 11. Backtesting Suite
+  'BACKTEST_REPLAY',      // 11. Backtesting Replay Pro
   'COMPOUNDING',          // 12. Compounding Engine (Trading Tool Suite)
   'PERFORMANCE',          // 11. Performance Report (Performance reports)
   'REPORTS',              // Performance reports

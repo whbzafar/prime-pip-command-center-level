@@ -23,14 +23,43 @@ export interface ChartIndicators {
 // Client-side in-memory cache to guarantee zero latency on repeat pair selection
 const memoryChartCache = new Map<string, { candles: LiveCandle[]; timestamp: number; source: string }>();
 
+export interface DukascopyQuoteData {
+  symbol: string;
+  dukascopyInstrument: string;
+  bid: number;
+  ask: number;
+  spreadPips: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  timestamp: number;
+  status: 'LIVE' | 'MARKET_CLOSED' | 'WEEKEND';
+  source: 'dukascopy_bank_ecn';
+}
+
+export async function fetchDukascopyRealtimeQuote(symbol: string): Promise<DukascopyQuoteData | null> {
+  try {
+    const res = await fetch(`/api/dukascopy/realtime?symbol=${encodeURIComponent(symbol)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ok && data.quote) return data.quote;
+    }
+  } catch (e) {
+    console.warn('[DUKASCOPY SERVICE] Realtime quote notice:', e);
+  }
+  return null;
+}
+
 export async function fetchLiveChartCandles(
   symbol: string,
   timeframe: string,
-  limit: number = 300
+  limit: number = 350,
+  options?: { provider?: string; range?: string; period1?: number; period2?: number }
 ): Promise<{ ok: boolean; candles: LiveCandle[]; source: string; error?: string }> {
   const cleanSym = symbol.toUpperCase().replace(/[^A-Z0-9]/g, '');
   const cleanTf = timeframe.toUpperCase();
-  const cacheKey = `${cleanSym}_${cleanTf}`;
+  const cacheKey = `${cleanSym}_${cleanTf}_${limit}_${options?.range || ''}_${options?.period1 || ''}_${options?.provider || ''}`;
 
   // 1. Check local memory cache (15s validity for live, instant for switching)
   const cached = memoryChartCache.get(cacheKey);
@@ -45,6 +74,10 @@ export async function fetchLiveChartCandles(
       timeframe: cleanTf,
       limit: String(limit),
     });
+    if (options?.provider) params.set('provider', options.provider);
+    if (options?.range) params.set('range', options.range);
+    if (options?.period1) params.set('period1', String(options.period1));
+    if (options?.period2) params.set('period2', String(options.period2));
 
     const res = await fetch(`/api/charts/candles?${params.toString()}`);
     if (res.ok) {

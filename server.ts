@@ -185,6 +185,7 @@ import { sentimentRouter } from "./server/routes/sentimentRoutes.js";
 import { sentimentService } from "./server/sentiment/sentimentService.js";
 import { backtestRouter } from "./server/backtestReplayService.js";
 import { chartAnalysisRouter } from "./server/chartAnalysisService.js";
+import { dukascopyRouter } from "./server/dukascopyConnectorService.js";
 
 dotenv.config();
 
@@ -6862,6 +6863,9 @@ app.use('/api/backtest', backtestRouter);
 
 // Unlimited Chart Analysis Data Service Routes (Twelve Data / OANDA / Binance)
 app.use('/api/charts', chartAnalysisRouter);
+
+// Dukascopy Swiss Bank SA ECN Market Data Service Routes
+app.use('/api/dukascopy', dukascopyRouter);
 
 // Initialize background sentiment polling
 sentimentService.init();
