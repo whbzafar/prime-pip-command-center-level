@@ -205,7 +205,7 @@ if (isSupabaseAuthEnabled) {
 const currentAppDir = process.cwd();
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const PORT = 3000;
 const presenceSockets = new Map<string, Set<WebSocket>>();
 
 function broadcastPresence() {
@@ -6881,6 +6881,22 @@ async function startServer() {
         appType: "spa",
       });
       app.use(vite.middlewares);
+      app.use('*', async (req, res, next) => {
+        if (req.originalUrl.startsWith('/api') || req.method !== 'GET') {
+          return next();
+        }
+        try {
+          const indexPath = path.resolve(process.cwd(), 'index.html');
+          if (fs.existsSync(indexPath)) {
+            const template = fs.readFileSync(indexPath, 'utf-8');
+            const html = await vite.transformIndexHtml(req.originalUrl, template);
+            return res.status(200).set({ 'Content-Type': 'text/html' }).send(html);
+          }
+          return next();
+        } catch (e) {
+          return next(e);
+        }
+      });
     } catch (e) {
       console.warn("Vite middleware omitted:", e);
     }
