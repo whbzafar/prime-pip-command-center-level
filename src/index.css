@@ -49,6 +49,14 @@ body.freehand-fullscreen {
   width: 100% !important;
 }
 
+#root.freehand-fullscreen-active {
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+}
+
 /* ──────────────────────────────────────────────────────────────────────────
    GLOBAL CSS VARIABLE DEFINITIONS FOR ALL 23 INTERFACE TEMPLATES
    Allows instant zero-lag theme switching via documentElement.dataset.theme
