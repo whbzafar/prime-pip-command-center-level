@@ -284,7 +284,6 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageUploadInputRef = useRef<HTMLInputElement | null>(null);
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
-  const textInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleNavigate = (tabName: string) => {
     if (onNavigateTab) {
@@ -330,7 +329,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
   });
 
   // UI Panels State
-  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState<boolean>(true);
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState<boolean>(false);
   const [isHamburgerOpen, setIsHamburgerOpen] = useState<boolean>(false);
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
   const [gridMode, setGridMode] = useState<'GRID' | 'DOTS' | 'NONE'>('DOTS');
@@ -377,24 +376,28 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
   const [isErasing, setIsErasing] = useState(false);
   const erasedIdsRef = useRef<Set<string>>(new Set());
 
-  // Direct Interactive Text Typing State
-  const [leftPanelText, setLeftPanelText] = useState<string>('');
-  const [activeTextInput, setActiveTextInput] = useState<{
+  // Active On-Chart Text Editor (Direct inline editing at clicked canvas coordinates)
+  const [activeTextEditor, setActiveTextEditor] = useState<{
+    id?: string;
     canvasX: number;
     canvasY: number;
-    screenX: number;
-    screenY: number;
     text: string;
-    existingId?: string;
+    color: string;
   } | null>(null);
+  const activeTextInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Auto-focus textarea when active text input opens
+  // Focus and select input on editor activation
   useEffect(() => {
-    if (activeTextInput && textInputRef.current) {
-      textInputRef.current.focus();
-      textInputRef.current.select();
+    if (activeTextEditor) {
+      const timer = setTimeout(() => {
+        if (activeTextInputRef.current) {
+          activeTextInputRef.current.focus();
+          activeTextInputRef.current.select();
+        }
+      }, 30);
+      return () => clearTimeout(timer);
     }
-  }, [activeTextInput]);
+  }, [activeTextEditor]);
 
   // Modals & Vault
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
@@ -645,10 +648,10 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     });
   }, [resizeCanvas]);
 
-  // Commit direct interactive text typing
-  const handleCommitText = useCallback(() => {
-    if (!activeTextInput) return;
-    const txt = activeTextInput.text.trim();
+  // Commit active on-chart text editor onto canvas
+  const commitActiveText = useCallback(() => {
+    if (!activeTextEditor) return;
+    const txt = activeTextEditor.text.trim();
     if (txt) {
       pushHistory();
       const isLightBg =
@@ -656,60 +659,43 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         innerBgColor.toLowerCase() === '#ffffff' ||
         outerBgColor.toLowerCase().startsWith('#f') ||
         outerBgColor.toLowerCase() === '#ffffff';
-      const textColor = outsideColor === '#FFFFFF' && isLightBg ? '#0F172A' : outsideColor;
+      const textColor =
+        activeTextEditor.color === '#FFFFFF' && isLightBg ? '#0F172A' : (activeTextEditor.color || '#10B981');
 
-      const newTextItem: CanvasItem = {
-        id: activeTextInput.existingId || `txt-${Date.now()}`,
-        tool: 'TEXT',
-        color: textColor,
-        strokeWidth: Math.max(2, strokeWidth),
-        x1: activeTextInput.canvasX,
-        y1: activeTextInput.canvasY,
-        text: txt,
-      };
-
-      if (activeTextInput.existingId) {
+      if (activeTextEditor.id) {
         setItems((prev) =>
-          prev.map((it) => (it.id === activeTextInput.existingId ? newTextItem : it))
+          prev.map((it) =>
+            it.id === activeTextEditor.id
+              ? { ...it, text: txt, color: textColor }
+              : it
+          )
         );
+        setSelectedItemId(activeTextEditor.id);
       } else {
+        const newTextItem: CanvasItem = {
+          id: `txt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          tool: 'TEXT',
+          color: textColor,
+          strokeWidth: Math.max(2, strokeWidth),
+          x1: activeTextEditor.canvasX,
+          y1: activeTextEditor.canvasY,
+          text: txt,
+        };
         setItems((prev) => [...prev, newTextItem]);
+        setSelectedItemId(newTextItem.id);
       }
-      setSelectedItemId(newTextItem.id);
+    } else if (activeTextEditor.id) {
+      pushHistory();
+      setItems((prev) => prev.filter((it) => it.id !== activeTextEditor.id));
+      setSelectedItemId(null);
     }
-    setActiveTextInput(null);
-  }, [activeTextInput, innerBgColor, outerBgColor, outsideColor, strokeWidth, pushHistory]);
+    setActiveTextEditor(null);
+  }, [activeTextEditor, innerBgColor, outerBgColor, strokeWidth, pushHistory]);
 
-  // Place text on canvas directly from Left Studio Panel
-  const handlePlaceTextFromPanel = useCallback(() => {
-    const txt = leftPanelText.trim();
-    if (!txt) return;
-    pushHistory();
-    const canvas = canvasRef.current;
-    const dpr = window.devicePixelRatio || 1;
-    const centerX = canvas ? (canvas.width / dpr / 2 - panOffset.x) / zoom : 200;
-    const centerY = canvas ? (canvas.height / dpr / 2 - panOffset.y) / zoom : 200;
+  const cancelActiveText = useCallback(() => {
+    setActiveTextEditor(null);
+  }, []);
 
-    const isLightBg =
-      innerBgColor.toLowerCase().startsWith('#f') ||
-      innerBgColor.toLowerCase() === '#ffffff' ||
-      outerBgColor.toLowerCase().startsWith('#f') ||
-      outerBgColor.toLowerCase() === '#ffffff';
-    const textColor = outsideColor === '#FFFFFF' && isLightBg ? '#0F172A' : outsideColor;
-
-    const newTextItem: CanvasItem = {
-      id: `txt-${Date.now()}`,
-      tool: 'TEXT',
-      color: textColor,
-      strokeWidth: Math.max(2, strokeWidth),
-      x1: centerX,
-      y1: centerY,
-      text: txt,
-    };
-    setItems((prev) => [...prev, newTextItem]);
-    setSelectedItemId(newTextItem.id);
-    setLeftPanelText('');
-  }, [leftPanelText, innerBgColor, outerBgColor, outsideColor, strokeWidth, panOffset, zoom, pushHistory]);
 
   // Place an image or PDF render onto canvas as an interactive object
   const placeImageOnCanvas = useCallback(
@@ -801,52 +787,31 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
   // Tool Selection handler with direct tool switching (no separate popup boxes)
   const handleToolSelect = useCallback(
     (nextTool: Tool) => {
-      if (activeTextInput?.text.trim()) handleCommitText();
-      setActiveTextInput(null);
+      if (activeTextEditor) commitActiveText();
       setTool(nextTool);
       if (nextTool !== 'SELECT') {
         setSelectedItemId(null);
       }
       if (nextTool !== 'ERASER') setIsErasing(false);
-
-      if (nextTool === 'TEXT') {
-        const canvas = canvasRef.current;
-        const dpr = window.devicePixelRatio || 1;
-        const rect = canvas ? canvas.getBoundingClientRect() : { width: 800, height: 600 };
-        const screenX = Math.round(rect.width / 2 - 100);
-        const screenY = Math.round(rect.height / 2 - 20);
-        const canvasX = (screenX * dpr - panOffset.x * dpr) / zoom;
-        const canvasY = (screenY * dpr - panOffset.y * dpr) / zoom;
-
-        setActiveTextInput({
-          canvasX,
-          canvasY,
-          screenX,
-          screenY,
-          text: '',
-        });
-        setTimeout(() => {
-          textInputRef.current?.focus();
-        }, 30);
-      }
     },
-    [activeTextInput, handleCommitText, panOffset, zoom]
+    [activeTextEditor, commitActiveText]
   );
 
-  // Keyboard Shortcuts (F1, F2, B, N, P, R, E, H, Space, V, M, T, F, Esc, Undo, Redo, Del, Nudge)
+  // Standard Canvas Key Listeners (Escape, Undo/Redo, Delete, Arrow Nudges - all tool shortcut keys removed)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const isInput =
         !!target &&
-        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) &&
+        target !== activeTextInputRef.current;
 
       if (isInput) return;
 
       // Escape key behavior
       if (e.key === 'Escape') {
-        if (activeTextInput) {
-          setActiveTextInput(null);
+        if (activeTextEditor) {
+          cancelActiveText();
           return;
         }
         if (selectedItemId) {
@@ -874,7 +839,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
       // Delete
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedItemId) {
+        if (selectedItemId && target !== activeTextInputRef.current) {
           e.preventDefault();
           handleDeleteSelected();
           return;
@@ -882,7 +847,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       }
 
       // Arrow keys to nudge selected candle or object
-      if (selectedItemId) {
+      if (selectedItemId && target !== activeTextInputRef.current) {
         const step = e.shiftKey ? 10 : 2;
         if (e.key === 'ArrowUp') {
           e.preventDefault();
@@ -905,92 +870,6 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           return;
         }
       }
-
-      // Quick Tool Keys: F1 / B (Bullish), F2 / N (Bearish), P (Pencil), R (Rect), E (Eraser), H/Space (Hand), V/M (Move), T (Text), F (Fullscreen)
-      const key = e.key;
-      const keyLower = key.toLowerCase();
-
-      if (key === 'F1' || keyLower === 'b') {
-        e.preventDefault();
-        setOutsideColor('#10B981');
-        setInsideColor('#10B981');
-        handleToolSelect('CANDLE_BULLISH');
-        return;
-      }
-
-      if (key === 'F2' || keyLower === 'n') {
-        e.preventDefault();
-        setOutsideColor('#EF4444');
-        setInsideColor('#EF4444');
-        handleToolSelect('CANDLE_BEARISH');
-        return;
-      }
-
-      if (keyLower === 'p' || key === '7') {
-        e.preventDefault();
-        handleToolSelect('PEN');
-        return;
-      }
-
-      if (keyLower === 'r' || key === '4') {
-        e.preventDefault();
-        handleToolSelect('RECTANGLE');
-        return;
-      }
-
-      if (keyLower === 'e' || key === '0') {
-        e.preventDefault();
-        handleToolSelect('ERASER');
-        return;
-      }
-
-      if (keyLower === 'h' || e.code === 'Space') {
-        e.preventDefault();
-        handleToolSelect('PAN');
-        return;
-      }
-
-      if (keyLower === 'v' || keyLower === 'm' || key === '1') {
-        e.preventDefault();
-        handleToolSelect('SELECT');
-        return;
-      }
-
-      if (keyLower === 't' || key === '8') {
-        e.preventDefault();
-        handleToolSelect('TEXT');
-        return;
-      }
-
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        setIsToolbarVisible((prev) => !prev);
-        return;
-      }
-
-      if (keyLower === 's') {
-        e.preventDefault();
-        handleToolSelect('SMART_PENCIL');
-        return;
-      }
-
-      if (keyLower === 'l') {
-        e.preventDefault();
-        handleToolSelect('LINE');
-        return;
-      }
-
-      if (keyLower === 'i') {
-        e.preventDefault();
-        imageUploadInputRef.current?.click();
-        return;
-      }
-
-      if (keyLower === 'f') {
-        e.preventDefault();
-        toggleFullscreen();
-        return;
-      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -998,13 +877,12 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
   }, [
     selectedItemId,
     isFullscreen,
-    activeTextInput,
+    activeTextEditor,
+    cancelActiveText,
     handleDeleteSelected,
     handleRedo,
     handleUndo,
     handleNudgeSelected,
-    handleToolSelect,
-    toggleFullscreen,
   ]);
 
   // Lock body scroll in fullscreen and toggle classes so header stays at the top without filter interference
@@ -1162,13 +1040,17 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       }
       if (item.tool === 'TEXT' && item.text) {
         const dpr = window.devicePixelRatio || 1;
-        const approxWidth = item.text.length * 10 * dpr;
-        const approxHeight = 24 * dpr;
+        const lines = item.text.split('\n');
+        const maxLen = Math.max(...lines.map((l) => l.length), 1);
+        const fontSize = Math.max(16, (item.strokeWidth || 2) * 8 * dpr);
+        const lineHeight = Math.max(20, (item.strokeWidth || 2) * 9 * dpr);
+        const totalHeight = lines.length * lineHeight;
+        const totalWidth = Math.max(48 * dpr, maxLen * (fontSize * 0.62));
         return {
           minX: item.x1,
-          maxX: item.x1 + approxWidth,
-          minY: item.y1 - approxHeight,
-          maxY: item.y1 + approxHeight,
+          maxX: item.x1 + totalWidth,
+          minY: item.y1,
+          maxY: item.y1 + totalHeight,
         };
       }
     }
@@ -1548,13 +1430,21 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
     // 4. TEXT ANNOTATION
     else if (item.tool === 'TEXT' && item.x1 !== undefined && item.y1 !== undefined && item.text) {
-      ctx.fillStyle = item.color;
-      ctx.font = `bold ${Math.max(16, item.strokeWidth * 8 * dpr)}px 'Inter', sans-serif`;
-      const lines = item.text.split('\n');
-      const lineHeight = Math.max(20, item.strokeWidth * 9 * dpr);
-      lines.forEach((line, idx) => {
-        ctx.fillText(line, item.x1!, item.y1! + idx * lineHeight);
-      });
+      if (activeTextEditor && activeTextEditor.id === item.id) {
+        // Handled by active inline DOM editor
+      } else {
+        ctx.save();
+        ctx.fillStyle = item.color;
+        const fontSize = Math.max(16, (item.strokeWidth || 2) * 8 * dpr);
+        ctx.font = `bold ${fontSize}px 'Inter', -apple-system, BlinkMacSystemFont, sans-serif`;
+        ctx.textBaseline = 'top';
+        const lines = item.text.split('\n');
+        const lineHeight = Math.max(20, (item.strokeWidth || 2) * 9 * dpr);
+        lines.forEach((line, idx) => {
+          ctx.fillText(line, item.x1!, item.y1! + idx * lineHeight);
+        });
+        ctx.restore();
+      }
     }
 
     // IF SELECTED: Draw high-visibility selection bounding box & 8 interactive resize handles
@@ -1669,6 +1559,9 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
     // 4. Render All Drawn Items
     for (const it of items) {
+      if (activeTextEditor && activeTextEditor.id === it.id) {
+        continue;
+      }
       const isSelected = it.id === selectedItemId;
       renderSingleItem(ctx, it, isSelected);
     }
@@ -1679,7 +1572,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     }
 
     ctx.restore();
-  }, [items, currentDraft, selectedItemId, gridMode, panOffset, zoom, outerBgColor, innerBgColor]);
+  }, [items, currentDraft, selectedItemId, gridMode, panOffset, zoom, outerBgColor, innerBgColor, activeTextEditor, strokeWidth]);
 
   useEffect(() => {
     redrawAll();
@@ -1696,17 +1589,38 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
     const coords = getCanvasCoords(e);
 
-    // 1. TEXT TOOL: Open interactive textarea at clicked position
+    // 1. TEXT TOOL: Start typing directly on chart at clicked position
     if (tool === 'TEXT') {
-      if (activeTextInput && activeTextInput.text.trim()) {
-        handleCommitText();
+      const hit = findItemAtCoord(coords.x, coords.y);
+      if (hit && hit.tool === 'TEXT') {
+        if (activeTextEditor) commitActiveText();
+        setActiveTextEditor({
+          id: hit.id,
+          canvasX: hit.x1 ?? coords.x,
+          canvasY: hit.y1 ?? coords.y,
+          text: hit.text ?? '',
+          color: hit.color,
+        });
+        setSelectedItemId(hit.id);
+        return;
       }
-      setActiveTextInput({
+
+      if (activeTextEditor) {
+        commitActiveText();
+      }
+      const isLightBg =
+        innerBgColor.toLowerCase().startsWith('#f') ||
+        innerBgColor.toLowerCase() === '#ffffff' ||
+        outerBgColor.toLowerCase().startsWith('#f') ||
+        outerBgColor.toLowerCase() === '#ffffff';
+      const initialColor =
+        outsideColor === '#FFFFFF' && isLightBg ? '#0F172A' : (outsideColor || '#10B981');
+
+      setActiveTextEditor({
         canvasX: coords.x,
         canvasY: coords.y,
-        screenX: coords.screenX,
-        screenY: coords.screenY,
         text: '',
+        color: initialColor,
       });
       return;
     }
@@ -2352,12 +2266,11 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => setIsToolbarVisible(true)}
-                title="Show Drawing Tools Toolbar [Tab]"
-                className="px-3 py-2 rounded-xl bg-white/95 hover:bg-slate-50 text-indigo-600 border border-slate-200/90 shadow-md shadow-black/5 flex items-center gap-1.5 transition active:scale-95 cursor-pointer backdrop-blur-md text-xs font-bold"
+                title="Show Drawing Tools Toolbar"
+                className="px-3 py-1.5 rounded-xl bg-white/95 hover:bg-slate-50 text-indigo-600 border border-slate-200/90 shadow-md shadow-black/5 flex items-center gap-1.5 transition active:scale-95 cursor-pointer backdrop-blur-md text-xs font-bold"
               >
                 <Eye className="w-4 h-4 text-indigo-600" />
                 <span>Show Tools</span>
-                <kbd className="hidden sm:inline-block text-[9px] px-1 py-0.2 rounded bg-slate-200/70 text-slate-600 font-mono font-bold">Tab</kbd>
               </button>
             )}
 
@@ -2365,27 +2278,101 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
             {isHamburgerOpen && (
               <div className="absolute top-12 left-0 w-64 bg-white/98 text-slate-800 border border-slate-200 rounded-2xl shadow-2xl p-2.5 z-50 space-y-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 text-xs">
                 <div className="px-3 py-1.5 font-bold text-slate-400 text-[10px] uppercase tracking-wider border-b border-slate-100">
-                  Workspace Actions
+                  Drawing Tools &amp; Candles
                 </div>
                 <button
                   onClick={() => {
-                    handleInsertCandle('BULLISH');
+                    handleToolSelect('PEN');
+                    setIsHamburgerOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left rounded-xl hover:bg-slate-100 text-slate-800 font-bold flex items-center gap-2.5 transition cursor-pointer"
+                >
+                  <Pen className="w-4 h-4 text-indigo-600" />
+                  <span>Pencil (Write / Draw)</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setOutsideColor('#10B981');
+                    setInsideColor('#10B981');
+                    handleToolSelect('CANDLE_BULLISH');
                     setIsHamburgerOpen(false);
                   }}
                   className="w-full px-3 py-2 text-left rounded-xl hover:bg-emerald-50 text-emerald-700 font-bold flex items-center gap-2.5 transition cursor-pointer"
                 >
-                  <CandlestickChart className="w-4 h-4 text-emerald-600" />
-                  <span>Insert Bullish Candle</span>
+                  <CandlestickChart className="w-4 h-4 text-emerald-600 fill-emerald-600" />
+                  <span>Bullish Candle (Green)</span>
                 </button>
                 <button
                   onClick={() => {
-                    handleInsertCandle('BEARISH');
+                    setOutsideColor('#EF4444');
+                    setInsideColor('#EF4444');
+                    handleToolSelect('CANDLE_BEARISH');
                     setIsHamburgerOpen(false);
                   }}
                   className="w-full px-3 py-2 text-left rounded-xl hover:bg-rose-50 text-rose-700 font-bold flex items-center gap-2.5 transition cursor-pointer"
                 >
-                  <CandlestickChart className="w-4 h-4 text-rose-600" />
-                  <span>Insert Bearish Candle</span>
+                  <CandlestickChart className="w-4 h-4 text-rose-600 fill-rose-600 rotate-180" />
+                  <span>Bearish Candle (Red)</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleToolSelect('TEXT');
+                    setIsHamburgerOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left rounded-xl hover:bg-indigo-50 text-indigo-700 font-bold flex items-center gap-2.5 transition cursor-pointer"
+                >
+                  <Type className="w-4 h-4 text-indigo-600" />
+                  <span>Text Annotation Tool</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleToolSelect('RECTANGLE');
+                    setIsHamburgerOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left rounded-xl hover:bg-slate-100 text-slate-700 font-bold flex items-center gap-2.5 transition cursor-pointer"
+                >
+                  <Square className="w-4 h-4 text-indigo-600" />
+                  <span>Rectangle / Zone</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleToolSelect('LINE');
+                    setIsHamburgerOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left rounded-xl hover:bg-slate-100 text-slate-700 font-bold flex items-center gap-2.5 transition cursor-pointer"
+                >
+                  <TrendingUp className="w-4 h-4 text-indigo-600" />
+                  <span>Trend Line</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleToolSelect('HORIZONTAL_LINE');
+                    setIsHamburgerOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left rounded-xl hover:bg-slate-100 text-slate-700 font-bold flex items-center gap-2.5 transition cursor-pointer"
+                >
+                  <Minus className="w-4 h-4 text-indigo-600 stroke-[3]" />
+                  <span>Horizontal Price Level</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleToolSelect('VERTICAL_LINE');
+                    setIsHamburgerOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left rounded-xl hover:bg-slate-100 text-slate-700 font-bold flex items-center gap-2.5 transition cursor-pointer"
+                >
+                  <Split className="w-4 h-4 text-indigo-600" />
+                  <span>Vertical Time Line</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleToolSelect('SMART_PENCIL');
+                    setIsHamburgerOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left rounded-xl hover:bg-purple-50 text-purple-700 font-bold flex items-center gap-2.5 transition cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-purple-600" />
+                  <span>Cohesive Smart Shape</span>
                 </button>
                 <button
                   onClick={() => {
@@ -2463,194 +2450,25 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
             )}
           </div>
 
-          {/* Top-Center Floating Pill Toolbar */}
+          {/* Top-Center Floating Pill Toolbar (Exact 8 Tools: Pencil, Bullish Green, Bearish Green, Text, Rectangle, Mouse Cursor Arrow, Hand Tool, Eraser) */}
           {isToolbarVisible && (
-            <div className="pointer-events-auto bg-white/95 text-slate-700 border border-slate-200/90 shadow-lg shadow-black/5 rounded-2xl p-1.5 flex items-center gap-1 backdrop-blur-md overflow-x-auto max-w-[calc(100vw-360px)] no-scrollbar">
-              {/* Lock Mode Toggle */}
-              <button
-                type="button"
-                onClick={() => setIsLocked((prev) => !prev)}
-                title={isLocked ? 'Unlock Canvas' : 'Lock Canvas (Prevent Edits)'}
-                className={`p-2 rounded-xl transition cursor-pointer shrink-0 ${
-                  isLocked
-                    ? 'bg-amber-100 text-amber-700 font-bold'
-                    : 'hover:bg-slate-100 text-slate-500'
-                }`}
-              >
-                {isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-              </button>
-
-              {/* Pan / Hand Tool */}
-              <button
-                type="button"
-                onClick={() => handleToolSelect('PAN')}
-                title="Hand Tool (Pan Canvas) [H / Space]"
-                className={`p-2 rounded-xl transition cursor-pointer shrink-0 ${
-                  tool === 'PAN'
-                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-sm font-bold'
-                    : 'hover:bg-slate-100 text-slate-600'
-                }`}
-              >
-                <Hand className="w-4 h-4" />
-                <span className="sr-only">Hand [H]</span>
-              </button>
-
-              <div className="w-[1px] h-5 bg-slate-200 mx-0.5 shrink-0" />
-
-              {/* 1. MOVE & RESIZE TOOL */}
-              <button
-                type="button"
-                onClick={() => handleToolSelect('SELECT')}
-                title="Move & Resize Tool [V / M]"
-                className={`px-2.5 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                  tool === 'SELECT'
-                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-sm font-bold'
-                    : 'hover:bg-slate-100 text-slate-600'
-                }`}
-              >
-                <MousePointer className="w-4 h-4" />
-                <span className="text-[11px] font-bold">Move</span>
-                <kbd className="hidden sm:inline-block text-[9px] px-1 py-0.2 rounded bg-slate-200/70 text-slate-600 font-mono font-bold">V</kbd>
-              </button>
-
-              {/* 2. TREND LINE TOOL */}
-              <button
-                type="button"
-                onClick={() => handleToolSelect('LINE')}
-                title="Trend Line Tool [L] - Click & drag trendlines with anchor points"
-                className={`px-2.5 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
-                  tool === 'LINE'
-                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-sm font-bold'
-                    : 'hover:bg-slate-100 text-slate-600'
-                }`}
-              >
-                <TrendingUp className="w-4 h-4 text-indigo-600" />
-                <span className="text-[11px] font-bold">Trend</span>
-                <kbd className="hidden sm:inline-block text-[9px] px-1 py-0.2 rounded bg-slate-200/70 text-slate-600 font-mono font-bold">L</kbd>
-              </button>
-
-              {/* 3. HORIZONTAL PRICE LEVEL LINE */}
-              <button
-                type="button"
-                onClick={() => handleToolSelect('HORIZONTAL_LINE')}
-                title="Horizontal Price Level Line - Institutional support & resistance level"
-                className={`px-2.5 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
-                  tool === 'HORIZONTAL_LINE'
-                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-sm font-bold'
-                    : 'hover:bg-slate-100 text-slate-600'
-                }`}
-              >
-                <Minus className="w-4 h-4 text-indigo-600 stroke-[3]" />
-                <span className="text-[11px] font-bold">H-Line</span>
-              </button>
-
-              {/* 4. VERTICAL TIME / SESSION LINE */}
-              <button
-                type="button"
-                onClick={() => handleToolSelect('VERTICAL_LINE')}
-                title="Vertical Time / Session Line - Mark session opens, news releases, or day breaks"
-                className={`px-2.5 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
-                  tool === 'VERTICAL_LINE'
-                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-sm font-bold'
-                    : 'hover:bg-slate-100 text-slate-600'
-                }`}
-              >
-                <Split className="w-4 h-4 text-indigo-600" />
-                <span className="text-[11px] font-bold">V-Line</span>
-              </button>
-
-              {/* 5. RECTANGLE TOOL */}
-              <button
-                type="button"
-                onClick={() => handleToolSelect('RECTANGLE')}
-                title="Rectangle / Supply-Demand Zone Tool [R]"
-                className={`p-2 rounded-xl transition cursor-pointer shrink-0 ${
-                  tool === 'RECTANGLE'
-                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-sm font-bold'
-                    : 'hover:bg-slate-100 text-slate-600'
-                }`}
-              >
-                <Square className="w-4 h-4" />
-                <span className="sr-only">Rectangle [R]</span>
-              </button>
-
-              {/* 6. CIRCLE TOOL */}
-              <button
-                type="button"
-                onClick={() => handleToolSelect('CIRCLE')}
-                title="Circle / Key Liquidity Level Tool"
-                className={`p-2 rounded-xl transition cursor-pointer shrink-0 ${
-                  tool === 'CIRCLE'
-                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-sm font-bold'
-                    : 'hover:bg-slate-100 text-slate-600'
-                }`}
-              >
-                <Circle className="w-4 h-4" />
-                <span className="sr-only">Circle</span>
-              </button>
-
-              {/* 7. PENCIL / FREEHAND TOOL */}
+            <div className="pointer-events-auto bg-white/95 text-slate-700 border border-slate-200/90 shadow-md shadow-black/5 rounded-2xl p-1 flex items-center gap-0.5 backdrop-blur-md shrink-0">
+              {/* 1. Pencil */}
               <button
                 type="button"
                 onClick={() => handleToolSelect('PEN')}
-                title="Pencil / Freehand Tool [P]"
-                className={`p-2 rounded-xl transition cursor-pointer shrink-0 ${
+                title="Pencil - Write and draw freely on chart"
+                className={`px-2 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
                   tool === 'PEN'
-                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-sm font-bold'
-                    : 'hover:bg-slate-100 text-slate-600'
+                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-xs font-bold ring-1.5 ring-indigo-400'
+                    : 'hover:bg-slate-100 text-slate-700 font-semibold'
                 }`}
               >
-                <Pen className="w-4 h-4" />
-                <span className="sr-only">Pencil [P]</span>
+                <Pen className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="text-[11px] font-bold">Pencil</span>
               </button>
 
-              {/* 8. COHESIVE SMART SHAPE TOOL (Freehand strokes automatically form cohesive shapes or objects) */}
-              <button
-                type="button"
-                onClick={() => handleToolSelect('SMART_PENCIL')}
-                title="Cohesive Smart Shape [S] - Freehand strokes automatically form cohesive closed shapes, zones, or clean lines"
-                className={`px-2.5 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                  tool === 'SMART_PENCIL'
-                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-sm font-bold ring-2 ring-purple-400'
-                    : 'hover:bg-purple-50 text-purple-700 bg-white border border-purple-200'
-                }`}
-              >
-                <Sparkles className="w-4 h-4 text-purple-600" />
-                <span className="text-[11px] font-bold">Smart Shape</span>
-                <kbd className="hidden sm:inline-block text-[9px] px-1 py-0.2 rounded bg-purple-100 text-purple-700 font-mono font-bold">S</kbd>
-              </button>
-
-              {/* 9. DIRECT TEXT TOOL ('T' icon) - type directly on chart without separate box */}
-              <button
-                type="button"
-                onClick={() => handleToolSelect('TEXT')}
-                title="Direct Text Tool [T] - Click anywhere on the chart to type directly on canvas"
-                className={`px-2.5 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
-                  tool === 'TEXT'
-                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-sm font-bold ring-2 ring-indigo-400'
-                    : 'hover:bg-slate-100 text-slate-600'
-                }`}
-              >
-                <Type className="w-4 h-4 text-indigo-600" />
-                <span className="text-[11px] font-bold">Text</span>
-                <kbd className="hidden sm:inline-block text-[9px] px-1 py-0.2 rounded bg-slate-200/70 text-slate-600 font-mono font-bold">T</kbd>
-              </button>
-
-              {/* 10. UPLOAD IMAGE / PDF */}
-              <button
-                type="button"
-                onClick={() => imageUploadInputRef.current?.click()}
-                title="Upload Image or PDF [I] - Place charts, screenshots, or PDF pages directly on the chart"
-                className="px-2.5 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 hover:bg-indigo-50 text-indigo-700 bg-white border border-indigo-200 font-bold text-xs shrink-0"
-              >
-                <ImageIcon className="w-4 h-4 text-indigo-600" />
-                <span className="text-[11px]">Upload</span>
-                <kbd className="hidden sm:inline-block text-[9px] px-1 py-0.2 rounded bg-indigo-100 text-indigo-700 font-mono font-bold">I</kbd>
-              </button>
-
-              <div className="w-[1px] h-5 bg-slate-200 mx-0.5 shrink-0" />
-
-              {/* 11. BULLISH CANDLE TOOL (Continuous drawing enabled) */}
+              {/* 2. Bullish Green */}
               <button
                 type="button"
                 onClick={() => {
@@ -2658,19 +2476,18 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                   setInsideColor('#10B981');
                   handleToolSelect('CANDLE_BULLISH');
                 }}
-                title="Bullish Candle [F1 or B] - Continuous drawing enabled"
-                className={`px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 font-bold text-xs shrink-0 ${
+                title="Bullish Green - Click & drag green candlesticks on chart"
+                className={`px-2 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 font-bold text-xs shrink-0 ${
                   tool === 'CANDLE_BULLISH'
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-400'
-                    : 'hover:bg-emerald-50 text-emerald-700 bg-white border border-emerald-200'
+                    ? 'bg-emerald-600 text-white shadow-xs ring-1.5 ring-emerald-400'
+                    : 'hover:bg-emerald-50 text-emerald-800 bg-emerald-50/70 border border-emerald-300'
                 }`}
               >
-                <CandlestickChart className="w-4 h-4 text-emerald-500 fill-emerald-500" />
-                <span>Bullish</span>
-                <kbd className="hidden sm:inline-block text-[9px] px-1 py-0.2 rounded bg-emerald-700/30 text-white font-mono font-bold">F1</kbd>
+                <CandlestickChart className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
+                <span className="text-[11px]">Bullish</span>
               </button>
 
-              {/* 12. BEARISH CANDLE TOOL (Continuous drawing enabled) */}
+              {/* 3. Bearish Green / Bearish Red */}
               <button
                 type="button"
                 onClick={() => {
@@ -2678,61 +2495,116 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                   setInsideColor('#EF4444');
                   handleToolSelect('CANDLE_BEARISH');
                 }}
-                title="Bearish Candle [F2 or N] - Continuous drawing enabled"
-                className={`px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 font-bold text-xs shrink-0 ${
+                title="Bearish - Click & drag bearish candlesticks on chart"
+                className={`px-2 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 font-bold text-xs shrink-0 ${
                   tool === 'CANDLE_BEARISH'
-                    ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 ring-2 ring-rose-400'
-                    : 'hover:bg-rose-50 text-rose-700 bg-white border border-rose-200'
+                    ? 'bg-rose-600 text-white shadow-xs ring-1.5 ring-rose-400'
+                    : 'hover:bg-rose-50 text-rose-800 bg-rose-50/70 border border-rose-300'
                 }`}
               >
-                <CandlestickChart className="w-4 h-4 text-rose-500 fill-rose-500 rotate-180" />
-                <span>Bearish</span>
-                <kbd className="hidden sm:inline-block text-[9px] px-1 py-0.2 rounded bg-rose-700/30 text-white font-mono font-bold">F2</kbd>
+                <CandlestickChart className="w-3.5 h-3.5 text-rose-600 fill-rose-600 rotate-180" />
+                <span className="text-[11px]">Bearish</span>
               </button>
 
-              {/* 13. ERASER TOOL */}
+              {/* 4. Text */}
+              <button
+                type="button"
+                onClick={() => handleToolSelect('TEXT')}
+                title="Text - Click anywhere to type directly on chart"
+                className={`px-2 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
+                  tool === 'TEXT'
+                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-xs font-bold ring-1.5 ring-indigo-400'
+                    : 'hover:bg-slate-100 text-slate-700 font-semibold'
+                }`}
+              >
+                <Type className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="text-[11px] font-bold">Text</span>
+              </button>
+
+              {/* 5. Rectangle */}
+              <button
+                type="button"
+                onClick={() => handleToolSelect('RECTANGLE')}
+                title="Rectangle / Supply-Demand Zone"
+                className={`px-2 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
+                  tool === 'RECTANGLE'
+                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-xs font-bold ring-1.5 ring-indigo-400'
+                    : 'hover:bg-slate-100 text-slate-700 font-semibold'
+                }`}
+              >
+                <Square className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="text-[11px] font-bold">Rectangle</span>
+              </button>
+
+              {/* 6. Mouse Cursor (Arrow) */}
+              <button
+                type="button"
+                onClick={() => handleToolSelect('SELECT')}
+                title="Mouse Cursor Arrow - Select, move, and resize items"
+                className={`px-2 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
+                  tool === 'SELECT'
+                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-xs font-bold ring-1.5 ring-indigo-400'
+                    : 'hover:bg-slate-100 text-slate-700 font-semibold'
+                }`}
+              >
+                <MousePointer className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="text-[11px] font-bold">Select</span>
+              </button>
+
+              {/* 7. Hand Tool */}
+              <button
+                type="button"
+                onClick={() => handleToolSelect('PAN')}
+                title="Hand Tool - Pan canvas"
+                className={`px-2 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
+                  tool === 'PAN'
+                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-xs font-bold ring-1.5 ring-indigo-400'
+                    : 'hover:bg-slate-100 text-slate-700 font-semibold'
+                }`}
+              >
+                <Hand className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="text-[11px] font-bold">Hand</span>
+              </button>
+
+              {/* 8. Eraser */}
               <button
                 type="button"
                 onClick={() => handleToolSelect('ERASER')}
-                title="Eraser Tool [E]"
-                className={`p-2 rounded-xl transition cursor-pointer shrink-0 ${
+                title="Eraser - Click or drag to erase"
+                className={`px-2 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
                   tool === 'ERASER'
-                    ? 'bg-[#ECE8FF] text-[#5B3FE4] shadow-sm font-bold'
-                    : 'hover:bg-slate-100 text-slate-600'
+                    ? 'bg-rose-100 text-rose-700 shadow-xs font-bold ring-1.5 ring-rose-400'
+                    : 'hover:bg-slate-100 text-slate-700 font-semibold'
                 }`}
               >
-                <Eraser className="w-4 h-4" />
-                <span className="sr-only">Eraser [E]</span>
+                <Eraser className="w-3.5 h-3.5 text-rose-500" />
+                <span className="text-[11px] font-bold">Eraser</span>
               </button>
 
-              <div className="w-[1px] h-5 bg-slate-200 mx-0.5 shrink-0" />
+              <div className="w-[1px] h-4 bg-slate-200 mx-0.5 shrink-0" />
 
-              {/* QUICK COLOR INDICATORS IN TOOLBAR */}
+              {/* Quick Out/In Color Indicator */}
               <div
                 onClick={() => setIsLeftPanelOpen(true)}
-                title="Click to adjust Inside & Outside Colors in the Studio Panel"
-                className="flex items-center gap-1 px-2 py-1 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100 shrink-0"
+                title="Click to adjust Colors in Studio Panel"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100 shrink-0"
               >
-                <div className="flex flex-col items-center">
-                  <span className="text-[8px] font-bold text-slate-400 uppercase">Out</span>
-                  <span
-                    className="w-3.5 h-3.5 rounded-full border border-slate-400 shadow-xs"
-                    style={{ backgroundColor: outsideColor }}
-                  />
-                </div>
-                <div className="flex flex-col items-center ml-1">
-                  <span className="text-[8px] font-bold text-slate-400 uppercase">In</span>
-                  <span
-                    className="w-3.5 h-3.5 rounded-full border border-slate-400 shadow-xs"
-                    style={{
-                      backgroundColor: isInsideTransparent ? 'transparent' : insideColor,
-                      backgroundImage: isInsideTransparent
-                        ? 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)'
-                        : undefined,
-                      backgroundSize: '4px 4px',
-                    }}
-                  />
-                </div>
+                <span
+                  className="w-3 h-3 rounded-full border border-slate-400 shadow-xs"
+                  style={{ backgroundColor: outsideColor }}
+                  title={`Outside: ${outsideColor}`}
+                />
+                <span
+                  className="w-3 h-3 rounded-full border border-slate-400 shadow-xs"
+                  style={{
+                    backgroundColor: isInsideTransparent ? 'transparent' : insideColor,
+                    backgroundImage: isInsideTransparent
+                      ? 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)'
+                      : undefined,
+                    backgroundSize: '4px 4px',
+                  }}
+                  title={`Inside: ${isInsideTransparent ? 'Transparent' : insideColor}`}
+                />
               </div>
             </div>
           )}
@@ -2743,7 +2615,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
             <button
               type="button"
               onClick={() => setIsToolbarVisible((prev) => !prev)}
-              title={isToolbarVisible ? 'Hide Tools to maximize workspace [Tab]' : 'Show Tools [Tab]'}
+              title={isToolbarVisible ? 'Hide Tools to maximize workspace' : 'Show Tools'}
               className="px-3 py-2 rounded-xl bg-white/95 text-slate-700 hover:bg-slate-50 border border-slate-200/90 shadow-md shadow-black/5 flex items-center gap-1.5 transition active:scale-95 cursor-pointer backdrop-blur-md text-xs font-bold"
             >
               {isToolbarVisible ? (
@@ -2788,7 +2660,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
             <button
               type="button"
               onClick={toggleFullscreen}
-              title={isFullscreen ? 'Exit Full Screen (Esc)' : 'Enter Full Screen'}
+              title={isFullscreen ? 'Exit Full Screen' : 'Enter Full Screen'}
               className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition active:scale-95 cursor-pointer backdrop-blur-md ${
                 isFullscreen
                   ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
@@ -2953,13 +2825,14 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                     setInsideColor('#10B981');
                     handleToolSelect('CANDLE_BULLISH');
                   }}
-                  className={`py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer border ${
+                  className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer border ${
                     tool === 'CANDLE_BULLISH'
                       ? 'bg-emerald-600 text-white border-emerald-700 shadow-md shadow-emerald-600/30 ring-2 ring-emerald-400'
-                      : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
                   }`}
                 >
-                  <span>▲ Draw Bullish</span>
+                  <CandlestickChart className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
+                  <span>Bullish (Green)</span>
                 </button>
 
                 <button
@@ -2969,13 +2842,14 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                     setInsideColor('#EF4444');
                     handleToolSelect('CANDLE_BEARISH');
                   }}
-                  className={`py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer border ${
+                  className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer border ${
                     tool === 'CANDLE_BEARISH'
                       ? 'bg-rose-600 text-white border-rose-700 shadow-md shadow-rose-600/30 ring-2 ring-rose-400'
-                      : 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
+                      : 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100'
                   }`}
                 >
-                  <span>▼ Draw Bearish</span>
+                  <CandlestickChart className="w-3.5 h-3.5 text-rose-600 fill-rose-600 rotate-180" />
+                  <span>Bearish (Red)</span>
                 </button>
               </div>
 
@@ -3050,38 +2924,54 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
               </div>
             </div>
 
-            {/* 4. TEXT ANNOTATION STUDIO CARD */}
+            {/* 4. PENCIL WRITING TOOL STUDIO CARD */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                <span className="flex items-center gap-1.5">
+                  <Pen className="w-3.5 h-3.5 text-indigo-600" />
+                  Pencil (Freehand Writing)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleToolSelect('PEN')}
+                className={`w-full py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer border ${
+                  tool === 'PEN'
+                    ? 'bg-indigo-600 text-white border-indigo-700 shadow-md ring-2 ring-indigo-400'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <Pen className="w-3.5 h-3.5" />
+                <span>{tool === 'PEN' ? '✓ Pencil Writing Active' : 'Select Pencil (Write)'}</span>
+              </button>
+            </div>
+
+            {/* 5. DIRECT TEXT TYPING TOOL */}
             <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-indigo-950">
                 <span className="flex items-center gap-1.5">
                   <Type className="w-4 h-4 text-indigo-600" />
-                  Text / Typing Tool
-                </span>
-                <span className="text-[10px] bg-indigo-100 text-indigo-700 font-mono font-bold px-1.5 py-0.5 rounded">
-                  Shortcut: T
+                  Text Annotation Tool
                 </span>
               </div>
-              <textarea
-                value={leftPanelText}
-                onChange={(e) => setLeftPanelText(e.target.value)}
-                placeholder="Type technical notes, entry/stop levels..."
-                rows={2}
-                className="w-full p-2 bg-white border border-indigo-200 rounded-lg text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 resize-none font-medium"
-              />
+              <p className="text-[11px] text-slate-600">
+                Direct on-chart typing: Click anywhere directly on the chart to type or edit text labels.
+              </p>
               <button
                 type="button"
-                onClick={handlePlaceTextFromPanel}
-                disabled={!leftPanelText.trim()}
-                className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                onClick={() => handleToolSelect('TEXT')}
+                className={`w-full py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer border ${
+                  tool === 'TEXT'
+                    ? 'bg-indigo-600 text-white border-indigo-700 shadow-md ring-2 ring-indigo-400'
+                    : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                }`}
               >
-                <span>+ Place Text on Canvas</span>
+                <Type className="w-3.5 h-3.5" />
+                <span>{tool === 'TEXT' ? '✓ Text Tool Active (Click on Chart)' : 'Select Text Tool'}</span>
               </button>
-              <p className="text-[10px] text-slate-500">
-                Tip: You can also click anywhere directly on the canvas with the Text tool to type!
-              </p>
             </div>
 
-            {/* 5. SELECTED OBJECT STUDIO (MOVE & RESIZE WITHIN MOVE TOOL) */}
+            {/* 6. SELECTED OBJECT STUDIO (MOVE & RESIZE WITHIN MOVE TOOL) */}
             {selectedItem && (
               <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2.5 animate-in fade-in zoom-in-95 duration-100">
                 <div className="flex items-center justify-between text-xs font-bold text-indigo-950">
@@ -3097,6 +2987,42 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                     Deselect
                   </button>
                 </div>
+
+                {/* In-Panel Text Editing for Selected Text Item */}
+                {selectedItem.tool === 'TEXT' && (
+                  <div className="space-y-1.5 p-2 bg-white rounded-xl border border-indigo-200 shadow-xs">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                      <span>Edit Text Content:</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTextEditor({
+                            id: selectedItem.id,
+                            canvasX: selectedItem.x1 ?? 0,
+                            canvasY: selectedItem.y1 ?? 0,
+                            text: selectedItem.text ?? '',
+                            color: selectedItem.color,
+                          });
+                        }}
+                        className="text-[10px] text-indigo-600 font-bold hover:underline cursor-pointer"
+                      >
+                        Edit on Canvas ➔
+                      </button>
+                    </div>
+                    <textarea
+                      rows={2}
+                      value={selectedItem.text ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setItems((prev) =>
+                          prev.map((it) => (it.id === selectedItem.id ? { ...it, text: val } : it))
+                        );
+                      }}
+                      className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-600 resize-none"
+                      placeholder="Type text..."
+                    />
+                  </div>
+                )}
 
                 {/* Live Size Adjusters */}
                 <div className="flex items-center justify-between text-xs">
@@ -3269,52 +3195,44 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         )}
 
         {/* ============================================================== */}
-        {/* DIRECT ON-CHART TEXT INPUT (NO SEPARATE BOX OR MODAL)          */}
+        {/* INVISIBLE CAPTURE INPUT FOR CANVAS DIRECT TYPING (ZERO VISUAL BOX) */}
         {/* ============================================================== */}
-        {activeTextInput && (
-          <div
-            className="absolute z-50 pointer-events-auto"
-            style={{
-              left: `${activeTextInput.screenX}px`,
-              top: `${activeTextInput.screenY}px`,
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <input
-              ref={textInputRef}
-              autoFocus
-              type="text"
-              value={activeTextInput.text}
-              onChange={(e) =>
-                setActiveTextInput((prev) => (prev ? { ...prev, text: e.target.value } : null))
-              }
-              onBlur={() => {
-                if (activeTextInput?.text.trim()) {
-                  handleCommitText();
-                } else {
-                  setActiveTextInput(null);
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleCommitText();
-                } else if (e.key === 'Escape') {
-                  e.preventDefault();
-                  setActiveTextInput(null);
-                }
-              }}
-              placeholder="Type directly on chart..."
-              className="bg-black/50 backdrop-blur-xs border-b-2 border-indigo-400 font-bold px-2 py-0.5 rounded outline-none shadow-md min-w-[160px] max-w-[450px]"
-              style={{
-                fontSize: `${Math.max(14, Math.round(16 * zoom))}px`,
-                color: outsideColor === '#FFFFFF' ? '#F8FAFC' : outsideColor,
-                caretColor: outsideColor === '#FFFFFF' ? '#60A5FA' : outsideColor,
-              }}
-            />
-          </div>
-        )}
+        <input
+          ref={hiddenTextInputRef}
+          type="text"
+          value={directTyping?.text || ''}
+          onChange={(e) => {
+            const val = e.target.value;
+            setDirectTyping((prev) => (prev ? { ...prev, text: val } : null));
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleCommitDirectText();
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              setDirectTyping(null);
+            }
+          }}
+          onBlur={() => {
+            if (directTyping?.text.trim()) {
+              handleCommitDirectText();
+            } else {
+              setDirectTyping(null);
+            }
+          }}
+          style={{
+            position: 'fixed',
+            left: '-9999px',
+            top: '-9999px',
+            opacity: 0,
+            width: '1px',
+            height: '1px',
+            pointerEvents: 'none',
+          }}
+          aria-hidden="true"
+          tabIndex={-1}
+        />
 
         {/* ============================================================== */}
         {/* INTERACTIVE HTML5 CANVAS AREA (EDGE-TO-EDGE IN FULLSCREEN)     */}
@@ -3339,14 +3257,15 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
             const coords = getCanvasCoords(e);
             const hit = findItemAtCoord(coords.x, coords.y);
             if (hit && hit.tool === 'TEXT' && hit.text) {
-              setActiveTextInput({
-                canvasX: hit.x1 || coords.x,
-                canvasY: hit.y1 || coords.y,
-                screenX: coords.screenX,
-                screenY: coords.screenY,
+              setDirectTyping({
+                x: hit.x1 || coords.x,
+                y: hit.y1 || coords.y,
                 text: hit.text,
+                color: hit.color,
                 existingId: hit.id,
               });
+              setItems((prev) => prev.filter((it) => it.id !== hit.id));
+              setTimeout(() => hiddenTextInputRef.current?.focus(), 20);
             }
           }}
           onContextMenu={(e) => e.preventDefault()}
@@ -3613,6 +3532,64 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           </span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Quick Tool Triggers */}
+          <button
+            type="button"
+            onClick={() => handleToolSelect('PEN')}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+              tool === 'PEN'
+                ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+                : 'bg-slate-900/80 text-slate-300 border-slate-700 hover:bg-slate-800'
+            }`}
+          >
+            <Pen className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Pencil (Write)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setOutsideColor('#10B981');
+              setInsideColor('#10B981');
+              handleToolSelect('CANDLE_BULLISH');
+            }}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+              tool === 'CANDLE_BULLISH'
+                ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
+                : 'bg-emerald-950/60 text-emerald-300 border-emerald-800/80 hover:bg-emerald-900/50'
+            }`}
+          >
+            <CandlestickChart className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400" />
+            <span>Bullish (Green)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setOutsideColor('#EF4444');
+              setInsideColor('#EF4444');
+              handleToolSelect('CANDLE_BEARISH');
+            }}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+              tool === 'CANDLE_BEARISH'
+                ? 'bg-rose-600 text-white border-rose-500 shadow-sm'
+                : 'bg-rose-950/60 text-rose-300 border-rose-800/80 hover:bg-rose-900/50'
+            }`}
+          >
+            <CandlestickChart className="w-3.5 h-3.5 text-rose-400 fill-rose-400 rotate-180" />
+            <span>Bearish (Red)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToolSelect('TEXT')}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+              tool === 'TEXT'
+                ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+                : 'bg-slate-900/80 text-slate-300 border-slate-700 hover:bg-slate-800'
+            }`}
+          >
+            <Type className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Text (T)</span>
+          </button>
+
           <button
             type="button"
             onClick={toggleFullscreen}
