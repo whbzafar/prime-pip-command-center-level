@@ -1278,7 +1278,11 @@ export default function App() {
       <main
         ref={mainContainerRef}
         className={`flex-1 w-full mx-auto px-2 sm:px-6 pt-1 sm:pt-3 pb-4 overflow-x-clip focus:outline-none ${
-          activeTab === 'FUNDAMENTAL_INDICATORS' ? 'max-w-[1750px]' : 'max-w-7xl'
+          activeTab === 'FUNDAMENTAL_INDICATORS'
+            ? 'max-w-[1750px]'
+            : activeTab === 'FREEHAND_WORKSPACE'
+            ? 'max-w-none w-full px-1 sm:px-3'
+            : 'max-w-7xl'
         }`}
       >
         {activeTab === 'SETUP' && (
@@ -1649,7 +1653,7 @@ export default function App() {
           />
         )}
         {/* Secondary Bottom Process Goal Link */}
-        {activeTab !== 'GOALS' && (
+        {activeTab !== 'GOALS' && activeTab !== 'FREEHAND_WORKSPACE' && (
           <div className="border-t border-slate-800/80 bg-slate-950/60 py-3 px-6 text-center text-xs font-mono-code text-slate-400 mt-6 mb-4">
             <span>PROCESS OVER OUTCOME • </span>
             <button
@@ -1661,9 +1665,11 @@ export default function App() {
           </div>
         )}
 
-        <div className="w-full pb-14 md:pb-0">
-          <AppFooter onOpenReviews={() => setIsReviewsOpen(true)} />
-        </div>
+        {activeTab !== 'FREEHAND_WORKSPACE' && (
+          <div className="w-full pb-14 md:pb-0">
+            <AppFooter onOpenReviews={() => setIsReviewsOpen(true)} />
+          </div>
+        )}
       </main>
 
       {/* Native Mobile Bottom App Bar (Sticky Thumb Navigation for Modern Phones) */}

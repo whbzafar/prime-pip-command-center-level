@@ -31,6 +31,24 @@ html {
   transition: filter 0.15s ease-out;
 }
 
+/* Ensure True Fullscreen Mode without filter-induced containing block or scroll offsets */
+html.freehand-fullscreen {
+  filter: none !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+body.freehand-fullscreen {
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+}
+
 /* ──────────────────────────────────────────────────────────────────────────
    GLOBAL CSS VARIABLE DEFINITIONS FOR ALL 23 INTERFACE TEMPLATES
    Allows instant zero-lag theme switching via documentElement.dataset.theme
