@@ -12,6 +12,7 @@ import {
   Compass,
   DollarSign,
   Maximize2,
+  Minimize2,
   Calendar,
   Filter,
   ArrowRight,
@@ -176,6 +177,57 @@ export const UnlimitedChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = ({
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [dukascopyQuote, setDukascopyQuote] = useState<DukascopyQuoteData | null>(null);
   const [quoteLoading, setQuoteLoading] = useState<boolean>(false);
+
+  // Full-Screen state & handlers for expanding chart edge-to-edge
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen((prev) => {
+      const next = !prev;
+      if (next) {
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+      } else {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    if (isFullscreen) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [isFullscreen]);
 
   // Quick Watchlist Drawer
   const [pinnedSymbols, setPinnedSymbols] = useState<string[]>([
@@ -477,6 +529,33 @@ export const UnlimitedChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = ({
               </span>
             </div>
 
+            {/* Premium TradingView Option Launcher */}
+            <button
+              onClick={() => {
+                setChartEngine('TRADINGVIEW');
+                document.getElementById('unlimited-chart-viewport')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className={`px-3 py-1.5 rounded-xl border font-mono-code text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-md ${
+                chartEngine === 'TRADINGVIEW'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 border-indigo-400 text-white shadow-indigo-600/30'
+                  : 'bg-indigo-950/60 hover:bg-indigo-900/80 border-indigo-500/40 text-indigo-300 hover:text-white'
+              }`}
+              title="Open Premium TradingView Real-Time Platform"
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-sky-300" />
+              <span>★ PREMIUM TRADINGVIEW</span>
+            </button>
+
+            {/* Direct Full-Screen Button */}
+            <button
+              onClick={toggleFullscreen}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-mono-code text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/25 transition active:scale-95 cursor-pointer"
+              title="Expand chart to fill the entire screen (100vw × 100vh)"
+            >
+              <Maximize2 className="w-3.5 h-3.5 text-white" />
+              <span>FULL SCREEN</span>
+            </button>
+
             {/* Launch Bar Replay Backtesting */}
             <button
               onClick={handleLaunchBacktest}
@@ -713,26 +792,40 @@ export const UnlimitedChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = ({
           </button>
         </div>
 
-        {/* Chart Engine Switcher & Refresh */}
+        {/* Chart Engine Switcher, Full Screen & Refresh */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px]">
             <button
               onClick={() => setChartEngine('NATIVE')}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
-                chartEngine === 'NATIVE' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                chartEngine === 'NATIVE' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
               }`}
             >
               UNLIMITED CANVAS
             </button>
             <button
               onClick={() => setChartEngine('TRADINGVIEW')}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
-                chartEngine === 'TRADINGVIEW' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                chartEngine === 'TRADINGVIEW'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-1 ring-indigo-400'
+                  : 'text-sky-300 hover:text-white bg-indigo-950/40 hover:bg-indigo-900/50'
               }`}
             >
-              TRADINGVIEW WIDGET
+              <TrendingUp className="w-3 h-3 text-sky-300" />
+              <span>★ PREMIUM TRADINGVIEW</span>
             </button>
           </div>
+
+          {/* Full Screen Button in Controls Bar */}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="px-3 py-1 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/25 transition active:scale-95 cursor-pointer"
+            title="Expand chart to fill the entire screen"
+          >
+            <Maximize2 className="w-3.5 h-3.5 text-white" />
+            <span>Full Screen</span>
+          </button>
 
           <button
             onClick={() => loadCandles(selectedSymbol, selectedTimeframe, historyDepth, historyRange, dataProvider, false)}
@@ -748,7 +841,50 @@ export const UnlimitedChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = ({
       {/* 4. MAIN WORKSPACE: CHART VIEWPORT + PAIR DIRECTORY */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         {/* Chart Column (3 cols on large screen) */}
-        <div className="lg:col-span-3 space-y-3">
+        <div id="unlimited-chart-viewport" className="lg:col-span-3 space-y-3">
+          {/* Chart Header Bar with Direct Full-Screen Toggle */}
+          <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-slate-950/90 border border-slate-800 shadow-md flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-white text-sm tracking-wide font-mono-code">{selectedSymbol}</span>
+              <span className="text-xs text-cyan-400 font-mono font-bold px-2 py-0.5 rounded bg-cyan-950/70 border border-cyan-800/70">
+                {selectedTimeframe}
+              </span>
+              {chartEngine === 'TRADINGVIEW' ? (
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs flex items-center gap-1">
+                  <span>★ Premium TradingView Chart</span>
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1">
+                  <span>Unlimited Native Canvas</span>
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <a
+                href="https://www.tradingview.com/pricing/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open TradingView Pro / Premium Platform"
+                className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
+                <span>TradingView Pro</span>
+              </a>
+
+              {/* Dedicated Prominent Full-Screen Toggle Button */}
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition active:scale-95 cursor-pointer"
+                title="Expand chart to fill the entire screen"
+              >
+                <Maximize2 className="w-4 h-4 text-white" />
+                <span>Full Screen</span>
+              </button>
+            </div>
+          </div>
+
           {chartEngine === 'NATIVE' ? (
             <LiveAnalysisChart
               candles={candles}
@@ -765,13 +901,27 @@ export const UnlimitedChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = ({
               }}
             />
           ) : (
-            <div className="w-full h-[600px] rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl relative">
+            <div className="w-full h-[620px] rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl relative group">
+              {/* Corner Full-Screen floating button inside TradingView widget */}
+              <div className="absolute top-3 right-3 z-30 pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={toggleFullscreen}
+                  title="Expand to Full Screen"
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-950/90 hover:bg-indigo-600 text-white border border-slate-700 hover:border-indigo-500 text-xs font-bold flex items-center gap-1.5 shadow-2xl backdrop-blur-md transition active:scale-95 cursor-pointer"
+                >
+                  <Maximize2 className="w-3.5 h-3.5 text-sky-300" />
+                  <span>Full Screen</span>
+                </button>
+              </div>
+
               <iframe
                 title="TradingView Embedded Chart"
                 src={`https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(
                   tradingViewWidgetSymbol
                 )}&interval=${tradingViewInterval}&theme=dark&style=1&timezone=Etc%2FUTC&hide_top_toolbar=false&hide_side_toolbar=false&allow_symbol_change=true&save_image=true`}
                 className="w-full h-full border-0"
+                allow="fullscreen"
               />
             </div>
           )}
@@ -899,6 +1049,152 @@ export const UnlimitedChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ============================================================== */}
+      {/* 5. DEDICATED FULL-SCREEN EXPANDED VIEWPORT (100vw x 100vh)     */}
+      {/* ============================================================== */}
+      {isFullscreen && (
+        <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[2147483647] w-screen h-screen bg-[#070d1e] flex flex-col m-0 p-0 overflow-hidden select-none animate-in fade-in duration-150">
+          {/* Top Fullscreen Header Navigation */}
+          <div className="h-14 px-4 bg-slate-950/95 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0 z-50 backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 font-mono-code">
+                <span className="text-base font-bold text-white tracking-wide">{selectedSymbol}</span>
+                <span className="text-xs text-cyan-400 font-bold px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800">
+                  {selectedTimeframe}
+                </span>
+                {chartEngine === 'TRADINGVIEW' ? (
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs">
+                    ★ Premium TradingView
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800">
+                    Unlimited Native
+                  </span>
+                )}
+              </div>
+
+              {/* Timeframe Switcher in Fullscreen */}
+              <div className="hidden sm:flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                {TIMEFRAMES.slice(0, 7).map((tf) => (
+                  <button
+                    key={`fs-tf-${tf.id}`}
+                    type="button"
+                    onClick={() => setSelectedTimeframe(tf.id)}
+                    className={`px-2 py-0.5 rounded-lg text-xs font-bold font-mono-code transition cursor-pointer ${
+                      selectedTimeframe === tf.id
+                        ? 'bg-cyan-500 text-slate-950 shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {tf.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Pinned Quick Switch Symbols in Fullscreen */}
+              <div className="hidden lg:flex items-center gap-1">
+                {pinnedSymbols.map((sym) => (
+                  <button
+                    key={`fs-pin-${sym}`}
+                    type="button"
+                    onClick={() => setSelectedSymbol(sym)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold font-mono-code transition cursor-pointer ${
+                      selectedSymbol === sym
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                    }`}
+                  >
+                    {sym}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mode Switch, TradingView Link & Minimize Fullscreen */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setChartEngine('TRADINGVIEW')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
+                    chartEngine === 'TRADINGVIEW'
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <TrendingUp className="w-3 h-3 text-sky-300" />
+                  <span>★ Premium TradingView</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartEngine('NATIVE')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
+                    chartEngine === 'NATIVE'
+                      ? 'bg-cyan-500 text-slate-950 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>Unlimited Canvas</span>
+                </button>
+              </div>
+
+              <a
+                href="https://www.tradingview.com/pricing/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition"
+                title="Open TradingView Pro / Premium Platform"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
+                <span>TradingView Pro</span>
+              </a>
+
+              {/* Minimize Fullscreen Button */}
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/50 text-xs font-bold flex items-center gap-1.5 shadow-lg transition active:scale-95 cursor-pointer group"
+                title="Minimize Full Screen (Esc)"
+              >
+                <Minimize2 className="w-4 h-4 text-rose-400 group-hover:text-white transition-colors" />
+                <span>Minimize (Esc)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Fullscreen Chart Viewport (Takes up 100% of remaining screen height) */}
+          <div className="flex-1 w-full h-[calc(100vh-56px)] bg-slate-950 relative overflow-hidden">
+            {chartEngine === 'TRADINGVIEW' ? (
+              <iframe
+                title="TradingView Embedded Chart Fullscreen"
+                src={`https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(
+                  tradingViewWidgetSymbol
+                )}&interval=${tradingViewInterval}&theme=dark&style=1&timezone=Etc%2FUTC&hide_top_toolbar=false&hide_side_toolbar=false&allow_symbol_change=true&save_image=true`}
+                className="w-full h-full border-0"
+                allow="fullscreen"
+              />
+            ) : (
+              <div className="w-full h-full p-2">
+                <LiveAnalysisChart
+                  candles={candles}
+                  symbol={selectedSymbol}
+                  timeframe={selectedTimeframe}
+                  isLiveStreaming={isLiveStreaming}
+                  onOpenTradeModal={(price) => {
+                    if (onOpenNewTrade) {
+                      onOpenNewTrade({
+                        instrument: selectedSymbol,
+                        entryPrice: price,
+                      });
+                    }
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

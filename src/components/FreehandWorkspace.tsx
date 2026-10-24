@@ -363,6 +363,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
   const [activeResizeHandle, setActiveResizeHandle] = useState<ResizeHandleType | null>(null);
   const [resizeStartCoord, setResizeStartCoord] = useState<{ x: number; y: number } | null>(null);
   const [hoveredHandle, setHoveredHandle] = useState<ResizeHandleType | null>(null);
+  const [isHoveringMovableItem, setIsHoveringMovableItem] = useState<boolean>(false);
 
   // Pan & Zoom Infinite Canvas
   const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -380,28 +381,86 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
   const [isErasing, setIsErasing] = useState(false);
   const erasedIdsRef = useRef<Set<string>>(new Set());
 
-  // Active On-Chart Text Editor (Direct inline editing at clicked canvas coordinates)
-  const [activeTextEditor, setActiveTextEditor] = useState<{
+  // Active Direct On-Chart Text Session (Immediate live typing right on chart, zero popup box)
+  const [activeTextSession, setActiveTextSession] = useState<{
     id?: string;
     canvasX: number;
     canvasY: number;
     text: string;
     color: string;
+    cursorIndex: number;
   } | null>(null);
-  const activeTextInputRef = useRef<HTMLInputElement | null>(null);
+  const activeTextInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [cursorVisible, setCursorVisible] = useState<boolean>(true);
+  const draftRef = useRef<CanvasItem | null>(null);
+  const rafRedrawIdRef = useRef<number | null>(null);
 
-  // Focus and select input on editor activation
-  useEffect(() => {
-    if (activeTextEditor) {
-      const timer = setTimeout(() => {
-        if (activeTextInputRef.current) {
-          activeTextInputRef.current.focus();
-          activeTextInputRef.current.select();
+  // Helper to accurately locate character index from canvas click coordinates
+  const getCharIndexFromClick = useCallback(
+    (
+      text: string,
+      clickX: number,
+      clickY: number,
+      startX: number,
+      startY: number,
+      fontSize: number,
+      lineHeight: number,
+      dpr: number
+    ): number => {
+      const lines = text.split('\n');
+      const relY = Math.max(0, clickY - startY);
+      const targetLineIdx = Math.max(0, Math.min(lines.length - 1, Math.floor(relY / lineHeight)));
+      const targetLine = lines[targetLineIdx] || '';
+
+      const relX = Math.max(0, clickX - startX);
+      let bestCol = 0;
+      let minDiff = Infinity;
+
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      if (ctx) {
+        ctx.save();
+        ctx.font = `600 ${fontSize}px 'Inter', -apple-system, BlinkMacSystemFont, sans-serif`;
+        for (let i = 0; i <= targetLine.length; i++) {
+          const measured = ctx.measureText(targetLine.slice(0, i)).width;
+          const diff = Math.abs(measured - relX);
+          if (diff < minDiff) {
+            minDiff = diff;
+            bestCol = i;
+          }
         }
-      }, 30);
-      return () => clearTimeout(timer);
+        ctx.restore();
+      } else {
+        const approxCharW = (fontSize * 0.58) / dpr;
+        bestCol = Math.max(0, Math.min(targetLine.length, Math.round(relX / approxCharW)));
+      }
+
+      let charOffset = 0;
+      for (let l = 0; l < targetLineIdx; l++) {
+        charOffset += lines[l].length + 1;
+      }
+      return charOffset + bestCol;
+    },
+    []
+  );
+
+  // Smooth blinking caret timer when text tool is active
+  useEffect(() => {
+    if (!activeTextSession) return;
+    const interval = setInterval(() => {
+      setCursorVisible((v) => !v);
+    }, 480);
+    return () => clearInterval(interval);
+  }, [activeTextSession]);
+
+  // Focus and sync selection range on session activation
+  useEffect(() => {
+    if (activeTextSession && activeTextInputRef.current) {
+      activeTextInputRef.current.focus();
+      const pos = activeTextSession.cursorIndex ?? activeTextSession.text.length;
+      activeTextInputRef.current.setSelectionRange(pos, pos);
     }
-  }, [activeTextEditor]);
+  }, [activeTextSession?.canvasX, activeTextSession?.canvasY]);
 
   // Modals & Vault
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
@@ -661,11 +720,11 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     });
   }, [resizeCanvas]);
 
-  // Commit active on-chart text editor onto canvas
+  // Commit active on-chart text session directly into items array
   const commitActiveText = useCallback(() => {
-    if (!activeTextEditor) return;
-    const txt = activeTextEditor.text.trim();
-    if (txt) {
+    if (!activeTextSession) return;
+    const txt = activeTextSession.text;
+    if (txt && txt.trim().length > 0) {
       pushHistory();
       const isLightBg =
         innerBgColor.toLowerCase().startsWith('#f') ||
@@ -673,40 +732,40 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         outerBgColor.toLowerCase().startsWith('#f') ||
         outerBgColor.toLowerCase() === '#ffffff';
       const textColor =
-        activeTextEditor.color === '#FFFFFF' && isLightBg ? '#0F172A' : (activeTextEditor.color || '#10B981');
+        activeTextSession.color === '#FFFFFF' && isLightBg ? '#0F172A' : (activeTextSession.color || '#10B981');
 
-      if (activeTextEditor.id) {
+      if (activeTextSession.id) {
         setItems((prev) =>
           prev.map((it) =>
-            it.id === activeTextEditor.id
+            it.id === activeTextSession.id
               ? { ...it, text: txt, color: textColor }
               : it
           )
         );
-        setSelectedItemId(activeTextEditor.id);
+        setSelectedItemId(activeTextSession.id);
       } else {
         const newTextItem: CanvasItem = {
           id: `txt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
           tool: 'TEXT',
           color: textColor,
           strokeWidth: Math.max(2, strokeWidth),
-          x1: activeTextEditor.canvasX,
-          y1: activeTextEditor.canvasY,
+          x1: activeTextSession.canvasX,
+          y1: activeTextSession.canvasY,
           text: txt,
         };
         setItems((prev) => [...prev, newTextItem]);
         setSelectedItemId(newTextItem.id);
       }
-    } else if (activeTextEditor.id) {
+    } else if (activeTextSession.id) {
       pushHistory();
-      setItems((prev) => prev.filter((it) => it.id !== activeTextEditor.id));
+      setItems((prev) => prev.filter((it) => it.id !== activeTextSession.id));
       setSelectedItemId(null);
     }
-    setActiveTextEditor(null);
-  }, [activeTextEditor, innerBgColor, outerBgColor, strokeWidth, pushHistory]);
+    setActiveTextSession(null);
+  }, [activeTextSession, innerBgColor, outerBgColor, strokeWidth, pushHistory]);
 
   const cancelActiveText = useCallback(() => {
-    setActiveTextEditor(null);
+    setActiveTextSession(null);
   }, []);
 
 
@@ -797,18 +856,47 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     }
   };
 
-  // Tool Selection handler with direct tool switching (no premature popup boxes)
+  // Tool Selection handler with instant text activation (zero popup boxes)
   const handleToolSelect = useCallback(
     (nextTool: Tool) => {
-      if (activeTextEditor) commitActiveText();
+      if (activeTextSession) commitActiveText();
       setTool(nextTool);
       if (nextTool !== 'SELECT') {
         setSelectedItemId(null);
       }
       if (nextTool !== 'ERASER') setIsErasing(false);
-      // When TEXT tool is selected, cursor turns to text caret and user can click directly anywhere on canvas to start typing at that exact spot
+
+      if (nextTool === 'TEXT') {
+        const canvas = canvasRef.current;
+        const dpr = window.devicePixelRatio || 1;
+        const screenW = canvas ? canvas.width / dpr : window.innerWidth;
+        const screenH = canvas ? canvas.height / dpr : window.innerHeight;
+        const initX = Math.round((screenW / 2 - panOffset.x) / zoom);
+        const initY = Math.round((screenH / 2 - panOffset.y) / zoom);
+
+        const isLightBg =
+          innerBgColor.toLowerCase().startsWith('#f') ||
+          innerBgColor.toLowerCase() === '#ffffff' ||
+          outerBgColor.toLowerCase().startsWith('#f') ||
+          outerBgColor.toLowerCase() === '#ffffff';
+        const initialColor =
+          outsideColor === '#FFFFFF' && isLightBg ? '#0F172A' : (outsideColor || '#10B981');
+
+        setActiveTextSession({
+          canvasX: initX,
+          canvasY: initY,
+          text: '',
+          color: initialColor,
+          cursorIndex: 0,
+        });
+        setTimeout(() => {
+          activeTextInputRef.current?.focus();
+        }, 30);
+      } else {
+        setActiveTextSession(null);
+      }
     },
-    [activeTextEditor, commitActiveText]
+    [activeTextSession, commitActiveText, panOffset, zoom, innerBgColor, outerBgColor, outsideColor]
   );
 
   // Standard Canvas Key Listeners:
@@ -818,10 +906,16 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       const target = e.target as HTMLElement | null;
       const isInput =
         !!target &&
-        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) &&
-        target !== activeTextInputRef.current;
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
 
-      if (isInput) return;
+      if (isInput) {
+        if (e.key === 'Escape') {
+          if (activeTextSession) {
+            commitActiveText();
+          }
+        }
+        return;
+      }
 
       // F3: Pencil tool
       if (e.key === 'F3') {
@@ -839,20 +933,18 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
       // Spacebar: Hand tool (Pan) - tap or hold to navigate
       if ((e.code === 'Space' || e.key === ' ') && !e.repeat) {
-        if (target !== activeTextInputRef.current) {
-          e.preventDefault();
-          if (tool !== 'PAN') {
-            prevToolBeforeSpaceRef.current = tool;
-            setTool('PAN');
-          }
-          return;
+        e.preventDefault();
+        if (tool !== 'PAN') {
+          prevToolBeforeSpaceRef.current = tool;
+          setTool('PAN');
         }
+        return;
       }
 
       // Escape key behavior
       if (e.key === 'Escape') {
-        if (activeTextEditor) {
-          cancelActiveText();
+        if (activeTextSession) {
+          commitActiveText();
           return;
         }
         if (selectedItemId) {
@@ -884,7 +976,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
       // Delete
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedItemId && target !== activeTextInputRef.current) {
+        if (selectedItemId) {
           e.preventDefault();
           handleDeleteSelected();
           return;
@@ -892,7 +984,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       }
 
       // Arrow keys to nudge selected candle or object
-      if (selectedItemId && target !== activeTextInputRef.current) {
+      if (selectedItemId) {
         const step = e.shiftKey ? 10 : 2;
         if (e.key === 'ArrowUp') {
           e.preventDefault();
@@ -936,8 +1028,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     tool,
     selectedItemId,
     isFullscreen,
-    activeTextEditor,
-    cancelActiveText,
+    activeTextSession,
+    commitActiveText,
     handleDeleteSelected,
     handleRedo,
     handleUndo,
@@ -1117,15 +1209,16 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         const dpr = window.devicePixelRatio || 1;
         const lines = item.text.split('\n');
         const maxLen = Math.max(...lines.map((l) => l.length), 1);
-        const fontSize = Math.max(16, (item.strokeWidth || 2) * 8 * dpr);
-        const lineHeight = Math.max(20, (item.strokeWidth || 2) * 9 * dpr);
-        const totalHeight = lines.length * lineHeight;
-        const totalWidth = Math.max(48 * dpr, maxLen * (fontSize * 0.62));
+        const fontSize = Math.max(14 * dpr, (item.strokeWidth || 2) * 8 * dpr);
+        const lineHeight = fontSize * 1.25;
+        const totalHeight = Math.max(lineHeight, lines.length * lineHeight);
+        const totalWidth = Math.max(60 * dpr, maxLen * (fontSize * 0.65));
+        const pad = 10 * dpr;
         return {
-          minX: item.x1,
-          maxX: item.x1 + totalWidth,
-          minY: item.y1,
-          maxY: item.y1 + totalHeight,
+          minX: item.x1 - pad,
+          maxX: item.x1 + totalWidth + pad,
+          minY: item.y1 - pad - 18 * dpr, // Include move header badge area
+          maxY: item.y1 + totalHeight + pad,
         };
       }
     }
@@ -1461,7 +1554,11 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
       ctx.save();
       ctx.globalAlpha = opacity;
-      const isBull = item.candleType !== 'BEARISH';
+      const isRed =
+        item.candleType === 'BEARISH' ||
+        item.tool === 'CANDLE_BEARISH' ||
+        (item.color && ['#ef4444', '#f43f5e', '#dc2626', '#e11d48', 'red'].includes(item.color.toLowerCase()));
+      const isBull = !isRed;
       const candleColor = isBull ? '#10B981' : '#EF4444';
       const wickColor = candleColor;
       const bodyFill = item.fillColor === 'transparent' ? 'transparent' : candleColor;
@@ -1491,8 +1588,9 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       ctx.lineWidth = Math.max(1.5 * dpr, item.strokeWidth * dpr);
       ctx.strokeRect(centerX - cWidth / 2, topY, cWidth, bodyHeight);
 
-      // Candlestick Direction Arrow Badge inside body
-      if (bodyHeight >= 18 * dpr) {
+      // Candlestick Direction Arrow Badge inside body:
+      // UPWARDS '▲' for Bullish (Green), DOWNWARDS '▼' for Bearish (Red)
+      if (bodyHeight >= 16 * dpr) {
         ctx.font = `bold ${Math.min(13 * dpr, bodyHeight * 0.45)}px 'JetBrains Mono', monospace`;
         ctx.fillStyle = bodyFill === 'transparent' ? wickColor : '#FFFFFF';
         ctx.textAlign = 'center';
@@ -1505,8 +1603,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
     // 4. TEXT ANNOTATION
     else if (item.tool === 'TEXT' && item.x1 !== undefined && item.y1 !== undefined && item.text) {
-      if (activeTextEditor && activeTextEditor.id === item.id) {
-        // Handled by active inline DOM editor
+      if (activeTextSession && activeTextSession.id === item.id) {
+        // Handled live by direct on-chart canvas renderer below
       } else {
         ctx.save();
         ctx.fillStyle = item.color;
@@ -1553,6 +1651,22 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           ctx.fill();
           ctx.stroke();
         });
+
+        // Intuitive Drag-to-Move badge for selected text
+        if (item.tool === 'TEXT') {
+          ctx.save();
+          ctx.fillStyle = '#4F46E5';
+          const badgeText = '✥ Drag to Reposition (Double-Click to Edit)';
+          ctx.font = `bold ${10 * dpr}px 'Inter', -apple-system, BlinkMacSystemFont, sans-serif`;
+          const tw = ctx.measureText(badgeText).width;
+          const badgeX = bounds.minX - pad;
+          const badgeY = bounds.minY - pad - 18 * dpr;
+          ctx.fillRect(badgeX, badgeY, tw + 12 * dpr, 16 * dpr);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(badgeText, badgeX + 6 * dpr, badgeY + 8 * dpr);
+          ctx.restore();
+        }
         ctx.restore();
       }
     }
@@ -1595,59 +1709,136 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       ctx.restore();
     }
 
-    // 3. Grid or Dots
+    // 3. Grid or Dots (Ultra-fast visible viewport culling + batched paths, zero lag)
     if (gridMode !== 'NONE') {
       const step = 40;
-      const gridBound = 5000;
       ctx.save();
       const isDark =
         innerBgColor.includes('#0') ||
         innerBgColor.includes('#1') ||
         innerBgColor.includes('#2');
+
+      const viewLeft = -panOffset.x / zoom;
+      const viewTop = -panOffset.y / zoom;
+      const viewRight = (canvas.width / dpr - panOffset.x) / zoom;
+      const viewBottom = (canvas.height / dpr - panOffset.y) / zoom;
+
+      const startX = Math.floor((viewLeft - step) / step) * step;
+      const endX = Math.ceil((viewRight + step) / step) * step;
+      const startY = Math.floor((viewTop - step) / step) * step;
+      const endY = Math.ceil((viewBottom + step) / step) * step;
+
       if (gridMode === 'GRID') {
         ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
         ctx.lineWidth = 1;
-        for (let x = -gridBound; x <= gridBound; x += step) {
-          ctx.beginPath();
-          ctx.moveTo(x, -gridBound);
-          ctx.lineTo(x, gridBound);
-          ctx.stroke();
+        ctx.beginPath();
+        for (let x = startX; x <= endX; x += step) {
+          ctx.moveTo(x, startY);
+          ctx.lineTo(x, endY);
         }
-        for (let y = -gridBound; y <= gridBound; y += step) {
-          ctx.beginPath();
-          ctx.moveTo(-gridBound, y);
-          ctx.lineTo(gridBound, y);
-          ctx.stroke();
+        for (let y = startY; y <= endY; y += step) {
+          ctx.moveTo(startX, y);
+          ctx.lineTo(endX, y);
         }
+        ctx.stroke();
       } else if (gridMode === 'DOTS') {
         ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.12)';
-        for (let x = -gridBound; x <= gridBound; x += step) {
-          for (let y = -gridBound; y <= gridBound; y += step) {
-            ctx.beginPath();
-            ctx.arc(x, y, 1.2 * dpr, 0, Math.PI * 2);
-            ctx.fill();
+        ctx.beginPath();
+        const dotRadius = 1.2 * dpr;
+        for (let x = startX; x <= endX; x += step) {
+          for (let y = startY; y <= endY; y += step) {
+            ctx.moveTo(x + dotRadius, y);
+            ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
           }
         }
+        ctx.fill();
       }
       ctx.restore();
     }
 
     // 4. Render All Drawn Items
     for (const it of items) {
-      if (activeTextEditor && activeTextEditor.id === it.id) {
+      if (activeTextSession && activeTextSession.id === it.id) {
         continue;
       }
       const isSelected = it.id === selectedItemId;
       renderSingleItem(ctx, it, isSelected);
     }
 
-    // 5. Render In-Progress Draft
-    if (currentDraft) {
-      renderSingleItem(ctx, currentDraft, false);
+    // 5. Render Active Direct On-Chart Text (Live, zero-box, blinking institutional cursor)
+    if (activeTextSession) {
+      const isLightBg =
+        innerBgColor.toLowerCase().startsWith('#f') ||
+        innerBgColor.toLowerCase() === '#ffffff' ||
+        outerBgColor.toLowerCase().startsWith('#f') ||
+        outerBgColor.toLowerCase() === '#ffffff';
+      const textColor =
+        activeTextSession.color === '#FFFFFF' && isLightBg ? '#0F172A' : (activeTextSession.color || '#10B981');
+
+      const fontSize = Math.max(14 * dpr, (strokeWidth || 2) * 8 * dpr);
+      const lineHeight = fontSize * 1.25;
+      ctx.save();
+      ctx.fillStyle = textColor;
+      ctx.font = `600 ${fontSize}px 'Inter', -apple-system, BlinkMacSystemFont, sans-serif`;
+      ctx.textBaseline = 'top';
+
+      const lines = (activeTextSession.text || '').split('\n');
+      lines.forEach((line, idx) => {
+        ctx.fillText(line, activeTextSession.canvasX, activeTextSession.canvasY + idx * lineHeight);
+      });
+
+      // Blinking Caret '|' on canvas at active text cursor position (supports arrow keys and click positioning)
+      if (cursorVisible && tool === 'TEXT') {
+        const fullText = activeTextSession.text || '';
+        const cIdx = Math.max(
+          0,
+          Math.min(
+            fullText.length,
+            activeTextSession.cursorIndex !== undefined
+              ? activeTextSession.cursorIndex
+              : fullText.length
+          )
+        );
+
+        let runningLen = 0;
+        let cursorLineIdx = 0;
+        let cursorColIdx = 0;
+        for (let l = 0; l < lines.length; l++) {
+          const lineLen = lines[l].length;
+          if (cIdx <= runningLen + lineLen) {
+            cursorLineIdx = l;
+            cursorColIdx = cIdx - runningLen;
+            break;
+          }
+          runningLen += lineLen + 1; // +1 for newline '\n'
+          if (l === lines.length - 1) {
+            cursorLineIdx = l;
+            cursorColIdx = lineLen;
+          }
+        }
+
+        const textBeforeCursor = (lines[cursorLineIdx] || '').slice(0, cursorColIdx);
+        const cursorX = activeTextSession.canvasX + ctx.measureText(textBeforeCursor).width;
+        const cursorY = activeTextSession.canvasY + cursorLineIdx * lineHeight;
+
+        ctx.strokeStyle = textColor;
+        ctx.lineWidth = Math.max(2, 2 * dpr);
+        ctx.beginPath();
+        ctx.moveTo(cursorX, cursorY);
+        ctx.lineTo(cursorX, cursorY + fontSize);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 6. Render In-Progress Draft (Smooth 120fps render from draftRef or state)
+    const activeDraft = draftRef.current || currentDraft;
+    if (activeDraft) {
+      renderSingleItem(ctx, activeDraft, false);
     }
 
     ctx.restore();
-  }, [items, currentDraft, selectedItemId, gridMode, panOffset, zoom, outerBgColor, innerBgColor, activeTextEditor, strokeWidth]);
+  }, [items, currentDraft, selectedItemId, gridMode, panOffset, zoom, outerBgColor, innerBgColor, activeTextSession, cursorVisible, strokeWidth, tool]);
 
   useEffect(() => {
     redrawAll();
@@ -1663,57 +1854,9 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     }
 
     const coords = getCanvasCoords(e);
+    const dpr = window.devicePixelRatio || 1;
 
-    // 1. TEXT TOOL: Start typing directly on chart at clicked position
-    if (tool === 'TEXT') {
-      const hit = findItemAtCoord(coords.x, coords.y);
-      if (hit && hit.tool === 'TEXT') {
-        if (activeTextEditor) commitActiveText();
-        setActiveTextEditor({
-          id: hit.id,
-          canvasX: hit.x1 ?? coords.x,
-          canvasY: hit.y1 ?? coords.y,
-          text: hit.text ?? '',
-          color: hit.color,
-        });
-        setSelectedItemId(hit.id);
-        return;
-      }
-
-      if (activeTextEditor) {
-        commitActiveText();
-      }
-      const isLightBg =
-        innerBgColor.toLowerCase().startsWith('#f') ||
-        innerBgColor.toLowerCase() === '#ffffff' ||
-        outerBgColor.toLowerCase().startsWith('#f') ||
-        outerBgColor.toLowerCase() === '#ffffff';
-      const initialColor =
-        outsideColor === '#FFFFFF' && isLightBg ? '#0F172A' : (outsideColor || '#10B981');
-
-      setActiveTextEditor({
-        canvasX: coords.x,
-        canvasY: coords.y,
-        text: '',
-        color: initialColor,
-      });
-      return;
-    }
-
-    // 2. ERASER TOOL: Click/drag to remove items
-    if (tool === 'ERASER') {
-      setIsErasing(true);
-      erasedIdsRef.current = new Set();
-      const hit = findItemAtCoord(coords.x, coords.y);
-      if (hit) {
-        pushHistory();
-        erasedIdsRef.current.add(hit.id);
-        setItems((prev) => prev.filter((it) => it.id !== hit.id));
-      }
-      return;
-    }
-
-    // 3. MOVE TOOL: Check Resize Handle Interaction first
+    // 1. MOVE / SELECT TOOL: Check Resize Handle Interaction first
     if (tool === 'SELECT' && selectedItemId) {
       const selectedItem = items.find((it) => it.id === selectedItemId);
       if (selectedItem) {
@@ -1727,16 +1870,136 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       }
     }
 
-    // 4. MOVE TOOL: Select & Drag Object
+    // 2. MOVE / SELECT TOOL: Select & Drag Object (written text, shapes, candles, lines)
     if (tool === 'SELECT') {
+      if (activeTextSession) {
+        commitActiveText();
+      }
       const hit = findItemAtCoord(coords.x, coords.y);
       if (hit) {
+        pushHistory();
         setSelectedItemId(hit.id);
         setIsDraggingSelected(true);
         setDragStartCoord({ x: coords.x, y: coords.y });
       } else {
-        // Only deselect if clicked far away from selected item
         setSelectedItemId(null);
+      }
+      return;
+    }
+
+    // 3. TEXT TOOL: Direct on-chart typing, cursor navigation, and in-place repositioning
+    if (activeTextSession) {
+      const fontSize = Math.max(14 * dpr, (strokeWidth || 2) * 8 * dpr);
+      const lineHeight = fontSize * 1.25;
+      const lines = (activeTextSession.text || '').split('\n');
+      const maxLen = Math.max(...lines.map((l) => l.length), 1);
+      const sessionW = Math.max(60, maxLen * fontSize * 0.65 + 40);
+      const sessionH = Math.max(lineHeight, lines.length * lineHeight + 20);
+
+      const withinSession =
+        coords.x >= activeTextSession.canvasX - 10 &&
+        coords.x <= activeTextSession.canvasX + sessionW &&
+        coords.y >= activeTextSession.canvasY - 18 * dpr &&
+        coords.y <= activeTextSession.canvasY + sessionH;
+
+      if (withinSession) {
+        const charIdx = getCharIndexFromClick(
+          activeTextSession.text,
+          coords.x,
+          coords.y,
+          activeTextSession.canvasX,
+          activeTextSession.canvasY,
+          fontSize,
+          lineHeight,
+          dpr
+        );
+        setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: charIdx } : null));
+        if (activeTextInputRef.current) {
+          activeTextInputRef.current.focus();
+          activeTextInputRef.current.setSelectionRange(charIdx, charIdx);
+        }
+        if (activeTextSession.id) {
+          setSelectedItemId(activeTextSession.id);
+        }
+        setIsDraggingSelected(true);
+        setDragStartCoord({ x: coords.x, y: coords.y });
+        return;
+      } else {
+        commitActiveText();
+      }
+    }
+
+    if (tool === 'TEXT') {
+      const textHit = findItemAtCoord(coords.x, coords.y);
+      if (textHit && textHit.tool === 'TEXT') {
+        const itemFontSize = Math.max(14 * dpr, (textHit.strokeWidth || 2) * 8 * dpr);
+        const itemLineHeight = itemFontSize * 1.25;
+        const charIdx = getCharIndexFromClick(
+          textHit.text || '',
+          coords.x,
+          coords.y,
+          textHit.x1 ?? coords.x,
+          textHit.y1 ?? coords.y,
+          itemFontSize,
+          itemLineHeight,
+          dpr
+        );
+
+        setSelectedItemId(textHit.id);
+        setIsDraggingSelected(true);
+        setDragStartCoord({ x: coords.x, y: coords.y });
+
+        setActiveTextSession({
+          id: textHit.id,
+          canvasX: textHit.x1 ?? coords.x,
+          canvasY: textHit.y1 ?? coords.y,
+          text: textHit.text ?? '',
+          color: textHit.color,
+          cursorIndex: charIdx,
+        });
+
+        setTimeout(() => {
+          if (activeTextInputRef.current) {
+            activeTextInputRef.current.focus();
+            activeTextInputRef.current.setSelectionRange(charIdx, charIdx);
+          }
+        }, 25);
+        return;
+      }
+
+      const isLightBg =
+        innerBgColor.toLowerCase().startsWith('#f') ||
+        innerBgColor.toLowerCase() === '#ffffff' ||
+        outerBgColor.toLowerCase().startsWith('#f') ||
+        outerBgColor.toLowerCase() === '#ffffff';
+      const initialColor =
+        outsideColor === '#FFFFFF' && isLightBg ? '#0F172A' : (outsideColor || '#10B981');
+
+      setActiveTextSession({
+        canvasX: coords.x,
+        canvasY: coords.y,
+        text: '',
+        color: initialColor,
+        cursorIndex: 0,
+      });
+      setTimeout(() => {
+        if (activeTextInputRef.current) {
+          activeTextInputRef.current.focus();
+          activeTextInputRef.current.setSelectionRange(0, 0);
+        }
+      }, 25);
+      return;
+    }
+
+    // 4. ERASER TOOL: Click/drag to remove items
+    if (tool === 'ERASER') {
+      setIsErasing(true);
+      erasedIdsRef.current = new Set();
+      const hit = findItemAtCoord(coords.x, coords.y);
+      if (hit) {
+        pushHistory();
+        erasedIdsRef.current.add(hit.id);
+        setItems((prev) => prev.filter((it) => it.id !== hit.id));
       }
       return;
     }
@@ -1749,7 +2012,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       const isBull = tool === 'CANDLE_BULLISH' || tool === 'CANDLE';
       const candleColor = isBull ? '#10B981' : '#EF4444';
 
-      setCurrentDraft({
+      const draft: CanvasItem = {
         id: `candle-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         tool,
         color: candleColor,
@@ -1762,11 +2025,13 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         y1: coords.y,
         x2: coords.x,
         y2: coords.y,
-      });
+      };
+      draftRef.current = draft;
+      setCurrentDraft(draft);
       return;
     }
 
-    // 6. DRAWING TOOLS (Pencil, Rectangle, etc.)
+    // 6. DRAWING TOOLS (Pencil, Rectangle, Lines, etc.)
     setIsDrawing(true);
     pushHistory();
 
@@ -1778,36 +2043,39 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       strokeWidth,
     };
 
+    let draft: CanvasItem;
     if (tool === 'PEN' || tool === 'HIGHLIGHTER' || tool === 'SMART_PENCIL') {
-      setCurrentDraft({
+      draft = {
         ...baseDraft,
         points: [{ x: coords.x, y: coords.y }],
-      });
+      };
     } else if (tool === 'HORIZONTAL_LINE') {
-      setCurrentDraft({
+      draft = {
         ...baseDraft,
         x1: coords.x,
         y1: coords.y,
         x2: coords.x,
         y2: coords.y,
-      });
+      };
     } else if (tool === 'VERTICAL_LINE') {
-      setCurrentDraft({
+      draft = {
         ...baseDraft,
         x1: coords.x,
         y1: coords.y,
         x2: coords.x,
         y2: coords.y,
-      });
+      };
     } else {
-      setCurrentDraft({
+      draft = {
         ...baseDraft,
         x1: coords.x,
         y1: coords.y,
         x2: coords.x,
         y2: coords.y,
-      });
+      };
     }
+    draftRef.current = draft;
+    setCurrentDraft(draft);
   };
 
   // Pointer Move (Mouse / Touch)
@@ -1941,8 +2209,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       return;
     }
 
-    // Active Dragging of Selected Item
-    if (tool === 'SELECT' && isDraggingSelected && selectedItemId && dragStartCoord) {
+    // Active Dragging of Selected Item (Move tool or direct text drag)
+    if (isDraggingSelected && selectedItemId && dragStartCoord) {
       const dx = coords.x - dragStartCoord.x;
       const dy = coords.y - dragStartCoord.y;
 
@@ -1965,68 +2233,77 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           };
         })
       );
+
+      if (activeTextSession && activeTextSession.id === selectedItemId) {
+        setActiveTextSession((prev) =>
+          prev ? { ...prev, canvasX: prev.canvasX + dx, canvasY: prev.canvasY + dy } : null
+        );
+      }
+
       setDragStartCoord({ x: coords.x, y: coords.y });
       return;
     }
 
-    // Update hovered resize handle for smart cursor change in Move tool
-    if (tool === 'SELECT' && selectedItemId) {
-      const selectedItem = items.find((it) => it.id === selectedItemId);
-      if (selectedItem) {
-        const handleHit = findHandleAtCoord(coords, selectedItem);
-        setHoveredHandle(handleHit);
+    // Update hovered resize handle & hovered item for smart cursor change in Move tool
+    if (tool === 'SELECT') {
+      if (selectedItemId) {
+        const selectedItem = items.find((it) => it.id === selectedItemId);
+        if (selectedItem) {
+          const handleHit = findHandleAtCoord(coords, selectedItem);
+          setHoveredHandle(handleHit);
+        } else {
+          setHoveredHandle(null);
+        }
+      } else {
+        setHoveredHandle(null);
+      }
+      if (!isDraggingSelected) {
+        const itemHit = findItemAtCoord(coords.x, coords.y);
+        setIsHoveringMovableItem(Boolean(itemHit));
       }
     } else {
       setHoveredHandle(null);
+      if (isHoveringMovableItem) setIsHoveringMovableItem(false);
     }
 
-    // Normal drawing
-    if (!isDrawing || !currentDraft) return;
+    // Lag-free drawing using draftRef + requestAnimationFrame (Zero React re-render thrashing during drag)
+    if (!isDrawing || (!draftRef.current && !currentDraft)) return;
+    const cur = draftRef.current || currentDraft;
+    if (!cur) return;
 
     if (tool === 'PEN' || tool === 'HIGHLIGHTER' || tool === 'SMART_PENCIL') {
-      setCurrentDraft((prev) =>
-        prev
-          ? {
-              ...prev,
-              points: [...(prev.points || []), { x: coords.x, y: coords.y }],
-            }
-          : null
-      );
+      const pts = cur.points || [];
+      const last = pts[pts.length - 1];
+      if (!last || Math.hypot(coords.x - last.x, coords.y - last.y) >= 1.5) {
+        pts.push({ x: coords.x, y: coords.y });
+        cur.points = pts;
+      }
     } else if (tool === 'HORIZONTAL_LINE') {
-      setCurrentDraft((prev) =>
-        prev
-          ? {
-              ...prev,
-              y1: coords.y,
-              y2: coords.y,
-            }
-          : null
-      );
+      cur.y1 = coords.y;
+      cur.y2 = coords.y;
     } else if (tool === 'VERTICAL_LINE') {
-      setCurrentDraft((prev) =>
-        prev
-          ? {
-              ...prev,
-              x1: coords.x,
-              x2: coords.x,
-            }
-          : null
-      );
+      cur.x1 = coords.x;
+      cur.x2 = coords.x;
     } else {
-      setCurrentDraft((prev) =>
-        prev
-          ? {
-              ...prev,
-              x2: coords.x,
-              y2: coords.y,
-            }
-          : null
-      );
+      cur.x2 = coords.x;
+      cur.y2 = coords.y;
+    }
+
+    if (rafRedrawIdRef.current === null) {
+      rafRedrawIdRef.current = requestAnimationFrame(() => {
+        rafRedrawIdRef.current = null;
+        redrawAll();
+      });
     }
   };
 
   // Pointer Up (Mouse / Touch)
   const handleMouseUp = () => {
+    if (rafRedrawIdRef.current !== null) {
+      cancelAnimationFrame(rafRedrawIdRef.current);
+      rafRedrawIdRef.current = null;
+    }
+
     if (tool === 'ERASER') {
       setIsErasing(false);
       erasedIdsRef.current.clear();
@@ -2050,25 +2327,29 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     if (!isDrawing) return;
     setIsDrawing(false);
 
-    if (currentDraft) {
+    const finalDraft = draftRef.current || currentDraft;
+    draftRef.current = null;
+    setCurrentDraft(null);
+
+    if (finalDraft) {
       // If candle was placed via single click (minimal drag distance), make it a full standard candlestick
       if (
-        currentDraft.tool === 'CANDLE_BULLISH' ||
-        currentDraft.tool === 'CANDLE_BEARISH' ||
-        currentDraft.tool === 'CANDLE'
+        finalDraft.tool === 'CANDLE_BULLISH' ||
+        finalDraft.tool === 'CANDLE_BEARISH' ||
+        finalDraft.tool === 'CANDLE'
       ) {
-        const isBull = currentDraft.tool === 'CANDLE_BULLISH' || currentDraft.candleType === 'BULLISH';
+        const isBull = finalDraft.tool === 'CANDLE_BULLISH' || finalDraft.candleType === 'BULLISH';
         const candleColor = isBull ? '#10B981' : '#EF4444';
         const dist = Math.hypot(
-          (currentDraft.x2 || 0) - (currentDraft.x1 || 0),
-          (currentDraft.y2 || 0) - (currentDraft.y1 || 0)
+          (finalDraft.x2 || 0) - (finalDraft.x1 || 0),
+          (finalDraft.y2 || 0) - (finalDraft.y1 || 0)
         );
-        let finalCandle = currentDraft;
+        let finalCandle = finalDraft;
         if (dist < 8) {
-          const startX = currentDraft.x1 || 100;
-          const startY = currentDraft.y1 || 100;
+          const startX = finalDraft.x1 || 100;
+          const startY = finalDraft.y1 || 100;
           finalCandle = {
-            ...currentDraft,
+            ...finalDraft,
             color: candleColor,
             fillColor: candleColor,
             x1: startX - candleWidth / 2,
@@ -2080,7 +2361,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           };
         } else {
           finalCandle = {
-            ...currentDraft,
+            ...finalDraft,
             color: candleColor,
             fillColor: candleColor,
           };
@@ -2088,36 +2369,36 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         setItems((prev) => [...prev, finalCandle]);
         // Continuous creation: Do NOT select so next click immediately drops another candle
         setSelectedItemId(null);
-      } else if (currentDraft.tool === 'SMART_PENCIL' && currentDraft.points) {
+      } else if (finalDraft.tool === 'SMART_PENCIL' && finalDraft.points) {
         const smartItem = recognizeSmartShape(
-          currentDraft.points,
-          currentDraft.color,
-          currentDraft.fillColor,
-          currentDraft.strokeWidth
+          finalDraft.points,
+          finalDraft.color,
+          finalDraft.fillColor,
+          finalDraft.strokeWidth
         );
         setItems((prev) => [...prev, smartItem]);
         setSelectedItemId(smartItem.id);
-      } else if (currentDraft.tool === 'HORIZONTAL_LINE') {
+      } else if (finalDraft.tool === 'HORIZONTAL_LINE') {
         const hLine: CanvasItem = {
-          ...currentDraft,
-          x1: currentDraft.x1 ?? 80,
-          y1: currentDraft.y1 ?? 100,
+          ...finalDraft,
+          x1: finalDraft.x1 ?? 80,
+          y1: finalDraft.y1 ?? 100,
         };
         setItems((prev) => [...prev, hLine]);
         setSelectedItemId(hLine.id);
-      } else if (currentDraft.tool === 'VERTICAL_LINE') {
+      } else if (finalDraft.tool === 'VERTICAL_LINE') {
         const vLine: CanvasItem = {
-          ...currentDraft,
-          x1: currentDraft.x1 ?? 100,
-          y1: currentDraft.y1 ?? 80,
+          ...finalDraft,
+          x1: finalDraft.x1 ?? 100,
+          y1: finalDraft.y1 ?? 80,
         };
         setItems((prev) => [...prev, vLine]);
         setSelectedItemId(vLine.id);
       } else {
-        setItems((prev) => [...prev, currentDraft]);
-        setSelectedItemId(currentDraft.id);
+        setItems((prev) => [...prev, finalDraft]);
+        setSelectedItemId(finalDraft.id);
       }
-      setCurrentDraft(null);
+      redrawAll();
     }
   };
 
@@ -2281,7 +2562,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       if (hoveredHandle === 'n' || hoveredHandle === 's') return 'cursor-ns-resize';
       if (hoveredHandle === 'e' || hoveredHandle === 'w') return 'cursor-ew-resize';
     }
-    if (tool === 'SELECT') return isDraggingSelected ? 'cursor-move' : 'cursor-default';
+    if (isDraggingSelected) return 'cursor-move';
+    if (tool === 'SELECT') return isHoveringMovableItem ? 'cursor-move' : 'cursor-default';
     if (tool === 'TEXT') return 'cursor-text';
     if (tool === 'ERASER') return 'cursor-pointer';
     return 'cursor-crosshair';
@@ -2375,7 +2657,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         {/* TOP FLOATING HEADER & TOOLBAR (STAYS PINNED AT TOP IN FULLSCREEN) */}
         {/* ============================================================== */}
         <div className="absolute top-2 left-2 right-2 z-50 flex items-center justify-between gap-2 pointer-events-none">
-          {/* Top-Left: Menu & Show Tools Toggle */}
+          {/* Top-Left: Menu, Dedicated Upload Image (Visible in Fullscreen), & Show Tools Toggle */}
           <div className="flex items-center gap-1.5 pointer-events-auto shrink-0">
             <button
               type="button"
@@ -2384,6 +2666,17 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
               className="w-10 h-10 rounded-xl bg-white/95 text-slate-700 hover:bg-slate-50 border border-slate-200/90 shadow-md shadow-black/5 flex items-center justify-center transition active:scale-95 cursor-pointer backdrop-blur-md"
             >
               <Menu className="w-5 h-5 text-slate-700" />
+            </button>
+
+            {/* Dedicated Upload Image Button (Always Visible in Fullscreen & Standard Mode) */}
+            <button
+              type="button"
+              onClick={() => imageUploadInputRef.current?.click()}
+              title="Upload Image or PDF Chart (PNG, JPG, WEBP, PDF)"
+              className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 shadow-md shadow-indigo-600/25 flex items-center gap-1.5 transition active:scale-95 cursor-pointer backdrop-blur-md text-xs font-bold shrink-0"
+            >
+              <ImageIcon className="w-4 h-4 text-white" />
+              <span className="whitespace-nowrap">Upload Image</span>
             </button>
 
             {/* Quick Show Tools Button when toolbar is hidden */}
@@ -2509,6 +2802,17 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                   <ImageIcon className="w-4 h-4 text-indigo-600" />
                   <span>Upload Image or PDF Chart</span>
                 </button>
+                <a
+                  href="https://www.tradingview.com/pricing/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setIsHamburgerOpen(false)}
+                  className="w-full px-3 py-2 text-left rounded-xl hover:bg-sky-50 text-sky-700 font-bold flex items-center gap-2.5 transition cursor-pointer"
+                >
+                  <TrendingUp className="w-4 h-4 text-sky-600" />
+                  <span>TradingView Pro / Premium</span>
+                  <ExternalLink className="w-3.5 h-3.5 ml-auto text-sky-500" />
+                </a>
                 <div className="border-t border-slate-100 my-1" />
                 <button
                   onClick={() => {
@@ -2625,11 +2929,11 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                 <span className="text-[9px] px-1 py-0.2 rounded bg-black/10 dark:bg-white/10 font-mono">F4</span>
               </button>
 
-              {/* 4. Bullish Candle (Green #10B981) */}
+              {/* 4. Bullish Candle (Green #10B981) - Upward Arrow */}
               <button
                 type="button"
                 onClick={() => handleToolSelect('CANDLE_BULLISH')}
-                title="Green Candle - Click repeatedly on chart to continuously place bullish candles"
+                title="Green Candle (Bullish ▲) - Click repeatedly on chart to continuously place bullish candles"
                 className={`px-2 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 font-bold text-xs shrink-0 ${
                   tool === 'CANDLE_BULLISH'
                     ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-400'
@@ -2637,22 +2941,24 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                 }`}
               >
                 <CandlestickChart className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500" />
-                <span className="text-[11px]">Green</span>
+                <ArrowUp className="w-3 h-3 text-emerald-600 dark:text-emerald-400 stroke-[3]" />
+                <span className="text-[11px]">Green ▲</span>
               </button>
 
-              {/* 5. Bearish Candle (Red #EF4444) */}
+              {/* 5. Bearish Candle (Red #EF4444) - Downward Arrow */}
               <button
                 type="button"
                 onClick={() => handleToolSelect('CANDLE_BEARISH')}
-                title="Red Candle - Click repeatedly on chart to continuously place bearish candles"
+                title="Red Candle (Bearish ▼) - Click repeatedly on chart to continuously place bearish candles"
                 className={`px-2 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 font-bold text-xs shrink-0 ${
                   tool === 'CANDLE_BEARISH'
                     ? 'bg-rose-600 text-white shadow-md ring-2 ring-rose-400'
                     : 'hover:bg-rose-50 dark:hover:bg-rose-950/60 text-rose-700 dark:text-rose-300 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-800'
                 }`}
               >
-                <CandlestickChart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 rotate-180" />
-                <span className="text-[11px]">Red</span>
+                <CandlestickChart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+                <ArrowDown className="w-3 h-3 text-rose-600 dark:text-rose-400 stroke-[3]" />
+                <span className="text-[11px]">Red ▼</span>
               </button>
 
               {/* 6. Mouse Cursor (Select / Move / Resize) */}
@@ -2838,16 +3144,16 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                 <span className="hidden sm:inline">Save</span>
               </button>
 
-              {/* Download / Export Dropdown */}
+              {/* Download / Export Dropdown - Prominent, Large & Always Visible */}
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setIsDownloadMenuOpen((prev) => !prev)}
-                  title="Download / Export Options"
-                  className="px-2 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+                  title="Download Canvas (PNG, SVG, JSON)"
+                  className="px-3.5 py-1.5 min-w-[105px] rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/25 transition active:scale-95 cursor-pointer shrink-0"
                 >
-                  <Download className="w-3.5 h-3.5 text-indigo-600" />
-                  <span className="hidden sm:inline">Download</span>
+                  <Download className="w-3.5 h-3.5 text-white" />
+                  <span>Download</span>
                 </button>
                 {isDownloadMenuOpen && (
                   <div className="absolute top-10 right-0 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl p-1.5 z-50 space-y-1 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 text-xs">
@@ -2888,11 +3194,24 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                 )}
               </div>
 
+              {/* TradingView Pro Link in Toolbar */}
+              <a
+                href="https://www.tradingview.com/pricing/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open TradingView Pro / Premium Platform"
+                className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition active:scale-95 cursor-pointer shrink-0"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-sky-200" />
+                <span className="hidden md:inline">TradingView Pro</span>
+                <ExternalLink className="w-3 h-3 text-sky-200" />
+              </a>
+
               {/* Upload Dropdown */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                title="Upload Saved Drawing or Image"
+                title="Upload Saved Drawing JSON"
                 className="px-2 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
               >
                 <Upload className="w-3.5 h-3.5 text-emerald-600" />
@@ -2901,7 +3220,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
             </div>
           )}
 
-          {/* Top-Right: Show/Hide Tools Toggle, Export, Studio Panel, Fullscreen Toggle */}
+          {/* Top-Right: Show/Hide Tools Toggle, Prominent Download, TradingView Pro, Studio Panel, Fullscreen Toggle */}
           <div className="pointer-events-auto flex items-center gap-2 shrink-0">
             {/* Show / Hide Tools Option */}
             <button
@@ -2923,16 +3242,29 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
               )}
             </button>
 
-            {/* Quick Export / Download Button */}
+            {/* Prominent Large Download Button */}
             <button
               type="button"
               onClick={handleExportPNG}
-              title="Download Canvas (PNG Image)"
-              className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/20 transition active:scale-95 cursor-pointer"
+              title="Download Canvas Image (PNG)"
+              className="px-4 py-2 min-w-[110px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition active:scale-95 cursor-pointer shrink-0"
             >
-              <Share2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Export</span>
+              <Download className="w-4 h-4 text-white" />
+              <span>Download</span>
             </button>
+
+            {/* TradingView Pro / Premium Direct Link */}
+            <a
+              href="https://www.tradingview.com/pricing/"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open TradingView Pro / Premium Platform"
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/25 transition active:scale-95 cursor-pointer shrink-0"
+            >
+              <TrendingUp className="w-4 h-4 text-sky-200" />
+              <span className="hidden md:inline">TradingView Pro</span>
+              <ExternalLink className="w-3.5 h-3.5 text-sky-200" />
+            </a>
 
             {/* Left Sidebar Toggle Button */}
             <button
@@ -3124,7 +3456,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                   }`}
                 >
                   <CandlestickChart className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
-                  <span>Bullish (Green)</span>
+                  <ArrowUp className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                  <span>Bullish ▲</span>
                 </button>
 
                 <button
@@ -3140,8 +3473,9 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                       : 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100'
                   }`}
                 >
-                  <CandlestickChart className="w-3.5 h-3.5 text-rose-600 fill-rose-600 rotate-180" />
-                  <span>Bearish (Red)</span>
+                  <CandlestickChart className="w-3.5 h-3.5 text-rose-600 fill-rose-600" />
+                  <ArrowDown className="w-3 h-3 text-rose-600 stroke-[3]" />
+                  <span>Bearish ▼</span>
                 </button>
               </div>
 
@@ -3288,13 +3622,15 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                       <button
                         type="button"
                         onClick={() => {
-                          setActiveTextEditor({
+                          setTool('TEXT');
+                          setActiveTextSession({
                             id: selectedItem.id,
                             canvasX: selectedItem.x1 ?? 0,
                             canvasY: selectedItem.y1 ?? 0,
                             text: selectedItem.text ?? '',
                             color: selectedItem.color,
                           });
+                          setTimeout(() => activeTextInputRef.current?.focus(), 20);
                         }}
                         className="text-[10px] text-indigo-600 font-bold hover:underline cursor-pointer"
                       >
@@ -3487,53 +3823,64 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         )}
 
         {/* ============================================================== */}
-        {/* DIRECT ON-CHART INLINE TEXT (NO BOX, TYPES DIRECTLY ON CANVAS) */}
+        {/* INVISIBLE KEYBOARD CAPTURE FOR DIRECT ON-CHART TYPING (NO BOX) */}
         {/* ============================================================== */}
-        {activeTextEditor && (
-          <div
+        {activeTextSession && (
+          <textarea
+            ref={activeTextInputRef}
+            autoFocus
+            aria-label="Direct on-chart typing"
+            value={activeTextSession.text}
+            onChange={(e) => {
+              const val = e.target.value;
+              const sel = e.target.selectionStart ?? val.length;
+              setActiveTextSession((prev) => (prev ? { ...prev, text: val, cursorIndex: sel } : null));
+            }}
+            onSelect={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              const sel = target.selectionStart ?? target.value.length;
+              setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: sel } : null));
+            }}
+            onKeyUp={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              const sel = target.selectionStart ?? target.value.length;
+              setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: sel } : null));
+            }}
+            onClick={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              const sel = target.selectionStart ?? target.value.length;
+              setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: sel } : null));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                commitActiveText();
+                return;
+              }
+              setTimeout(() => {
+                if (activeTextInputRef.current) {
+                  const sel = activeTextInputRef.current.selectionStart ?? activeTextInputRef.current.value.length;
+                  setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: sel } : null));
+                }
+              }, 0);
+            }}
             style={{
               position: 'absolute',
-              left: `${activeTextEditor.canvasX * zoom + panOffset.x}px`,
-              top: `${activeTextEditor.canvasY * zoom + panOffset.y}px`,
-              zIndex: 60,
-              transform: 'translate(0, 0)',
+              left: `${Math.max(0, activeTextSession.canvasX * zoom + panOffset.x)}px`,
+              top: `${Math.max(0, activeTextSession.canvasY * zoom + panOffset.y)}px`,
+              width: '1px',
+              height: '1px',
+              opacity: 0,
+              pointerEvents: 'none',
+              border: 'none',
+              outline: 'none',
+              background: 'transparent',
+              resize: 'none',
+              padding: 0,
+              margin: 0,
+              zIndex: -1,
             }}
-            className="pointer-events-auto"
-          >
-            <input
-              ref={activeTextInputRef}
-              type="text"
-              autoFocus
-              value={activeTextEditor.text}
-              onChange={(e) => {
-                const val = e.target.value;
-                setActiveTextEditor((prev) => (prev ? { ...prev, text: val } : null));
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  commitActiveText();
-                } else if (e.key === 'Escape') {
-                  e.preventDefault();
-                  cancelActiveText();
-                }
-              }}
-              onBlur={() => {
-                commitActiveText();
-              }}
-              placeholder="Type directly..."
-              style={{
-                color: activeTextEditor.color,
-                fontSize: `${Math.max(14, (selectedItem?.strokeWidth || strokeWidth || 2) * 8 * zoom)}px`,
-                fontFamily: `'Inter', -apple-system, BlinkMacSystemFont, sans-serif`,
-                fontWeight: 600,
-                lineHeight: 1.25,
-                caretColor: activeTextEditor.color,
-                width: `${Math.max(120, (activeTextEditor.text.length + 2) * Math.max(9, (selectedItem?.strokeWidth || strokeWidth || 2) * 5 * zoom))}px`,
-              }}
-              className="bg-transparent border-0 border-b border-dashed border-indigo-400/50 outline-none focus:outline-none focus:ring-0 p-0 m-0 shadow-none placeholder:text-slate-400/40 placeholder:font-normal placeholder:text-xs"
-            />
-          </div>
+          />
         )}
 
         {/* ============================================================== */}
@@ -3559,7 +3906,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
             const coords = getCanvasCoords(e);
             const hit = findItemAtCoord(coords.x, coords.y);
             if (hit && hit.tool === 'TEXT') {
-              setActiveTextEditor({
+              setTool('TEXT');
+              setActiveTextSession({
                 id: hit.id,
                 canvasX: hit.x1 ?? coords.x,
                 canvasY: hit.y1 ?? coords.y,
@@ -3567,6 +3915,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                 color: hit.color,
               });
               setSelectedItemId(hit.id);
+              setTimeout(() => activeTextInputRef.current?.focus(), 20);
             }
           }}
           onContextMenu={(e) => e.preventDefault()}
@@ -3898,7 +4247,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
             }`}
           >
             <CandlestickChart className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400" />
-            <span>Bullish (Green)</span>
+            <ArrowUp className="w-3 h-3 text-emerald-400 stroke-[3]" />
+            <span>Bullish (Green ▲)</span>
           </button>
           <button
             type="button"
@@ -3909,8 +4259,9 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                 : 'bg-rose-950/60 text-rose-300 border-rose-800/80 hover:bg-rose-900/50'
             }`}
           >
-            <CandlestickChart className="w-3.5 h-3.5 text-rose-400 fill-rose-400 rotate-180" />
-            <span>Bearish (Red)</span>
+            <CandlestickChart className="w-3.5 h-3.5 text-rose-400 fill-rose-400" />
+            <ArrowDown className="w-3 h-3 text-rose-400 stroke-[3]" />
+            <span>Bearish (Red ▼)</span>
           </button>
           <button
             type="button"
@@ -3946,6 +4297,17 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
             <Maximize2 className="w-4 h-4" />
             <span>ENTER FULL SCREEN</span>
           </button>
+          <a
+            href="https://www.tradingview.com/pricing/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/25 text-sky-300 font-bold text-xs transition cursor-pointer"
+            title="Open TradingView Pro / Premium"
+          >
+            <TrendingUp className="w-3.5 h-3.5 text-sky-400" />
+            <span>TradingView Pro</span>
+            <ExternalLink className="w-3 h-3 ml-0.5" />
+          </a>
           <button
             type="button"
             onClick={() => handleNavigate('SBT_MODELS')}
