@@ -391,7 +391,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
   const [isErasing, setIsErasing] = useState(false);
   const erasedIdsRef = useRef<Set<string>>(new Set());
 
-  // Active Direct On-Chart Text Session (Immediate live typing right on chart, zero popup box)
+  // Active Direct On-Chart Text Session (Immediate live typing right on canvas, zero popup box)
   const [activeTextSession, setActiveTextSession] = useState<{
     id?: string;
     canvasX: number;
@@ -401,6 +401,15 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     cursorIndex: number;
   } | null>(null);
   const activeTextInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const activeTextSessionRef = useRef<{
+    id?: string;
+    canvasX: number;
+    canvasY: number;
+    text: string;
+    color: string;
+    cursorIndex: number;
+  } | null>(null);
+  activeTextSessionRef.current = activeTextSession;
   const [cursorVisible, setCursorVisible] = useState<boolean>(true);
   const draftRef = useRef<CanvasItem | null>(null);
   const isDrawingRef = useRef<boolean>(false);
@@ -736,8 +745,9 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
   // Commit active on-chart text session directly into items array
   const commitActiveText = useCallback(() => {
-    if (!activeTextSession) return;
-    const txt = activeTextSession.text;
+    const session = activeTextSessionRef.current;
+    if (!session) return;
+    const txt = session.text;
     if (txt && txt.trim().length > 0) {
       pushHistory();
       const isLightBg =
@@ -746,37 +756,37 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         outerBgColor.toLowerCase().startsWith('#f') ||
         outerBgColor.toLowerCase() === '#ffffff';
       const textColor =
-        activeTextSession.color === '#FFFFFF' && isLightBg ? '#0F172A' : (activeTextSession.color || '#10B981');
+        session.color === '#FFFFFF' && isLightBg ? '#0F172A' : (session.color || '#10B981');
 
-      if (activeTextSession.id) {
+      if (session.id) {
         setItems((prev) =>
           prev.map((it) =>
-            it.id === activeTextSession.id
+            it.id === session.id
               ? { ...it, text: txt, color: textColor }
               : it
           )
         );
-        setSelectedItemId(activeTextSession.id);
+        setSelectedItemId(session.id);
       } else {
         const newTextItem: CanvasItem = {
           id: `txt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
           tool: 'TEXT',
           color: textColor,
           strokeWidth: Math.max(2, strokeWidth),
-          x1: activeTextSession.canvasX,
-          y1: activeTextSession.canvasY,
+          x1: session.canvasX,
+          y1: session.canvasY,
           text: txt,
         };
         setItems((prev) => [...prev, newTextItem]);
         setSelectedItemId(newTextItem.id);
       }
-    } else if (activeTextSession.id) {
+    } else if (session.id) {
       pushHistory();
-      setItems((prev) => prev.filter((it) => it.id !== activeTextSession.id));
+      setItems((prev) => prev.filter((it) => it.id !== session.id));
       setSelectedItemId(null);
     }
     setActiveTextSession(null);
-  }, [activeTextSession, innerBgColor, outerBgColor, strokeWidth, pushHistory]);
+  }, [innerBgColor, outerBgColor, strokeWidth, pushHistory]);
 
   const cancelActiveText = useCallback(() => {
     setActiveTextSession(null);
@@ -970,10 +980,10 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     }
   };
 
-  // Tool Selection handler with instant text activation (zero popup boxes)
+  // Tool Selection handler: sets tool cleanly with zero unexpected popup boxes
   const handleToolSelect = useCallback(
     (nextTool: Tool) => {
-      if (activeTextSession) commitActiveText();
+      if (activeTextSessionRef.current) commitActiveText();
       setTool(nextTool);
       if (nextTool !== 'SELECT') {
         setSelectedItemId(null);
@@ -1010,24 +1020,132 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         setActiveTextSession(null);
       }
     },
-    [activeTextSession, commitActiveText, panOffset, zoom, innerBgColor, outerBgColor, outsideColor]
+    [commitActiveText, panOffset, zoom, innerBgColor, outerBgColor, outsideColor]
   );
 
   // Standard Canvas Key Listeners:
-  // F3 for Pencil, F4 for Rectangle, Spacebar for Hand (Pan), Escape, Undo/Redo, Delete, Arrow Nudges
+  // F3 for Pencil, F4 for Rectangle, Spacebar for Hand (Pan), Escape, Undo/Redo, Delete, Arrow Nudges, and Live Text Typing
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. Direct on-chart typing when text session is active
+      if (activeTextSessionRef.current) {
+        const session = activeTextSessionRef.current;
+        const currentText = session.text || '';
+        const curIdx = Math.max(0, Math.min(currentText.length, session.cursorIndex ?? currentText.length));
+
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          commitActiveText();
+          return;
+        }
+
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (e.ctrlKey || e.metaKey) {
+            commitActiveText();
+            return;
+          }
+          const nextText = currentText.slice(0, curIdx) + '\n' + currentText.slice(curIdx);
+          const nextIdx = curIdx + 1;
+          setActiveTextSession((prev) => (prev ? { ...prev, text: nextText, cursorIndex: nextIdx } : null));
+          if (activeTextInputRef.current) {
+            activeTextInputRef.current.value = nextText;
+            activeTextInputRef.current.setSelectionRange(nextIdx, nextIdx);
+          }
+          return;
+        }
+
+        // If focus is already in the transparent textarea, let it handle standard keys natively
+        const target = e.target as HTMLElement | null;
+        if (target === activeTextInputRef.current) {
+          return;
+        }
+
+        if (e.key === 'Backspace') {
+          e.preventDefault();
+          if (curIdx > 0) {
+            const nextText = currentText.slice(0, curIdx - 1) + currentText.slice(curIdx);
+            const nextIdx = curIdx - 1;
+            setActiveTextSession((prev) => (prev ? { ...prev, text: nextText, cursorIndex: nextIdx } : null));
+            if (activeTextInputRef.current) {
+              activeTextInputRef.current.value = nextText;
+              activeTextInputRef.current.setSelectionRange(nextIdx, nextIdx);
+            }
+          }
+          return;
+        }
+
+        if (e.key === 'Delete') {
+          e.preventDefault();
+          if (curIdx < currentText.length) {
+            const nextText = currentText.slice(0, curIdx) + currentText.slice(curIdx + 1);
+            setActiveTextSession((prev) => (prev ? { ...prev, text: nextText, cursorIndex: curIdx } : null));
+            if (activeTextInputRef.current) {
+              activeTextInputRef.current.value = nextText;
+              activeTextInputRef.current.setSelectionRange(curIdx, curIdx);
+            }
+          }
+          return;
+        }
+
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          const nextIdx = Math.max(0, curIdx - 1);
+          setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: nextIdx } : null));
+          if (activeTextInputRef.current) {
+            activeTextInputRef.current.setSelectionRange(nextIdx, nextIdx);
+          }
+          return;
+        }
+
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          const nextIdx = Math.min(currentText.length, curIdx + 1);
+          setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: nextIdx } : null));
+          if (activeTextInputRef.current) {
+            activeTextInputRef.current.setSelectionRange(nextIdx, nextIdx);
+          }
+          return;
+        }
+
+        if (e.key === 'Home') {
+          e.preventDefault();
+          setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: 0 } : null));
+          if (activeTextInputRef.current) {
+            activeTextInputRef.current.setSelectionRange(0, 0);
+          }
+          return;
+        }
+
+        if (e.key === 'End') {
+          e.preventDefault();
+          setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: currentText.length } : null));
+          if (activeTextInputRef.current) {
+            activeTextInputRef.current.setSelectionRange(currentText.length, currentText.length);
+          }
+          return;
+        }
+
+        // Standard printable character (letters, numbers, symbols, spaces)
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          e.preventDefault();
+          const nextText = currentText.slice(0, curIdx) + e.key + currentText.slice(curIdx);
+          const nextIdx = curIdx + 1;
+          setActiveTextSession((prev) => (prev ? { ...prev, text: nextText, cursorIndex: nextIdx } : null));
+          if (activeTextInputRef.current) {
+            activeTextInputRef.current.value = nextText;
+            activeTextInputRef.current.setSelectionRange(nextIdx, nextIdx);
+          }
+          return;
+        }
+      }
+
       const target = e.target as HTMLElement | null;
       const isInput =
         !!target &&
         (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
 
       if (isInput) {
-        if (e.key === 'Escape') {
-          if (activeTextSession) {
-            commitActiveText();
-          }
-        }
         return;
       }
 
@@ -1327,11 +1445,11 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         const lineHeight = fontSize * 1.25;
         const totalHeight = Math.max(lineHeight, lines.length * lineHeight);
         const totalWidth = Math.max(60 * dpr, maxLen * (fontSize * 0.65));
-        const pad = 10 * dpr;
+        const pad = 8 * dpr;
         return {
           minX: item.x1 - pad,
           maxX: item.x1 + totalWidth + pad,
-          minY: item.y1 - pad - 18 * dpr, // Include move header badge area
+          minY: item.y1 - pad,
           maxY: item.y1 + totalHeight + pad,
         };
       }
@@ -1734,8 +1852,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       }
     }
 
-    // IF SELECTED: Draw high-visibility selection bounding box & 8 interactive resize handles
-    if (isSelected) {
+    // IF SELECTED: Draw selection bounding box & resize handles (only in SELECT mode, never when actively editing text)
+    if (isSelected && (!activeTextSession || activeTextSession.id !== item.id) && tool === 'SELECT') {
       const bounds = getItemBoundingBox(item);
       if (bounds) {
         const pad = 6 * dpr;
@@ -1744,43 +1862,23 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
         ctx.save();
         ctx.strokeStyle = '#6366F1'; // Vibrant indigo selection
-        ctx.lineWidth = 2 * dpr;
-        ctx.setLineDash([5 * dpr, 4 * dpr]);
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.setLineDash([4 * dpr, 3 * dpr]);
         ctx.strokeRect(bounds.minX - pad, bounds.minY - pad, selW, selH);
         ctx.setLineDash([]);
 
-        // Subtle glowing backdrop for selected item
-        ctx.fillStyle = 'rgba(99, 102, 241, 0.04)';
-        ctx.fillRect(bounds.minX - pad, bounds.minY - pad, selW, selH);
-
-        // 8 Interactive Resize Handles
-        const handleSize = 9 * dpr;
+        // Interactive Resize Handles
+        const handleSize = 8 * dpr;
         const handles = getHandlePositions(bounds, pad);
         handles.forEach((h) => {
           ctx.fillStyle = '#FFFFFF';
           ctx.strokeStyle = '#4F46E5';
-          ctx.lineWidth = 2 * dpr;
+          ctx.lineWidth = 1.5 * dpr;
           ctx.beginPath();
           ctx.rect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize);
           ctx.fill();
           ctx.stroke();
         });
-
-        // Intuitive Drag-to-Move badge for selected text
-        if (item.tool === 'TEXT') {
-          ctx.save();
-          ctx.fillStyle = '#4F46E5';
-          const badgeText = '✥ Drag to Reposition (Double-Click to Edit)';
-          ctx.font = `bold ${10 * dpr}px 'Inter', -apple-system, BlinkMacSystemFont, sans-serif`;
-          const tw = ctx.measureText(badgeText).width;
-          const badgeX = bounds.minX - pad;
-          const badgeY = bounds.minY - pad - 18 * dpr;
-          ctx.fillRect(badgeX, badgeY, tw + 12 * dpr, 16 * dpr);
-          ctx.fillStyle = '#FFFFFF';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(badgeText, badgeX + 6 * dpr, badgeY + 8 * dpr);
-          ctx.restore();
-        }
         ctx.restore();
       }
     }
@@ -1881,8 +1979,9 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       renderSingleItem(ctx, it, isSelected);
     }
 
-    // 5. Render Active Direct On-Chart Text (Live, zero-box, blinking institutional cursor)
+    // 5. Active Direct On-Chart Text (Live on-canvas typing with zero box)
     if (activeTextSession) {
+      ctx.save();
       const isLightBg =
         innerBgColor.toLowerCase().startsWith('#f') ||
         innerBgColor.toLowerCase() === '#ffffff' ||
@@ -1891,51 +1990,43 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       const textColor =
         activeTextSession.color === '#FFFFFF' && isLightBg ? '#0F172A' : (activeTextSession.color || '#10B981');
 
-      const fontSize = Math.max(14 * dpr, (strokeWidth || 2) * 8 * dpr);
+      const targetStrokeWidth =
+        items.find((i) => i.id === activeTextSession.id)?.strokeWidth || strokeWidth || 2;
+      const fontSize = Math.max(14 * dpr, targetStrokeWidth * 8 * dpr);
       const lineHeight = fontSize * 1.25;
-      ctx.save();
-      ctx.fillStyle = textColor;
+
       ctx.font = `600 ${fontSize}px 'Inter', -apple-system, BlinkMacSystemFont, sans-serif`;
       ctx.textBaseline = 'top';
+      ctx.fillStyle = textColor;
 
-      const lines = (activeTextSession.text || '').split('\n');
+      const fullText = activeTextSession.text || '';
+      const lines = fullText.split('\n');
       lines.forEach((line, idx) => {
         ctx.fillText(line, activeTextSession.canvasX, activeTextSession.canvasY + idx * lineHeight);
       });
 
-      // Blinking Caret '|' on canvas at active text cursor position (supports arrow keys and click positioning)
-      if (cursorVisible && tool === 'TEXT') {
-        const fullText = activeTextSession.text || '';
-        const cIdx = Math.max(
-          0,
-          Math.min(
-            fullText.length,
-            activeTextSession.cursorIndex !== undefined
-              ? activeTextSession.cursorIndex
-              : fullText.length
-          )
-        );
-
+      // Blinking Caret '|' on canvas directly at cursorIndex (between letters, start, or end)
+      if (cursorVisible) {
+        const cIdx = Math.max(0, Math.min(fullText.length, activeTextSession.cursorIndex ?? fullText.length));
         let runningLen = 0;
-        let cursorLineIdx = 0;
-        let cursorColIdx = 0;
+        let lineIdx = 0;
+        let colIdx = 0;
         for (let l = 0; l < lines.length; l++) {
-          const lineLen = lines[l].length;
-          if (cIdx <= runningLen + lineLen) {
-            cursorLineIdx = l;
-            cursorColIdx = cIdx - runningLen;
+          const lLen = lines[l].length;
+          if (cIdx <= runningLen + lLen) {
+            lineIdx = l;
+            colIdx = cIdx - runningLen;
             break;
           }
-          runningLen += lineLen + 1; // +1 for newline '\n'
+          runningLen += lLen + 1;
           if (l === lines.length - 1) {
-            cursorLineIdx = l;
-            cursorColIdx = lineLen;
+            lineIdx = l;
+            colIdx = lLen;
           }
         }
-
-        const textBeforeCursor = (lines[cursorLineIdx] || '').slice(0, cursorColIdx);
+        const textBeforeCursor = (lines[lineIdx] || '').slice(0, colIdx);
         const cursorX = activeTextSession.canvasX + ctx.measureText(textBeforeCursor).width;
-        const cursorY = activeTextSession.canvasY + cursorLineIdx * lineHeight;
+        const cursorY = activeTextSession.canvasY + lineIdx * lineHeight;
 
         ctx.strokeStyle = textColor;
         ctx.lineWidth = Math.max(2, 2 * dpr);
@@ -1946,6 +2037,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       }
       ctx.restore();
     }
+
 
     // 6. Render In-Progress Draft (Smooth 120fps render from draftRef or state)
     const activeDraft = draftRef.current || currentDraft;
@@ -2051,42 +2143,55 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       return;
     }
 
-    // 3. TEXT TOOL: Direct on-chart typing, cursor navigation, and in-place repositioning
-    if (activeTextSession) {
-      const fontSize = Math.max(14 * dpr, (strokeWidth || 2) * 8 * dpr);
+    // 3. TEXT TOOL: Direct on-canvas typing & precision caret editing
+    if (activeTextSessionRef.current) {
+      const activeSession = activeTextSessionRef.current;
+      const targetStrokeWidth =
+        items.find((i) => i.id === activeSession.id)?.strokeWidth || strokeWidth || 2;
+      const fontSize = Math.max(14 * dpr, targetStrokeWidth * 8 * dpr);
       const lineHeight = fontSize * 1.25;
-      const lines = (activeTextSession.text || '').split('\n');
+      const lines = (activeSession.text || '').split('\n');
       const maxLen = Math.max(...lines.map((l) => l.length), 1);
-      const sessionW = Math.max(60, maxLen * fontSize * 0.65 + 40);
-      const sessionH = Math.max(lineHeight, lines.length * lineHeight + 20);
+
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      let maxMeasuredLineWidth = 0;
+      if (ctx) {
+        ctx.save();
+        ctx.font = `600 ${fontSize}px 'Inter', -apple-system, BlinkMacSystemFont, sans-serif`;
+        lines.forEach((l) => {
+          const w = ctx.measureText(l).width;
+          if (w > maxMeasuredLineWidth) maxMeasuredLineWidth = w;
+        });
+        ctx.restore();
+      }
+      const effectiveW = Math.max(80 * dpr, (maxMeasuredLineWidth || maxLen * fontSize * 0.7) + 36 * dpr);
+      const effectiveH = Math.max(lineHeight * 1.5, lines.length * lineHeight + 18 * dpr);
 
       const withinSession =
-        coords.x >= activeTextSession.canvasX - 10 &&
-        coords.x <= activeTextSession.canvasX + sessionW &&
-        coords.y >= activeTextSession.canvasY - 18 * dpr &&
-        coords.y <= activeTextSession.canvasY + sessionH;
+        coords.x >= activeSession.canvasX - 16 * dpr &&
+        coords.x <= activeSession.canvasX + effectiveW &&
+        coords.y >= activeSession.canvasY - 12 * dpr &&
+        coords.y <= activeSession.canvasY + effectiveH;
 
       if (withinSession) {
         const charIdx = getCharIndexFromClick(
-          activeTextSession.text,
+          activeSession.text,
           coords.x,
           coords.y,
-          activeTextSession.canvasX,
-          activeTextSession.canvasY,
+          activeSession.canvasX,
+          activeSession.canvasY,
           fontSize,
           lineHeight,
           dpr
         );
         setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: charIdx } : null));
-        if (activeTextInputRef.current) {
-          activeTextInputRef.current.focus();
-          activeTextInputRef.current.setSelectionRange(charIdx, charIdx);
-        }
-        if (activeTextSession.id) {
-          setSelectedItemId(activeTextSession.id);
-        }
-        setIsDraggingSelected(true);
-        setDragStartCoord({ x: coords.x, y: coords.y });
+        setTimeout(() => {
+          if (activeTextInputRef.current) {
+            activeTextInputRef.current.focus();
+            activeTextInputRef.current.setSelectionRange(charIdx, charIdx);
+          }
+        }, 15);
         return;
       } else {
         commitActiveText();
@@ -2110,8 +2215,6 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         );
 
         setSelectedItemId(textHit.id);
-        setIsDraggingSelected(true);
-        setDragStartCoord({ x: coords.x, y: coords.y });
 
         setActiveTextSession({
           id: textHit.id,
@@ -2127,10 +2230,11 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
             activeTextInputRef.current.focus();
             activeTextInputRef.current.setSelectionRange(charIdx, charIdx);
           }
-        }, 25);
+        }, 20);
         return;
       }
 
+      // User clicked on empty canvas with TEXT tool: start direct live typing with zero box!
       const isLightBg =
         innerBgColor.toLowerCase().startsWith('#f') ||
         innerBgColor.toLowerCase() === '#ffffff' ||
@@ -2151,7 +2255,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           activeTextInputRef.current.focus();
           activeTextInputRef.current.setSelectionRange(0, 0);
         }
-      }, 25);
+      }, 20);
       return;
     }
 
@@ -4100,29 +4204,19 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         )}
 
         {/* ============================================================== */}
-        {/* INTERACTIVE DIRECT ON-CHART TEXT EDITOR (WITH PRECISION CARET) */}
+        {/* DIRECT ON-CANVAS TEXT INPUT (ZERO BOX, NATIVE INLINE TYPING)   */}
         {/* ============================================================== */}
         {activeTextSession && (() => {
-          const isLightBg =
-            innerBgColor.toLowerCase().startsWith('#f') ||
-            innerBgColor.toLowerCase() === '#ffffff' ||
-            outerBgColor.toLowerCase().startsWith('#f') ||
-            outerBgColor.toLowerCase() === '#ffffff';
-          const textColor =
-            activeTextSession.color === '#FFFFFF' && isLightBg ? '#0F172A' : (activeTextSession.color || '#10B981');
-
-          const targetStrokeWidth =
-            items.find((i) => i.id === activeTextSession.id)?.strokeWidth || strokeWidth || 2;
-          const screenFontSize = Math.max(14, targetStrokeWidth * 8) * zoom;
-          const screenLineHeight = screenFontSize * 1.25;
-          const screenX = activeTextSession.canvasX * zoom + panOffset.x;
-          const screenY = activeTextSession.canvasY * zoom + panOffset.y;
+          const dpr = window.devicePixelRatio || 1;
+          // Math-perfect coordinate translation: canvas world units -> CSS screen pixels
+          const screenX = (activeTextSession.canvasX * zoom) / dpr + panOffset.x;
+          const screenY = (activeTextSession.canvasY * zoom) / dpr + panOffset.y;
 
           return (
             <textarea
               ref={activeTextInputRef}
               autoFocus
-              aria-label="Direct on-chart typing"
+              aria-label="Direct on-canvas typing"
               value={activeTextSession.text}
               onChange={(e) => {
                 const val = e.target.value;
@@ -4139,61 +4233,39 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                 const sel = target.selectionStart ?? target.value.length;
                 setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: sel } : null));
               }}
-              onClick={(e) => {
-                e.stopPropagation();
-                const target = e.target as HTMLTextAreaElement;
-                const sel = target.selectionStart ?? target.value.length;
-                setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: sel } : null));
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
-              onBlur={() => {
-                commitActiveText();
-              }}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   e.preventDefault();
                   commitActiveText();
                   return;
                 }
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                   e.preventDefault();
                   commitActiveText();
                   return;
                 }
-                setTimeout(() => {
-                  if (activeTextInputRef.current) {
-                    const sel =
-                      activeTextInputRef.current.selectionStart ?? activeTextInputRef.current.value.length;
-                    setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: sel } : null));
-                  }
-                }, 0);
               }}
               style={{
                 position: 'absolute',
                 left: `${Math.round(screenX)}px`,
                 top: `${Math.round(screenY)}px`,
-                minWidth: '140px',
-                width: 'auto',
-                minHeight: `${Math.round(screenLineHeight * 1.4)}px`,
-                fontSize: `${Math.round(screenFontSize)}px`,
-                lineHeight: 1.25,
-                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-                fontWeight: 600,
-                color: textColor,
-                caretColor: textColor,
-                backgroundColor: isLightBg ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.94)',
-                border: '1.5px dashed #6366f1',
-                borderRadius: '6px',
-                padding: '2px 6px',
-                margin: 0,
+                width: '1px',
+                height: '1px',
+                opacity: 0,
+                pointerEvents: 'none',
+                color: 'transparent',
+                caretColor: 'transparent',
+                backgroundColor: 'transparent',
+                border: 'none',
+                borderRadius: '0px',
+                padding: '0px',
+                margin: '0px',
                 outline: 'none',
-                resize: 'both',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
+                resize: 'none',
+                boxShadow: 'none',
                 zIndex: 60,
-                pointerEvents: 'auto',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
+                whiteSpace: 'pre',
+                overflow: 'hidden',
               }}
             />
           );
@@ -4389,7 +4461,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
               • <strong>Inside &amp; Outside Colors</strong>: Customize outside outline/wicks and inside body fill in the Left Studio Panel.
             </p>
             <p className="text-[11px] text-slate-600">
-              • <strong>Text Tool</strong>: Click anywhere on the canvas to open a live text box with real-time typing.
+              • <strong>Text Tool</strong>: Select Text, then click anywhere on canvas to type directly without any box. Click any text to edit or insert letters anywhere.
             </p>
             <p className="text-[11px] text-slate-600">
               • <strong>Arrow Keys</strong>: Nudge selected candle or shape by 2px (or 10px with Shift).
