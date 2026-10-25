@@ -1,4 +1,4 @@
-import pako from 'pako';
+import * as pako from 'pako';
 import { OFFICIAL_INDICATOR_REGISTRY } from '../data/fundamentalRegistryData';
 
 // ----------------------------------------------------

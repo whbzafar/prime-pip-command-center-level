@@ -6872,7 +6872,9 @@ sentimentService.init();
 
 // Vite middleware / static files (only run when launched standalone, not in Vercel serverless)
 async function startServer() {
-  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+  const distIndexPath = path.resolve(process.cwd(), "dist", "index.html");
+  const hasDist = fs.existsSync(distIndexPath);
+  if (!hasDist && !process.env.VERCEL) {
     try {
       const viteModule = "vite";
       const { createServer: createViteServer } = await import(/* @vite-ignore */ viteModule);
