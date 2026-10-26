@@ -3,146 +3,146 @@
     "BTCUSDT": {
       "symbol": "BTCUSDT",
       "assetClass": "CRYPTO",
-      "longPct": 67.5,
-      "shortPct": 32.5,
+      "longPct": 69.6,
+      "shortPct": 30.4,
       "source": "Binance Futures",
       "traderGroup": "Binance crypto-futures traders",
       "sourceUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT&period=5m&limit=1",
-      "fetchedAt": 1792772691248,
+      "fetchedAt": 1792992769044,
       "rawPayload": {
         "symbol": "BTCUSDT",
-        "longAccount": "0.6750",
-        "longShortRatio": "2.0769",
-        "shortAccount": "0.3250",
-        "timestamp": 1792772400000
+        "longAccount": "0.6956",
+        "longShortRatio": "2.2852",
+        "shortAccount": "0.3044",
+        "timestamp": 1792992600000
       },
-      "timestamp": 1792772400000
+      "timestamp": 1792992600000
     },
     "ETHUSDT": {
       "symbol": "ETHUSDT",
       "assetClass": "CRYPTO",
-      "longPct": 76.4,
-      "shortPct": 23.6,
+      "longPct": 77.4,
+      "shortPct": 22.6,
       "source": "Binance Futures",
       "traderGroup": "Binance crypto-futures traders",
       "sourceUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=ETHUSDT&period=5m&limit=1",
-      "fetchedAt": 1792772691332,
+      "fetchedAt": 1792992769124,
       "rawPayload": {
         "symbol": "ETHUSDT",
-        "longAccount": "0.7636",
-        "longShortRatio": "3.2301",
-        "shortAccount": "0.2364",
-        "timestamp": 1792772400000
+        "longAccount": "0.7745",
+        "longShortRatio": "3.4346",
+        "shortAccount": "0.2255",
+        "timestamp": 1792992600000
       },
-      "timestamp": 1792772400000
+      "timestamp": 1792992600000
     },
     "SOLUSDT": {
       "symbol": "SOLUSDT",
       "assetClass": "CRYPTO",
-      "longPct": 73.6,
-      "shortPct": 26.4,
+      "longPct": 74.5,
+      "shortPct": 25.5,
       "source": "Binance Futures",
       "traderGroup": "Binance crypto-futures traders",
       "sourceUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=SOLUSDT&period=5m&limit=1",
-      "fetchedAt": 1792772691416,
+      "fetchedAt": 1792992769210,
       "rawPayload": {
         "symbol": "SOLUSDT",
-        "longAccount": "0.7356",
-        "longShortRatio": "2.7821",
-        "shortAccount": "0.2644",
-        "timestamp": 1792772400000
+        "longAccount": "0.7454",
+        "longShortRatio": "2.9277",
+        "shortAccount": "0.2546",
+        "timestamp": 1792992300000
       },
-      "timestamp": 1792772400000
+      "timestamp": 1792992300000
     },
     "XRPUSDT": {
       "symbol": "XRPUSDT",
       "assetClass": "CRYPTO",
-      "longPct": 72.7,
-      "shortPct": 27.3,
+      "longPct": 75.1,
+      "shortPct": 24.9,
       "source": "Binance Futures",
       "traderGroup": "Binance crypto-futures traders",
       "sourceUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=XRPUSDT&period=5m&limit=1",
-      "fetchedAt": 1792772691501,
+      "fetchedAt": 1792992769308,
       "rawPayload": {
         "symbol": "XRPUSDT",
-        "longAccount": "0.7272",
-        "longShortRatio": "2.6657",
-        "shortAccount": "0.2728",
-        "timestamp": 1792772400000
+        "longAccount": "0.7507",
+        "longShortRatio": "3.0112",
+        "shortAccount": "0.2493",
+        "timestamp": 1792992600000
       },
-      "timestamp": 1792772400000
+      "timestamp": 1792992600000
     },
     "BNBUSDT": {
       "symbol": "BNBUSDT",
       "assetClass": "CRYPTO",
-      "longPct": 70.3,
-      "shortPct": 29.7,
+      "longPct": 70.4,
+      "shortPct": 29.6,
       "source": "Binance Futures",
       "traderGroup": "Binance crypto-futures traders",
       "sourceUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BNBUSDT&period=5m&limit=1",
-      "fetchedAt": 1792772691584,
+      "fetchedAt": 1792992769401,
       "rawPayload": {
         "symbol": "BNBUSDT",
-        "longAccount": "0.7029",
-        "longShortRatio": "2.3659",
-        "shortAccount": "0.2971",
-        "timestamp": 1792772400000
+        "longAccount": "0.7036",
+        "longShortRatio": "2.3738",
+        "shortAccount": "0.2964",
+        "timestamp": 1792992600000
       },
-      "timestamp": 1792772400000
+      "timestamp": 1792992600000
     },
     "DOGEUSDT": {
       "symbol": "DOGEUSDT",
       "assetClass": "CRYPTO",
-      "longPct": 72.7,
-      "shortPct": 27.3,
+      "longPct": 71.7,
+      "shortPct": 28.3,
       "source": "Binance Futures",
       "traderGroup": "Binance crypto-futures traders",
       "sourceUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=DOGEUSDT&period=5m&limit=1",
-      "fetchedAt": 1792772691664,
+      "fetchedAt": 1792992769491,
       "rawPayload": {
         "symbol": "DOGEUSDT",
-        "longAccount": "0.7275",
-        "longShortRatio": "2.6697",
-        "shortAccount": "0.2725",
-        "timestamp": 1792772400000
+        "longAccount": "0.7172",
+        "longShortRatio": "2.5361",
+        "shortAccount": "0.2828",
+        "timestamp": 1792992600000
       },
-      "timestamp": 1792772400000
+      "timestamp": 1792992600000
     },
     "ADAUSDT": {
       "symbol": "ADAUSDT",
       "assetClass": "CRYPTO",
-      "longPct": 64.1,
-      "shortPct": 35.9,
+      "longPct": 64.5,
+      "shortPct": 35.5,
       "source": "Binance Futures",
       "traderGroup": "Binance crypto-futures traders",
       "sourceUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=ADAUSDT&period=5m&limit=1",
-      "fetchedAt": 1792772691746,
+      "fetchedAt": 1792992769578,
       "rawPayload": {
         "symbol": "ADAUSDT",
-        "longAccount": "0.6406",
-        "longShortRatio": "1.7824",
-        "shortAccount": "0.3594",
-        "timestamp": 1792772400000
+        "longAccount": "0.6447",
+        "longShortRatio": "1.8145",
+        "shortAccount": "0.3553",
+        "timestamp": 1792992600000
       },
-      "timestamp": 1792772400000
+      "timestamp": 1792992600000
     },
     "LINKUSDT": {
       "symbol": "LINKUSDT",
       "assetClass": "CRYPTO",
-      "longPct": 62.6,
-      "shortPct": 37.4,
+      "longPct": 61.1,
+      "shortPct": 38.9,
       "source": "Binance Futures",
       "traderGroup": "Binance crypto-futures traders",
       "sourceUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=LINKUSDT&period=5m&limit=1",
-      "fetchedAt": 1792772691833,
+      "fetchedAt": 1792992769664,
       "rawPayload": {
         "symbol": "LINKUSDT",
-        "longAccount": "0.6265",
-        "longShortRatio": "1.6774",
-        "shortAccount": "0.3735",
-        "timestamp": 1792772400000
+        "longAccount": "0.6108",
+        "longShortRatio": "1.5694",
+        "shortAccount": "0.3892",
+        "timestamp": 1792992600000
       },
-      "timestamp": 1792772400000
+      "timestamp": 1792992600000
     },
     "USOIL": {
       "symbol": "USOIL",
@@ -5073,7 +5073,412 @@
       "source": "Binance Futures",
       "traderGroup": "Binance crypto-futures traders",
       "timestamp": 1792772400000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 69.5,
+      "shortPct": 30.5,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 77.3,
+      "shortPct": 22.7,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 74.6,
+      "shortPct": 25.4,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 75.1,
+      "shortPct": 24.9,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.4,
+      "shortPct": 29.6,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.4,
+      "shortPct": 35.6,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.1,
+      "shortPct": 38.9,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 69.5,
+      "shortPct": 30.5,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 77.2,
+      "shortPct": 22.8,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 74.6,
+      "shortPct": 25.4,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 75.1,
+      "shortPct": 24.9,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.4,
+      "shortPct": 29.6,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.4,
+      "shortPct": 35.6,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.1,
+      "shortPct": 38.9,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 69.5,
+      "shortPct": 30.5,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 74.6,
+      "shortPct": 25.4,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 75.1,
+      "shortPct": 24.9,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.4,
+      "shortPct": 29.6,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.8,
+      "shortPct": 28.2,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.4,
+      "shortPct": 35.6,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.1,
+      "shortPct": 38.9,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992000000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 74.5,
+      "shortPct": 25.5,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.7,
+      "shortPct": 28.3,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.1,
+      "shortPct": 38.9,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 69.5,
+      "shortPct": 30.5,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 77.2,
+      "shortPct": 22.8,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 74.5,
+      "shortPct": 25.5,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 75.1,
+      "shortPct": 24.9,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.4,
+      "shortPct": 29.6,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 71.7,
+      "shortPct": 28.3,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992600000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.4,
+      "shortPct": 35.6,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "LINKUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 61.1,
+      "shortPct": 38.9,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992600000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 69.5,
+      "shortPct": 30.5,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "ETHUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 77.4,
+      "shortPct": 22.6,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992600000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 74.5,
+      "shortPct": 25.5,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 75.1,
+      "shortPct": 24.9,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.4,
+      "shortPct": 29.6,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.4,
+      "shortPct": 35.6,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "BTCUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 69.6,
+      "shortPct": 30.4,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992600000
+    },
+    {
+      "symbol": "SOLUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 74.5,
+      "shortPct": 25.5,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992300000
+    },
+    {
+      "symbol": "XRPUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 75.1,
+      "shortPct": 24.9,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992600000
+    },
+    {
+      "symbol": "BNBUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 70.4,
+      "shortPct": 29.6,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992600000
+    },
+    {
+      "symbol": "ADAUSDT",
+      "assetClass": "CRYPTO",
+      "longPct": 64.5,
+      "shortPct": 35.5,
+      "source": "Binance Futures",
+      "traderGroup": "Binance crypto-futures traders",
+      "timestamp": 1792992600000
     }
   ],
-  "lastUpdated": 1792772691833
+  "lastUpdated": 1792992769665
 }

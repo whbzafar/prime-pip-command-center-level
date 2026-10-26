@@ -327,6 +327,13 @@ export interface Trade {
   tradeTimeVerified?: boolean;
   visibleRiskRewardRatio?: number | null;
   screenshotImportMeta?: ScreenshotImportMetadata;
+
+  // Funded Account Execution & Verification Fields
+  isPlannedTrade?: boolean;
+  tradePhase?: string;
+  tradingCosts?: number;
+  executionSource?: 'MANUAL' | 'IMPORTED' | 'BROKER_API' | 'PLANNED';
+  verificationStatus?: 'VERIFIED' | 'USER_ENTERED' | 'UNVERIFIED';
 }
 
 export type ExtractionConfidenceLevel = 'HIGH' | 'UNCERTAIN' | 'MISSING';
@@ -624,8 +631,26 @@ export type AccountKind = 'DEMO' | 'PERSONAL' | 'FUNDED' | 'CENT';
 
 export type RiskDecisionState = 'TAKE' | 'REDUCE' | 'STOP' | 'REVIEW';
 
+export type PreTradeRiskOutcome =
+  | 'ALLOWED'
+  | 'WARNING'
+  | 'BLOCKED_BY_CONFIGURED_RULE'
+  | 'UNABLE_TO_VERIFY';
+
+export type PassTrackerStatus =
+  | 'IN_PROGRESS'
+  | 'ON_TRACK'
+  | 'ATTENTION_REQUIRED'
+  | 'REQUIREMENTS_APPARENTLY_MET'
+  | 'AWAITING_PROVIDER_CONFIRMATION'
+  | 'COMPLETED'
+  | 'BREACHED'
+  | 'NEEDS_VERIFICATION';
+
 export interface DeterministicRiskAssessment {
   decisionState: RiskDecisionState;
+  preTradeOutcome?: PreTradeRiskOutcome;
+  preTradeOutcomeLabel?: string;
   maxPermissiblePlannedLoss: number;
   recommendedRiskBudget: number;
   proposedRisk: number;

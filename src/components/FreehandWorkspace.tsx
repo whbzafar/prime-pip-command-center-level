@@ -283,6 +283,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const universalFileInputRef = useRef<HTMLInputElement | null>(null);
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
 
   const handleNavigate = (tabName: string) => {
@@ -980,6 +981,100 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     }
   };
 
+  // Direct 1-Click Universal Upload from PC (Supports PNG, JPG, WEBP, SVG, GIF, BMP, PDF charts, CorelDRAW, and JSON drawing workspaces)
+  const handleUniversalUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const fileNameLower = file.name.toLowerCase();
+
+      // 1. JSON Canvas Workspace / Drawing file
+      if (fileNameLower.endsWith('.json') || file.type.includes('json')) {
+        const text = await file.text();
+        try {
+          const parsed = JSON.parse(text);
+          if (Array.isArray(parsed)) {
+            pushHistory();
+            setItems(parsed);
+            setSaveToast('Canvas drawing loaded directly from PC!');
+            setTimeout(() => setSaveToast(null), 2500);
+            return;
+          }
+        } catch (jsonErr) {
+          console.warn('File has .json extension but could not be parsed as array:', jsonErr);
+        }
+      }
+
+      // 2. CorelDRAW (.CDR) files
+      if (
+        fileNameLower.endsWith('.cdr') ||
+        file.type.includes('cdr') ||
+        file.type.includes('coreldraw')
+      ) {
+        const cdrResult = await parseCorelDrawFile(file);
+        if (cdrResult) {
+          placeImageOnCanvas(cdrResult.dataUrl, cdrResult.width, cdrResult.height);
+          setSaveToast('CorelDRAW file imported from PC!');
+          setTimeout(() => setSaveToast(null), 3000);
+          return;
+        } else {
+          alert('Could not extract graphics from this CorelDRAW file. If using another version, export as PDF, SVG, or PNG.');
+          return;
+        }
+      }
+
+      // 3. PDF Chart files
+      if (file.type === 'application/pdf' || fileNameLower.endsWith('.pdf')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdfjs = await import('pdfjs-dist/build/pdf.mjs');
+        if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+          pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version || '4.10.38'}/build/pdf.worker.min.mjs`;
+        }
+        const loadingTask = pdfjs.getDocument({ data: new Uint8Array(arrayBuffer) });
+        const pdfDoc = await loadingTask.promise;
+        const page = await pdfDoc.getPage(1);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = viewport.width;
+        offCanvas.height = viewport.height;
+        const offCtx = offCanvas.getContext('2d');
+        if (offCtx) {
+          await page.render({ canvasContext: offCtx, viewport }).promise;
+          const dataUrl = offCanvas.toDataURL('image/png');
+          placeImageOnCanvas(dataUrl, viewport.width, viewport.height);
+          setSaveToast('PDF chart loaded directly from PC!');
+          setTimeout(() => setSaveToast(null), 2500);
+        }
+        return;
+      }
+
+      // 4. Any Image files (PNG, JPG, JPEG, WEBP, SVG, GIF, BMP, etc.)
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        if (!dataUrl) return;
+        const tempImg = new Image();
+        tempImg.onload = () => {
+          placeImageOnCanvas(dataUrl, tempImg.naturalWidth, tempImg.naturalHeight);
+          setSaveToast('File imported directly from PC!');
+          setTimeout(() => setSaveToast(null), 2500);
+        };
+        tempImg.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Failed to load file directly from PC:', err);
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  // Immediate 1-click trigger: opens the native PC file dialog immediately with zero extra steps
+  const triggerDirectFileUpload = () => {
+    universalFileInputRef.current?.click();
+  };
+
   // Tool Selection handler: sets tool cleanly with zero unexpected popup boxes
   const handleToolSelect = useCallback(
     (nextTool: Tool) => {
@@ -1153,6 +1248,13 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       if (e.key === 'F3') {
         e.preventDefault();
         handleToolSelect('PEN');
+        return;
+      }
+
+      // E: Eraser tool
+      if ((e.key.toLowerCase() === 'e' || e.code === 'KeyE') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        handleToolSelect('ERASER');
         return;
       }
 
@@ -2981,15 +3083,15 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
               <Menu className="w-5 h-5 text-slate-700" />
             </button>
 
-            {/* Dedicated Upload Image Button (Always Visible in Fullscreen & Standard Mode) */}
+            {/* Dedicated Direct Upload Button (Direct 1-click PC file selector) */}
             <button
               type="button"
-              onClick={() => imageUploadInputRef.current?.click()}
-              title="Upload Image or PDF Chart (PNG, JPG, WEBP, PDF)"
+              onClick={triggerDirectFileUpload}
+              title="Upload File directly from PC (PNG, JPG, PDF, CorelDRAW, or JSON Drawing)"
               className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 shadow-md shadow-indigo-600/25 flex items-center gap-1.5 transition active:scale-95 cursor-pointer backdrop-blur-md text-xs font-bold shrink-0"
             >
-              <ImageIcon className="w-4 h-4 text-white" />
-              <span className="whitespace-nowrap">Upload Image</span>
+              <Upload className="w-4 h-4 text-white" />
+              <span className="whitespace-nowrap">Upload</span>
             </button>
 
             {/* Quick Show Tools Button when toolbar is hidden */}
@@ -3107,13 +3209,13 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                 </button>
                 <button
                   onClick={() => {
-                    imageUploadInputRef.current?.click();
+                    triggerDirectFileUpload();
                     setIsHamburgerOpen(false);
                   }}
                   className="w-full px-3 py-2 text-left rounded-xl hover:bg-indigo-50 text-indigo-700 font-bold flex items-center gap-2.5 transition cursor-pointer"
                 >
-                  <ImageIcon className="w-4 h-4 text-indigo-600" />
-                  <span>Upload Image or PDF Chart</span>
+                  <Upload className="w-4 h-4 text-indigo-600" />
+                  <span>Upload File from PC (Image, PDF, Drawing)</span>
                 </button>
                 <a
                   href="https://www.tradingview.com/pricing/"
@@ -3192,9 +3294,11 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
             )}
           </div>
 
-          {/* Top-Center Floating Pill Toolbar (Exact Requested Order: Pencil, Text, Rectangle, Candles [Green & Red], Select, Hand, Eraser) */}
+          {/* Top-Center Floating Pill Toolbar (Exact Order: Pencil, Eraser, Text, Rectangle, Candles [Green & Red], Select, Hand, Delete All) */}
           {isToolbarVisible && (
-            <div className="pointer-events-auto bg-white/95 dark:bg-slate-900/95 text-slate-700 dark:text-slate-200 border border-slate-200/90 dark:border-slate-800 shadow-xl shadow-black/10 rounded-2xl p-1 flex items-center gap-0.5 backdrop-blur-md shrink-0">
+            <div className={`pointer-events-auto bg-white/95 dark:bg-slate-900/95 text-slate-700 dark:text-slate-200 border border-slate-200/90 dark:border-slate-800 shadow-xl shadow-black/10 rounded-2xl p-1 flex items-center gap-0.5 backdrop-blur-md shrink-0 max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden transition-transform duration-150 ${
+              isFullscreen ? 'scale-[0.92] sm:scale-95 origin-top' : ''
+            }`}>
               {/* 1. Pencil (F3) */}
               <button
                 type="button"
@@ -3209,6 +3313,22 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                 <Pen className="w-3.5 h-3.5" />
                 <span className="text-[11px] font-bold">Pencil</span>
                 <span className="text-[9px] px-1 py-0.2 rounded bg-black/10 dark:bg-white/10 font-mono">F3</span>
+              </button>
+
+              {/* 2. Eraser (E) - Shifted to the side next to Pencil so it stays clearly visible in full-screen and standard views */}
+              <button
+                type="button"
+                onClick={() => handleToolSelect('ERASER')}
+                title="Eraser (E) - Click or drag across objects to erase"
+                className={`px-2 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
+                  tool === 'ERASER'
+                    ? 'bg-rose-500 text-white shadow-xs font-bold ring-2 ring-rose-400 dark:ring-rose-300'
+                    : 'bg-rose-50/70 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200/90 dark:border-rose-900/60 font-semibold'
+                }`}
+              >
+                <Eraser className="w-3.5 h-3.5 text-rose-500 dark:text-rose-300" />
+                <span className="text-[11px] font-bold">Eraser</span>
+                <span className="text-[9px] px-1 py-0.2 rounded bg-black/10 dark:bg-white/10 font-mono">E</span>
               </button>
 
               {/* 2. Text Tool */}
@@ -3338,22 +3458,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                 <span className="text-[9px] px-1 py-0.2 rounded bg-black/10 dark:bg-white/10 font-mono">Space</span>
               </button>
 
-              {/* 8. Eraser */}
-              <button
-                type="button"
-                onClick={() => handleToolSelect('ERASER')}
-                title="Eraser - Click or drag to erase"
-                className={`px-2 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
-                  tool === 'ERASER'
-                    ? 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 shadow-xs font-bold ring-1.5 ring-rose-400'
-                    : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold'
-                }`}
-              >
-                <Eraser className="w-3.5 h-3.5 text-rose-500" />
-                <span className="text-[11px] font-bold">Eraser</span>
-              </button>
-
-              {/* 9. Delete All / Clear Canvas */}
+              {/* 8. Delete All / Clear Canvas */}
               <button
                 type="button"
                 onClick={() => {
@@ -3569,11 +3674,11 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                 <ExternalLink className="w-3 h-3 text-sky-200" />
               </a>
 
-              {/* Upload Dropdown */}
+              {/* Direct 1-Click Upload directly from PC */}
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                title="Upload Saved Drawing JSON"
+                onClick={triggerDirectFileUpload}
+                title="Upload File directly from PC (PNG, JPG, PDF, CorelDRAW, or JSON Drawing)"
                 className="px-2 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
               >
                 <Upload className="w-3.5 h-3.5 text-emerald-600" />
@@ -3661,29 +3766,18 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
               )}
             </button>
 
-            {/* Fullscreen / Minimize Toggle Button */}
-            <button
-              type="button"
-              onClick={toggleFullscreen}
-              title={isFullscreen ? 'Minimize / Exit Full Screen (Esc)' : 'Enter Full Screen'}
-              className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition active:scale-95 cursor-pointer backdrop-blur-md ${
-                isFullscreen
-                  ? 'bg-rose-50 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 hover:bg-rose-100'
-                  : 'bg-white/95 text-slate-800 border border-slate-200/90 hover:bg-slate-50'
-              }`}
-            >
-              {isFullscreen ? (
-                <>
-                  <Minimize2 className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                  <span className="font-bold text-rose-700 dark:text-rose-300">Minimize</span>
-                </>
-              ) : (
-                <>
-                  <Maximize2 className="w-4 h-4 text-indigo-600" />
-                  <span className="hidden sm:inline">Full Screen</span>
-                </>
-              )}
-            </button>
+            {/* Fullscreen Toggle Button (Only shown in standard mode; fullscreen has dedicated top-right control) */}
+            {!isFullscreen && (
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                title="Enter Full Screen View"
+                className="px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition active:scale-95 cursor-pointer backdrop-blur-md bg-white/95 text-slate-800 border border-slate-200/90 hover:bg-slate-50"
+              >
+                <Maximize2 className="w-4 h-4 text-indigo-600" />
+                <span className="hidden sm:inline">Full Screen</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -4588,6 +4682,15 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           accept="image/*,application/pdf,.pdf,.cdr,application/vnd.corel-draw,application/coreldraw,application/x-cdr"
           className="hidden"
         />
+
+        {/* Hidden Universal Direct Upload Input (Accepts Images, PDFs, CorelDRAW, and JSON Drawings) */}
+        <input
+          type="file"
+          ref={universalFileInputRef}
+          onChange={handleUniversalUpload}
+          accept="image/*,application/pdf,.pdf,.json,application/json,.cdr,application/vnd.corel-draw,application/coreldraw,application/x-cdr"
+          className="hidden"
+        />
         {/* Quick Save Toast Notification */}
         {saveToast && (
           <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-xl animate-in fade-in zoom-in-95 duration-150 flex items-center gap-2">
@@ -4632,6 +4735,19 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           >
             <Pen className="w-3.5 h-3.5 text-indigo-400" />
             <span>Pencil (F3)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToolSelect('ERASER')}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+              tool === 'ERASER'
+                ? 'bg-rose-600 text-white border-rose-500 shadow-sm ring-1 ring-rose-400'
+                : 'bg-rose-950/40 text-rose-300 border-rose-900/60 hover:bg-rose-900/50'
+            }`}
+            title="Eraser (E) - Click or drag to erase"
+          >
+            <Eraser className="w-3.5 h-3.5 text-rose-400" />
+            <span>Eraser (E)</span>
           </button>
           <button
             type="button"
