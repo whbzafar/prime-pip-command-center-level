@@ -47,6 +47,7 @@ import {
   Lock,
   Lightbulb,
   Code2,
+  Eraser,
 } from 'lucide-react';
 import { hasFullAccess, isUserAdmin, getStoredUser } from '../utils/authClient';
 import { Trade, UserAccount, AccountSettings, PineScriptIndicator } from '../types';
@@ -3822,6 +3823,22 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 )}
               </button>
 
+              {/* CLEAR INDICATORS / PURE PRICE ACTION BUTTON */}
+              {activePineIndicators.length > 0 && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await pineScriptService.clearAllIndicators();
+                    setActivePineIndicators([]);
+                  }}
+                  className="p-1.5 rounded-xl border border-rose-800/60 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 hover:text-white transition cursor-pointer flex items-center gap-1 text-xs font-mono-code font-bold"
+                  title="Remove all indicators from chart to show pure candlestick price action"
+                >
+                  <Eraser className="w-4 h-4 text-rose-400" />
+                  <span className="hidden sm:inline">Clear Chart</span>
+                </button>
+              )}
+
               {/* PINE EDITOR DOCK TOGGLE BUTTON */}
               <button
                 type="button"
@@ -3910,13 +3927,27 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               </div>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={() => setShowIndicatorsModal(true)}
-            className="text-[10px] text-cyan-400 hover:text-cyan-300 font-bold ml-auto shrink-0 cursor-pointer pl-2 flex items-center gap-1"
-          >
-            <span>+ Manage Indicators</span>
-          </button>
+          <div className="flex items-center gap-2 ml-auto shrink-0 pl-2">
+            <button
+              type="button"
+              onClick={async () => {
+                await pineScriptService.clearAllIndicators();
+                setActivePineIndicators([]);
+              }}
+              className="text-[10px] text-rose-400 hover:text-rose-300 font-bold cursor-pointer flex items-center gap-1 bg-rose-950/40 hover:bg-rose-900/50 px-2 py-0.5 rounded border border-rose-900/50 transition"
+              title="Remove all indicators and view clean price action only"
+            >
+              <Eraser className="w-3 h-3 text-rose-400" />
+              <span>Clear All</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowIndicatorsModal(true)}
+              className="text-[10px] text-cyan-400 hover:text-cyan-300 font-bold cursor-pointer flex items-center gap-1"
+            >
+              <span>+ Manage Indicators</span>
+            </button>
+          </div>
         </div>
       )}
 

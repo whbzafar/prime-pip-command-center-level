@@ -523,6 +523,13 @@ export interface FundedAccountConfig {
   minimumTradingDays?: number;
   consistencyRule?: string;
   dailyResetTime?: string; // Timezone or reset hour (e.g. "PKT / 00:00")
+  dailyResetTimezone?: string; // e.g. "UTC", "America/New_York", "Asia/Karachi"
+  evaluationModel?: 'ONE_STEP' | 'TWO_STEP' | 'INSTANT_FUNDED' | 'CUSTOM';
+  dailyLossBasis?: 'BALANCE_BASED' | 'EQUITY_BASED' | 'CUSTOM';
+  maxLots?: number;
+  maxOpenRiskPercent?: number;
+  overnightHoldingRestriction?: boolean;
+  ruleVerificationStatus?: 'VERIFIED' | 'USER_ENTERED' | 'UNVERIFIED';
   rulesProfileName?: string;
   todayStartingBalanceOverride?: number | null;
   todayStartingEquityOverride?: number | null;
@@ -713,6 +720,25 @@ export interface PostTradeImpactSummary {
   isApproachingLimit: boolean;
   isBreached: boolean;
   isManuallyReported: boolean;
+  tradeStatusLabel?: string;
+  whatWentWell?: string;
+  accountImpactText?: string;
+  whatNeedsAttention?: string;
+  recommendedNextStepText?: string;
+  eightPointAudit?: {
+    isWithinRiskLimits: boolean;
+    isCompliantWithRules: boolean;
+    balanceChange: number;
+    equityChange: number;
+    remainingDailyLoss: number;
+    remainingOverallLoss: number;
+    remainingProfitTarget: number;
+    tradingDaysCompleted: number;
+    tradingDaysRequired: number;
+    areTradingDaysSatisfied: boolean;
+    complianceIssues: string[];
+    whatToDoNext: string;
+  };
 }
 
 export interface AccountSettings {

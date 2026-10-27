@@ -33,10 +33,24 @@ import {
   SlidersHorizontal,
   Flame,
   HelpCircle,
+  Download,
+  Upload,
+  AlignLeft,
+  Edit2,
+  Eye,
+  EyeOff,
+  Eraser,
+  ListFilter,
+  CheckSquare,
 } from 'lucide-react';
-import { PineScriptIndicator, PineIndicatorCategory, PineIndicatorSignal } from '../../types';
+import { PineScriptIndicator, PineIndicatorCategory } from '../../types';
 import { pineScriptService } from '../../services/pineScriptService';
-import { PineScriptEngine, CandleBar, PineCompilationResult } from '../../services/pineScriptEngine';
+import {
+  PineScriptEngine,
+  CandleBar,
+  PineCompilationResult,
+  PineSyntaxDiagnostic,
+} from '../../services/pineScriptEngine';
 import { getStoredUser } from '../../utils/authClient';
 import { MARKET_STRUCTURE_PINE_CODE } from '../../data/marketStructurePineScript';
 
@@ -51,61 +65,238 @@ export interface PineEditorDockProps {
 }
 
 // ============================================================================
-// ALL SUPPORTED TRADING PAIRS & ASSETS (Forex, Metals, Crypto, Indices)
+// AUTOCOMPLETE KEYWORDS & SIGNATURES (Pine Script v5 / v6)
 // ============================================================================
-export interface AssetPair {
-  symbol: string;
-  name: string;
-  category: 'FOREX_MAJOR' | 'FOREX_CROSS' | 'METALS' | 'CRYPTO' | 'INDICES';
-  description: string;
+interface PineAutocompleteItem {
+  label: string;
+  insertText: string;
+  detail: string;
+  kind: 'function' | 'variable' | 'keyword' | 'constant';
+  doc: string;
 }
 
-export const ALL_TRADING_PAIRS: AssetPair[] = [
-  // Forex Majors
-  { symbol: 'EURUSD', name: 'Euro / US Dollar', category: 'FOREX_MAJOR', description: 'Highest volume FX major pair' },
-  { symbol: 'GBPUSD', name: 'British Pound / US Dollar', category: 'FOREX_MAJOR', description: 'London-New York volatility major' },
-  { symbol: 'USDJPY', name: 'US Dollar / Japanese Yen', category: 'FOREX_MAJOR', description: 'Institutional carry-trade pair' },
-  { symbol: 'AUDUSD', name: 'Australian Dollar / US Dollar', category: 'FOREX_MAJOR', description: 'Commodity & Asia-Pacific bellwether' },
-  { symbol: 'USDCAD', name: 'US Dollar / Canadian Dollar', category: 'FOREX_MAJOR', description: 'Crude oil correlation currency' },
-  { symbol: 'USDCHF', name: 'US Dollar / Swiss Franc', category: 'FOREX_MAJOR', description: 'European safe-haven currency' },
-  { symbol: 'NZDUSD', name: 'New Zealand Dollar / US Dollar', category: 'FOREX_MAJOR', description: 'Dairy & Asia-Pacific commodity major' },
-  // Forex Crosses
-  { symbol: 'EURGBP', name: 'Euro / British Pound', category: 'FOREX_CROSS', description: 'European regional cross' },
-  { symbol: 'EURJPY', name: 'Euro / Japanese Yen', category: 'FOREX_CROSS', description: 'High momentum trending cross' },
-  { symbol: 'GBPJPY', name: 'British Pound / Japanese Yen', category: 'FOREX_CROSS', description: 'The Dragon - high ATR intraday cross' },
-  { symbol: 'AUDJPY', name: 'Australian Dollar / Japanese Yen', category: 'FOREX_CROSS', description: 'Global risk-on / risk-off barometer' },
-  { symbol: 'CADJPY', name: 'Canadian Dollar / Japanese Yen', category: 'FOREX_CROSS', description: 'Energy & oil macro play' },
-  { symbol: 'EURAUD', name: 'Euro / Australian Dollar', category: 'FOREX_CROSS', description: 'High-beta counter-cyclical cross' },
-  { symbol: 'GBPCHF', name: 'British Pound / Swiss Franc', category: 'FOREX_CROSS', description: 'Cross-channel liquidity pair' },
-  // Metals & Commodities
-  { symbol: 'XAUUSD', name: 'Gold / US Dollar', category: 'METALS', description: 'Global institutional store of value' },
-  { symbol: 'XAGUSD', name: 'Silver / US Dollar', category: 'METALS', description: 'High-beta precious & industrial metal' },
-  { symbol: 'USOIL', name: 'WTI Crude Oil', category: 'METALS', description: 'Global energy benchmark' },
-  // Crypto Assets
-  { symbol: 'BTCUSDT', name: 'Bitcoin / Tether USD', category: 'CRYPTO', description: 'Global digital monetary asset' },
-  { symbol: 'ETHUSDT', name: 'Ethereum / Tether USD', category: 'CRYPTO', description: 'Smart contract liquidity network' },
-  { symbol: 'SOLUSDT', name: 'Solana / Tether USD', category: 'CRYPTO', description: 'High throughput crypto ecosystem' },
-  { symbol: 'XRPUSDT', name: 'XRP / Tether USD', category: 'CRYPTO', description: 'Cross-border liquidity token' },
-  // Major Indices
-  { symbol: 'US30', name: 'Dow Jones Industrial Average 30', category: 'INDICES', description: 'Wall Street blue-chip index' },
-  { symbol: 'NAS100', name: 'Nasdaq 100 E-mini', category: 'INDICES', description: 'Mega-cap technology index' },
-  { symbol: 'SPX500', name: 'S&P 500 Index', category: 'INDICES', description: 'US equities institutional benchmark' },
-  { symbol: 'GER40', name: 'Germany DAX 40', category: 'INDICES', description: 'European industrial manufacturing index' },
-];
-
-export const POPULAR_CHIPS = ['XAGUSD', 'XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'BTCUSDT', 'US30', 'NAS100'];
-
-export const TIMEFRAME_OPTIONS = [
-  { id: '1', label: '1m', name: '1 Minute (Scalping)' },
-  { id: '3', label: '3m', name: '3 Minutes (Scalping)' },
-  { id: '5', label: '5m', name: '5 Minutes (Intraday)' },
-  { id: '15', label: '15m', name: '15 Minutes (Execution)' },
-  { id: '30', label: '30m', name: '30 Minutes (Structure)' },
-  { id: '60', label: '1h', name: '1 Hour (Intermediate)' },
-  { id: '120', label: '2h', name: '2 Hours (Swing)' },
-  { id: '240', label: '4h', name: '4 Hours (Trend Bias)' },
-  { id: 'D', label: '1D', name: 'Daily (Session Trend)' },
-  { id: 'W', label: '1W', name: 'Weekly (Macro Horizon)' },
+const PINE_AUTOCOMPLETE_ITEMS: PineAutocompleteItem[] = [
+  // Declarations
+  {
+    label: 'indicator',
+    insertText: 'indicator("${1:My Indicator}", overlay=true)\n',
+    detail: 'indicator(title, shorttitle, overlay, ...)',
+    kind: 'function',
+    doc: 'Declares a custom Pine Script indicator with title and overlay setting.',
+  },
+  {
+    label: 'strategy',
+    insertText: 'strategy("${1:My Strategy}", overlay=true, initial_capital=100000)\n',
+    detail: 'strategy(title, shorttitle, overlay, initial_capital, ...)',
+    kind: 'function',
+    doc: 'Declares a quantitative backtesting strategy with simulated execution.',
+  },
+  // Technical Analysis (ta.*)
+  {
+    label: 'ta.sma',
+    insertText: 'ta.sma(${1:close}, ${2:20})',
+    detail: 'ta.sma(source, length) -> series float',
+    kind: 'function',
+    doc: 'Calculates the Simple Moving Average of a source series over length bars.',
+  },
+  {
+    label: 'ta.ema',
+    insertText: 'ta.ema(${1:close}, ${2:21})',
+    detail: 'ta.ema(source, length) -> series float',
+    kind: 'function',
+    doc: 'Calculates the Exponential Moving Average with exponential weighting.',
+  },
+  {
+    label: 'ta.rsi',
+    insertText: 'ta.rsi(${1:close}, ${2:14})',
+    detail: 'ta.rsi(source, length) -> series float',
+    kind: 'function',
+    doc: 'Relative Strength Index momentum oscillator between 0 and 100.',
+  },
+  {
+    label: 'ta.atr',
+    insertText: 'ta.atr(${1:14})',
+    detail: 'ta.atr(length) -> series float',
+    kind: 'function',
+    doc: 'Average True Range volatility calculation over length periods.',
+  },
+  {
+    label: 'ta.supertrend',
+    insertText: '[supertrendVal, direction] = ta.supertrend(${1:3.0}, ${2:10})',
+    detail: 'ta.supertrend(factor, atrPeriod) -> [series, direction]',
+    kind: 'function',
+    doc: 'Adaptive SuperTrend volatility trailing band and trend direction flag.',
+  },
+  {
+    label: 'ta.highest',
+    insertText: 'ta.highest(${1:high}, ${2:20})',
+    detail: 'ta.highest(source, length) -> series float',
+    kind: 'function',
+    doc: 'Returns highest value over the past length bars.',
+  },
+  {
+    label: 'ta.lowest',
+    insertText: 'ta.lowest(${1:low}, ${2:20})',
+    detail: 'ta.lowest(source, length) -> series float',
+    kind: 'function',
+    doc: 'Returns lowest value over the past length bars.',
+  },
+  {
+    label: 'ta.crossover',
+    insertText: 'ta.crossover(${1:fast}, ${2:slow})',
+    detail: 'ta.crossover(series1, series2) -> series bool',
+    kind: 'function',
+    doc: 'True when series1 crosses above series2 on current candle.',
+  },
+  {
+    label: 'ta.crossunder',
+    insertText: 'ta.crossunder(${1:fast}, ${2:slow})',
+    detail: 'ta.crossunder(series1, series2) -> series bool',
+    kind: 'function',
+    doc: 'True when series1 crosses below series2 on current candle.',
+  },
+  {
+    label: 'ta.change',
+    insertText: 'ta.change(${1:close})',
+    detail: 'ta.change(source) -> series float',
+    kind: 'function',
+    doc: 'Difference between current bar value and previous bar value (source - source[1]).',
+  },
+  {
+    label: 'ta.stdev',
+    insertText: 'ta.stdev(${1:close}, ${2:20})',
+    detail: 'ta.stdev(source, length) -> series float',
+    kind: 'function',
+    doc: 'Standard deviation of source over length bars.',
+  },
+  // Inputs (input.*)
+  {
+    label: 'input.int',
+    insertText: 'input.int(${1:14}, "${2:Length}", minval=1)',
+    detail: 'input.int(defval, title, minval, maxval, step, group)',
+    kind: 'function',
+    doc: 'Configurable integer user parameter input.',
+  },
+  {
+    label: 'input.float',
+    insertText: 'input.float(${1:2.0}, "${2:Multiplier}", minval=0.1, step=0.1)',
+    detail: 'input.float(defval, title, minval, step)',
+    kind: 'function',
+    doc: 'Configurable floating-point numeric input.',
+  },
+  {
+    label: 'input.bool',
+    insertText: 'input.bool(${1:true}, "${2:Enable Signals}")',
+    detail: 'input.bool(defval, title)',
+    kind: 'function',
+    doc: 'Configurable boolean checkbox input.',
+  },
+  {
+    label: 'input.string',
+    insertText: 'input.string("${1:Option}", "${2:Title}")',
+    detail: 'input.string(defval, title, options)',
+    kind: 'function',
+    doc: 'Configurable string or dropdown selector input.',
+  },
+  {
+    label: 'input.source',
+    insertText: 'input.source(close, "Price Source")',
+    detail: 'input.source(defval, title)',
+    kind: 'function',
+    doc: 'Source input selector (open, high, low, close, hl2, hlc3).',
+  },
+  // Plots & Shapes
+  {
+    label: 'plot',
+    insertText: 'plot(${1:series}, "${2:Title}", color=color.cyan, linewidth=2)',
+    detail: 'plot(series, title, color, linewidth, style)',
+    kind: 'function',
+    doc: 'Plots a numeric line or histogram on the chart.',
+  },
+  {
+    label: 'plotshape',
+    insertText: 'plotshape(${1:condition}, title="${2:Signal}", style=shape.triangleup, location=location.belowbar, color=color.green, size=size.small, text="${3:BUY}")',
+    detail: 'plotshape(condition, title, style, location, color, size, text)',
+    kind: 'function',
+    doc: 'Draws visual geometric shapes or signal labels at candle locations.',
+  },
+  {
+    label: 'hline',
+    insertText: 'hline(${1:70}, "${2:Level}", color=color.red, linestyle=hline.style_dotted)',
+    detail: 'hline(price, title, color, linestyle, linewidth)',
+    kind: 'function',
+    doc: 'Renders a fixed horizontal level line on the chart canvas.',
+  },
+  {
+    label: 'fill',
+    insertText: 'fill(${1:p1}, ${2:p2}, color=color.new(color.blue, 90))',
+    detail: 'fill(plot1, plot2, color)',
+    kind: 'function',
+    doc: 'Fills background space between two plot lines or hlines with transparent color.',
+  },
+  {
+    label: 'alertcondition',
+    insertText: 'alertcondition(${1:condition}, title="${2:Alert Title}", message="${3:Alert Triggered}")',
+    detail: 'alertcondition(condition, title, message)',
+    kind: 'function',
+    doc: 'Defines an automated institutional alert trigger.',
+  },
+  // Math Functions
+  {
+    label: 'math.abs',
+    insertText: 'math.abs(${1:x})',
+    detail: 'math.abs(number) -> float',
+    kind: 'function',
+    doc: 'Returns absolute value of number.',
+  },
+  {
+    label: 'math.max',
+    insertText: 'math.max(${1:a}, ${2:b})',
+    detail: 'math.max(val1, val2) -> float',
+    kind: 'function',
+    doc: 'Returns maximum of two numbers.',
+  },
+  {
+    label: 'math.min',
+    insertText: 'math.min(${1:a}, ${2:b})',
+    detail: 'math.min(val1, val2) -> float',
+    kind: 'function',
+    doc: 'Returns minimum of two numbers.',
+  },
+  {
+    label: 'math.round',
+    insertText: 'math.round(${1:x}, ${2:2})',
+    detail: 'math.round(number, decimals) -> float',
+    kind: 'function',
+    doc: 'Rounds number to specified decimal places.',
+  },
+  // Built-in Variables
+  { label: 'close', insertText: 'close', detail: 'Current candle close price', kind: 'variable', doc: 'Close price series.' },
+  { label: 'open', insertText: 'open', detail: 'Current candle open price', kind: 'variable', doc: 'Open price series.' },
+  { label: 'high', insertText: 'high', detail: 'Current candle high price', kind: 'variable', doc: 'High price series.' },
+  { label: 'low', insertText: 'low', detail: 'Current candle low price', kind: 'variable', doc: 'Low price series.' },
+  { label: 'volume', insertText: 'volume', detail: 'Current candle trading volume', kind: 'variable', doc: 'Volume series.' },
+  { label: 'close[1]', insertText: 'close[1]', detail: 'Previous candle close price', kind: 'variable', doc: 'Previous bar historical price.' },
+  { label: 'high[1]', insertText: 'high[1]', detail: 'Previous candle high price', kind: 'variable', doc: 'Previous bar historical high.' },
+  { label: 'low[1]', insertText: 'low[1]', detail: 'Previous candle low price', kind: 'variable', doc: 'Previous bar historical low.' },
+  { label: 'hl2', insertText: 'hl2', detail: '(high + low) / 2', kind: 'variable', doc: 'Median price of current candle.' },
+  { label: 'hlc3', insertText: 'hlc3', detail: '(high + low + close) / 3', kind: 'variable', doc: 'Typical price of current candle.' },
+  { label: 'syminfo.mintick', insertText: 'syminfo.mintick', detail: 'Tick minimum precision size', kind: 'variable', doc: 'Instrument tick size.' },
+  // Colors & Styles
+  { label: 'color.new', insertText: 'color.new(${1:#00f0ff}, ${2:0})', detail: 'color.new(color, transparency)', kind: 'function', doc: 'Creates color with transparency (0 to 100).' },
+  { label: 'color.cyan', insertText: 'color.cyan', detail: 'Cyan color (#00f0ff)', kind: 'constant', doc: 'Built-in cyan color.' },
+  { label: 'color.green', insertText: 'color.green', detail: 'Emerald green (#10b981)', kind: 'constant', doc: 'Built-in green color.' },
+  { label: 'color.red', insertText: 'color.red', detail: 'Crimson red (#ef4444)', kind: 'constant', doc: 'Built-in red color.' },
+  { label: 'color.yellow', insertText: 'color.yellow', detail: 'Amber yellow (#f59e0b)', kind: 'constant', doc: 'Built-in yellow color.' },
+  { label: 'color.blue', insertText: 'color.blue', detail: 'Blue (#3b82f6)', kind: 'constant', doc: 'Built-in blue color.' },
+  { label: 'color.purple', insertText: 'color.purple', detail: 'Purple (#a855f7)', kind: 'constant', doc: 'Built-in purple color.' },
+  { label: 'shape.triangleup', insertText: 'shape.triangleup', detail: 'Upward triangle indicator shape', kind: 'constant', doc: 'Bullish shape.' },
+  { label: 'shape.triangledown', insertText: 'shape.triangledown', detail: 'Downward triangle indicator shape', kind: 'constant', doc: 'Bearish shape.' },
+  { label: 'shape.circle', insertText: 'shape.circle', detail: 'Circle marker shape', kind: 'constant', doc: 'Circle shape.' },
+  { label: 'shape.arrowup', insertText: 'shape.arrowup', detail: 'Upward arrow signal', kind: 'constant', doc: 'Bullish arrow.' },
+  { label: 'shape.arrowdown', insertText: 'shape.arrowdown', detail: 'Downward arrow signal', kind: 'constant', doc: 'Bearish arrow.' },
+  { label: 'location.belowbar', insertText: 'location.belowbar', detail: 'Placed below candlestick low', kind: 'constant', doc: 'Position below bar.' },
+  { label: 'location.abovebar', insertText: 'location.abovebar', detail: 'Placed above candlestick high', kind: 'constant', doc: 'Position above bar.' },
 ];
 
 // ============================================================================
@@ -158,41 +349,16 @@ plotshape(isBullishOB, title="Bullish OB Sweep", style=shape.circle, location=lo
 plotshape(isBearishOB, title="Bearish OB Sweep", style=shape.circle, location=location.abovebar, color=color.new(#ef4444, 0), size=size.tiny, text="OB")
 `,
   },
-  supertrendMss: {
-    title: 'SBT Precision SuperTrend & Market Structure Shift (MSS)',
-    shortName: 'SBT SuperTrend',
-    category: 'TREND',
-    overlay: true,
-    color: '#10b981',
-    code: `//@version=5
-indicator("SBT Precision SuperTrend & MSS", overlay=true)
-
-atrPeriod = input.int(10, "ATR Length", minval=1)
-factor = input.float(3.0, "Factor", minval=0.5, step=0.1)
-
-[supertrend, direction] = ta.supertrend(factor, atrPeriod)
-
-plot(direction < 0 ? supertrend : na, "Up Trend", color=color.green, style=plot.style_linebr, linewidth=2)
-plot(direction > 0 ? supertrend : na, "Down Trend", color=color.red, style=plot.style_linebr, linewidth=2)
-
-bullishShift = ta.crossunder(direction, 0)
-bearishShift = ta.crossover(direction, 0)
-
-plotshape(bullishShift, "Bullish MSS", style=shape.labelup, location=location.belowbar, color=color.green, text="MSS BUY", textcolor=color.white)
-plotshape(bearishShift, "Bearish MSS", style=shape.labeldown, location=location.abovebar, color=color.red, text="MSS SELL", textcolor=color.white)
-`,
-  },
   turtleSoup: {
-    title: 'SBT Turtle Soup 20-Day Sweeps & Liquidity Grab',
-    shortName: 'Turtle Soup',
-    category: 'LIQUIDITY',
+    title: 'SBT Model 09: Turtle Soup 20-Day Sweeps',
+    shortName: 'Model 09 Turtle',
+    category: 'SBT_STRUCTURE',
     overlay: true,
     color: '#f59e0b',
     code: `//@version=5
-indicator("SBT Turtle Soup 20-Day Sweeps", overlay=true)
+indicator("SBT Model 09: Turtle Soup Sweeps", overlay=true)
 
-lookback = input.int(20, "Lookback Period (Bars)", minval=5)
-
+lookback = input.int(20, "Range Period", minval=5)
 highestHigh = ta.highest(high[1], lookback)
 lowestLow = ta.lowest(low[1], lookback)
 
@@ -287,7 +453,7 @@ fill(p1, p2, color=color.new(#06b6d4, 92))
     color: '#10b981',
     isStrategy: true,
     code: `//@version=5
-strategy("EMA Golden Cross Strategy", overlay=true, initial_capital=100000, default_qty_type=strategy.percent_of_equity, default_qty_value=10)
+strategy("EMA Golden Cross Strategy", overlay=true, initial_capital=100000)
 
 fastLength = input.int(9, "Fast EMA Length")
 slowLength = input.int(21, "Slow EMA Length")
@@ -297,12 +463,6 @@ slowEMA = ta.ema(close, slowLength)
 
 longCondition = ta.crossover(fastEMA, slowEMA)
 shortCondition = ta.crossunder(fastEMA, slowEMA)
-
-if (longCondition)
-    strategy.entry("Long Entry", strategy.long)
-
-if (shortCondition)
-    strategy.entry("Short Entry", strategy.short)
 
 plot(fastEMA, "Fast EMA", color=color.green, linewidth=2)
 plot(slowEMA, "Slow EMA", color=color.red, linewidth=2)
@@ -341,32 +501,28 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
 }) => {
   const currentUser = getStoredUser();
 
-  // Internal state
+  // Internal script library state
   const [indicators, setIndicators] = useState<PineScriptIndicator[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<number>(1);
+  const [activeScriptId, setActiveScriptId] = useState<string>('');
   const [code, setCode] = useState<string>('');
-  const [editTitle, setEditTitle] = useState<string>('My Indicator');
+  const [editTitle, setEditTitle] = useState<string>('My Custom Indicator');
   const [editShortName, setEditShortName] = useState<string>('Indicator');
-  const [editCategory, setEditCategory] = useState<PineIndicatorCategory>('SBT_STRUCTURE');
+  const [editCategory, setEditCategory] = useState<PineIndicatorCategory>('CUSTOM');
   const [editColor, setEditColor] = useState<string>('#00f0ff');
   const [isOverlay, setIsOverlay] = useState<boolean>(true);
 
-  // Active Symbol and Timeframe state
+  // Active Symbol and Timeframe
   const [activeSymbol, setActiveSymbol] = useState<string>(currentSymbol);
   const [activeTimeframe, setActiveTimeframe] = useState<string>(currentTimeframe);
 
-  // UI Dials & Toggles
-  const [isExpanded, setIsExpanded] = useState<boolean>(false);
-  const [isPairDropdownOpen, setIsPairDropdownOpen] = useState<boolean>(false);
-  const [isTfDropdownOpen, setIsTfDropdownOpen] = useState<boolean>(false);
+  // Editor dimensions & display controls
+  const [dockHeight, setDockHeight] = useState<'compact' | 'standard' | 'large' | 'fullscreen'>('standard');
   const [isTemplateMenuOpen, setIsTemplateMenuOpen] = useState<boolean>(false);
-  const [pairSearchQuery, setPairSearchQuery] = useState<string>('');
-  const [consoleTab, setConsoleTab] = useState<'CONSOLE' | 'LOGS' | 'INPUTS' | 'STRATEGY'>('CONSOLE');
-  const [isFindOpen, setIsFindOpen] = useState<boolean>(false);
-  const [findText, setFindText] = useState<string>('');
-  const [replaceText, setReplaceText] = useState<string>('');
+  const [consoleTab, setConsoleTab] = useState<'CONSOLE' | 'LOGS' | 'INPUTS' | 'STRATEGY' | 'REFERENCE'>('CONSOLE');
+  const [isRenaming, setIsRenaming] = useState<boolean>(false);
+  const [tabFilter, setTabFilter] = useState<string>('');
 
-  // Compiler & Status States
+  // Compiler, status, logs & diagnostics
   const [compileStatus, setCompileStatus] = useState<{
     success: boolean;
     message: string;
@@ -375,11 +531,19 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
   } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [applySuccess, setApplySuccess] = useState<boolean>(false);
-  const [compilerLogs, setCompilerLogs] = useState<Array<{ time: string; type: 'info' | 'success' | 'warn' | 'error'; text: string }>>([]);
+  const [compilerLogs, setCompilerLogs] = useState<Array<{ time: string; type: 'info' | 'success' | 'warn' | 'error'; text: string; line?: number }>>([]);
   const [latestCompiledResult, setLatestCompiledResult] = useState<PineCompilationResult | null>(null);
+  const [diagnostics, setDiagnostics] = useState<PineSyntaxDiagnostic[]>([]);
 
+  // Autocomplete state
+  const [autocompleteVisible, setAutocompleteVisible] = useState<boolean>(false);
+  const [autocompleteItems, setAutocompleteItems] = useState<PineAutocompleteItem[]>([]);
+  const [autocompleteIndex, setAutocompleteIndex] = useState<number>(0);
+  const [cursorPosition, setCursorPosition] = useState<{ line: number; ch: number }>({ line: 1, ch: 1 });
+
+  // References
   const editorRef = useRef<HTMLTextAreaElement>(null);
-  const pairDropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync symbol / timeframe from props when changed externally
   useEffect(() => {
@@ -394,17 +558,28 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
     }
   }, [currentTimeframe]);
 
-  // Load indicators from service
+  // Load indicators from pineScriptService
   const loadIndicators = async () => {
     const list = await pineScriptService.syncWithServer();
     setIndicators(list);
+    if (list.length > 0 && !activeScriptId) {
+      const initial = list[0];
+      setActiveScriptId(initial.id);
+      setCode(initial.scriptCode || PINE_TEMPLATES.blankIndicator.code);
+      setEditTitle(initial.title);
+      setEditShortName(initial.shortName || initial.title.slice(0, 10));
+      setEditCategory(initial.category || 'CUSTOM');
+      setEditColor(initial.color || '#00f0ff');
+      setIsOverlay(initial.overlay !== false);
+    }
   };
 
   useEffect(() => {
     loadIndicators();
 
     const handleUpdate = () => {
-      setIndicators(pineScriptService.getIndicators());
+      const updated = pineScriptService.getIndicators();
+      setIndicators(updated);
     };
 
     window.addEventListener('primepipfx_pine_indicators_updated', handleUpdate);
@@ -415,37 +590,122 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
     };
   }, []);
 
-  const currentIndicator = indicators[selectedSlot - 1] || indicators[0];
+  const currentIndicator = useMemo(() => {
+    return indicators.find((i) => i.id === activeScriptId) || indicators[0] || null;
+  }, [indicators, activeScriptId]);
+
   const isOnChart = currentIndicator ? pineScriptService.isIndicatorEnabled(currentIndicator.id) : false;
 
-  // Sync form inputs when active slot changes
-  useEffect(() => {
-    if (currentIndicator) {
-      setCode(currentIndicator.scriptCode || '');
-      setEditTitle(currentIndicator.title);
-      setEditShortName(currentIndicator.shortName || currentIndicator.title.slice(0, 10));
-      setEditCategory(currentIndicator.category || 'SBT_STRUCTURE');
-      setEditColor(currentIndicator.color || '#00f0ff');
-      setIsOverlay(currentIndicator.overlay !== false);
+  // Switch active script
+  const handleSelectScript = (ind: PineScriptIndicator) => {
+    setActiveScriptId(ind.id);
+    setCode(ind.scriptCode || '');
+    setEditTitle(ind.title);
+    setEditShortName(ind.shortName || ind.title.slice(0, 10));
+    setEditCategory(ind.category || 'CUSTOM');
+    setEditColor(ind.color || '#00f0ff');
+    setIsOverlay(ind.overlay !== false);
+    setIsRenaming(false);
+    setDiagnostics([]);
 
-      const nowTime = new Date().toLocaleTimeString();
-      setCompileStatus({
-        success: true,
-        message: `Pine Script [${currentIndicator.shortName || currentIndicator.title}] loaded for ${activeSymbol}.`,
-        timestamp: nowTime,
-      });
+    const nowTime = new Date().toLocaleTimeString();
+    setCompileStatus({
+      success: true,
+      message: `Pine Script "${ind.title}" loaded.`,
+      timestamp: nowTime,
+    });
+    setCompilerLogs([
+      {
+        time: nowTime,
+        type: 'info',
+        text: `[Editor] Switched to script: "${ind.title}". Target: ${activeSymbol} (${activeTimeframe}).`,
+      },
+    ]);
+  };
 
-      setCompilerLogs([
+  // Create a brand new script tab
+  const handleCreateNewScript = () => {
+    const newId = `pine_custom_${Date.now()}`;
+    const newInd: PineScriptIndicator = {
+      id: newId,
+      title: `Custom Script ${indicators.length + 1}`,
+      shortName: `Script ${indicators.length + 1}`,
+      description: 'Custom user-authored Pine Script indicator.',
+      category: 'CUSTOM',
+      overlay: true,
+      color: '#00f0ff',
+      version: '5.2.0',
+      author: currentUser?.name || currentUser?.username || 'Trader',
+      updatedAt: new Date().toISOString().slice(0, 10),
+      scriptCode: PINE_TEMPLATES.blankIndicator.code,
+      slotNumber: indicators.length + 1,
+      defaultEnabled: false,
+      isOfficial: false,
+    };
+
+    pineScriptService.saveIndicator(newInd);
+    setIndicators(pineScriptService.getIndicators());
+    handleSelectScript(newInd);
+  };
+
+  // Duplicate the currently selected script
+  const handleDuplicateCurrentScript = async () => {
+    if (!currentIndicator) return;
+    const duplicated = await pineScriptService.duplicateIndicator(currentIndicator.id);
+    if (duplicated) {
+      setIndicators(pineScriptService.getIndicators());
+      handleSelectScript(duplicated);
+      const logTime = new Date().toLocaleTimeString();
+      setCompilerLogs((prev) => [
+        ...prev.slice(-15),
         {
-          time: nowTime,
-          type: 'info',
-          text: `[TradingView Pine Engine] Loaded "${currentIndicator.title}" (Version 5/6). Target: ${activeSymbol} (${activeTimeframe}).`,
+          time: logTime,
+          type: 'success',
+          text: `[Library] Duplicated "${currentIndicator.title}" as new editable script.`,
         },
       ]);
     }
-  }, [selectedSlot, currentIndicator?.id]);
+  };
 
-  // Quick compilation run with sample candles
+  // Delete the currently selected script
+  const handleDeleteCurrentScript = async () => {
+    if (!currentIndicator) return;
+    if (currentIndicator.isOfficial) {
+      const confirmOfficial = window.confirm(
+        `"${currentIndicator.title}" is an official indicator. Are you sure you want to remove it from your editor tabs?`
+      );
+      if (!confirmOfficial) return;
+    } else {
+      const confirmDelete = window.confirm(`Delete "${currentIndicator.title}"?`);
+      if (!confirmDelete) return;
+    }
+
+    await pineScriptService.deleteIndicator(currentIndicator.id);
+    const updated = pineScriptService.getIndicators();
+    setIndicators(updated);
+    if (updated.length > 0) {
+      handleSelectScript(updated[0]);
+    } else {
+      handleCreateNewScript();
+    }
+  };
+
+  // Clear all indicators from active chart (Pure Price Action)
+  const handleClearAllChartIndicators = async () => {
+    await pineScriptService.clearAllIndicators();
+    setIndicators(pineScriptService.getIndicators());
+    const logTime = new Date().toLocaleTimeString();
+    setCompilerLogs((prev) => [
+      ...prev.slice(-15),
+      {
+        time: logTime,
+        type: 'info',
+        text: `[Chart Reset] Cleared all indicators from active chart. Showing 100% clean price action candlesticks.`,
+      },
+    ]);
+  };
+
+  // Compile script and run syntax validator
   const runCompilation = (): PineCompilationResult => {
     const sampleCandles: CandleBar[] = [];
     const now = Date.now();
@@ -462,11 +722,18 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
       p += 1;
     }
 
+    // 1. Syntax check
+    const syntaxDiags = PineScriptEngine.validateSyntax(code);
+    setDiagnostics(syntaxDiags);
+
+    // 2. Execution check
     const res = PineScriptEngine.execute(code, sampleCandles);
+    const allDiags = [...syntaxDiags, ...(res.diagnostics || [])];
+    res.diagnostics = allDiags;
     setLatestCompiledResult(res);
 
     const logTime = new Date().toLocaleTimeString();
-    if (res.success) {
+    if (res.success && syntaxDiags.filter((d) => d.type === 'error').length === 0) {
       setCompileStatus({
         success: true,
         message: `✓ Compiled successfully in ${res.executionTimeMs}ms (0 errors). Verified on ${activeSymbol}.`,
@@ -482,17 +749,21 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
         },
       ]);
     } else {
+      const firstErr = allDiags.find((d) => d.type === 'error')?.message || res.logs[0]?.text || 'Syntax Error in Pine Script';
+      const errLine = allDiags.find((d) => d.type === 'error')?.line;
       setCompileStatus({
         success: false,
-        message: res.logs[0]?.text || 'Syntax Error in Pine Script',
+        message: firstErr,
         timestamp: logTime,
+        details: errLine ? `Error at Line ${errLine}` : undefined,
       });
       setCompilerLogs((prev) => [
         ...prev.slice(-15),
         {
           time: logTime,
           type: 'error',
-          text: res.logs[0]?.text || 'Compilation failed.',
+          text: errLine ? `Line ${errLine}: ${firstErr}` : firstErr,
+          line: errLine,
         },
       ]);
     }
@@ -500,69 +771,52 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
     return res;
   };
 
-  // Add to Chart Action (Identical to TradingView's Blue "Add to chart" button)
+  // Add / Apply to Chart
   const handleAddToChart = async () => {
     const compiled = runCompilation();
-    if (!compiled.success) return;
+    if (!compiled.success || diagnostics.some((d) => d.type === 'error')) {
+      setConsoleTab('CONSOLE');
+      return;
+    }
 
-    let effectiveCode = code.trim();
-    const cleanTitle = compiled.title || editTitle.trim() || `Script #${selectedSlot}`;
+    const cleanTitle = compiled.title || editTitle.trim() || `Script #${currentIndicator?.slotNumber || 1}`;
     const cleanShort = compiled.shortTitle || editShortName.trim() || cleanTitle.slice(0, 10);
+    const indId = currentIndicator?.id || `pine_custom_${Date.now()}`;
 
     const isMS123 =
       cleanTitle.toLowerCase().includes('market structure') ||
       cleanTitle.includes('MS 1-2-3') ||
-      cleanShort.includes('MS 1-2-3') ||
-      effectiveCode.includes('Market Structure 1-2-3') ||
-      (effectiveCode.includes('mss') && effectiveCode.includes('bos')) ||
-      effectiveCode.includes('Eng') ||
-      effectiveCode.includes('sbt5Fit') ||
-      effectiveCode.includes('L1 / SBT3') ||
-      effectiveCode.includes('Zone Marking');
-
-    const indId = isMS123
-      ? 'sbt-ms-123'
-      : currentIndicator?.id && currentIndicator.id !== 'sbt-fvg-ob'
-      ? currentIndicator.id
-      : `pine_custom_${Date.now()}`;
+      cleanShort.includes('MS 1-2-3');
 
     const updated: PineScriptIndicator = {
       id: indId,
       title: cleanTitle,
       shortName: cleanShort,
-      description: currentIndicator?.description || `Custom Pine Script ${compiled.isStrategy ? 'strategy' : 'indicator'} on ${activeSymbol}.`,
+      description: currentIndicator?.description || `Custom Pine Script indicator on ${activeSymbol}.`,
       category: isMS123 ? 'SBT_STRUCTURE' : editCategory,
       overlay: compiled.overlay,
       color: isMS123 ? '#C4B5FD' : editColor,
       version: '5.2.0',
       author: currentUser?.name || currentUser?.username || 'Trader',
       updatedAt: new Date().toISOString().slice(0, 10),
-      scriptCode: effectiveCode,
-      slotNumber: selectedSlot,
+      scriptCode: code.trim(),
+      slotNumber: currentIndicator?.slotNumber || 1,
       defaultEnabled: true,
       isOfficial: isMS123,
     };
 
-    // Save and activate in Pine Script service
     await pineScriptService.saveIndicator(updated);
     await pineScriptService.setIndicatorToggle(indId, true);
 
-    // Broadcast globally to guarantee instant chart canvas redraw
-    window.dispatchEvent(
-      new CustomEvent('primepipfx_pine_toggle_change', {
-        detail: { indicatorId: indId, enabled: true },
-      })
-    );
+    // Global broadcast for instant canvas redraw
+    window.dispatchEvent(new CustomEvent('primepipfx_pine_toggle_change', { detail: { indicatorId: indId, enabled: true } }));
     window.dispatchEvent(new CustomEvent('primepipfx_pine_indicators_updated'));
 
-    // Apply pair and timeframe change to parent chart
     if (onSelectSymbol) onSelectSymbol(activeSymbol);
     if (onSelectTimeframe) onSelectTimeframe(activeTimeframe);
     if (onIndicatorToggled) onIndicatorToggled(indId, true);
 
-    // Refresh list
     setIndicators(pineScriptService.getIndicators());
-
     setApplySuccess(true);
     setTimeout(() => setApplySuccess(false), 3000);
 
@@ -577,13 +831,29 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
     ]);
   };
 
-  // Save to Library Action
+  // Remove from active chart
+  const handleRemoveFromChart = async () => {
+    if (!currentIndicator) return;
+    await pineScriptService.setIndicatorToggle(currentIndicator.id, false);
+    setIndicators(pineScriptService.getIndicators());
+    if (onIndicatorToggled) onIndicatorToggled(currentIndicator.id, false);
+
+    const logTime = new Date().toLocaleTimeString();
+    setCompilerLogs((prev) => [
+      ...prev.slice(-15),
+      {
+        time: logTime,
+        type: 'info',
+        text: `[Chart] Removed "${currentIndicator.title}" from chart.`,
+      },
+    ]);
+  };
+
+  // Save to Library
   const handleSaveToLibrary = async () => {
     const compiled = runCompilation();
-    if (!compiled.success) return;
-
     const indId = currentIndicator?.id || `pine_custom_${Date.now()}`;
-    const cleanTitle = compiled.title || editTitle.trim() || `Script #${selectedSlot}`;
+    const cleanTitle = compiled.title || editTitle.trim() || 'Custom Script';
 
     const updated: PineScriptIndicator = {
       id: indId,
@@ -597,7 +867,7 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
       author: currentUser?.name || currentUser?.username || 'Trader',
       updatedAt: new Date().toISOString().slice(0, 10),
       scriptCode: code.trim(),
-      slotNumber: selectedSlot,
+      slotNumber: currentIndicator?.slotNumber || 1,
       defaultEnabled: pineScriptService.isIndicatorEnabled(indId),
       isOfficial: false,
     };
@@ -610,13 +880,12 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
     }
   };
 
-  // 1-Click Paste from Clipboard
+  // Paste from clipboard
   const handlePasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText();
       if (text && text.trim()) {
         setCode(text);
-        // Auto-extract title from indicator(...) or strategy(...)
         const matchTitle = text.match(/(?:indicator|strategy)\s*\(\s*["']([^"']+)["']/);
         if (matchTitle && matchTitle[1]) {
           setEditTitle(matchTitle[1]);
@@ -632,13 +901,9 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
             text: `[Paste] Pasted ${text.split('\n').length} lines of Pine Script from clipboard. Checking syntax...`,
           },
         ]);
-
-        // Immediate compilation check
-        const sampleCandles: CandleBar[] = [{ time: 1, open: 1, high: 2, low: 0.5, close: 1.5 }];
-        PineScriptEngine.execute(text, sampleCandles);
         setCompileStatus({
           success: true,
-          message: `✓ Code pasted! Ready to click "Add to chart" to activate indicator on ${activeSymbol}.`,
+          message: `✓ Code pasted! Click "Add to chart" to activate indicator on ${activeSymbol}.`,
           timestamp: logTime,
         });
       }
@@ -651,27 +916,11 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
           setEditTitle(matchTitle[1]);
           setEditShortName(matchTitle[1].slice(0, 12));
         }
-        const logTime = new Date().toLocaleTimeString();
-        setCompilerLogs((prev) => [
-          ...prev.slice(-15),
-          {
-            time: logTime,
-            type: 'info',
-            text: `[Paste] Pasted ${userPasted.split('\n').length} lines of Pine Script. Ready to apply to chart.`,
-          },
-        ]);
-        setCompileStatus({
-          success: true,
-          message: `✓ Code pasted! Click "Add to chart" to activate indicator on ${activeSymbol}.`,
-          timestamp: logTime,
-        });
-      } else if (editorRef.current) {
-        editorRef.current.focus();
       }
     }
   };
 
-  // Load a Pine Template
+  // Load a built-in template
   const handleLoadTemplate = (key: string) => {
     const t = PINE_TEMPLATES[key];
     if (!t) return;
@@ -694,14 +943,188 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
     ]);
   };
 
-  // Keyboard shortcut handlers (Ctrl+S to save, Ctrl+Enter to Add to chart)
+  // Format / Beautify Pine Script code
+  const handleFormatCode = () => {
+    const lines = code.split('\n');
+    let indentLevel = 0;
+    const formatted = lines.map((rawLine) => {
+      const trimmed = rawLine.trim();
+      if (!trimmed) return '';
+
+      // Decrease indent for closing constructs if applicable
+      if (trimmed.startsWith('else') || trimmed.startsWith('elif')) {
+        indentLevel = Math.max(0, indentLevel - 1);
+      }
+
+      const indentStr = '    '.repeat(indentLevel);
+      const res = indentStr + trimmed;
+
+      // Increase indent if line ends in a block opening
+      if (
+        trimmed.startsWith('if ') ||
+        trimmed.startsWith('for ') ||
+        trimmed.startsWith('while ') ||
+        trimmed.endsWith(':') ||
+        (trimmed.includes('=>') && !trimmed.endsWith(')'))
+      ) {
+        indentLevel += 1;
+      }
+
+      return res;
+    });
+
+    setCode(formatted.join('\n'));
+    const logTime = new Date().toLocaleTimeString();
+    setCompilerLogs((prev) => [
+      ...prev.slice(-15),
+      {
+        time: logTime,
+        type: 'info',
+        text: `[Formatter] Cleaned indentation and standardized spacing across ${lines.length} lines.`,
+      },
+    ]);
+  };
+
+  // Export as .pine file
+  const handleExportPineFile = () => {
+    const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeName = (editTitle || 'indicator').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    a.href = url;
+    a.download = `${safeName}.pine`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Import .pine file
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const content = evt.target?.result as string;
+      if (content) {
+        setCode(content);
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+        setEditTitle(nameWithoutExt);
+        setEditShortName(nameWithoutExt.slice(0, 10));
+
+        const logTime = new Date().toLocaleTimeString();
+        setCompilerLogs((prev) => [
+          ...prev.slice(-15),
+          {
+            time: logTime,
+            type: 'info',
+            text: `[Import] Loaded "${file.name}" (${content.split('\n').length} lines).`,
+          },
+        ]);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // Jump cursor to specific line in editor
+  const jumpToLine = (targetLine: number) => {
+    if (!editorRef.current) return;
+    const textarea = editorRef.current;
+    const lines = code.split('\n');
+    let charIndex = 0;
+    for (let i = 0; i < Math.min(targetLine - 1, lines.length); i++) {
+      charIndex += lines[i].length + 1;
+    }
+    textarea.focus();
+    textarea.setSelectionRange(charIndex, charIndex + (lines[targetLine - 1]?.length || 0));
+
+    // Scroll textarea to line
+    const approxLineHeight = 20;
+    textarea.scrollTop = Math.max(0, (targetLine - 3) * approxLineHeight);
+  };
+
+  // Autocomplete trigger & insertion
+  const triggerAutocomplete = (currentVal: string, selStart: number) => {
+    const textBefore = currentVal.substring(0, selStart);
+    const lastWordMatch = textBefore.match(/([a-zA-Z0-9_\.]+)$/);
+    if (lastWordMatch && lastWordMatch[1].length >= 2) {
+      const query = lastWordMatch[1].toLowerCase();
+      const matches = PINE_AUTOCOMPLETE_ITEMS.filter(
+        (item) => item.label.toLowerCase().includes(query) || item.detail.toLowerCase().includes(query)
+      );
+      if (matches.length > 0) {
+        setAutocompleteItems(matches.slice(0, 7));
+        setAutocompleteIndex(0);
+        setAutocompleteVisible(true);
+        return;
+      }
+    }
+    setAutocompleteVisible(false);
+  };
+
+  const applyAutocompleteItem = (item: PineAutocompleteItem) => {
+    if (!editorRef.current) return;
+    const textarea = editorRef.current;
+    const selStart = textarea.selectionStart;
+    const textBefore = code.substring(0, selStart);
+    const textAfter = code.substring(selStart);
+    const lastWordMatch = textBefore.match(/([a-zA-Z0-9_\.]+)$/);
+
+    const prefixLen = lastWordMatch ? lastWordMatch[1].length : 0;
+    const cleanInsert = item.insertText.replace(/\$\{\d+:([^}]+)\}/g, '$1');
+    const newCode = textBefore.substring(0, textBefore.length - prefixLen) + cleanInsert + textAfter;
+
+    setCode(newCode);
+    setAutocompleteVisible(false);
+
+    setTimeout(() => {
+      const newPos = textBefore.length - prefixLen + cleanInsert.length;
+      textarea.focus();
+      textarea.setSelectionRange(newPos, newPos);
+    }, 10);
+  };
+
+  // Keyboard navigation & Shortcuts (Ctrl+S, Ctrl+Enter, Tab, Autocomplete)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Autocomplete navigation
+    if (autocompleteVisible) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setAutocompleteIndex((prev) => (prev + 1) % autocompleteItems.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setAutocompleteIndex((prev) => (prev - 1 + autocompleteItems.length) % autocompleteItems.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        const selected = autocompleteItems[autocompleteIndex];
+        if (selected) {
+          applyAutocompleteItem(selected);
+          return;
+        }
+      }
+      if (e.key === 'Escape') {
+        setAutocompleteVisible(false);
+        return;
+      }
+    }
+
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
       handleSaveToLibrary();
     } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       handleAddToChart();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === ' ') {
+      // Ctrl+Space forces autocomplete open
+      e.preventDefault();
+      setAutocompleteItems(PINE_AUTOCOMPLETE_ITEMS.slice(0, 8));
+      setAutocompleteIndex(0);
+      setAutocompleteVisible(true);
     } else if (e.key === 'Tab') {
       e.preventDefault();
       const textarea = e.currentTarget;
@@ -712,6 +1135,23 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
       setTimeout(() => {
         textarea.selectionStart = textarea.selectionEnd = start + 4;
       }, 0);
+    } else if (e.key === 'Enter') {
+      // Auto-indent next line to match current line
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const textBefore = code.substring(0, start);
+      const currentLine = textBefore.split('\n').pop() || '';
+      const matchIndent = currentLine.match(/^(\s+)/);
+      if (matchIndent) {
+        e.preventDefault();
+        const extraIndent = currentLine.trim().endsWith(':') ? '    ' : '';
+        const indentStr = matchIndent[1] + extraIndent;
+        const newCode = code.substring(0, start) + '\n' + indentStr + code.substring(start);
+        setCode(newCode);
+        setTimeout(() => {
+          textarea.selectionStart = textarea.selectionEnd = start + 1 + indentStr.length;
+        }, 0);
+      }
     }
   };
 
@@ -719,16 +1159,38 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
     return Math.max(1, code.split('\n').length);
   }, [code]);
 
+  // Error lines mapping for line-number gutter highlights
+  const errorLinesMap = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const d of diagnostics) {
+      if (d.line) {
+        map.set(d.line, d.message);
+      }
+    }
+    return map;
+  }, [diagnostics]);
+
+  // Height style based on dockHeight
+  const heightStyle = useMemo(() => {
+    if (dockHeight === 'compact') return 'min-h-[420px] h-[440px]';
+    if (dockHeight === 'standard') return 'min-h-[580px] h-[600px]';
+    if (dockHeight === 'large') return 'min-h-[760px] h-[780px]';
+    return 'fixed inset-3 z-50 rounded-2xl shadow-2xl h-[calc(100vh-24px)]';
+  }, [dockHeight]);
+
+  const filteredIndicators = useMemo(() => {
+    if (!tabFilter.trim()) return indicators;
+    const q = tabFilter.toLowerCase();
+    return indicators.filter((i) => i.title.toLowerCase().includes(q) || (i.shortName && i.shortName.toLowerCase().includes(q)));
+  }, [indicators, tabFilter]);
+
   return (
-    <div
-      className={`flex flex-col bg-[#131722] text-[#d1d4dc] border border-[#2a2e39] font-mono select-none transition-all duration-300 ${
-        isExpanded ? 'fixed inset-4 z-50 rounded-2xl shadow-2xl max-w-none' : 'w-full rounded-2xl shadow-2xl'
-      }`}
-      style={{ minHeight: isExpanded ? 'calc(100vh - 32px)' : '540px' }}
-    >
+    <div className={`flex flex-col bg-[#131722] text-[#d1d4dc] border border-[#2a2e39] font-mono select-none transition-all duration-200 rounded-2xl shadow-2xl overflow-hidden ${heightStyle}`}>
+      {/* Hidden file input for .pine import */}
+      <input ref={fileInputRef} type="file" accept=".pine,.txt" onChange={handleImportFile} className="hidden" />
+
       {/* ===================================================================== */}
       {/* 1. TRADINGVIEW PINE EDITOR HEADER BAR                                  */}
-      {/* Authentic TradingView dark header with blue Add to chart button        */}
       {/* ===================================================================== */}
       <div className="flex items-center justify-between px-3 py-2 bg-[#1e222d] border-b border-[#2a2e39] gap-2 flex-wrap">
         {/* Left: TV Pine Editor Logo & Title */}
@@ -737,27 +1199,36 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
             <Code2 className="w-4 h-4" />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-100 tracking-wide font-sans">
-              Pine Editor
-            </span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#2a2e39] text-[#787b86] font-mono">
-              v5 / v6
-            </span>
-            <div className="flex items-center gap-1.5 ml-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="text-xs font-bold text-slate-100 tracking-wide font-sans">Pine Editor</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#2a2e39] text-[#787b86] font-mono">v5 / v6</span>
+
+            {/* Editable Script Name */}
+            <div className="flex items-center gap-1 ml-1 bg-[#131722]/80 border border-[#2a2e39] rounded-lg px-2 py-0.5">
+              <span className={`w-2 h-2 rounded-full ${isOnChart ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
               <input
                 type="text"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
                 placeholder="Script name"
-                className="bg-transparent text-xs font-semibold text-slate-200 outline-none hover:bg-[#131722] focus:bg-[#131722] px-1.5 py-0.5 rounded border border-transparent focus:border-[#2962ff] transition w-36 sm:w-56"
+                className="bg-transparent text-xs font-semibold text-slate-200 outline-none hover:text-white focus:text-white transition w-32 sm:w-48 font-sans"
               />
             </div>
           </div>
         </div>
 
-        {/* Center / Right Actions: Templates, Paste, Save, Add to Chart */}
+        {/* Center / Right Actions: Reset/Clean, Templates, Format, Import/Export, Paste, Save, Add to Chart */}
         <div className="flex items-center gap-1.5 flex-wrap ml-auto">
+          {/* Quick Clear Chart (Pure Price Action) */}
+          <button
+            type="button"
+            onClick={handleClearAllChartIndicators}
+            className="px-2.5 py-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/40 text-rose-300 text-xs font-sans font-medium flex items-center gap-1.5 transition cursor-pointer"
+            title="Remove all indicators from chart and display clean price action only"
+          >
+            <Eraser className="w-3.5 h-3.5 text-rose-400" />
+            <span className="hidden sm:inline">Clear Chart</span>
+          </button>
+
           {/* Templates / Open Menu */}
           <div className="relative">
             <button
@@ -771,7 +1242,7 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
             </button>
 
             {isTemplateMenuOpen && (
-              <div className="absolute left-0 top-full mt-1 w-64 bg-[#1e222d] border border-[#363a45] rounded-xl shadow-2xl py-1 z-50 text-xs font-sans">
+              <div className="absolute left-0 top-full mt-1 w-64 bg-[#1e222d] border border-[#363a45] rounded-xl shadow-2xl py-1 z-50 text-xs font-sans max-h-72 overflow-y-auto">
                 <div className="px-3 py-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                   Script Templates
                 </div>
@@ -789,6 +1260,35 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
               </div>
             )}
           </div>
+
+          {/* Format Code */}
+          <button
+            type="button"
+            onClick={handleFormatCode}
+            className="px-2.5 py-1.5 rounded-lg bg-[#2a2e39] hover:bg-[#363a45] text-slate-200 text-xs font-sans font-medium flex items-center gap-1.5 transition cursor-pointer"
+            title="Auto-indent code and standardize formatting"
+          >
+            <AlignLeft className="w-3.5 h-3.5 text-blue-400" />
+            <span className="hidden md:inline">Format</span>
+          </button>
+
+          {/* Import / Export File */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="p-1.5 rounded-lg bg-[#2a2e39] hover:bg-[#363a45] text-slate-300 hover:text-white transition cursor-pointer"
+            title="Import .pine script from your computer"
+          >
+            <Upload className="w-3.5 h-3.5 text-slate-400" />
+          </button>
+          <button
+            type="button"
+            onClick={handleExportPineFile}
+            className="p-1.5 rounded-lg bg-[#2a2e39] hover:bg-[#363a45] text-slate-300 hover:text-white transition cursor-pointer"
+            title="Export and download current script as .pine file"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-400" />
+          </button>
 
           {/* Paste Code Button */}
           <button
@@ -810,7 +1310,7 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
                 ? 'bg-emerald-600/30 text-emerald-300 border-emerald-500'
                 : 'bg-[#2a2e39] hover:bg-[#363a45] text-slate-200 border-transparent'
             }`}
-            title="Save script (Ctrl+S)"
+            title="Save script to user library (Ctrl+S)"
           >
             {saveSuccess ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Save className="w-3.5 h-3.5 text-amber-400" />}
             <span>{saveSuccess ? 'Saved' : 'Save'}</span>
@@ -821,33 +1321,35 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
             type="button"
             onClick={handleAddToChart}
             className="px-3.5 py-1.5 rounded-lg bg-[#2962ff] hover:bg-[#1e53e5] active:scale-95 text-white text-xs font-bold font-sans flex items-center gap-1.5 shadow-md transition cursor-pointer"
-            title="Compile script and activate on chart (Ctrl+Enter)"
+            title="Validate, compile script and render on chart (Ctrl+Enter)"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
             <span>Add to chart</span>
           </button>
 
-          {/* External TradingView Link */}
-          <a
-            href="https://www.tradingview.com/chart/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-2 py-1.5 rounded-lg bg-[#2a2e39] hover:bg-[#363a45] text-slate-300 hover:text-white text-xs flex items-center gap-1 transition"
-            title="Open official TradingView Charting Terminal in new tab"
-          >
-            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-            <span className="hidden sm:inline text-[11px]">TradingView.com</span>
-          </a>
+          {/* If already active on chart: Remove toggle */}
+          {isOnChart && (
+            <button
+              type="button"
+              onClick={handleRemoveFromChart}
+              className="px-2 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-800/60 text-rose-300 text-xs font-sans font-bold transition cursor-pointer"
+              title="Remove this script from active chart overlay"
+            >
+              Remove
+            </button>
+          )}
 
-          {/* Maximize / Close Dock */}
-          <button
-            type="button"
-            onClick={() => setIsExpanded((prev) => !prev)}
-            className="p-1.5 rounded-lg hover:bg-[#2a2e39] text-slate-400 hover:text-white transition cursor-pointer"
-            title={isExpanded ? 'Minimize dock' : 'Maximize dock'}
-          >
-            {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
+          {/* Size Selectors (Compact, Standard, Large, Fullscreen) */}
+          <div className="flex items-center bg-[#131722] rounded-lg p-0.5 border border-[#2a2e39]">
+            <button
+              type="button"
+              onClick={() => setDockHeight(dockHeight === 'fullscreen' ? 'standard' : 'fullscreen')}
+              className={`p-1 rounded transition cursor-pointer ${dockHeight === 'fullscreen' ? 'bg-[#2962ff] text-white' : 'text-slate-400 hover:text-white'}`}
+              title={dockHeight === 'fullscreen' ? 'Exit fullscreen' : 'Fullscreen editor'}
+            >
+              {dockHeight === 'fullscreen' ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+          </div>
 
           {onCloseDock && (
             <button
@@ -863,17 +1365,108 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
       </div>
 
       {/* ===================================================================== */}
-      {/* 2. TRADINGVIEW CODE EDITOR CANVAS                                      */}
-      {/* Exact line numbering gutter + dark institutional syntax workspace      */}
+      {/* 2. SCRIPT TABS BAR (Saved Scripts with +, Rename, Duplicate, Delete)   */}
       {/* ===================================================================== */}
-      <div className="relative flex-1 flex bg-[#131722] overflow-hidden min-h-[300px]">
-        {/* Line Numbers Column */}
-        <div className="w-12 bg-[#131722] border-r border-[#2a2e39] py-3 text-right pr-3 select-none text-[#50535e] text-xs font-mono leading-relaxed overflow-hidden">
-          {Array.from({ length: Math.min(lineCount, 600) }).map((_, idx) => (
-            <div key={idx} className="h-5">
-              {idx + 1}
-            </div>
-          ))}
+      <div className="flex items-center justify-between px-2 bg-[#181c27] border-b border-[#2a2e39] overflow-x-auto text-xs font-sans gap-1 shrink-0">
+        <div className="flex items-center gap-1 overflow-x-auto py-1">
+          {filteredIndicators.map((ind) => {
+            const isSelected = ind.id === currentIndicator?.id;
+            const isApplied = pineScriptService.isIndicatorEnabled(ind.id);
+            return (
+              <div
+                key={ind.id}
+                onClick={() => handleSelectScript(ind)}
+                className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg transition cursor-pointer border-b-2 text-xs font-medium shrink-0 ${
+                  isSelected
+                    ? 'bg-[#131722] text-white border-[#2962ff] shadow-sm'
+                    : 'bg-[#1e222d] text-slate-400 hover:text-slate-200 border-transparent hover:bg-[#252936]'
+                }`}
+              >
+                <FileCode className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="truncate max-w-[130px]">{ind.shortName || ind.title}</span>
+                {isApplied && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="Active on Chart" />
+                )}
+
+                {/* Tab Hover Actions: Duplicate & Delete */}
+                {isSelected && (
+                  <div className="flex items-center gap-0.5 ml-1 opacity-80 group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDuplicateCurrentScript();
+                      }}
+                      className="p-0.5 hover:text-cyan-300 text-slate-400 rounded cursor-pointer"
+                      title="Duplicate this script"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCurrentScript();
+                      }}
+                      className="p-0.5 hover:text-rose-400 text-slate-400 rounded cursor-pointer"
+                      title="Delete this script"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* New Script Tab Button (+) */}
+          <button
+            type="button"
+            onClick={handleCreateNewScript}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#2a2e39] hover:bg-[#363a45] text-slate-300 hover:text-white transition cursor-pointer text-xs font-bold"
+            title="Create a new custom indicator script tab"
+          >
+            <Plus className="w-3.5 h-3.5 text-cyan-400" />
+            <span>New Script</span>
+          </button>
+        </div>
+
+        {/* Script Search Filter when multiple scripts exist */}
+        {indicators.length > 4 && (
+          <div className="flex items-center gap-1 bg-[#131722] border border-[#2a2e39] rounded-md px-1.5 py-0.5 my-1">
+            <Search className="w-3 h-3 text-slate-500" />
+            <input
+              type="text"
+              value={tabFilter}
+              onChange={(e) => setTabFilter(e.target.value)}
+              placeholder="Search scripts..."
+              className="bg-transparent text-[11px] text-slate-200 outline-none w-24"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* ===================================================================== */}
+      {/* 3. TRADINGVIEW CODE EDITOR CANVAS + LINE GUTTER + AUTOCOMPLETE         */}
+      {/* ===================================================================== */}
+      <div className="relative flex-1 flex bg-[#131722] overflow-hidden min-h-[220px]">
+        {/* Line Numbers Gutter with Error Badges */}
+        <div className="w-12 bg-[#131722] border-r border-[#2a2e39] py-3 text-right pr-2 select-none text-[#50535e] text-xs font-mono leading-relaxed overflow-hidden shrink-0">
+          {Array.from({ length: Math.min(lineCount, 800) }).map((_, idx) => {
+            const lineNum = idx + 1;
+            const hasError = errorLinesMap.has(lineNum);
+            return (
+              <div
+                key={idx}
+                className="h-5 flex items-center justify-end gap-1 cursor-pointer hover:text-slate-300"
+                onClick={() => jumpToLine(lineNum)}
+                title={hasError ? `Error on line ${lineNum}: ${errorLinesMap.get(lineNum)}` : `Line ${lineNum}`}
+              >
+                {hasError && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />}
+                <span className={hasError ? 'text-rose-400 font-bold' : ''}>{lineNum}</span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Text Area Code Editor */}
@@ -884,32 +1477,80 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
             onChange={(e) => {
               const val = e.target.value;
               setCode(val);
+              triggerAutocomplete(val, e.target.selectionStart);
+
+              // Auto-extract title from indicator(...) or strategy(...)
               const matchTitle = val.match(/(?:indicator|strategy)\s*\(\s*["']([^"']+)["']/);
-              if (matchTitle && matchTitle[1] && (editTitle === 'My Indicator' || editTitle === 'Custom Script' || !editTitle)) {
+              if (
+                matchTitle &&
+                matchTitle[1] &&
+                (editTitle === 'My Custom Indicator' || editTitle === 'Custom Script' || !editTitle)
+              ) {
                 setEditTitle(matchTitle[1]);
                 setEditShortName(matchTitle[1].slice(0, 12));
               }
             }}
             onKeyDown={handleKeyDown}
-            placeholder={`//@version=5\nindicator("My Indicator", overlay=true)\n\n// Paste any Pine Script code here\nplot(ta.sma(close, 20), "SMA 20", color=color.cyan)`}
+            onClick={(e) => {
+              const target = e.currentTarget;
+              triggerAutocomplete(target.value, target.selectionStart);
+            }}
+            placeholder={`//@version=5\nindicator("My Indicator", overlay=true)\n\n// Paste any TradingView Pine Script code here\nplot(ta.sma(close, 20), "SMA 20", color=color.cyan)`}
             className="w-full h-full p-3 bg-transparent text-[#d1d4dc] text-xs font-mono leading-relaxed outline-none resize-none whitespace-pre overflow-auto selection:bg-[#2962ff]/30 selection:text-white"
             spellCheck={false}
           />
+
+          {/* Autocomplete Suggestions Popup */}
+          {autocompleteVisible && autocompleteItems.length > 0 && (
+            <div className="absolute left-6 top-6 z-50 w-80 bg-[#1e222d] border border-[#2962ff]/60 rounded-xl shadow-2xl overflow-hidden font-mono text-xs">
+              <div className="flex items-center justify-between px-3 py-1.5 bg-[#131722] border-b border-[#2a2e39] text-[10px] text-slate-400">
+                <span className="font-bold text-cyan-400">Pine Script Suggestions (↑↓ / Enter)</span>
+                <span className="text-slate-500">Esc to close</span>
+              </div>
+              <div className="max-h-56 overflow-y-auto divide-y divide-[#2a2e39]/50">
+                {autocompleteItems.map((item, idx) => {
+                  const isSelected = idx === autocompleteIndex;
+                  return (
+                    <div
+                      key={item.label}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        applyAutocompleteItem(item);
+                      }}
+                      className={`px-3 py-2 cursor-pointer transition flex flex-col gap-0.5 ${
+                        isSelected ? 'bg-[#2962ff]/25 text-white' : 'text-slate-300 hover:bg-[#252936]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-cyan-300">{item.label}</span>
+                        <span className="text-[9px] uppercase px-1 rounded bg-[#131722] text-slate-400">
+                          {item.kind}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">{item.detail}</div>
+                      <div className="text-[9px] text-slate-500 truncate">{item.doc}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* ===================================================================== */}
-      {/* 3. TRADINGVIEW BOTTOM DRAWER: PINE LOGS / CONSOLE / INPUTS / STRATEGY */}
+      {/* 4. TRADINGVIEW BOTTOM DRAWER: CONSOLE / LOGS / INPUTS / STRATEGY / DOCS */}
       {/* ===================================================================== */}
-      <div className="bg-[#1e222d] border-t border-[#2a2e39] flex flex-col">
+      <div className="bg-[#1e222d] border-t border-[#2a2e39] flex flex-col shrink-0">
         {/* Bottom Drawer Tabs Bar */}
         <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#2a2e39] text-xs font-sans">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {[
               { id: 'CONSOLE' as const, label: 'Compiler Console' },
               { id: 'LOGS' as const, label: 'Pine Logs' },
               { id: 'INPUTS' as const, label: 'Inputs & Settings' },
               { id: 'STRATEGY' as const, label: 'Strategy Tester' },
+              { id: 'REFERENCE' as const, label: 'Cheatsheet' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -917,7 +1558,7 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
                 onClick={() => setConsoleTab(tab.id)}
                 className={`px-2.5 py-1 rounded-md transition cursor-pointer font-medium text-xs ${
                   consoleTab === tab.id
-                    ? 'bg-[#2962ff] text-white shadow-sm'
+                    ? 'bg-[#2962ff] text-white shadow-sm font-bold'
                     : 'text-[#787b86] hover:text-slate-200 hover:bg-[#2a2e39]'
                 }`}
               >
@@ -928,17 +1569,16 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
 
           <div className="flex items-center gap-2 text-[11px] text-[#787b86]">
             {compileStatus && (
-              <span
-                className={`font-mono flex items-center gap-1 ${
-                  compileStatus.success ? 'text-emerald-400' : 'text-rose-400'
-                }`}
-              >
+              <span className={`font-mono flex items-center gap-1 ${compileStatus.success ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {compileStatus.success ? '● Success' : '▲ Error'}
               </span>
             )}
             <button
               type="button"
-              onClick={() => setCompilerLogs([])}
+              onClick={() => {
+                setCompilerLogs([]);
+                setDiagnostics([]);
+              }}
               className="text-[#787b86] hover:text-slate-200 cursor-pointer text-[10px]"
             >
               Clear
@@ -946,8 +1586,8 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
           </div>
         </div>
 
-        {/* Tab Body: 120px tall */}
-        <div className="h-32 overflow-y-auto p-3 font-mono text-xs space-y-1 bg-[#131722]/60">
+        {/* Tab Body: 110px tall */}
+        <div className="h-28 overflow-y-auto p-3 font-mono text-xs space-y-1 bg-[#131722]/60">
           {/* CONSOLE TAB */}
           {consoleTab === 'CONSOLE' && (
             <div>
@@ -970,7 +1610,16 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
                     }`}
                   >
                     <span className="text-[#50535e] text-[10px] shrink-0">[{log.time}]</span>
-                    <span>{log.text}</span>
+                    <span className="flex-1">{log.text}</span>
+                    {log.line && (
+                      <button
+                        type="button"
+                        onClick={() => jumpToLine(log.line!)}
+                        className="px-1.5 py-0.2 rounded bg-rose-900/60 hover:bg-rose-800 text-rose-200 text-[10px] font-bold cursor-pointer shrink-0"
+                      >
+                        Jump to Line {log.line}
+                      </button>
+                    )}
                   </div>
                 ))
               )}
@@ -984,7 +1633,7 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
                 Runtime Execution Log: {activeSymbol} ({activeTimeframe})
               </div>
               <div className="text-slate-400 text-[11px]">
-                Active Indicators Plotted: {indicators.filter((i) => pineScriptService.isIndicatorEnabled(i.id)).length}
+                Active Indicators Plotted on Chart: {indicators.filter((i) => pineScriptService.isIndicatorEnabled(i.id)).length}
               </div>
               {latestCompiledResult && latestCompiledResult.plots.length > 0 && (
                 <div className="text-slate-300 text-[11px] space-y-0.5 pt-1">
@@ -1026,11 +1675,7 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div className="bg-[#1e222d] p-2 rounded border border-[#2a2e39]">
                     <div className="text-[10px] text-slate-400">Net Profit</div>
-                    <div
-                      className={`text-sm font-bold ${
-                        latestCompiledResult.strategyStats.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                      }`}
-                    >
+                    <div className={`text-sm font-bold ${latestCompiledResult.strategyStats.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                       ${latestCompiledResult.strategyStats.netProfit.toLocaleString()} ({latestCompiledResult.strategyStats.netProfitPercent}%)
                     </div>
                   </div>
@@ -1052,6 +1697,39 @@ export const PineEditorDock: React.FC<PineEditorDockProps> = ({
                   Script is currently an indicator. To view strategy backtesting statistics, use <code>strategy(&quot;...&quot;)</code> syntax.
                 </div>
               )}
+            </div>
+          )}
+
+          {/* CHEATSHEET TAB */}
+          {consoleTab === 'REFERENCE' && (
+            <div className="space-y-1.5 text-xs">
+              <div className="text-cyan-400 font-bold text-[11px]">Supported Pine Script v5 / v6 Functions:</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[10px]">
+                <div className="p-1 rounded bg-[#1e222d] border border-[#2a2e39]">
+                  <strong className="text-cyan-300">ta.sma(close, length)</strong>
+                  <div className="text-slate-400">Simple Moving Average</div>
+                </div>
+                <div className="p-1 rounded bg-[#1e222d] border border-[#2a2e39]">
+                  <strong className="text-cyan-300">ta.ema(close, length)</strong>
+                  <div className="text-slate-400">Exponential Moving Average</div>
+                </div>
+                <div className="p-1 rounded bg-[#1e222d] border border-[#2a2e39]">
+                  <strong className="text-cyan-300">ta.rsi(close, length)</strong>
+                  <div className="text-slate-400">Relative Strength Index</div>
+                </div>
+                <div className="p-1 rounded bg-[#1e222d] border border-[#2a2e39]">
+                  <strong className="text-cyan-300">ta.atr(length)</strong>
+                  <div className="text-slate-400">Average True Range</div>
+                </div>
+                <div className="p-1 rounded bg-[#1e222d] border border-[#2a2e39]">
+                  <strong className="text-cyan-300">plotshape(cond, ...)</strong>
+                  <div className="text-slate-400">Triangle / Arrow markers</div>
+                </div>
+                <div className="p-1 rounded bg-[#1e222d] border border-[#2a2e39]">
+                  <strong className="text-cyan-300">hline(level, ...)</strong>
+                  <div className="text-slate-400">Horizontal key level line</div>
+                </div>
+              </div>
             </div>
           )}
         </div>

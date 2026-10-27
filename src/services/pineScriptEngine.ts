@@ -164,6 +164,14 @@ export interface MarketStructureData {
   subtitle: string;
 }
 
+export interface PineSyntaxDiagnostic {
+  line: number;
+  column?: number;
+  message: string;
+  type: 'error' | 'warning';
+  codeSnippet?: string;
+}
+
 export interface PineCompilationResult {
   success: boolean;
   title: string;
@@ -179,6 +187,7 @@ export interface PineCompilationResult {
   latestValues: Record<string, number | string>;
   strategyStats?: PineStrategyStats;
   marketStructure?: MarketStructureData;
+  diagnostics?: PineSyntaxDiagnostic[];
   logs: Array<{ time: string; type: 'info' | 'success' | 'warn' | 'error'; text: string; line?: number }>;
   executionTimeMs: number;
 }
@@ -1044,6 +1053,109 @@ export class PineScriptEngine {
   }
 
   /**
+   * Validate Pine Script code syntax and return precise line-level diagnostics.
+   */
+  static validateSyntax(scriptCode: string): PineSyntaxDiagnostic[] {
+    const diagnostics: PineSyntaxDiagnostic[] = [];
+    if (!scriptCode || !scriptCode.trim()) {
+      diagnostics.push({ line: 1, message: 'Script is empty', type: 'error' });
+      return diagnostics;
+    }
+
+    const lines = scriptCode.split('\n');
+
+    // Version header check
+    const hasVersion = scriptCode.match(/\/\/\s*@version\s*=\s*(\d+)/i);
+    if (!hasVersion) {
+      diagnostics.push({
+        line: 1,
+        message: 'Recommendation: Add //@version=5 on line 1 for TradingView Pine Script v5 compatibility.',
+        type: 'warning',
+      });
+    }
+
+    // Indicator / Strategy declaration check
+    const hasDeclaration = scriptCode.match(/(?:indicator|strategy)\s*\(/);
+    if (!hasDeclaration) {
+      diagnostics.push({
+        line: 1,
+        message: 'Missing indicator(...) or strategy(...) declaration. Example: indicator("My Custom Indicator", overlay=true)',
+        type: 'error',
+      });
+    }
+
+    // Line by line validation
+    for (let idx = 0; idx < lines.length; idx++) {
+      const lineNum = idx + 1;
+      const rawLine = lines[idx];
+      const trimmed = rawLine.trim();
+
+      if (!trimmed || trimmed.startsWith('//')) continue;
+
+      let openParens = 0;
+      let openBrackets = 0;
+      let inQuote: string | null = null;
+
+      for (let cIdx = 0; cIdx < rawLine.length; cIdx++) {
+        const char = rawLine[cIdx];
+        const prev = cIdx > 0 ? rawLine[cIdx - 1] : '';
+
+        if (inQuote) {
+          if (char === inQuote && prev !== '\\') inQuote = null;
+        } else {
+          if (char === '"' || char === "'") {
+            inQuote = char;
+          } else if (char === '/' && cIdx + 1 < rawLine.length && rawLine[cIdx + 1] === '/') {
+            break; // Comment starts
+          } else if (char === '(') openParens++;
+          else if (char === ')') openParens--;
+          else if (char === '[') openBrackets++;
+          else if (char === ']') openBrackets--;
+        }
+      }
+
+      if (inQuote) {
+        diagnostics.push({
+          line: lineNum,
+          message: `Unterminated string literal on line ${lineNum}`,
+          type: 'error',
+          codeSnippet: trimmed,
+        });
+      }
+
+      if (openParens > 0 && !trimmed.endsWith(',') && !trimmed.endsWith('+') && !trimmed.endsWith('-')) {
+        const nextLine = idx + 1 < lines.length ? lines[idx + 1].trim() : '';
+        if (!nextLine.includes(')')) {
+          diagnostics.push({
+            line: lineNum,
+            message: `Syntax error: unclosed parenthesis '(' on line ${lineNum}`,
+            type: 'error',
+            codeSnippet: trimmed,
+          });
+        }
+      } else if (openParens < 0) {
+        diagnostics.push({
+          line: lineNum,
+          message: `Syntax error: unexpected closing parenthesis ')' on line ${lineNum}`,
+          type: 'error',
+          codeSnippet: trimmed,
+        });
+      }
+
+      if (openBrackets !== 0) {
+        diagnostics.push({
+          line: lineNum,
+          message: `Syntax error: mismatched brackets '[]' on line ${lineNum}`,
+          type: 'error',
+          codeSnippet: trimmed,
+        });
+      }
+    }
+
+    return diagnostics;
+  }
+
+  /**
    * Execute compiled Pine Script AST on historical candlestick data.
    */
   static execute(
@@ -1074,6 +1186,38 @@ export class PineScriptEngine {
       };
     }
 
+    // Run syntax validation first
+    const diagnostics = this.validateSyntax(scriptCode);
+    const syntaxErrors = diagnostics.filter((d) => d.type === 'error');
+    for (const d of diagnostics) {
+      logs.push({
+        time: timestampStr,
+        type: d.type === 'error' ? 'error' : 'warn',
+        line: d.line,
+        text: `Line ${d.line}: ${d.message}${d.codeSnippet ? ` -> "${d.codeSnippet}"` : ''}`,
+      });
+    }
+
+    if (syntaxErrors.length > 0) {
+      return {
+        success: false,
+        title: 'Syntax Error',
+        shortTitle: 'Error',
+        overlay: true,
+        version: 5,
+        isStrategy: false,
+        inputs: [],
+        plots: [],
+        shapes: [],
+        hlines: [],
+        fills: [],
+        latestValues: {},
+        diagnostics,
+        logs,
+        executionTimeMs: Math.round(performance.now() - startTime),
+      };
+    }
+
     // Ensure we have candles to evaluate
     if (!candles || candles.length === 0) {
       return {
@@ -1089,6 +1233,7 @@ export class PineScriptEngine {
         hlines: [],
         fills: [],
         latestValues: {},
+        diagnostics,
         logs: [{ time: timestampStr, type: 'error', text: 'Error: No chart candles available for execution.' }],
         executionTimeMs: 0,
       };
@@ -1115,7 +1260,7 @@ export class PineScriptEngine {
 
       // Context environment for variable evaluation
       const env: Record<string, any> = {
-        open: closes, // fallback array
+        open: closes,
         high: highs,
         low: lows,
         close: closes,
@@ -1146,12 +1291,28 @@ export class PineScriptEngine {
         if (clean === 'ohlc4') return ohlc4;
         if (clean === 'volume') return volumes;
 
-        // 2. Direct env lookup
+        // 2. Series history indexing e.g. close[1], high[2], low[1]
+        const indexedMatch = clean.match(/^(close|open|high|low|volume)\[(\d+)\]$/);
+        if (indexedMatch) {
+          const sName = indexedMatch[1];
+          const offset = parseInt(indexedMatch[2], 10);
+          const base = sName === 'open' ? opens : sName === 'high' ? highs : sName === 'low' ? lows : sName === 'volume' ? volumes : closes;
+          return base.map((_, idx) => (idx >= offset ? base[idx - offset] : null));
+        }
+
+        // 3. Direct env lookup
         if (env[clean] && Array.isArray(env[clean])) {
           return env[clean];
         }
 
-        // 3. ta.sma(source, length)
+        // 4. ta.change(source)
+        const changeMatch = clean.match(/ta\.change\s*\(\s*([^)]+)\s*\)/);
+        if (changeMatch) {
+          const src = resolveNumericSeries(changeMatch[1]);
+          return src.map((v, i) => (i === 0 || v === null || src[i - 1] === null ? null : (v as number) - (src[i - 1] as number)));
+        }
+
+        // 5. ta.sma(source, length)
         const smaMatch = clean.match(/ta\.sma\s*\(\s*([^,]+)\s*,\s*([^)]+)\s*\)/);
         if (smaMatch) {
           const src = resolveNumericSeries(smaMatch[1]);
@@ -1160,7 +1321,7 @@ export class PineScriptEngine {
           return calculateSMA(numSrc, len);
         }
 
-        // 4. ta.ema(source, length)
+        // 6. ta.ema(source, length)
         const emaMatch = clean.match(/ta\.ema\s*\(\s*([^,]+)\s*,\s*([^)]+)\s*\)/);
         if (emaMatch) {
           const src = resolveNumericSeries(emaMatch[1]);
@@ -1169,7 +1330,7 @@ export class PineScriptEngine {
           return calculateEMA(numSrc, len);
         }
 
-        // 5. ta.rsi(source, length)
+        // 7. ta.rsi(source, length)
         const rsiMatch = clean.match(/ta\.rsi\s*\(\s*([^,]+)\s*,\s*([^)]+)\s*\)/);
         if (rsiMatch) {
           const src = resolveNumericSeries(rsiMatch[1]);
@@ -1178,14 +1339,14 @@ export class PineScriptEngine {
           return calculateRSI(numSrc, len);
         }
 
-        // 6. ta.atr(length)
+        // 8. ta.atr(length)
         const atrMatch = clean.match(/ta\.atr\s*\(\s*([^)]+)\s*\)/);
         if (atrMatch) {
           const len = parseInt(String(env[atrMatch[1].trim()] || atrMatch[1]), 10) || 14;
           return calculateATR(highs, lows, closes, len);
         }
 
-        // 7. ta.highest(source, length)
+        // 9. ta.highest(source, length)
         const highestMatch = clean.match(/ta\.highest\s*\(\s*(?:([^,]+)\s*,\s*)?([^)]+)\s*\)/);
         if (highestMatch) {
           const srcExpr = highestMatch[1] ? highestMatch[1] : 'high';
@@ -1199,7 +1360,7 @@ export class PineScriptEngine {
           });
         }
 
-        // 8. ta.lowest(source, length)
+        // 10. ta.lowest(source, length)
         const lowestMatch = clean.match(/ta\.lowest\s*\(\s*(?:([^,]+)\s*,\s*)?([^)]+)\s*\)/);
         if (lowestMatch) {
           const srcExpr = lowestMatch[1] ? lowestMatch[1] : 'low';
@@ -1213,22 +1374,33 @@ export class PineScriptEngine {
           });
         }
 
-        // 9. Simple arithmetic addition/subtraction: a + b, a - b
-        if (clean.includes('+') || clean.includes('-')) {
-          const isPlus = clean.includes('+');
-          const parts = isPlus ? clean.split('+') : clean.split('-');
+        // 11. math.abs, math.max, math.min, math.round
+        const mathMatch = clean.match(/math\.(abs|round)\s*\(\s*([^)]+)\s*\)/);
+        if (mathMatch) {
+          const fn = mathMatch[1];
+          const src = resolveNumericSeries(mathMatch[2]);
+          return src.map((v) => (v === null ? null : fn === 'abs' ? Math.abs(v) : Math.round(v)));
+        }
+
+        // 12. Simple arithmetic addition/subtraction: a + b, a - b, a * b, a / b
+        if (clean.includes('+') || clean.includes('-') || clean.includes('*') || clean.includes('/')) {
+          const op = clean.includes('+') ? '+' : clean.includes('-') ? '-' : clean.includes('*') ? '*' : '/';
+          const parts = clean.split(op);
           if (parts.length === 2) {
             const s1 = resolveNumericSeries(parts[0]);
             const s2 = resolveNumericSeries(parts[1]);
             return s1.map((v1, i) => {
               const v2 = s2[i];
               if (v1 === null || v2 === null) return null;
-              return isPlus ? v1 + v2 : v1 - v2;
+              if (op === '+') return v1 + v2;
+              if (op === '-') return v1 - v2;
+              if (op === '*') return v1 * v2;
+              return v2 !== 0 ? v1 / v2 : null;
             });
           }
         }
 
-        // 10. Constant number literal
+        // 13. Constant number literal
         const num = parseFloat(clean);
         if (!isNaN(num)) {
           return new Array(N).fill(num);

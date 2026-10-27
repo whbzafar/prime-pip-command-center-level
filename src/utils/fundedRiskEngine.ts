@@ -2520,27 +2520,110 @@ export function calculatePostTradeImpact(
   const isBreached = dailyAfter.isDailyDrawdownBreached || overallAfter.isOverallDrawdownBreached;
   const isApproachingLimit = dailyAfter.dailyDrawdownUsedPercent >= 75 || overallAfter.overallDrawdownUsedPercent >= 75;
 
+  // 1. Risk limit analysis
+  const maxAllowedRiskPct = account.maxRiskPerTradePercent || config.maxRiskPerTradePercent || 1.0;
+  const plannedRiskAmount = trade.riskAmount || trade.riskDollars || (trade.entryPrice && trade.stopLoss && trade.lotSize ? Math.abs(trade.entryPrice - trade.stopLoss) * trade.lotSize * 100 : 0);
+  const tradeRiskPct = startingBal > 0 ? (plannedRiskAmount / startingBal) * 100 : 0;
+  const isRiskLimitCompliant = plannedRiskAmount > 0 ? tradeRiskPct <= (maxAllowedRiskPct * 1.05) : true;
+  const hasStopLoss = typeof trade.stopLoss === 'number' && trade.stopLoss > 0;
+
+  // 2. Rules compliance check
+  const complianceIssues: string[] = [];
+  if (!hasStopLoss) {
+    complianceIssues.push('Trade executed without a predefined stop-loss.');
+  }
+  if (!isRiskLimitCompliant) {
+    complianceIssues.push(`Planned risk of ${tradeRiskPct.toFixed(1)}% exceeded configured limit of ${maxAllowedRiskPct}%.`);
+  }
+  if (config.newsRestriction && trade.notes?.toLowerCase().includes('news')) {
+    complianceIssues.push('Trade tagged during restricted high-impact news window.');
+  }
+  if (dailyAfter.isDailyDrawdownBreached) {
+    complianceIssues.push('Daily drawdown limit breached.');
+  }
+  if (overallAfter.isOverallDrawdownBreached) {
+    complianceIssues.push('Maximum overall drawdown limit breached.');
+  }
+  const isCompliantWithRules = complianceIssues.length === 0;
+
+  // 6. Minimum trading days check
+  const distinctDays = new Set(
+    allTrades.filter((t) => t.status !== 'OPEN' && t.date).map((t) => t.date)
+  ).size;
+  const requiredDays = config.minimumTradingDays || (account.rulesConfig?.minimumTradingDays) || 0;
+  const areTradingDaysSatisfied = requiredDays <= 0 || distinctDays >= requiredDays;
+
   let decisionState: RiskDecisionState = 'TAKE';
   let recommendedNextAction = 'Continue trading within your standard risk budget on verified setups.';
   let explanation = '';
 
+  // Construct structured trade review answers
+  let tradeStatusLabel = 'Within configured risk limits';
+  if (isBreached) {
+    tradeStatusLabel = 'Rule Breach Detected';
+  } else if (!isCompliantWithRules) {
+    tradeStatusLabel = 'Attention Required: Rule Non-Compliance';
+  } else if (isApproachingLimit) {
+    tradeStatusLabel = 'Caution: Approaching Drawdown Boundary';
+  }
+
+  let whatWentWell = '';
+  if (hasStopLoss && isRiskLimitCompliant) {
+    whatWentWell = `The trade stayed within the configured ${maxAllowedRiskPct}% risk allowance and included an active stop-loss at ${trade.stopLoss}.`;
+  } else if (hasStopLoss) {
+    whatWentWell = 'The trade maintained an explicit stop-loss order to protect capital from runaway market slippage.';
+  } else if (pnl > 0) {
+    whatWentWell = 'Trade captured profit toward the phase target, but discipline requires attaching a stop-loss on future entries.';
+  } else {
+    whatWentWell = 'Trade was logged to the journal for audit and performance review.';
+  }
+
+  const accountImpactText = `Verified P/L: ${pnl >= 0 ? '+' : ''}${formatCurrency(pnl, currency)}. Updated Equity: ${formatCurrency(updatedEq, currency)}. Remaining Daily Loss: ${formatCurrency(dailyAfter.remainingDailyDrawdown, currency)}. Remaining Overall Drawdown: ${formatCurrency(overallAfter.remainingOverallDrawdown, currency)}.`;
+
+  let whatNeedsAttention = '';
+  if (isBreached) {
+    whatNeedsAttention = 'DRAWDOWN LIMIT REACHED: Account has reached its permissible drawdown limit. Cease trading immediately to prevent permanent disqualification.';
+  } else if (complianceIssues.length > 0) {
+    whatNeedsAttention = complianceIssues.join(' ');
+  } else if (isApproachingLimit) {
+    whatNeedsAttention = `Daily drawdown capacity is ${dailyAfter.dailyDrawdownUsedPercent}% consumed. Only ${formatCurrency(dailyAfter.remainingDailyDrawdown, currency)} remaining today.`;
+  } else if (!areTradingDaysSatisfied) {
+    whatNeedsAttention = `${distinctDays} of ${requiredDays} qualifying trading days completed. ${requiredDays - distinctDays} days remaining before phase evaluation can pass.`;
+  } else {
+    whatNeedsAttention = 'All risk parameters currently in optimal health. No compliance issues detected.';
+  }
+
+  let recommendedNextStepText = '';
   if (isBreached) {
     decisionState = 'STOP';
     recommendedNextAction = 'Trading halted: Drawdown limit has been reached.';
+    recommendedNextStepText = 'Trading halted: Review the trade log with your prop firm dashboard. Do not enter further positions.';
     explanation = `This trade triggered a drawdown breach. Account daily remaining is ${formatCurrency(dailyAfter.remainingDailyDrawdown, currency)} and overall remaining is ${formatCurrency(overallAfter.remainingOverallDrawdown, currency)}.`;
+  } else if (isApproachingLimit) {
+    decisionState = 'REDUCE';
+    recommendedNextAction = 'Reduce risk on next trade or halt trading for the remainder of today.';
+    recommendedNextStepText = 'Reduce risk on subsequent trades to preserve remaining daily drawdown room. Wait for high-conviction setups only.';
+    explanation = `Today's drawdown buffer is ${dailyAfter.dailyDrawdownUsedPercent}% consumed (${formatCurrency(dailyAfter.remainingDailyDrawdown, currency)} left). Capital preservation protocol recommends reducing risk.`;
+  } else if (phaseAfter.isTargetPassed && areTradingDaysSatisfied) {
+    decisionState = 'STOP';
+    recommendedNextAction = 'Target Passed! Stop trading and request phase verification.';
+    recommendedNextStepText = 'Phase target reached and minimum trading days met! Stop trading and contact your prop firm for official evaluation verification.';
+    explanation = `Profit target of ${formatCurrency(config.profitTargets.phase1TargetDollars, currency)} passed with all qualifying days satisfied. Protect the account.`;
+  } else if (phaseAfter.isTargetPassed && !areTradingDaysSatisfied) {
+    decisionState = 'TAKE';
+    recommendedNextAction = 'Target reached! Fulfill remaining days with minimal lot size.';
+    recommendedNextStepText = `Profit target reached! You still need ${requiredDays - distinctDays} more qualifying trading days. Use minimum risk (0.01 lot) to protect profits while fulfilling the days requirement.`;
+    explanation = `Target achieved, but ${distinctDays}/${requiredDays} trading days completed. Do not risk accumulated profits.`;
   } else if (pnl < 0) {
-    decisionState = isApproachingLimit ? 'REDUCE' : 'TAKE';
-    explanation = `Loss of ${formatCurrency(Math.abs(pnl), currency)} reduced today's daily buffer to ${formatCurrency(dailyAfter.remainingDailyDrawdown, currency)} (${dailyAfter.dailyDrawdownUsedPercent}% used). Capital preservation protocol recommends maintaining strict discipline and not attempting revenge trades.`;
-    recommendedNextAction = isApproachingLimit
-      ? 'Reduce risk on next trade to preserve remaining daily drawdown.'
-      : 'Maintain standard risk sizing. Do not revenge trade.';
-  } else if (pnl > 0) {
-    explanation = `Win of ${formatCurrency(pnl, currency)} increases profit-target progress to ${phaseAfter.profitProgressPercent}%. Remaining to target: ${formatCurrency(phaseAfter.remainingProfitTarget, currency)}. Keep sizing consistent; never increase lot size simply because the previous trade won.`;
-    recommendedNextAction = phaseAfter.isTargetPassed
-      ? 'Target Passed! Stop trading and request phase verification.'
-      : 'Keep risk steady at calibrated baseline. Avoid overconfidence.';
+    decisionState = 'TAKE';
+    recommendedNextAction = 'Maintain standard risk sizing. Do not revenge trade.';
+    recommendedNextStepText = 'Maintain strict discipline. Do not attempt to recover losses in a hurry; wait for high-probability setups.';
+    explanation = `Loss of ${formatCurrency(Math.abs(pnl), currency)} leaves ${formatCurrency(dailyAfter.remainingDailyDrawdown, currency)} daily room. Follow your trading plan.`;
   } else {
-    explanation = `Breakeven trade recorded. Risk budget and drawdown boundaries remain unchanged.`;
+    decisionState = 'TAKE';
+    recommendedNextAction = 'Keep risk steady at calibrated baseline. Avoid overconfidence.';
+    recommendedNextStepText = `Steady progress: ${formatCurrency(phaseAfter.remainingProfitTarget, currency)} remaining to reach target. Keep lot sizing consistent.`;
+    explanation = `Trade closed in profit (+${formatCurrency(pnl, currency)}). Keep sizing consistent; never inflate risk after wins.`;
   }
 
   // Calculate updated personal risk budget for next trade
@@ -2577,6 +2660,25 @@ export function calculatePostTradeImpact(
     isApproachingLimit,
     isBreached,
     isManuallyReported: account.isManual !== false,
+    tradeStatusLabel,
+    whatWentWell,
+    accountImpactText,
+    whatNeedsAttention,
+    recommendedNextStepText,
+    eightPointAudit: {
+      isWithinRiskLimits: isRiskLimitCompliant,
+      isCompliantWithRules,
+      balanceChange: pnl,
+      equityChange: pnl,
+      remainingDailyLoss: dailyAfter.remainingDailyDrawdown,
+      remainingOverallLoss: overallAfter.remainingOverallDrawdown,
+      remainingProfitTarget: phaseAfter.remainingProfitTarget,
+      tradingDaysCompleted: distinctDays,
+      tradingDaysRequired: requiredDays,
+      areTradingDaysSatisfied,
+      complianceIssues,
+      whatToDoNext: recommendedNextStepText,
+    },
   };
 }
 

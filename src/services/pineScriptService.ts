@@ -19,7 +19,7 @@ export const DEFAULT_PINE_INDICATORS: PineScriptIndicator[] = [
     version: '5.2.0',
     author: 'Admin / Institutional Desk',
     updatedAt: '2026-10-19',
-    defaultEnabled: true,
+    defaultEnabled: false,
     isOfficial: true,
     slotNumber: 1,
     parameters: {
@@ -61,7 +61,7 @@ plotshape(isBearishOB, title="Bearish OB Sweep", style=shape.circle, location=lo
     version: '5.1.0',
     author: 'Admin / Quant Team',
     updatedAt: '2026-10-18',
-    defaultEnabled: true,
+    defaultEnabled: false,
     isOfficial: true,
     slotNumber: 2,
     parameters: {
@@ -205,7 +205,7 @@ plot(ema200, "Macro EMA (200)", color=color.new(#ec4899, 0), linewidth=2)
     version: '4.48',
     author: 'Admin / Institutional Desk',
     updatedAt: '2026-10-21',
-    defaultEnabled: true,
+    defaultEnabled: false,
     isOfficial: true,
     slotNumber: 6,
     parameters: {
@@ -241,16 +241,24 @@ class PineScriptService {
         this.indicators = [...DEFAULT_PINE_INDICATORS];
       }
 
+      // Check if clean chart policy has been migrated
+      const cleanChartKey = 'primepipfx_pine_clean_chart_v2';
+      const isCleanMigrated = localStorage.getItem(cleanChartKey) === 'true';
+
       const toggles = localStorage.getItem(STORAGE_KEY_USER_TOGGLES);
-      if (toggles) {
+      if (toggles && isCleanMigrated) {
         this.userToggles = JSON.parse(toggles);
       } else {
-        // Initialize default enabled
+        // Start with a 100% clean chart - all indicators OFF by default
         const initial: Record<string, boolean> = {};
         for (const ind of this.indicators) {
-          initial[ind.id] = Boolean(ind.defaultEnabled);
+          initial[ind.id] = false;
         }
         this.userToggles = initial;
+        try {
+          localStorage.setItem(cleanChartKey, 'true');
+          localStorage.setItem(STORAGE_KEY_USER_TOGGLES, JSON.stringify(initial));
+        } catch {}
       }
       // Ensure official indicators (especially sbt-ms-123) always have their authentic scriptCode
       for (const def of DEFAULT_PINE_INDICATORS) {
@@ -476,13 +484,51 @@ class PineScriptService {
   }
 
   /**
-   * Reset library back to authoritative institutional presets.
+   * Remove all currently applied indicators from the chart (clean price action mode).
+   */
+  async clearAllIndicators(): Promise<void> {
+    const emptyToggles: Record<string, boolean> = {};
+    for (const ind of this.indicators) {
+      emptyToggles[ind.id] = false;
+    }
+    this.userToggles = emptyToggles;
+    this.saveToLocalStorage();
+    window.dispatchEvent(new CustomEvent('primepipfx_pine_toggle_change', { detail: { cleared: true } }));
+    window.dispatchEvent(new CustomEvent('primepipfx_pine_indicators_updated'));
+  }
+
+  /**
+   * Duplicate an existing indicator or script into a new editable script.
+   */
+  async duplicateIndicator(id: string): Promise<PineScriptIndicator | null> {
+    const orig = this.getIndicatorById(id);
+    if (!orig) return null;
+    const copyId = `pine_script_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const copy: PineScriptIndicator = {
+      ...orig,
+      id: copyId,
+      title: `${orig.title} (Copy)`,
+      shortName: `${orig.shortName || orig.title}`.slice(0, 10) + ' (C)',
+      isOfficial: false,
+      slotNumber: this.indicators.length + 1,
+      updatedAt: new Date().toISOString().slice(0, 10),
+      defaultEnabled: false,
+    };
+    this.indicators.push(copy);
+    this.userToggles[copyId] = false;
+    this.saveToLocalStorage();
+    window.dispatchEvent(new CustomEvent('primepipfx_pine_indicators_updated'));
+    return copy;
+  }
+
+  /**
+   * Reset library back to authoritative institutional presets (with clean chart policy).
    */
   async resetToDefaults(): Promise<void> {
     this.indicators = [...DEFAULT_PINE_INDICATORS];
     const initial: Record<string, boolean> = {};
     for (const ind of this.indicators) {
-      initial[ind.id] = Boolean(ind.defaultEnabled);
+      initial[ind.id] = false;
     }
     this.userToggles = initial;
     this.saveToLocalStorage();
