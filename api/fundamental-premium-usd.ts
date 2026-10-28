@@ -119,11 +119,11 @@ function scoreUsd(data: Record<string, SeriesResult>) {
   // Trend-only v1: official observations and their historical changes. No fabricated consensus.
   const corePceYoy = yearOverYear(corePce);
   const corePce3mMomentum = corePce.length >= 4 && corePce[3].value !== 0
-    ? ((corePce[0].value / corePce[3].value) - 1) * 4 * 100
+    ? (Math.pow(corePce[0].value / corePce[3].value, 4) - 1) * 100
     : null;
   const coreCpiYoy = yearOverYear(coreCpi);
   const pceScore = normalize(corePce3mMomentum === null ? (corePceYoy === null ? null : corePceYoy - 2) : (corePce3mMomentum - 2), 1.2, 1);
-  const cpiMomentum = coreCpi.length >= 4 && coreCpi[3].value !== 0 ? ((coreCpi[0].value / coreCpi[3].value) - 1) * 4 * 100 : null;
+  const cpiMomentum = coreCpi.length >= 4 && coreCpi[3].value !== 0 ? (Math.pow(coreCpi[0].value / coreCpi[3].value, 4) - 1) * 100 : null;
   const inflationScore = clamp((pceScore * 0.7) + (normalize(cpiMomentum === null ? (coreCpiYoy === null ? null : coreCpiYoy - 2) : cpiMomentum - 2, 1.2) * 0.3));
 
   const payrollChange = difference(payrolls, 1); // thousands of jobs, month-over-month
@@ -143,7 +143,8 @@ function scoreUsd(data: Record<string, SeriesResult>) {
     normalize(gdpGrowth === null || previousGdpGrowth === null ? null : gdpGrowth - previousGdpGrowth, 2) * 0.35;
 
   const policyChange = difference(funds, 20); // 20 observations is roughly one trading month
-  const policyScore = normalize(policyChange, 0.25) * 0.35 + normalize(difference(twoYear, 5), 0.35) * 0.65;
+  // Keep the policy category separate from yields to avoid double-counting the 2Y Treasury series.
+  const policyScore = normalize(policyChange, 0.25);
 
   const yieldsScore = clamp(
     normalize(difference(twoYear, 5), 0.35) * 0.45 +
