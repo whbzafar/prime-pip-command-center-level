@@ -14,6 +14,9 @@ type SeriesResult = {
   error?: string;
 };
 
+let cachedPayload: { expiresAt: number; payload: any } | null = null;
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
 const SERIES = [
   { id: 'DFF', label: 'Effective Federal Funds Rate', unit: '%', frequency: 'Daily', category: 'policy', url: 'https://fred.stlouisfed.org/series/DFF', maxAgeDays: 10 },
   { id: 'PCEPILFE', label: 'Core PCE Price Index', unit: 'Index', frequency: 'Monthly', category: 'inflation', url: 'https://fred.stlouisfed.org/series/PCEPILFE', maxAgeDays: 75 },
@@ -193,6 +196,10 @@ function scoreUsd(data: Record<string, SeriesResult>) {
 
 export default async function handler(req: Request, res: Response) {
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  if (cachedPayload && cachedPayload.expiresAt > Date.now()) {
+    res.setHeader('Cache-Control', 'private, max-age=60');
+    return res.status(200).json(cachedPayload.payload);
+  }
   const retrievedAt = new Date().toISOString();
   const results = await Promise.all(SERIES.map(async (definition) => {
     try {
@@ -218,7 +225,7 @@ export default async function handler(req: Request, res: Response) {
     if (item.status !== 'LIVE') errors.push(definition.id + ': ' + item.status);
   }
   const dashboard = scoreUsd(series);
-  return res.status(200).json({
+  const payload = {
     ok: true,
     retrievedAt,
     provider: 'FRED',
@@ -234,5 +241,8 @@ export default async function handler(req: Request, res: Response) {
       'A polling timestamp is not the same as the source publication timestamp.',
       'Bullish/bearish indices are transformed directional scores, not probabilities of price movement.',
     ],
-  });
+  };
+  cachedPayload = { expiresAt: Date.now() + CACHE_TTL_MS, payload };
+  res.setHeader('Cache-Control', 'private, max-age=60');
+  return res.status(200).json(payload);
 }
