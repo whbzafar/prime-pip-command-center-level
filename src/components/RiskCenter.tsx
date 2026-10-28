@@ -26,6 +26,7 @@ import { formatCurrency } from '../utils/currencyFormatter';
 import { calculateNextTradeReadiness } from '../utils/readinessEngine';
 import { RISK_WARNING_CONFIG } from '../config/riskWarningConfig';
 import { FundedAccountRiskCommand } from './FundedAccountRiskCommand';
+import { EvaluationPassNavigator } from './account/EvaluationPassNavigator';
 
 export interface TradeLimitAlertSystemProps {
   account: AccountSettings | null;
@@ -378,6 +379,14 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
         account={account}
         trades={trades}
         onUpdateAccount={onUpdateAccount}
+        onNavigateToTab={onNavigateToTab}
+      />
+
+      {/* EVALUATION PASS NAVIGATOR & PASSING GUIDANCE */}
+      <EvaluationPassNavigator
+        account={account}
+        trades={trades}
+        onOpenJournal={() => onNavigateToTab?.('JOURNAL')}
         onNavigateToTab={onNavigateToTab}
       />
 

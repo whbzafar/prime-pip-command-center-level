@@ -71,7 +71,6 @@ import { isCategoryLockedInDemo } from '../data/categorySummaries';
 import { hasFullAccess } from '../utils/authClient';
 
 export type MainNavTab =
-  | 'SETUP'
   | 'DASHBOARD'
   | 'JOURNAL'
   | 'PERFORMANCE'
@@ -410,7 +409,6 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Complete List of All 20 Navigation Categories in STRICT Order (01-20)
   const allNavCategories = [
-    { id: 'SETUP' as MainNavTab, label: '00. ACCOUNT SETUP WIZARD', icon: Sliders, highlight: true },
     { id: 'DASHBOARD' as MainNavTab, label: '01. DASHBOARD', icon: Activity },
     { id: 'JOURNAL' as MainNavTab, label: '02. TRADE JOURNAL', icon: BookOpen },
     { id: 'SBT_MODELS' as MainNavTab, label: '03. SBT MODELS', icon: Layers, highlight: true },
@@ -442,9 +440,7 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   const handleNavClick = (id: MainNavTab) => {
-    if (id === 'SETUP') {
-      switchTab('SETUP');
-    } else if (id === 'ACCOUNTS') {
+    if (id === 'ACCOUNTS') {
       if (onOpenAccountManager) {
         onOpenAccountManager();
       } else {
@@ -884,15 +880,6 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </div>
             </button>
-            {onOpenCreateAccount && (
-              <button
-                onClick={onOpenCreateAccount}
-                title="Create New Trading Account Profile (Setup Wizard)"
-                className="flex items-center gap-1 px-2 py-1.5 rounded-md bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-cyan-200 text-[10px] font-bold font-mono transition cursor-pointer"
-              >
-                <span>+ SETUP</span>
-              </button>
-            )}
           </div>
         )}
 

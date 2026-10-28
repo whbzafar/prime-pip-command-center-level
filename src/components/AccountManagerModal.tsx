@@ -14,7 +14,7 @@ import {
   Settings,
   DollarSign,
 } from 'lucide-react';
-import { AccountSettings, AccountType, FundedAccountConfig } from '../types';
+import { AccountSettings, AccountType, FundedAccountConfig, AccountKind } from '../types';
 import { formatCurrency, safeNumber } from '../utils/currencyFormatter';
 import {
   createDefaultFundedConfig,
@@ -23,7 +23,6 @@ import {
 } from '../utils/fundedRiskEngine';
 import { FundedAccountConfigPanel } from './FundedAccountConfigPanel';
 import { CreateAccountWizard } from './account/CreateAccountWizard';
-import { SetupWizard } from './SetupWizard';
 
 interface AccountManagerModalProps {
   isOpen: boolean;
@@ -47,6 +46,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
   onDeleteAccount,
 }) => {
   const [view, setView] = useState<'LIST' | 'CREATE' | 'EDIT'>('LIST');
+  const [createInitialKind, setCreateInitialKind] = useState<AccountKind | undefined>(undefined);
   const [editingAccount, setEditingAccount] = useState<AccountSettings>(activeAccount);
   const [accountToDelete, setAccountToDelete] = useState<AccountSettings | null>(null);
 
@@ -73,7 +73,8 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
     { id: 'Demo Account', label: 'Demo Account', mappedType: 'DEMO' as AccountType, category: 'PERSONAL' as const },
   ];
 
-  const handleStartCreate = () => {
+  const handleStartCreate = (kind?: AccountKind) => {
+    setCreateInitialKind(kind);
     setName(`Account ${accounts.length + 1}`);
     setBalance('5000');
     setCurrency('USD');
@@ -283,39 +284,39 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto p-4 animate-in fade-in duration-150">
-      <div className="relative w-full max-w-2xl bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
-        {/* Modal Header */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-              <Building2 className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto p-3 sm:p-4 animate-in fade-in duration-150">
+      <div className={`relative w-full ${view === 'CREATE' ? 'max-w-4xl' : 'max-w-2xl'} bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150`}>
+        {/* Modal Header (Only shown in LIST and EDIT views) */}
+        {view !== 'CREATE' && (
+          <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-military font-bold tracking-wide text-slate-100">
+                  {view === 'LIST'
+                    ? 'TRADING ACCOUNTS & RISK PROFILES'
+                    : 'ACCOUNT SETTINGS'}
+                </h2>
+                <p className="text-[11px] sm:text-xs text-slate-400 font-mono-code">
+                  {view === 'LIST'
+                    ? `${accounts.length} ISOLATED ACCOUNTS CONFIGURED`
+                    : 'OFFLINE-FIRST LOCAL ISOLATION'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-military font-bold tracking-wide text-slate-100">
-                {view === 'LIST'
-                  ? 'TRADING ACCOUNTS & RISK PROFILES'
-                  : view === 'CREATE'
-                  ? 'CREATE NEW TRADING ACCOUNT'
-                  : 'ACCOUNT SETTINGS'}
-              </h2>
-              <p className="text-[11px] sm:text-xs text-slate-400 font-mono-code">
-                {view === 'LIST'
-                  ? `${accounts.length} ISOLATED ACCOUNTS CONFIGURED`
-                  : 'OFFLINE-FIRST LOCAL ISOLATION'}
-              </p>
-            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 flex items-center justify-center transition shrink-0 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 flex items-center justify-center transition shrink-0 cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        )}
 
         {/* Modal Body */}
-        <div className="p-4 sm:p-5 md:p-6 overflow-y-auto flex-1">
+        <div className={`${view === 'CREATE' ? 'p-1 sm:p-2' : 'p-4 sm:p-5 md:p-6'} overflow-y-auto flex-1`}>
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -325,17 +326,80 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
 
           {view === 'LIST' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <span className="text-xs font-mono-code text-slate-400 uppercase tracking-wider">
                   Switch or manage your accounts
                 </span>
                 <button
-                  onClick={handleStartCreate}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider transition shadow-md shadow-blue-500/20"
+                  onClick={() => handleStartCreate()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 text-xs font-military font-bold tracking-wider transition shadow-md shadow-blue-500/20 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5 stroke-[3]" />
                   <span>CREATE NEW ACCOUNT</span>
                 </button>
+              </div>
+
+              {/* 3 Account Types Selection (Exact Match with Initial Account Creation) */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-950 border border-cyan-500/20 shadow-md">
+                <div className="text-[10px] font-mono-code text-cyan-300 font-bold uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span>3 ACCOUNT CREATION OPTIONS:</span>
+                  <span className="text-slate-500 text-[9px]">CLICK TO CONFIGURE</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {/* 1. Demo */}
+                  <button
+                    type="button"
+                    onClick={() => handleStartCreate('DEMO')}
+                    className="p-3 rounded-xl bg-slate-950/90 border border-cyan-500/30 hover:border-cyan-400 text-left transition group cursor-pointer hover:shadow-lg hover:shadow-cyan-950/30"
+                  >
+                    <div className="text-xs font-bold text-cyan-300 flex items-center justify-between">
+                      <span>1. Demo Account</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-cyan-400 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                    <div className="text-[10px] text-cyan-400 font-mono mt-0.5 font-bold">
+                      Simulation &amp; Practice
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                      Virtual capital testing with risk-free setups.
+                    </p>
+                  </button>
+
+                  {/* 2. Personal / $100 Cent */}
+                  <button
+                    type="button"
+                    onClick={() => handleStartCreate('PERSONAL')}
+                    className="p-3 rounded-xl bg-slate-950/90 border border-emerald-500/30 hover:border-emerald-400 text-left transition group cursor-pointer hover:shadow-lg hover:shadow-emerald-950/30"
+                  >
+                    <div className="text-xs font-bold text-emerald-300 flex items-center justify-between">
+                      <span>2. Personal Account</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-emerald-400 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                    <div className="text-[10px] text-emerald-400 font-mono mt-0.5 font-bold">
+                      Live &amp; $100 Cent (10,000¢)
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                      Live brokers &amp; $100 Cent accounts with risk caps.
+                    </p>
+                  </button>
+
+                  {/* 3. Funded Prop */}
+                  <button
+                    type="button"
+                    onClick={() => handleStartCreate('FUNDED')}
+                    className="p-3 rounded-xl bg-slate-950/90 border border-purple-500/30 hover:border-purple-400 text-left transition group cursor-pointer hover:shadow-lg hover:shadow-purple-950/30"
+                  >
+                    <div className="text-xs font-bold text-purple-300 flex items-center justify-between">
+                      <span>3. Funded Account</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-purple-400 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                    <div className="text-[10px] text-purple-300 font-mono mt-0.5 font-bold">
+                      Prop Firm &amp; 100K Evaluation
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                      1-step &amp; 2-step challenges ($10K to $200K).
+                    </p>
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -419,14 +483,16 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
           )}
 
           {view === 'CREATE' && (
-            <div className="py-1">
-              <SetupWizard
+            <div className="py-0">
+              <CreateAccountWizard
+                initialKind={createInitialKind}
                 onAccountCreated={(newAcc) => {
                   onCreateAccount(newAcc);
+                  onSelectAccount(newAcc.id);
                   setView('LIST');
+                  onClose();
                 }}
                 onCancel={() => setView('LIST')}
-                existingAccountsCount={accounts.length}
               />
             </div>
           )}

@@ -858,16 +858,16 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   type="button"
                   onClick={handleDemoClick}
                   className="w-full py-3 bg-slate-900/95 hover:bg-slate-800 text-amber-300 hover:text-white font-military text-xs font-bold rounded-xl border border-amber-500/40 hover:border-amber-400 transition flex items-center justify-center gap-2 cursor-pointer mt-2 shadow-sm group"
-                  title="Explore Command Center (Active Subscription Required)"
+                  title="Explore / Demo Preview (Active Subscription Required)"
                 >
                   <Lock className="w-4 h-4 text-amber-400 group-hover:scale-110 transition" />
-                  <span className="tracking-wider uppercase">EXPLORE (SUBSCRIPTION REQUIRED)</span>
+                  <span className="tracking-wider uppercase">EXPLORE / DEMO PREVIEW (SUBSCRIPTION REQUIRED)</span>
                   <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold">
                     🔒 LOCKED
                   </span>
                 </button>
                 <p className="text-[10px] text-center text-slate-400 font-mono-code mt-1.5">
-                  Subscription required for full institutional suite. Click to unlock or preview.
+                  Subscription required for full institutional suite. Click to unlock or preview demo features.
                 </p>
               </form>
             ) : step === 'LINK_STORAGE' ? (

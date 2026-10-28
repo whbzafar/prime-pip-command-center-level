@@ -19,9 +19,6 @@ export const ALLOWED_DEMO_CATEGORIES: string[] = [
   'FUNDAMENTAL_CALENDAR', // 07. Live News Calendar (TradingView × Forex Factory — Unlocked per user request)
   'FUNDAMENTAL_INDICATORS', // 08. Fundamental Indicators Engine (Free COT & Sentiment in Demo)
   'PRO_TRADING',          // 10. Premium TradingView
-  'CHART_ANALYSIS',       // 12. Unlimited Chart Analysis (100% Free Unrestricted)
-  'BACKTESTING',          // 11. Backtesting Suite
-  'BACKTEST_REPLAY',      // 11. Backtesting Replay Pro
   'COMPOUNDING',          // 12. Compounding Engine (Trading Tool Suite)
   'PERFORMANCE',          // 11. Performance Report (Performance reports)
   'REPORTS',              // Performance reports
@@ -33,7 +30,6 @@ export const ALLOWED_DEMO_CATEGORIES: string[] = [
   'PRO_LEARNING',         // 19. Pro Learning / Academy (Unlocked per user request: 'Pro Learning Trading')
   'BOOK_SESSION',         // 21. Book a Session (Unlocked per user request: 'the book section')
   'SETTINGS',             // 22. Data Export & Backup (Unlocked per user request: 'Data Export/Backup')
-  'SETUP',                // 00. Account Setup Wizard
 ];
 
 export const isCategoryLockedInDemo = (
@@ -46,13 +42,22 @@ export const isCategoryLockedInDemo = (
   const effectiveUser = user !== undefined ? user : getStoredUser();
   const hasSub = hasFullAccess(effectiveUser);
 
-  // Psychological Center is strictly locked wherever it appears for any user without an active subscription
-  if (categoryId === 'PSYCHOLOGY') {
-    return !hasSub;
-  }
-
-  // Active subscribers have full access to remaining modules
+  // Active subscribers have full unrestricted access to all features
   if (hasSub) return false;
+
+  // Features strictly locked for non-subscribed users (Backtesting, Chart Analysis, Psychology, Signals, Meta5)
+  const LOCKED_FOR_NON_SUBSCRIBERS = [
+    'BACKTESTING',
+    'BACKTEST_REPLAY',
+    'CHART_ANALYSIS',
+    'PSYCHOLOGY',
+    'SIGNALS',
+    'META5_PREMIUM',
+  ];
+
+  if (LOCKED_FOR_NON_SUBSCRIBERS.includes(categoryId)) {
+    return true;
+  }
 
   // Fundamental section is marked free to allow exploring COT reports and sentiment
   if (categoryId === 'FUNDAMENTAL_INDICATORS' || categoryId === 'FUNDAMENTAL_CALENDAR') {
@@ -195,8 +200,8 @@ export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
   BACKTEST_REPLAY: {
     id: 'BACKTEST_REPLAY',
     name: '11. Backtesting Replay Pro',
-    shortDesc: 'Candle-by-candle market replay video player with simulated orders and auto journal logging.',
-    overview: 'High-precision strategy backtesting terminal powered by Dukascopy Forex feeds and Binance Crypto feeds. Replay historical price action candle-by-candle with zero look-ahead bias, place simulated market and pending orders, and automatically sync completed trades into your journal.',
+    shortDesc: '🔒 Subscription Required. Candle-by-candle market replay video player with simulated orders and auto journal logging.',
+    overview: 'High-precision strategy backtesting terminal powered by Dukascopy Forex feeds and Binance Crypto feeds. Replay historical price action candle-by-candle with zero look-ahead bias, place simulated market and pending orders, and automatically sync completed trades into your journal. Requires an active PrimePipFX subscription.',
     keyFeatures: [
       'Candle-by-candle video player playback (Play, Pause, Step, Speed 1x-10x)',
       'Real historical data from Dukascopy (Forex) and Binance (Crypto)',
@@ -207,13 +212,13 @@ export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
   },
   CHART_ANALYSIS: {
     id: 'CHART_ANALYSIS',
-    name: '12. Unlimited Chart Analysis',
-    shortDesc: 'Unrestricted live full-featured price charts for all Forex & Crypto pairs.',
-    overview: 'Clean, unthrottled live technical analysis workspace powered by Twelve Data / OANDA Forex feeds and Binance Crypto sub-second WebSocket feeds. View, analyze, and monitor any currency or crypto pair with technical indicators, drawing tools, and instant switching cache with no session caps or paywalls.',
+    name: '12. Unlimited Chart Analysis (Pro)',
+    shortDesc: '🔒 Subscription Required. Unrestricted live full-featured price charts for all Forex & Crypto pairs.',
+    overview: 'Institutional technical analysis workspace powered by Twelve Data / OANDA Forex feeds and Binance Crypto sub-second WebSocket feeds. Full access requires an active PrimePipFX subscription.',
     keyFeatures: [
-      'Unrestricted charting with no pair limits, duration caps, or paywall gates',
+      'Unrestricted charting with multi-pair streaming feeds',
       'Live crypto sub-second WebSocket streaming via Binance',
-      'Forex free-tier live feed via Twelve Data / OANDA with smart rate throttling',
+      'Forex institutional feed via Twelve Data / OANDA',
       'In-memory & client caching for 0ms latency when switching between active pairs',
       'Full technical indicator suite (EMA 20/50/200, Bollinger Bands, RSI, MACD, Volume)',
       '1-click integration with Pre-Trade Plan, Lot Size Calculator, and Trade Journal',

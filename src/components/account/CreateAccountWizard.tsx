@@ -542,16 +542,16 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
                     2. Personal Trading Account
                   </h4>
                   <span className="text-[10px] text-emerald-400 font-mono block mt-0.5">
-                    Live Capital &amp; Cent Accounts
+                    Live Capital &amp; $100 Cent Accounts
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Trade your own capital with real brokers (IC Markets, Exness, Pepperstone) or Cent accounts (USC) with personal risk caps and discipline safeguards.
+                  Trade your own capital with real brokers (IC Markets, Exness, Pepperstone) or $100 Cent accounts (10,000 USC ¢) with personal risk caps and discipline safeguards.
                 </p>
               </div>
 
               <div className="pt-4 mt-4 border-t border-slate-800/80 flex items-center justify-between text-xs font-bold text-emerald-400">
-                <span>Set Up Live Account</span>
+                <span>Set Up Live / $100 Cent Account</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
@@ -573,11 +573,11 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
                     3. Funded Account
                   </h4>
                   <span className="text-[10px] text-purple-300 font-mono block mt-0.5">
-                    Prop Firm Challenge &amp; Live Funded
+                    Prop Firm Challenge &amp; 100K Evaluations
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Track 1-step or 2-step prop evaluation challenges with automated daily loss alerts, trailing drawdown defenses, and pass progress analytics.
+                  Track 1-step or 2-step prop evaluation challenges ($10K, $25K, $50K, $100K, $200K) with automated daily loss alerts, trailing drawdown defenses, and pass progress analytics.
                 </p>
               </div>
 
@@ -624,8 +624,8 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
 
             <div>
               <label className="block text-xs font-bold uppercase text-slate-300 mb-1">Virtual Capital</label>
-              <div className="grid grid-cols-4 gap-2">
-                {[5000, 10000, 50000, 100000].map((amt) => (
+              <div className="grid grid-cols-5 gap-1.5">
+                {[100, 5000, 10000, 50000, 100000].map((amt) => (
                   <button
                     key={amt}
                     type="button"
@@ -740,14 +740,56 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase text-slate-300 mb-1">Starting Capital</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold uppercase text-slate-300">Starting Capital</label>
+                <span className="text-[10px] text-emerald-400 font-mono font-bold">Quick Presets</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {[
+                  { label: '🪙 $100 Cent Account', value: 100, isCent: true },
+                  { label: '$500', value: 500, isCent: false },
+                  { label: '$1,000', value: 1000, isCent: false },
+                  { label: '$5,000', value: 5000, isCent: false },
+                  { label: '$10,000', value: 10000, isCent: false },
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      if (preset.isCent) {
+                        setPersonalStartingCapital(100);
+                        setPersonalCurrency('USC');
+                        setPersonalNickname('Personal Cent Account ($100)');
+                      } else {
+                        setPersonalStartingCapital(preset.value);
+                        setPersonalCurrency('USD');
+                        if (personalNickname === 'Personal Cent Account ($100)') {
+                          setPersonalNickname('Personal Trading Account');
+                        }
+                      }
+                    }}
+                    className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold font-mono transition cursor-pointer ${
+                      personalStartingCapital === preset.value && (preset.isCent ? personalCurrency === 'USC' : personalCurrency !== 'USC')
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm'
+                        : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
               <input
                 type="number"
                 value={personalStartingCapital}
                 onChange={(e) => setPersonalStartingCapital(parseFloat(e.target.value) || 0)}
                 placeholder="e.g. 5000"
-                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs outline-none focus:border-emerald-500 font-mono"
+                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs outline-none focus:border-emerald-500 font-mono font-bold"
               />
+              {personalCurrency === 'USC' && (
+                <p className="text-[10px] text-amber-300 font-mono mt-1">
+                  🪙 Cent Account: $100 USD deposit = 10,000 USC cents. Risk and position sizes operate in cent units.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">

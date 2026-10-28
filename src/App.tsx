@@ -49,7 +49,6 @@ import { LockedCategoryModal } from './components/LockedCategoryModal';
 import { Meta5PremiumTerminal } from './components/meta5/Meta5PremiumTerminal';
 import { PostTradeGuidanceModal } from './components/account/PostTradeGuidanceModal';
 import { CreateAccountWizard } from './components/account/CreateAccountWizard';
-import { SetupWizard } from './components/SetupWizard';
 import { CommunityReviewsModal } from './components/CommunityReviewsModal';
 import { PostTradeImpactSummary } from './types';
 import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
@@ -1285,19 +1284,6 @@ export default function App() {
             : 'max-w-7xl'
         }`}
       >
-        {activeTab === 'SETUP' && (
-          <div className="py-2">
-            <SetupWizard
-              onAccountCreated={(newAcc) => {
-                handleAccountCreated(newAcc);
-                setActiveTab('DASHBOARD');
-              }}
-              onCancel={() => setActiveTab('DASHBOARD')}
-              existingAccountsCount={accounts.length}
-            />
-          </div>
-        )}
-
         {activeTab === 'DASHBOARD' && (
           <MainDashboard
             metrics={metrics}

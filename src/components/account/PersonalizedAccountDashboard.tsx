@@ -36,7 +36,7 @@ import {
   resetDemoAccountState,
 } from '../../utils/fundedRiskEngine';
 import { formatCurrency, safeNumber } from '../../utils/currencyFormatter';
-import { PreTradePositionCalculator } from './PreTradePositionCalculator';
+import { EvaluationPassNavigator } from './EvaluationPassNavigator';
 
 interface PersonalizedAccountDashboardProps {
   account: AccountSettings;
@@ -44,6 +44,7 @@ interface PersonalizedAccountDashboardProps {
   onUpdateAccount: (account: AccountSettings) => void;
   onOpenNewTrade?: (prefill?: Partial<Trade>) => void;
   onOpenAccountSwitcher?: () => void;
+  onNavigateToTab?: (tab: string) => void;
 }
 
 export const PersonalizedAccountDashboard: React.FC<PersonalizedAccountDashboardProps> = ({
@@ -52,6 +53,7 @@ export const PersonalizedAccountDashboard: React.FC<PersonalizedAccountDashboard
   onUpdateAccount,
   onOpenNewTrade,
   onOpenAccountSwitcher,
+  onNavigateToTab,
 }) => {
   const currency = account.currency || 'USD';
   const isFunded = isFundedAccount(account);
@@ -564,12 +566,14 @@ export const PersonalizedAccountDashboard: React.FC<PersonalizedAccountDashboard
           </div>
         </div>
 
-        {/* Embedded Pre-Trade Position Calculator */}
+        {/* Evaluation Pass Navigator & Next-Trade Flightpath */}
         <div className="pt-2">
-          <PreTradePositionCalculator
+          <EvaluationPassNavigator
             account={account}
             trades={trades}
-            onApplyToJournal={onOpenNewTrade}
+            onOpenJournal={() => onNavigateToTab?.('JOURNAL')}
+            onOpenNewTrade={onOpenNewTrade}
+            onNavigateToTab={onNavigateToTab}
           />
         </div>
       </div>
