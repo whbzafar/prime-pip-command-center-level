@@ -60,6 +60,7 @@ import { DataControlCenterView } from './fundamental/DataControlCenterView';
 import { VerifiedDataArchitectureView } from './fundamental/VerifiedDataArchitectureView';
 import { FundamentalIntelligenceConsole } from './fundamental/FundamentalIntelligenceConsole';
 import { FundamentalIntelligenceEngine } from '../services/fundamentalIntelligenceEngine';
+import { FundamentalPremiumUsd } from './fundamental/FundamentalPremiumUsd';
 import { LiquidGlassThemeToggle } from './LiquidGlassThemeToggle';
 
 // Modals
@@ -131,7 +132,8 @@ export type FundamentalDashboardTab =
   | 'HISTORICAL_SNAPSHOTS'
   | 'DATA_QUALITY'
   | 'WEIGHTS_REGISTRY'
-  | 'METHODOLOGY';
+  | 'METHODOLOGY'
+  | 'FUNDAMENTAL_PREMIUM';
 
 const LOCAL_STORAGE_OBSERVATIONS_KEY = 'primepip_fundamental_observations_v2';
 const LOCAL_STORAGE_WEIGHTS_KEY = 'primepip_fundamental_weights_v2';
@@ -970,6 +972,7 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
 
   const navTabs: { id: FundamentalDashboardTab; label: string; icon: any }[] = [
     { id: 'OVERVIEW', label: '11 Assets', icon: Landmark },
+    { id: 'FUNDAMENTAL_PREMIUM', label: 'Fundamental Premium', icon: Activity },
     { id: 'INTELLIGENCE_CONSOLE', label: 'Intelligence Engine', icon: Sparkles },
     { id: 'DATA_CONTROL_CENTER', label: 'Control Center', icon: ShieldCheck },
     { id: 'VERIFIED_DATABASE', label: 'Verified Database', icon: Database },
@@ -1491,6 +1494,10 @@ The relative valuation engine indicates a net spread of **${diff.netDifferential
 
       {activeTab === 'METHODOLOGY' && (
         <FundamentalMethodologyView />
+      )}
+
+      {activeTab === 'FUNDAMENTAL_PREMIUM' && (
+        <FundamentalPremiumUsd />
       )}
         </>
       )}
