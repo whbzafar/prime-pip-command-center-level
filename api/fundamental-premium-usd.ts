@@ -21,7 +21,7 @@ const SERIES = [
   { id: 'CPILFESL', label: 'Core CPI Price Index', unit: 'Index', frequency: 'Monthly', category: 'inflation', url: 'https://fred.stlouisfed.org/series/CPILFESL', maxAgeDays: 50 },
   { id: 'PAYEMS', label: 'Total Nonfarm Payrolls', unit: 'Thousands of persons', frequency: 'Monthly', category: 'employment', url: 'https://fred.stlouisfed.org/series/PAYEMS', maxAgeDays: 50 },
   { id: 'UNRATE', label: 'Unemployment Rate', unit: '%', frequency: 'Monthly', category: 'employment', url: 'https://fred.stlouisfed.org/series/UNRATE', maxAgeDays: 50 },
-  { id: 'AHETPI', label: 'Average Hourly Earnings, Total Private', unit: 'USD/hour', frequency: 'Monthly', category: 'employment', url: 'https://fred.stlouisfed.org/series/AHETPI', maxAgeDays: 50 },
+  { id: 'CES0500000003', label: 'Average Hourly Earnings, Total Private', unit: 'USD/hour', frequency: 'Monthly', category: 'employment', url: 'https://fred.stlouisfed.org/series/CES0500000003', maxAgeDays: 50 },
   { id: 'GDPC1', label: 'Real Gross Domestic Product', unit: 'Billions of chained dollars', frequency: 'Quarterly', category: 'growth', url: 'https://fred.stlouisfed.org/series/GDPC1', maxAgeDays: 150 },
   { id: 'DGS2', label: '2-Year Treasury Constant Maturity Rate', unit: '%', frequency: 'Daily', category: 'yields', url: 'https://fred.stlouisfed.org/series/DGS2', maxAgeDays: 10 },
   { id: 'DGS10', label: '10-Year Treasury Constant Maturity Rate', unit: '%', frequency: 'Daily', category: 'yields', url: 'https://fred.stlouisfed.org/series/DGS10', maxAgeDays: 10 },
@@ -108,7 +108,7 @@ function scoreUsd(data: Record<string, SeriesResult>) {
   const coreCpi = s('CPILFESL');
   const payrolls = s('PAYEMS');
   const unemployment = s('UNRATE');
-  const earnings = s('AHETPI');
+  const earnings = s('CES0500000003');
   const gdp = s('GDPC1');
   const funds = s('DFF');
   const twoYear = s('DGS2');
