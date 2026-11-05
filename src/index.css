@@ -27,8 +27,33 @@
 }
 
 html {
-  filter: brightness(var(--prime-brightness, 104%)) contrast(var(--prime-contrast, 100%)) saturate(var(--prime-saturation, 100%));
-  transition: filter 0.15s ease-out;
+  /* HD (High-Definition) Native Rendering Engine — Zero Blurriness */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-size: 16px;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Only apply filter if custom brightness is intentionally toggled beyond standard */
+html[data-custom-filter="true"] {
+  filter: brightness(var(--prime-brightness, 100%)) contrast(var(--prime-contrast, 100%)) saturate(var(--prime-saturation, 100%));
+}
+
+/* Full HD High-Definition display standards across all screens & 4K displays */
+html[data-display-resolution="FULL_HD"],
+html:not([data-display-resolution]) {
+  font-size: 16px !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-size: 16px;
 }
 
 /* Ensure True Fullscreen Mode without filter-induced containing block or scroll offsets */

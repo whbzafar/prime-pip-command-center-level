@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { SbtBotShowcaseModal } from './sbt/SbtBotShowcaseModal';
 import { ExploreLockedModal } from './subscription/ExploreLockedModal';
+import { FounderExperienceModal } from './FounderExperienceModal';
 import {
   apiLogin,
   apiChangePassword,
@@ -96,6 +97,9 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const [congratsUser, setCongratsUser] = useState<UserAccount | null>(null);
   const [isSbtBotModalOpen, setIsSbtBotModalOpen] = useState<boolean>(false);
   const [isExploreLockedModalOpen, setIsExploreLockedModalOpen] = useState<boolean>(false);
+  const [isFounderModalOpen, setIsFounderModalOpen] = useState<boolean>(false);
+  const [isFounderModalMinimized, setIsFounderModalMinimized] = useState<boolean>(false);
+  const [founderVideoTime, setFounderVideoTime] = useState<number>(0);
 
   // First-time developer/customer password change state
   const [pendingUser, setPendingUser] = useState<UserAccount | null>(null);
@@ -109,27 +113,23 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const [isHovered, setIsHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Full HD / 4K / Standard Display Options
-  const [displayResolution, setDisplayResolution] = useState<'FULL_HD' | '4K' | 'STANDARD'>(() => {
-    try {
-      return (localStorage.getItem('primepip_display_resolution') as any) || 'FULL_HD';
-    } catch {
-      return 'FULL_HD';
-    }
-  });
+  // Full HD High-Definition Standard Across Application
+  const [displayResolution, setDisplayResolution] = useState<'FULL_HD' | 'HD_SHARP'>('FULL_HD');
 
-  const handleResolutionChange = (res: 'FULL_HD' | '4K' | 'STANDARD') => {
+  useEffect(() => {
+    try {
+      localStorage.setItem('primepip_display_resolution', 'FULL_HD');
+      document.documentElement.setAttribute('data-display-resolution', 'FULL_HD');
+      document.documentElement.style.fontSize = '16px';
+    } catch {}
+  }, []);
+
+  const handleResolutionChange = (res: 'FULL_HD' | 'HD_SHARP') => {
     setDisplayResolution(res);
     try {
       localStorage.setItem('primepip_display_resolution', res);
       document.documentElement.setAttribute('data-display-resolution', res);
-      if (res === '4K') {
-        document.documentElement.style.fontSize = '16.5px';
-      } else if (res === 'FULL_HD') {
-        document.documentElement.style.fontSize = '16px';
-      } else {
-        document.documentElement.style.fontSize = '15px';
-      }
+      document.documentElement.style.fontSize = '16px';
     } catch {}
   };
 
@@ -516,12 +516,13 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         </div>
       </motion.div>
 
-      {/* Full HD & Display Resolution Selector Bar */}
+      {/* Full HD High-Definition Display Resolution Bar */}
       <div className="w-full max-w-md mx-auto mb-2.5 z-20">
-        <div className="flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[10px] font-mono-code shadow-md backdrop-blur-md">
-          <span className="text-slate-400 font-bold flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-cyan-400" />
-            <span>DISPLAY:</span>
+        <div className="flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-[10px] font-mono-code shadow-md backdrop-blur-md">
+          <span className="text-slate-300 font-bold flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-cyan-400">RESOLUTION:</span>
+            <span className="text-white font-mono font-bold">FULL HD 1080p</span>
           </span>
           <div className="flex items-center gap-1">
             <button
@@ -533,29 +534,18 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
-              <span>⚡ FULL HD</span>
+              <span>⚡ FULL HD (ACTIVE)</span>
             </button>
             <button
               type="button"
-              onClick={() => handleResolutionChange('4K')}
+              onClick={() => handleResolutionChange('HD_SHARP')}
               className={`px-2 py-0.5 rounded-md font-bold transition flex items-center gap-1 cursor-pointer ${
-                displayResolution === '4K'
-                  ? 'bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 shadow-sm shadow-amber-500/30'
+                displayResolution === 'HD_SHARP'
+                  ? 'bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 shadow-sm shadow-emerald-500/30'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
-              <span>💎 4K ULTRA</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleResolutionChange('STANDARD')}
-              className={`px-1.5 py-0.5 rounded-md font-bold transition cursor-pointer ${
-                displayResolution === 'STANDARD'
-                  ? 'bg-slate-700 text-white'
-                  : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              <span>STANDARD</span>
+              <span>💎 ULTRA SHARP</span>
             </button>
           </div>
         </div>
@@ -716,6 +706,62 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
               <p className="text-xs text-slate-400 font-mono-code mt-0.5">
                 Authorized Trader & Developer Access
               </p>
+            </div>
+
+            {/* WHO IS WAHAB? SURPRISE -> Interactive Founder Discovery Invitation */}
+            <div
+              onClick={() => {
+                setIsFounderModalOpen(true);
+                setIsFounderModalMinimized(false);
+              }}
+              className="mb-3.5 p-[1.5px] rounded-2xl bg-gradient-to-r from-cyan-400 via-violet-500 to-fuchsia-500 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-400/40 hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 cursor-pointer group relative overflow-hidden"
+              title="Click to discover the visionary journey of Wahab Zafar, Founder of Prime Pip FX"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setIsFounderModalOpen(true);
+                  setIsFounderModalMinimized(false);
+                }
+              }}
+            >
+              {/* Ambient animated light sweep shimmer effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
+
+              <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl bg-slate-950/90 border border-cyan-500/30 backdrop-blur-md group-hover:bg-slate-900/90 group-hover:border-cyan-400/60 transition-all duration-300">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 via-indigo-500 to-violet-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/30 group-hover:shadow-cyan-400/50 group-hover:scale-105 transition-all duration-300">
+                      <Sparkles className="w-4 h-4 text-cyan-100 animate-pulse" />
+                    </div>
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 border border-slate-950 animate-ping" />
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 border border-slate-950" />
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] font-military font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-violet-200 to-white uppercase">
+                        WHO IS WAHAB?
+                      </span>
+                      <span className="text-[9px] font-mono-code font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 shadow-sm shadow-cyan-500/20">
+                        FOUNDER OF THE SBT INDICATOR
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono-code text-slate-400 group-hover:text-slate-300 transition">
+                      The Man Behind Prime Pip FX & The 1st Iteration of the Bot
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pl-2 shrink-0">
+                  <span className="text-[11px] font-military font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-violet-400 uppercase group-hover:brightness-125 transition">
+                    SURPRISE
+                  </span>
+                  <div className="w-6 h-6 rounded-full bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center text-cyan-300 group-hover:bg-cyan-400 group-hover:text-slate-950 group-hover:translate-x-1 transition-all duration-300 shadow-sm shadow-cyan-500/20">
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Announcement Section Above Username & Password Fields — SBT Bot New Year 2027 Launch */}
@@ -1084,6 +1130,24 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
           }, 300);
         }}
         onOpenSubscription={onOpenSubscription}
+      />
+
+      {/* Cinematic Founder Experience Modal & Floating Minimized Pill */}
+      <FounderExperienceModal
+        isOpen={isFounderModalOpen}
+        isMinimized={isFounderModalMinimized}
+        onClose={() => {
+          setIsFounderModalOpen(false);
+          setIsFounderModalMinimized(false);
+        }}
+        onMinimize={() => {
+          setIsFounderModalMinimized(true);
+        }}
+        onReopen={() => {
+          setIsFounderModalMinimized(false);
+        }}
+        savedVideoTime={founderVideoTime}
+        onUpdateVideoTime={setFounderVideoTime}
       />
     </div>
   );

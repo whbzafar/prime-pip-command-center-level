@@ -24,6 +24,11 @@
     <script>
       (function() {
         try {
+          // Enforce Full HD crisp native resolution across the application
+          localStorage.setItem('primepip_display_resolution', 'FULL_HD');
+          document.documentElement.setAttribute('data-display-resolution', 'FULL_HD');
+          document.documentElement.style.fontSize = '16px';
+
           var t = localStorage.getItem('primepipfx_theme') || 'midnight';
           document.documentElement.dataset.theme = t;
           var isBright = localStorage.getItem('primepipfx_is_bright');
@@ -32,7 +37,7 @@
           } else {
             document.documentElement.dataset.brightnessMode = 'dark';
           }
-          var b = localStorage.getItem('primepipfx_brightness') || '104';
+          var b = localStorage.getItem('primepipfx_brightness') || '100';
           document.documentElement.style.setProperty('--prime-brightness', b + '%');
         } catch (e) {}
       })();
