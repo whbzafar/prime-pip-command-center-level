@@ -35,6 +35,9 @@ import {
   ExternalLink,
   Menu,
   Copy,
+  Scissors,
+  Clipboard,
+  CopyPlus,
   PanelLeftClose,
   PanelLeft,
   Lock,
@@ -359,8 +362,50 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     }
   });
 
-  // Selection, Dragging & Resizing States (Move tool handles both!)
+  // Selection, Dragging & Resizing States (Move tool handles both single & marquee multi-selection!)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [isMarqueeSelecting, setIsMarqueeSelecting] = useState<boolean>(false);
+  const [marqueeSelection, setMarqueeSelection] = useState<{
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
+  const marqueeRef = useRef<{
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
+
+  // Clipboard, Context Menu & Toast States
+  const [clipboardItems, setClipboardItems] = useState<CanvasItem[]>([]);
+  const clipboardItemsRef = useRef<CanvasItem[]>([]);
+  clipboardItemsRef.current = clipboardItems;
+  const [clipboardText, setClipboardText] = useState<string>('');
+  const [clipboardToast, setClipboardToast] = useState<{ message: string; type?: 'info' | 'success' } | null>(null);
+  const toastTimeoutRef = useRef<any>(null);
+  const lastMousePosRef = useRef<{ x: number; y: number }>({ x: 200, y: 200 });
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    screenX: number;
+    screenY: number;
+    canvasX: number;
+    canvasY: number;
+    selectedText?: string;
+    isTextSelectionMenu?: boolean;
+  } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const showToast = useCallback((message: string, type: 'info' | 'success' = 'info') => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setClipboardToast({ message, type });
+    toastTimeoutRef.current = setTimeout(() => {
+      setClipboardToast(null);
+    }, 2200);
+  }, []);
+
   const [isDraggingSelected, setIsDraggingSelected] = useState<boolean>(false);
   const [dragStartCoord, setDragStartCoord] = useState<{ x: number; y: number } | null>(null);
   const [activeResizeHandle, setActiveResizeHandle] = useState<ResizeHandleType | null>(null);
@@ -400,6 +445,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     text: string;
     color: string;
     cursorIndex: number;
+    selectionStart?: number;
+    selectionEnd?: number;
   } | null>(null);
   const activeTextInputRef = useRef<HTMLTextAreaElement | null>(null);
   const activeTextSessionRef = useRef<{
@@ -409,8 +456,12 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     text: string;
     color: string;
     cursorIndex: number;
+    selectionStart?: number;
+    selectionEnd?: number;
   } | null>(null);
   activeTextSessionRef.current = activeTextSession;
+  const isDraggingTextSelectionRef = useRef<boolean>(false);
+  const textDragAnchorCharIdxRef = useRef<number | null>(null);
   const [cursorVisible, setCursorVisible] = useState<boolean>(true);
   const draftRef = useRef<CanvasItem | null>(null);
   const isDrawingRef = useRef<boolean>(false);
@@ -553,33 +604,40 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     setSelectedItemId(null);
   }, [redoStack, items]);
 
-  // Delete selected item
+  // Delete selected item(s)
   const handleDeleteSelected = useCallback(() => {
-    if (!selectedItemId) return;
+    const activeIds = selectedItemIds.length > 0 ? selectedItemIds : (selectedItemId ? [selectedItemId] : []);
+    if (activeIds.length === 0) return;
     pushHistory();
-    setItems((prev) => prev.filter((it) => it.id !== selectedItemId));
+    setItems((prev) => prev.filter((it) => !activeIds.includes(it.id)));
     setSelectedItemId(null);
-  }, [selectedItemId, pushHistory]);
+    setSelectedItemIds([]);
+    showToast('Deleted', 'info');
+  }, [selectedItemIds, selectedItemId, pushHistory, showToast]);
 
-  // Duplicate selected item
+  // Duplicate selected item(s)
   const handleDuplicateSelected = useCallback(() => {
-    if (!selectedItemId) return;
-    const found = items.find((it) => it.id === selectedItemId);
-    if (!found) return;
+    const activeIds = selectedItemIds.length > 0 ? selectedItemIds : (selectedItemId ? [selectedItemId] : []);
+    if (activeIds.length === 0) return;
+    const toDupe = items.filter((it) => activeIds.includes(it.id));
+    if (toDupe.length === 0) return;
     pushHistory();
     const offset = 30;
-    const newItem: CanvasItem = {
-      ...found,
+    const newItems: CanvasItem[] = toDupe.map((found) => ({
+      ...JSON.parse(JSON.stringify(found)),
       id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       x1: found.x1 !== undefined ? found.x1 + offset : undefined,
       y1: found.y1 !== undefined ? found.y1 + offset : undefined,
       x2: found.x2 !== undefined ? found.x2 + offset : undefined,
       y2: found.y2 !== undefined ? found.y2 + offset : undefined,
       points: found.points ? found.points.map((p) => ({ x: p.x + offset, y: p.y + offset })) : undefined,
-    };
-    setItems((prev) => [...prev, newItem]);
-    setSelectedItemId(newItem.id);
-  }, [selectedItemId, items, pushHistory]);
+    }));
+    setItems((prev) => [...prev, ...newItems]);
+    const newIds = newItems.map((it) => it.id);
+    setSelectedItemId(newIds[0] || null);
+    setSelectedItemIds(newIds);
+    showToast(newItems.length > 1 ? `Duplicated ${newItems.length} items` : 'Duplicated item', 'success');
+  }, [selectedItemIds, selectedItemId, items, pushHistory, showToast]);
 
   // Quick Candle Injector: Drops a realistic candlestick in the center of the viewport
   const handleInsertCandle = useCallback(
@@ -668,11 +726,12 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
   // Move Selected Item Nudge
   const handleNudgeSelected = useCallback(
     (dx: number, dy: number) => {
-      if (!selectedItemId) return;
+      const activeIds = selectedItemIds.length > 0 ? selectedItemIds : (selectedItemId ? [selectedItemId] : []);
+      if (activeIds.length === 0) return;
       pushHistory();
       setItems((prev) =>
         prev.map((it) => {
-          if (it.id !== selectedItemId) return it;
+          if (!activeIds.includes(it.id)) return it;
           if (it.points) {
             return {
               ...it,
@@ -689,17 +748,18 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         })
       );
     },
-    [selectedItemId, pushHistory]
+    [selectedItemIds, selectedItemId, pushHistory]
   );
 
   // Update selected item's Outside or Inside color
   const handleUpdateSelectedColors = useCallback(
     (newOutside?: string, newInside?: string) => {
-      if (!selectedItemId) return;
+      const activeIds = selectedItemIds.length > 0 ? selectedItemIds : (selectedItemId ? [selectedItemId] : []);
+      if (activeIds.length === 0) return;
       pushHistory();
       setItems((prev) =>
         prev.map((it) => {
-          if (it.id !== selectedItemId) return it;
+          if (!activeIds.includes(it.id)) return it;
           return {
             ...it,
             color: newOutside !== undefined ? newOutside : it.color,
@@ -708,7 +768,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         })
       );
     },
-    [selectedItemId, pushHistory]
+    [selectedItemIds, selectedItemId, pushHistory]
   );
 
   // Resize canvas according to container
@@ -768,6 +828,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           )
         );
         setSelectedItemId(session.id);
+        setSelectedItemIds([session.id]);
       } else {
         const newTextItem: CanvasItem = {
           id: `txt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
@@ -780,11 +841,13 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         };
         setItems((prev) => [...prev, newTextItem]);
         setSelectedItemId(newTextItem.id);
+        setSelectedItemIds([newTextItem.id]);
       }
     } else if (session.id) {
       pushHistory();
       setItems((prev) => prev.filter((it) => it.id !== session.id));
       setSelectedItemId(null);
+      setSelectedItemIds([]);
     }
     setActiveTextSession(null);
   }, [innerBgColor, outerBgColor, strokeWidth, pushHistory]);
@@ -792,6 +855,273 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
   const cancelActiveText = useCallback(() => {
     setActiveTextSession(null);
   }, []);
+
+  // Copy selected items or highlighted text substring to clipboard
+  const handleCopy = useCallback(() => {
+    // 1. Text Session Selection Copy: If characters are highlighted in active text, copy that substring!
+    if (activeTextSessionRef.current) {
+      const session = activeTextSessionRef.current;
+      const sStart = session.selectionStart ?? session.cursorIndex ?? 0;
+      const sEnd = session.selectionEnd ?? session.cursorIndex ?? 0;
+      if (sStart !== sEnd) {
+        const minSel = Math.min(sStart, sEnd);
+        const maxSel = Math.max(sStart, sEnd);
+        const substring = (session.text || '').slice(minSel, maxSel);
+        if (substring) {
+          setClipboardText(substring);
+          if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(substring).catch(() => {});
+          }
+          const shortPreview = substring.length > 20 ? substring.slice(0, 18) + '...' : substring;
+          showToast(`Copied "${shortPreview}" to clipboard`, 'success');
+          return;
+        }
+      }
+      if (session.text.trim()) {
+        commitActiveText();
+      }
+    }
+
+    const activeIds = selectedItemIds.length > 0 ? selectedItemIds : (selectedItemId ? [selectedItemId] : []);
+    if (activeIds.length === 0) return;
+    const toCopy = items.filter((it) => activeIds.includes(it.id));
+    if (toCopy.length === 0) return;
+
+    const cloned: CanvasItem[] = JSON.parse(JSON.stringify(toCopy));
+    setClipboardItems(cloned);
+    clipboardItemsRef.current = cloned;
+
+    const textItems = cloned.filter((it) => it.tool === 'TEXT' && it.text);
+    if (textItems.length > 0) {
+      const joinedText = textItems.map((it) => it.text).join('\n');
+      setClipboardText(joinedText);
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(joinedText).catch(() => {});
+      }
+    }
+
+    const label = cloned.length === 1
+      ? (cloned[0].tool === 'TEXT' ? 'Text copied' : `${cloned[0].tool.toLowerCase().replace('_', ' ')} copied`)
+      : `${cloned.length} items copied`;
+    showToast(label, 'success');
+  }, [selectedItemIds, selectedItemId, items, commitActiveText, showToast]);
+
+  // Paste items from clipboard onto canvas at target coordinate or offset, or into active text session
+  const handlePaste = useCallback(
+    async (targetCoord?: { x: number; y: number }) => {
+      // 1. Text Session Selection Paste: If inside active text, paste text at cursor/selection!
+      if (activeTextSessionRef.current) {
+        const session = activeTextSessionRef.current;
+        let textToInsert = '';
+        if (navigator.clipboard?.readText) {
+          try {
+            textToInsert = await navigator.clipboard.readText();
+          } catch {
+            textToInsert = clipboardText;
+          }
+        } else {
+          textToInsert = clipboardText;
+        }
+
+        if (textToInsert) {
+          const sStart = session.selectionStart ?? session.cursorIndex ?? 0;
+          const sEnd = session.selectionEnd ?? session.cursorIndex ?? 0;
+          const minSel = Math.min(sStart, sEnd);
+          const maxSel = Math.max(sStart, sEnd);
+          const current = session.text || '';
+          const nextText = current.slice(0, minSel) + textToInsert + current.slice(maxSel);
+          const nextIdx = minSel + textToInsert.length;
+
+          setActiveTextSession((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  text: nextText,
+                  cursorIndex: nextIdx,
+                  selectionStart: nextIdx,
+                  selectionEnd: nextIdx,
+                }
+              : null
+          );
+          if (activeTextInputRef.current) {
+            activeTextInputRef.current.value = nextText;
+            activeTextInputRef.current.setSelectionRange(nextIdx, nextIdx);
+          }
+          const shortPreview = textToInsert.length > 20 ? textToInsert.slice(0, 18) + '...' : textToInsert;
+          showToast(`Pasted "${shortPreview}"`, 'success');
+          return;
+        }
+      }
+
+      let toPaste = clipboardItemsRef.current;
+
+      // Check system clipboard if internal canvas clipboard is empty
+      if ((!toPaste || toPaste.length === 0) && navigator.clipboard?.readText) {
+        try {
+          const text = await navigator.clipboard.readText();
+          if (text && text.trim().length > 0) {
+            const dpr = window.devicePixelRatio || 1;
+            const canvas = canvasRef.current;
+            const defaultX = targetCoord?.x ?? (canvas ? (canvas.width / dpr / 2 - panOffset.x) / zoom : 200);
+            const defaultY = targetCoord?.y ?? (canvas ? (canvas.height / dpr / 2 - panOffset.y) / zoom : 200);
+
+            pushHistory();
+            const newTextItem: CanvasItem = {
+              id: `txt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+              tool: 'TEXT',
+              color: outsideColor || '#10B981',
+              strokeWidth: Math.max(2, strokeWidth),
+              x1: defaultX,
+              y1: defaultY,
+              text: text,
+            };
+            setItems((prev) => [...prev, newTextItem]);
+            setSelectedItemId(newTextItem.id);
+            setSelectedItemIds([newTextItem.id]);
+            showToast('Text pasted', 'success');
+            return;
+          }
+        } catch {
+          // Handled gracefully if browser clipboard permissions are restricted
+        }
+      }
+
+      if (!toPaste || toPaste.length === 0) return;
+
+      pushHistory();
+
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      toPaste.forEach((it) => {
+        const box = getItemBoundingBox(it);
+        if (box) {
+          minX = Math.min(minX, box.minX);
+          minY = Math.min(minY, box.minY);
+          maxX = Math.max(maxX, box.maxX);
+          maxY = Math.max(maxY, box.maxY);
+        }
+      });
+
+      const centerCopyX = isFinite(minX) && isFinite(maxX) ? (minX + maxX) / 2 : 0;
+      const centerCopyY = isFinite(minY) && isFinite(maxY) ? (minY + maxY) / 2 : 0;
+
+      const offsetX = targetCoord ? targetCoord.x - centerCopyX : 28;
+      const offsetY = targetCoord ? targetCoord.y - centerCopyY : 28;
+
+      const newItems: CanvasItem[] = toPaste.map((it) => {
+        const newId = `item-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+        return {
+          ...JSON.parse(JSON.stringify(it)),
+          id: newId,
+          x1: it.x1 !== undefined ? it.x1 + offsetX : undefined,
+          y1: it.y1 !== undefined ? it.y1 + offsetY : undefined,
+          x2: it.x2 !== undefined ? it.x2 + offsetX : undefined,
+          y2: it.y2 !== undefined ? it.y2 + offsetY : undefined,
+          points: it.points
+            ? it.points.map((p: { x: number; y: number }) => ({ x: p.x + offsetX, y: p.y + offsetY }))
+            : undefined,
+        };
+      });
+
+      if (!targetCoord) {
+        clipboardItemsRef.current = newItems;
+        setClipboardItems(newItems);
+      }
+
+      setItems((prev) => [...prev, ...newItems]);
+      const newIds = newItems.map((it) => it.id);
+      setSelectedItemIds(newIds);
+      setSelectedItemId(newIds[0] || null);
+
+      const label = newItems.length === 1
+        ? (newItems[0].tool === 'TEXT' ? 'Text pasted' : `${newItems[0].tool.toLowerCase().replace('_', ' ')} pasted`)
+        : `${newItems.length} items pasted`;
+      showToast(label, 'success');
+    },
+    [panOffset, zoom, outsideColor, strokeWidth, pushHistory, showToast, clipboardText]
+  );
+
+  // Cut selected items or highlighted text
+  const handleCut = useCallback(() => {
+    if (activeTextSessionRef.current) {
+      const session = activeTextSessionRef.current;
+      const sStart = session.selectionStart ?? session.cursorIndex ?? 0;
+      const sEnd = session.selectionEnd ?? session.cursorIndex ?? 0;
+      if (sStart !== sEnd) {
+        const minSel = Math.min(sStart, sEnd);
+        const maxSel = Math.max(sStart, sEnd);
+        const substring = (session.text || '').slice(minSel, maxSel);
+        if (substring) {
+          setClipboardText(substring);
+          if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(substring).catch(() => {});
+          }
+          const current = session.text || '';
+          const nextText = current.slice(0, minSel) + current.slice(maxSel);
+          setActiveTextSession((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  text: nextText,
+                  cursorIndex: minSel,
+                  selectionStart: minSel,
+                  selectionEnd: minSel,
+                }
+              : null
+          );
+          if (activeTextInputRef.current) {
+            activeTextInputRef.current.value = nextText;
+            activeTextInputRef.current.setSelectionRange(minSel, minSel);
+          }
+          const shortPreview = substring.length > 20 ? substring.slice(0, 18) + '...' : substring;
+          showToast(`Cut "${shortPreview}"`, 'info');
+          return;
+        }
+      }
+    }
+    handleCopy();
+    handleDeleteSelected();
+    showToast('Cut to clipboard', 'info');
+  }, [handleCopy, handleDeleteSelected, showToast]);
+
+  // Bring Selected to Front
+  const handleBringToFront = useCallback(() => {
+    const activeIds = selectedItemIds.length > 0 ? selectedItemIds : (selectedItemId ? [selectedItemId] : []);
+    if (activeIds.length === 0) return;
+    pushHistory();
+    setItems((prev) => {
+      const unselected = prev.filter((it) => !activeIds.includes(it.id));
+      const selected = prev.filter((it) => activeIds.includes(it.id));
+      return [...unselected, ...selected];
+    });
+    showToast('Brought to front', 'info');
+  }, [selectedItemIds, selectedItemId, pushHistory, showToast]);
+
+  // Send Selected to Back
+  const handleSendToBack = useCallback(() => {
+    const activeIds = selectedItemIds.length > 0 ? selectedItemIds : (selectedItemId ? [selectedItemId] : []);
+    if (activeIds.length === 0) return;
+    pushHistory();
+    setItems((prev) => {
+      const unselected = prev.filter((it) => !activeIds.includes(it.id));
+      const selected = prev.filter((it) => activeIds.includes(it.id));
+      return [...selected, ...unselected];
+    });
+    showToast('Sent to back', 'info');
+  }, [selectedItemIds, selectedItemId, pushHistory, showToast]);
+
+  // Select All Objects on Canvas
+  const handleSelectAll = useCallback(() => {
+    if (items.length === 0) return;
+    const allIds = items.map((it) => it.id);
+    setSelectedItemIds(allIds);
+    setSelectedItemId(allIds[0]);
+    setTool('SELECT');
+    showToast(`Selected all (${items.length}) objects`, 'info');
+  }, [items, showToast]);
 
 
   // Place an image or PDF render onto canvas as an interactive object
@@ -1082,6 +1412,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       setTool(nextTool);
       if (nextTool !== 'SELECT') {
         setSelectedItemId(null);
+        setSelectedItemIds([]);
       }
       if (nextTool !== 'ERASER') setIsErasing(false);
 
@@ -1122,15 +1453,61 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
   // F3 for Pencil, F4 for Rectangle, Spacebar for Hand (Pan), Escape, Undo/Redo, Delete, Arrow Nudges, and Live Text Typing
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 1. Direct on-chart typing when text session is active
+      // 1. Direct on-chart typing & selection when text session is active
       if (activeTextSessionRef.current) {
         const session = activeTextSessionRef.current;
         const currentText = session.text || '';
         const curIdx = Math.max(0, Math.min(currentText.length, session.cursorIndex ?? currentText.length));
+        const sStart = session.selectionStart ?? curIdx;
+        const sEnd = session.selectionEnd ?? curIdx;
+        const hasSelection = sStart !== sEnd;
+        const minSel = Math.min(sStart, sEnd);
+        const maxSel = Math.max(sStart, sEnd);
 
         if (e.key === 'Escape') {
           e.preventDefault();
           commitActiveText();
+          return;
+        }
+
+        // Copy (Ctrl+C / Cmd+C) inside text session
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+          e.preventDefault();
+          handleCopy();
+          return;
+        }
+
+        // Cut (Ctrl+X / Cmd+X) inside text session
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
+          e.preventDefault();
+          handleCut();
+          return;
+        }
+
+        // Paste (Ctrl+V / Cmd+V) inside text session
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+          e.preventDefault();
+          handlePaste();
+          return;
+        }
+
+        // Select All (Ctrl+A / Cmd+A) inside text session
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+          e.preventDefault();
+          const totalLen = currentText.length;
+          setActiveTextSession((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  cursorIndex: totalLen,
+                  selectionStart: 0,
+                  selectionEnd: totalLen,
+                }
+              : null
+          );
+          if (activeTextInputRef.current) {
+            activeTextInputRef.current.setSelectionRange(0, totalLen);
+          }
           return;
         }
 
@@ -1140,9 +1517,23 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
             commitActiveText();
             return;
           }
-          const nextText = currentText.slice(0, curIdx) + '\n' + currentText.slice(curIdx);
-          const nextIdx = curIdx + 1;
-          setActiveTextSession((prev) => (prev ? { ...prev, text: nextText, cursorIndex: nextIdx } : null));
+          const baseText = hasSelection
+            ? currentText.slice(0, minSel) + currentText.slice(maxSel)
+            : currentText;
+          const insertIdx = hasSelection ? minSel : curIdx;
+          const nextText = baseText.slice(0, insertIdx) + '\n' + baseText.slice(insertIdx);
+          const nextIdx = insertIdx + 1;
+          setActiveTextSession((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  text: nextText,
+                  cursorIndex: nextIdx,
+                  selectionStart: nextIdx,
+                  selectionEnd: nextIdx,
+                }
+              : null
+          );
           if (activeTextInputRef.current) {
             activeTextInputRef.current.value = nextText;
             activeTextInputRef.current.setSelectionRange(nextIdx, nextIdx);
@@ -1152,16 +1543,45 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
         // If focus is already in the transparent textarea, let it handle standard keys natively
         const target = e.target as HTMLElement | null;
-        if (target === activeTextInputRef.current) {
+        if (target === activeTextInputRef.current && !e.ctrlKey && !e.metaKey) {
           return;
         }
 
         if (e.key === 'Backspace') {
           e.preventDefault();
+          if (hasSelection) {
+            const nextText = currentText.slice(0, minSel) + currentText.slice(maxSel);
+            setActiveTextSession((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    text: nextText,
+                    cursorIndex: minSel,
+                    selectionStart: minSel,
+                    selectionEnd: minSel,
+                  }
+                : null
+            );
+            if (activeTextInputRef.current) {
+              activeTextInputRef.current.value = nextText;
+              activeTextInputRef.current.setSelectionRange(minSel, minSel);
+            }
+            return;
+          }
           if (curIdx > 0) {
             const nextText = currentText.slice(0, curIdx - 1) + currentText.slice(curIdx);
             const nextIdx = curIdx - 1;
-            setActiveTextSession((prev) => (prev ? { ...prev, text: nextText, cursorIndex: nextIdx } : null));
+            setActiveTextSession((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    text: nextText,
+                    cursorIndex: nextIdx,
+                    selectionStart: nextIdx,
+                    selectionEnd: nextIdx,
+                  }
+                : null
+            );
             if (activeTextInputRef.current) {
               activeTextInputRef.current.value = nextText;
               activeTextInputRef.current.setSelectionRange(nextIdx, nextIdx);
@@ -1172,9 +1592,38 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
         if (e.key === 'Delete') {
           e.preventDefault();
+          if (hasSelection) {
+            const nextText = currentText.slice(0, minSel) + currentText.slice(maxSel);
+            setActiveTextSession((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    text: nextText,
+                    cursorIndex: minSel,
+                    selectionStart: minSel,
+                    selectionEnd: minSel,
+                  }
+                : null
+            );
+            if (activeTextInputRef.current) {
+              activeTextInputRef.current.value = nextText;
+              activeTextInputRef.current.setSelectionRange(minSel, minSel);
+            }
+            return;
+          }
           if (curIdx < currentText.length) {
             const nextText = currentText.slice(0, curIdx) + currentText.slice(curIdx + 1);
-            setActiveTextSession((prev) => (prev ? { ...prev, text: nextText, cursorIndex: curIdx } : null));
+            setActiveTextSession((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    text: nextText,
+                    cursorIndex: curIdx,
+                    selectionStart: curIdx,
+                    selectionEnd: curIdx,
+                  }
+                : null
+            );
             if (activeTextInputRef.current) {
               activeTextInputRef.current.value = nextText;
               activeTextInputRef.current.setSelectionRange(curIdx, curIdx);
@@ -1185,8 +1634,17 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
         if (e.key === 'ArrowLeft') {
           e.preventDefault();
-          const nextIdx = Math.max(0, curIdx - 1);
-          setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: nextIdx } : null));
+          const nextIdx = hasSelection ? minSel : Math.max(0, curIdx - 1);
+          setActiveTextSession((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  cursorIndex: nextIdx,
+                  selectionStart: nextIdx,
+                  selectionEnd: nextIdx,
+                }
+              : null
+          );
           if (activeTextInputRef.current) {
             activeTextInputRef.current.setSelectionRange(nextIdx, nextIdx);
           }
@@ -1195,8 +1653,17 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
         if (e.key === 'ArrowRight') {
           e.preventDefault();
-          const nextIdx = Math.min(currentText.length, curIdx + 1);
-          setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: nextIdx } : null));
+          const nextIdx = hasSelection ? maxSel : Math.min(currentText.length, curIdx + 1);
+          setActiveTextSession((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  cursorIndex: nextIdx,
+                  selectionStart: nextIdx,
+                  selectionEnd: nextIdx,
+                }
+              : null
+          );
           if (activeTextInputRef.current) {
             activeTextInputRef.current.setSelectionRange(nextIdx, nextIdx);
           }
@@ -1205,7 +1672,9 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
         if (e.key === 'Home') {
           e.preventDefault();
-          setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: 0 } : null));
+          setActiveTextSession((prev) =>
+            prev ? { ...prev, cursorIndex: 0, selectionStart: 0, selectionEnd: 0 } : null
+          );
           if (activeTextInputRef.current) {
             activeTextInputRef.current.setSelectionRange(0, 0);
           }
@@ -1214,9 +1683,19 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
         if (e.key === 'End') {
           e.preventDefault();
-          setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: currentText.length } : null));
+          const endPos = currentText.length;
+          setActiveTextSession((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  cursorIndex: endPos,
+                  selectionStart: endPos,
+                  selectionEnd: endPos,
+                }
+              : null
+          );
           if (activeTextInputRef.current) {
-            activeTextInputRef.current.setSelectionRange(currentText.length, currentText.length);
+            activeTextInputRef.current.setSelectionRange(endPos, endPos);
           }
           return;
         }
@@ -1224,9 +1703,23 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         // Standard printable character (letters, numbers, symbols, spaces)
         if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
           e.preventDefault();
-          const nextText = currentText.slice(0, curIdx) + e.key + currentText.slice(curIdx);
-          const nextIdx = curIdx + 1;
-          setActiveTextSession((prev) => (prev ? { ...prev, text: nextText, cursorIndex: nextIdx } : null));
+          const baseText = hasSelection
+            ? currentText.slice(0, minSel) + currentText.slice(maxSel)
+            : currentText;
+          const insertIdx = hasSelection ? minSel : curIdx;
+          const nextText = baseText.slice(0, insertIdx) + e.key + baseText.slice(insertIdx);
+          const nextIdx = insertIdx + 1;
+          setActiveTextSession((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  text: nextText,
+                  cursorIndex: nextIdx,
+                  selectionStart: nextIdx,
+                  selectionEnd: nextIdx,
+                }
+              : null
+          );
           if (activeTextInputRef.current) {
             activeTextInputRef.current.value = nextText;
             activeTextInputRef.current.setSelectionRange(nextIdx, nextIdx);
@@ -1276,13 +1769,25 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       }
 
       // Escape key behavior
+      // Escape key behavior
       if (e.key === 'Escape') {
+        if (contextMenu) {
+          setContextMenu(null);
+          return;
+        }
+        if (isMarqueeSelecting) {
+          setIsMarqueeSelecting(false);
+          marqueeRef.current = null;
+          setMarqueeSelection(null);
+          return;
+        }
         if (activeTextSession) {
           commitActiveText();
           return;
         }
-        if (selectedItemId) {
+        if (selectedItemIds.length > 0 || selectedItemId) {
           setSelectedItemId(null);
+          setSelectedItemIds([]);
           return;
         }
         if (isFullscreen) {
@@ -1293,6 +1798,41 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           setTimeout(resizeCanvas, 150);
           return;
         }
+      }
+
+      // Copy (Ctrl+C / Cmd+C)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        handleCopy();
+        return;
+      }
+
+      // Cut (Ctrl+X / Cmd+X)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
+        e.preventDefault();
+        handleCut();
+        return;
+      }
+
+      // Paste (Ctrl+V / Cmd+V)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        handlePaste(lastMousePosRef.current);
+        return;
+      }
+
+      // Duplicate (Ctrl+D / Cmd+D)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        handleDuplicateSelected();
+        return;
+      }
+
+      // Select All (Ctrl+A / Cmd+A)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        handleSelectAll();
+        return;
       }
 
       // Undo / Redo
@@ -1310,7 +1850,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
       // Delete
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedItemId) {
+        if (selectedItemIds.length > 0 || selectedItemId) {
           e.preventDefault();
           handleDeleteSelected();
           return;
@@ -1318,7 +1858,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       }
 
       // Arrow keys to nudge selected candle or object
-      if (selectedItemId) {
+      if (selectedItemIds.length > 0 || selectedItemId) {
         const step = e.shiftKey ? 10 : 2;
         if (e.key === 'ArrowUp') {
           e.preventDefault();
@@ -1361,14 +1901,22 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
   }, [
     tool,
     selectedItemId,
+    selectedItemIds,
     isFullscreen,
     activeTextSession,
     commitActiveText,
+    handleCopy,
+    handlePaste,
+    handleCut,
+    handleDuplicateSelected,
+    handleSelectAll,
     handleDeleteSelected,
     handleRedo,
     handleUndo,
     handleNudgeSelected,
     handleToolSelect,
+    contextMenu,
+    isMarqueeSelecting,
   ]);
 
   // Lock body scroll in fullscreen and toggle classes so header stays at the top without filter interference
@@ -1511,6 +2059,22 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     }
 
     if (item.x1 !== undefined && item.y1 !== undefined) {
+      if (item.tool === 'TEXT' && item.text) {
+        const dpr = window.devicePixelRatio || 1;
+        const lines = item.text.split('\n');
+        const maxLen = Math.max(...lines.map((l) => l.length), 1);
+        const fontSize = Math.max(14 * dpr, (item.strokeWidth || 2) * 8 * dpr);
+        const lineHeight = fontSize * 1.25;
+        const totalHeight = Math.max(lineHeight, lines.length * lineHeight);
+        const totalWidth = Math.max(50 * dpr, maxLen * (fontSize * 0.7));
+        const pad = 10 * dpr;
+        return {
+          minX: item.x1 - pad,
+          maxX: item.x1 + totalWidth + pad,
+          minY: item.y1 - pad,
+          maxY: item.y1 + totalHeight + pad,
+        };
+      }
       if (
         (item.tool === 'CANDLE' ||
           item.tool === 'CANDLE_BULLISH' ||
@@ -1537,22 +2101,6 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           maxX: Math.max(item.x1, item.x2),
           minY: Math.min(item.y1, item.y2),
           maxY: Math.max(item.y1, item.y2),
-        };
-      }
-      if (item.tool === 'TEXT' && item.text) {
-        const dpr = window.devicePixelRatio || 1;
-        const lines = item.text.split('\n');
-        const maxLen = Math.max(...lines.map((l) => l.length), 1);
-        const fontSize = Math.max(14 * dpr, (item.strokeWidth || 2) * 8 * dpr);
-        const lineHeight = fontSize * 1.25;
-        const totalHeight = Math.max(lineHeight, lines.length * lineHeight);
-        const totalWidth = Math.max(60 * dpr, maxLen * (fontSize * 0.65));
-        const pad = 8 * dpr;
-        return {
-          minX: item.x1 - pad,
-          maxX: item.x1 + totalWidth + pad,
-          minY: item.y1 - pad,
-          maxY: item.y1 + totalHeight + pad,
         };
       }
     }
@@ -2077,7 +2625,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       if (activeTextSession && activeTextSession.id === it.id) {
         continue;
       }
-      const isSelected = it.id === selectedItemId;
+      const isSelected = selectedItemIds.includes(it.id) || it.id === selectedItemId;
       renderSingleItem(ctx, it, isSelected);
     }
 
@@ -2103,12 +2651,56 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
       const fullText = activeTextSession.text || '';
       const lines = fullText.split('\n');
+
+      const sStart = activeTextSession.selectionStart ?? activeTextSession.cursorIndex ?? 0;
+      const sEnd = activeTextSession.selectionEnd ?? activeTextSession.cursorIndex ?? 0;
+      const hasTextSelection = sStart !== sEnd;
+
+      // Draw Selection Highlight Rectangles behind characters
+      if (hasTextSelection) {
+        const minSel = Math.min(sStart, sEnd);
+        const maxSel = Math.max(sStart, sEnd);
+        let charOffset = 0;
+
+        lines.forEach((line, lineIdx) => {
+          const lineStart = charOffset;
+          const lineEnd = charOffset + line.length;
+
+          if (maxSel > lineStart && minSel < lineEnd) {
+            const colStart = Math.max(0, minSel - lineStart);
+            const colEnd = Math.min(line.length, maxSel - lineStart);
+
+            const textBefore = line.slice(0, colStart);
+            const textSelected = line.slice(colStart, colEnd);
+
+            const x = activeTextSession.canvasX + ctx.measureText(textBefore).width;
+            const y = activeTextSession.canvasY + lineIdx * lineHeight;
+            const selW = Math.max(3, ctx.measureText(textSelected).width);
+            const selH = lineHeight;
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(59, 130, 246, 0.40)'; // Vibrant modern selection blue
+            ctx.strokeStyle = '#3B82F6';
+            ctx.lineWidth = 1 * dpr;
+            if (ctx.roundRect) {
+              ctx.beginPath();
+              ctx.roundRect(x - 1, y, selW + 2, selH, 3);
+              ctx.fill();
+            } else {
+              ctx.fillRect(x - 1, y, selW + 2, selH);
+            }
+            ctx.restore();
+          }
+          charOffset += line.length + 1;
+        });
+      }
+
       lines.forEach((line, idx) => {
         ctx.fillText(line, activeTextSession.canvasX, activeTextSession.canvasY + idx * lineHeight);
       });
 
-      // Blinking Caret '|' on canvas directly at cursorIndex (between letters, start, or end)
-      if (cursorVisible) {
+      // Blinking Caret '|' on canvas directly at cursorIndex (only when not actively highlighting a range)
+      if (!hasTextSelection && cursorVisible) {
         const cIdx = Math.max(0, Math.min(fullText.length, activeTextSession.cursorIndex ?? fullText.length));
         let runningLen = 0;
         let lineIdx = 0;
@@ -2147,8 +2739,42 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       renderSingleItem(ctx, activeDraft, false);
     }
 
+    // 6.5 Render Selection Marquee Box
+    if (marqueeSelection) {
+      const minX = Math.min(marqueeSelection.startX, marqueeSelection.currentX);
+      const maxX = Math.max(marqueeSelection.startX, marqueeSelection.currentX);
+      const minY = Math.min(marqueeSelection.startY, marqueeSelection.currentY);
+      const maxY = Math.max(marqueeSelection.startY, marqueeSelection.currentY);
+      const w = maxX - minX;
+      const h = maxY - minY;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(99, 102, 241, 0.14)';
+      ctx.fillRect(minX, minY, w, h);
+      ctx.strokeStyle = '#6366F1';
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.setLineDash([4 * dpr, 3 * dpr]);
+      ctx.strokeRect(minX, minY, w, h);
+      ctx.restore();
+    }
+
     ctx.restore();
-  }, [items, currentDraft, selectedItemId, gridMode, panOffset, zoom, outerBgColor, innerBgColor, activeTextSession, cursorVisible, strokeWidth, tool]);
+  }, [
+    items,
+    currentDraft,
+    selectedItemId,
+    selectedItemIds,
+    marqueeSelection,
+    gridMode,
+    panOffset,
+    zoom,
+    outerBgColor,
+    innerBgColor,
+    activeTextSession,
+    cursorVisible,
+    strokeWidth,
+    tool,
+  ]);
 
   useEffect(() => {
     redrawAll();
@@ -2156,11 +2782,51 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
   // Pointer Down (Mouse / Touch)
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    // Right-click: Automatically select the "Hand" (PAN) tool and begin panning
+    // Dismiss context menu on mouse down if clicking elsewhere with left click
+    if (contextMenu && e.button !== 2) {
+      setContextMenu(null);
+    }
+
+    const coords = getCanvasCoords(e);
+    const dpr = window.devicePixelRatio || 1;
+
+    // 0. Right-click handling:
+    // If text has a highlighted portion, right-click opens the context menu so user can choose 'Copy'!
+    // Otherwise, for any tool selected: right-click automatically switches to the 'Hand' tool!
     if (e.button === 2) {
-      handleToolSelect('PAN');
+      const session = activeTextSessionRef.current;
+      const hasHighlightedText = Boolean(
+        session &&
+          session.selectionStart !== undefined &&
+          session.selectionEnd !== undefined &&
+          session.selectionStart !== session.selectionEnd
+      );
+
+      if (hasHighlightedText && session) {
+        const start = Math.min(session.selectionStart!, session.selectionEnd!);
+        const end = Math.max(session.selectionStart!, session.selectionEnd!);
+        const selectedText = (session.text || '').slice(start, end);
+
+        setContextMenu({
+          isOpen: true,
+          screenX: e.clientX,
+          screenY: e.clientY,
+          canvasX: coords.x,
+          canvasY: coords.y,
+          selectedText,
+          isTextSelectionMenu: true,
+        });
+        return;
+      }
+
+      // Automatically switch to 'Hand' (Pan) tool when right-clicking on canvas with any tool
+      if (tool !== 'PAN') {
+        handleToolSelect('PAN');
+        showToast('Hand tool selected (Pan)');
+      }
       setIsPanning(true);
       setPanStartCoord({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+      setContextMenu(null);
       return;
     }
 
@@ -2170,9 +2836,6 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       setPanStartCoord({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
       return;
     }
-
-    const coords = getCanvasCoords(e);
-    const dpr = window.devicePixelRatio || 1;
 
     // Double-click on existing text (e.detail === 2): Automatically select TEXT tool and edit
     if (e.detail === 2) {
@@ -2184,6 +2847,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         setIsDrawing(false);
         handleToolSelect('TEXT');
         setSelectedItemId(textHit.id);
+        setSelectedItemIds([textHit.id]);
         const itemFontSize = Math.max(14 * dpr, (textHit.strokeWidth || 2) * 8 * dpr);
         const itemLineHeight = itemFontSize * 1.25;
         const charIdx = getCharIndexFromClick(
@@ -2196,6 +2860,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           itemLineHeight,
           dpr
         );
+        isDraggingTextSelectionRef.current = true;
+        textDragAnchorCharIdxRef.current = charIdx;
         setActiveTextSession({
           id: textHit.id,
           canvasX: textHit.x1 ?? coords.x,
@@ -2203,6 +2869,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           text: textHit.text ?? '',
           color: textHit.color,
           cursorIndex: charIdx,
+          selectionStart: charIdx,
+          selectionEnd: charIdx,
         });
         setTimeout(() => {
           if (activeTextInputRef.current) {
@@ -2228,7 +2896,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       }
     }
 
-    // 2. MOVE / SELECT TOOL: Select & Drag Object (written text, shapes, candles, lines)
+    // 2. MOVE / SELECT TOOL: Select & Drag Object (written text, shapes, candles, lines) or Marquee Selection
     if (tool === 'SELECT') {
       if (activeTextSession) {
         commitActiveText();
@@ -2236,11 +2904,36 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       const hit = findItemAtCoord(coords.x, coords.y);
       if (hit) {
         pushHistory();
-        setSelectedItemId(hit.id);
+        if (e.shiftKey) {
+          // Toggle in multi-selection
+          setSelectedItemIds((prev) => {
+            const next = prev.includes(hit.id) ? prev.filter((id) => id !== hit.id) : [...prev, hit.id];
+            setSelectedItemId(next[0] || null);
+            return next;
+          });
+        } else {
+          // If clicked item is not already part of multi-selection, select only this item
+          if (!selectedItemIds.includes(hit.id)) {
+            setSelectedItemId(hit.id);
+            setSelectedItemIds([hit.id]);
+          }
+        }
         setIsDraggingSelected(true);
         setDragStartCoord({ x: coords.x, y: coords.y });
       } else {
-        setSelectedItemId(null);
+        // Clicked on empty canvas: Start Marquee Selection!
+        if (!e.shiftKey) {
+          setSelectedItemId(null);
+          setSelectedItemIds([]);
+        }
+        setIsMarqueeSelecting(true);
+        marqueeRef.current = {
+          startX: coords.x,
+          startY: coords.y,
+          currentX: coords.x,
+          currentY: coords.y,
+        };
+        setMarqueeSelection(marqueeRef.current);
       }
       return;
     }
@@ -2287,7 +2980,18 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           lineHeight,
           dpr
         );
-        setActiveTextSession((prev) => (prev ? { ...prev, cursorIndex: charIdx } : null));
+        isDraggingTextSelectionRef.current = true;
+        textDragAnchorCharIdxRef.current = charIdx;
+        setActiveTextSession((prev) =>
+          prev
+            ? {
+                ...prev,
+                cursorIndex: charIdx,
+                selectionStart: charIdx,
+                selectionEnd: charIdx,
+              }
+            : null
+        );
         setTimeout(() => {
           if (activeTextInputRef.current) {
             activeTextInputRef.current.focus();
@@ -2317,6 +3021,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         );
 
         setSelectedItemId(textHit.id);
+        isDraggingTextSelectionRef.current = true;
+        textDragAnchorCharIdxRef.current = charIdx;
 
         setActiveTextSession({
           id: textHit.id,
@@ -2325,6 +3031,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           text: textHit.text ?? '',
           color: textHit.color,
           cursorIndex: charIdx,
+          selectionStart: charIdx,
+          selectionEnd: charIdx,
         });
 
         setTimeout(() => {
@@ -2345,12 +3053,16 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       const initialColor =
         outsideColor === '#FFFFFF' && isLightBg ? '#0F172A' : (outsideColor || '#10B981');
 
+      isDraggingTextSelectionRef.current = false;
+      textDragAnchorCharIdxRef.current = null;
       setActiveTextSession({
         canvasX: coords.x,
         canvasY: coords.y,
         text: '',
         color: initialColor,
         cursorIndex: 0,
+        selectionStart: 0,
+        selectionEnd: 0,
       });
       setTimeout(() => {
         if (activeTextInputRef.current) {
@@ -2463,6 +3175,72 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     }
 
     const coords = getCanvasCoords(e);
+    lastMousePosRef.current = coords;
+
+    // 0. Dragging to highlight / select characters inside active text
+    if (isDraggingTextSelectionRef.current && activeTextSessionRef.current) {
+      const session = activeTextSessionRef.current;
+      const targetStrokeWidth =
+        items.find((i) => i.id === session.id)?.strokeWidth || strokeWidth || 2;
+      const dpr = window.devicePixelRatio || 1;
+      const fontSize = Math.max(14 * dpr, targetStrokeWidth * 8 * dpr);
+      const lineHeight = fontSize * 1.25;
+
+      const currentIdx = getCharIndexFromClick(
+        session.text,
+        coords.x,
+        coords.y,
+        session.canvasX,
+        session.canvasY,
+        fontSize,
+        lineHeight,
+        dpr
+      );
+      const anchor = textDragAnchorCharIdxRef.current ?? 0;
+      const start = Math.min(anchor, currentIdx);
+      const end = Math.max(anchor, currentIdx);
+
+      setActiveTextSession((prev) =>
+        prev
+          ? {
+              ...prev,
+              cursorIndex: currentIdx,
+              selectionStart: start,
+              selectionEnd: end,
+            }
+          : null
+      );
+
+      if (activeTextInputRef.current) {
+        activeTextInputRef.current.setSelectionRange(start, end);
+      }
+      return;
+    }
+
+    // Marquee Selection Dragging
+    if (isMarqueeSelecting && marqueeRef.current) {
+      marqueeRef.current.currentX = coords.x;
+      marqueeRef.current.currentY = coords.y;
+      setMarqueeSelection({ ...marqueeRef.current });
+
+      const xMin = Math.min(marqueeRef.current.startX, coords.x);
+      const xMax = Math.max(marqueeRef.current.startX, coords.x);
+      const yMin = Math.min(marqueeRef.current.startY, coords.y);
+      const yMax = Math.max(marqueeRef.current.startY, coords.y);
+
+      const matchedIds: string[] = [];
+      for (const it of items) {
+        const box = getItemBoundingBox(it);
+        if (!box) continue;
+        const intersects = !(box.maxX < xMin || box.minX > xMax || box.maxY < yMin || box.minY > yMax);
+        if (intersects) {
+          matchedIds.push(it.id);
+        }
+      }
+      setSelectedItemIds(matchedIds);
+      setSelectedItemId(matchedIds[0] || null);
+      return;
+    }
 
     // Eraser dragging
     if (tool === 'ERASER' && isErasing) {
@@ -2582,14 +3360,15 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       return;
     }
 
-    // Active Dragging of Selected Item (Move tool or direct text drag)
-    if (isDraggingSelected && selectedItemId && dragStartCoord) {
+    // Active Dragging of Selected Items (Move tool or direct text drag)
+    if (isDraggingSelected && (selectedItemId || selectedItemIds.length > 0) && dragStartCoord) {
       const dx = coords.x - dragStartCoord.x;
       const dy = coords.y - dragStartCoord.y;
+      const activeIds = selectedItemIds.length > 0 ? selectedItemIds : (selectedItemId ? [selectedItemId] : []);
 
       setItems((prev) =>
         prev.map((it) => {
-          if (it.id !== selectedItemId) return it;
+          if (!activeIds.includes(it.id)) return it;
 
           if (it.points) {
             return {
@@ -2607,7 +3386,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         })
       );
 
-      if (activeTextSession && activeTextSession.id === selectedItemId) {
+      if (activeTextSession && activeTextSession.id && activeIds.includes(activeTextSession.id)) {
         setActiveTextSession((prev) =>
           prev ? { ...prev, canvasX: prev.canvasX + dx, canvasY: prev.canvasY + dy } : null
         );
@@ -2698,6 +3477,30 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
     if (rafRedrawIdRef.current !== null) {
       cancelAnimationFrame(rafRedrawIdRef.current);
       rafRedrawIdRef.current = null;
+    }
+
+    if (isDraggingTextSelectionRef.current) {
+      isDraggingTextSelectionRef.current = false;
+      textDragAnchorCharIdxRef.current = null;
+      redrawAll();
+      return;
+    }
+
+    if (isMarqueeSelecting) {
+      setIsMarqueeSelecting(false);
+      const cur = marqueeRef.current;
+      marqueeRef.current = null;
+      setMarqueeSelection(null);
+      if (cur) {
+        const w = Math.abs(cur.currentX - cur.startX);
+        const h = Math.abs(cur.currentY - cur.startY);
+        if (w < 4 && h < 4) {
+          setSelectedItemId(null);
+          setSelectedItemIds([]);
+        }
+      }
+      redrawAll();
+      return;
     }
 
     if (tool === 'ERASER') {
@@ -2958,7 +3761,9 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
       if (hoveredHandle === 'n' || hoveredHandle === 's') return 'cursor-ns-resize';
       if (hoveredHandle === 'e' || hoveredHandle === 'w') return 'cursor-ew-resize';
     }
+    if (isDraggingTextSelectionRef.current) return 'cursor-text';
     if (isDraggingSelected) return 'cursor-move';
+    if (isMarqueeSelecting) return 'cursor-crosshair';
     if (tool === 'SELECT') return isHoveringMovableItem ? 'cursor-move' : 'cursor-default';
     if (tool === 'TEXT') return 'cursor-text';
     if (tool === 'ERASER') return 'cursor-pointer';
@@ -4203,20 +5008,40 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                   </div>
                 </div>
 
-                {/* Duplicate & Delete */}
-                <div className="flex items-center gap-1.5 pt-1 border-t border-indigo-100">
+                {/* Copy, Paste, Duplicate & Delete */}
+                <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-indigo-100">
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className="py-1.5 rounded-lg bg-white border border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer"
+                    title="Copy (Ctrl+C)"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>Copy</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePaste()}
+                    className="py-1.5 rounded-lg bg-white border border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer"
+                    title="Paste (Ctrl+V)"
+                  >
+                    <Clipboard className="w-3 h-3" />
+                    <span>Paste</span>
+                  </button>
                   <button
                     type="button"
                     onClick={handleDuplicateSelected}
-                    className="flex-1 py-1.5 rounded-lg bg-white border border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer"
+                    className="py-1.5 rounded-lg bg-white border border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer"
+                    title="Duplicate (Ctrl+D)"
                   >
-                    <Copy className="w-3 h-3" />
+                    <CopyPlus className="w-3 h-3" />
                     <span>Duplicate</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleDeleteSelected}
-                    className="flex-1 py-1.5 rounded-lg bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-600 text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer"
+                    className="py-1.5 rounded-lg bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-600 text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer"
+                    title="Delete (Del)"
                   >
                     <Trash2 className="w-3 h-3" />
                     <span>Delete</span>
@@ -4371,7 +5196,11 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         <canvas
           ref={canvasRef}
           onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
+            if (e.button !== 2) {
+              try {
+                e.currentTarget.setPointerCapture(e.pointerId);
+              } catch {}
+            }
             handleMouseDown(e as unknown as React.MouseEvent<HTMLCanvasElement>);
           }}
           onPointerMove={(e) =>
@@ -4379,7 +5208,9 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           }
           onPointerUp={(e) => {
             if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-              e.currentTarget.releasePointerCapture(e.pointerId);
+              try {
+                e.currentTarget.releasePointerCapture(e.pointerId);
+              } catch {}
             }
             handleMouseUp();
           }}
@@ -4394,6 +5225,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
               setIsDrawing(false);
               handleToolSelect('TEXT');
               setSelectedItemId(hit.id);
+              setSelectedItemIds([hit.id]);
               const dpr = window.devicePixelRatio || 1;
               const itemFontSize = Math.max(14 * dpr, (hit.strokeWidth || 2) * 8 * dpr);
               const itemLineHeight = itemFontSize * 1.25;
@@ -4425,11 +5257,353 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           }}
           onContextMenu={(e) => {
             e.preventDefault();
-            handleToolSelect('PAN');
+            const session = activeTextSessionRef.current;
+            const hasHighlightedText = Boolean(
+              session &&
+                session.selectionStart !== undefined &&
+                session.selectionEnd !== undefined &&
+                session.selectionStart !== session.selectionEnd
+            );
+
+            if (hasHighlightedText && session) {
+              const start = Math.min(session.selectionStart!, session.selectionEnd!);
+              const end = Math.max(session.selectionStart!, session.selectionEnd!);
+              const selectedText = (session.text || '').slice(start, end);
+              const coords = getCanvasCoords(e);
+
+              setContextMenu({
+                isOpen: true,
+                screenX: e.clientX,
+                screenY: e.clientY,
+                canvasX: coords.x,
+                canvasY: coords.y,
+                selectedText,
+                isTextSelectionMenu: true,
+              });
+              return;
+            }
+
+            // User did not have highlighted text:
+            // "When I have any tool selected, performing a right-click should automatically select the 'Hand' tool—please fix this."
+            if (tool !== 'PAN') {
+              handleToolSelect('PAN');
+              showToast('Hand tool selected (Pan)');
+            }
+            setContextMenu(null);
           }}
           style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
           className={`w-full h-full block select-none ${getCanvasCursor()}`}
         />
+
+        {/* ============================================================== */}
+        {/* FLOATING TEXT SELECTION QUICK ACTION PILL                      */}
+        {/* ============================================================== */}
+        {activeTextSession &&
+          activeTextSession.selectionStart !== undefined &&
+          activeTextSession.selectionEnd !== undefined &&
+          activeTextSession.selectionStart !== activeTextSession.selectionEnd && (() => {
+            const dpr = window.devicePixelRatio || 1;
+            const screenX = (activeTextSession.canvasX * zoom) / dpr + panOffset.x;
+            const screenY = (activeTextSession.canvasY * zoom) / dpr + panOffset.y;
+            return (
+              <div
+                style={{
+                  position: 'fixed',
+                  left: `${Math.max(12, Math.min(window.innerWidth - 240, screenX))}px`,
+                  top: `${Math.max(68, screenY - 42)}px`,
+                  zIndex: 9998,
+                }}
+                className="flex items-center gap-1.5 bg-slate-900/95 border border-indigo-500/40 shadow-2xl rounded-lg px-2 py-1 backdrop-blur-md animate-in fade-in zoom-in-95 select-none"
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCopy();
+                  }}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 text-xs font-semibold cursor-pointer transition"
+                  title="Copy selected text (Ctrl+C)"
+                >
+                  <Copy className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Copy</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePaste();
+                  }}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium cursor-pointer transition"
+                  title="Paste (Ctrl+V)"
+                >
+                  <Clipboard className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Paste</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCut();
+                  }}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium cursor-pointer transition"
+                  title="Cut (Ctrl+X)"
+                >
+                  <Scissors className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Cut</span>
+                </button>
+              </div>
+            );
+          })()}
+
+        {/* ============================================================== */}
+        {/* RIGHT-CLICK FLOATING CONTEXT MENU                              */}
+        {/* ============================================================== */}
+        {contextMenu && contextMenu.isOpen && (
+          <div
+            ref={contextMenuRef}
+            style={{
+              position: 'fixed',
+              left: `${Math.min(contextMenu.screenX, window.innerWidth - 220)}px`,
+              top: `${Math.min(contextMenu.screenY, window.innerHeight - 340)}px`,
+              zIndex: 9999,
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-52 bg-slate-900/95 text-slate-100 border border-slate-700/80 shadow-2xl rounded-xl p-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 select-none text-xs"
+          >
+            {contextMenu.isTextSelectionMenu ? (
+              <>
+                <div className="px-2.5 py-1 text-[11px] font-semibold text-slate-400 border-b border-slate-800 mb-1 flex items-center justify-between">
+                  <span>Text Selected</span>
+                  <span className="text-indigo-400 font-mono font-normal truncate max-w-[90px]">
+                    "{contextMenu.selectedText}"
+                  </span>
+                </div>
+
+                {/* Copy Text */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCopy();
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-indigo-600/20 hover:text-indigo-300 transition cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Copy className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="font-medium">Copy</span>
+                  </div>
+                  <kbd className="text-[10px] bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">Ctrl+C</kbd>
+                </button>
+
+                {/* Cut Text */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCut();
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-indigo-600/20 hover:text-indigo-300 transition cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Scissors className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="font-medium">Cut</span>
+                  </div>
+                  <kbd className="text-[10px] bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">Ctrl+X</kbd>
+                </button>
+
+                {/* Paste Text */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handlePaste();
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-emerald-600/20 hover:text-emerald-300 transition cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Clipboard className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="font-medium">Paste</span>
+                  </div>
+                  <kbd className="text-[10px] bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">Ctrl+V</kbd>
+                </button>
+
+                <div className="h-px bg-slate-800 my-1" />
+
+                {/* Switch to Hand Tool */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleToolSelect('PAN');
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Hand className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Select Hand Tool</span>
+                  </div>
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Copy */}
+                <button
+                  type="button"
+                  disabled={selectedItemIds.length === 0 && !selectedItemId}
+                  onClick={() => {
+                    handleCopy();
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-indigo-600/20 hover:text-indigo-300 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-100 transition cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Copy className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="font-medium">Copy</span>
+                  </div>
+                  <kbd className="text-[10px] bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">Ctrl+C</kbd>
+                </button>
+
+                {/* Cut */}
+                <button
+                  type="button"
+                  disabled={selectedItemIds.length === 0 && !selectedItemId}
+                  onClick={() => {
+                    handleCut();
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-indigo-600/20 hover:text-indigo-300 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-100 transition cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Scissors className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="font-medium">Cut</span>
+                  </div>
+                  <kbd className="text-[10px] bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">Ctrl+X</kbd>
+                </button>
+
+                {/* Paste */}
+                <button
+                  type="button"
+                  disabled={clipboardItems.length === 0 && !clipboardText}
+                  onClick={() => {
+                    handlePaste({ x: contextMenu.canvasX, y: contextMenu.canvasY });
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-emerald-600/20 hover:text-emerald-300 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-100 transition cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Clipboard className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="font-medium">Paste Here</span>
+                  </div>
+                  <kbd className="text-[10px] bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">Ctrl+V</kbd>
+                </button>
+
+                {/* Duplicate */}
+                <button
+                  type="button"
+                  disabled={selectedItemIds.length === 0 && !selectedItemId}
+                  onClick={() => {
+                    handleDuplicateSelected();
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-indigo-600/20 hover:text-indigo-300 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-100 transition cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <CopyPlus className="w-3.5 h-3.5 text-sky-400" />
+                    <span className="font-medium">Duplicate</span>
+                  </div>
+                  <kbd className="text-[10px] bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">Ctrl+D</kbd>
+                </button>
+
+                <div className="h-px bg-slate-800 my-1" />
+
+                {/* Select All */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSelectAll();
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Square className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="font-medium">Select All</span>
+                  </div>
+                  <kbd className="text-[10px] bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">Ctrl+A</kbd>
+                </button>
+
+                {/* Bring to Front / Send to Back */}
+                {(selectedItemIds.length > 0 || selectedItemId) && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleBringToFront();
+                        setContextMenu(null);
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer text-left"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5 text-indigo-400" />
+                      <span className="font-medium">Bring to Front</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleSendToBack();
+                        setContextMenu(null);
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer text-left"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5 text-indigo-400" />
+                      <span className="font-medium">Send to Back</span>
+                    </button>
+                  </>
+                )}
+
+                <div className="h-px bg-slate-800 my-1" />
+
+                {/* Delete */}
+                <button
+                  type="button"
+                  disabled={selectedItemIds.length === 0 && !selectedItemId}
+                  onClick={() => {
+                    handleDeleteSelected();
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-rose-500/20 hover:text-rose-300 text-rose-400 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-rose-400 transition cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                    <span className="font-medium">Delete</span>
+                  </div>
+                  <kbd className="text-[10px] bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">Del</kbd>
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* TOAST FEEDBACK PILL (COPIED, PASTED, CUT, ETC.)                */}
+        {/* ============================================================== */}
+        {clipboardToast && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-top-2 duration-150">
+            <div
+              className={`px-3.5 py-1.5 rounded-full shadow-2xl border backdrop-blur-md flex items-center gap-2 text-xs font-semibold ${
+                clipboardToast.type === 'success'
+                  ? 'bg-emerald-950/95 text-emerald-200 border-emerald-500/50'
+                  : 'bg-slate-900/95 text-slate-200 border-slate-700/90'
+              }`}
+            >
+              {clipboardToast.type === 'success' ? (
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+              ) : (
+                <Copy className="w-3.5 h-3.5 text-indigo-400" />
+              )}
+              <span>{clipboardToast.message}</span>
+            </div>
+          </div>
+        )}
 
         {/* ============================================================== */}
         {/* BOTTOM FLOATING CONTROLS                                       */}
