@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   Shield,
   AlertTriangle,
@@ -10,179 +10,21 @@ import {
   Percent,
   DollarSign,
   AlertOctagon,
-  Edit2,
   X,
-  Volume2,
-  Radio,
   Crosshair,
   Info,
+  Calculator,
+  ArrowRight,
+  TrendingDown,
+  Gauge,
   Check,
+  RotateCcw,
 } from 'lucide-react';
 import { AccountSettings, TradingRule, Trade } from '../types';
 import { DashboardMetrics } from '../utils/tradeAnalytics';
-import { playDisciplineAlert } from '../utils/audioAlerts';
-import { getKarachiDate, getKarachiTime } from '../utils/time';
 import { formatCurrency } from '../utils/currencyFormatter';
 import { calculateNextTradeReadiness } from '../utils/readinessEngine';
-import { RISK_WARNING_CONFIG } from '../config/riskWarningConfig';
-import { FundedAccountRiskCommand } from './FundedAccountRiskCommand';
-import { EvaluationPassNavigator } from './account/EvaluationPassNavigator';
-
-export interface TradeLimitAlertSystemProps {
-  account: AccountSettings | null;
-  metrics: DashboardMetrics;
-  trades: Trade[];
-  onNavigateToTab?: (tab: any) => void;
-  forceOpen?: boolean;
-  onClose?: () => void;
-}
-
-export const TradeLimitAlertSystem: React.FC<TradeLimitAlertSystemProps> = ({
-  account,
-  metrics,
-  trades,
-  onNavigateToTab,
-  forceOpen = false,
-  onClose,
-}) => {
-  const [isDismissed, setIsDismissed] = useState<boolean>(false);
-  const lastAlertKeyRef = useRef<string>('');
-
-  if (!account) return null;
-
-  const todayDate = getKarachiDate();
-  const todayTrades = trades.filter((t) => t.date === todayDate);
-  const todayPnL = todayTrades.reduce(
-    (acc, t) => acc + (typeof t.profitLoss === 'number' ? t.profitLoss : 0),
-    0
-  );
-
-  const dailyLossLimitDollars = (account.initialBalance * (account.maxDailyLossPercent || 2)) / 100;
-
-  const isTradeLimitReached = account.maxDailyTrades > 0 && metrics.tradesToday >= account.maxDailyTrades;
-  const isDailyLossLimitHit =
-    account.maxDailyLossPercent > 0 &&
-    ((todayTrades.length > 0 && todayPnL <= -dailyLossLimitDollars) ||
-      (metrics.tradesToday > 0 && metrics.totalProfitLoss <= -dailyLossLimitDollars));
-
-  const isLimitReached = isTradeLimitReached || isDailyLossLimitHit;
-
-  // Trigger non-blocking audio advisory without locking the screen
-  useEffect(() => {
-    if (isLimitReached) {
-      const alertKey = `${todayDate}-${metrics.tradesToday}-${Math.floor(todayPnL)}-${
-        isTradeLimitReached ? 'TRD' : ''
-      }-${isDailyLossLimitHit ? 'LOSS' : ''}`;
-      if (lastAlertKeyRef.current !== alertKey) {
-        lastAlertKeyRef.current = alertKey;
-        setIsDismissed(false);
-      }
-    }
-  }, [isLimitReached, metrics.tradesToday, todayPnL, isTradeLimitReached, isDailyLossLimitHit, todayDate]);
-
-  // When forceOpen changes to true
-  useEffect(() => {
-    if (forceOpen) {
-      setIsDismissed(false);
-    }
-  }, [forceOpen]);
-
-  const handleDismiss = () => {
-    setIsDismissed(true);
-    if (onClose) onClose();
-  };
-
-  const shouldShowNotification = (isLimitReached && !isDismissed) || forceOpen;
-
-  if (!shouldShowNotification) return null;
-
-  const warningMessage =
-    isTradeLimitReached && isDailyLossLimitHit
-      ? RISK_WARNING_CONFIG.combinedExceededMessage
-      : isTradeLimitReached
-      ? RISK_WARNING_CONFIG.dailyTradeLimitMessage
-      : `Risk Warning: Daily loss threshold reached (${account.maxDailyLossPercent}% max). Please review your risk plan before continuing.`;
-
-  return (
-    <div
-      id="trade-limit-advisory-banner"
-      role="alert"
-      className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 max-w-lg w-[calc(100vw-2rem)] rounded-2xl bg-[#0F172A]/95 backdrop-blur-md border-2 border-blue-500/80 p-4 shadow-2xl shadow-amber-950/40 animate-in fade-in slide-in-from-bottom-4"
-    >
-      <div className="flex items-start gap-3">
-        <div className="p-2.5 rounded-xl bg-blue-500/20 text-cyan-400 border border-blue-500/40 shrink-0 mt-0.5">
-          <AlertOctagon className="w-5 h-5" />
-        </div>
-
-        <div className="flex-1 space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[10px] font-mono-code font-bold tracking-widest text-cyan-400 uppercase flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              {RISK_WARNING_CONFIG.title}
-            </span>
-            <button
-              onClick={handleDismiss}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
-              title="Dismiss warning"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <h4 className="text-xs font-military font-bold text-white tracking-wider uppercase">
-            {isTradeLimitReached && isDailyLossLimitHit
-              ? 'DAILY TRADES & LOSS GUIDELINE ALERT'
-              : isTradeLimitReached
-              ? 'DAILY TRADE COUNT GUIDELINE REACHED'
-              : 'DAILY LOSS THRESHOLD REACHED'}
-          </h4>
-
-          <p className="text-xs text-slate-300 leading-relaxed font-sans">
-            {warningMessage}
-          </p>
-
-          <div className="bg-slate-950/80 border border-slate-800/80 rounded-lg px-2.5 py-1.5 text-[11px] font-mono-code text-slate-300 flex flex-wrap items-center justify-between gap-2">
-            <span>
-              Today: <strong className="text-cyan-400">{metrics.tradesToday}</strong> trades
-            </span>
-            <span>
-              Loss Limit: <strong className="text-rose-400">{account.maxDailyLossPercent}%</strong>
-            </span>
-            <span className="text-[10px] text-slate-400">
-              Entries remain unlimited
-            </span>
-          </div>
-
-          <p className="text-[10px] text-slate-400 italic">
-            {RISK_WARNING_CONFIG.advisoryDisclaimer}
-          </p>
-
-          <div className="flex items-center justify-end gap-2 pt-1">
-            {onNavigateToTab && (
-              <button
-                type="button"
-                onClick={() => {
-                  handleDismiss();
-                  onNavigateToTab('PSYCHOLOGY');
-                }}
-                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-[11px] font-mono-code border border-slate-700 transition"
-              >
-                Cool-Down Center
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className="px-3 py-1 rounded-lg bg-blue-500 hover:bg-cyan-400 text-slate-950 font-military font-bold text-[11px] tracking-wider transition"
-            >
-              CONTINUE TRADING
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+import { getKarachiDate } from '../utils/time';
 
 interface RiskCenterProps {
   account: AccountSettings;
@@ -211,840 +53,635 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
   rules,
   onToggleRule,
   onAddRule,
-  onSaveRule,
   onDeleteRule,
   metrics,
   trades,
+  defaultInstrument = 'XAUUSD',
   onNavigateToTab,
 }) => {
-  const [isTestAlertOpen, setIsTestAlertOpen] = useState(false);
-
-  // Rule Management State
-  const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
-  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
-  const [ruleTitle, setRuleTitle] = useState('');
-  const [ruleDescription, setRuleDescription] = useState('');
-  const [ruleCategory, setRuleCategory] = useState<'RISK' | 'EXECUTION' | 'PSYCHOLOGY'>('RISK');
-  const [ruleSeverity, setRuleSeverity] = useState<'MAJOR' | 'MINOR'>('MAJOR');
-  const [ruleIsHard, setRuleIsHard] = useState(true);
-  const [ruleIsActive, setRuleIsActive] = useState(true);
-  const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'ACTIVE' | 'RISK' | 'EXECUTION' | 'PSYCHOLOGY'>('ALL');
-
-  // Real-time Readiness & Risk Calculations from active account master balance
-  const readiness = calculateNextTradeReadiness(trades, account);
+  // Active Account Balances
   const activeBalance = account.currentBalance > 0 ? account.currentBalance : account.initialBalance;
-  const closedTrades = (trades || []).filter(
-    (t) => t.status === 'CLOSED' || typeof t.profitLoss === 'number'
-  );
-  const latestClosedTrade = closedTrades.length > 0 ? closedTrades[0] : null;
-  
-  // Standard 1% per trade and 2% daily limit calculations
-  const standardRiskPercent = 1.0;
-  const master1PercentRiskDollars = (activeBalance * 1.0) / 100;
-  const standardDailyRiskPercent = 2.0;
-  const dailyRiskLimitDollars = (activeBalance * standardDailyRiskPercent) / 100;
-  const dailyRiskUsed = readiness.dailyRiskUsed || 0;
-  const remainingDailyRisk = Math.max(0, dailyRiskLimitDollars - dailyRiskUsed);
-  const recommendedMaxRisk = (readiness.status === 'RED' || remainingDailyRisk <= 0)
-    ? 0
-    : Math.min(master1PercentRiskDollars, remainingDailyRisk);
+  const readiness = calculateNextTradeReadiness(trades, account);
 
-  // Warning detectors
-  const isDailyLimitReached = metrics.tradesToday >= account.maxDailyTrades;
-  const isDailyLossLimitHit = readiness.isDailyLossLimitReached || (metrics.tradesToday > 0 && metrics.totalProfitLoss < -dailyRiskLimitDollars);
+  // Core Standard Risk Benchmarks
+  const riskPerTradePercent = account.maxRiskPerTradePercent || 1.0;
+  const riskPerTradeDollars = (activeBalance * riskPerTradePercent) / 100;
+  const dailyLossLimitPercent = account.maxDailyLossPercent || 2.0;
+  const dailyLossLimitDollars = (activeBalance * dailyLossLimitPercent) / 100;
+
+  // Real-time Daily Loss Tracking
+  const todayDate = getKarachiDate();
+  const todayTrades = (trades || []).filter((t) => t.date === todayDate);
+  const todayPnL = todayTrades.reduce(
+    (acc, t) => acc + (typeof t.profitLoss === 'number' ? t.profitLoss : 0),
+    0
+  );
+  const dailyRiskUsedDollars = Math.max(0, -todayPnL);
+  const remainingDailyRiskDollars = Math.max(0, dailyLossLimitDollars - dailyRiskUsedDollars);
+
+  // Safe Execution Status
+  const isDailyTradeLimitHit = account.maxDailyTrades > 0 && metrics.tradesToday >= account.maxDailyTrades;
+  const isDailyLossLimitHit = dailyRiskUsedDollars >= dailyLossLimitDollars;
   const isDrawdownNearing = metrics.maxDrawdownPercent >= account.maxDrawdownPercent * 0.75;
   const isDrawdownBreached = metrics.maxDrawdownPercent >= account.maxDrawdownPercent;
 
-  // Rule handlers
-  const handleOpenAddModal = () => {
-    setEditingRuleId(null);
-    setRuleTitle('');
-    setRuleDescription('');
-    setRuleCategory('RISK');
-    setRuleSeverity('MAJOR');
-    setRuleIsHard(true);
-    setRuleIsActive(true);
-    setIsRuleModalOpen(true);
-  };
+  const circuitBreakerActive = isDailyTradeLimitHit || isDailyLossLimitHit || isDrawdownBreached;
 
-  const handleOpenEditModal = (rule: TradingRule) => {
-    setEditingRuleId(rule.id);
-    setRuleTitle(rule.title);
-    setRuleDescription(rule.description || '');
-    setRuleCategory(rule.category || 'RISK');
-    setRuleSeverity(rule.severity || (rule.isHardRule ? 'MAJOR' : 'MINOR'));
-    setRuleIsHard(rule.isHardRule ?? true);
-    setRuleIsActive(rule.isActive ?? rule.active ?? true);
-    setIsRuleModalOpen(true);
-  };
+  // Interactive Position Sizing Calculator State
+  const [calcPair, setCalcPair] = useState<string>(defaultInstrument);
+  const [calcStopLossPips, setCalcStopLossPips] = useState<number>(30);
+  const [calcRiskMode, setCalcRiskMode] = useState<'PERCENT' | 'DOLLARS'>('PERCENT');
+  const [calcRiskValue, setCalcRiskValue] = useState<number>(1.0);
+  const [copiedLot, setCopiedLot] = useState<boolean>(false);
 
-  const handleSaveRuleForm = (e: React.FormEvent) => {
+  // Quick Lot Size Calculation
+  const calculatedRiskDollars =
+    calcRiskMode === 'PERCENT'
+      ? (activeBalance * calcRiskValue) / 100
+      : calcRiskValue;
+
+  const pipValuePerStandardLot = calcPair.includes('XAU')
+    ? 10.0 // $10 per pip on 1.00 lot for Gold
+    : calcPair.includes('JPY')
+    ? 9.0
+    : 10.0;
+
+  const calculatedLotSize = Math.max(
+    0.01,
+    Math.round(
+      (calculatedRiskDollars / (Math.max(1, calcStopLossPips) * pipValuePerStandardLot)) * 100
+    ) / 100
+  );
+
+  // New Rule Simple Modal State
+  const [isAddRuleOpen, setIsAddRuleOpen] = useState(false);
+  const [newRuleTitle, setNewRuleTitle] = useState('');
+  const [newRuleDesc, setNewRuleDesc] = useState('');
+
+  const handleCreateRule = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ruleTitle.trim()) return;
-
-    if (editingRuleId) {
-      const updatedRule: TradingRule = {
-        id: editingRuleId,
-        title: ruleTitle.trim(),
-        description: ruleDescription.trim(),
-        category: ruleCategory,
-        severity: ruleSeverity,
-        isHardRule: ruleIsHard,
-        isActive: ruleIsActive,
-        active: ruleIsActive,
-        violationCount: rules.find((r) => r.id === editingRuleId)?.violationCount || 0,
-      };
-      if (onSaveRule) {
-        onSaveRule(updatedRule);
-      } else if (onAddRule) {
-        onAddRule(ruleTitle.trim(), ruleCategory, ruleIsHard, ruleDescription.trim(), ruleSeverity);
-      }
-    } else {
-      const newRule: TradingRule = {
-        id: `rule-${Date.now()}`,
-        title: ruleTitle.trim(),
-        description: ruleDescription.trim(),
-        category: ruleCategory,
-        severity: ruleSeverity,
-        isHardRule: ruleIsHard,
-        isActive: ruleIsActive,
-        active: ruleIsActive,
-        violationCount: 0,
-      };
-      if (onSaveRule) {
-        onSaveRule(newRule);
-      } else if (onAddRule) {
-        onAddRule(ruleTitle.trim(), ruleCategory, ruleIsHard, ruleDescription.trim(), ruleSeverity);
-      }
+    if (!newRuleTitle.trim()) return;
+    if (onAddRule) {
+      onAddRule(newRuleTitle.trim(), 'RISK', true, newRuleDesc.trim(), 'MAJOR');
     }
-
-    setIsRuleModalOpen(false);
+    setNewRuleTitle('');
+    setNewRuleDesc('');
+    setIsAddRuleOpen(false);
   };
-
-  const filteredRules = rules.filter((r) => {
-    const isAct = r.isActive ?? r.active ?? true;
-    if (categoryFilter === 'ACTIVE') return isAct;
-    if (categoryFilter === 'RISK') return r.category === 'RISK';
-    if (categoryFilter === 'EXECUTION') return r.category === 'EXECUTION';
-    if (categoryFilter === 'PSYCHOLOGY') return r.category === 'PSYCHOLOGY';
-    return true;
-  });
-
-  const activeCount = rules.filter((r) => r.isActive ?? r.active ?? true).length;
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner: Institutional Risk Control Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-950/90 border border-slate-800 rounded-xl p-4 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-cyan-400">
-            <Shield className="w-5 h-5" />
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans">
+      {/* ===================================================================== */}
+      {/* 1. TOP HEADER: ESSENTIAL RISK COMMAND                                  */}
+      {/* ===================================================================== */}
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-slate-950/90 border border-slate-800 shadow-xl">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 shadow-md shadow-cyan-500/10">
+            <Shield className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="font-military font-bold text-sm text-slate-100 tracking-wider uppercase">
-              RISK MANAGEMENT & DISCIPLINE COMMAND
-            </h3>
-            <p className="text-xs text-slate-400 font-mono-code">
-              Institutional Capital Preservation • Standard 1% Risk • 2% Daily Cap • Circuit Breakers
+            <div className="flex items-center gap-2">
+              <h2 className="font-military font-bold text-base sm:text-lg text-white tracking-wider uppercase">
+                RISK MANAGEMENT COMMAND
+              </h2>
+              <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-[10px] font-mono-code font-bold text-cyan-300">
+                ESSENTIAL
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 font-mono-code mt-0.5">
+              Capital Preservation • 1% Trade Cap • 2% Daily Stop • Instant Position Sizer
             </p>
           </div>
         </div>
 
+        {/* Circuit Breaker Status Indicator */}
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsTestAlertOpen(true)}
-            className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-amber-300 font-mono-code text-xs font-bold flex items-center gap-2 border border-slate-700 transition"
+          <div
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-mono-code font-bold shadow-md ${
+              circuitBreakerActive
+                ? 'bg-rose-500/20 border-rose-500/50 text-rose-300'
+                : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+            }`}
           >
-            <Volume2 className="w-4 h-4" />
-            <span>TEST LOCKOUT OVERLAY & SIREN</span>
-          </button>
+            <span
+              className={`w-2.5 h-2.5 rounded-full ${
+                circuitBreakerActive ? 'bg-rose-500 animate-ping' : 'bg-emerald-400'
+              }`}
+            />
+            <span>
+              {circuitBreakerActive
+                ? 'CIRCUIT BREAKER: TRADING HALTED'
+                : 'RISK STATUS: SAFE TO EXECUTE'}
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Local Test Trigger for TradeLimitAlertSystem */}
-      {isTestAlertOpen && (
-        <TradeLimitAlertSystem
-          account={account}
-          metrics={metrics}
-          trades={trades}
-          forceOpen={true}
-          onClose={() => setIsTestAlertOpen(false)}
-          onNavigateToTab={onNavigateToTab}
-        />
+      {/* Critical Circuit Breaker Banner if Breached */}
+      {circuitBreakerActive && (
+        <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-200 flex items-start gap-3 shadow-xl">
+          <AlertOctagon className="w-6 h-6 text-rose-400 shrink-0 mt-0.5" />
+          <div className="space-y-1 text-xs">
+            <h4 className="font-military font-bold text-sm tracking-wide text-rose-300 uppercase">
+              DEFENSE SYSTEM ACTIVE: PRESERVE CAPITAL
+            </h4>
+            <p className="leading-relaxed">
+              {isDailyLossLimitHit
+                ? `You have reached your 2.0% daily loss limit (${formatCurrency(
+                    dailyLossLimitDollars,
+                    account.currency
+                  )}). Stop trading immediately for this 24-hour cycle to avoid revenge trading.`
+                : isDailyTradeLimitHit
+                ? `Daily trade limit reached (${metrics.tradesToday}/${account.maxDailyTrades} trades). Step away from the charts to protect your edge.`
+                : `Maximum drawdown threshold reached. Mandatory review required before executing new trades.`}
+            </p>
+          </div>
+        </div>
       )}
 
-      {/* FUNDED ACCOUNT RISK ENGINE COMMAND CENTER */}
-      <FundedAccountRiskCommand
-        account={account}
-        trades={trades}
-        onUpdateAccount={onUpdateAccount}
-        onNavigateToTab={onNavigateToTab}
-      />
-
-      {/* EVALUATION PASS NAVIGATOR & PASSING GUIDANCE */}
-      <EvaluationPassNavigator
-        account={account}
-        trades={trades}
-        onOpenJournal={() => onNavigateToTab?.('JOURNAL')}
-        onNavigateToTab={onNavigateToTab}
-      />
-
-      {/* Real-time Defense Warnings */}
-      <div className="space-y-3">
-        {isDailyLimitReached && (
-          <div className="p-4 rounded-xl bg-blue-500/15 border border-blue-500/40 text-amber-300 flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-6 h-6 text-cyan-400 shrink-0" />
-              <div>
-                <strong className="font-military font-bold text-sm block tracking-wide">
-                  TACTICAL PROTOCOL: DAILY TRADE LIMIT REACHED ({metrics.tradesToday}/{account.maxDailyTrades})
-                </strong>
-                <span className="text-xs text-slate-300 font-sans">
-                  You have fulfilled your trade allocation for this 24-hour cycle. Close charting terminal to prevent overtrading.
-                </span>
-              </div>
-            </div>
-            <span className="px-2.5 py-1 rounded bg-blue-500 text-slate-950 text-xs font-military font-bold">
-              LOCKED
+      {/* ===================================================================== */}
+      {/* 2. THE 4 ESSENTIAL PILLARS OF RISK (EASY-TO-UNDERSTAND DASHBOARD)      */}
+      {/* ===================================================================== */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Account Balance */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/80 border border-slate-800 shadow-lg flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-mono-code font-bold uppercase text-slate-400">
+              Account Master Balance
             </span>
+            <DollarSign className="w-4 h-4 text-cyan-400" />
           </div>
-        )}
-
-        {isDailyLossLimitHit && (
-          <div className="p-4 rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-300 flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-3">
-              <AlertOctagon className="w-6 h-6 text-rose-400 shrink-0" />
-              <div>
-                <strong className="font-military font-bold text-sm block tracking-wide">
-                  CRITICAL DEFENSE WARNING: DAILY LOSS LIMIT REACHED
-                </strong>
-                <span className="text-xs text-slate-300 font-sans">
-                  Current session losses exceed your 2% ({formatCurrency(dailyRiskLimitDollars, account.currency)}) guardrail. Hard stop active.
-                </span>
-              </div>
-            </div>
-            <span className="px-2.5 py-1 rounded bg-rose-500 text-white text-xs font-military font-bold">
-              DEFENSE LOCK
-            </span>
-          </div>
-        )}
-
-        {isDrawdownBreached && (
-          <div className="p-4 rounded-xl bg-rose-600/25 border border-rose-600 text-rose-200 flex items-center justify-between shadow-xl">
-            <div className="flex items-center gap-3">
-              <AlertOctagon className="w-6 h-6 text-rose-400 shrink-0" />
-              <div>
-                <strong className="font-military font-bold text-sm block tracking-wide">
-                  MAX DRAWDOWN BREACHED: {metrics.maxDrawdownPercent.toFixed(1)}% (Threshold: {account.maxDrawdownPercent}%)
-                </strong>
-                <span className="text-xs font-sans">
-                  Trading suspended. Mandatory account preservation review required.
-                </span>
-              </div>
-            </div>
-            <span className="px-2.5 py-1 rounded bg-rose-600 text-white text-xs font-military font-bold">
-              HALT
-            </span>
-          </div>
-        )}
-
-        {isDrawdownNearing && !isDrawdownBreached && (
-          <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-amber-300 flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-cyan-400 shrink-0" />
-            <span className="text-xs font-sans">
-              Warning: Current drawdown ({metrics.maxDrawdownPercent.toFixed(1)}%) is approaching your maximum threshold ({account.maxDrawdownPercent}%). Reduce position risk to protect equity.
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Grid: Tactical Defense Guardrails & Master Balance Risk Guidance */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Card 1: Tactical Defense Guardrails */}
-        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-              <div className="flex items-center gap-2 text-slate-200">
-                <Shield className="w-4 h-4 text-cyan-400" />
-                <h4 className="text-xs font-military font-bold tracking-wider uppercase">
-                  TACTICAL DEFENSE GUARDRAILS
-                </h4>
-              </div>
-              <span className="text-[10px] font-mono-code text-emerald-400">HARD RULES ENFORCED</span>
+            <div className="text-2xl sm:text-3xl font-mono font-bold text-white tracking-tight">
+              {formatCurrency(activeBalance, account.currency)}
             </div>
-
-            <div className="space-y-4 text-xs font-mono-code">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-slate-400">Max Risk Per Trade</label>
-                  <span className="text-[10px] text-cyan-400 font-bold">STANDARD: 1.0%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    max="2.0"
-                    value={account.maxRiskPerTradePercent || 1.0}
-                    onChange={(e) =>
-                      onUpdateAccount({
-                        ...account,
-                        maxRiskPerTradePercent: Math.min(2.0, parseFloat(e.target.value) || 1.0),
-                      })
-                    }
-                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-cyan-400 font-bold outline-none focus:border-cyan-400"
-                  />
-                  <span className="text-slate-400">%</span>
-                </div>
-                <div className="text-[10px] text-slate-500 mt-1">
-                  =${formatCurrency(master1PercentRiskDollars, account.currency)} per trade on active balance
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-slate-400">Max Daily Loss Limit</label>
-                  <span className="text-[10px] text-slate-300 font-bold">STANDARD: 2.0%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="1.0"
-                    max="5.0"
-                    value={account.maxDailyLossPercent || 2.0}
-                    onChange={(e) =>
-                      onUpdateAccount({
-                        ...account,
-                        maxDailyLossPercent: parseFloat(e.target.value) || 2.0,
-                      })
-                    }
-                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 font-bold outline-none focus:border-cyan-400"
-                  />
-                  <span className="text-slate-400">%</span>
-                </div>
-                <div className="text-[10px] text-slate-500 mt-1">
-                  =${formatCurrency(dailyRiskLimitDollars, account.currency)} maximum daily loss cap
-                </div>
-              </div>
-
-              <div>
-                <label className="text-slate-400 block mb-1">Max Allowable Drawdown (%)</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="2.0"
-                    max="20.0"
-                    value={account.maxDrawdownPercent || 5.0}
-                    onChange={(e) =>
-                      onUpdateAccount({
-                        ...account,
-                        maxDrawdownPercent: parseFloat(e.target.value) || 5.0,
-                      })
-                    }
-                    className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 font-bold outline-none focus:border-cyan-400"
-                  />
-                  <span className="text-slate-400">%</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-slate-400 block mb-1">Max Daily Trades Cap</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={account.maxDailyTrades || 2}
-                  onChange={(e) =>
-                    onUpdateAccount({
-                      ...account,
-                      maxDailyTrades: parseInt(e.target.value) || 2,
-                    })
-                  }
-                  className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-cyan-400 font-bold outline-none focus:border-cyan-400"
-                />
-              </div>
+            <div className="text-[11px] font-mono-code text-slate-400 mt-1">
+              Base Equity Driving All Sizing
             </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-800 text-[10px] font-mono-code text-slate-500">
-            *Hard risk limits are active across all tools. Never increase risk after losses or winning runs.
           </div>
         </div>
 
-        {/* Card 2: Master Account Balance Risk Guidance (Section 8) */}
-        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+        {/* Card 2: Max Risk Per Trade */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/80 border border-slate-800 shadow-lg flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-mono-code font-bold uppercase text-slate-400">
+              Max Risk Per Trade (1%)
+            </span>
+            <Percent className="w-4 h-4 text-emerald-400" />
+          </div>
           <div>
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <Crosshair className="w-4 h-4 text-cyan-400" />
-                <h4 className="text-xs font-military font-bold tracking-wider text-slate-200 uppercase">
-                  ACTIVE BALANCE RISK GUIDANCE
-                </h4>
-              </div>
-              <span className={`text-[10px] font-mono-code font-bold uppercase px-2 py-0.5 rounded border ${
-                isDailyLimitReached || isDailyLossLimitHit
-                  ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                  : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-              }`}>
-                {isDailyLimitReached || isDailyLossLimitHit ? 'LIMIT REACHED' : 'WITHIN PLAN'}
+            <div className="text-2xl sm:text-3xl font-mono font-bold text-emerald-400 tracking-tight">
+              {formatCurrency(riskPerTradeDollars, account.currency)}
+            </div>
+            <div className="flex items-center justify-between text-[11px] font-mono-code text-slate-400 mt-1">
+              <span>Standard: {riskPerTradePercent}%</span>
+              <span className="text-emerald-400">Single Trade Cap</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Daily Loss Limit (2%) */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/80 border border-slate-800 shadow-lg flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-mono-code font-bold uppercase text-slate-400">
+              Daily Loss Limit (2%)
+            </span>
+            <AlertTriangle className="w-4 h-4 text-amber-400" />
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-mono font-bold text-amber-300 tracking-tight">
+              {formatCurrency(dailyLossLimitDollars, account.currency)}
+            </div>
+            <div className="flex items-center justify-between text-[11px] font-mono-code mt-1">
+              <span className="text-slate-400">Remaining Today:</span>
+              <span
+                className={`font-bold ${
+                  remainingDailyRiskDollars > 0 ? 'text-emerald-400' : 'text-rose-400'
+                }`}
+              >
+                {formatCurrency(remainingDailyRiskDollars, account.currency)}
               </span>
             </div>
-
-            <div className="space-y-3 font-mono-code text-xs">
-              <div className="flex items-center justify-between py-1.5 border-b border-slate-800/60">
-                <span className="text-slate-400 uppercase">ACCOUNT BALANCE:</span>
-                <span className="font-bold text-slate-100 text-sm">
-                  {formatCurrency(activeBalance, account.currency)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-1.5 border-b border-slate-800/60">
-                <span className="text-slate-400 uppercase">MAX RISK PER TRADE:</span>
-                <span className="font-bold text-cyan-400">
-                  1% ({formatCurrency(master1PercentRiskDollars, account.currency)})
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-1.5 border-b border-slate-800/60">
-                <span className="text-slate-400 uppercase">DAILY RISK LIMIT:</span>
-                <span className="font-bold text-slate-200">
-                  2% ({formatCurrency(dailyRiskLimitDollars, account.currency)})
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-1.5 border-b border-slate-800/60">
-                <span className="text-slate-400 uppercase">DAILY RISK USED:</span>
-                <span className={`font-bold ${dailyRiskUsed > 0 ? 'text-rose-400' : 'text-slate-300'}`}>
-                  {formatCurrency(dailyRiskUsed, account.currency)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-1.5 border-b border-slate-800/60">
-                <span className="text-slate-400 uppercase">REMAINING DAILY RISK:</span>
-                <span className="font-bold text-emerald-400">
-                  {formatCurrency(remainingDailyRisk, account.currency)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-1.5 border-b border-slate-800/60">
-                <span className="text-slate-400 uppercase">RECOMMENDED MAX RISK:</span>
-                <span className="font-bold text-emerald-400 text-sm">
-                  {formatCurrency(recommendedMaxRisk, account.currency)}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono-code text-slate-300 leading-relaxed">
-              <div className="text-[10px] uppercase font-bold tracking-wider mb-1 text-cyan-400 font-military flex items-center gap-1.5">
-                <Info className="w-3 h-3" />
-                INSTITUTIONAL POSITION SIZING DIRECTIVE:
-              </div>
-              Use the official <strong className="text-cyan-400">LOT SIZE CALCULATOR</strong> in the main navigation for exact lot size calculation on any manual instrument with stop loss in pips.
-            </div>
           </div>
+        </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-800 text-[10px] font-mono-code text-slate-500">
-            *Master balance dynamically drives recommended risk across all modules.
+        {/* Card 4: Drawdown Guard */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/80 border border-slate-800 shadow-lg flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-mono-code font-bold uppercase text-slate-400">
+              Max Drawdown Guard
+            </span>
+            <Gauge className="w-4 h-4 text-cyan-400" />
+          </div>
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-mono font-bold text-cyan-300">
+                {metrics.maxDrawdownPercent.toFixed(1)}%
+              </span>
+              <span className="text-xs font-mono-code text-slate-500">
+                / {account.maxDrawdownPercent || 5.0}% Max
+              </span>
+            </div>
+            {/* Drawdown progress bar */}
+            <div className="w-full h-1.5 rounded-full bg-slate-800 mt-2 overflow-hidden">
+              <div
+                className={`h-full transition-all duration-300 ${
+                  isDrawdownBreached
+                    ? 'bg-rose-500'
+                    : isDrawdownNearing
+                    ? 'bg-amber-400'
+                    : 'bg-cyan-400'
+                }`}
+                style={{
+                  width: `${Math.min(
+                    100,
+                    (metrics.maxDrawdownPercent / (account.maxDrawdownPercent || 5.0)) * 100
+                  )}%`,
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* SECTION 12: WIN / LOSS DISCIPLINE GUIDANCE & REAL AUDIT */}
-      <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className={`p-2 rounded-lg border ${
-              latestClosedTrade && (latestClosedTrade.profitLoss || 0) > 0
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                : latestClosedTrade && (latestClosedTrade.profitLoss || 0) < 0
-                ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                : 'bg-blue-500/10 border-blue-500/30 text-cyan-400'
-            }`}>
-              <Shield className="w-5 h-5" />
+      {/* ===================================================================== */}
+      {/* 3. ESSENTIAL TOOL: INSTANT POSITION & LOT SIZE CALCULATOR             */}
+      {/* ===================================================================== */}
+      <div className="p-5 sm:p-7 rounded-2xl bg-slate-950/80 border border-cyan-500/30 shadow-xl space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+              <Calculator className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-military font-bold text-sm text-slate-100 uppercase tracking-wider">
-                POST-TRADE DISCIPLINE & RISK GUIDANCE AUDIT
+              <h3 className="text-sm sm:text-base font-military font-bold text-white uppercase tracking-wider">
+                INSTANT POSITION SIZING CALCULATOR
               </h3>
-              <p className="text-xs text-slate-400 font-mono-code mt-0.5">
-                Dynamic balance adjustment & rule-based execution guidance on trade results
+              <p className="text-xs text-slate-400 font-mono-code">
+                Calculate exact lot size in seconds — never risk more than your plan
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className={`px-2.5 py-1 rounded text-xs font-mono-code font-bold uppercase border ${
-              (latestClosedTrade?.profitLoss ?? -5) > 0
-                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                : (latestClosedTrade?.profitLoss ?? -5) < 0
-                ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
-                : 'bg-slate-800 text-slate-300 border-slate-700'
-            }`}>
-              {(latestClosedTrade?.profitLoss ?? -5) > 0
-                ? 'OUTCOME: WIN (PROFIT)'
-                : (latestClosedTrade?.profitLoss ?? -5) < 0
-                ? 'OUTCOME: LOSS'
-                : 'OUTCOME: BREAK-EVEN'}
-            </span>
+            <span className="text-xs font-mono-code text-slate-400">Risk Mode:</span>
+            <div className="flex items-center rounded-xl bg-slate-900 border border-slate-800 p-0.5 text-xs font-mono-code">
+              <button
+                type="button"
+                onClick={() => {
+                  setCalcRiskMode('PERCENT');
+                  setCalcRiskValue(1.0);
+                }}
+                className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  calcRiskMode === 'PERCENT'
+                    ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                % Percent (1%)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCalcRiskMode('DOLLARS');
+                  setCalcRiskValue(riskPerTradeDollars);
+                }}
+                className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  calcRiskMode === 'DOLLARS'
+                    ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                $ Cash Amount
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Real Dynamic Calculations Grid */}
-        {(() => {
-          const pnl = latestClosedTrade ? (latestClosedTrade.profitLoss || 0) : -5;
-          const isWin = pnl > 0;
-          const isLoss = pnl < 0;
-          const startBal = latestClosedTrade ? activeBalance - pnl : activeBalance;
-          const endBal = activeBalance;
-          const next1Pct = (endBal * 1) / 100;
-          const dailyUsed = readiness.dailyRiskUsed || 0;
-          const remDaily = Math.max(0, dailyRiskLimitDollars - dailyUsed);
+        {/* Calculator Form Inputs Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Input 1: Instrument */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-mono-code text-slate-400 uppercase font-bold">
+              Instrument / Asset
+            </label>
+            <select
+              value={calcPair}
+              onChange={(e) => setCalcPair(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-100 font-mono-code text-sm font-bold outline-none focus:border-cyan-400 cursor-pointer"
+            >
+              <option value="XAUUSD">Gold (XAUUSD)</option>
+              <option value="EURUSD">EURUSD</option>
+              <option value="GBPUSD">GBPUSD</option>
+              <option value="USDJPY">USDJPY</option>
+              <option value="US30">US30 (Dow Jones)</option>
+              <option value="NAS100">NAS100 (Nasdaq)</option>
+              <option value="BTCUSDT">BTCUSDT</option>
+            </select>
+          </div>
 
-          const suggestionText = isLoss
-            ? 'Review whether the setup followed your strategy, whether the stop loss was respected, and whether the trade stayed within your risk plan. Do not increase risk to recover the loss.'
-            : isWin
-            ? 'Review what made the setup valid and keep the same 1% risk discipline. A winning trade is not a reason to increase risk.'
-            : 'Review whether the trade followed your technical criteria and whether the break-even adjustment was executed according to your playbook. Maintain standard 1% risk discipline.';
-
-          return (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono-code text-xs">
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-slate-500 text-[10px] uppercase block">Starting Balance</span>
-                  <span className="text-sm font-bold text-slate-200 mt-0.5 block">
-                    {formatCurrency(startBal, account.currency)}
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-slate-500 text-[10px] uppercase block">Trade P&L</span>
-                  <span className={`text-sm font-bold mt-0.5 block ${
-                    isWin ? 'text-emerald-400' : isLoss ? 'text-rose-400' : 'text-slate-300'
-                  }`}>
-                    {pnl >= 0 ? `+${formatCurrency(pnl, account.currency)}` : `-${formatCurrency(Math.abs(pnl), account.currency)}`}
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-slate-500 text-[10px] uppercase block">New Current Balance</span>
-                  <span className="text-sm font-bold text-amber-300 mt-0.5 block">
-                    {formatCurrency(endBal, account.currency)}
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-lg bg-slate-950 border border-blue-500/30">
-                  <span className="text-cyan-400 text-[10px] uppercase block font-bold">Next 1% Risk Cap</span>
-                  <span className="text-sm font-black text-cyan-400 mt-0.5 block">
-                    {formatCurrency(next1Pct, account.currency)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Daily Risk Status Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-mono-code text-xs">
-                <div className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                  <span className="text-slate-400">Daily Risk Used:</span>
-                  <span className="font-bold text-slate-200">
-                    {formatCurrency(dailyUsed, account.currency)}
-                  </span>
-                </div>
-                <div className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                  <span className="text-slate-400">Remaining Daily Risk (2% Limit):</span>
-                  <span className={`font-bold ${remDaily > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {formatCurrency(remDaily, account.currency)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Official Professional Suggestion Box */}
-              <div className={`p-4 rounded-xl border flex items-start gap-3 ${
-                isLoss
-                  ? 'bg-rose-500/10 border-rose-500/30'
-                  : isWin
-                  ? 'bg-emerald-500/10 border-emerald-500/30'
-                  : 'bg-slate-950 border-slate-800'
-              }`}>
-                <Info className={`w-5 h-5 shrink-0 mt-0.5 ${
-                  isLoss ? 'text-rose-400' : isWin ? 'text-emerald-400' : 'text-cyan-400'
-                }`} />
-                <div className="space-y-1">
-                  <div className="text-[11px] font-military font-bold uppercase tracking-wider text-slate-200">
-                    PROFESSIONAL DISCIPLINE DIRECTIVE
-                  </div>
-                  <p className="text-xs font-mono-code text-slate-200 leading-relaxed">
-                    "{suggestionText}"
-                  </p>
-                </div>
-              </div>
+          {/* Input 2: Stop Loss Pips */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-mono-code text-slate-400 uppercase font-bold flex items-center justify-between">
+              <span>Stop Loss Distance</span>
+              <span className="text-cyan-400">{calcStopLossPips} Pips</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                max="1000"
+                value={calcStopLossPips}
+                onChange={(e) => setCalcStopLossPips(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-cyan-300 font-mono-code text-sm font-bold outline-none focus:border-cyan-400"
+              />
+              <span className="text-xs font-mono-code text-slate-500 font-bold">PIPS</span>
             </div>
-          );
-        })()}
+          </div>
+
+          {/* Input 3: Risk Parameter */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-mono-code text-slate-400 uppercase font-bold flex items-center justify-between">
+              <span>{calcRiskMode === 'PERCENT' ? 'Risk Percentage' : 'Dollar Risk'}</span>
+              <span className="text-emerald-400">
+                {formatCurrency(calculatedRiskDollars, account.currency)}
+              </span>
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                step={calcRiskMode === 'PERCENT' ? '0.1' : '10'}
+                min="0.1"
+                max={calcRiskMode === 'PERCENT' ? '5.0' : activeBalance}
+                value={calcRiskValue}
+                onChange={(e) => setCalcRiskValue(parseFloat(e.target.value) || 1.0)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-emerald-300 font-mono-code text-sm font-bold outline-none focus:border-emerald-400"
+              />
+              <span className="text-xs font-mono-code text-slate-500 font-bold">
+                {calcRiskMode === 'PERCENT' ? '%' : account.currency}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Calculated Result Output Box */}
+        <div className="p-4 sm:p-5 rounded-xl bg-slate-900/90 border border-cyan-500/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="space-y-1 text-center sm:text-left">
+            <span className="text-[10px] font-mono-code font-bold uppercase tracking-wider text-cyan-400">
+              RECOMMENDED POSITION SIZE (EXACT EXECUTION)
+            </span>
+            <div className="flex items-baseline gap-3">
+              <span className="text-3xl sm:text-4xl font-mono font-black text-white">
+                {calculatedLotSize.toFixed(2)}{' '}
+                <span className="text-base font-normal text-slate-400">Lots</span>
+              </span>
+              <span className="text-xs font-mono-code text-emerald-400">
+                Risk: {formatCurrency(calculatedRiskDollars, account.currency)} (
+                {((calculatedRiskDollars / activeBalance) * 100).toFixed(1)}%)
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(calculatedLotSize.toFixed(2));
+                setCopiedLot(true);
+                setTimeout(() => setCopiedLot(false), 2000);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono-code text-xs font-bold transition shadow-lg shadow-cyan-500/20 flex items-center gap-1.5 cursor-pointer"
+            >
+              {copiedLot ? <Check className="w-4 h-4" /> : <Calculator className="w-4 h-4" />}
+              <span>{copiedLot ? 'Copied Lot Size!' : 'Copy Lot Size'}</span>
+            </button>
+
+            {onNavigateToTab && (
+              <button
+                type="button"
+                onClick={() => onNavigateToTab('PRO_TRADING')}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono-code text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Go to Chart</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Trading Rules Checklist & Violation Enforcement */}
-      <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-5 shadow-lg">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4 text-cyan-400" />
-              <h3 className="text-sm font-military font-bold text-slate-100">
-                ACTIVE TRADING COMMAND RULES (PLAYBOOK)
-              </h3>
+      {/* ===================================================================== */}
+      {/* 4. ESSENTIAL RULES OF CAPITAL PRESERVATION (DECLUTTERED & SIMPLE)      */}
+      {/* ===================================================================== */}
+      <div className="p-5 sm:p-7 rounded-2xl bg-slate-950/80 border border-slate-800 shadow-xl space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-violet-500/10 border border-violet-500/30 text-violet-400">
+              <Lock className="w-4 h-4" />
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Disciplined operators review and uphold these rules on every execution. All rules default to ACTIVE: ON.
-            </p>
+            <div>
+              <h3 className="text-sm sm:text-base font-military font-bold text-white uppercase tracking-wider">
+                CORE RULES OF CAPITAL PRESERVATION
+              </h3>
+              <p className="text-xs text-slate-400 font-mono-code">
+                Toggle your active rules on or off — simple, clear, non-negotiable guidelines
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-mono-code text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/30">
-              {activeCount} / {rules.length} ACTIVE RULES
-            </span>
-
-            <button
-              id="add-rule-btn"
-              onClick={handleOpenAddModal}
-              className="prime-btn-primary flex items-center gap-1.5 px-3.5 py-1.5 text-xs uppercase cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>ADD RULE</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setIsAddRuleOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 hover:border-cyan-400 text-slate-200 hover:text-white text-xs font-mono-code font-bold transition cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Add Custom Rule</span>
+          </button>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 mb-4 text-xs font-mono-code">
-          {(['ALL', 'ACTIVE', 'RISK', 'EXECUTION', 'PSYCHOLOGY'] as const).map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategoryFilter(cat)}
-              className={`px-2.5 py-1 rounded-md transition ${
-                categoryFilter === cat
-                  ? 'bg-blue-500 text-slate-950 font-bold'
-                  : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800'
-              }`}
-            >
-              {cat === 'ACTIVE' ? `ACTIVE ONLY (${activeCount})` : cat}
-            </button>
-          ))}
-        </div>
-
-        {/* Rule list */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filteredRules.map((rule) => {
+        {/* Clean, Non-Cluttered Rules Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {rules.slice(0, 6).map((rule) => {
             const isActive = rule.isActive ?? rule.active ?? true;
             return (
               <div
                 key={rule.id}
-                className={`p-3.5 rounded-lg border transition flex flex-col justify-between gap-3 ${
+                className={`p-4 rounded-xl border transition flex items-start justify-between gap-3 ${
                   isActive
-                    ? 'bg-slate-950/80 border-slate-800'
-                    : 'bg-slate-950/30 border-slate-900 opacity-50'
+                    ? 'bg-slate-900/80 border-slate-700/80 shadow-md'
+                    : 'bg-slate-950/40 border-slate-900 opacity-50'
                 }`}
               >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2.5">
-                      <button
-                        id={`toggle-rule-${rule.id}`}
-                        onClick={() => onToggleRule(rule.id)}
-                        className="mt-0.5 text-cyan-400 hover:text-amber-300 transition"
-                        title={isActive ? 'Click to deactivate rule' : 'Click to activate rule'}
-                      >
-                        {isActive ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-slate-600" />
-                        )}
-                      </button>
-                      <div>
-                        <span className={`text-xs font-semibold block ${isActive ? 'text-slate-100' : 'text-slate-400 line-through'}`}>
-                          {rule.title}
-                        </span>
-                        {rule.description && (
-                          <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                            {rule.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => handleOpenEditModal(rule)}
-                        className="p-1 rounded text-slate-500 hover:text-cyan-400 transition"
-                        title="Edit Rule"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => onDeleteRule(rule.id)}
-                        className="p-1 rounded text-slate-600 hover:text-rose-400 transition"
-                        title="Delete Rule"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onToggleRule(rule.id)}
+                    className="mt-0.5 text-cyan-400 hover:text-cyan-300 transition cursor-pointer shrink-0"
+                    title={isActive ? 'Click to deactivate rule' : 'Click to activate rule'}
+                  >
+                    {isActive ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    ) : (
+                      <XCircle className="w-5 h-5 text-slate-600" />
+                    )}
+                  </button>
+                  <div className="space-y-1">
+                    <h5
+                      className={`text-xs sm:text-sm font-semibold ${
+                        isActive ? 'text-white' : 'text-slate-400 line-through'
+                      }`}
+                    >
+                      {rule.title}
+                    </h5>
+                    {rule.description && (
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        {rule.description}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px] font-mono-code">
-                  <div className="flex items-center gap-1.5">
-                    <span className="px-1.5 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
-                      {rule.category || 'RISK'}
-                    </span>
-                    {rule.isHardRule && (
-                      <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                        HARD RULE
-                      </span>
-                    )}
-                    {rule.severity && (
-                      <span className={`px-1.5 py-0.5 rounded ${rule.severity === 'MAJOR' ? 'bg-blue-500/20 text-amber-300' : 'bg-slate-800 text-slate-400'}`}>
-                        {rule.severity}
-                      </span>
-                    )}
-                  </div>
-
-                  <span className={`font-bold ${isActive ? 'text-emerald-400' : 'text-slate-500'}`}>
-                    {isActive ? 'ACTIVE: ON' : 'ACTIVE: OFF'}
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => onDeleteRule(rule.id)}
+                  className="p-1 rounded text-slate-600 hover:text-rose-400 transition cursor-pointer shrink-0"
+                  title="Remove Rule"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Add / Edit Rule Modal */}
-      {isRuleModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0B0F19] border border-slate-700/80 rounded-xl p-6 max-w-lg w-full shadow-2xl space-y-4 font-mono-code">
+      {/* Simple Add Rule Modal */}
+      {isAddRuleOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+          onClick={() => setIsAddRuleOpen(false)}
+        >
+          <div
+            className="w-full max-w-md p-6 rounded-2xl bg-slate-950 border border-slate-700 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2 text-slate-100 font-military font-bold text-sm">
-                <Lock className="w-4 h-4 text-cyan-400" />
-                <span>{editingRuleId ? 'EDIT TRADING RULE' : 'ADD NEW TRADING COMMAND RULE'}</span>
-              </div>
+              <h4 className="font-military font-bold text-sm text-white uppercase tracking-wider">
+                Add Risk Rule
+              </h4>
               <button
-                onClick={() => setIsRuleModalOpen(false)}
-                className="text-slate-400 hover:text-slate-200"
+                type="button"
+                onClick={() => setIsAddRuleOpen(false)}
+                className="text-slate-400 hover:text-white"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveRuleForm} className="space-y-4 text-xs">
+            <form onSubmit={handleCreateRule} className="space-y-4 text-xs font-mono-code">
               <div>
-                <label className="block text-slate-300 font-bold mb-1">Rule Title *</label>
+                <label className="text-slate-400 block mb-1 font-bold">Rule Title</label>
                 <input
                   type="text"
+                  placeholder="e.g., No trades during High-Impact NFP news"
+                  value={newRuleTitle}
+                  onChange={(e) => setNewRuleTitle(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white outline-none focus:border-cyan-400"
                   required
-                  placeholder="e.g. Never enter without 15M FVG confluence"
-                  value={ruleTitle}
-                  onChange={(e) => setRuleTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-600 outline-none focus:border-cyan-400"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-300 font-bold mb-1">Description / Rationale</label>
+                <label className="text-slate-400 block mb-1 font-bold">Description (Optional)</label>
                 <textarea
-                  rows={2}
-                  placeholder="Context and rationale behind this discipline requirement..."
-                  value={ruleDescription}
-                  onChange={(e) => setRuleDescription(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-600 outline-none focus:border-cyan-400 resize-none"
+                  placeholder="e.g., Close open positions 15 minutes prior to release"
+                  value={newRuleDesc}
+                  onChange={(e) => setNewRuleDesc(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white outline-none focus:border-cyan-400 resize-none h-20"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-300 font-bold mb-1">Category</label>
-                  <select
-                    value={ruleCategory}
-                    onChange={(e) => setRuleCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 outline-none focus:border-cyan-400"
-                  >
-                    <option value="RISK">RISK</option>
-                    <option value="EXECUTION">EXECUTION</option>
-                    <option value="PSYCHOLOGY">PSYCHOLOGY</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-bold mb-1">Severity Level</label>
-                  <select
-                    value={ruleSeverity}
-                    onChange={(e) => setRuleSeverity(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 outline-none focus:border-cyan-400"
-                  >
-                    <option value="MAJOR">MAJOR (Critical)</option>
-                    <option value="MINOR">MINOR (Discretionary)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-slate-800">
-                <div>
-                  <span className="text-slate-200 font-bold block">Hard Rule Enforcement</span>
-                  <span className="text-[10px] text-slate-400">Strictly flags trade score if breached</span>
-                </div>
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setRuleIsHard(!ruleIsHard)}
-                  className={`w-10 h-5 rounded-full transition-colors relative ${
-                    ruleIsHard ? 'bg-rose-500' : 'bg-slate-800'
-                  }`}
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                      ruleIsHard ? 'translate-x-5' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-slate-800">
-                <div>
-                  <span className="text-slate-200 font-bold block">Rule Status (Active)</span>
-                  <span className="text-[10px] text-slate-400">Defaults to active on creation</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setRuleIsActive(!ruleIsActive)}
-                  className={`w-10 h-5 rounded-full transition-colors relative ${
-                    ruleIsActive ? 'bg-emerald-500' : 'bg-slate-800'
-                  }`}
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                      ruleIsActive ? 'translate-x-5' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsRuleModalOpen(false)}
-                  className="prime-btn-secondary px-4 py-2 text-xs font-bold"
+                  onClick={() => setIsAddRuleOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-900 text-slate-400 hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="prime-btn-primary px-5 py-2 text-xs font-bold"
+                  className="px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400"
                 >
-                  {editingRuleId ? 'Save Changes' : 'Add Rule'}
+                  Save Rule
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+export interface TradeLimitAlertSystemProps {
+  account: any;
+  metrics: any;
+  trades: Trade[];
+  onNavigateToTab?: (tab: string) => void;
+}
+
+export const TradeLimitAlertSystem: React.FC<TradeLimitAlertSystemProps> = ({
+  account,
+  metrics,
+  trades: _trades,
+  onNavigateToTab,
+}) => {
+  const [dismissed, setDismissed] = useState(false);
+
+  const dailyLossLimit = account?.dailyLossLimit || 0;
+  const currentDrawdown = metrics?.currentDrawdown || 0;
+  const maxDrawdownLimit = account?.maxDrawdownLimit || 10;
+  const isLossBreached =
+    dailyLossLimit > 0 && Math.abs(metrics?.dailyPnl || 0) >= dailyLossLimit && (metrics?.dailyPnl || 0) < 0;
+  const isDrawdownBreached = currentDrawdown >= maxDrawdownLimit;
+
+  if (dismissed || (!isLossBreached && !isDrawdownBreached)) {
+    return null;
+  }
+
+  return (
+    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:w-96 z-50 animate-in slide-in-from-bottom duration-300">
+      <div className="p-4 rounded-2xl bg-rose-950/95 border-2 border-rose-500 shadow-2xl backdrop-blur-md text-white font-sans space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 font-bold text-sm text-rose-300 font-mono-code uppercase">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 animate-bounce" />
+            <span>Risk Threshold Breached</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            className="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-xs text-rose-100 font-mono-code leading-relaxed">
+          {isLossBreached
+            ? `Daily loss limit of ${account?.currency || '$'}${dailyLossLimit.toFixed(2)} reached. Capital preservation active.`
+            : `Max account drawdown reached (${currentDrawdown.toFixed(1)}%). Circuit breaker guard active.`}
+        </p>
+        {onNavigateToTab && (
+          <button
+            type="button"
+            onClick={() => onNavigateToTab('risk')}
+            className="w-full mt-2 py-1.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-mono-code text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+          >
+            <span>Review Risk Center</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
     </div>
   );
 };

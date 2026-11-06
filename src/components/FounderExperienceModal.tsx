@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Play,
@@ -28,6 +29,10 @@ import {
   Bot,
   Activity,
   BarChart3,
+  BookOpen,
+  HeartPulse,
+  AlertTriangle,
+  ChevronDown,
 } from 'lucide-react';
 
 interface FounderExperienceModalProps {
@@ -51,10 +56,9 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   // YouTube Video Player State
-  // The user requested: opens and starts playing immediately with sound on, with option to mute later.
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
-  const [activeChapter, setActiveChapter] = useState<number>(0);
+  const [activeChapter, setActiveChapter] = useState<number>(1); // Default to Chapter 02 (The Battles) to highlight user's core story
 
   // SBT Indicator Image Switcher & Lightbox State
   const [activeTimeframe, setActiveTimeframe] = useState<'1W' | '1D'>('1W');
@@ -88,7 +92,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
     },
   };
 
-  // Lock body scroll when full-screen experience is open
+  // Lock body scroll cleanly when full-screen experience is open
   useEffect(() => {
     if (isOpen && !isMinimized) {
       const originalOverflow = document.body.style.overflow;
@@ -127,7 +131,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
     sendYouTubeCommand(nextPlaying ? 'playVideo' : 'pauseVideo');
   };
 
-  // When minimizing, pause audio/video so it doesn't disturb login
+  // Pause when minimized, resume when reopened
   useEffect(() => {
     if (isMinimized) {
       sendYouTubeCommand('pauseVideo');
@@ -141,38 +145,85 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
     }
   }, [isMinimized, isOpen, isMuted, sendYouTubeCommand]);
 
-  // Life Story Chapters
+  // Helper for quick mobile navigation jumps
+  const scrollToId = (id: string) => {
+    if (containerRef.current) {
+      const target = containerRef.current.querySelector(`#${id}`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    }
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  // Complete, Authentic Life Story Chapters with all four distinct subjects
   const chapters = [
     {
       num: '01',
       title: 'THE BEGINNING',
-      subtitle: 'A boy from rural Jhang with enormous dreams.',
+      subtitle: 'A boy from rural Jhang with limited resources but unlimited dreams.',
       period: 'Early Years — Jhang, Pakistan',
       icon: Compass,
       accent: 'from-cyan-400 to-blue-500',
       badgeColor: 'border-cyan-500/30 text-cyan-300 bg-cyan-500/10',
       content:
-        'I was born in a small, remote rural area of Jhang, Pakistan. In a place where resources were scarce and paths to global finance were virtually nonexistent, I carried an unshakeable inner conviction: I was not born into an extraordinary life, so I resolved to build one. From early childhood, I believed that geography does not determine destiny.',
+        'I was born in a small, rural area of Jhang, Pakistan. In a place where resources were severely limited and access to global financial markets was nonexistent, I carried an unshakable inner conviction: I was not born into an extraordinary life, so I resolved to build one myself. From childhood, our family lived in precarious circumstances and endured very difficult economic times, yet I refused to let geography or hardship define my destiny.',
       milestones: [
-        'Humble origins in a rural town with minimal technology access',
-        'Unyielding curiosity for engineering, mechanics, and global systems',
-        'Early determination to break boundaries and build financial independence',
+        'Humble origins in rural Jhang under precarious economic conditions',
+        'Unyielding curiosity for engineering, technology, and global systems',
+        'Early childhood determination to achieve sovereign independence',
       ],
+      detailedSubjects: null,
     },
     {
       num: '02',
       title: 'THE BATTLES',
-      subtitle: 'Injuries that ended athletic dreams, academic struggles, and failed business ventures.',
-      period: 'Adversity & Relocation to Sargodha',
+      subtitle: 'The Three Physical Traumas, Years Bedridden, and Deep Family Adversity.',
+      period: 'Adversity, Orthopedic Trials & Family Hardships',
       icon: Flame,
-      accent: 'from-rose-400 to-amber-500',
-      badgeColor: 'border-rose-500/30 text-rose-300 bg-rose-500/10',
+      accent: 'from-rose-500 via-amber-500 to-red-500',
+      badgeColor: 'border-rose-500/40 text-rose-300 bg-rose-500/10',
       content:
-        'My first great passion was athletics—I poured my heart into training to become the fastest sprinter. But severe physical injuries shattered that dream: a fractured leg, serious knee trauma, and persistent lower-back damage forced me off the track forever. Relocating to Sargodha for education, I encountered academic hurdles and financial strain. I tried freelancing, coding, and launched a jewelry enterprise that collapsed. Every failure was painful, but each taught me relentless resilience.',
+        'My life has been defined by overcoming intense physical agony, enduring prolonged isolation, and navigating serious family adversity. Three severe injuries tested every ounce of my mental and physical fortitude:',
+      detailedSubjects: [
+        {
+          tag: 'AGE 6: THE IRON LATCH TRAUMA',
+          highlight: '1 Year Housebound & Fractured Leg',
+          body: 'When I was only six years old, an iron door latch caught the front of my left leg, tearing away a large chunk of flesh and causing a severe fracture. I was confined to bed and housebound for an entire year. During that long, solitary year—while our family situation was deeply precarious and going through immense hardship—all I yearned and prayed for was simply to be able to run again.',
+          badge: 'Housebound for 1 Year',
+          color: 'border-rose-500/40 bg-rose-950/30 text-rose-300',
+        },
+        {
+          tag: 'AGE 16: THE FOOTBALL KNEE SHATTER',
+          highlight: '2 Years Unable to Walk',
+          body: 'Growing up with a burning passion for athletics and sports, disaster struck again around the age of 16. While playing football, I suffered another catastrophic fracture—this time in the knee of that exact same left leg. The fracture was so severe that I could not walk at all. It took two grueling years of recovery to regain mobility, ending my athletic ambitions.',
+          badge: '2-Year Recovery',
+          color: 'border-amber-500/40 bg-amber-950/30 text-amber-300',
+        },
+        {
+          tag: 'PRE-UNIVERSITY TO PRESENT',
+          highlight: 'Heavy Squats & Chronic Lower Back Battle',
+          body: 'Passionate about fitness and building a strong physique, another devastating crisis hit just before starting university. Driven by enthusiasm but lacking guidance, lifting excessive weights during squats caused severe lower back trauma. It developed into a chronic lower back condition that I continue to battle and manage to this very day.',
+          badge: 'Chronic Ongoing Battle',
+          color: 'border-red-500/40 bg-red-950/30 text-red-300',
+        },
+        {
+          tag: 'ENDURING FAMILY ADVERSITY',
+          highlight: 'Domestic Hardships & Relentless Drive',
+          body: 'Compounding these brutal physical setbacks were significant, complex issues and pressures within my family. Rather than breaking my resolve, these tribulations forged an unbreakable discipline. I realized nobody was coming to save us—I had to forge our path to independence through technology and trading.',
+          badge: 'Forged Under Pressure',
+          color: 'border-violet-500/40 bg-violet-950/30 text-violet-300',
+        },
+      ],
       milestones: [
-        'Severe orthopedic injuries abruptly ended sprinting aspirations',
-        'Relocated to Sargodha: navigating financial pressure and academic tests',
-        'Explored coding and built a jewelry business that ultimately folded',
+        'Age 6: Survived left leg latch trauma, tearing flesh and 1 year bedridden',
+        'Age 16: Endured left knee fracture playing football, 2 years unable to walk',
+        'Pre-University: Chronic lower back injury from squats, still enduring today',
+        'Navigated severe ongoing family challenges, converting pain into purpose',
       ],
     },
     {
@@ -184,12 +235,13 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
       accent: 'from-violet-400 to-purple-500',
       badgeColor: 'border-violet-500/30 text-violet-300 bg-violet-500/10',
       content:
-        'When I encountered the Forex markets, I knew I had found my life calling. Yet the first 18 months were an intense trial of fire—blown accounts, psychological strain, and overwhelming noise. The breakthrough arrived when I sought out Sir Hamza of Faisalabad. He stripped away the retail illusions, teaching me institutional risk management, psychological composure, and statistical discipline.',
+        'When I encountered the financial markets, I knew I had found my vehicle for liberation. Yet the first 18 months were an intense trial of fire—blown accounts, psychological strain, and overwhelming noise. The turning point arrived when I sought out Sir Hamza of Faisalabad. Sir Hamza stripped away retail illusions, instilling strict institutional risk management, psychological composure, and statistical discipline.',
       milestones: [
         '18 months of solitary market grind, painful losses, and deep study',
         'Mentorship under Sir Hamza of Faisalabad transformed everything',
         'Shifted from emotional speculation to institutional mathematical edge',
       ],
+      detailedSubjects: null,
     },
     {
       num: '04',
@@ -206,6 +258,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
         'Built consistent profitability through strict R:R and asymmetric positioning',
         'Achieved personal independence and laid the foundation to give back to the community',
       ],
+      detailedSubjects: null,
     },
     {
       num: '05',
@@ -222,6 +275,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
         'Engineered the comprehensive 10-model institutional matrix (SBT 1–10B)',
         'Built the unified Prime Pip FX Command Center as the ecosystem hub',
       ],
+      detailedSubjects: null,
     },
     {
       num: '06',
@@ -238,10 +292,12 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
         'Expanding Prime Pip FX into a globally recognized trading technology powerhouse',
         'Pursuing sovereign freedom and creating generational opportunities for others',
       ],
+      detailedSubjects: null,
     },
   ];
 
-  return (
+  // Render via createPortal directly into document.body to break free from parent CSS transforms and perspective constraints
+  const modalContent = (
     <>
       {/* ============================================================== */}
       {/* 1. FLOATING MINIMIZED PILL (ACCESSIBLE WHILE ON LOGIN SCREEN) */}
@@ -252,7 +308,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.9 }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 p-1.5 rounded-2xl bg-slate-900/95 border border-cyan-500/40 shadow-2xl shadow-cyan-500/25 backdrop-blur-xl group hover:border-cyan-400 transition"
+          className="fixed bottom-6 right-6 z-[9999] flex items-center gap-2 p-1.5 rounded-2xl bg-slate-900/95 border border-cyan-500/40 shadow-2xl shadow-cyan-500/25 backdrop-blur-xl group hover:border-cyan-400 transition"
         >
           {/* Reopen Button */}
           <button
@@ -302,49 +358,43 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
       )}
 
       {/* ============================================================== */}
-      {/* 2. FULLSCREEN CINEMATIC OVERLAY                                 */}
+      {/* 2. FULLSCREEN CINEMATIC OVERLAY (MOBILE OPTIMIZED SCROLL)       */}
       {/* ============================================================== */}
       <AnimatePresence>
         {isOpen && !isMinimized && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
+            initial={{ opacity: 0, scale: 0.99 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-[100] flex flex-col bg-[#040814]/98 backdrop-blur-2xl text-slate-100 overflow-y-auto selection:bg-cyan-500/30 selection:text-cyan-200"
+            exit={{ opacity: 0, scale: 0.99 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
             ref={containerRef}
+            className="fixed inset-0 z-[9999] w-full h-[100dvh] flex flex-col bg-[#040814] text-slate-100 overflow-y-auto overscroll-contain select-text"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+            }}
           >
             {/* Ambient Background Glows */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden">
               <div className="absolute top-[-10%] left-[-10%] w-[550px] h-[550px] rounded-full bg-cyan-500/10 blur-[140px]" />
               <div className="absolute top-[30%] right-[-10%] w-[600px] h-[600px] rounded-full bg-violet-600/10 blur-[160px]" />
               <div className="absolute bottom-[-10%] left-[20%] w-[650px] h-[650px] rounded-full bg-blue-600/10 blur-[150px]" />
-              {/* Subtle tech grid mesh */}
-              <div
-                className="absolute inset-0 opacity-[0.03]"
-                style={{
-                  backgroundImage:
-                    'linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)',
-                  backgroundSize: '48px 48px',
-                }}
-              />
             </div>
 
             {/* Sticky Header Nav with Minimize & Close */}
-            <header className="sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8 py-3.5 bg-slate-950/85 border-b border-slate-800/80 backdrop-blur-xl shrink-0">
+            <header className="sticky top-0 z-30 flex items-center justify-between px-3 sm:px-8 py-3 bg-slate-950/95 border-b border-slate-800/90 backdrop-blur-xl shrink-0">
               {/* Brand Insignia */}
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500/20 to-violet-600/20 border border-cyan-500/40 text-cyan-300 shadow-md shadow-cyan-500/10">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 sm:p-2 rounded-xl bg-gradient-to-br from-cyan-500/20 to-violet-600/20 border border-cyan-500/40 text-cyan-300 shadow-md">
                   <Shield className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
                     <span className="text-xs sm:text-sm font-military font-bold tracking-wider text-slate-100 uppercase">
                       PRIME PIP FX
                     </span>
                     <span className="text-slate-600">/</span>
                     <span className="text-[10px] font-mono-code font-bold uppercase tracking-widest text-cyan-400">
-                      FOUNDER EXPERIENCE
+                      FOUNDER
                     </span>
                   </div>
                   <p className="text-[10px] text-slate-400 font-mono-code hidden sm:block">
@@ -354,12 +404,12 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
               </div>
 
               {/* Action Controls: Minimize & Close */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 {/* Minimize Button */}
                 <button
                   type="button"
                   onClick={onMinimize}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-cyan-400 text-slate-300 hover:text-cyan-300 transition text-xs font-mono-code cursor-pointer"
+                  className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-cyan-400 text-slate-300 hover:text-cyan-300 transition text-xs font-mono-code cursor-pointer"
                   title="Minimize to floating pill and return to login"
                 >
                   <Minimize2 className="w-3.5 h-3.5 text-cyan-400" />
@@ -379,12 +429,52 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
               </div>
             </header>
 
+            {/* Sticky Mobile/Desktop Quick-Jump Navigation Bar */}
+            <div className="sticky top-[49px] z-20 flex items-center justify-start sm:justify-center gap-1.5 px-3 py-2 bg-slate-950/95 border-b border-slate-800 text-[11px] font-mono-code overflow-x-auto no-scrollbar shrink-0">
+              <button
+                type="button"
+                onClick={() => scrollToId('section-intro')}
+                className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-cyan-400 text-slate-300 hover:text-white shrink-0 cursor-pointer"
+              >
+                Top
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToId('section-video')}
+                className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-cyan-400 text-slate-300 hover:text-white shrink-0 cursor-pointer"
+              >
+                Broadcast
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToId('section-sbt')}
+                className="px-2.5 py-1 rounded-lg bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 shrink-0 font-bold cursor-pointer"
+              >
+                SBT Indicator
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToId('story-timeline')}
+                className="px-3 py-1 rounded-lg bg-violet-500/20 border border-violet-400/50 text-violet-200 shrink-0 font-bold flex items-center gap-1.5 cursor-pointer shadow-sm shadow-violet-500/20"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-violet-400" />
+                <span>Biography (6 Chapters)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToId('section-signature')}
+                className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-cyan-400 text-slate-300 hover:text-white shrink-0 cursor-pointer"
+              >
+                Vision
+              </button>
+            </div>
+
             {/* Main Content Area */}
-            <div className="relative z-10 flex-1 max-w-5xl mx-auto w-full px-4 sm:px-8 py-8 sm:py-12 space-y-16">
+            <div className="relative z-10 flex-1 max-w-5xl mx-auto w-full px-3 sm:px-8 py-6 sm:py-12 space-y-12 sm:space-y-16">
               {/* ======================================================== */}
               {/* SECTION A: FOUNDER INTRODUCTION (TOP)                    */}
               {/* ======================================================== */}
-              <section className="text-center space-y-6 pt-4">
+              <section id="section-intro" className="text-center space-y-5 pt-2 scroll-mt-28">
                 {/* Overline Badge */}
                 <motion.div
                   initial={{ opacity: 0, y: 15 }}
@@ -445,7 +535,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
               {/* SECTION B: CINEMATIC YOUTUBE VIDEO (DIRECT LINK EMBED)   */}
               {/* Starts immediately with sound on, with mute control      */}
               {/* ======================================================== */}
-              <section className="space-y-4">
+              <section id="section-video" className="space-y-4 scroll-mt-28">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono-code text-slate-400 px-1">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
@@ -494,7 +584,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                   </div>
                 </div>
 
-                {/* Cinematic YouTube Video Container with Glowing Dual Border */}
+                {/* Cinematic YouTube Video Container */}
                 <div className="relative group p-[2px] rounded-3xl bg-gradient-to-r from-cyan-400 via-violet-500 to-blue-500 shadow-2xl shadow-cyan-500/20 overflow-hidden">
                   <div className="relative rounded-[22px] overflow-hidden bg-slate-950 aspect-video flex items-center justify-center">
                     <iframe
@@ -508,28 +598,28 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-slate-500 font-mono-code px-1">
-                  <span>Direct broadcast: Starts immediately with full audio enabled.</span>
+                {/* Mobile Direct Jump to Biography Button */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 p-3 rounded-2xl bg-slate-900/80 border border-violet-500/30 text-xs text-slate-300 font-mono-code">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-violet-400 shrink-0" />
+                    <span>Scroll down or tap below to explore Wahab's full biography & 6 life chapters:</span>
+                  </div>
                   <button
                     type="button"
-                    onClick={togglePlay}
-                    className="hover:text-cyan-400 transition cursor-pointer underline flex items-center gap-1"
+                    onClick={() => scrollToId('story-timeline')}
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold flex items-center justify-center gap-1.5 shadow-md hover:brightness-110 transition cursor-pointer"
                   >
-                    {isPlaying ? 'Pause broadcast' : 'Resume broadcast'}
+                    <span>Read Biography Story ↓</span>
+                    <ChevronDown className="w-4 h-4" />
                   </button>
                 </div>
               </section>
 
               {/* ======================================================== */}
               {/* INNOVATION SPOTLIGHT: FOUNDER OF THE SBT INDICATOR       */}
-              {/* Displaying user's actual TradingView analysis images     */}
               {/* ======================================================== */}
-              <section className="space-y-6 pt-4">
-                <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-slate-950/90 via-slate-900/60 to-slate-950/90 border border-cyan-500/40 shadow-2xl relative overflow-hidden backdrop-blur-xl">
-                  {/* Radiant corner glow */}
-                  <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none" />
-                  <div className="absolute bottom-0 left-0 w-96 h-96 rounded-full bg-violet-600/10 blur-[120px] pointer-events-none" />
-
+              <section id="section-sbt" className="space-y-6 pt-2 scroll-mt-28">
+                <div className="p-4 sm:p-8 rounded-3xl bg-gradient-to-b from-slate-950/90 via-slate-900/60 to-slate-950/90 border border-cyan-500/40 shadow-2xl relative overflow-hidden backdrop-blur-xl">
                   {/* Section Title & Subtitle */}
                   <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-800/80">
                     <div className="space-y-1.5">
@@ -537,7 +627,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                         <Layers className="w-3.5 h-3.5 text-cyan-400" />
                         <span>FIRST ITERATION OF THE BOT · FOUNDATIONAL ENGINE</span>
                       </div>
-                      <h3 className="text-2xl sm:text-3xl font-military font-bold text-white uppercase tracking-wider">
+                      <h3 className="text-xl sm:text-3xl font-military font-bold text-white uppercase tracking-wider">
                         FOUNDER OF THE SBT INDICATOR
                       </h3>
                       <p className="text-xs sm:text-sm font-mono-code text-cyan-400 font-semibold">
@@ -588,28 +678,28 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                     </p>
 
                     {/* Quick Metric Pills */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
                       <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col">
                         <span className="text-[10px] font-mono-code text-slate-400 uppercase">Models Integrated</span>
-                        <span className="text-base font-military font-bold text-white mt-0.5">
+                        <span className="text-sm sm:text-base font-military font-bold text-white mt-0.5">
                           {sbtImages[activeTimeframe].stats.modelsScanned}
                         </span>
                       </div>
                       <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col">
-                        <span className="text-[10px] font-mono-code text-emerald-400 uppercase">Bullish Setups Scanned</span>
-                        <span className="text-base font-military font-bold text-emerald-300 mt-0.5">
+                        <span className="text-[10px] font-mono-code text-emerald-400 uppercase">Bullish Signals</span>
+                        <span className="text-sm sm:text-base font-military font-bold text-emerald-300 mt-0.5">
                           {sbtImages[activeTimeframe].stats.bullishSignals}
                         </span>
                       </div>
                       <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col">
-                        <span className="text-[10px] font-mono-code text-rose-400 uppercase">Bearish Setups Scanned</span>
-                        <span className="text-base font-military font-bold text-rose-300 mt-0.5">
+                        <span className="text-[10px] font-mono-code text-rose-400 uppercase">Bearish Signals</span>
+                        <span className="text-sm sm:text-base font-military font-bold text-rose-300 mt-0.5">
                           {sbtImages[activeTimeframe].stats.bearishSignals}
                         </span>
                       </div>
                       <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col">
-                        <span className="text-[10px] font-mono-code text-cyan-400 uppercase">Total Edge Verified</span>
-                        <span className="text-base font-military font-bold text-cyan-300 mt-0.5">
+                        <span className="text-[10px] font-mono-code text-cyan-400 uppercase">Total Verified Edge</span>
+                        <span className="text-sm sm:text-base font-military font-bold text-cyan-300 mt-0.5">
                           {sbtImages[activeTimeframe].stats.totalDocumented}
                         </span>
                       </div>
@@ -631,7 +721,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                         className="text-cyan-400 hover:text-cyan-300 transition cursor-pointer flex items-center gap-1 font-semibold"
                       >
                         <ZoomIn className="w-3.5 h-3.5" />
-                        <span>Click to Enlarge / Full View</span>
+                        <span>Enlarge Chart</span>
                       </button>
                     </div>
 
@@ -645,26 +735,16 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                       <img
                         src={sbtImages[activeTimeframe].src}
                         alt="Prime Pip SBT Indicator Comprehensive Analysis by Founder Wahab Zafar"
-                        className="w-full h-auto object-contain max-h-[520px] mx-auto group-hover/img:scale-[1.01] transition-transform duration-300"
+                        className="w-full h-auto object-contain max-h-[500px] mx-auto group-hover/img:scale-[1.01] transition-transform duration-300"
                       />
 
-                      {/* Hover Overlay Hint */}
                       <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                         <div className="px-4 py-2 rounded-xl bg-slate-900/95 border border-cyan-400 text-cyan-300 font-mono-code text-xs font-bold shadow-2xl flex items-center gap-2">
                           <ZoomIn className="w-4 h-4" />
-                          <span>Click to Inspect High-Resolution Chart & Matrix</span>
+                          <span>Tap to Inspect High-Resolution Chart</span>
                         </div>
                       </div>
-
-                      {/* Institutional Matrix Badge on Chart */}
-                      <div className="absolute bottom-3 left-3 bg-slate-950/90 border border-slate-800 px-3 py-1.5 rounded-lg text-[11px] font-mono-code text-slate-300 backdrop-blur-md">
-                        <span className="text-cyan-400 font-bold">Prime Pip SBT Indicator</span> · Matrix Analysis Active
-                      </div>
                     </div>
-
-                    <p className="text-xs text-slate-400 font-mono-code text-center pt-1 italic">
-                      "{sbtImages[activeTimeframe].caption}"
-                    </p>
                   </div>
                 </div>
               </section>
@@ -672,22 +752,22 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
               {/* ======================================================== */}
               {/* SECTION C: THE STORY TIMELINE (SIX CHAPTERS)             */}
               {/* ======================================================== */}
-              <section className="space-y-8 pt-4 scroll-mt-24" id="story-timeline">
+              <section id="story-timeline" className="space-y-6 pt-4 scroll-mt-28">
                 <div className="text-center space-y-2">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-cyan-500/30 text-xs font-mono-code text-cyan-400 shadow-sm">
-                    <Milestone className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>CHRONICLES OF PERSEVERANCE</span>
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-violet-500/40 text-xs font-mono-code text-violet-300 shadow-md">
+                    <Milestone className="w-4 h-4 text-violet-400" />
+                    <span className="font-bold">BIOGRAPHY & CHRONICLES OF PERSEVERANCE</span>
                   </div>
-                  <h3 className="text-2xl sm:text-3xl font-military font-bold text-white tracking-wide uppercase">
-                    THE STORY TIMELINE
+                  <h3 className="text-2xl sm:text-4xl font-military font-bold text-white tracking-wide uppercase">
+                    THE STORY OF WAHAB ZAFAR
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
-                    From childhood hurdles in rural Jhang to developing the Prime Pip SBT Indicator and algorithmic bots—explore the pivotal chapters of Wahab Zafar's journey.
+                  <p className="text-xs sm:text-sm text-slate-300 max-w-xl mx-auto leading-relaxed">
+                    From childhood trauma in rural Jhang to designing institutional trading algorithms—tap any chapter below to explore the unvarnished truth.
                   </p>
                 </div>
 
-                {/* Chapter Quick Nav Strip */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2">
+                {/* Chapter Quick Nav Strip — 100% Mobile Touch-Friendly */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2">
                   {chapters.map((ch, idx) => {
                     const Icon = ch.icon;
                     const isSelected = activeChapter === idx;
@@ -696,9 +776,9 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                         key={ch.num}
                         type="button"
                         onClick={() => setActiveChapter(idx)}
-                        className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
+                        className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
                           isSelected
-                            ? 'bg-slate-900 border-cyan-400 shadow-lg shadow-cyan-500/20 ring-1 ring-cyan-400/40'
+                            ? 'bg-slate-900 border-cyan-400 shadow-lg shadow-cyan-500/20 ring-1 ring-cyan-400/50'
                             : 'bg-slate-950/90 border-slate-800 hover:border-slate-700 hover:bg-slate-900/80'
                         }`}
                       >
@@ -723,12 +803,13 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                   return (
                     <motion.div
                       key={ch.num}
-                      initial={{ opacity: 0, y: 15 }}
+                      initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.25 }}
-                      className="p-6 sm:p-8 rounded-3xl bg-slate-950/95 border border-cyan-500/30 shadow-2xl relative overflow-hidden ring-1 ring-white/5"
+                      className="p-5 sm:p-8 rounded-3xl bg-slate-950/95 border border-cyan-500/30 shadow-2xl relative overflow-hidden ring-1 ring-white/5 space-y-6"
                     >
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-800/80">
+                      {/* Chapter Header */}
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-800/80">
                         <div className="flex items-center gap-3.5">
                           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${ch.badgeColor} shrink-0 shadow-md`}>
                             <Icon className="w-6 h-6" />
@@ -752,16 +833,55 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                         </div>
                       </div>
 
-                      <div className="py-6 space-y-6">
-                        <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-sans">
-                          {ch.content}
-                        </p>
+                      {/* Main Narrative Paragraph */}
+                      <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-sans">
+                        {ch.content}
+                      </p>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                      {/* CHAPTER 02 SPECIAL: Distinct Detailed Breakdown for the 4 Personal Subjects */}
+                      {ch.detailedSubjects && (
+                        <div className="space-y-3.5 pt-1">
+                          <div className="flex items-center gap-2 text-xs font-mono-code font-bold text-rose-300 uppercase tracking-wider">
+                            <AlertTriangle className="w-4 h-4 text-rose-400" />
+                            <span>The Trials of Wahab Zafar — In His Own Words</span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                            {ch.detailedSubjects.map((sub, sIdx) => (
+                              <div
+                                key={sIdx}
+                                className={`p-4 rounded-2xl border ${sub.color} space-y-2 shadow-lg backdrop-blur-sm`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-mono-code font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-950/80 border border-white/10 text-white">
+                                    {sub.tag}
+                                  </span>
+                                  <span className="text-[10px] font-mono-code font-bold text-cyan-300">
+                                    {sub.badge}
+                                  </span>
+                                </div>
+                                <h5 className="text-sm font-military font-bold text-white uppercase tracking-wide">
+                                  {sub.highlight}
+                                </h5>
+                                <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                                  {sub.body}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Verified Milestones Badges */}
+                      <div className="space-y-2 pt-2">
+                        <span className="text-[11px] font-mono-code font-bold uppercase tracking-wider text-slate-400">
+                          Key Truths & Milestones:
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           {ch.milestones.map((m, mIdx) => (
                             <div
                               key={mIdx}
-                              className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/60 flex items-start gap-2.5 text-xs text-slate-300"
+                              className="p-3 rounded-xl bg-slate-900/70 border border-slate-800/80 flex items-start gap-2.5 text-xs text-slate-200"
                             >
                               <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
                               <span>{m}</span>
@@ -797,38 +917,39 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                   );
                 })()}
 
-                {/* Complete Timeline Cards (Expandable overview of all 6) */}
-                <div className="space-y-4 pt-4">
-                  <h4 className="text-sm font-mono-code font-bold uppercase tracking-wider text-slate-400">
-                    Full Chronological View
+                {/* All 6 Chronological Chapter Cards for Rapid Mobile Browsing */}
+                <div className="space-y-3 pt-4">
+                  <h4 className="text-xs font-mono-code font-bold uppercase tracking-wider text-slate-400">
+                    All 6 Chapters at a Glance (Tap to View)
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {chapters.map((ch, idx) => {
-                      return (
-                        <div
-                          key={ch.num}
-                          onClick={() => setActiveChapter(idx)}
-                          className={`p-5 rounded-2xl border transition-all cursor-pointer ${
-                            activeChapter === idx
-                              ? 'bg-slate-900/90 border-cyan-500/50 shadow-md shadow-cyan-500/10'
-                              : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-mono-code font-bold text-cyan-400">
-                              0{idx + 1} — {ch.title}
-                            </span>
-                            <span className="text-[10px] font-mono-code text-slate-500">{ch.period}</span>
-                          </div>
-                          <p className="text-xs text-slate-300 font-semibold mb-2">
-                            "{ch.subtitle}"
-                          </p>
-                          <p className="text-xs text-slate-400 line-clamp-2">
-                            {ch.content}
-                          </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {chapters.map((ch, idx) => (
+                      <div
+                        key={ch.num}
+                        onClick={() => {
+                          setActiveChapter(idx);
+                          scrollToId('story-timeline');
+                        }}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                          activeChapter === idx
+                            ? 'bg-slate-900 border-cyan-400/80 shadow-md shadow-cyan-500/15'
+                            : 'bg-slate-950/70 border-slate-800/80 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-mono-code font-bold text-cyan-400">
+                            0{idx + 1} — {ch.title}
+                          </span>
+                          <span className="text-[10px] font-mono-code text-slate-500">{ch.period}</span>
                         </div>
-                      );
-                    })}
+                        <p className="text-xs text-slate-200 font-semibold mb-1 line-clamp-1">
+                          "{ch.subtitle}"
+                        </p>
+                        <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                          {ch.content}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </section>
@@ -836,32 +957,27 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
               {/* ======================================================== */}
               {/* SECTION D: THE FINAL MESSAGE & SIGNATURE                 */}
               {/* ======================================================== */}
-              <section className="relative p-8 sm:p-12 rounded-3xl bg-gradient-to-b from-slate-950 to-[#070d1e] border border-cyan-500/30 shadow-2xl overflow-hidden text-center space-y-8">
-                {/* Background decorative radiant ring */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-[500px] h-[500px] rounded-full bg-cyan-500/5 blur-[120px]" />
-                </div>
-
+              <section id="section-signature" className="relative p-6 sm:p-12 rounded-3xl bg-gradient-to-b from-slate-950 to-[#070d1e] border border-cyan-500/30 shadow-2xl overflow-hidden text-center space-y-6 sm:space-y-8 scroll-mt-28">
                 <div className="relative z-10 space-y-4 max-w-2xl mx-auto">
                   <div className="inline-flex p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
                     <Sparkles className="w-6 h-6 animate-pulse" />
                   </div>
 
-                  <h3 className="text-2xl sm:text-3xl font-military font-bold text-white uppercase tracking-wider">
+                  <h3 className="text-xl sm:text-3xl font-military font-bold text-white uppercase tracking-wider">
                     "I HAVE NEVER STOPPED BELIEVING IN MY VISION."
                   </h3>
 
-                  <blockquote className="text-base sm:text-lg text-slate-200 leading-relaxed font-sans italic">
+                  <blockquote className="text-sm sm:text-lg text-slate-200 leading-relaxed font-sans italic">
                     "I don't want to spend my entire life chasing money. I want to build something that gives people more opportunities, more freedom, and a better future."
                   </blockquote>
 
-                  <p className="text-sm font-mono-code font-bold tracking-widest text-cyan-400 uppercase pt-2">
+                  <p className="text-xs sm:text-sm font-mono-code font-bold tracking-widest text-cyan-400 uppercase pt-1">
                     "MY JOURNEY IS STILL CONTINUING."
                   </p>
                 </div>
 
                 {/* Signature Lockup with 'Founder of the SBT Indicator' */}
-                <div className="relative z-10 pt-6 border-t border-slate-800/80 max-w-md mx-auto space-y-1">
+                <div className="relative z-10 pt-5 border-t border-slate-800/80 max-w-md mx-auto space-y-1">
                   <div className="text-2xl sm:text-3xl font-display font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-violet-300 uppercase">
                     WAHAB ZAFAR
                   </div>
@@ -874,7 +990,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                 </div>
 
                 {/* Interactive CTAs */}
-                <div className="relative z-10 pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <div className="relative z-10 pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
                   <button
                     type="button"
                     onClick={onClose}
@@ -886,9 +1002,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => {
-                      containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
+                    onClick={() => scrollToId('section-intro')}
                     className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-slate-600 text-slate-300 hover:text-white font-mono-code text-xs transition cursor-pointer flex items-center justify-center gap-2"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -910,37 +1024,36 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex flex-col bg-slate-950/95 backdrop-blur-2xl p-4 sm:p-8"
+            className="fixed inset-0 z-[10000] flex flex-col bg-slate-950/98 backdrop-blur-2xl p-3 sm:p-8"
             onClick={() => setIsLightboxOpen(false)}
           >
             {/* Lightbox Header Bar */}
             <div
-              className="flex items-center justify-between pb-4 border-b border-slate-800 text-white shrink-0"
+              className="flex items-center justify-between pb-3 border-b border-slate-800 text-white shrink-0"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 sm:p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
                   <BarChart3 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm sm:text-base font-military font-bold uppercase tracking-wider text-white">
-                    Prime Pip SBT Indicator — TradingView High-Resolution Analysis
+                  <h4 className="text-xs sm:text-base font-military font-bold uppercase tracking-wider text-white">
+                    Prime Pip SBT Indicator — TradingView Analysis
                   </h4>
-                  <p className="text-xs font-mono-code text-cyan-400">
-                    Founder: Wahab Zafar · 10 Institutional Models (SBT 1–10B) & Market Structure Shift (MSS)
+                  <p className="text-[10px] sm:text-xs font-mono-code text-cyan-400">
+                    Founder: Wahab Zafar · 10 Institutional Models (SBT 1–10B) & MSS
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                {/* Timeframe switch inside lightbox */}
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => {
                     setActiveTimeframe('1W');
                     setLightboxImage(sbtImages['1W'].src);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold transition cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-mono-code font-bold transition cursor-pointer ${
                     activeTimeframe === '1W'
                       ? 'bg-cyan-500 text-slate-950'
                       : 'bg-slate-900 border border-slate-700 text-slate-300'
@@ -954,7 +1067,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                     setActiveTimeframe('1D');
                     setLightboxImage(sbtImages['1D'].src);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-mono-code font-bold transition cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-mono-code font-bold transition cursor-pointer ${
                     activeTimeframe === '1D'
                       ? 'bg-cyan-500 text-slate-950'
                       : 'bg-slate-900 border border-slate-700 text-slate-300'
@@ -966,7 +1079,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsLightboxOpen(false)}
-                  className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer border border-slate-700 ml-2"
+                  className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer border border-slate-700 ml-1.5"
                   title="Close Full Image View"
                 >
                   <X className="w-5 h-5" />
@@ -976,7 +1089,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
 
             {/* Lightbox Image Preview */}
             <div
-              className="flex-1 flex items-center justify-center p-2 sm:p-4 overflow-auto"
+              className="flex-1 flex items-center justify-center p-1 sm:p-4 overflow-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <img
@@ -985,17 +1098,15 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
                 className="max-w-full max-h-[85vh] object-contain rounded-xl border border-cyan-500/30 shadow-2xl"
               />
             </div>
-
-            {/* Lightbox Footer */}
-            <div
-              className="text-center text-xs font-mono-code text-slate-400 pt-2 shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {sbtImages[activeTimeframe].caption}
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
     </>
   );
+
+  // Portal to document.body ensures absolute detachment from parent perspective or overflow issues on mobile
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 };

@@ -2677,7 +2677,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       popup_width: '1000',
       popup_height: '650',
       withdateranges: 'true',
-      show_last_price_and_countdown: chartSettings.showCountdown ? '1' : '0',
+      show_last_price_and_countdown: '1',
     });
 
     container.innerHTML = '';
@@ -3062,28 +3062,96 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       ref={chartWrapperRef}
       className={
         isFullscreen
-          ? 'fixed inset-0 z-[999999] w-screen h-screen bg-[#070A11] p-2 sm:p-4 flex flex-col overflow-y-auto space-y-3 font-sans'
+          ? 'fixed inset-0 z-[999999] w-screen h-[100dvh] bg-[#070A11] flex flex-col overflow-hidden m-0 p-0 font-sans'
           : 'space-y-3 font-sans relative'
       }
     >
-      {/* Floating Exit Fullscreen Button in top right when in Fullscreen Mode */}
+      {/* Sleek Minimal Header when in Fullscreen Mode */}
       {isFullscreen && (
-        <div className="fixed top-3 right-4 z-[1000000] flex items-center gap-2 pointer-events-auto animate-in fade-in">
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono-code font-bold text-xs uppercase shadow-2xl flex items-center gap-2 cursor-pointer border border-blue-400 active:scale-95 transition"
-            title="Exit Fullscreen Mode (Esc)"
-          >
-            <Minimize2 className="w-4 h-4" />
-            <span>Exit Full-Screen (Esc)</span>
-          </button>
+        <div className="h-11 px-3 bg-[#0B0F19] border-b border-slate-800 flex items-center justify-between shrink-0 select-none z-50">
+          {/* Left: Active Symbol, Broker, Timeframe Switcher */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700">
+              <span className="font-mono-code font-bold text-xs text-white tracking-wider">{selectedSymbol}</span>
+              <span className="text-[10px] text-cyan-400 font-mono">({selectedBroker})</span>
+            </div>
+
+            {/* Quick Timeframe Buttons matching TradingView Top Bar */}
+            <div className="flex items-center gap-0.5 bg-slate-950/90 p-0.5 rounded-lg border border-slate-800">
+              {[
+                { id: '1', label: '1m' },
+                { id: '3', label: '3m' },
+                { id: '5', label: '5m' },
+                { id: '15', label: '15m' },
+                { id: '30', label: '30m' },
+                { id: '60', label: '1h' },
+                { id: '120', label: '2h' },
+                { id: '240', label: '4h' },
+                { id: 'D', label: 'D' },
+                { id: 'W', label: 'W' },
+              ].map((tf) => (
+                <button
+                  key={tf.id}
+                  type="button"
+                  onClick={() => handleIntervalChange(tf.id)}
+                  className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold transition cursor-pointer ${
+                    selectedInterval === tf.id
+                      ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  {tf.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-slate-800 font-mono text-xs">
+              <span className="text-slate-400 text-[11px]">Price:</span>
+              <span className={`font-bold ${liveCandle.close >= liveCandle.open ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {(liveCandle.close || priceMeta.price).toFixed(priceMeta.pipDecimals)}
+              </span>
+            </div>
+          </div>
+
+          {/* Right: Candle Countdown Timer + Snapshot + Minimize */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Live Candle Close Countdown in Header */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono-code text-xs font-bold shadow-sm">
+              <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span className="hidden md:inline text-[11px]">{candleCountdown.label} CANDLE:</span>
+              <span className="text-white font-mono tracking-wider">{candleCountdown.text}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCaptureSnapshot}
+              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+              title="Copy Snapshot Link"
+            >
+              <Camera className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="px-3 py-1 rounded-lg bg-rose-600/90 hover:bg-rose-500 text-white font-mono-code font-bold text-xs uppercase shadow-lg flex items-center gap-1.5 cursor-pointer border border-rose-400/50 active:scale-95 transition"
+              title="Minimize Full-Screen (Esc)"
+            >
+              <Minimize2 className="w-3.5 h-3.5" />
+              <span>Minimize</span>
+              <kbd className="hidden sm:inline-block px-1 py-0.2 bg-rose-950 text-[10px] rounded text-rose-200">Esc</kbd>
+            </button>
+          </div>
         </div>
       )}
-      {/* ========================================================================= */}
-      {/* 1. TOP HEADER & ACCOUNT BALANCE WIDGET (Reflecting Initial Balance)        */}
-      {/* ========================================================================= */}
-      <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl p-3.5 space-y-3 shadow-xl">
+
+      {/* When NOT in fullscreen, render standard top header, balance, categories, search */}
+      {!isFullscreen && (
+        <>
+          {/* ========================================================================= */}
+          {/* 1. TOP HEADER & ACCOUNT BALANCE WIDGET (Reflecting Initial Balance)        */}
+          {/* ========================================================================= */}
+          <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl p-3.5 space-y-3 shadow-xl">
         {/* ROW 1: Title, Live Account Balance Bar, and Upward-Shifted Candle Timer */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           {/* Left: Terminal Branding */}
@@ -4001,13 +4069,17 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           </div>
         </div>
       )}
+        </>
+      )}
 
       {/* ========================================================================= */}
       {/* 2. MAIN TRADINGVIEW WORKSPACE: CHART + PROJECTION LINES + RIGHT DOCK      */}
       {/* ========================================================================= */}
       <div
-        className={`flex flex-col lg:flex-row border border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative transition-all duration-300 ${
-          isFullscreen ? 'flex-1 min-h-[550px] h-[calc(100vh-140px)]' : 'h-[680px] sm:h-[750px] lg:h-[800px]'
+        className={`flex flex-col lg:flex-row overflow-hidden relative transition-all duration-300 ${
+          isFullscreen
+            ? 'flex-1 w-full h-[calc(100vh-44px)] m-0 p-0 border-0 rounded-none'
+            : 'border border-slate-800 rounded-2xl shadow-2xl h-[680px] sm:h-[750px] lg:h-[800px]'
         }`}
         style={{
           background:
@@ -4280,25 +4352,62 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           )}
 
           {/* ================================================================= */}
-          {/* TIME DISPLAY 2 OF 2: IN-CHART PRICE SCALE COUNTDOWN BADGE         */}
-          {/* Perfectly synchronized with Display 1 at the top!                 */}
+          {/* TRADINGVIEW LIVE CANDLE CLOSE COUNTDOWN & PRICE SCALE TWIN BADGE  */}
+          {/* Exactly matching TradingView: Dotted price line + right scale twin badge */}
           {/* ================================================================= */}
-          <div
-            className="absolute bottom-10 right-2 z-20 pointer-events-none select-none transition-all"
-            title={`Real-time remaining time for current ${candleCountdown.label} candle`}
-          >
-            <div
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-mono-code text-xs font-black tracking-widest shadow-xl ${
-                candleCountdown.secondsRemaining <= 10
-                  ? 'bg-amber-500 text-slate-950 border-amber-300 animate-pulse'
-                  : 'bg-[#0B0F19]/95 text-cyan-300 border-cyan-500/60 shadow-cyan-950/50'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
-              <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[9px] font-bold uppercase">
-                {candleCountdown.label}
-              </span>
-              <span>{candleCountdown.text}</span>
+          <div className="absolute inset-y-0 right-0 left-0 pointer-events-none select-none z-20 overflow-hidden">
+            {/* Horizontal Dotted Price Line */}
+            <div className="absolute left-0 right-0 flex items-center" style={{ top: '50%' }}>
+              <div
+                className={`w-full border-t border-dashed ${
+                  liveCandle.close >= liveCandle.open ? 'border-emerald-500/70' : 'border-rose-500/70'
+                }`}
+              />
+
+              {/* Floating Candle Countdown Tag Running Alongside the Candle */}
+              <div className="absolute right-36 -top-3.5 hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-slate-950/95 border border-slate-700/80 shadow-lg text-[10px] font-mono font-bold text-slate-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                <span className="text-amber-300 uppercase">{candleCountdown.label}</span>
+                <span className="text-slate-400">closes in:</span>
+                <span className="text-white font-mono tracking-wider">{candleCountdown.text}</span>
+              </div>
+
+              {/* Right Price Axis Double-Badge (Exact TradingView screenshot replica) */}
+              <div className="absolute right-0 -top-4 flex flex-col items-end shadow-2xl">
+                {/* Upper Badge: Symbol & Live Price */}
+                <div
+                  className={`flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-mono-code font-bold text-white shadow-md rounded-l ${
+                    liveCandle.close >= liveCandle.open ? 'bg-[#00897B]' : 'bg-[#E53935]'
+                  }`}
+                >
+                  <span className="text-[10px] tracking-tight">{selectedSymbol}</span>
+                  <span className="tracking-normal font-mono">
+                    {(liveCandle.close || priceMeta.price).toFixed(priceMeta.pipDecimals)}
+                  </span>
+                </div>
+
+                {/* Lower Badge Attached Directly Underneath: Live Candle Close Countdown */}
+                <div
+                  className={`px-2 py-0.5 text-[11px] font-mono-code font-bold text-white shadow-inner rounded-bl text-right ${
+                    liveCandle.close >= liveCandle.open ? 'bg-[#00695C]' : 'bg-[#C62828]'
+                  }`}
+                  title={`Time remaining until current ${candleCountdown.label} candle close`}
+                >
+                  <span className="tracking-widest font-mono">{candleCountdown.text}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom-right secondary floating badge for extra clarity */}
+            <div className="absolute bottom-3 right-3 z-20 flex items-center gap-2 bg-[#0B0F19]/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 shadow-xl">
+              <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <div className="flex items-center gap-1.5 text-xs font-mono">
+                <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold text-[10px] uppercase">
+                  {candleCountdown.label}
+                </span>
+                <span className="text-slate-400 text-[11px]">Candle Close:</span>
+                <span className="text-white font-bold tracking-wider">{candleCountdown.text}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -4306,7 +4415,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         {/* =================================================================== */}
         {/* RIGHT DOCK SLIDE-OUT PANEL (Only Alerts, News, or Calendar)        */}
         {/* =================================================================== */}
-        {activeRightTool && (
+        {!isFullscreen && activeRightTool && (
           <div className="w-full lg:w-80 bg-[#0B0F19] border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col z-30 shrink-0 h-64 lg:h-full animate-in slide-in-from-right duration-200">
             {/* Panel Header */}
             <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
@@ -4676,57 +4785,59 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         {/* RIGHT COLUMN: VERTICAL ICONIC DOCK                                  */}
         {/* Kept ONLY: Alerts, News, Calendar, and Settings at the bottom       */}
         {/* =================================================================== */}
-        <div className="w-12 bg-[#0B0F19] border-l border-slate-800/80 flex flex-col items-center justify-between py-2 z-20 shrink-0 select-none">
-          {/* Top 3 Tools: Alerts, News, Calendar */}
-          <div className="flex flex-col items-center gap-1.5 w-full">
-            {[
-              { id: 'ALERTS' as const, icon: AlarmClock, label: 'Alerts', badge: alerts.filter((a) => a.active).length },
-              { id: 'NEWS' as const, icon: Newspaper, label: 'News & Headlines' },
-              { id: 'CALENDAR' as const, icon: Calendar, label: 'Economic Calendar' },
-            ].map((tool) => {
-              const Icon = tool.icon;
-              const isActive = activeRightTool === tool.id;
-              return (
-                <button
-                  key={tool.id}
-                  type="button"
-                  onClick={() => setActiveRightTool((prev) => (prev === tool.id ? null : tool.id))}
-                  title={tool.label}
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition cursor-pointer relative ${
-                    isActive
-                      ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30'
-                      : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {tool.badge !== undefined && tool.badge > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-rose-500 text-[8px] font-bold text-white flex items-center justify-center font-mono">
-                      {tool.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+        {!isFullscreen && (
+          <div className="w-12 bg-[#0B0F19] border-l border-slate-800/80 flex flex-col items-center justify-between py-2 z-20 shrink-0 select-none">
+            {/* Top 3 Tools: Alerts, News, Calendar */}
+            <div className="flex flex-col items-center gap-1.5 w-full">
+              {[
+                { id: 'ALERTS' as const, icon: AlarmClock, label: 'Alerts', badge: alerts.filter((a) => a.active).length },
+                { id: 'NEWS' as const, icon: Newspaper, label: 'News & Headlines' },
+                { id: 'CALENDAR' as const, icon: Calendar, label: 'Economic Calendar' },
+              ].map((tool) => {
+                const Icon = tool.icon;
+                const isActive = activeRightTool === tool.id;
+                return (
+                  <button
+                    key={tool.id}
+                    type="button"
+                    onClick={() => setActiveRightTool((prev) => (prev === tool.id ? null : tool.id))}
+                    title={tool.label}
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition cursor-pointer relative ${
+                      isActive
+                        ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30'
+                        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {tool.badge !== undefined && tool.badge > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-rose-500 text-[8px] font-bold text-white flex items-center justify-center font-mono">
+                        {tool.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
-          {/* Bottom Settings Button (Kept as requested) */}
-          <div className="flex flex-col items-center gap-1.5 w-full">
-            <button
-              type="button"
-              onClick={() => setShowSettingsModal(true)}
-              title="Chart Appearance & Background Settings"
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition cursor-pointer"
-            >
-              <Palette className="w-4 h-4" />
-            </button>
+            {/* Bottom Settings Button (Kept as requested) */}
+            <div className="flex flex-col items-center gap-1.5 w-full">
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(true)}
+                title="Chart Appearance & Background Settings"
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition cursor-pointer"
+              >
+                <Palette className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ========================================================================= */}
       {/* 2.5 TRADINGVIEW PINE EDITOR DOCK (Integrated bottom panel dock)           */}
       {/* ========================================================================= */}
-      {isPineEditorOpen && (
+      {!isFullscreen && isPineEditorOpen && (
         <div className="border border-slate-800 rounded-2xl overflow-hidden shadow-2xl bg-[#0d1117] my-2 animate-in fade-in slide-in-from-top-2 duration-200">
           <PineEditorDock
             currentSymbol={selectedSymbol}
@@ -4745,7 +4856,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       {/* ========================================================================= */}
       {/* 3. DEMO TRADING ACTIVITY & TRADE HISTORY (Active Trades & Profits/Losses) */}
       {/* ========================================================================= */}
-      <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl overflow-hidden shadow-xl text-xs font-mono-code">
+      {!isFullscreen && (
+        <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl overflow-hidden shadow-xl text-xs font-mono-code">
         {/* Tabs Bar */}
         <div className="p-3 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
@@ -5005,6 +5117,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           )}
         </div>
       </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 4. SETTINGS MODAL: BACKGROUND & APPEARANCE CUSTOMIZATION                  */}
