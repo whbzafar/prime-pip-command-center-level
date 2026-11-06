@@ -584,7 +584,7 @@ export const PersonalizedAccountDashboard: React.FC<PersonalizedAccountDashboard
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-cyan-400" />
             <h2 className="text-sm font-bold text-slate-100">
-              Logged Trades on Main Dashboard & Execution Details
+              Education & Execution Details (Logged Trades & Account History)
             </h2>
           </div>
           <div className="flex items-center gap-3">

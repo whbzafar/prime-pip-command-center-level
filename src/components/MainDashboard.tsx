@@ -383,6 +383,21 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
         </div>
       </div>
 
+      {/* ========================================================================= */}
+      {/* 1. UPPER SECTION: PRIMARY FUNDED ACCOUNT STATUS & RISK COCKPIT           */}
+      {/* Vital details from account creation: Account type selected (Prop Firm,    */}
+      {/* Phase 1/2, Funded, Personal, Demo), Starting Capital vs Current Equity,  */}
+      {/* Profit Target progress, Max Trailing Drawdown, and Daily Loss Buffer.    */}
+      {/* ========================================================================= */}
+      <PersonalizedAccountDashboard
+        account={account}
+        trades={trades}
+        onUpdateAccount={onUpdateAccount || (() => {})}
+        onOpenNewTrade={onOpenNewTrade}
+        onOpenAccountSwitcher={onOpenAccountModal}
+        onNavigateToTab={onNavigateToTab}
+      />
+
       {/* DAILY FUNDAMENTAL INTELLIGENCE & SURPRISE NOTIFICATION BANNER */}
       <FundamentalNotificationBanner
         isLocked={isPsychLocked}
@@ -646,16 +661,6 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           </button>
         </div>
       </div>
-
-      {/* UNIFIED RISK & EVALUATION COMMAND COCKPIT */}
-      <PersonalizedAccountDashboard
-        account={account}
-        trades={trades}
-        onUpdateAccount={onUpdateAccount || (() => {})}
-        onOpenNewTrade={onOpenNewTrade}
-        onOpenAccountSwitcher={onOpenAccountModal}
-        onNavigateToTab={onNavigateToTab}
-      />
 
       {/* Next Trade Readiness Check & Risk Guidance Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

@@ -57,7 +57,8 @@ body {
 }
 
 /* Ensure True Fullscreen Mode without filter-induced containing block or scroll offsets */
-html.freehand-fullscreen {
+html.freehand-fullscreen,
+html.tv-fullscreen {
   filter: none !important;
   overflow: hidden !important;
   margin: 0 !important;
@@ -66,7 +67,8 @@ html.freehand-fullscreen {
   width: 100% !important;
 }
 
-body.freehand-fullscreen {
+body.freehand-fullscreen,
+body.tv-fullscreen {
   overflow: hidden !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -74,7 +76,8 @@ body.freehand-fullscreen {
   width: 100% !important;
 }
 
-#root.freehand-fullscreen-active {
+#root.freehand-fullscreen-active,
+#root.tv-fullscreen-active {
   overflow: hidden !important;
   margin: 0 !important;
   padding: 0 !important;

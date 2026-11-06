@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CandlestickChart,
   Search,
@@ -48,13 +49,36 @@ import {
   Lightbulb,
   Code2,
   Eraser,
+  Bookmark,
+  List,
+  BarChart2,
+  PieChart,
+  CalendarDays,
+  Users2,
+  Trash2,
+  Play,
+  Pause,
 } from 'lucide-react';
+import {
+  getPairTechnicalAnalysis,
+  getPairSentiment,
+  getPairSeasonality,
+  getPairNews,
+  getPairCommunityData,
+  PairTechnicalAnalysis,
+  PairSentimentData,
+  PairSeasonalityData,
+  PairNewsItem,
+  PairCommunityData,
+} from '../utils/tradingViewPairIntelligence';
 import { hasFullAccess, isUserAdmin, getStoredUser } from '../utils/authClient';
 import { Trade, UserAccount, AccountSettings, PineScriptIndicator } from '../types';
 import { PineScriptIndicatorModal } from './pineScript/PineScriptIndicatorModal';
 import { PineEditorDock } from './pineScript/PineEditorDock';
 import { PineScriptChartOverlay } from './pineScript/PineScriptChartOverlay';
 import { pineScriptService } from '../services/pineScriptService';
+import { TradingViewRightDock } from './tradingView/TradingViewRightDock';
+import { TradingViewVerticalToolbar } from './tradingView/TradingViewVerticalToolbar';
 import {
   FundamentalIntelligenceEngine,
   FullIntelligenceReport,
@@ -100,9 +124,11 @@ export const TIMEFRAMES = [
   { id: '30', label: '30m', seconds: 1800, desc: '30 Minutes Structure' },
   { id: '60', label: '1h', seconds: 3600, desc: '1 Hour Key Levels' },
   { id: '120', label: '2h', seconds: 7200, desc: '2 Hours Intermediate' },
+  { id: '180', label: '3h', seconds: 10800, desc: '3 Hours Swing' },
   { id: '240', label: '4h', seconds: 14400, desc: '4 Hours Trend Bias' },
-  { id: 'D', label: '1D', seconds: 86400, desc: 'Daily Session' },
-  { id: 'W', label: '1W', seconds: 604800, desc: 'Weekly Macro' },
+  { id: 'D', label: 'D', seconds: 86400, desc: 'Daily Session' },
+  { id: 'W', label: 'W', seconds: 604800, desc: 'Weekly Macro' },
+  { id: 'M', label: 'M', seconds: 2592000, desc: 'Monthly Macro' },
 ];
 
 export function normalizeInterval(raw: string): string {
@@ -114,9 +140,11 @@ export function normalizeInterval(raw: string): string {
   if (['30', '30M', 'M30'].includes(clean)) return '30';
   if (['60', '1H', 'H1', '60M'].includes(clean)) return '60';
   if (['120', '2H', 'H2'].includes(clean)) return '120';
+  if (['180', '3H', 'H3'].includes(clean)) return '180';
   if (['240', '4H', 'H4'].includes(clean)) return '240';
   if (['D', '1D', 'D1', 'DAILY'].includes(clean)) return 'D';
   if (['W', '1W', 'W1', 'WEEKLY'].includes(clean)) return 'W';
+  if (['M', '1M_MONTH', 'MONTH', 'MONTHLY'].includes(clean)) return 'M';
   return '60';
 }
 
@@ -160,6 +188,12 @@ export function calculateCandleCountdown(interval: string): {
       Date.UTC(currentUtc.getUTCFullYear(), currentUtc.getUTCMonth(), currentUtc.getUTCDate() + daysUntilFriday, 22, 0, 0)
     );
     const targetUnixSec = Math.floor(nextFriday.getTime() / 1000);
+    secondsRemaining = Math.max(1, targetUnixSec - nowUnixSec);
+    candleStartUnix = targetUnixSec - totalSeconds;
+  } else if (norm === 'M') {
+    const currentUtc = new Date(now.toISOString());
+    const nextMonthUtc = new Date(Date.UTC(currentUtc.getUTCFullYear(), currentUtc.getUTCMonth() + 1, 1, 0, 0, 0));
+    const targetUnixSec = Math.floor(nextMonthUtc.getTime() / 1000);
     secondsRemaining = Math.max(1, targetUnixSec - nowUnixSec);
     candleStartUnix = targetUnixSec - totalSeconds;
   } else {
@@ -1226,7 +1260,16 @@ export interface DemoPosition {
   loggedToJournal?: boolean;
 }
 
-export type RightSideToolId = 'ALERTS' | 'NEWS' | 'CALENDAR' | 'IDEAS';
+export type RightSideToolId =
+  | 'WATCHLIST'
+  | 'ALERTS'
+  | 'TECHNICALS'
+  | 'SENTIMENT'
+  | 'SEASONALITY'
+  | 'NEWS'
+  | 'COMMUNITY'
+  | 'CALENDAR'
+  | 'IDEAS';
 
 export interface ChartAlertItem {
   id: string;
@@ -2291,6 +2334,55 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const [newAlertCondition, setNewAlertCondition] = useState<ChartAlertItem['condition']>('CROSSING');
 
   // --------------------------------------------------------------------------
+  // WATCHLIST (Customizable & Persistent in localStorage)
+  // --------------------------------------------------------------------------
+  const [watchlistSymbols, setWatchlistSymbols] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('primepipfx_tv_watchlist_symbols_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return ['XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'US30', 'NAS100', 'BTCUSDT', 'USOIL'];
+  });
+  const [newWatchlistInput, setNewWatchlistInput] = useState('');
+
+  // Persist watchlist changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('primepipfx_tv_watchlist_symbols_v2', JSON.stringify(watchlistSymbols));
+    } catch {}
+  }, [watchlistSymbols]);
+
+  // Persist alerts changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('primepipfx_tv_chart_alerts_v2', JSON.stringify(alerts));
+    } catch {}
+  }, [alerts]);
+
+  // --------------------------------------------------------------------------
+  // REAL-TIME PAIR INTELLIGENCE (Technical Analysis, Sentiment, Seasonality, News, Community)
+  // --------------------------------------------------------------------------
+  const currentPairTechnical = useMemo(() => {
+    return getPairTechnicalAnalysis(selectedSymbol, liveCandle.close || priceMeta.price);
+  }, [selectedSymbol, liveCandle.close, priceMeta.price]);
+
+  const currentPairSentiment = useMemo(() => {
+    return getPairSentiment(selectedSymbol);
+  }, [selectedSymbol]);
+
+  const currentPairSeasonality = useMemo(() => {
+    return getPairSeasonality(selectedSymbol);
+  }, [selectedSymbol]);
+
+  const currentPairNews = useMemo(() => {
+    return getPairNews(selectedSymbol);
+  }, [selectedSymbol]);
+
+  const currentPairCommunity = useMemo(() => {
+    return getPairCommunityData(selectedSymbol, liveCandle.close || priceMeta.price);
+  }, [selectedSymbol, liveCandle.close, priceMeta.price]);
+
+  // --------------------------------------------------------------------------
   // LIVE NEWS HEADLINES & LIVE ECONOMIC CALENDAR (Direct TradingView & Server Data)
   // --------------------------------------------------------------------------
   const [newsViewMode, setNewsViewMode] = useState<'FEED' | 'WIDGET'>('FEED');
@@ -2656,41 +2748,56 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const isLightBg = chartSettings.backgroundColor === '#FFFFFF' || chartSettings.backgroundColor === '#F8FAFC';
 
   useEffect(() => {
-    const container = document.getElementById(containerId);
-    if (!container) return;
+    let timeoutId: any;
+    const initChart = () => {
+      const container = document.getElementById(containerId);
+      if (!container) {
+        timeoutId = setTimeout(initChart, 60);
+        return;
+      }
 
-    const params = new URLSearchParams({
-      symbol: tradingViewSymbol,
-      interval: selectedInterval,
-      timezone: chartSettings.timezone || 'Asia/Karachi',
-      theme: isLightBg ? 'light' : 'dark',
-      style: '1',
-      locale: 'en',
-      toolbar_bg: chartSettings.backgroundColor,
-      enable_publishing: 'false',
-      hide_top_toolbar: 'false',
-      hide_side_toolbar: 'false',
-      allow_symbol_change: 'true',
-      save_image: 'true',
-      hideideas: 'false',
-      show_popup_button: 'true',
-      popup_width: '1000',
-      popup_height: '650',
-      withdateranges: 'true',
-      show_last_price_and_countdown: '1',
-    });
+      const params = new URLSearchParams({
+        symbol: tradingViewSymbol,
+        interval: selectedInterval,
+        timezone: chartSettings.timezone || 'Asia/Karachi',
+        theme: isLightBg ? 'light' : 'dark',
+        style: '1',
+        locale: 'en',
+        toolbar_bg: chartSettings.backgroundColor,
+        enable_publishing: 'false',
+        hide_top_toolbar: 'false',
+        hide_side_toolbar: 'false',
+        allow_symbol_change: 'true',
+        save_image: 'true',
+        hideideas: 'false',
+        show_popup_button: 'true',
+        popup_width: '1000',
+        popup_height: '650',
+        withdateranges: 'true',
+        show_last_price_and_countdown: '1',
+        details: 'true',
+        hotlist: 'true',
+        calendar: 'true',
+      });
 
-    container.innerHTML = '';
-    const iframe = document.createElement('iframe');
-    iframe.src = `https://s.tradingview.com/widgetembed/?${params.toString()}`;
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.style.border = '0';
-    iframe.setAttribute('allowtransparency', 'true');
-    iframe.setAttribute('allowfullscreen', 'true');
-    iframe.setAttribute('title', `${selectedSymbol} TradingView Advanced Chart`);
-    container.appendChild(iframe);
-  }, [containerId, tradingViewSymbol, selectedInterval, chartSettings.backgroundColor, chartSettings.timezone, chartSettings.showCountdown, isLightBg, selectedSymbol]);
+      container.innerHTML = '';
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://s.tradingview.com/widgetembed/?${params.toString()}`;
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.border = '0';
+      iframe.setAttribute('allowtransparency', 'true');
+      iframe.setAttribute('allowfullscreen', 'true');
+      iframe.setAttribute('title', `${selectedSymbol} TradingView Advanced Chart`);
+      container.appendChild(iframe);
+    };
+
+    initChart();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [containerId, tradingViewSymbol, selectedInterval, chartSettings.backgroundColor, chartSettings.timezone, chartSettings.showCountdown, isLightBg, selectedSymbol, isFullscreen]);
 
   // --------------------------------------------------------------------------
   // CATEGORY & SYMBOL SELECTOR (Immediately opens pair + syncs broker settings!)
@@ -2992,27 +3099,49 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     }
   };
 
-  // Fullscreen toggle (Guaranteed to work in iframe & browser full screen)
+  // Fullscreen toggle (Guaranteed true 100vw x 100vh full screen via Portal + CSS overrides)
   const toggleFullscreen = () => {
     setIsFullscreen((prev) => {
       const next = !prev;
       if (next) {
-        if (chartWrapperRef.current && chartWrapperRef.current.requestFullscreen) {
-          chartWrapperRef.current.requestFullscreen().catch(() => {});
-        }
+        try {
+          if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(() => {});
+          }
+        } catch {}
       } else {
-        if (document.fullscreenElement && document.exitFullscreen) {
-          document.exitFullscreen().catch(() => {});
-        }
+        try {
+          if (document.fullscreenElement && document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+          }
+        } catch {}
       }
       return next;
     });
   };
 
+  // Sync classes to HTML, Body, and #root to guarantee true fullscreen with zero CSS filter containing block
+  useEffect(() => {
+    if (isFullscreen) {
+      document.documentElement.classList.add('tv-fullscreen', 'freehand-fullscreen');
+      document.body.classList.add('tv-fullscreen', 'freehand-fullscreen');
+      document.getElementById('root')?.classList.add('tv-fullscreen-active', 'freehand-fullscreen-active');
+    } else {
+      document.documentElement.classList.remove('tv-fullscreen', 'freehand-fullscreen');
+      document.body.classList.remove('tv-fullscreen', 'freehand-fullscreen');
+      document.getElementById('root')?.classList.remove('tv-fullscreen-active', 'freehand-fullscreen-active');
+    }
+    return () => {
+      document.documentElement.classList.remove('tv-fullscreen', 'freehand-fullscreen');
+      document.body.classList.remove('tv-fullscreen', 'freehand-fullscreen');
+      document.getElementById('root')?.classList.remove('tv-fullscreen-active', 'freehand-fullscreen-active');
+    };
+  }, [isFullscreen]);
+
   useEffect(() => {
     const handleFsChange = () => {
       if (!document.fullscreenElement && isFullscreen) {
-        // Only set false if exited via browser UI
+        setIsFullscreen(false);
       }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -3057,26 +3186,66 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     } catch {}
   }, [selectedSymbol, selectedBroker, selectedInterval, activeCategoryIndex, chartSettings]);
 
-  return (
+  const workspaceElement = (
     <div
       ref={chartWrapperRef}
       className={
         isFullscreen
-          ? 'fixed inset-0 z-[999999] w-screen h-[100dvh] bg-[#070A11] flex flex-col overflow-hidden m-0 p-0 font-sans'
+          ? 'fixed inset-0 z-[99999999] w-screen h-screen h-[100dvh] bg-[#070A11] flex flex-col overflow-hidden m-0 p-0 font-sans'
           : 'space-y-3 font-sans relative'
       }
+      style={
+        isFullscreen
+          ? {
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 99999999,
+              margin: 0,
+              padding: 0,
+              backgroundColor: '#070A11',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }
+          : undefined
+      }
     >
-      {/* Sleek Minimal Header when in Fullscreen Mode */}
+      {/* Sleek Authentic TradingView Header when in Fullscreen Mode */}
       {isFullscreen && (
-        <div className="h-11 px-3 bg-[#0B0F19] border-b border-slate-800 flex items-center justify-between shrink-0 select-none z-50">
-          {/* Left: Active Symbol, Broker, Timeframe Switcher */}
+        <div className="h-12 px-3 bg-[#0B0F19] border-b border-slate-800 flex items-center justify-between shrink-0 select-none z-50 gap-2">
+          {/* Left: Active Symbol Dropdown, Broker, Timeframe Switcher */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            {/* Quick Symbol Switcher directly inside fullscreen */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700">
-              <span className="font-mono-code font-bold text-xs text-white tracking-wider">{selectedSymbol}</span>
+              <select
+                value={selectedSymbol}
+                onChange={(e) => handleSelectSymbol(e.target.value)}
+                className="bg-transparent text-white font-mono font-bold text-xs outline-none cursor-pointer"
+              >
+                <option value="XAUUSD" className="bg-slate-900 text-white">XAUUSD (Gold)</option>
+                <option value="EURUSD" className="bg-slate-900 text-white">EURUSD</option>
+                <option value="GBPUSD" className="bg-slate-900 text-white">GBPUSD</option>
+                <option value="USDJPY" className="bg-slate-900 text-white">USDJPY</option>
+                <option value="AUDUSD" className="bg-slate-900 text-white">AUDUSD</option>
+                <option value="USDCAD" className="bg-slate-900 text-white">USDCAD</option>
+                <option value="USDCHF" className="bg-slate-900 text-white">USDCHF</option>
+                <option value="NZDUSD" className="bg-slate-900 text-white">NZDUSD</option>
+                <option value="US30" className="bg-slate-900 text-white">US30 (Dow Jones)</option>
+                <option value="NAS100" className="bg-slate-900 text-white">NAS100 (Nasdaq)</option>
+                <option value="SPX500" className="bg-slate-900 text-white">SPX500</option>
+                <option value="BTCUSDT" className="bg-slate-900 text-white">BTCUSDT</option>
+                <option value="ETHUSDT" className="bg-slate-900 text-white">ETHUSDT</option>
+                <option value="USOIL" className="bg-slate-900 text-white">USOIL (WTI)</option>
+              </select>
               <span className="text-[10px] text-cyan-400 font-mono">({selectedBroker})</span>
             </div>
 
-            {/* Quick Timeframe Buttons matching TradingView Top Bar */}
+            {/* Quick Timeframe Buttons matching TradingView Top Bar (1m 3m 5m 15m 30m 1h 2h 3h 4h D W M) */}
             <div className="flex items-center gap-0.5 bg-slate-950/90 p-0.5 rounded-lg border border-slate-800">
               {[
                 { id: '1', label: '1m' },
@@ -3086,9 +3255,11 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 { id: '30', label: '30m' },
                 { id: '60', label: '1h' },
                 { id: '120', label: '2h' },
+                { id: '180', label: '3h' },
                 { id: '240', label: '4h' },
                 { id: 'D', label: 'D' },
                 { id: 'W', label: 'W' },
+                { id: 'M', label: 'M' },
               ].map((tf) => (
                 <button
                   key={tf.id}
@@ -3096,7 +3267,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   onClick={() => handleIntervalChange(tf.id)}
                   className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold transition cursor-pointer ${
                     selectedInterval === tf.id
-                      ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                      ? 'bg-slate-900 text-cyan-300 border border-cyan-400/50 shadow-sm'
                       : 'text-slate-400 hover:text-white hover:bg-slate-800'
                   }`}
                 >
@@ -3105,7 +3276,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               ))}
             </div>
 
-            <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-slate-800 font-mono text-xs">
+            <div className="hidden md:flex items-center gap-2 pl-2 border-l border-slate-800 font-mono text-xs">
               <span className="text-slate-400 text-[11px]">Price:</span>
               <span className={`font-bold ${liveCandle.close >= liveCandle.open ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {(liveCandle.close || priceMeta.price).toFixed(priceMeta.pipDecimals)}
@@ -3113,13 +3284,13 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             </div>
           </div>
 
-          {/* Right: Candle Countdown Timer + Snapshot + Minimize */}
+          {/* Right: Candle Countdown Timer + Snapshot + Indicators + Minimize */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Live Candle Close Countdown in Header */}
+            {/* Live Candle Close Countdown in Header (Always synchronized) */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono-code text-xs font-bold shadow-sm">
               <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span className="hidden md:inline text-[11px]">{candleCountdown.label} CANDLE:</span>
-              <span className="text-white font-mono tracking-wider">{candleCountdown.text}</span>
+              <span className="hidden sm:inline text-[11px]">{candleCountdown.label} CANDLE:</span>
+              <span className="text-white font-mono tracking-wider font-extrabold">{candleCountdown.text}</span>
             </div>
 
             <button
@@ -3133,9 +3304,19 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
             <button
               type="button"
+              onClick={() => setShowIndicatorsModal(true)}
+              className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 text-xs font-mono font-bold transition cursor-pointer hidden sm:flex items-center gap-1"
+              title="Technical Indicators (fx)"
+            >
+              <span>fx</span>
+              <span className="hidden lg:inline text-[11px]">Indicators</span>
+            </button>
+
+            <button
+              type="button"
               onClick={toggleFullscreen}
               className="px-3 py-1 rounded-lg bg-rose-600/90 hover:bg-rose-500 text-white font-mono-code font-bold text-xs uppercase shadow-lg flex items-center gap-1.5 cursor-pointer border border-rose-400/50 active:scale-95 transition"
-              title="Minimize Full-Screen (Esc)"
+              title="Exit Full-Screen (Esc)"
             >
               <Minimize2 className="w-3.5 h-3.5" />
               <span>Minimize</span>
@@ -3871,26 +4052,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 <span className="hidden lg:inline">Share</span>
               </button>
 
-              {/* INDICATORS BUTTON */}
-              <button
-                type="button"
-                onClick={() => setShowIndicatorsModal((prev) => !prev)}
-                className={`p-1.5 rounded-xl border transition cursor-pointer flex items-center gap-1.5 text-xs font-mono-code font-bold ${
-                  showIndicatorsModal
-                    ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-md shadow-cyan-500/20'
-                    : 'bg-slate-950 border-slate-700 text-slate-300 hover:text-white hover:border-cyan-400'
-                }`}
-                title="Institutional Indicators (FVG, SuperTrend, Turtle Soup, EMA Ribbon)"
-              >
-                <Activity className="w-4 h-4 text-cyan-400" />
-                <span>Indicators</span>
-                {activePineIndicators.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-cyan-400/20 text-cyan-300 border border-cyan-400/40">
-                    {activePineIndicators.length}
-                  </span>
-                )}
-              </button>
-
               {/* CLEAR INDICATORS / PURE PRICE ACTION BUTTON */}
               {activePineIndicators.length > 0 && (
                 <button
@@ -4092,6 +4253,38 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         <div ref={chartContainerRef} className="flex-1 relative h-full flex flex-col min-w-0 select-none">
           {/* TRADINGVIEW IFRAME CONTAINER */}
           <div id={containerId} className="w-full h-full relative z-10" />
+
+          {/* AUTHENTIC TRADINGVIEW WATERMARK IN BACKGROUND */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[12] opacity-[0.04]">
+            <span className="text-6xl sm:text-8xl lg:text-9xl font-black font-sans tracking-widest text-white uppercase">
+              {selectedSymbol}, {candleCountdown.label}
+            </span>
+          </div>
+
+          {/* AUTHENTIC TRADINGVIEW SUBHEADER (Euro / U.S. Dollar · 1h · FXCM) */}
+          {isFullscreen && (
+            <div className="absolute top-2 left-3 z-30 pointer-events-none flex flex-col gap-0.5 text-xs font-sans">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                <span className="font-bold text-slate-100 text-xs sm:text-sm">
+                  {priceMeta.name} · {candleCountdown.label} · {selectedBroker}
+                </span>
+                <span className="text-slate-400 text-xs font-mono">≈</span>
+                <span className="font-mono text-[11px] text-slate-400 flex items-center gap-1.5 flex-wrap">
+                  <span>O <strong className="text-slate-200">{(liveCandle.open || priceMeta.price).toFixed(priceMeta.pipDecimals)}</strong></span>
+                  <span>H <strong className="text-emerald-400">{(liveCandle.high || priceMeta.price).toFixed(priceMeta.pipDecimals)}</strong></span>
+                  <span>L <strong className="text-rose-400">{(liveCandle.low || priceMeta.price).toFixed(priceMeta.pipDecimals)}</strong></span>
+                  <span>C <strong className="text-white">{(liveCandle.close || priceMeta.price).toFixed(priceMeta.pipDecimals)}</strong></span>
+                  <span className={liveCandle.close >= liveCandle.open ? 'text-emerald-400' : 'text-rose-400'}>
+                    {liveCandle.close >= liveCandle.open ? '+' : ''}{((liveCandle.close - liveCandle.open) || 0).toFixed(2)} ({(((liveCandle.close - liveCandle.open) / (liveCandle.open || 1)) * 100).toFixed(2)}%)
+                  </span>
+                </span>
+              </div>
+              <div className="text-[10px] font-mono text-slate-400">
+                Vol <strong className="text-slate-200">{liveCandle.volume.toLocaleString()}</strong>
+              </div>
+            </div>
+          )}
 
           {/* ACTIVE PINE SCRIPT INDICATOR & VISUAL DRAWING OVERLAY */}
           {activePineIndicators.length > 0 && (
@@ -4364,474 +4557,90 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 }`}
               />
 
-              {/* Floating Candle Countdown Tag Running Alongside the Candle */}
-              <div className="absolute right-36 -top-3.5 hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-slate-950/95 border border-slate-700/80 shadow-lg text-[10px] font-mono font-bold text-slate-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                <span className="text-amber-300 uppercase">{candleCountdown.label}</span>
-                <span className="text-slate-400">closes in:</span>
-                <span className="text-white font-mono tracking-wider">{candleCountdown.text}</span>
-              </div>
-
               {/* Right Price Axis Double-Badge (Exact TradingView screenshot replica) */}
-              <div className="absolute right-0 -top-4 flex flex-col items-end shadow-2xl">
+              <div className="absolute right-0 -top-5 flex flex-col items-end shadow-2xl z-30 select-none">
                 {/* Upper Badge: Symbol & Live Price */}
                 <div
-                  className={`flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-mono-code font-bold text-white shadow-md rounded-l ${
+                  className={`flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-mono font-bold text-white shadow-md rounded-l ${
                     liveCandle.close >= liveCandle.open ? 'bg-[#00897B]' : 'bg-[#E53935]'
                   }`}
                 >
                   <span className="text-[10px] tracking-tight">{selectedSymbol}</span>
-                  <span className="tracking-normal font-mono">
+                  <span className="tracking-normal font-mono font-extrabold">
                     {(liveCandle.close || priceMeta.price).toFixed(priceMeta.pipDecimals)}
                   </span>
                 </div>
 
-                {/* Lower Badge Attached Directly Underneath: Live Candle Close Countdown */}
+                {/* Lower Badge Attached Directly Underneath: Live Candle Close Countdown (Exact TradingView replica) */}
                 <div
-                  className={`px-2 py-0.5 text-[11px] font-mono-code font-bold text-white shadow-inner rounded-bl text-right ${
+                  className={`px-2 py-0.5 text-[11px] font-mono font-bold text-white shadow-inner rounded-bl text-right ${
                     liveCandle.close >= liveCandle.open ? 'bg-[#00695C]' : 'bg-[#C62828]'
                   }`}
                   title={`Time remaining until current ${candleCountdown.label} candle close`}
                 >
-                  <span className="tracking-widest font-mono">{candleCountdown.text}</span>
+                  <span className="tracking-widest font-mono font-extrabold">{candleCountdown.text}</span>
                 </div>
-              </div>
-            </div>
-
-            {/* Bottom-right secondary floating badge for extra clarity */}
-            <div className="absolute bottom-3 right-3 z-20 flex items-center gap-2 bg-[#0B0F19]/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 shadow-xl">
-              <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <div className="flex items-center gap-1.5 text-xs font-mono">
-                <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold text-[10px] uppercase">
-                  {candleCountdown.label}
-                </span>
-                <span className="text-slate-400 text-[11px]">Candle Close:</span>
-                <span className="text-white font-bold tracking-wider">{candleCountdown.text}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* =================================================================== */}
-        {/* RIGHT DOCK SLIDE-OUT PANEL (Only Alerts, News, or Calendar)        */}
+        {/* RIGHT DOCK SLIDE-OUT PANEL (Watchlist, Alerts, Technicals, etc.)    */}
         {/* =================================================================== */}
-        {!isFullscreen && activeRightTool && (
-          <div className="w-full lg:w-80 bg-[#0B0F19] border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col z-30 shrink-0 h-64 lg:h-full animate-in slide-in-from-right duration-200">
-            {/* Panel Header */}
-            <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
-              <div className="flex items-center gap-2">
-                {activeRightTool === 'ALERTS' && <AlarmClock className="w-4 h-4 text-cyan-400" />}
-                {activeRightTool === 'NEWS' && <Newspaper className="w-4 h-4 text-cyan-400" />}
-                {activeRightTool === 'CALENDAR' && <Calendar className="w-4 h-4 text-cyan-400" />}
-                <h3 className="text-xs font-mono-code font-bold uppercase tracking-wider text-slate-200">
-                  {activeRightTool === 'ALERTS' && 'Price Alerts'}
-                  {activeRightTool === 'NEWS' && 'Market Headlines'}
-                  {activeRightTool === 'CALENDAR' && 'Economic Calendar'}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveRightTool(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Panel Body */}
-            <div className="flex-1 overflow-y-auto p-3 font-mono-code text-xs space-y-3">
-              {/* ALERTS PANEL */}
-              {activeRightTool === 'ALERTS' && (
-                <div className="space-y-3">
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const targetPrice = parseFloat(newAlertTarget);
-                      if (!targetPrice || isNaN(targetPrice)) return;
-                      const newAlert: ChartAlertItem = {
-                        id: `alt_${Date.now()}`,
-                        symbol: selectedSymbol,
-                        price: targetPrice,
-                        condition: newAlertCondition,
-                        active: true,
-                        createdAt: 'Just now',
-                        notes: newAlertNotes.trim() || `Alert for ${selectedSymbol} @ ${targetPrice}`,
-                      };
-                      setAlerts([newAlert, ...alerts]);
-                      setNewAlertTarget('');
-                      setNewAlertNotes('');
-                      setOrderToast({ message: `Alert saved for ${selectedSymbol} @ ${targetPrice}`, isSuccess: true });
-                    }}
-                    className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2"
-                  >
-                    <div className="text-[11px] font-bold text-slate-300">Create New Price Alert</div>
-                    <select
-                      value={newAlertCondition}
-                      onChange={(e) => setNewAlertCondition(e.target.value as any)}
-                      className="w-full p-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white outline-none"
-                    >
-                      <option value="CROSSING">Crossing Target Price</option>
-                      <option value="CROSSING_UP">Crossing Up (Breakout)</option>
-                      <option value="CROSSING_DOWN">Crossing Down (Breakdown)</option>
-                    </select>
-                    <input
-                      type="number"
-                      step="any"
-                      value={newAlertTarget}
-                      onChange={(e) => setNewAlertTarget(e.target.value)}
-                      placeholder={`Target e.g. ${liveCandle.close.toFixed(priceMeta.pipDecimals)}`}
-                      className="w-full p-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white outline-none"
-                    />
-                    <input
-                      type="text"
-                      value={newAlertNotes}
-                      onChange={(e) => setNewAlertNotes(e.target.value)}
-                      placeholder="Note e.g. Key Level Retest"
-                      className="w-full p-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white outline-none"
-                    />
-                    <button
-                      type="submit"
-                      className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold transition cursor-pointer"
-                    >
-                      Save Alert
-                    </button>
-                  </form>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[11px] text-slate-400">
-                      <span>Active Alerts ({alerts.length})</span>
-                      <button onClick={() => setAlerts([])} className="text-rose-400 hover:underline text-[10px] cursor-pointer">
-                        Clear All
-                      </button>
-                    </div>
-                    {alerts.map((alt) => (
-                      <div
-                        key={alt.id}
-                        className={`p-2 rounded-xl border text-xs ${
-                          alt.triggered ? 'bg-amber-950/30 border-amber-500/50 text-amber-200' : 'bg-slate-950 border-slate-800'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between font-bold">
-                          <span>{alt.symbol}</span>
-                          <span className={`text-[9px] px-1.5 py-0.2 rounded ${alt.triggered ? 'bg-amber-500 text-slate-950' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                            {alt.triggered ? 'TRIGGERED' : 'ACTIVE'}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-300 mt-1">
-                          {alt.condition.replace('_', ' ')}: <strong className="text-cyan-300">{alt.price}</strong>
-                        </div>
-                        {alt.notes && <div className="text-[10px] text-slate-400 mt-0.5">{alt.notes}</div>}
-                        <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-slate-900 text-[9px] text-slate-500">
-                          <span>{alt.createdAt}</span>
-                          <button onClick={() => setAlerts((c) => c.filter((a) => a.id !== alt.id))} className="text-rose-400 hover:text-rose-300">
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* NEWS PANEL */}
-              {activeRightTool === 'NEWS' && (
-                <div className="space-y-3">
-                  {/* Mode & Category Bar */}
-                  <div className="flex items-center justify-between gap-1.5 flex-wrap border-b border-slate-800 pb-2">
-                    <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px]">
-                      <button
-                        type="button"
-                        onClick={() => setNewsViewMode('FEED')}
-                        className={`px-2 py-0.5 rounded font-bold transition cursor-pointer ${
-                          newsViewMode === 'FEED' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        News Wire
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setNewsViewMode('WIDGET')}
-                        className={`px-2 py-0.5 rounded font-bold transition cursor-pointer ${
-                          newsViewMode === 'WIDGET' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        TradingView Live
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleRefreshNews}
-                      disabled={isRefreshingNews}
-                      className="p-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1 text-[10px]"
-                      title="Fetch freshest market headlines"
-                    >
-                      <RefreshCw className={`w-3 h-3 ${isRefreshingNews ? 'animate-spin text-cyan-400' : ''}`} />
-                      <span>Refresh</span>
-                    </button>
-                  </div>
-
-                  {newsViewMode === 'WIDGET' ? (
-                    <div className="h-[520px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
-                      <iframe
-                        src="https://www.tradingview-widget.com/embed-widget/timeline/?locale=en#%7B%22feedMode%22%3A%22all_symbols%22%2C%22isTransparent%22%3Atrue%2C%22displayMode%22%3A%22regular%22%2C%22width%22%3A%22100%25%22%2C%22height%22%3A%22100%25%22%2C%22colorTheme%22%3A%22dark%22%7D"
-                        className="w-full h-full border-0"
-                        title="TradingView Real-Time Market News Timeline"
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {/* Filter pills */}
-                      <div className="flex items-center gap-1 overflow-x-auto text-[9px] pb-1">
-                        {(['ALL', 'MACRO', 'FOREX', 'METALS', 'STOCKS'] as const).map((cat) => (
-                          <button
-                            key={cat}
-                            type="button"
-                            onClick={() => setNewsCategoryFilter(cat)}
-                            className={`px-2 py-0.5 rounded-full border transition cursor-pointer shrink-0 font-bold ${
-                              newsCategoryFilter === cat
-                                ? 'bg-blue-600 text-white border-blue-400 shadow-sm'
-                                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            {cat}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* News Items */}
-                      {newsHeadlines
-                        .filter((n) => newsCategoryFilter === 'ALL' || n.category.toUpperCase() === newsCategoryFilter)
-                        .map((news) => (
-                          <div
-                            key={news.id}
-                            className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 hover:border-slate-700 transition space-y-1.5 shadow-sm"
-                          >
-                            <div className="flex items-center justify-between text-[10px]">
-                              <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-cyan-300 font-bold uppercase tracking-wider text-[9px]">
-                                {news.category}
-                              </span>
-                              <span className="text-slate-400 flex items-center gap-1">
-                                <Clock className="w-2.5 h-2.5" />
-                                {news.time}
-                              </span>
-                            </div>
-                            <p className="text-slate-100 font-sans text-xs leading-snug font-medium hover:text-cyan-300 transition cursor-pointer">
-                              {news.title}
-                            </p>
-                            <div className="flex items-center justify-between text-[10px] pt-1.5 border-t border-slate-900">
-                              <span className="text-slate-400 font-bold">{news.source}</span>
-                              <span
-                                className={`font-bold px-1.5 py-0.2 rounded text-[9px] ${
-                                  news.sentiment === 'BULLISH'
-                                    ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40'
-                                    : 'bg-rose-950 text-rose-400 border border-rose-500/40'
-                                }`}
-                              >
-                                {news.sentiment === 'BULLISH' ? '🟢 BULLISH' : '🔴 BEARISH'}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* CALENDAR PANEL (Real-Time Live Data Feed) */}
-              {activeRightTool === 'CALENDAR' && (
-                <div className="space-y-3">
-                  {/* Mode & Refresh Bar */}
-                  <div className="flex items-center justify-between gap-1.5 flex-wrap border-b border-slate-800 pb-2">
-                    <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px]">
-                      <button
-                        type="button"
-                        onClick={() => setCalendarViewMode('FEED')}
-                        className={`px-2 py-0.5 rounded font-bold transition cursor-pointer ${
-                          calendarViewMode === 'FEED' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        Live Events ({liveCalendarEvents.length || 4})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCalendarViewMode('WIDGET')}
-                        className={`px-2 py-0.5 rounded font-bold transition cursor-pointer ${
-                          calendarViewMode === 'WIDGET' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        TradingView Widget
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={loadLiveCalendar}
-                      disabled={isRefreshingCalendar}
-                      className="p-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1 text-[10px]"
-                      title="Sync live economic releases"
-                    >
-                      <RefreshCw className={`w-3 h-3 ${isRefreshingCalendar ? 'animate-spin text-cyan-400' : ''}`} />
-                      <span>Sync</span>
-                    </button>
-                  </div>
-
-                  {calendarViewMode === 'WIDGET' ? (
-                    <div className="h-[520px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
-                      <iframe
-                        src="https://www.tradingview-widget.com/embed-widget/events/?locale=en#%7B%22colorTheme%22%3A%22dark%22%2C%22isTransparent%22%3Atrue%2C%22width%22%3A%22100%25%22%2C%22height%22%3A%22100%25%22%2C%22importanceFilter%22%3A%220%2C1%22%7D"
-                        className="w-full h-full border-0"
-                        title="TradingView Real-Time Economic Calendar"
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {/* Filter pills */}
-                      <div className="flex items-center justify-between text-[9px] pb-1 border-b border-slate-900">
-                        <div className="flex items-center gap-1">
-                          {(['ALL', 'HIGH'] as const).map((filter) => (
-                            <button
-                              key={filter}
-                              type="button"
-                              onClick={() => setCalendarImpactFilter(filter)}
-                              className={`px-2 py-0.5 rounded-full border transition cursor-pointer font-bold ${
-                                calendarImpactFilter === filter
-                                  ? 'bg-blue-600 text-white border-blue-400 shadow-sm'
-                                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                              }`}
-                            >
-                              {filter === 'ALL' ? 'All Events' : '🔴 High Impact'}
-                            </button>
-                          ))}
-                        </div>
-                        <span className="text-emerald-400 font-bold flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                          LIVE FEED
-                        </span>
-                      </div>
-
-                      {/* Live Events List */}
-                      {liveCalendarEvents.length === 0 ? (
-                        <div className="p-4 text-center text-slate-500">
-                          <RefreshCw className="w-4 h-4 mx-auto animate-spin mb-1 text-cyan-400" />
-                          <span>Loading live calendar releases...</span>
-                        </div>
-                      ) : (
-                        liveCalendarEvents
-                          .filter((evt) => calendarImpactFilter === 'ALL' || evt.importance === 'HIGH')
-                          .slice(0, 15)
-                          .map((evt) => (
-                            <div
-                              key={evt.id}
-                              className={`p-2.5 rounded-xl bg-slate-950 border transition space-y-1.5 shadow-sm ${
-                                evt.importance === 'HIGH' ? 'border-rose-900/50 hover:border-rose-700' : 'border-slate-800'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between text-[11px]">
-                                <div className="flex items-center gap-1.5 font-bold">
-                                  <span className="px-1.5 py-0.5 rounded bg-slate-800 text-white text-[10px] font-mono">
-                                    {evt.currency}
-                                  </span>
-                                  <span className="text-slate-100 font-sans text-xs truncate max-w-[170px]" title={evt.eventName}>
-                                    {evt.eventName}
-                                  </span>
-                                </div>
-                                <span
-                                  className={`text-[9px] px-1.5 py-0.5 rounded font-extrabold border ${
-                                    evt.importance === 'HIGH'
-                                      ? 'bg-rose-950 text-rose-300 border-rose-500/60 shadow-sm'
-                                      : 'bg-amber-950/60 text-amber-300 border-amber-500/40'
-                                  }`}
-                                >
-                                  {evt.importance}
-                                </span>
-                              </div>
-
-                              <div className="grid grid-cols-3 gap-1 text-[10px] bg-slate-900/70 p-1.5 rounded-lg border border-slate-800/80 font-mono">
-                                <div>
-                                  <div className="text-slate-500 text-[9px] uppercase">Time</div>
-                                  <div className="font-bold text-white truncate">{evt.timeUtc || evt.date}</div>
-                                </div>
-                                <div>
-                                  <div className="text-slate-500 text-[9px] uppercase">Forecast</div>
-                                  <div className="font-bold text-slate-300 truncate">{evt.forecast || '—'}</div>
-                                </div>
-                                <div>
-                                  <div className="text-slate-500 text-[9px] uppercase">Previous</div>
-                                  <div className="font-bold text-slate-400 truncate">{evt.previous || '—'}</div>
-                                </div>
-                              </div>
-
-                              {evt.actual && (
-                                <div className="text-[10px] font-bold flex items-center justify-between pt-0.5 border-t border-slate-900">
-                                  <span className="text-slate-400">Actual Released:</span>
-                                  <span className="text-emerald-400 bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-500/40 font-mono">
-                                    {evt.actual}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          ))
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        <TradingViewRightDock
+          activeTool={activeRightTool}
+          onClose={() => setActiveRightTool(null)}
+          selectedSymbol={selectedSymbol}
+          onSelectSymbol={(sym) => handleSelectSymbol(sym)}
+          livePrice={liveCandle.close || priceMeta.price}
+          pipDecimals={priceMeta.pipDecimals}
+          spreadPips={priceMeta.spreadPips}
+          watchlistSymbols={watchlistSymbols}
+          onAddWatchlistSymbol={(sym) => {
+            if (!watchlistSymbols.includes(sym)) {
+              setWatchlistSymbols((prev) => [...prev, sym]);
+            }
+          }}
+          onRemoveWatchlistSymbol={(sym) => {
+            setWatchlistSymbols((prev) => prev.filter((s) => s !== sym));
+          }}
+          onClearWatchlist={() => setWatchlistSymbols([])}
+          alerts={alerts}
+          onAddAlert={(alertData) => {
+            const newAlert: ChartAlertItem = {
+              id: "alt_" + Date.now(),
+              symbol: alertData.symbol,
+              price: alertData.price,
+              condition: alertData.condition,
+              active: true,
+              createdAt: "Just now",
+              notes: alertData.notes,
+            };
+            setAlerts((prev) => [newAlert, ...prev]);
+            setOrderToast({ message: "Alert saved for " + alertData.symbol + " @ " + alertData.price, isSuccess: true });
+          }}
+          onDeleteAlert={(id) => setAlerts((prev) => prev.filter((a) => a.id !== id))}
+          onToggleAlert={(id) => setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, active: !a.active } : a)))}
+          onClearAlerts={() => setAlerts([])}
+          technical={currentPairTechnical}
+          sentiment={currentPairSentiment}
+          seasonality={currentPairSeasonality}
+          news={currentPairNews}
+          community={currentPairCommunity}
+          calendarEvents={liveCalendarEvents}
+        />
 
         {/* =================================================================== */}
-        {/* RIGHT COLUMN: VERTICAL ICONIC DOCK                                  */}
-        {/* Kept ONLY: Alerts, News, Calendar, and Settings at the bottom       */}
+        {/* RIGHT COLUMN: VERTICAL ICONIC DOCK (Active in Normal & Fullscreen)  */}
         {/* =================================================================== */}
-        {!isFullscreen && (
-          <div className="w-12 bg-[#0B0F19] border-l border-slate-800/80 flex flex-col items-center justify-between py-2 z-20 shrink-0 select-none">
-            {/* Top 3 Tools: Alerts, News, Calendar */}
-            <div className="flex flex-col items-center gap-1.5 w-full">
-              {[
-                { id: 'ALERTS' as const, icon: AlarmClock, label: 'Alerts', badge: alerts.filter((a) => a.active).length },
-                { id: 'NEWS' as const, icon: Newspaper, label: 'News & Headlines' },
-                { id: 'CALENDAR' as const, icon: Calendar, label: 'Economic Calendar' },
-              ].map((tool) => {
-                const Icon = tool.icon;
-                const isActive = activeRightTool === tool.id;
-                return (
-                  <button
-                    key={tool.id}
-                    type="button"
-                    onClick={() => setActiveRightTool((prev) => (prev === tool.id ? null : tool.id))}
-                    title={tool.label}
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition cursor-pointer relative ${
-                      isActive
-                        ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30'
-                        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {tool.badge !== undefined && tool.badge > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-rose-500 text-[8px] font-bold text-white flex items-center justify-center font-mono">
-                        {tool.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Bottom Settings Button (Kept as requested) */}
-            <div className="flex flex-col items-center gap-1.5 w-full">
-              <button
-                type="button"
-                onClick={() => setShowSettingsModal(true)}
-                title="Chart Appearance & Background Settings"
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition cursor-pointer"
-              >
-                <Palette className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
+        <TradingViewVerticalToolbar
+          activeTool={activeRightTool}
+          onToggleTool={(toolId) => setActiveRightTool((prev) => (prev === toolId ? null : toolId))}
+          onOpenSettings={() => setShowSettingsModal(true)}
+          watchlistCount={watchlistSymbols.length}
+          alertsCount={alerts.filter((a) => a.active).length}
+        />
       </div>
 
       {/* ========================================================================= */}
@@ -5413,4 +5222,10 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       />
     </div>
   );
+
+  if (isFullscreen) {
+    return createPortal(workspaceElement, document.body);
+  }
+
+  return workspaceElement;
 };
