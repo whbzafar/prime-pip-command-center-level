@@ -21,8 +21,11 @@ export interface TvEvent {
   id: string;
   title: string;
   indicator: string;
-  /** Normalized key used for matching (lowercase, release-stage suffixes removed). */
+  /** Normalized TITLE key used for matching (lowercase, release-stage suffixes removed). TradingView
+   *  titles follow Trading Economics naming ("Non Farm Payrolls", "Inflation Rate YoY"). */
   key: string;
+  /** Normalized `indicator` field (Reuters-style codes such as "CPI YY, NSA") — secondary match key. */
+  indicatorKey: string;
   country: string;
   currency: string;
   timestamp: number;
@@ -43,10 +46,18 @@ const STAGE_SUFFIX =
   /\s+(prel(im(inary)?)?|flash|final|adv(ance)?|2nd est(imate)?|3rd est(imate)?|second estimate|third estimate|rev(ised)?|s\.a\.?|n\.s\.a\.?)$/i;
 
 export function normalizeKey(s: string): string {
-  let k = String(s || '').trim().replace(/\s+/g, ' ');
+  let k = String(s || '').replace(/\*/g, '').trim().replace(/\s+/g, ' ');
   // strip release stage suffixes repeatedly ("GDP Growth Rate QoQ 2nd Est" -> "GDP Growth Rate QoQ")
   for (let i = 0; i < 3; i++) k = k.replace(STAGE_SUFFIX, '');
   return k.toLowerCase();
+}
+
+/** The public feed carries no unit field; percentages are recognisable from the title. */
+export function inferUnit(title: string): string {
+  const t = title.toLowerCase();
+  if (/\b(index|pmi|confidence|sentiment|climate|count|stocks|change|payrolls|claims|openings|balance|starts|permits|sales|reserves)\b/.test(t) && !/\b(yoy|mom|qoq)\b/.test(t)) return '';
+  if (/\b(yoy|mom|qoq|rate|inflation|growth|earnings|wages|annualized)\b/.test(t)) return '%';
+  return '';
 }
 
 export function parseTvEvent(raw: any): TvEvent | null {
@@ -60,7 +71,8 @@ export function parseTvEvent(raw: any): TvEvent | null {
     id: String(raw?.id ?? `${country}-${title}-${ts}`),
     title,
     indicator,
-    key: normalizeKey(indicator || title),
+    key: normalizeKey(title),
+    indicatorKey: normalizeKey(indicator),
     country,
     currency: String(raw?.currency ?? '').toUpperCase().trim(),
     timestamp: ts,
@@ -69,7 +81,7 @@ export function parseTvEvent(raw: any): TvEvent | null {
     actual: toNum(raw?.actual),
     forecast: toNum(raw?.forecast ?? raw?.estimate),
     previous: toNum(raw?.previous),
-    unit: raw?.unit ? String(raw.unit).trim() : '',
+    unit: raw?.unit ? String(raw.unit).trim() : inferUnit(title),
     scale: raw?.scale ? String(raw.scale).trim() : '',
     importance: Number.isFinite(Number(raw?.importance)) ? Number(raw.importance) : 0,
     source: raw?.source ? String(raw.source) : 'TradingView',

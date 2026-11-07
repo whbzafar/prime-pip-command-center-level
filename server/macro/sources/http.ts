@@ -49,8 +49,10 @@ export function getSourceHealth(): SourceHealth[] {
   return Array.from(health.values()).map((h) => ({ ...h }));
 }
 
-const DEFAULT_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+// A plain agent: verified live that FRED's bot protection stalls requests sending a full desktop
+// Chrome user-agent (15s+ timeouts) while 'Mozilla/5.0' is served in <1s. TradingView, Yahoo,
+// CFTC and the crypto APIs accept it too. (SEC EDGAR sets its own agent per its fair-access policy.)
+const DEFAULT_UA = 'Mozilla/5.0';
 
 export interface FetchOpts {
   timeoutMs?: number;

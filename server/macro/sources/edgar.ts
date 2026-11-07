@@ -138,7 +138,7 @@ export function loadEdgarTicker(ticker: string): Promise<void> {
   if (data.has(ticker) && Date.now() - (perTickerAt.get(ticker) || 0) < TTL) return Promise.resolve();
   if (inflight.has(ticker)) return inflight.get(ticker)!;
   const ua = process.env.SEC_USER_AGENT;
-  if (!ua) markNotConfigured(EDGAR_ID, 'Optional: set SEC_USER_AGENT="AppName contact@email" (SEC fair-access policy). Using a generic agent until then.');
+  if (!ua && data.size === 0) markNotConfigured(EDGAR_ID, 'Optional: set SEC_USER_AGENT="AppName contact@email" (SEC fair-access policy). Using a generic agent until then.');
   const headers = { 'User-Agent': ua || 'PrimePipFX-CommandCenter/1.0 fundamentals-module', Accept: 'application/json' };
   const p = (async () => {
     try {

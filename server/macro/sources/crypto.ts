@@ -11,7 +11,7 @@ export const CRYPTO_DERIV_ID = 'crypto_derivatives';
 export const FNG_ID = 'crypto_fng';
 export const STABLE_ID = 'stablecoins';
 export const HASH_ID = 'btc_hashrate';
-registerSource(CRYPTO_DERIV_ID, 'Perp funding & open interest (Binance → Bybit)', 'https://www.binance.com/en/futures/funding-history');
+registerSource(CRYPTO_DERIV_ID, 'Perp funding & open interest (Binance → Bybit → Hyperliquid)', 'https://www.binance.com/en/futures/funding-history');
 registerSource(FNG_ID, 'Crypto Fear & Greed Index (alternative.me)', 'https://alternative.me/crypto/fear-and-greed-index/');
 registerSource(STABLE_ID, 'Total stablecoin supply (DefiLlama)', 'https://defillama.com/stablecoins');
 registerSource(HASH_ID, 'Bitcoin hash rate (blockchain.com)', 'https://www.blockchain.com/explorer/charts/hash-rate');
@@ -64,6 +64,36 @@ async function bybitDeriv(sym: string): Promise<Omit<DerivSnapshot, 'asset' | 'a
   };
 }
 
+/**
+ * Hyperliquid public API (no key, no geo-block) — one request returns every perp's funding and
+ * open interest. Hyperliquid funding is paid HOURLY; ×8 converts it to the 8-hour convention.
+ */
+let hlCache: { at: number; map: Map<string, { funding: number | null; oi: number | null }> } | null = null;
+async function hyperliquidAll(): Promise<Map<string, { funding: number | null; oi: number | null }>> {
+  if (hlCache && Date.now() - hlCache.at < 60_000) return hlCache.map;
+  const res = await fetch('https://api.hyperliquid.xyz/info', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'metaAndAssetCtxs' }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} from api.hyperliquid.xyz`);
+  const [meta, ctxs] = (await res.json()) as [any, any[]];
+  const map = new Map<string, { funding: number | null; oi: number | null }>();
+  (meta?.universe || []).forEach((u: any, i: number) => {
+    const c = ctxs?.[i];
+    const f = toNum(c?.funding);
+    map.set(String(u?.name), { funding: f === null ? null : f * 8, oi: toNum(c?.openInterest) });
+  });
+  hlCache = { at: Date.now(), map };
+  return map;
+}
+
+async function hyperliquidDeriv(sym: string): Promise<Omit<DerivSnapshot, 'asset' | 'at'>> {
+  const m = await hyperliquidAll();
+  const x = m.get(sym.replace(/USDT$/, ''));
+  if (!x) throw new Error(`${sym} not listed on Hyperliquid`);
+  return { fundingRate: x.funding, oiNow: x.oi, oi7dAgo: null, oi30dAgo: null, via: 'Hyperliquid' };
+}
+
 export async function refreshCrypto(force = false): Promise<void> {
   if (!force && Date.now() - lastLoad < TTL) return;
   lastLoad = Date.now();
@@ -73,7 +103,7 @@ export async function refreshCrypto(force = false): Promise<void> {
   let derivErr: unknown = null;
   await mapLimit([...CRYPTO_ASSETS], 3, async (asset) => {
     const sym = `${asset}USDT`;
-    for (const fn of [binanceDeriv, bybitDeriv]) {
+    for (const fn of [binanceDeriv, bybitDeriv, hyperliquidDeriv]) {
       try {
         const r = await fn(sym);
         if (r.fundingRate !== null || r.oiNow !== null) {
@@ -104,6 +134,9 @@ export async function refreshCrypto(force = false): Promise<void> {
       .slice(-120)
       .map((r) => ({ date: new Date(Number(r.date) * 1000).toISOString().slice(0, 10), value: toNum(r?.totalCirculatingUSD?.peggedUSD) }))
       .filter((r): r is SeriesValue => r.value !== null);
+    // DefiLlama's newest point is the still-incomplete current day; never score a partial value.
+    const today = new Date().toISOString().slice(0, 10);
+    if (stables.length && stables[stables.length - 1].date >= today) stables.pop();
     markSuccess(STABLE_ID, stables.length);
   } catch (err) { markFailure(STABLE_ID, err); }
 

@@ -12,7 +12,7 @@ import { safeReadJsonFile, safeWriteJsonFile } from '../dataPath.js';
 import { CURRENCY_SPECS, COMMODITY_SPECS, CRYPTO_SPECS, INDEX_SPECS, STOCK_SPECS, buildPolicyMap } from './assets.js';
 import { CONCEPTS, CURRENCY_COUNTRY } from './concepts.js';
 import { buildCorrelation, buildPairs } from './pairs.js';
-import { METHODOLOGY_VERSION, patternsFor, scoreAsset, type EngineContext } from './scoring.js';
+import { METHODOLOGY_VERSION, eventMatches, patternsFor, scoreAsset, type EngineContext } from './scoring.js';
 import { refreshCalendar, getAllEvents, isHotWindow, calendarLoaded } from './sources/tvCalendar.js';
 import { refreshFred } from './sources/fred.js';
 import { refreshPrices } from './sources/prices.js';
@@ -48,7 +48,6 @@ if (!Array.isArray(store.releases)) store.releases = [];
 if (!store.lastScores) store.lastScores = {};
 
 let snapshot: MacroSnapshot | null = null;
-let computing: Promise<MacroSnapshot> | null = null;
 let timer: NodeJS.Timeout | null = null;
 
 const last = { fred: 0, prices: 0, cot: 0, crypto: 0, edgar: 0 };
@@ -61,20 +60,43 @@ function cotReleaseWindow(now = new Date()): boolean {
   return ny.getDay() === 5 && mins >= 15 * 60 + 30 && mins <= 18 * 60;
 }
 
-async function refreshSources(force: boolean): Promise<void> {
+/**
+ * Each source runs independently. When ANY source finishes, the snapshot is recomputed (0.2s),
+ * so one slow or failing provider can never hold back the others.
+ */
+const inflight: Record<string, Promise<void> | undefined> = {};
+
+function recompute(): void {
+  try { snapshot = computeSnapshot(); } catch (e: any) { console.warn('[Fundamentals] compute failed:', e?.message || e); }
+}
+
+function runJob(name: string, fn: () => Promise<unknown>): Promise<void> {
+  const existing = inflight[name];
+  if (existing) return existing;
+  const p = (async () => {
+    try { await fn(); } catch { /* source health already records the failure */ }
+    finally { inflight[name] = undefined; recompute(); }
+  })();
+  inflight[name] = p;
+  return p;
+}
+
+/** Launch every due source; returns { calendar, all } promises (neither ever rejects). */
+function refreshSources(force: boolean): { calendar: Promise<void>; all: Promise<void> } {
   const now = Date.now();
-  const jobs: Array<Promise<unknown>> = [];
+  const jobs: Promise<void>[] = [];
   const hot = isHotWindow(12);
-  jobs.push(refreshCalendar({ force, minLiveIntervalMs: hot ? 45_000 : 4 * 60_000 }).catch(() => undefined));
-  if (force || now - last.fred > EVERY.fred) { last.fred = now; jobs.push(refreshFred(force)); }
-  if (force || now - last.prices > EVERY.prices) { last.prices = now; jobs.push(refreshPrices(force)); }
-  if (force || now - last.cot > (cotReleaseWindow() ? 10 * 60_000 : EVERY.cot)) { last.cot = now; jobs.push(refreshCot(true)); }
-  if (force || now - last.crypto > EVERY.crypto) { last.crypto = now; jobs.push(refreshCrypto(true)); }
+  const calendar = runJob('calendar', () => refreshCalendar({ force, minLiveIntervalMs: hot ? 45_000 : 4 * 60_000 }));
+  jobs.push(calendar);
+  if (force || now - last.fred > EVERY.fred) { last.fred = now; jobs.push(runJob('fred', () => refreshFred(force))); }
+  if (force || now - last.prices > EVERY.prices) { last.prices = now; jobs.push(runJob('prices', () => refreshPrices(force))); }
+  if (force || now - last.cot > (cotReleaseWindow() ? 10 * 60_000 : EVERY.cot)) { last.cot = now; jobs.push(runJob('cot', () => refreshCot(true))); }
+  if (force || now - last.crypto > EVERY.crypto) { last.crypto = now; jobs.push(runJob('crypto', () => refreshCrypto(true))); }
   if (SERVERLESS) {
     // Company filings are large; on serverless load two companies per refresh in the background.
-    for (const t of missingTickers(2)) loadEdgarTicker(t).catch(() => undefined);
-  } else if (force || now - last.edgar > EVERY.edgar) { last.edgar = now; jobs.push(refreshEdgar(force)); }
-  await Promise.allSettled(jobs);
+    for (const t of missingTickers(2)) jobs.push(runJob(`edgar_${t}`, () => loadEdgarTicker(t)));
+  } else if (force || now - last.edgar > EVERY.edgar) { last.edgar = now; jobs.push(runJob('edgar', () => refreshEdgar(force))); }
+  return { calendar, all: Promise.all(jobs).then(() => undefined) };
 }
 
 export function computeSnapshot(now = Date.now()): MacroSnapshot {
@@ -101,7 +123,7 @@ export function computeSnapshot(now = Date.now()): MacroSnapshot {
   const allPatterns = Object.keys(CONCEPTS);
   for (const e of events) {
     if (e.actual !== null || e.timestamp < now - 5 * 60_000 || e.timestamp > now + 7 * 86_400_000) continue;
-    const matched = allPatterns.some((c) => patternsFor(c, e.country).some((p) => p.re.test(e.key)) && !(CONCEPTS[c].exclude?.test(e.key)));
+    const matched = allPatterns.some((c) => patternsFor(c, e.country).some((p) => eventMatches(e, p, CONCEPTS[c])));
     if (!matched) continue;
     tracked.push({ asset: countryToCcy[e.country] || e.country, title: e.title, scheduledAt: e.iso, forecast: e.forecast, previous: e.previous,
       importance: e.importance >= 1 ? 'HIGH' : e.importance === 0 ? 'MEDIUM' : 'LOW' });
@@ -196,35 +218,28 @@ function persist(): void {
 }
 
 export async function refreshAndCompute(force = false): Promise<MacroSnapshot> {
-  if (computing) return computing;
-  computing = (async () => {
-    try {
-      await refreshSources(force);
-      snapshot = computeSnapshot();
-      return snapshot;
-    } finally {
-      computing = null;
-    }
-  })();
-  return computing;
+  await refreshSources(force).all;
+  recompute();
+  return snapshot ?? emptySnapshot();
 }
 
-/** Returns a snapshot no older than `maxAgeMs`, refreshing within the time budget if needed. */
+/**
+ * Returns the current snapshot. If it is older than `maxAgeMs`, refreshes are launched; we wait
+ * at most for the economic calendar (the core feed) within `budgetMs` — every other source lands
+ * on the following request as soon as it completes.
+ */
 export async function getSnapshot(maxAgeMs = 60_000, budgetMs = SERVERLESS ? 8_000 : 25_000): Promise<MacroSnapshot> {
   const age = snapshot ? Date.now() - new Date(snapshot.generatedAt).getTime() : Infinity;
-  if (snapshot && age < maxAgeMs) return snapshot;
-  const run = refreshAndCompute(false);
-  run.catch(() => undefined); // never leave a rejection unhandled
-  const fallback = new Promise<MacroSnapshot>((resolve) =>
-    setTimeout(() => {
-      try { if (!snapshot) snapshot = computeSnapshot(); resolve(snapshot); } catch { resolve(emptySnapshot()); }
-    }, snapshot ? Math.min(budgetMs, 4_000) : budgetMs)
-  );
-  try {
-    return await Promise.race([run, fallback]);
-  } catch {
-    return snapshot ?? emptySnapshot();
+  if (snapshot && age < maxAgeMs) {
+    // Still fresh, but keep due sources moving in the background (cheap: runJob de-duplicates).
+    refreshSources(false);
+    return snapshot;
   }
+  const { calendar } = refreshSources(false);
+  const wait = snapshot ? Math.min(budgetMs, 3_000) : budgetMs;
+  await Promise.race([calendar, new Promise((r) => setTimeout(r, wait))]);
+  recompute();
+  return snapshot ?? emptySnapshot();
 }
 
 /** Make sure one stock's filings are loaded (on-demand on serverless), then return a fresh snapshot. */
@@ -263,8 +278,8 @@ export function unmatchedCalendarTitles(): Record<string, string[]> {
   const concepts = Object.keys(CONCEPTS);
   for (const e of getAllEvents()) {
     if (e.actual === null) continue;
-    const hit = concepts.some((c) => patternsFor(c, e.country).some((p) => p.re.test(e.key)) && !(CONCEPTS[c].exclude?.test(e.key)));
-    if (!hit) (out[e.country] ||= new Set()).add(e.indicator);
+    const hit = concepts.some((c) => patternsFor(c, e.country).some((p) => eventMatches(e, p, CONCEPTS[c])));
+    if (!hit) (out[e.country] ||= new Set()).add(e.title);
   }
   return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, Array.from(v).sort()]));
 }

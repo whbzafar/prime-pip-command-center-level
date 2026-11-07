@@ -132,6 +132,12 @@ export function patternsFor(concept: string, country: string): Pattern[] {
 
 export interface Match { event: TvEvent; pattern: Pattern }
 
+/** An event matches when its title (or, secondarily, its indicator code) fits the pattern and neither is excluded. */
+export function eventMatches(e: TvEvent, pattern: Pattern, def: ConceptDef): boolean {
+  const ok = (k: string) => !!k && pattern.re.test(k) && !(def.exclude && def.exclude.test(k));
+  return ok(e.key) || ok(e.indicatorKey || '');
+}
+
 /** Most recent RELEASED print for a concept in a country (first pattern with any data wins). */
 export function findLatest(events: TvEvent[], concept: string, country: string, now: number): Match | null {
   const def = CONCEPTS[concept];
@@ -140,8 +146,7 @@ export function findLatest(events: TvEvent[], concept: string, country: string, 
     let best: TvEvent | null = null;
     for (const e of events) {
       if (e.country !== country || e.actual === null || e.timestamp > now + 60_000) continue;
-      if (!pattern.re.test(e.key)) continue;
-      if (def.exclude && def.exclude.test(e.key)) continue;
+      if (!eventMatches(e, pattern, def)) continue;
       if (!best || e.timestamp > best.timestamp) best = e;
     }
     if (best) return { event: best, pattern };
@@ -157,7 +162,7 @@ export function findNext(events: TvEvent[], concept: string, country: string, no
   for (const pattern of patternsFor(concept, country)) {
     for (const e of events) {
       if (e.country !== country || e.timestamp < now - 5 * 60_000 || e.actual !== null) continue;
-      if (!pattern.re.test(e.key) || (def.exclude && def.exclude.test(e.key))) continue;
+      if (!eventMatches(e, pattern, def)) continue;
       if (!best || e.timestamp < best.timestamp) best = e;
     }
     if (best) return best;

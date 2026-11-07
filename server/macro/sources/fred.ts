@@ -60,16 +60,16 @@ async function fetchSeries(id: string, startIso: string): Promise<SeriesPoint[]>
   const key = process.env.FRED_API_KEY;
   if (key) {
     const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${key}&file_type=json&observation_start=${startIso}`;
-    const json = await fetchJson<any>(url, { timeoutMs: 15_000 });
+    const json = await fetchJson<any>(url, { timeoutMs: 12_000, retries: 1 });
     return (json?.observations || [])
       .map((o: any) => ({ date: String(o.date), value: toNum(o.value) }))
       .filter((p: any): p is SeriesPoint => p.value !== null);
   }
   const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}&cosd=${startIso}`;
-  return parseFredCsv(await fetchText(url, { timeoutMs: 20_000 }));
+  return parseFredCsv(await fetchText(url, { timeoutMs: 12_000, retries: 1 }));
 }
 
-export async function getFredSeries(id: FredId, years = 3): Promise<SeriesPoint[]> {
+export async function getFredSeries(id: FredId, years = 1.6): Promise<SeriesPoint[]> {
   const hit = cache.get(id);
   if (hit && Date.now() - hit.at < TTL) return hit.points;
   const start = new Date(Date.now() - years * 365.25 * 86_400_000).toISOString().slice(0, 10);
@@ -85,7 +85,7 @@ export async function refreshFred(force = false): Promise<Record<string, SeriesP
   const out: Record<string, SeriesPoint[]> = {};
   let ok = 0;
   let lastErr: unknown = null;
-  await mapLimit(ids, 4, async (id) => {
+  await mapLimit(ids, 6, async (id) => {
     try {
       out[id] = await getFredSeries(id);
       if (out[id].length) ok++;

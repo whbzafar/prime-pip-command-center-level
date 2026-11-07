@@ -72,6 +72,56 @@ describe('Indicator matching', () => {
   });
 });
 
+describe('Real TradingView titles (captured from the live feed, Nov 2026)', () => {
+  const real = (country: string, title: string, indicator: string, a: number, f: number | null, p: number | null, d = 5) =>
+    parseTvEvent({ id: `${country}${title}${indicator}`, title, indicator, country, date: iso(d), actual: a, forecast: f, previous: p })!;
+  const events = [
+    real('US', 'Interest Rate', 'FOMC Decision Fed Funds Tgt Rate', 4, null, 3.75),
+    real('US', 'Interest Rate Projection - Current', 'FFR Projection-Current', 4.1, null, 3.8),
+    real('US', 'Interest Rate on Reserve Balances', 'Fed Int On Excess Reserves', 3.9, null, 3.65),
+    real('US', 'Non Farm Payrolls', 'Non-Farm Payrolls', 60, 90, 186),
+    real('US', 'Nonfarm Payrolls Private', 'Private Payrolls', 78, 85, 142),
+    real('US', 'Inflation Rate YoY', 'CPI YY, NSA', 3.7, 3.6, 3.4),
+    real('US', 'ISM Services PMI', 'ISM N-Mfg PMI', 54.9, 55.2, 55.4),
+    real('US', 'Michigan Consumer Sentiment Prel', 'U Mich Sentiment Prelim', 46.3, 47.8, 47.8),
+    real('US', 'GDP Growth Rate QoQ Final', 'GDP Final', 2.2, 1.5, 2.1),
+    real('EU', 'Inflation Rate YoY Flash', 'HICP Flash YY *', 3.8, 3.6, 3.3),
+    real('EU', 'Deposit Facility Rate', 'ECB Deposit Rate *', 2.5, 2.5, 2.25),
+    real('EU', 'ECB Interest Rate Decision', 'ECB Refinancing Rate *', 2.65, 2.65, 2.4),
+    real('GB', 'Consumer Confidence Index', 'GfK/NIM Consumer Confidence', -13, -16, -14),
+    real('CA', 'Ivey PMI s.a', 'Ivey PMI SA', 58.2, null, 64.3),
+    real('CA', 'Monthly GDP MoM', 'GDP MM', 0, 0, 0.4),
+    real('AU', 'RBA Trimmed Mean CPI YoY', 'Trimmed Mean CPI YY SA *', 3.5, 3.6, 3.6),
+    real('JP', 'Interest Rate', 'JP BOJ Rate Decision*', 1.25, null, 1),
+    real('NZ', 'Westpac Consumer Confidence', 'Westpac Consumer Survey*', 89.5, null, 80.4),
+  ];
+  const t = (concept: string, c: string) => findLatest(events, concept, c, NOW)?.event.title;
+  it('maps every central bank decision title and ignores projections / IORB', () => {
+    expect(t('policy_rate', 'US')).toBe('Interest Rate');
+    expect(t('policy_rate', 'JP')).toBe('Interest Rate');
+    expect(t('policy_rate', 'EU')).toBe('Deposit Facility Rate');
+  });
+  it('maps headline data and keeps EU HICP as headline inflation', () => {
+    expect(t('nfp', 'US')).toBe('Non Farm Payrolls');
+    expect(t('cpi_yoy', 'US')).toBe('Inflation Rate YoY');
+    expect(t('cpi_yoy', 'EU')).toBe('Inflation Rate YoY Flash');
+    expect(t('services_pmi', 'US')).toBe('ISM Services PMI');
+    expect(t('consumer_conf', 'US')).toBe('Michigan Consumer Sentiment Prel');
+    expect(t('gdp', 'US')).toBe('GDP Growth Rate QoQ Final');
+  });
+  it('maps country-specific titles', () => {
+    expect(t('consumer_conf', 'GB')).toBe('Consumer Confidence Index');
+    expect(t('business_conf', 'CA')).toBe('Ivey PMI s.a');
+    expect(t('gdp_mom', 'CA')).toBe('Monthly GDP MoM');
+    expect(t('core_cpi_yoy', 'AU')).toBe('RBA Trimmed Mean CPI YoY');
+    expect(t('consumer_conf', 'NZ')).toBe('Westpac Consumer Confidence');
+  });
+  it('infers % units from titles when the feed has no unit field', () => {
+    expect(events.find((e) => e.title === 'Inflation Rate YoY')!.unit).toBe('%');
+    expect(events.find((e) => e.title === 'ISM Services PMI')!.unit).toBe('');
+  });
+});
+
 describe('Indicator scoring', () => {
   const spec = (concept: string, polarity: 1 | -1, extra: Partial<CalSpec> = {}): CalSpec =>
     ({ kind: 'cal', id: concept, concept, country: 'US', polarity, weight: 1, polarityNote: 'test', ...extra });

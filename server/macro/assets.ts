@@ -396,7 +396,7 @@ function cryptoSpec(asset: string, name: string): AssetSpec {
           return {
             observation: { actual: last.value, forecast: null, previous: prev.value, releasedAt: new Date(last.date).toISOString(), unit: 'USD',
               sourceTitle: 'Total stablecoins circulating', sourceName: 'DefiLlama', sourceUrl: 'https://defillama.com/stablecoins', extra: { change30dPct: r2(pct) } },
-            components: [{ key: 'trend', label: '30-day change', value: squash(pct / 1.5), weight: 1, detail: `${pct >= 0 ? '+' : ''}${r2(pct)}% in 30 days` }],
+            components: [{ key: 'trend', label: '30-day change', value: squash(pct / 3), weight: 1, detail: `${pct >= 0 ? '+' : ''}${r2(pct)}% in 30 days` }],
             reasoning: `Stablecoin supply $${(last.value / 1e9).toFixed(1)}B, ${pct >= 0 ? '+' : ''}${r2(pct)}% over 30 days.`,
             ageDays: ageOf(last.date, ctx.now), intervalDays: 2,
           };
@@ -415,7 +415,7 @@ function cryptoSpec(asset: string, name: string): AssetSpec {
           const oiChg = d.oiNow && d.oi7dAgo ? ((d.oiNow - d.oi7dAgo) / d.oi7dAgo) * 100 : null;
           return {
             observation: { actual: r2(f * 100 * 1000) / 1000, forecast: null, previous: null, releasedAt: d.at, unit: '% / 8h', sourceTitle: `${asset}USDT perpetual`,
-              sourceName: d.via, sourceUrl: d.via === 'Bybit' ? 'https://www.bybit.com/en/announcement-info/fund-rate/' : 'https://www.binance.com/en/futures/funding-history',
+              sourceName: d.via, sourceUrl: d.via === 'Bybit' ? 'https://www.bybit.com/en/announcement-info/fund-rate/' : d.via === 'Hyperliquid' ? 'https://app.hyperliquid.xyz/fundingComparison' : 'https://www.binance.com/en/futures/funding-history',
               extra: { openInterest7dChangePct: oiChg === null ? null : r2(oiChg) } },
             components: [{ key: 'positioning', label: 'Funding vs neutral', value: -squash((f - 0.0001) / 0.00025), weight: 1, detail: `${(f * 100).toFixed(4)}% per 8h (neutral 0.0100%)` }],
             reasoning: `Funding ${(f * 100).toFixed(4)}%/8h on ${d.via}${oiChg !== null ? `; open interest ${oiChg >= 0 ? '+' : ''}${r2(oiChg)}% in 7 days` : ''}.`,
