@@ -44,7 +44,6 @@ import { formatCurrency } from '../utils/currencyFormatter';
 import { getKarachiEpoch } from '../utils/time';
 import { calculateNextTradeReadiness } from '../utils/readinessEngine';
 import { evaluateFundedAccountRisk, isFundedAccount } from '../utils/fundedRiskEngine';
-import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
 import { FundamentalNotificationBanner } from './fundamental/FundamentalNotificationBanner';
 import { TradeApprovalModal } from './TradeApprovalModal';
 import { PersonalizedAccountDashboard } from './account/PersonalizedAccountDashboard';
@@ -358,23 +357,9 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
             </button>
           )}
 
-          {(currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' || currentUser?.isDeveloper) && onOpenEvolution && (
-            <button
-              id="dash-evolution-engine-developer-btn"
-              onClick={onOpenEvolution}
-              title="Open Autonomous Evolution Engine"
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-300 text-xs font-mono-code transition cursor-pointer"
-            >
-              <Zap className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="font-military font-bold">EVOLUTION ENGINE</span>
-            </button>
-          )}
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Evolution Engine Status Badge */}
-          <EvolutionStatusBadge onOpenEvolution={onOpenEvolution} />
-
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] font-mono-code text-slate-400">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="hidden sm:inline">CENTRAL TRADING PROTOCOL ACTIVE</span>

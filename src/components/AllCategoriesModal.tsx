@@ -316,16 +316,6 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
     section: 'Tools & Systems',
     icon: ShieldCheck,
   },
-  {
-    id: 'EVOLUTION',
-    num: '24',
-    label: 'Evaluation Engine',
-    name: 'Evolution Command Center',
-    desc: 'Comprehensive trader progression matrix, discipline scores, and skill-tree evaluation telemetry.',
-    section: 'Mindset & Health',
-    icon: Cpu,
-    highlight: true,
-  },
 ];
 
 interface AllCategoriesModalProps {

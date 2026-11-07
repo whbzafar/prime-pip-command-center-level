@@ -576,326 +576,334 @@ export const FundamentalCalendar: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#070b12] text-slate-100 pb-16">
-      {/* TOP COMMAND HEADER: Forex Factory Layout + TradingView Live Data Engine + PKT Clock */}
-      <div className="border-b border-slate-800/90 bg-gradient-to-b from-[#0d1421] to-[#090e17] sticky top-0 z-30 shadow-2xl">
-        <div className="max-w-[1440px] mx-auto px-3 sm:px-6 py-3">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            {/* Left Brand & Live Status */}
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/25 via-orange-500/20 to-amber-500/25 border border-red-500/40 flex items-center justify-center shrink-0 shadow-inner">
-                <ForexFactoryFolderIcon importance="HIGH" isOpen={true} size={22} />
+      {/* COMPACT TOP HEADER: Clean, responsive, and shifts up on scroll so it never traps the table */}
+      <div className="border-b border-slate-800/90 bg-gradient-to-b from-[#0d1421] to-[#090e17] shadow-lg">
+        <div className="max-w-[1440px] mx-auto px-3 sm:px-6 py-2.5">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
+            {/* Left: Brand & Live Badges */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600/25 via-orange-500/20 to-amber-500/25 border border-red-500/40 flex items-center justify-center shrink-0">
+                <ForexFactoryFolderIcon importance="HIGH" isOpen={true} size={18} />
               </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-white uppercase">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-sm sm:text-base font-extrabold tracking-tight text-white uppercase truncate">
                     Live News Calendar
                   </h1>
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/40 text-[10px] font-bold text-emerald-300 tracking-wider uppercase">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/40 text-[9px] font-bold text-emerald-300 uppercase tracking-wider">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    100% Live TradingView Data
+                    Live TradingView
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/35 text-[10px] font-bold text-amber-300 tracking-wider uppercase">
-                    Forex Factory Interface
+                  <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/35 text-[9px] font-bold text-amber-300 uppercase">
+                    Forex Factory
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Click any color-coded impact folder to inspect topic, official source, potential market impact, and Previous / Forecast / Actual figures.
-                </p>
               </div>
             </div>
 
-            {/* Right Live Pakistan Standard Time (PKT) Clock & Sync Controls */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              {/* Live PKT Clock Box */}
-              <div className="flex items-center gap-2.5 bg-[#05080f] border border-cyan-500/35 rounded-lg px-3 py-1.5 shadow-inner">
-                <Clock className="w-4 h-4 text-cyan-400 shrink-0" />
-                <div className="leading-tight">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs sm:text-sm font-mono font-bold text-white tracking-wider">
-                      {pktNow.pktTimeString}
-                    </span>
-                    <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                      PKT (UTC+5)
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-slate-400 font-medium">
-                    Pakistan Standard Time • {pktNow.pktFullDateString}
-                  </div>
-                </div>
+            {/* Right: PKT Clock + Up Next + Sync Button */}
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
+              {/* PKT Clock */}
+              <div className="flex items-center gap-1.5 bg-[#05080f] border border-cyan-500/35 rounded-lg px-2.5 py-1 text-xs">
+                <Clock className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <span className="font-mono font-bold text-white tracking-wider">
+                  {pktNow.pktTimeString}
+                </span>
+                <span className="text-[9px] font-extrabold px-1 rounded bg-cyan-500/20 text-cyan-300">
+                  PKT (UTC+5)
+                </span>
               </div>
 
-              {/* Jump to Up Next Button */}
+              {/* Up Next Quick Jump */}
               {nextUpcomingEvent && (
                 <button
+                  type="button"
                   onClick={scrollToUpNext}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold transition cursor-pointer"
-                  title="Scroll to next upcoming economic release"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold transition cursor-pointer"
+                  title="Scroll to next upcoming release"
                 >
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Up Next: {nextUpcomingEvent.currency}</span>
+                  <Zap className="w-3 h-3 text-amber-400" />
+                  <span>Next: {nextUpcomingEvent.currency}</span>
                 </button>
               )}
 
-              {/* Live Refresh Button */}
+              {/* Sync Live Button */}
               <button
+                type="button"
                 onClick={handleManualSync}
                 disabled={isSyncing || isLoading}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
-                title="Refresh live data directly from TradingView Economic Calendar"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+                title="Refresh calendar directly from TradingView"
               >
                 <RefreshCw
-                  className={`w-3.5 h-3.5 text-emerald-400 ${
-                    isSyncing || isLoading ? 'animate-spin' : ''
-                  }`}
+                  className={`w-3 h-3 text-emerald-400 ${isSyncing || isLoading ? 'animate-spin' : ''}`}
                 />
-                <span>{isSyncing ? 'Syncing Live...' : 'Sync Live'}</span>
+                <span>{isSyncing ? 'Syncing...' : 'Sync'}</span>
               </button>
             </div>
           </div>
 
-          {/* SECTION TABS: Economic Calendar vs COT Report */}
-          <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center gap-2">
-            <button
-              onClick={() => setActiveCalendarTab('CALENDAR')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-mono-code font-bold transition flex items-center gap-2 cursor-pointer ${
-                activeCalendarTab === 'CALENDAR'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow'
-                  : 'text-slate-400 hover:text-white bg-slate-900/50 border border-slate-800'
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              <span>Economic Calendar</span>
-            </button>
-            <button
-              onClick={() => setActiveCalendarTab('SENTIMENT')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-mono-code font-bold transition flex items-center gap-2 cursor-pointer ${
-                activeCalendarTab === 'SENTIMENT'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow'
-                  : 'text-slate-400 hover:text-white bg-slate-900/50 border border-slate-800'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Sentiment</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                Retail
-              </span>
-            </button>
-          </div>
-
-          {activeCalendarTab === 'CALENDAR' && (
-            <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-2.5">
-            {/* Period & Week Navigation */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <div className="inline-flex items-center bg-[#060a10] border border-slate-800 rounded-lg p-0.5">
-                <button
-                  onClick={() => {
-                    setPeriodPreset('TODAY');
-                    setWeekOffset(0);
-                  }}
-                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
-                    periodPreset === 'TODAY'
-                      ? 'bg-cyan-600 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Today (PKT)
-                </button>
-                <button
-                  onClick={() => {
-                    setPeriodPreset('THIS_WEEK');
-                    setWeekOffset(0);
-                  }}
-                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
-                    periodPreset === 'THIS_WEEK'
-                      ? 'bg-cyan-600 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  This Week
-                </button>
-                <button
-                  onClick={() => {
-                    setPeriodPreset('NEXT_WEEK');
-                    setWeekOffset(1);
-                  }}
-                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
-                    periodPreset === 'NEXT_WEEK'
-                      ? 'bg-cyan-600 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Next Week
-                </button>
-                <button
-                  onClick={() => setPeriodPreset('THIS_MONTH')}
-                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
-                    periodPreset === 'THIS_MONTH'
-                      ? 'bg-cyan-600 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Month View
-                </button>
-              </div>
-
-              {/* Prev / Next Week Stepper */}
-              {periodPreset !== 'THIS_MONTH' ? (
-                <div className="inline-flex items-center gap-1 bg-[#060a10] border border-slate-800 rounded-lg px-2 py-1">
-                  <button
-                    onClick={() => {
-                      const nextOff =
-                        periodPreset === 'NEXT_WEEK' ? 0 : weekOffset - 1;
-                      setPeriodPreset('CUSTOM_WEEK');
-                      setWeekOffset(nextOff);
-                    }}
-                    className="p-0.5 rounded hover:bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
-                    title="Previous Week"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span className="text-xs font-mono font-semibold text-slate-200 px-1.5">
-                    {activeWeekBounds.label}
-                  </span>
-                  <button
-                    onClick={() => {
-                      const nextOff =
-                        periodPreset === 'NEXT_WEEK' ? 2 : weekOffset + 1;
-                      setPeriodPreset('CUSTOM_WEEK');
-                      setWeekOffset(nextOff);
-                    }}
-                    className="p-0.5 rounded hover:bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
-                    title="Next Week"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-1.5 bg-[#060a10] border border-slate-800 rounded-lg px-2 py-1">
-                  <select
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                    className="bg-transparent text-xs font-bold text-slate-200 focus:outline-none cursor-pointer"
-                  >
-                    {[
-                      'January',
-                      'February',
-                      'March',
-                      'April',
-                      'May',
-                      'June',
-                      'July',
-                      'August',
-                      'September',
-                      'October',
-                      'November',
-                      'December',
-                    ].map((mName, idx) => (
-                      <option key={mName} value={idx + 1} className="bg-slate-900 text-white">
-                        {mName}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(Number(e.target.value))}
-                    className="bg-transparent text-xs font-bold text-cyan-400 focus:outline-none cursor-pointer"
-                  >
-                    {[2025, 2026, 2027].map((yr) => (
-                      <option key={yr} value={yr} className="bg-slate-900 text-white">
-                        {yr}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* FOREX FACTORY FOLDER IMPACT LEGEND & TOGGLES */}
-              <div className="inline-flex items-center gap-1.5 bg-[#060a10] border border-slate-800 rounded-lg px-2.5 py-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1">
-                  Folders:
+          {/* SECTION TABS: Economic Calendar vs Retail Sentiment */}
+          <div className="mt-2 pt-2 border-t border-slate-800/70 flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setActiveCalendarTab('CALENDAR')}
+                className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  activeCalendarTab === 'CALENDAR'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow'
+                    : 'text-slate-400 hover:text-white bg-slate-900/50 border border-slate-800'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Economic Calendar ({counts.total})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveCalendarTab('SENTIMENT')}
+                className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  activeCalendarTab === 'SENTIMENT'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow'
+                    : 'text-slate-400 hover:text-white bg-slate-900/50 border border-slate-800'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Sentiment</span>
+                <span className="text-[9px] px-1 rounded bg-cyan-500/20 text-cyan-300">
+                  Retail
                 </span>
-                <button
-                  onClick={() => toggleImpactFilter('HIGH')}
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold transition cursor-pointer border ${
-                    impactFilters.HIGH
-                      ? 'bg-red-500/15 border-red-500/50 text-red-200'
-                      : 'bg-slate-900/50 border-slate-800 text-slate-500 opacity-50'
-                  }`}
-                  title="Toggle High Impact Red Folders"
-                >
-                  <ForexFactoryFolderIcon importance="HIGH" size={14} />
-                  <span>High ({counts.high})</span>
-                </button>
-                <button
-                  onClick={() => toggleImpactFilter('MEDIUM')}
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold transition cursor-pointer border ${
-                    impactFilters.MEDIUM
-                      ? 'bg-orange-500/15 border-orange-500/50 text-orange-200'
-                      : 'bg-slate-900/50 border-slate-800 text-slate-500 opacity-50'
-                  }`}
-                  title="Toggle Medium Impact Orange Folders"
-                >
-                  <ForexFactoryFolderIcon importance="MEDIUM" size={14} />
-                  <span>Medium ({counts.medium})</span>
-                </button>
-                <button
-                  onClick={() => toggleImpactFilter('LOW')}
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold transition cursor-pointer border ${
-                    impactFilters.LOW
-                      ? 'bg-yellow-500/15 border-yellow-500/50 text-yellow-200'
-                      : 'bg-slate-900/50 border-slate-800 text-slate-500 opacity-50'
-                  }`}
-                  title="Toggle Low Impact Yellow Folders"
-                >
-                  <ForexFactoryFolderIcon importance="LOW" size={14} />
-                  <span>Low ({counts.low})</span>
-                </button>
-              </div>
+              </button>
             </div>
 
-            {/* Right: Currency Pills + Search + Expand All Folders */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Currency Selector */}
-              <div className="inline-flex items-center gap-1 bg-[#060a10] border border-slate-800 rounded-lg p-0.5 overflow-x-auto max-w-full">
-                {MAJOR_CURRENCIES.map((cur) => (
+            {/* Quick Live Telemetry Strip */}
+            {activeCalendarTab === 'CALENDAR' && (
+              <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono">
+                {nextUpcomingEvent && (
+                  <span className="hidden lg:inline">
+                    Next: <strong className="text-cyan-300">{nextUpcomingEvent.currency} {nextUpcomingEvent.eventName}</strong> ({formatCountdown(nextUpcomingEvent.utcTimestamp - nowMs)})
+                  </span>
+                )}
+                {highImpactUpcoming && (
+                  <span className="hidden sm:inline text-red-300">
+                    Red Folder: <strong className="text-red-400 font-bold">{highImpactUpcoming.currency}</strong> in {formatCountdown(highImpactUpcoming.utcTimestamp - nowMs)}
+                  </span>
+                )}
+                <label className="inline-flex items-center gap-1 text-[11px] text-slate-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={onlyWithActual}
+                    onChange={(e) => setOnlyWithActual(e.target.checked)}
+                    className="rounded border-slate-700 text-cyan-500 focus:ring-0 w-3 h-3"
+                  />
+                  <span>Actuals Only</span>
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* DENSE FILTER TOOLBAR (Period, Week bounds, Folders, Currency, Search) */}
+          {activeCalendarTab === 'CALENDAR' && (
+            <div className="mt-2 pt-2 border-t border-slate-800/70 flex flex-wrap items-center justify-between gap-2 text-xs">
+              {/* Left Cluster: Period & Week Stepper & Folder filters */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {/* Period Presets */}
+                <div className="inline-flex items-center bg-[#060a10] border border-slate-800 rounded-lg p-0.5">
                   <button
-                    key={cur}
-                    onClick={() => setSelectedCurrency(cur)}
-                    className={`px-2 py-1 rounded text-[11px] font-bold transition cursor-pointer flex items-center gap-1 ${
-                      selectedCurrency === cur
-                        ? 'bg-slate-700 text-white shadow'
-                        : 'text-slate-400 hover:text-slate-200'
+                    type="button"
+                    onClick={() => {
+                      setPeriodPreset('TODAY');
+                      setWeekOffset(0);
+                    }}
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold transition cursor-pointer ${
+                      periodPreset === 'TODAY' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    {cur !== 'ALL' && <span>{CURRENCY_FLAGS[cur] || '🌐'}</span>}
-                    <span>{cur}</span>
+                    Today
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPeriodPreset('THIS_WEEK');
+                      setWeekOffset(0);
+                    }}
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold transition cursor-pointer ${
+                      periodPreset === 'THIS_WEEK' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    This Week
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPeriodPreset('NEXT_WEEK');
+                      setWeekOffset(1);
+                    }}
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold transition cursor-pointer ${
+                      periodPreset === 'NEXT_WEEK' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Next Week
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPeriodPreset('THIS_MONTH')}
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold transition cursor-pointer ${
+                      periodPreset === 'THIS_MONTH' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Month
+                  </button>
+                </div>
+
+                {/* Week Stepper */}
+                {periodPreset !== 'THIS_MONTH' ? (
+                  <div className="inline-flex items-center gap-1 bg-[#060a10] border border-slate-800 rounded-lg px-1.5 py-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextOff = periodPreset === 'NEXT_WEEK' ? 0 : weekOffset - 1;
+                        setPeriodPreset('CUSTOM_WEEK');
+                        setWeekOffset(nextOff);
+                      }}
+                      className="p-0.5 rounded hover:bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                      title="Previous Week"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-[11px] font-mono font-semibold text-slate-200 px-1">
+                      {activeWeekBounds.label}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextOff = periodPreset === 'NEXT_WEEK' ? 2 : weekOffset + 1;
+                        setPeriodPreset('CUSTOM_WEEK');
+                        setWeekOffset(nextOff);
+                      }}
+                      className="p-0.5 rounded hover:bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                      title="Next Week"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-1 bg-[#060a10] border border-slate-800 rounded-lg px-2 py-0.5">
+                    <select
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                      className="bg-transparent text-[11px] font-bold text-slate-200 focus:outline-none cursor-pointer"
+                    >
+                      {[
+                        'January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December',
+                      ].map((mName, idx) => (
+                        <option key={mName} value={idx + 1} className="bg-slate-900 text-white">
+                          {mName}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(Number(e.target.value))}
+                      className="bg-transparent text-[11px] font-bold text-cyan-400 focus:outline-none cursor-pointer"
+                    >
+                      {[2025, 2026, 2027].map((yr) => (
+                        <option key={yr} value={yr} className="bg-slate-900 text-white">
+                          {yr}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Impact Folder Filters */}
+                <div className="inline-flex items-center gap-1 bg-[#060a10] border border-slate-800 rounded-lg px-1.5 py-0.5">
+                  <button
+                    type="button"
+                    onClick={() => toggleImpactFilter('HIGH')}
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold transition cursor-pointer border ${
+                      impactFilters.HIGH
+                        ? 'bg-red-500/20 border-red-500/60 text-red-200'
+                        : 'bg-slate-900/40 border-slate-800 text-slate-500 opacity-50'
+                    }`}
+                    title="Toggle High Impact Red Folders"
+                  >
+                    <ForexFactoryFolderIcon importance="HIGH" size={12} />
+                    <span>High ({counts.high})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleImpactFilter('MEDIUM')}
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold transition cursor-pointer border ${
+                      impactFilters.MEDIUM
+                        ? 'bg-orange-500/20 border-orange-500/60 text-orange-200'
+                        : 'bg-slate-900/40 border-slate-800 text-slate-500 opacity-50'
+                    }`}
+                    title="Toggle Medium Impact Orange Folders"
+                  >
+                    <ForexFactoryFolderIcon importance="MEDIUM" size={12} />
+                    <span>Med ({counts.medium})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleImpactFilter('LOW')}
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold transition cursor-pointer border ${
+                      impactFilters.LOW
+                        ? 'bg-yellow-500/20 border-yellow-500/60 text-yellow-200'
+                        : 'bg-slate-900/40 border-slate-800 text-slate-500 opacity-50'
+                    }`}
+                    title="Toggle Low Impact Yellow Folders"
+                  >
+                    <ForexFactoryFolderIcon importance="LOW" size={12} />
+                    <span>Low ({counts.low})</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Search input */}
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search news, CPI, NFP, Fed..."
-                  className="bg-[#060a10] border border-slate-800 focus:border-cyan-500/60 rounded-lg pl-8 pr-3 py-1 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none w-44 sm:w-52"
-                />
-              </div>
+              {/* Right Cluster: Currencies + Search + Expand All Folders */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {/* Currency Buttons (Compact) */}
+                <div className="inline-flex items-center gap-0.5 bg-[#060a10] border border-slate-800 rounded-lg p-0.5 overflow-x-auto max-w-full">
+                  {MAJOR_CURRENCIES.map((cur) => (
+                    <button
+                      key={cur}
+                      type="button"
+                      onClick={() => setSelectedCurrency(cur)}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition cursor-pointer ${
+                        selectedCurrency === cur
+                          ? 'bg-slate-700 text-white shadow'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {cur}
+                    </button>
+                  ))}
+                </div>
 
-              {/* Expand / Collapse All Folders */}
-              <button
-                onClick={handleToggleExpandAll}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#060a10] hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-300 transition cursor-pointer"
-                title="Expand or Collapse all news folder details"
-              >
-                <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
-                <span>{allExpanded ? 'Collapse Folders' : 'Expand All Folders'}</span>
-              </button>
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search CPI, NFP..."
+                    className="bg-[#060a10] border border-slate-800 focus:border-cyan-500/60 rounded-lg pl-6 pr-2 py-0.5 text-[11px] text-slate-100 placeholder:text-slate-500 focus:outline-none w-32 sm:w-40"
+                  />
+                </div>
+
+                {/* Expand All Folders Toggle */}
+                <button
+                  type="button"
+                  onClick={handleToggleExpandAll}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#060a10] hover:bg-slate-800 border border-slate-800 text-[11px] font-semibold text-slate-300 transition cursor-pointer"
+                  title="Expand / Collapse news details"
+                >
+                  <FolderOpen className="w-3 h-3 text-amber-400" />
+                  <span>{allExpanded ? 'Collapse' : 'Expand All'}</span>
+                </button>
+              </div>
             </div>
-          </div>
           )}
         </div>
       </div>
@@ -903,123 +911,7 @@ export const FundamentalCalendar: React.FC = () => {
       {activeCalendarTab === 'SENTIMENT' ? (
         <RetailSentimentView />
       ) : (
-        <>
-          {/* HIGH-IMPACT LIVE RADAR BANNER */}
-          <div className="max-w-[1440px] mx-auto px-3 sm:px-6 mt-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-          {/* Card 1: Next Immediate Release Countdown */}
-          <div className="bg-[#0c121e] border border-slate-800/90 rounded-xl p-3.5 flex items-center justify-between">
-            <div className="min-w-0 pr-2">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-cyan-400">
-                <Activity className="w-3.5 h-3.5" />
-                <span>Next Scheduled Release (PKT)</span>
-              </div>
-              {nextUpcomingEvent ? (
-                <>
-                  <div className="mt-1 flex items-center gap-2">
-                    <ForexFactoryFolderIcon importance={nextUpcomingEvent.importance} size={16} />
-                    <span className="font-bold text-xs px-1.5 py-0.5 rounded bg-slate-800 text-white">
-                      {CURRENCY_FLAGS[nextUpcomingEvent.currency] || ''}{' '}
-                      {nextUpcomingEvent.currency}
-                    </span>
-                    <span className="text-sm font-bold text-white truncate">
-                      {nextUpcomingEvent.eventName}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-slate-400 mt-1 font-mono">
-                    {nextUpcomingEvent.datePkt} • {nextUpcomingEvent.timeShortPkt || nextUpcomingEvent.timePkt} PKT
-                  </div>
-                </>
-              ) : (
-                <div className="text-xs text-slate-400 mt-1">
-                  All events in current filter window have been released.
-                </div>
-              )}
-            </div>
-            {nextUpcomingEvent && (
-              <div className="text-right shrink-0 bg-[#070b12] border border-cyan-500/30 rounded-lg px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
-                  Countdown
-                </div>
-                <div className="text-sm font-mono font-extrabold text-cyan-300">
-                  {formatCountdown(nextUpcomingEvent.utcTimestamp - nowMs)}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Card 2: Next High Impact Red Folder Alert */}
-          <div className="bg-[#0c121e] border border-red-500/30 rounded-xl p-3.5 flex items-center justify-between">
-            <div className="min-w-0 pr-2">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-red-400">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                <span>Next High-Impact Red Folder</span>
-              </div>
-              {highImpactUpcoming ? (
-                <>
-                  <div className="mt-1 flex items-center gap-2">
-                    <ForexFactoryFolderIcon importance="HIGH" size={16} />
-                    <span className="font-bold text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-200 border border-red-500/30">
-                      {CURRENCY_FLAGS[highImpactUpcoming.currency] || ''}{' '}
-                      {highImpactUpcoming.currency}
-                    </span>
-                    <span className="text-sm font-bold text-white truncate">
-                      {highImpactUpcoming.eventName}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-slate-400 mt-1 font-mono">
-                    {highImpactUpcoming.datePkt} • {highImpactUpcoming.timeShortPkt || highImpactUpcoming.timePkt} PKT
-                  </div>
-                </>
-              ) : (
-                <div className="text-xs text-slate-400 mt-1">
-                  No pending high-impact red folders in this window.
-                </div>
-              )}
-            </div>
-            {highImpactUpcoming && (
-              <div className="text-right shrink-0 bg-[#070b12] border border-red-500/35 rounded-lg px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wider text-red-300/80 font-semibold">
-                  Red Folder In
-                </div>
-                <div className="text-sm font-mono font-extrabold text-red-400">
-                  {formatCountdown(highImpactUpcoming.utcTimestamp - nowMs)}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Card 3: Live Feed Telemetry */}
-          <div className="bg-[#0c121e] border border-slate-800/90 rounded-xl p-3.5 flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                <Globe className="w-3.5 h-3.5" />
-                <span>Data Provider & Timezone Standard</span>
-              </div>
-              <div className="text-sm font-bold text-white mt-1">
-                TradingView Live Economic Feed
-              </div>
-              <div className="text-[11px] text-slate-400 mt-1">
-                Showing <span className="text-white font-semibold">{counts.total}</span> events (
-                <span className="text-emerald-400 font-semibold">{counts.released}</span> actuals printed)
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-1.5">
-              <label className="inline-flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer select-none bg-[#070b12] border border-slate-800 px-2.5 py-1.5 rounded-lg">
-                <input
-                  type="checkbox"
-                  checked={onlyWithActual}
-                  onChange={(e) => setOnlyWithActual(e.target.checked)}
-                  className="rounded border-slate-700 text-cyan-500 focus:ring-0"
-                />
-                <span>Released Actuals Only</span>
-              </label>
-              <span className="text-[10px] text-slate-500 font-mono">
-                PKT = Asia/Karachi (UTC+05:00)
-              </span>
-            </div>
-          </div>
-        </div>
+        <div className="max-w-[1440px] mx-auto px-2 sm:px-6 mt-2">
 
         {/* FOREX FACTORY CLASSIC TABLE */}
         <div className="bg-[#0b101b] border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
@@ -1594,7 +1486,6 @@ export const FundamentalCalendar: React.FC = () => {
           </div>
         </div>
       </div>
-        </>
       )}
     </div>
   );

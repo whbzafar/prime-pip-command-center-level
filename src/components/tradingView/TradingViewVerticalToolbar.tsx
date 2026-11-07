@@ -30,7 +30,6 @@ export const TradingViewVerticalToolbar: React.FC<TradingViewVerticalToolbarProp
   const tools = [
     { id: 'WATCHLIST' as const, icon: Bookmark, label: 'Watchlist & Details', badge: watchlistCount },
     { id: 'ALERTS' as const, icon: AlarmClock, label: 'Price Alerts', badge: alertsCount },
-    { id: 'TECHNICALS' as const, icon: BarChart2, label: 'Technical Analysis (TradingView)' },
     { id: 'SENTIMENT' as const, icon: PieChart, label: 'Market Sentiment & Institutional COT' },
     { id: 'SEASONALITY' as const, icon: CalendarDays, label: 'Monthly Seasonality Tendencies' },
     { id: 'NEWS' as const, icon: Newspaper, label: 'Pair-Specific News & Headlines' },

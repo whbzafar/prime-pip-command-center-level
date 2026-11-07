@@ -42,7 +42,6 @@ import { TradingResearchCenter } from './components/TradingResearchCenter';
 import { PremiumSignalsHub } from './components/PremiumSignalsHub';
 import { UserProfileModal } from './components/UserProfileModal';
 import { TraderExperienceProfileModal } from './components/evolution/TraderExperienceProfileModal';
-import { EvolutionCommandCenter } from './components/evolution/EvolutionCommandCenter';
 import { CalmingSuiteMaster } from './components/calming/CalmingSuiteMaster';
 import { CATEGORY_SUMMARIES, CategorySummary, ALLOWED_DEMO_CATEGORIES, isCategoryLockedInDemo } from './data/categorySummaries';
 import { LockedCategoryModal } from './components/LockedCategoryModal';
@@ -1201,7 +1200,6 @@ export default function App() {
         onOpenTraderProfile={() => setIsTraderProfileOpen(true)}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
         onOpenAppearance={() => setIsAppearanceOpen(true)}
-        onOpenEvolution={() => setActiveTab('EVOLUTION')}
         onOpenAllCategories={() => setIsAllCategoriesOpen(true)}
       />
 
@@ -1301,7 +1299,6 @@ export default function App() {
             onOpenAccountModal={() => setIsAccountManagerOpen(true)}
             onOpenTraderProfile={() => setIsTraderProfileOpen(true)}
             onOpenNotifications={() => setIsNotificationsOpen(true)}
-            onOpenEvolution={() => handleSelectTab('EVOLUTION')}
             onUpdateAccount={handleUpdateAccount}
           />
         )}
@@ -1632,12 +1629,6 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'EVOLUTION' && (
-          <EvolutionCommandCenter
-            currentUser={currentUser || undefined}
-            onClose={() => setActiveTab('DASHBOARD')}
-          />
-        )}
         {/* Secondary Bottom Process Goal Link */}
         {activeTab !== 'GOALS' && activeTab !== 'FREEHAND_WORKSPACE' && (
           <div className="border-t border-slate-800/80 bg-slate-950/60 py-3 px-6 text-center text-xs font-mono-code text-slate-400 mt-6 mb-4">
@@ -1676,7 +1667,6 @@ export default function App() {
           setIsEntryModalOpen(true);
         }}
         currentUser={currentUser}
-        onOpenEvolution={() => handleSelectTab('EVOLUTION')}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         onOpenAllCategories={() => setIsAllCategoriesOpen(true)}
         isDemoMode={isDemoMode}

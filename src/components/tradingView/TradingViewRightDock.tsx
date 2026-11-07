@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Bookmark,
   AlarmClock,
-  BarChart2,
   PieChart,
   CalendarDays,
   Newspaper,
@@ -26,6 +25,9 @@ import {
   Sliders,
   DollarSign,
   Palette,
+  ChevronDown,
+  ChevronUp,
+  Info,
 } from 'lucide-react';
 import { RightSideToolId, ChartAlertItem } from '../ProTradingView';
 import {
@@ -36,6 +38,9 @@ import {
   PairCommunityData,
 } from '../../utils/tradingViewPairIntelligence';
 import { CalendarEvent } from '../../services/economicCalendarService';
+import { CotMarketSummary } from '../../types/cotTypes';
+import { fetchCotMarketSummaries } from '../../services/cotService';
+import { getCotPairForSymbol, CotPairResult } from '../../utils/cotPairEngine';
 
 export interface TradingViewRightDockProps {
   activeTool: RightSideToolId | null;
@@ -54,7 +59,7 @@ export interface TradingViewRightDockProps {
   onDeleteAlert: (id: string) => void;
   onToggleAlert: (id: string) => void;
   onClearAlerts: () => void;
-  technical: PairTechnicalAnalysis;
+  technical?: PairTechnicalAnalysis;
   sentiment: PairSentimentData;
   seasonality: PairSeasonalityData;
   news: PairNewsItem[];
@@ -79,7 +84,6 @@ export const TradingViewRightDock: React.FC<TradingViewRightDockProps> = ({
   onDeleteAlert,
   onToggleAlert,
   onClearAlerts,
-  technical,
   sentiment,
   seasonality,
   news,
@@ -94,11 +98,40 @@ export const TradingViewRightDock: React.FC<TradingViewRightDockProps> = ({
   const [alertCondition, setAlertCondition] = useState<ChartAlertItem['condition']>('CROSSING');
   const [alertNotes, setAlertNotes] = useState('');
 
-  // Technical sub-tab
-  const [techTab, setTechTab] = useState<'SUMMARY' | 'OSCILLATORS' | 'MA' | 'PIVOTS'>('SUMMARY');
+  // Calendar filter and expansion
+  const [calFilter, setCalFilter] = useState<'ALL' | 'HIGH' | 'MEDIUM'>('ALL');
+  const [calSearch, setCalSearch] = useState('');
+  const [expandedCalIds, setExpandedCalIds] = useState<Record<string, boolean>>({});
 
-  // Calendar filter
-  const [calFilter, setCalFilter] = useState<'ALL' | 'HIGH' | 'TODAY'>('ALL');
+  // Dynamic COT Market Summaries for selected symbol
+  const [cotSummaries, setCotSummaries] = useState<CotMarketSummary[]>([]);
+  const [isLoadingCot, setIsLoadingCot] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    setIsLoadingCot(true);
+    fetchCotMarketSummaries()
+      .then((res) => {
+        if (mounted && res.data) {
+          setCotSummaries(res.data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setIsLoadingCot(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const dynamicCotPair = useMemo<CotPairResult | null>(() => {
+    return getCotPairForSymbol(selectedSymbol, cotSummaries);
+  }, [selectedSymbol, cotSummaries]);
+
+  const toggleEventExpand = (id: string) => {
+    setExpandedCalIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   if (!activeTool) return null;
 
@@ -109,7 +142,6 @@ export const TradingViewRightDock: React.FC<TradingViewRightDockProps> = ({
         <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
           {activeTool === 'WATCHLIST' && <Bookmark className="w-4 h-4 text-cyan-400" />}
           {activeTool === 'ALERTS' && <AlarmClock className="w-4 h-4 text-cyan-400" />}
-          {activeTool === 'TECHNICALS' && <BarChart2 className="w-4 h-4 text-cyan-400" />}
           {activeTool === 'SENTIMENT' && <PieChart className="w-4 h-4 text-cyan-400" />}
           {activeTool === 'SEASONALITY' && <CalendarDays className="w-4 h-4 text-cyan-400" />}
           {activeTool === 'NEWS' && <Newspaper className="w-4 h-4 text-cyan-400" />}
@@ -119,12 +151,11 @@ export const TradingViewRightDock: React.FC<TradingViewRightDockProps> = ({
           <span>
             {activeTool === 'WATCHLIST' && `Watchlist (${watchlistSymbols.length})`}
             {activeTool === 'ALERTS' && `Alerts (${alerts.length})`}
-            {activeTool === 'TECHNICALS' && `${selectedSymbol} Technicals`}
             {activeTool === 'SENTIMENT' && `${selectedSymbol} Sentiment & COT`}
             {activeTool === 'SEASONALITY' && `${selectedSymbol} Seasonality`}
             {activeTool === 'NEWS' && `${selectedSymbol} Market News`}
             {activeTool === 'COMMUNITY' && `${selectedSymbol} Community Ideas`}
-            {activeTool === 'CALENDAR' && 'Economic Calendar'}
+            {activeTool === 'CALENDAR' && 'Live News Calendar'}
           </span>
         </div>
 
@@ -423,221 +454,124 @@ export const TradingViewRightDock: React.FC<TradingViewRightDockProps> = ({
         )}
 
         {/* ================================================================= */}
-        {/* 3. TECHNICAL ANALYSIS PANEL (TradingView Exact Replica)            */}
-        {/* ================================================================= */}
-        {activeTool === 'TECHNICALS' && (
-          <div className="space-y-3">
-            {/* Summary Gauge */}
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-center space-y-2">
-              <div className="text-[11px] text-slate-400 uppercase font-bold tracking-wider">
-                Overall Technical Summary
-              </div>
-              <div
-                className={`text-base font-black uppercase tracking-wider ${
-                  technical.summary.verdict === 'STRONG_BUY'
-                    ? 'text-emerald-400'
-                    : technical.summary.verdict === 'BUY'
-                    ? 'text-emerald-300'
-                    : technical.summary.verdict === 'STRONG_SELL'
-                    ? 'text-rose-500'
-                    : technical.summary.verdict === 'SELL'
-                    ? 'text-rose-400'
-                    : 'text-amber-300'
-                }`}
-              >
-                {technical.summary.label}
-              </div>
-
-              {/* Meter Bar */}
-              <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden relative">
-                <div
-                  className="h-full bg-gradient-to-r from-rose-600 via-amber-400 to-emerald-500 transition-all duration-500"
-                  style={{ width: `${technical.summary.score}%` }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-900">
-                <span className="text-rose-400 font-bold">{technical.summary.sellCount} Sell</span>
-                <span className="text-amber-300 font-bold">{technical.summary.neutralCount} Neutral</span>
-                <span className="text-emerald-400 font-bold">{technical.summary.buyCount} Buy</span>
-              </div>
-            </div>
-
-            {/* Sub-tabs */}
-            <div className="grid grid-cols-4 gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[10px] font-bold">
-              {[
-                { id: 'SUMMARY' as const, label: 'Summary' },
-                { id: 'OSCILLATORS' as const, label: 'Oscillators' },
-                { id: 'MA' as const, label: 'Moving Avg' },
-                { id: 'PIVOTS' as const, label: 'Pivots' },
-              ].map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTechTab(t.id)}
-                  className={`py-1 rounded text-center transition cursor-pointer ${
-                    techTab === t.id
-                      ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Sub-tab 1: Summary */}
-            {techTab === 'SUMMARY' && (
-              <div className="space-y-2">
-                <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-300 font-bold">Oscillators</span>
-                    <span
-                      className={`font-bold px-1.5 py-0.2 rounded text-[10px] ${
-                        technical.oscillators.verdict === 'BUY'
-                          ? 'bg-emerald-500/20 text-emerald-400'
-                          : technical.oscillators.verdict === 'SELL'
-                          ? 'bg-rose-500/20 text-rose-400'
-                          : 'bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      {technical.oscillators.verdict}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[10px] text-slate-400">
-                    <span>{technical.oscillators.buyCount} Buy</span>
-                    <span>{technical.oscillators.neutralCount} Neutral</span>
-                    <span>{technical.oscillators.sellCount} Sell</span>
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-300 font-bold">Moving Averages</span>
-                    <span
-                      className={`font-bold px-1.5 py-0.2 rounded text-[10px] ${
-                        technical.movingAverages.verdict.includes('BUY')
-                          ? 'bg-emerald-500/20 text-emerald-400'
-                          : technical.movingAverages.verdict.includes('SELL')
-                          ? 'bg-rose-500/20 text-rose-400'
-                          : 'bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      {technical.movingAverages.verdict.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[10px] text-slate-400">
-                    <span>{technical.movingAverages.buyCount} Buy</span>
-                    <span>{technical.movingAverages.neutralCount} Neutral</span>
-                    <span>{technical.movingAverages.sellCount} Sell</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Sub-tab 2: Oscillators */}
-            {techTab === 'OSCILLATORS' && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] text-slate-400 pb-1 border-b border-slate-800">
-                  <span>Name</span>
-                  <div className="flex items-center gap-6">
-                    <span>Value</span>
-                    <span>Action</span>
-                  </div>
-                </div>
-                {technical.oscillators.items.map((osc) => (
-                  <div
-                    key={osc.name}
-                    className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-slate-950/60 border border-slate-900 text-xs"
-                  >
-                    <span className="text-slate-300 truncate max-w-[150px]">{osc.name}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-white font-mono text-[11px]">{osc.value}</span>
-                      <span
-                        className={`text-[9px] font-bold px-1.5 py-0.2 rounded min-w-[50px] text-center ${
-                          osc.action === 'BUY'
-                            ? 'bg-emerald-500/20 text-emerald-400'
-                            : osc.action === 'SELL'
-                            ? 'bg-rose-500/20 text-rose-400'
-                            : 'bg-slate-800 text-slate-300'
-                        }`}
-                      >
-                        {osc.action}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Sub-tab 3: Moving Averages */}
-            {techTab === 'MA' && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] text-slate-400 pb-1 border-b border-slate-800">
-                  <span>Name</span>
-                  <div className="flex items-center gap-6">
-                    <span>Value</span>
-                    <span>Action</span>
-                  </div>
-                </div>
-                {technical.movingAverages.items.map((ma) => (
-                  <div
-                    key={ma.name}
-                    className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-slate-950/60 border border-slate-900 text-xs"
-                  >
-                    <span className="text-slate-300 truncate max-w-[150px]">{ma.name}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-white font-mono text-[11px]">{ma.value}</span>
-                      <span
-                        className={`text-[9px] font-bold px-1.5 py-0.2 rounded min-w-[45px] text-center ${
-                          ma.action === 'BUY'
-                            ? 'bg-emerald-500/20 text-emerald-400'
-                            : 'bg-rose-500/20 text-rose-400'
-                        }`}
-                      >
-                        {ma.action}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Sub-tab 4: Pivots */}
-            {techTab === 'PIVOTS' && (
-              <div className="space-y-2">
-                <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1 text-xs">
-                  <div className="font-bold text-cyan-300 text-[11px]">Classic Pivot Points</div>
-                  <div className="grid grid-cols-3 gap-1.5 text-[10px] pt-1">
-                    <div>S3: <strong className="text-rose-400">{technical.pivots.classic.s3}</strong></div>
-                    <div>S2: <strong className="text-rose-400">{technical.pivots.classic.s2}</strong></div>
-                    <div>S1: <strong className="text-rose-400">{technical.pivots.classic.s1}</strong></div>
-                    <div>P: <strong className="text-white">{technical.pivots.classic.p}</strong></div>
-                    <div>R1: <strong className="text-emerald-400">{technical.pivots.classic.r1}</strong></div>
-                    <div>R2: <strong className="text-emerald-400">{technical.pivots.classic.r2}</strong></div>
-                    <div>R3: <strong className="text-emerald-400">{technical.pivots.classic.r3}</strong></div>
-                  </div>
-                </div>
-
-                <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1 text-xs">
-                  <div className="font-bold text-amber-300 text-[11px]">Fibonacci Pivots</div>
-                  <div className="grid grid-cols-3 gap-1.5 text-[10px] pt-1">
-                    <div>S1: <strong className="text-rose-400">{technical.pivots.fibonacci.s1}</strong></div>
-                    <div>P: <strong className="text-white">{technical.pivots.fibonacci.p}</strong></div>
-                    <div>R1: <strong className="text-emerald-400">{technical.pivots.fibonacci.r1}</strong></div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ================================================================= */}
-        {/* 4. SENTIMENT & COT PANEL                                          */}
+        {/* SENTIMENT & COT PANEL (Dynamic Institutional CFTC COT by Active Pair) */}
         {/* ================================================================= */}
         {activeTool === 'SENTIMENT' && (
           <div className="space-y-3">
-            {/* Retail Sentiment */}
+            {/* Dynamic Institutional COT for Active Symbol */}
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-white uppercase flex items-center gap-1.5">
+                  <PieChart className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{selectedSymbol} COT Positioning</span>
+                </span>
+                {dynamicCotPair ? (
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                      dynamicCotPair.biasGrade === 'STRONG_BUY' || dynamicCotPair.biasGrade === 'BUY'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        : dynamicCotPair.biasGrade === 'STRONG_SELL' || dynamicCotPair.biasGrade === 'SELL'
+                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                        : 'bg-slate-800 text-slate-300 border-slate-700'
+                    }`}
+                  >
+                    {dynamicCotPair.biasLabel}
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                    {sentiment.cot.biasLabel}
+                  </span>
+                )}
+              </div>
+
+              {dynamicCotPair ? (
+                <>
+                  {/* Bullishness Meter */}
+                  <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-bold">
+                      <span className="text-slate-300">COT Bullish Probability</span>
+                      <span className="text-cyan-400 font-mono">{dynamicCotPair.bullishnessPct}%</span>
+                    </div>
+                    <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden flex">
+                      <div
+                        className="bg-emerald-500 h-full transition-all duration-300"
+                        style={{ width: `${dynamicCotPair.bullishnessPct}%` }}
+                      />
+                      <div
+                        className="bg-rose-500 h-full transition-all duration-300"
+                        style={{ width: `${100 - dynamicCotPair.bullishnessPct}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[9px] text-slate-500 font-mono">
+                      <span>Differential: {dynamicCotPair.differentialScore > 0 ? `+${dynamicCotPair.differentialScore}` : dynamicCotPair.differentialScore} pts</span>
+                      <span>Flow: {dynamicCotPair.weeklyFlowBias}</span>
+                    </div>
+                  </div>
+
+                  {/* Base vs Quote Breakdown */}
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
+                      <span className="text-[10px] text-cyan-400 block font-bold">
+                        {dynamicCotPair.baseAsset} (Base)
+                      </span>
+                      <div className="text-white font-bold mt-0.5">
+                        Score: {dynamicCotPair.baseMetric.strengthScore >= 0 ? `+${dynamicCotPair.baseMetric.strengthScore}` : dynamicCotPair.baseMetric.strengthScore}
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        Net: {dynamicCotPair.baseMetric.nonCommNet > 0 ? `+${dynamicCotPair.baseMetric.nonCommNet.toLocaleString()}` : dynamicCotPair.baseMetric.nonCommNet.toLocaleString()}
+                      </div>
+                      <div className="text-[9px] text-slate-500">
+                        Net % OI: {dynamicCotPair.baseMetric.netPctOI}%
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
+                      <span className="text-[10px] text-amber-400 block font-bold">
+                        {dynamicCotPair.quoteAsset} (Quote)
+                      </span>
+                      <div className="text-white font-bold mt-0.5">
+                        Score: {dynamicCotPair.quoteMetric.strengthScore >= 0 ? `+${dynamicCotPair.quoteMetric.strengthScore}` : dynamicCotPair.quoteMetric.strengthScore}
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        Net: {dynamicCotPair.quoteMetric.nonCommNet > 0 ? `+${dynamicCotPair.quoteMetric.nonCommNet.toLocaleString()}` : dynamicCotPair.quoteMetric.nonCommNet.toLocaleString()}
+                      </div>
+                      <div className="text-[9px] text-slate-500">
+                        Net % OI: {dynamicCotPair.quoteMetric.netPctOI}%
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Institutional Thesis */}
+                  <p className="text-[11px] text-slate-300 leading-relaxed font-sans bg-slate-900/60 p-2.5 rounded-lg border border-slate-800/80">
+                    {dynamicCotPair.thesis}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">Large Speculators Net</span>
+                      <strong className="text-white font-mono">{sentiment.cot.largeSpeculatorsNet}</strong>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">Commercial Hedgers</span>
+                      <strong className="text-white font-mono">{sentiment.cot.commercialHedgersNet}</strong>
+                    </div>
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] text-slate-300">
+                    <span className="text-slate-400 block text-[10px] font-bold uppercase">Weekly Shift:</span>
+                    <span className="text-cyan-300 font-bold">{sentiment.cot.weeklyChangeContracts}</span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+                    {sentiment.cot.institutionalSummary}
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Retail Crowd Positioning */}
             <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-white uppercase">Retail Crowd Positioning</span>
@@ -679,36 +613,6 @@ export const TradingViewRightDock: React.FC<TradingViewRightDockProps> = ({
               <div className="text-[10px] text-slate-500 font-mono">
                 Sample: {sentiment.retail.sampleSize}
               </div>
-            </div>
-
-            {/* Institutional COT */}
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-white uppercase">Smart Money (CFTC COT)</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                  {sentiment.cot.biasLabel}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block">Large Speculators Net</span>
-                  <strong className="text-white font-mono">{sentiment.cot.largeSpeculatorsNet}</strong>
-                </div>
-                <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block">Commercial Hedgers</span>
-                  <strong className="text-white font-mono">{sentiment.cot.commercialHedgersNet}</strong>
-                </div>
-              </div>
-
-              <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] text-slate-300">
-                <span className="text-slate-400 block text-[10px] font-bold uppercase">Weekly Shift:</span>
-                <span className="text-cyan-300 font-bold">{sentiment.cot.weeklyChangeContracts}</span>
-              </div>
-
-              <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
-                {sentiment.cot.institutionalSummary}
-              </p>
             </div>
           </div>
         )}
@@ -894,10 +798,13 @@ export const TradingViewRightDock: React.FC<TradingViewRightDockProps> = ({
         {/* ================================================================= */}
         {/* 8. ECONOMIC CALENDAR PANEL                                        */}
         {/* ================================================================= */}
+        {/* 8. LIVE ECONOMIC CALENDAR PANEL (Click to View Full Details)       */}
+        {/* ================================================================= */}
         {activeTool === 'CALENDAR' && (
           <div className="space-y-3">
+            {/* Filter buttons */}
             <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[10px] font-bold">
-              {(['ALL', 'HIGH', 'TODAY'] as const).map((filter) => (
+              {(['ALL', 'HIGH', 'MEDIUM'] as const).map((filter) => (
                 <button
                   key={filter}
                   type="button"
@@ -911,60 +818,143 @@ export const TradingViewRightDock: React.FC<TradingViewRightDockProps> = ({
               ))}
             </div>
 
+            {/* Calendar Search */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+              <input
+                type="text"
+                value={calSearch}
+                onChange={(e) => setCalSearch(e.target.value)}
+                placeholder="Search CPI, NFP, Fed, EUR..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-500"
+              />
+            </div>
+
+            {/* List of News Events with Full Detail Expansion */}
             <div className="space-y-2">
               {calendarEvents
-                .filter((evt) => calFilter === 'ALL' || (calFilter === 'HIGH' && evt.importance === 'HIGH'))
-                .slice(0, 15)
-                .map((evt) => (
-                  <div
-                    key={evt.id}
-                    className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5 text-xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 font-bold">
-                        <span className="px-1.5 py-0.5 rounded bg-slate-800 text-white text-[10px]">
-                          {evt.currency}
-                        </span>
-                        <span className="text-slate-100 font-sans truncate max-w-[170px]">
-                          {evt.eventName}
-                        </span>
+                .filter((evt) => {
+                  if (calFilter === 'HIGH' && evt.importance !== 'HIGH') return false;
+                  if (calFilter === 'MEDIUM' && evt.importance === 'LOW') return false;
+                  if (calSearch.trim()) {
+                    const q = calSearch.toLowerCase();
+                    return (
+                      evt.eventName.toLowerCase().includes(q) ||
+                      evt.currency.toLowerCase().includes(q) ||
+                      (evt.description && evt.description.toLowerCase().includes(q))
+                    );
+                  }
+                  return true;
+                })
+                .slice(0, 30)
+                .map((evt) => {
+                  const isExpanded = Boolean(expandedCalIds[evt.id]);
+                  return (
+                    <div
+                      key={evt.id}
+                      onClick={() => toggleEventExpand(evt.id)}
+                      className={`p-2.5 rounded-xl border space-y-1.5 text-xs transition cursor-pointer ${
+                        isExpanded
+                          ? 'bg-slate-900 border-cyan-500/50 shadow-lg'
+                          : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 font-bold">
+                          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 font-mono text-[10px]">
+                            {evt.currency}
+                          </span>
+                          <span className="text-slate-100 font-sans truncate max-w-[170px]">
+                            {evt.eventName}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span
+                            className={`text-[9px] px-1.5 py-0.2 rounded font-extrabold ${
+                              evt.importance === 'HIGH'
+                                ? 'bg-rose-950 text-rose-300 border border-rose-500/50'
+                                : evt.importance === 'MEDIUM'
+                                ? 'bg-amber-950/60 text-amber-300 border border-amber-500/40'
+                                : 'bg-slate-800 text-slate-400'
+                            }`}
+                          >
+                            {evt.importance}
+                          </span>
+                          {isExpanded ? (
+                            <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+                          ) : (
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                          )}
+                        </div>
                       </div>
-                      <span
-                        className={`text-[9px] px-1.5 py-0.2 rounded font-extrabold ${
-                          evt.importance === 'HIGH'
-                            ? 'bg-rose-950 text-rose-300 border border-rose-500/50'
-                            : 'bg-amber-950/60 text-amber-300 border border-amber-500/40'
-                        }`}
-                      >
-                        {evt.importance}
-                      </span>
-                    </div>
 
-                    <div className="grid grid-cols-3 gap-1 text-[10px] bg-slate-900/70 p-1.5 rounded-lg border border-slate-800/80 font-mono">
-                      <div>
-                        <div className="text-slate-500 text-[9px] uppercase">Time</div>
-                        <div className="font-bold text-white truncate">{evt.timeUtc || evt.date}</div>
+                      {/* Snapshot Figures Grid */}
+                      <div className="grid grid-cols-3 gap-1 text-[10px] bg-slate-900/70 p-1.5 rounded-lg border border-slate-800/80 font-mono">
+                        <div>
+                          <div className="text-slate-500 text-[9px] uppercase">Time (PKT)</div>
+                          <div className="font-bold text-white truncate">{evt.timeShortPkt || evt.timeUtc || evt.date}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 text-[9px] uppercase">Forecast</div>
+                          <div className="font-bold text-slate-300 truncate">{evt.forecast || '—'}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 text-[9px] uppercase">Previous</div>
+                          <div className="font-bold text-slate-400 truncate">{evt.previous || '—'}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-slate-500 text-[9px] uppercase">Forecast</div>
-                        <div className="font-bold text-slate-300 truncate">{evt.forecast || '—'}</div>
-                      </div>
-                      <div>
-                        <div className="text-slate-500 text-[9px] uppercase">Previous</div>
-                        <div className="font-bold text-slate-400 truncate">{evt.previous || '—'}</div>
-                      </div>
-                    </div>
 
-                    {evt.actual && (
-                      <div className="text-[10px] font-bold flex items-center justify-between pt-0.5 border-t border-slate-900">
-                        <span className="text-slate-400">Actual:</span>
-                        <span className="text-emerald-400 bg-emerald-950 px-1.5 py-0.2 rounded font-mono">
-                          {evt.actual}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      {evt.actual && (
+                        <div className="text-[10px] font-bold flex items-center justify-between pt-0.5 border-t border-slate-900">
+                          <span className="text-slate-400">Actual Print:</span>
+                          <span className="text-emerald-400 bg-emerald-950 px-1.5 py-0.2 rounded font-mono">
+                            {evt.actual}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Expanded In-Depth Details */}
+                      {isExpanded && (
+                        <div className="pt-2 border-t border-slate-800 space-y-2 text-[11px] font-sans">
+                          {evt.description && (
+                            <p className="text-slate-300 leading-relaxed bg-slate-950 p-2 rounded border border-slate-800">
+                              {evt.description}
+                            </p>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-1.5 font-mono text-[10px]">
+                            {evt.source && (
+                              <div className="p-1.5 bg-slate-950 rounded border border-slate-800">
+                                <span className="text-slate-500 block">SOURCE / AGENCY:</span>
+                                <span className="text-slate-300 font-bold truncate block">{evt.source}</span>
+                              </div>
+                            )}
+                            {evt.datePkt && (
+                              <div className="p-1.5 bg-slate-950 rounded border border-slate-800">
+                                <span className="text-slate-500 block">LOCAL PKT DATE:</span>
+                                <span className="text-cyan-300 font-bold block">{evt.datePkt}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {evt.marketRelevance && (
+                            <div className="p-2 rounded bg-slate-950/90 border border-slate-800 space-y-1">
+                              <span className="text-[10px] font-bold text-cyan-400 uppercase block font-mono">
+                                Potential Market Impact:
+                              </span>
+                              <div className="text-slate-300 text-[11px] leading-snug">
+                                • Forex: {evt.marketRelevance.forex}
+                              </div>
+                              <div className="text-slate-300 text-[11px] leading-snug">
+                                • Commodities: {evt.marketRelevance.gold}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           </div>
         )}

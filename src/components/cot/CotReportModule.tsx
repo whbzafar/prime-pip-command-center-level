@@ -3,12 +3,14 @@ import { CotErrorBoundary } from './CotErrorBoundary';
 import { CotHeader } from './CotHeader';
 import { CotMarketList } from './CotMarketList';
 import { CotDetailView } from './CotDetailView';
+import { CotPairScreener } from './CotPairScreener';
 import { MarketCategory } from '../../config/cotConfig';
 import { CotMarketSummary, CotReleaseStatus } from '../../types/cotTypes';
 import { fetchCotMarketSummaries, checkCotReleaseStatus } from '../../services/cotService';
-import { CheckCircle2, X } from 'lucide-react';
+import { CheckCircle2, X, Scale, BarChart3 } from 'lucide-react';
 
 export const CotReportModule: React.FC = () => {
+  const [viewMode, setViewMode] = useState<'PAIRS' | 'MARKETS'>('PAIRS');
   const [selectedCategory, setSelectedCategory] = useState<MarketCategory>('Currencies');
   const [selectedMarket, setSelectedMarket] = useState<CotMarketSummary | null>(null);
 
@@ -129,8 +131,42 @@ export const CotReportModule: React.FC = () => {
           onRetryStale={() => loadSummaries(true)}
         />
 
-        {/* Main Content: List or Detail */}
-        {selectedMarket ? (
+        {/* Top-Level Mode Selector: Pair Screener vs Individual Markets */}
+        <div className="flex items-center gap-2 p-1.5 bg-slate-950/80 border border-slate-800 rounded-2xl shadow-inner">
+          <button
+            type="button"
+            onClick={() => {
+              setViewMode('PAIRS');
+              setSelectedMarket(null);
+            }}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-military font-bold tracking-wider transition cursor-pointer ${
+              viewMode === 'PAIRS'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+            }`}
+          >
+            <Scale className="w-4 h-4" />
+            <span>CROSS-ASSET PAIR SCREENER &amp; RELATIVE STRENGTH</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode('MARKETS')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-military font-bold tracking-wider transition cursor-pointer ${
+              viewMode === 'MARKETS'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>INDIVIDUAL CONTRACTS &amp; MARKETS</span>
+          </button>
+        </div>
+
+        {/* Main Content Area */}
+        {viewMode === 'PAIRS' ? (
+          <CotPairScreener summaries={summaries} isLoading={isLoading} />
+        ) : selectedMarket ? (
           <CotDetailView
             summary={selectedMarket}
             onBack={() => setSelectedMarket(null)}

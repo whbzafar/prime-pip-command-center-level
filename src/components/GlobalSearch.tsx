@@ -36,7 +36,6 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { title: 'Book a Session', category: 'Community', subcategory: '1-on-1 Mentorship', description: 'Direct mentorship consultations and private trade reviews.', tab: 'BOOK_SESSION' },
   { title: 'Data Export & Backup', category: 'Operations', subcategory: 'Data Management', description: 'Export trade history, backup settings, and cloud state.', tab: 'SETTINGS' },
   { title: 'Admin Panel (Owner)', category: 'Administration', subcategory: 'User Management', description: 'Trader accounts, license control, and system configuration.', tab: 'ADMIN' },
-  { title: 'Evaluation Engine', category: 'Administration', subcategory: 'Proprietary Audit', description: 'Comprehensive trader assessment and proprietary scoring.', tab: 'EVOLUTION' },
 ];
 
 export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onNavigate }) => {

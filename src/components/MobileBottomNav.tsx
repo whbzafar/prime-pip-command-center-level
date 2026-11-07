@@ -90,7 +90,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'BOOK_SESSION' as MainNavTab, label: '21. Book a Session', desc: '1-on-1 mentorship consultation', icon: MessageSquare, highlight: true, section: 'Community' },
       { id: 'SETTINGS' as MainNavTab, label: '22. Data Export & Backup', desc: 'Export journal & restore state', icon: Settings2, section: 'Operations' },
       { id: 'ADMIN' as MainNavTab, label: '23. Admin Panel (Owner)', desc: 'User access & customer controls', icon: ShieldCheck, highlight: true, section: 'Administration' },
-      { id: 'EVOLUTION' as MainNavTab, label: '24. Evaluation Engine', desc: 'Proprietary performance review & evolution', icon: Cpu, highlight: true, section: 'Administration' },
     ];
   }, [currentUser]);
 
@@ -106,10 +105,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     setIsMoreOpen(false);
     if (id === 'SETTINGS' && onOpenBackupModal) {
       onOpenBackupModal();
-      return;
-    }
-    if (id === 'EVOLUTION' && onOpenEvolution) {
-      onOpenEvolution();
       return;
     }
     onSelectTab(id);

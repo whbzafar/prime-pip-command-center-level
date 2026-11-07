@@ -436,7 +436,6 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'BOOK_SESSION' as MainNavTab, label: '21. BOOK A SESSION', icon: MessageSquare, highlight: true },
     { id: 'SETTINGS' as MainNavTab, label: '22. DATA EXPORT & BACKUP', icon: Settings2 },
     { id: 'ADMIN' as MainNavTab, label: '23. ADMIN PANEL (OWNER)', icon: ShieldCheck, highlight: currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' },
-    { id: 'EVOLUTION' as MainNavTab, label: '24. EVALUATION ENGINE', icon: Cpu, highlight: true },
   ];
 
   const handleNavClick = (id: MainNavTab) => {
@@ -457,12 +456,6 @@ export const Header: React.FC<HeaderProps> = ({
         switchTab('ADMIN');
       } else if (onOpenLogin) {
         onOpenLogin();
-      }
-    } else if (id === 'EVOLUTION') {
-      if (onOpenEvolution) {
-        onOpenEvolution();
-      } else {
-        switchTab('EVOLUTION');
       }
     } else {
       switchTab(id);
@@ -960,24 +953,6 @@ export const Header: React.FC<HeaderProps> = ({
                   )}
                 </div>
               </button>
-
-              {/* Evolution Engine Owner Shortcut */}
-              {(currentUser.role === 'ADMIN' || currentUser.role === 'DEVELOPER' || currentUser.isDeveloper || currentUser.username === 'primepipfx-admin') && (
-                <button
-                  id="header-evolution-engine-btn"
-                  type="button"
-                  onClick={() => switchTab('EVOLUTION')}
-                  title="PrimePipFX Self-Evolving Intelligence Engine"
-                  className={`hidden lg:flex items-center gap-1 px-2 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition cursor-pointer ${
-                    activeTab === 'EVOLUTION'
-                      ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-black'
-                      : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30 hover:border-emerald-500/50'
-                  }`}
-                >
-                  <Cpu className="w-3 h-3 text-emerald-400" />
-                  <span>EVOLUTION</span>
-                </button>
-              )}
 
               {onLogout && (
                 <button

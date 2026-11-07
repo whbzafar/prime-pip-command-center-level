@@ -153,14 +153,14 @@ export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
   },
   FUNDAMENTAL_INDICATORS: {
     id: 'FUNDAMENTAL_INDICATORS',
-    name: '08. Fundamental Indicators Engine (Free COT & Sentiment)',
-    shortDesc: '100% Free COT Reports and Market Sentiment; advanced macro scoring & raw models available with subscription.',
-    overview: 'The definitive macroeconomic intelligence suite. In Demo and Free mode, both institutional COT (Commitments of Traders) reports and retail sentiment data are 100% accessible for free. Advanced central bank ledger models, currency strength matrices, and raw yield models require an active subscription.',
+    name: '08. Fundamental Indicators (Severity Report & Sentiment)',
+    shortDesc: 'Institutional Severity Report (COT Positioning) and Contrarian Retail Sentiment.',
+    overview: 'Essential fundamental intelligence focused exclusively on institutional positioning severity and market sentiment. Features the institutional Severity Report (CFTC Commitments of Traders) and live contrarian Retail Sentiment gauges across 31 major pairs and assets.',
     keyFeatures: [
-      '100% Free Institutional COT (Commitments of Traders) positioning data',
-      '100% Free Contrarian Retail Sentiment & positioning gauges',
-      'Deterministic currency strength scoring across 8 major currencies (Pro)',
-      'Central Bank policy rates, bond yields & multi-asset differentials (Pro)',
+      'Institutional COT Positioning Severity Report',
+      'Contrarian Retail Sentiment & Crowded Market Gauges',
+      'Multi-Asset Positioning Telemetry (Currencies, Commodities, Indices, Crypto)',
+      '100% Free and unthrottled live feeds',
     ],
   },
   SIGNALS: {
@@ -382,18 +382,6 @@ export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
       'Instant connection to 50+ real brokers and top funded account prop firms',
       'Live Bid/Ask ticking quotes with simple and advanced pip breakdown views',
       'One-click trading and execution with automatic logging into your Trade Journal',
-    ],
-  },
-  EVOLUTION: {
-    id: 'EVOLUTION',
-    name: '24. Evaluation Engine',
-    shortDesc: 'Proprietary performance grading, prop firm qualification, and edge refinement.',
-    overview: 'Autonomous evaluation engine that audits your trading data against prop firm funded benchmarks to determine whether you are mathematically ready to pass an evaluation.',
-    keyFeatures: [
-      'Prop firm consistency rule compliance audit',
-      'Maximum daily and total loss tolerance stress test',
-      'Algorithmic trading evolution score and readiness certificate',
-      'Personalized risk-calibrated roadmap to full-time funded status',
     ],
   },
 };
