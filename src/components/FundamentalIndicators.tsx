@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { CotReportModule } from './cot/CotReportModule';
 import { RetailSentimentView } from './sentiment/RetailSentimentView';
 import { LiquidGlassThemeToggle } from './LiquidGlassThemeToggle';
-import { ShieldAlert, Activity, Sparkles, Layers } from 'lucide-react';
+import { ShieldAlert, Activity, Sparkles, Layers, Gauge } from 'lucide-react';
+import { FundamentalAnalysisView } from './fundamentalAnalysis/FundamentalAnalysisView';
 
-export type FundamentalDashboardTab = 'SEVERITY_REPORT' | 'SENTIMENT' | 'COT_REPORT' | 'MARKET_SENTIMENT';
+export type FundamentalDashboardTab = 'ANALYSIS' | 'SEVERITY_REPORT' | 'SENTIMENT' | 'COT_REPORT' | 'MARKET_SENTIMENT';
 
 export interface FundamentalIndicatorsProps {
   currentUser?: any;
@@ -13,13 +14,15 @@ export interface FundamentalIndicatorsProps {
 }
 
 export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = () => {
-  const [activeTab, setActiveTab] = useState<'SEVERITY_REPORT' | 'SENTIMENT'>('SEVERITY_REPORT');
+  const [activeTab, setActiveTab] = useState<'ANALYSIS' | 'SEVERITY_REPORT' | 'SENTIMENT'>('ANALYSIS');
 
   // External tab navigation listener (e.g. from PreTradePlan or Dashboard shortcuts)
   useEffect(() => {
     const handleOpenTabEvent = (e: any) => {
       const targetTab = e?.detail?.tab;
-      if (targetTab === 'COT_REPORT' || targetTab === 'SEVERITY_REPORT') {
+      if (targetTab === 'ANALYSIS' || targetTab === 'FUNDAMENTAL_ANALYSIS') {
+        setActiveTab('ANALYSIS');
+      } else if (targetTab === 'COT_REPORT' || targetTab === 'SEVERITY_REPORT') {
         setActiveTab('SEVERITY_REPORT');
       } else if (targetTab === 'MARKET_SENTIMENT' || targetTab === 'SENTIMENT') {
         setActiveTab('SENTIMENT');
@@ -62,8 +65,52 @@ export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = () =>
           </div>
         </div>
 
-        {/* Exclusive Two-Tab Switcher: Severity Report & Sentiment */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        {/* Tab Switcher: Fundamental Analysis, Severity Report & Sentiment */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+          {/* Tab 0: Fundamental Analysis */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('ANALYSIS')}
+            className={`group relative text-left p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
+              activeTab === 'ANALYSIS'
+                ? 'bg-gradient-to-r from-emerald-500/15 via-cyan-500/10 to-transparent border-emerald-400/60 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-400/30'
+                : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/80'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                    activeTab === 'ANALYSIS'
+                      ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/30'
+                      : 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
+                  }`}
+                >
+                  <Gauge className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-military font-bold text-sm tracking-wide text-white">
+                      Fundamental Analysis
+                    </span>
+                    <span className="text-[9px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase">
+                      Live Scores
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-mono-code text-slate-400 mt-0.5">
+                    Bullish / bearish % for Forex, Metals, Indices, Stocks &amp; Crypto
+                  </p>
+                </div>
+              </div>
+
+              {activeTab === 'ANALYSIS' && (
+                <span className="shrink-0 text-emerald-400">
+                  <Sparkles className="w-4 h-4 animate-pulse" />
+                </span>
+              )}
+            </div>
+          </button>
+
           {/* Tab 1: Severity Report */}
           <button
             type="button"
@@ -156,6 +203,12 @@ export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = () =>
 
       {/* Main Content Area */}
       <div>
+        {activeTab === 'ANALYSIS' && (
+          <div className="animate-in fade-in duration-200">
+            <FundamentalAnalysisView />
+          </div>
+        )}
+
         {activeTab === 'SEVERITY_REPORT' && (
           <div className="animate-in fade-in duration-200">
             <CotReportModule />

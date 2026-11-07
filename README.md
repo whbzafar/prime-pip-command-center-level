@@ -1,5 +1,36 @@
 # PRIMEPIPFX Trading Command Center
 
+## Fundamental Analysis Engine (Fundamentals → Fundamental Analysis tab)
+
+Live bullish/bearish scores (−100…+100 and %) for **8 major currencies, 6 commodities, 7 indices, 14 stocks and 8 cryptos**, plus **38 pairs** (all 28 FX crosses, metals/energy/crypto vs USD) and **30/90-day correlation matrices**. Every score drills down to pillars → sub-indicators → actual / forecast / previous with a link to the source.
+
+### Free data sources (no paid subscriptions)
+| Source | Used for | Key |
+|---|---|---|
+| TradingView economic calendar (public JSON) | Every release for US, EU, DE, GB, JP, CA, AU, NZ, CH, CN — CPI, NFP, PMIs, GDP, rate decisions, EIA inventories… | none |
+| FRED (St. Louis Fed) | US 2Y, real yields (TIPS), breakevens, VIX, HY spreads, NFCI, Fed balance sheet, daily FX/index fallback | none (optional `FRED_API_KEY`) |
+| CFTC Socrata | COT positioning for currencies, metals, energy, index & crypto futures | none (optional `CFTC_APP_TOKEN`) |
+| SEC EDGAR XBRL | Stock revenue, EPS, margins, FCF, leverage from 10-Q/10-K | none — set `SEC_USER_AGENT="AppName you@email.com"` per SEC fair-access policy |
+| Binance → Bybit, alternative.me, DefiLlama, blockchain.com | Crypto funding, Fear & Greed, stablecoin supply, hash rate | none |
+| Yahoo Finance chart API (FRED fallback) | Daily closes for correlations only | none |
+
+### Auto-update
+* Long-running hosts (`npm start`, Render, Railway, VPS): a 20s scheduler refreshes every source; the calendar is polled every ~45s whenever a tracked release is within ±12 min, so NFP/CPI/rate decisions are scored about a minute after TradingView publishes them. COT is polled every 10 min during the Friday 15:30–18:00 ET release window.
+* Serverless (Netlify/Vercel): each request refreshes whatever is stale.
+* Browser: polls every 60s (20s near releases), refreshes immediately on reconnect (`online` event) and when the tab regains focus, and pops an alert for each new release with A/F/P and the score change.
+
+### Integrity rules
+* Missing or failed data is **excluded** (shown as “No live data”) and lowers the confidence %, never estimated.
+* Implausible prints (e.g. PMI 480) are rejected.
+* Bullish % = (score + 100) / 2 — a balance of fundamental evidence, not a probability of price direction.
+
+### API
+`GET /api/macro/overview` · `GET /api/macro/asset/:symbol` · `GET /api/macro/pair/:symbol` · `POST /api/macro/refresh` · `GET /api/macro/diagnostics` (source health + calendar titles not yet mapped to an indicator).
+
+Code: `server/macro/` (sources, `concepts.ts` indicator library, `assets.ts` catalog, `scoring.ts`, `pairs.ts`, `macroService.ts`), UI: `src/components/fundamentalAnalysis/`. Tests: `npx vitest run server/macro`.
+
+---
+
 ## CFTC Commitments of Traders (COT) Configuration
 
 The COT Report feature integrates official institutional positioning data directly from the CFTC Public Reporting Environment (Socrata SODA API).

@@ -182,6 +182,8 @@ import {
 import { cotRouter, verifyCftcDatasetAtBoot } from "./server/cotService.js";
 import newsCalendarRouter from "./server/routes/newsCalendarRoutes.js";
 import { sentimentRouter } from "./server/routes/sentimentRoutes.js";
+import { macroRouter } from "./server/routes/macroRoutes.js";
+import { startMacroScheduler } from "./server/macro/macroService.js";
 import { sentimentService } from "./server/sentiment/sentimentService.js";
 import { backtestRouter } from "./server/backtestReplayService.js";
 import { chartAnalysisRouter } from "./server/chartAnalysisService.js";
@@ -6867,8 +6869,16 @@ app.use('/api/charts', chartAnalysisRouter);
 // Dukascopy Swiss Bank SA ECN Market Data Service Routes
 app.use('/api/dukascopy', dukascopyRouter);
 
+// Fundamental Analysis engine (macro scorecards, pairs, correlations, live release scoring)
+app.use('/api/macro', macroRouter);
+
 // Initialize background sentiment polling
 sentimentService.init();
+
+// Long-running hosts keep fundamentals fresh in the background; serverless refreshes per request.
+if (!process.env.VERCEL && !process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  startMacroScheduler();
+}
 
 // Vite middleware / static files (only run when launched standalone, not in Vercel serverless)
 async function startServer() {

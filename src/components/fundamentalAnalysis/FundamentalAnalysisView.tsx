@@ -1,0 +1,311 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Activity, BarChart3, Bitcoin, Building2, CalendarClock, Coins, Gem, GitCompareArrows, Grid3x3, Info, Radio, RefreshCw,
+  ShieldCheck, TrendingUp, WifiOff, X, Zap,
+} from 'lucide-react';
+import type { AssetClass, AssetResult, Overview, ReleaseEvent } from './types';
+import { AssetDetail } from './AssetDetail';
+import { PairsView } from './PairsView';
+import { CorrelationView } from './CorrelationView';
+import { BiasPill, BullBearBar, StatusDot, fmtNum, fmtPkt, fmtScore, scoreColor, timeAgo } from './ui';
+
+type Tab = AssetClass | 'PAIRS' | 'CORRELATIONS' | 'SOURCES';
+
+const TABS: Array<{ id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+  { id: 'FOREX', label: 'Forex', icon: Coins },
+  { id: 'COMMODITIES', label: 'Commodities', icon: Gem },
+  { id: 'INDICES', label: 'Indices', icon: BarChart3 },
+  { id: 'STOCKS', label: 'Stocks', icon: Building2 },
+  { id: 'CRYPTO', label: 'Crypto', icon: Bitcoin },
+  { id: 'PAIRS', label: 'Pairs', icon: GitCompareArrows },
+  { id: 'CORRELATIONS', label: 'Correlations', icon: Grid3x3 },
+  { id: 'SOURCES', label: 'Sources & Method', icon: ShieldCheck },
+];
+
+const POLL_NORMAL = 60_000;
+const POLL_HOT = 20_000;
+
+export const FundamentalAnalysisView: React.FC = () => {
+  const [ov, setOv] = useState<Overview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
+  const [tab, setTab] = useState<Tab>('FOREX');
+  const [selected, setSelected] = useState<Record<string, string>>({ FOREX: 'USD', COMMODITIES: 'XAU', INDICES: 'US500', STOCKS: 'AAPL', CRYPTO: 'BTC' });
+  const [detail, setDetail] = useState<{ asset: AssetResult; mirrors: Record<string, AssetResult> } | null>(null);
+  const [alerts, setAlerts] = useState<ReleaseEvent[]>([]);
+  const [pairJump, setPairJump] = useState<string | null>(null);
+  const seenReleases = useRef<Set<string> | null>(null);
+
+  const load = useCallback(async (force = false) => {
+    try {
+      if (force) setRefreshing(true);
+      const res = await fetch(force ? '/api/macro/refresh' : '/api/macro/overview', { method: force ? 'POST' : 'GET', cache: 'no-store' });
+      const j = await res.json();
+      if (!j?.ok) throw new Error(j?.error || `HTTP ${res.status}`);
+      const data: Overview = j.data;
+      // New-release alerts (skip on first load)
+      if (seenReleases.current) {
+        const fresh = data.releases.filter((r) => !seenReleases.current!.has(r.id));
+        if (fresh.length) setAlerts((a) => [...fresh, ...a].slice(0, 4));
+      }
+      seenReleases.current = new Set(data.releases.map((r) => r.id));
+      setOv(data);
+      setError(null);
+    } catch (e: any) {
+      setError(navigator.onLine ? e?.message || 'Could not reach the fundamentals engine' : 'You are offline — showing the last loaded data.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Poll: faster when a tracked release is due within 15 minutes
+  const hot = useMemo(() => !!ov?.upcoming.some((u) => Math.abs(new Date(u.scheduledAt).getTime() - Date.now()) < 15 * 60_000), [ov]);
+  useEffect(() => {
+    load();
+  }, [load]);
+  useEffect(() => {
+    const id = setInterval(() => { if (navigator.onLine && document.visibilityState === 'visible') load(); }, hot ? POLL_HOT : POLL_NORMAL);
+    return () => clearInterval(id);
+  }, [load, hot]);
+
+  // Reconnect & tab-focus: refresh immediately
+  useEffect(() => {
+    const on = () => { setOnline(true); load(); };
+    const off = () => setOnline(false);
+    const vis = () => { if (document.visibilityState === 'visible' && navigator.onLine) load(); };
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    document.addEventListener('visibilitychange', vis);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); document.removeEventListener('visibilitychange', vis); };
+  }, [load]);
+
+  const assetTab = tab === 'FOREX' || tab === 'COMMODITIES' || tab === 'INDICES' || tab === 'STOCKS' || tab === 'CRYPTO';
+  const selSymbol = assetTab ? selected[tab] : null;
+
+  useEffect(() => {
+    if (!selSymbol || !ov) return;
+    let alive = true;
+    fetch(`/api/macro/asset/${encodeURIComponent(selSymbol)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => { if (alive && j?.ok) setDetail({ asset: j.data, mirrors: j.mirrors || {} }); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [selSymbol, ov?.generatedAt]);
+
+  const list = useMemo(() => (ov && assetTab ? ov.assets.filter((a) => a.assetClass === tab) : []), [ov, tab, assetTab]);
+  const currencies = useMemo(() => (ov ? ov.assets.filter((a) => a.assetClass === 'FOREX').sort((a, b) => (b.score ?? -999) - (a.score ?? -999)) : []), [ov]);
+
+  const openPair = (sym: string) => { setPairJump(sym); setTab('PAIRS'); };
+
+  return (
+    <div className="space-y-4">
+      {/* Status strip */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-950/80 px-4 py-3 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          {online ? <StatusDot status={error ? 'degraded' : 'live'} /> : <WifiOff className="w-3.5 h-3.5 text-amber-400" />}
+          <span className="text-[11px] font-mono-code font-bold text-slate-200 uppercase tracking-wider">
+            {!online ? 'Offline — will update on reconnect' : error ? 'Degraded' : hot ? 'Live · release window (20s refresh)' : 'Live · auto-refresh 60s'}
+          </span>
+        </div>
+        {ov && <span className="text-[11px] font-mono-code text-slate-500">Model {ov.methodologyVersion} · computed {timeAgo(ov.generatedAt)}</span>}
+        <button type="button" onClick={() => load(true)} disabled={refreshing || !online}
+          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-[11px] font-mono-code text-slate-200 hover:border-cyan-500/50 disabled:opacity-50 cursor-pointer">
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} /> {refreshing ? 'Pulling all sources…' : 'Refresh now'}
+        </button>
+      </div>
+
+      {error && <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-[12px] text-amber-200">{error}</div>}
+
+      {/* New release alerts */}
+      {alerts.map((r) => (
+        <div key={r.id} className="rounded-2xl border border-cyan-400/40 bg-gradient-to-r from-cyan-500/15 via-slate-950 to-slate-950 px-4 py-3 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+          <Zap className="w-4 h-4 text-cyan-300 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0 text-[12.5px] text-slate-200">
+            <b className="text-white">{r.sourceTitle}</b> ({r.asset}) just released: <b>A {fmtNum(r.actual, r.unit)}</b> · F {fmtNum(r.forecast, r.unit)} · P {fmtNum(r.previous, r.unit)} →{' '}
+            <span className={scoreColor(r.indicatorScore)}>{r.verdict}</span>
+            <div className="text-[11px] font-mono-code text-slate-400 mt-0.5">
+              {r.impacts.map((i) => i.assetScoreBefore === null ? `${i.asset} now ${fmtScore(i.assetScoreAfter)}` : `${i.asset} ${fmtScore(i.assetScoreBefore)} → ${fmtScore(i.assetScoreAfter)}`).join(' · ')}
+            </div>
+          </div>
+          <button type="button" aria-label="Dismiss" onClick={() => setAlerts((a) => a.filter((x) => x.id !== r.id))} className="text-slate-500 hover:text-slate-300 cursor-pointer"><X className="w-4 h-4" /></button>
+        </div>
+      ))}
+
+      {/* Tabs */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" role="tablist">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          return (
+            <button key={t.id} type="button" role="tab" aria-selected={active} onClick={() => setTab(t.id)}
+              className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-[12px] font-semibold cursor-pointer transition-colors ${active ? 'bg-cyan-500/15 border-cyan-400/50 text-cyan-100 shadow-lg shadow-cyan-500/10' : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}`}>
+              <Icon className="w-4 h-4" /> {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {loading && !ov && (
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-10 text-center">
+          <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin mx-auto" />
+          <div className="mt-3 text-sm text-slate-300">Pulling live data from TradingView, FRED, CFTC, SEC and crypto markets…</div>
+          <div className="mt-1 text-[11px] font-mono-code text-slate-500">First load can take up to ~25 seconds while the year-long calendar history is fetched.</div>
+        </div>
+      )}
+
+      {ov && assetTab && (
+        <div className="space-y-4">
+          {tab === 'FOREX' && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="w-4 h-4 text-cyan-400" />
+                <span className="text-[11px] font-mono-code uppercase tracking-widest text-cyan-300">Currency strength ranking</span>
+                <span className="text-[10.5px] font-mono-code text-slate-500">strongest vs weakest = best fundamental pair</span>
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                {currencies.map((c, i) => (
+                  <button key={c.symbol} type="button" onClick={() => setSelected((s) => ({ ...s, FOREX: c.symbol }))}
+                    className={`rounded-xl border p-2 text-center cursor-pointer ${selected.FOREX === c.symbol ? 'border-cyan-400/60 bg-cyan-500/10' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'}`}>
+                    <div className="text-[9.5px] font-mono-code text-slate-500">#{i + 1}</div>
+                    <div className="font-military font-bold text-white">{c.symbol}</div>
+                    <div className={`font-mono-code text-[12px] font-bold ${scoreColor(c.score)}`}>{fmtScore(c.score)}</div>
+                    <div className="h-12 mt-1 flex items-end justify-center">
+                      <div className={`w-3 rounded-t ${c.score !== null && c.score >= 0 ? 'bg-emerald-400' : 'bg-rose-400'}`} style={{ height: `${c.score === null ? 4 : Math.max(8, Math.min(100, Math.abs(c.score) * 1.5))}%` }} />
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {currencies.length >= 2 && currencies[0].score !== null && currencies[currencies.length - 1].score !== null && (() => {
+                const strong = currencies[0].symbol, weak = currencies[currencies.length - 1].symbol;
+                const pair = ov.pairs.find((p) => (p.base === strong && p.quote === weak) || (p.base === weak && p.quote === strong));
+                return pair ? (
+                  <button type="button" onClick={() => openPair(pair.symbol)} className="mt-3 text-[12px] text-slate-300 hover:text-white cursor-pointer">
+                    Widest fundamental divergence: <b className="text-white">{pair.display}</b> <span className={scoreColor(pair.score)}>{fmtScore(pair.score)}</span> → open pair analysis
+                  </button>
+                ) : null;
+              })()}
+            </div>
+          )}
+
+          <div className="grid lg:grid-cols-[320px_minmax(0,1fr)] gap-4 items-start">
+            <div className="space-y-2 lg:sticky lg:top-4">
+              {list.map((a) => (
+                <button key={a.symbol} type="button" onClick={() => setSelected((s) => ({ ...s, [tab]: a.symbol }))}
+                  className={`w-full text-left rounded-2xl border p-3 transition-colors cursor-pointer ${selSymbol === a.symbol ? 'border-cyan-400/60 bg-cyan-500/10 shadow-lg shadow-cyan-500/5' : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-military font-bold text-slate-100">{a.symbol}</span>
+                        <span className="text-[11px] text-slate-500 truncate">{a.name}</span>
+                      </div>
+                      <div className="mt-1"><BiasPill bias={a.bias} score={a.score} /></div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`font-mono-code text-lg font-bold ${scoreColor(a.score)}`}>{fmtScore(a.score)}</div>
+                      <div className="text-[10px] font-mono-code text-slate-500">conf {a.confidence}%</div>
+                    </div>
+                  </div>
+                  <div className="mt-2"><BullBearBar bullishPct={a.bullishPct} /></div>
+                  <div className="mt-1 flex justify-between text-[10px] font-mono-code">
+                    <span className="text-emerald-400">{a.bullishPct === null ? '' : `${a.bullishPct.toFixed(0)}% bull`}</span>
+                    <span className="text-rose-400">{a.bearishPct === null ? '' : `${a.bearishPct.toFixed(0)}% bear`}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="min-w-0 space-y-3">
+              {detail && detail.asset.symbol === selSymbol ? (
+                <>
+                  {(tab === 'COMMODITIES' || tab === 'CRYPTO') && ov.pairs.some((p) => p.base === selSymbol) && (
+                    <button type="button" onClick={() => openPair(ov.pairs.find((p) => p.base === selSymbol)!.symbol)}
+                      className="text-[12px] text-cyan-400 hover:text-cyan-300 cursor-pointer">Open {selSymbol}/USD side-by-side analysis →</button>
+                  )}
+                  <AssetDetail asset={detail.asset} mirrors={detail.mirrors} />
+                </>
+              ) : (
+                <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-8 text-center text-sm text-slate-500">Loading breakdown…</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {ov && tab === 'PAIRS' && <PairsView pairs={ov.pairs} generatedAt={ov.generatedAt} initial={pairJump} />}
+      {ov && tab === 'CORRELATIONS' && <CorrelationView w30={ov.correlations.w30} w90={ov.correlations.w90} />}
+      {ov && tab === 'SOURCES' && <SourcesPanel ov={ov} />}
+
+      {/* Release feed + upcoming */}
+      {ov && (
+        <div className="grid lg:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+            <div className="flex items-center gap-2 mb-3"><Radio className="w-4 h-4 text-cyan-400" /><span className="text-[11px] font-mono-code uppercase tracking-widest text-cyan-300">Latest scored releases</span></div>
+            <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
+              {ov.releases.length === 0 && <div className="text-[12px] text-slate-500">Releases appear here the moment they are published and scored.</div>}
+              {ov.releases.slice(0, 25).map((r) => (
+                <div key={r.id} className="rounded-xl bg-slate-900/60 border border-slate-800 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[12px] text-slate-100 font-semibold truncate">{r.asset} · {r.sourceTitle}</span>
+                    <span className="text-[10px] font-mono-code text-slate-500 shrink-0">{timeAgo(r.releasedAt)}</span>
+                  </div>
+                  <div className="text-[11px] font-mono-code text-slate-400 mt-0.5 flex flex-wrap gap-x-3">
+                    <span>A <b className="text-slate-200">{fmtNum(r.actual, r.unit)}</b></span><span>F {fmtNum(r.forecast, r.unit)}</span><span>P {fmtNum(r.previous, r.unit)}</span>
+                    <span className={scoreColor(r.indicatorScore)}>{r.verdict}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+            <div className="flex items-center gap-2 mb-3"><CalendarClock className="w-4 h-4 text-cyan-400" /><span className="text-[11px] font-mono-code uppercase tracking-widest text-cyan-300">Next scored releases (7 days)</span></div>
+            <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
+              {ov.upcoming.length === 0 && <div className="text-[12px] text-slate-500">No tracked releases scheduled in the next 7 days.</div>}
+              {ov.upcoming.slice(0, 30).map((u) => (
+                <div key={u.asset + u.title + u.scheduledAt} className="flex items-center gap-3 rounded-xl bg-slate-900/60 border border-slate-800 px-3 py-2">
+                  <span className={`w-1.5 h-6 rounded-full ${u.importance === 'HIGH' ? 'bg-rose-400' : u.importance === 'MEDIUM' ? 'bg-amber-400' : 'bg-slate-600'}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12px] text-slate-100 truncate"><b>{u.asset}</b> · {u.title}</div>
+                    <div className="text-[10.5px] font-mono-code text-slate-500">{fmtPkt(u.scheduledAt)} · F {fmtNum(u.forecast)} · P {fmtNum(u.previous)}</div>
+                  </div>
+                  <span className="text-[10.5px] font-mono-code text-slate-400 shrink-0">{timeAgo(u.scheduledAt)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SourcesPanel: React.FC<{ ov: Overview }> = ({ ov }) => (
+  <div className="grid lg:grid-cols-2 gap-4">
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-2">
+      <div className="flex items-center gap-2 mb-1"><Activity className="w-4 h-4 text-cyan-400" /><span className="text-[11px] font-mono-code uppercase tracking-widest text-cyan-300">Live data sources (all free, no paid subscriptions)</span></div>
+      {ov.sources.map((s) => (
+        <div key={s.id} className="rounded-xl bg-slate-900/60 border border-slate-800 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <StatusDot status={s.status} />
+            <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-[12.5px] text-slate-100 font-semibold hover:text-cyan-300">{s.name}</a>
+            <span className="ml-auto text-[10px] font-mono-code uppercase text-slate-500">{s.status.replace('_', ' ')}</span>
+          </div>
+          <div className="text-[10.5px] font-mono-code text-slate-500 mt-0.5">
+            Last success {timeAgo(s.lastSuccess)}{s.itemCount ? ` · ${s.itemCount} items` : ''}{s.lastError ? ` · last error: ${s.lastError}` : ''}
+          </div>
+          {s.note && <div className="text-[10.5px] text-slate-400 mt-0.5">{s.note}</div>}
+        </div>
+      ))}
+    </div>
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-3 text-[12px] text-slate-300 leading-relaxed">
+      <div className="flex items-center gap-2"><Info className="w-4 h-4 text-cyan-400" /><span className="text-[11px] font-mono-code uppercase tracking-widest text-cyan-300">How the score works</span></div>
+      <p><b className="text-white">Sub-indicator score (−100…+100).</b> Each release is compared with its forecast (surprise, 45%), its previous value (momentum, 30%) and, where meaningful, an anchor such as the central bank’s inflation target or the PMI 50 line (level, 25%). Each part is normalized by that indicator’s typical surprise size, then signed by how it affects the asset (e.g. higher unemployment is bearish for the currency).</p>
+      <p><b className="text-white">Pillars & asset.</b> Sub-scores average into pillars (Monetary Policy, Inflation, Labour, Growth, Confidence/Trade, Positioning…), and pillars combine with the weights shown on every card. Old prints lose weight gradually, and missing data is <i>excluded</i> — never filled in or estimated.</p>
+      <p><b className="text-white">Pairs.</b> Currency pair = (base − quote) ÷ 2. Metals, energy and crypto include a “US Dollar (inverse)” pillar, so XAU/USD already nets out the dollar. Retail positioning is a 15% contrarian overlay on FX pairs when data exists.</p>
+      <p><b className="text-white">Bullish % = (score + 100) ÷ 2.</b> It expresses the balance of fundamental evidence, <i>not</i> a probability that price will rise. Fundamentals set the medium-term bias; timing still comes from your technical plan and risk management.</p>
+      <p><b className="text-white">Confidence</b> is the share of the model’s weight backed by live, fresh data. Below 50% the reading is provisional.</p>
+      <p className="text-slate-500 text-[11px]">Every number links to its source. If a provider is down the affected indicators show “No live data” and drop out of the score instead of being guessed. Model {ov.methodologyVersion}.</p>
+    </div>
+  </div>
+);
