@@ -15,9 +15,10 @@ export async function fetchJsonSafe<T = any>(url: string, init?: RequestInit): P
   const text = await res.text();
   let json: any;
   try { json = JSON.parse(text); } catch {
-    throw new Error(res.status >= 500 || res.status === 0
-      ? 'The live data server is starting up or busy — retrying automatically…'
-      : `Unexpected response from the server (HTTP ${res.status}) — retrying automatically…`);
+    // Show the hosting platform's exact error code (e.g. Vercel's x-vercel-error) so failures are diagnosable.
+    const code = res.headers.get('x-vercel-error') || (text.match(/\b[A-Z_]{12,}\b/) || [])[0] || '';
+    const id = res.headers.get('x-vercel-id') || '';
+    throw new Error(`Server error — HTTP ${res.status}${code ? ` · ${code}` : ''}${id ? ` · id ${id}` : ''}. Retrying automatically…`);
   }
   if (!res.ok || json?.ok === false) throw new Error(json?.error || `Server returned HTTP ${res.status} — retrying automatically…`);
   return json as T;
