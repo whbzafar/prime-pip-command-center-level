@@ -7,7 +7,7 @@ import type { AssetClass, AssetResult, Overview, ReleaseEvent } from './types';
 import { AssetDetail } from './AssetDetail';
 import { PairsView } from './PairsView';
 import { CorrelationView } from './CorrelationView';
-import { BiasPill, BullBearBar, StatusDot, fmtNum, fmtPkt, fmtScore, scoreColor, timeAgo } from './ui';
+import { BiasPill, BullBearBar, StatusDot, fetchJsonSafe, fmtNum, fmtPkt, fmtScore, scoreColor, timeAgo } from './ui';
 
 type Tab = AssetClass | 'PAIRS' | 'CORRELATIONS' | 'SOURCES';
 
@@ -38,12 +38,21 @@ export const FundamentalAnalysisView: React.FC = () => {
   const [pairJump, setPairJump] = useState<string | null>(null);
   const seenReleases = useRef<Set<string> | null>(null);
 
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retries = useRef(0);
+  const ovRef = useRef<Overview | null>(null);
+
   const load = useCallback(async (force = false) => {
+    if (retryTimer.current) { clearTimeout(retryTimer.current); retryTimer.current = null; }
+    const scheduleRetry = () => {
+      // Back off 5s, 8s, 12s … up to 30s while the server warms up or recovers
+      const delay = Math.min(30_000, 5_000 + retries.current * 3_000);
+      retries.current += 1;
+      retryTimer.current = setTimeout(() => { if (navigator.onLine) load(); }, delay);
+    };
     try {
       if (force) setRefreshing(true);
-      const res = await fetch(force ? '/api/macro/refresh' : '/api/macro/overview', { method: force ? 'POST' : 'GET', cache: 'no-store' });
-      const j = await res.json();
-      if (!j?.ok) throw new Error(j?.error || `HTTP ${res.status}`);
+      const j = await fetchJsonSafe<{ ok: boolean; data: Overview }>(force ? '/api/macro/refresh' : '/api/macro/overview', { method: force ? 'POST' : 'GET' });
       const data: Overview = j.data;
       // New-release alerts (skip on first load)
       if (seenReleases.current) {
@@ -51,15 +60,21 @@ export const FundamentalAnalysisView: React.FC = () => {
         if (fresh.length) setAlerts((a) => [...fresh, ...a].slice(0, 4));
       }
       seenReleases.current = new Set(data.releases.map((r) => r.id));
-      setOv(data);
+      // Never replace good data with an empty warm-up response
+      if (data.assets.length > 0 || !ovRef.current) { setOv(data); ovRef.current = data; }
       setError(null);
+      if (data.warming || data.assets.length === 0) scheduleRetry();
+      else retries.current = 0;
     } catch (e: any) {
-      setError(navigator.onLine ? e?.message || 'Could not reach the fundamentals engine' : 'You are offline — showing the last loaded data.');
+      setError(e?.message || 'Could not reach the fundamentals engine — retrying automatically.');
+      scheduleRetry();
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
+
+  useEffect(() => () => { if (retryTimer.current) clearTimeout(retryTimer.current); }, []);
 
   // Poll: faster when a tracked release is due within 15 minutes
   const hot = useMemo(() => !!ov?.upcoming.some((u) => Math.abs(new Date(u.scheduledAt).getTime() - Date.now()) < 15 * 60_000), [ov]);
@@ -88,8 +103,7 @@ export const FundamentalAnalysisView: React.FC = () => {
   useEffect(() => {
     if (!selSymbol || !ov) return;
     let alive = true;
-    fetch(`/api/macro/asset/${encodeURIComponent(selSymbol)}`, { cache: 'no-store' })
-      .then((r) => r.json())
+    fetchJsonSafe<any>(`/api/macro/asset/${encodeURIComponent(selSymbol)}`)
       .then((j) => { if (alive && j?.ok) setDetail({ asset: j.data, mirrors: j.mirrors || {} }); })
       .catch(() => undefined);
     return () => { alive = false; };
@@ -107,7 +121,7 @@ export const FundamentalAnalysisView: React.FC = () => {
         <div className="flex items-center gap-2">
           {online ? <StatusDot status={error ? 'degraded' : 'live'} /> : <WifiOff className="w-3.5 h-3.5 text-amber-400" />}
           <span className="text-[11px] font-mono-code font-bold text-slate-200 uppercase tracking-wider">
-            {!online ? 'Offline — will update on reconnect' : error ? 'Degraded' : hot ? 'Live · release window (20s refresh)' : 'Live · auto-refresh 60s'}
+            {!online ? 'Offline — will update on reconnect' : error ? 'Reconnecting…' : ov?.warming ? 'Connecting to live sources…' : hot ? 'Live · release window (20s refresh)' : 'Live · auto-refresh 60s'}
           </span>
         </div>
         {ov && <span className="text-[11px] font-mono-code text-slate-500">Model {ov.methodologyVersion} · computed {timeAgo(ov.generatedAt)}</span>}
@@ -117,7 +131,16 @@ export const FundamentalAnalysisView: React.FC = () => {
         </button>
       </div>
 
-      {error && <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-[12px] text-amber-200">{error}</div>}
+      {error && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-[12px] text-amber-200 flex items-center gap-2">
+          <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0" /> {error}{ov ? ' Showing the last loaded data meanwhile.' : ''}
+        </div>
+      )}
+      {!error && ov?.warming && (
+        <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/5 px-4 py-2.5 text-[12px] text-cyan-100 flex items-center gap-2">
+          <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0" /> Connecting to the live economic calendar and market feeds — scores fill in automatically within a few seconds.
+        </div>
+      )}
 
       {/* New release alerts */}
       {alerts.map((r) => (
@@ -148,7 +171,7 @@ export const FundamentalAnalysisView: React.FC = () => {
         })}
       </div>
 
-      {loading && !ov && (
+      {!ov && (loading || error) && (
         <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-10 text-center">
           <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin mx-auto" />
           <div className="mt-3 text-sm text-slate-300">Pulling live data from TradingView, FRED, CFTC, SEC and crypto markets…</div>

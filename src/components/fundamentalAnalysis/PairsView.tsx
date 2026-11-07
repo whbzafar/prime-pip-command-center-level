@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Search, Users } from 'lucide-react';
 import type { AssetResult, PairResult } from './types';
 import { AssetDetail } from './AssetDetail';
-import { BiasPill, BullBearBar, fmtScore, scoreColor } from './ui';
+import { BiasPill, BullBearBar, fetchJsonSafe, fmtScore, scoreColor } from './ui';
 
 type Filter = 'ALL' | 'FOREX' | 'COMMODITIES' | 'CRYPTO';
 
@@ -19,8 +19,7 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
     if (!sel) { setDetail(null); return; }
     let alive = true;
     setLoading(true);
-    fetch(`/api/macro/pair/${encodeURIComponent(sel)}`)
-      .then((r) => r.json())
+    fetchJsonSafe<any>(`/api/macro/pair/${encodeURIComponent(sel)}`)
       .then((j) => { if (alive && j?.ok) setDetail({ data: j.data, base: j.base, quote: j.quote }); })
       .catch(() => undefined)
       .finally(() => alive && setLoading(false));

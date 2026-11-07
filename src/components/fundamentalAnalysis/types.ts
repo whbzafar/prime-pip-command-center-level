@@ -64,4 +64,5 @@ export interface Overview {
   upcoming: Array<{ asset: string; title: string; scheduledAt: string; forecast: number | null; previous: number | null; importance: string }>;
   sources: SourceHealth[];
   methodologyVersion: string;
+  warming?: boolean;
 }

@@ -1,6 +1,28 @@
 import React from 'react';
 import type { Bias } from './types';
 
+/**
+ * fetch + JSON with human-readable errors. Hosting platforms return HTML/text error pages
+ * (e.g. "A server error has occurred") on crashes or timeouts — never surface those raw.
+ */
+export async function fetchJsonSafe<T = any>(url: string, init?: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(url, { cache: 'no-store', ...init });
+  } catch {
+    throw new Error(typeof navigator !== 'undefined' && !navigator.onLine ? 'You are offline — the data will update as soon as the connection returns.' : 'Could not reach the server — retrying automatically.');
+  }
+  const text = await res.text();
+  let json: any;
+  try { json = JSON.parse(text); } catch {
+    throw new Error(res.status >= 500 || res.status === 0
+      ? 'The live data server is starting up or busy — retrying automatically…'
+      : `Unexpected response from the server (HTTP ${res.status}) — retrying automatically…`);
+  }
+  if (!res.ok || json?.ok === false) throw new Error(json?.error || `Server returned HTTP ${res.status} — retrying automatically…`);
+  return json as T;
+}
+
 export const fmtScore = (v: number | null | undefined) => (v === null || v === undefined ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}`);
 
 export function fmtNum(v: number | null | undefined, unit = ''): string {

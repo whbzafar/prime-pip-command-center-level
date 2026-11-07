@@ -18,11 +18,23 @@ import { refreshFred } from './sources/fred.js';
 import { refreshPrices } from './sources/prices.js';
 import { refreshCot } from './sources/cot.js';
 import { refreshCrypto } from './sources/crypto.js';
-import { refreshEdgar } from './sources/edgar.js';
+import { refreshEdgar, loadEdgarTicker, missingTickers } from './sources/edgar.js';
 import { getSourceHealth } from './sources/http.js';
 import type { AssetResult, MacroSnapshot, ReleaseEvent } from './types.js';
 
 const STORE_FILE = 'macro_fundamentals_store.json';
+
+export const SERVERLESS = !!(process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+// A failed background fetch must never take the whole function down (serverless runtimes
+// terminate the process on an unhandled rejection, which surfaces as "A server error has occurred").
+const GUARD = Symbol.for('ppfx.macro.rejectionGuard');
+if (!(globalThis as any)[GUARD]) {
+  (globalThis as any)[GUARD] = true;
+  process.on('unhandledRejection', (reason: any) => {
+    console.warn('[Fundamentals] Unhandled rejection contained:', reason?.message || reason);
+  });
+}
 
 interface Store {
   lastSeen: Record<string, string>; // asset|indicator → releasedAt|actual
@@ -58,7 +70,10 @@ async function refreshSources(force: boolean): Promise<void> {
   if (force || now - last.prices > EVERY.prices) { last.prices = now; jobs.push(refreshPrices(force)); }
   if (force || now - last.cot > (cotReleaseWindow() ? 10 * 60_000 : EVERY.cot)) { last.cot = now; jobs.push(refreshCot(true)); }
   if (force || now - last.crypto > EVERY.crypto) { last.crypto = now; jobs.push(refreshCrypto(true)); }
-  if (force || now - last.edgar > EVERY.edgar) { last.edgar = now; jobs.push(refreshEdgar(force)); }
+  if (SERVERLESS) {
+    // Company filings are large; on serverless load two companies per refresh in the background.
+    for (const t of missingTickers(2)) loadEdgarTicker(t).catch(() => undefined);
+  } else if (force || now - last.edgar > EVERY.edgar) { last.edgar = now; jobs.push(refreshEdgar(force)); }
   await Promise.allSettled(jobs);
 }
 
@@ -194,18 +209,37 @@ export async function refreshAndCompute(force = false): Promise<MacroSnapshot> {
   return computing;
 }
 
-/** Returns a snapshot no older than `maxAgeMs`, refreshing within `budgetMs` if needed. */
-export async function getSnapshot(maxAgeMs = 60_000, budgetMs = 25_000): Promise<MacroSnapshot> {
+/** Returns a snapshot no older than `maxAgeMs`, refreshing within the time budget if needed. */
+export async function getSnapshot(maxAgeMs = 60_000, budgetMs = SERVERLESS ? 8_000 : 25_000): Promise<MacroSnapshot> {
   const age = snapshot ? Date.now() - new Date(snapshot.generatedAt).getTime() : Infinity;
   if (snapshot && age < maxAgeMs) return snapshot;
   const run = refreshAndCompute(false);
-  if (snapshot) {
-    // Serve the current snapshot immediately if the refresh is slow; it lands on the next poll.
-    const timeout = new Promise<MacroSnapshot>((r) => setTimeout(() => r(snapshot as MacroSnapshot), Math.min(budgetMs, 4000)));
-    return Promise.race([run, timeout]);
+  run.catch(() => undefined); // never leave a rejection unhandled
+  const fallback = new Promise<MacroSnapshot>((resolve) =>
+    setTimeout(() => {
+      try { if (!snapshot) snapshot = computeSnapshot(); resolve(snapshot); } catch { resolve(emptySnapshot()); }
+    }, snapshot ? Math.min(budgetMs, 4_000) : budgetMs)
+  );
+  try {
+    return await Promise.race([run, fallback]);
+  } catch {
+    return snapshot ?? emptySnapshot();
   }
-  const timeout = new Promise<MacroSnapshot>((r) => setTimeout(() => r(computeSnapshot()), budgetMs));
-  return Promise.race([run, timeout]);
+}
+
+/** Make sure one stock's filings are loaded (on-demand on serverless), then return a fresh snapshot. */
+export async function ensureStockLoaded(ticker: string, budgetMs = 5_000): Promise<MacroSnapshot> {
+  const p = loadEdgarTicker(ticker).catch(() => undefined);
+  await Promise.race([p, new Promise((r) => setTimeout(r, budgetMs))]);
+  try { snapshot = computeSnapshot(); } catch { /* keep previous */ }
+  return snapshot ?? emptySnapshot();
+}
+
+function emptySnapshot(): MacroSnapshot {
+  return {
+    generatedAt: new Date().toISOString(), assets: [], pairs: [], correlations: { w30: null, w90: null },
+    releases: [], upcoming: [], sources: getSourceHealth(), methodologyVersion: METHODOLOGY_VERSION,
+  };
 }
 
 export function startMacroScheduler(): void {

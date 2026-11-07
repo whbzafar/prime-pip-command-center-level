@@ -95,7 +95,10 @@ const store = new Map<string, TvEvent>();
 let lastHistoryLoad = 0;
 let lastLiveLoad = 0;
 
-const HISTORY_DAYS = 400; // >1 year so quarterly prints and YoY context are always present
+const SERVERLESS = !!(process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
+// Long-running servers keep >1 year; serverless keeps ~8 months (still ≥2 prints of every quarterly
+// release and every central-bank meeting) so a cold start finishes within the request budget.
+const HISTORY_DAYS = SERVERLESS ? 240 : 400;
 const HISTORY_TTL = 6 * 60 * 60 * 1000;
 
 function merge(events: TvEvent[]): void {
@@ -114,13 +117,16 @@ export async function refreshCalendar(opts: { force?: boolean; minLiveIntervalMs
   if (opts.force || now - lastHistoryLoad > HISTORY_TTL || store.size === 0) {
     tasks.push(
       (async () => {
-        const chunkDays = 100;
-        const end = new Date(now);
+        const chunkDays = SERVERLESS ? 80 : 100;
+        const ranges: Array<[Date, Date]> = [];
         for (let back = HISTORY_DAYS; back > 0; back -= chunkDays) {
-          const from = new Date(now - back * 86_400_000);
-          const to = new Date(Math.min(now - (back - chunkDays) * 86_400_000, end.getTime()));
-          merge(await fetchRange(from, to));
+          ranges.push([new Date(now - back * 86_400_000), new Date(Math.min(now - (back - chunkDays) * 86_400_000, now))]);
         }
+        // Parallel chunks; a failed chunk does not discard the others.
+        const results = await Promise.allSettled(ranges.map(([f, t]) => fetchRange(f, t)));
+        let okChunks = 0;
+        for (const r of results) if (r.status === 'fulfilled') { merge(r.value); okChunks++; }
+        if (okChunks === 0) throw (results[0] as PromiseRejectedResult).reason;
         lastHistoryLoad = Date.now();
       })()
     );

@@ -128,5 +128,39 @@ export async function refreshEdgar(force = false): Promise<void> {
   else markFailure(EDGAR_ID, lastErr || new Error('No filings loaded'));
 }
 
+const inflight = new Map<string, Promise<void>>();
+const perTickerAt = new Map<string, number>();
+
+/** Load a single company's filings (used on serverless to stay within memory/time limits). */
+export function loadEdgarTicker(ticker: string): Promise<void> {
+  const s = STOCKS.find((x) => x.ticker === ticker);
+  if (!s) return Promise.resolve();
+  if (data.has(ticker) && Date.now() - (perTickerAt.get(ticker) || 0) < TTL) return Promise.resolve();
+  if (inflight.has(ticker)) return inflight.get(ticker)!;
+  const ua = process.env.SEC_USER_AGENT;
+  if (!ua) markNotConfigured(EDGAR_ID, 'Optional: set SEC_USER_AGENT="AppName contact@email" (SEC fair-access policy). Using a generic agent until then.');
+  const headers = { 'User-Agent': ua || 'PrimePipFX-CommandCenter/1.0 fundamentals-module', Accept: 'application/json' };
+  const p = (async () => {
+    try {
+      const cik = String(s.cik).padStart(10, '0');
+      const facts = await fetchJson<any>(`https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`, { headers, timeoutMs: 15_000, retries: 1 });
+      data.set(ticker, extractFundamentals(ticker, facts));
+      perTickerAt.set(ticker, Date.now());
+      markSuccess(EDGAR_ID, data.size);
+    } catch (err) {
+      markFailure(EDGAR_ID, err);
+    } finally {
+      inflight.delete(ticker);
+    }
+  })();
+  inflight.set(ticker, p);
+  return p;
+}
+
+/** Next tickers without data (for gradual background loading). */
+export function missingTickers(n: number): string[] {
+  return STOCKS.filter((s) => !data.has(s.ticker) && !inflight.has(s.ticker)).slice(0, n).map((s) => s.ticker);
+}
+
 export const getStockFundamentals = (ticker: string) => data.get(ticker) || null;
 export function __setEdgarForTest(f: StockFundamentals) { data.set(f.ticker, f); }
