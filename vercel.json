@@ -4,7 +4,7 @@
   "functions": {
     "api/index.ts": {
       "maxDuration": 60,
-      "includeFiles": "data/**"
+      "includeFiles": "{data/**,dist/server.cjs}"
     }
   },
   "rewrites": [
@@ -16,5 +16,6 @@
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "buildCommand": "npm run build"
 }

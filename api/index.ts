@@ -1,5 +1,12 @@
 import type { Request, Response } from 'express';
-import { app } from '../server';
+// Vercel runs this file as native ES modules, which reject the extension-less relative imports
+// used across the server code (e.g. '../server', './config/cotConfig'). `npm run build` already
+// produces dist/server.cjs — the whole server bundled by esbuild with every import resolved — so
+// the function loads that single file instead. (Local `npm run dev` still runs server.ts directly.)
+// @ts-ignore — generated at build time
+import serverBundle from '../dist/server.cjs';
+
+const app = (serverBundle as any).app || (serverBundle as any).default;
 
 export default function handler(req: Request, res: Response) {
   try {

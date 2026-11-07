@@ -175,7 +175,7 @@ export const FundamentalAnalysisView: React.FC = () => {
         <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-10 text-center">
           <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin mx-auto" />
           <div className="mt-3 text-sm text-slate-300">Pulling live data from TradingView, FRED, CFTC, SEC and crypto markets…</div>
-          <div className="mt-1 text-[11px] font-mono-code text-slate-500">First load can take up to ~25 seconds while the year-long calendar history is fetched.</div>
+          <div className="mt-1 text-[11px] font-mono-code text-slate-500">Usually ready in a few seconds.</div>
         </div>
       )}
 
