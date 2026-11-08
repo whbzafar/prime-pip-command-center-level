@@ -146,6 +146,9 @@ import {
   syncTraderProfiles,
   readCommunityMessagesSupabase,
   postCommunityMessageSupabase,
+  readHubPostsSupabase,
+  setHubPostPinnedSupabase,
+  deleteHubPostSupabase,
   markCommunityMessagesSeenSupabase,
   markCommunityMessageListenedSupabase,
   getCommunityTradersSupabase,
@@ -5532,6 +5535,76 @@ app.get('/api/community/health', async (_req, res) => {
   return res.json({ ok: missing.length === 0, backend: 'supabase', supabase: true, supabaseAuth: isSupabaseAuthEnabled, missing, tables });
 });
 
+// ----------------------------------------------------
+// HUB — post board: the admin and students post; every post shows the author's name.
+// ----------------------------------------------------
+const isHubAdmin = (u: any) => Boolean(u && (u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER'));
+type HubPost = { id: string; userId: string; username: string; displayName: string; role: 'ADMIN' | 'STUDENT'; text: string; pinned: boolean; createdAt: number };
+const readLocalHub = () => safeReadJsonFile<HubPost[]>('hub_posts.json', []);
+const sortHub = (rows: HubPost[]) => [...rows].sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || b.createdAt - a.createdAt);
+
+app.get('/api/community/hub', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const user = await getCommunityUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Please sign in to see the Hub.' });
+  recordUserHeartbeat(user.id);
+  try {
+    const posts = isSupabaseCommunityEnabled ? await readHubPostsSupabase() : readLocalHub();
+    return res.json({ ok: true, posts: sortHub(posts as HubPost[]), isAdmin: isHubAdmin(user), me: user.id, backend: isSupabaseCommunityEnabled ? 'supabase' : 'local' });
+  } catch (err: any) {
+    console.error('[HUB GET]', err?.message || err);
+    return res.status(503).json({ ok: false, error: 'The Hub is temporarily unavailable.' });
+  }
+});
+
+app.post('/api/community/hub', async (req, res) => {
+  const user = await getCommunityUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Please sign in to post in the Hub.' });
+  if (user.subscriptionStatus === 'SUSPENDED') return res.status(403).json({ ok: false, error: 'Your account is suspended from posting.' });
+  const text = String(req.body?.text || '').trim().slice(0, 4000);
+  if (!text) return res.status(400).json({ ok: false, error: 'Write something to post.' });
+  const admin = isHubAdmin(user);
+  const mod = moderateMessage(user.id, user.username, text);
+  if (!admin && !mod.passed) return res.status(400).json({ ok: false, error: 'Post rejected by the community guidelines.' });
+  const pinned = admin && Boolean(req.body?.pinned);
+  try {
+    if (isSupabaseCommunityEnabled) {
+      await upsertTraderProfile({ id: user.id, username: user.username, displayName: user.name || user.username, role: admin ? 'ADMIN' : (user.role || 'CUSTOMER') });
+      await postCommunityMessageSupabase({ userId: user.id, text, messageType: pinned ? 'HUB_PINNED' : 'HUB' });
+    } else {
+      const rows = readLocalHub();
+      rows.push({ id: `hub_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, userId: user.id, username: user.username, displayName: user.name || user.username, role: admin ? 'ADMIN' : 'STUDENT', text, pinned, createdAt: Date.now() });
+      safeWriteJsonFile('hub_posts.json', rows.slice(-1000));
+    }
+    return res.json({ ok: true });
+  } catch (err: any) {
+    console.error('[HUB POST]', err?.message || err);
+    return res.status(503).json({ ok: false, error: 'Could not post right now — please try again.' });
+  }
+});
+
+app.post('/api/community/hub/:id/pin', async (req, res) => {
+  const user = await getCommunityUser(req);
+  if (!isHubAdmin(user)) return res.status(403).json({ ok: false, error: 'Only the admin can pin posts.' });
+  try {
+    const pinned = Boolean(req.body?.pinned);
+    if (isSupabaseCommunityEnabled) await setHubPostPinnedSupabase(req.params.id, pinned);
+    else safeWriteJsonFile('hub_posts.json', readLocalHub().map((p) => (p.id === req.params.id ? { ...p, pinned } : p)));
+    return res.json({ ok: true });
+  } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
+});
+
+app.delete('/api/community/hub/:id', async (req, res) => {
+  const user = await getCommunityUser(req);
+  if (!user) return res.status(401).json({ ok: false, error: 'Please sign in.' });
+  const admin = isHubAdmin(user);
+  try {
+    if (isSupabaseCommunityEnabled) await deleteHubPostSupabase(req.params.id, admin ? undefined : user.id);
+    else safeWriteJsonFile('hub_posts.json', readLocalHub().filter((p) => !(p.id === req.params.id && (admin || p.userId === user.id))));
+    return res.json({ ok: true });
+  } catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
+});
+
 // Mark community messages as seen
 app.post('/api/community/messages/listened', async (req, res) => {
   try {
@@ -6296,6 +6369,21 @@ app.post('/api/groups/:groupId/messages', async (req, res) => {
 // ----------------------------------------------------
 // WEBRTC SIGNALING API ENDPOINTS
 // ----------------------------------------------------
+// ICE servers for calls: public STUN, plus a TURN relay when TURN_URLS / TURN_USERNAME /
+// TURN_CREDENTIAL are set in the environment (e.g. a free Metered or Cloudflare TURN account).
+app.get('/api/webrtc/ice', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const iceServers: any[] = [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+  ];
+  const turn = String(process.env.TURN_URLS || '').split(',').map((u) => u.trim()).filter(Boolean);
+  if (turn.length && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) {
+    iceServers.push({ urls: turn, username: process.env.TURN_USERNAME, credential: process.env.TURN_CREDENTIAL });
+  }
+  return res.json({ ok: true, iceServers, relay: iceServers.length > 2 });
+});
+
 app.post('/api/webrtc/call', async (req, res) => {
   try {
     const token = getAuthToken(req);

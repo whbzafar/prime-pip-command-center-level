@@ -941,3 +941,37 @@ export async function endCallSupabase(callId: string, userId: string) {
   });
   return { callId: String(call.id), status: 'ENDED' };
 }
+
+// ───────────────────────────── HUB (post board) — stored in community_messages with
+// message_type HUB / HUB_PINNED, so it never mixes with the live chat (which reads TEXT/VOICE/IMAGE/FILE).
+export async function readHubPostsSupabase(limit = 200) {
+  const rows = await supabaseRequest(
+    `community_messages?select=id,user_id,text_content,message_type,created_at,trader_profiles!community_messages_user_id_fkey(username,display_name,role)&message_type=in.(HUB,HUB_PINNED)&order=created_at.desc&limit=${limit}`
+  );
+  return (Array.isArray(rows) ? rows : []).map((row: any) => ({
+    id: String(row.id),
+    userId: row.user_id,
+    username: row.trader_profiles?.username || row.user_id,
+    displayName: row.trader_profiles?.display_name || row.trader_profiles?.username || row.user_id,
+    role: row.trader_profiles?.role === 'ADMIN' ? 'ADMIN' : 'STUDENT',
+    text: row.text_content || '',
+    pinned: row.message_type === 'HUB_PINNED',
+    createdAt: new Date(row.created_at).getTime(),
+  }));
+}
+
+export async function setHubPostPinnedSupabase(id: string, pinned: boolean) {
+  await supabaseRequest(`community_messages?id=eq.${encodeURIComponent(id)}&message_type=in.(HUB,HUB_PINNED)`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ message_type: pinned ? 'HUB_PINNED' : 'HUB' }),
+  });
+}
+
+export async function deleteHubPostSupabase(id: string, onlyUserId?: string) {
+  const owner = onlyUserId ? `&user_id=eq.${encodeURIComponent(onlyUserId)}` : '';
+  await supabaseRequest(`community_messages?id=eq.${encodeURIComponent(id)}&message_type=in.(HUB,HUB_PINNED)${owner}`, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=minimal' },
+  });
+}

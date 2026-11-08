@@ -6,7 +6,13 @@
  * (symbol, timeframe, range) the script asked for, the browser loads them from the app's own
  * feed and posts them back, and the second pass completes the run.
  */
-import { PineEngine } from '@luxalgo/vela-pinets';
+// Loaded lazily as an ES module: the package's CommonJS build pulls an ES-only dependency that
+// Vercel's runtime refuses to require(), and a static import would stop the whole server from
+// starting. `new Function` keeps esbuild from rewriting import() into require().
+const esmImport = new Function('s', 'return import(s)') as (s: string) => Promise<any>;
+let enginePromise: Promise<any> | null = null;
+const loadEngine = () => (enginePromise ??= esmImport('@luxalgo/vela-pinets').then((m) => m.PineEngine || m.default?.PineEngine));
+const newEngine = async () => { const PineEngine = await loadEngine(); return new PineEngine(); };
 
 export interface SeriesNeed { symbol: string; timeframe: string; range: { from?: number; to?: number; limit?: number } }
 export interface RunInput {
@@ -40,7 +46,7 @@ const cleanBars = (bars: any[]) =>
 
 /** Prepare (parse) a script and return its schema WITHOUT the source-bearing token. */
 export async function prepareScript(source: string, instanceId: string) {
-  const prepared: any = await new PineEngine().prepare(source, instanceId);
+  const prepared: any = await (await newEngine()).prepare(source, instanceId);
   const { token: _token, ...safe } = prepared;
   return safe;
 }
@@ -53,7 +59,8 @@ export function errorLine(err: any): number | null {
 
 export async function runScript(input: RunInput): Promise<RunOutput> {
   const t0 = Date.now();
-  const engine = new PineEngine();
+  let engine: any;
+  try { engine = await newEngine(); } catch (err: any) { return { ok: false, error: `Pine engine unavailable: ${err?.message || err}`, ms: Date.now() - t0 }; }
   const supplied = input.series || {};
   const need = new Map<string, SeriesNeed>();
   const warnings: string[] = [];
