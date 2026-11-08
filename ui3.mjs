@@ -19,7 +19,7 @@ for (const d of await page.getByText('Dismiss', { exact: true }).all()) await d.
 
 // Premium TradingView
 await click('PREMIUM TRADINGVIEW'); await page.waitForTimeout(16000); { const tt = await txt(); console.log('PRICES:', (tt.match(/SELL [0-9.]+/)||[''])[0], (tt.match(/BUY [0-9.]+/)||[''])[0]); } await shot('p1-premium'); await page.mouse.wheel(0, 500); await page.waitForTimeout(800); await shot('p2-premium');
-t = await txt(); i = t.indexOf('Live fundamental bias'); console.log('BIAS:', t.slice(i, i + 400));
+let t = await txt(); let i = 0;
 const m = t.match(/MARKET:? [^|]{0,60}/); console.log('COUNTDOWN:', m ? m[0] : t.match(/CANDLE:? [^ ]+ ?[^ ]*/)?.[0]);
 
 // Backtesting
