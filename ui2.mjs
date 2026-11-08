@@ -12,6 +12,15 @@ await page.goto(B, { waitUntil: 'networkidle', timeout: 60000 });
 await page.waitForTimeout(4000);
 const txt = async () => (await page.locator('body').innerText()).replace(/\s+/g, ' ');
 async function click(label) { const l = page.getByText(label, { exact: false }).first(); if (await l.count()) { await l.click({ timeout: 8000 }); console.log('clicked', label); return true; } console.log('not found', label); return false; }
+await click('Start Practice'); await page.waitForTimeout(1500);
+for (let step = 0; step < 8; step++) {
+  const btns = (await page.locator('button').allInnerTexts()).map((t) => t.trim().replace(/\s+/g, ' ')).filter(Boolean);
+  console.log('WIZ', step, btns.slice(0, 40).join(' | ').slice(0, 600));
+  const target = btns.find((b) => /^(next|continue|create|finish|launch|complete|confirm|start trading|open dashboard|create account|save)/i.test(b));
+  if (!target) break;
+  await page.getByRole('button', { name: target }).first().click({ timeout: 5000 }).catch((e) => console.log('wiz click fail', e.message.slice(0, 60)));
+  await page.waitForTimeout(1500);
+}
 await page.screenshot({ path: 'shots/a0.png' });
 await click('UNLIMITED CHART ANALYSIS'); await page.waitForTimeout(20000);
 await page.screenshot({ path: 'shots/a1-charts.png' });
