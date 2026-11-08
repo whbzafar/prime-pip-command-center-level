@@ -17,5 +17,11 @@
       "destination": "/index.html"
     }
   ],
-  "buildCommand": "npm run build"
+  "buildCommand": "npm run build",
+  "git": {
+    "deploymentEnabled": {
+      "ci/macro-live-probe": false,
+      "probe-shots": false
+    }
+  }
 }
