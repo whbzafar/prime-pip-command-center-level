@@ -19,6 +19,7 @@ jobs:
           import json,sys; d=json.load(sys.stdin)['data']
           for h in ['longTerm','shortTerm']:
             print(h,'BULL',[ (p['display'],p[h]) for p in d[h]['bullish'][:6]]); print(h,'BEAR',[ (p['display'],p[h]) for p in d[h]['bearish'][:6]])"
+          for t in GBPUSD EURUSD XAUUSD US500; do curl -s "$B/api/history/archive?ticker=$t"; echo; done
           curl -s $B/api/macro/pair/USDCAD | python3 -c "import json,sys; j=json.load(sys.stdin); print('pair sentiment', json.dumps(j.get('sentiment'))[:300])"
       - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && node ui3.mjs
       - if: always()
