@@ -9,6 +9,8 @@ await page.addInitScript(() => { try { localStorage.setItem('primepipfx_demo_mod
 await page.goto(B, { waitUntil: 'networkidle', timeout: 60000 });
 await page.waitForTimeout(3000);
 await page.screenshot({ path: 'shots/0-home.png' });
+console.log('HOME TEXT:', (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 1500));
+console.log('BUTTONS:', (await page.locator('button').allInnerTexts()).map((t) => t.trim()).filter(Boolean).slice(0, 80).join(' | '));
 async function open(labels, shot, wait = 9000) {
   for (const l of labels) {
     const loc = page.getByText(l, { exact: true }).first();
@@ -17,7 +19,7 @@ async function open(labels, shot, wait = 9000) {
   }
   await page.waitForTimeout(wait);
   await page.screenshot({ path: `shots/${shot}.png` });
-  console.log(shot, 'text sample:', (await page.locator('main').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400));
+  console.log(shot, 'text sample:', (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400));
 }
 await open(['Fundamental Indicators', 'Fundamentals', 'Fundamental Analysis'], '1-fundamentals', 12000);
 await open(['Institutional Positions', 'Institutional'], '1b-institutional', 4000);
