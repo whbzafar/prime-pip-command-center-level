@@ -1,0 +1,34 @@
+import { chromium } from 'playwright';
+const B = 'https://prime-pip-command-center-level.vercel.app';
+const user = { id: 'ui-test', name: 'UI Test', username: 'uitest', role: 'ADMIN', subscriptionStatus: 'LIFETIME', subscriptionPrice: 0, isLifetime: true, paymentStatus: 'PAID', isDeveloper: true };
+const ctx = await (await chromium.launch()).newContext({ viewport: { width: 1600, height: 1000 } });
+const page = await ctx.newPage();
+const errs = []; page.on('pageerror', (e) => errs.push(e.message.slice(0, 200)));
+page.on('response', (r) => { if (r.url().includes('/api/history/candles') && !r.ok()) errs.push(`HTTP ${r.status()} ${r.url().slice(60, 200)}`); });
+await ctx.route('**/api/auth/me', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, user }) }));
+await page.addInitScript((u) => { try { localStorage.setItem('primepipfx_user_profile', JSON.stringify(u)); localStorage.setItem('primepipfx_session_token', 'ui-test'); } catch {} }, user);
+await page.goto(B, { waitUntil: 'networkidle' }); await page.waitForTimeout(3000);
+await page.getByText('Start Practice').first().click().catch(() => {}); await page.waitForTimeout(800); await page.getByText('Create Demo Account').first().click().catch(() => {}); await page.waitForTimeout(3000);
+await page.getByText('BACKTESTING').first().click(); await page.waitForTimeout(6000);
+const start = page.getByRole('button', { name: 'Start replay' });
+const cases = [['EURUSD', '1H', '2004-03-10T08:00'], ['EURUSD', '15m', '2004-03-10T08:00'], ['GBPUSD', '4H', '2004-06-01T00:00'], ['XAUUSD', '1H', '2004-01-15T10:00'], ['USDJPY', 'D', '2004-02-02T00:00'], ['US30', '1H', '2006-05-01T14:00'], ['BTCUSDT', '1H', '2004-01-01T00:00'], ['AUDCAD', '1H', '2004-05-05T00:00']];
+for (const [sym, tf, date] of cases) {
+  await start.waitFor({ timeout: 60000 });
+  await page.getByRole('button', { name: /British|Euro|Gold|Japanese|Dow|Bitcoin|Australian|Dollar|Pound/ }).first().click().catch(async () => { await page.locator('[aria-haspopup=listbox]').first().click(); });
+  await page.getByPlaceholder('Search symbol or name…').fill(sym); await page.waitForTimeout(300);
+  await page.getByRole('option').first().click(); await page.waitForTimeout(500);
+  await start.waitFor({ timeout: 60000 });
+  await page.locator('select').first().selectOption(tf); await page.waitForTimeout(800); await start.waitFor({ timeout: 60000 });
+  await page.locator('input[type=datetime-local]').fill(date);
+  await start.click(); await page.waitForTimeout(2500); await start.waitFor({ timeout: 90000 }); await page.waitForTimeout(1000);
+  const t = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
+  const bar = (t.match(/Bar time [^·]+· O [0-9.,]+ H [0-9.,]+ L [0-9.,]+ C [0-9.,]+/) || ['(no bar)'])[0];
+  const msg = (t.match(/(No [^.]*\.|[^.]*does not reach[^.]*\.[^.]*\.|History for this timeframe begins[^.]*\.|Minute-level history[^.]*\.|No bars after[^.]*\.)/) || [''])[0];
+  console.log(`CASE ${sym} ${tf} ${date} → ${bar} | ${msg.slice(0, 220)}`);
+  await page.getByRole('button', { name: /BUY \(B\)/ }).click(); await page.getByTitle('Forward 10 bars').click(); await page.waitForTimeout(400);
+  const t2 = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
+  console.log('   after BUY+10 bars:', (t2.match(/Bar time [^·]+/) || [''])[0], '| trades:', (t2.match(/TRADES \d+/) || [''])[0], (t2.match(/EQUITY [0-9,.]+ USD/) || [''])[0]);
+  await page.screenshot({ path: `shots/r-${sym}-${tf}.png` });
+}
+console.log('ERRORS', errs.slice(0, 20));
+process.exit(0);
