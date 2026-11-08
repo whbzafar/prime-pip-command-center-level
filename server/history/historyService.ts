@@ -111,6 +111,11 @@ async function dukaRange(id: string, tf: Tf, from: number, to: number): Promise<
     pauseBetweenBatchesMs: 20,
     retryCount: 2,
     useCache: false,
+    // Serverless-safe: never launch a headless browser for WAF recovery and never write a token
+    // cache to disk (Vercel's filesystem is read-only). If Dukascopy challenges the server's IP,
+    // the request fails fast and the Yahoo fallback answers instead.
+    wafMode: 'off',
+    wafTokenCache: false,
   } as any);
   const data = clean(rows as any[]);
   cacheSet(key, data);
@@ -182,3 +187,51 @@ export async function yahooBefore(symbol: string, tf: Tf, before: number, count:
 }
 
 export const TF_LIST = Object.keys(TF_MS) as Tf[];
+
+// ───────────────────────────────────────── Yahoo intraday (fallback when Dukascopy is unavailable)
+
+/** Yahoo's free intraday limits: 1m ≈ last 30 days (≤ 8-day requests), 5–30m ≈ 60 days, 60m ≈ 730 days. */
+const YAHOO_INTRADAY: Partial<Record<Tf, { interval: string; lookback: number; window: number }>> = {
+  m1: { interval: '1m', lookback: 29 * DAY, window: 7 * DAY },
+  m5: { interval: '5m', lookback: 59 * DAY, window: 59 * DAY },
+  m15: { interval: '15m', lookback: 59 * DAY, window: 59 * DAY },
+  m30: { interval: '30m', lookback: 59 * DAY, window: 59 * DAY },
+  h1: { interval: '60m', lookback: 729 * DAY, window: 729 * DAY },
+  h4: { interval: '60m', lookback: 729 * DAY, window: 729 * DAY },
+};
+
+export async function yahooAny(symbol: string, tf: Tf, before: number, count: number): Promise<{ candles: Candle[]; reachedStart: boolean }> {
+  if (YAHOO_INTERVAL[tf]) return yahooBefore(symbol, tf, before, count);
+  const spec = YAHOO_INTRADAY[tf];
+  if (!spec) return { candles: [], reachedStart: true };
+  const earliest = Date.now() - spec.lookback;
+  const to = Math.min(before, Date.now() + 60_000);
+  const from = Math.max(earliest, to - spec.window);
+  if (from >= to) return { candles: [], reachedStart: true };
+  const key = `yahooi|${symbol}|${tf}|${Math.floor(from / 60_000)}|${Math.floor(to / 60_000)}`;
+  let data = cacheGet(key, 30_000);
+  if (!data) {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${Math.floor(from / 1000)}&period2=${Math.floor(to / 1000)}&interval=${spec.interval}&includePrePost=false&events=`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' }, signal: AbortSignal.timeout(12_000) });
+    if (!res.ok) throw new Error(`Yahoo HTTP ${res.status}`);
+    const j: any = await res.json();
+    const r = j?.chart?.result?.[0];
+    if (!r) throw new Error(j?.chart?.error?.description || 'No data');
+    const ts: number[] = r.timestamp || [];
+    const q = r.indicators?.quote?.[0] || {};
+    data = clean(ts.map((t, i) => ({ timestamp: t * 1000, open: q.open?.[i], high: q.high?.[i], low: q.low?.[i], close: q.close?.[i], volume: q.volume?.[i] ?? 0 })));
+    if (tf === 'h4') {
+      const out: Candle[] = [];
+      for (const c of data) {
+        const b = Math.floor(c.timestamp / (4 * 3600_000)) * 4 * 3600_000;
+        const last = out[out.length - 1];
+        if (last && last.timestamp === b) { last.high = Math.max(last.high, c.high); last.low = Math.min(last.low, c.low); last.close = c.close; last.volume += c.volume; }
+        else out.push({ ...c, timestamp: b });
+      }
+      data = out;
+    }
+    cacheSet(key, data);
+  }
+  const candles = data.filter((c) => c.timestamp < before).slice(-count);
+  return { candles, reachedStart: from <= earliest };
+}

@@ -33,7 +33,7 @@ export const FundamentalAnalysisView: React.FC = () => {
   const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
   const [tab, setTab] = useState<Tab>('FOREX');
   const [selected, setSelected] = useState<Record<string, string>>({ FOREX: 'USD', COMMODITIES: 'XAU', INDICES: 'US500', STOCKS: 'AAPL', CRYPTO: 'BTC' });
-  const [detail, setDetail] = useState<{ asset: AssetResult; mirrors: Record<string, AssetResult> } | null>(null);
+  const [detail, setDetail] = useState<{ asset: AssetResult; mirrors: Record<string, AssetResult>; institutional?: any } | null>(null);
   const [alerts, setAlerts] = useState<ReleaseEvent[]>([]);
   const [pairJump, setPairJump] = useState<string | null>(null);
   const seenReleases = useRef<Set<string> | null>(null);
@@ -104,7 +104,7 @@ export const FundamentalAnalysisView: React.FC = () => {
     if (!selSymbol || !ov) return;
     let alive = true;
     fetchJsonSafe<any>(`/api/macro/asset/${encodeURIComponent(selSymbol)}`)
-      .then((j) => { if (alive && j?.ok) setDetail({ asset: j.data, mirrors: j.mirrors || {} }); })
+      .then((j) => { if (alive && j?.ok) setDetail({ asset: j.data, mirrors: j.mirrors || {}, institutional: j.institutional }); })
       .catch(() => undefined);
     return () => { alive = false; };
   }, [selSymbol, ov?.generatedAt]);
@@ -246,7 +246,7 @@ export const FundamentalAnalysisView: React.FC = () => {
                     <button type="button" onClick={() => openPair(ov.pairs.find((p) => p.base === selSymbol)!.symbol)}
                       className="text-[12px] text-cyan-400 hover:text-cyan-300 cursor-pointer">Open {selSymbol}/USD side-by-side analysis →</button>
                   )}
-                  <AssetDetail asset={detail.asset} mirrors={detail.mirrors} />
+                  <AssetDetail asset={detail.asset} mirrors={detail.mirrors} institutional={detail.institutional} />
                 </>
               ) : (
                 <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-8 text-center text-sm text-slate-500">Loading breakdown…</div>

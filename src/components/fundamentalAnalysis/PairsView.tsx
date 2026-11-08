@@ -10,7 +10,7 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
   const [filter, setFilter] = useState<Filter>('ALL');
   const [q, setQ] = useState('');
   const [sel, setSel] = useState<string | null>(initial || null);
-  const [detail, setDetail] = useState<{ data: PairResult; base: AssetResult | null; quote: AssetResult | null } | null>(null);
+  const [detail, setDetail] = useState<{ data: PairResult; base: AssetResult | null; quote: AssetResult | null; institutional?: any } | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { if (initial) setSel(initial); }, [initial]);
@@ -20,7 +20,7 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
     let alive = true;
     setLoading(true);
     fetchJsonSafe<any>(`/api/macro/pair/${encodeURIComponent(sel)}`)
-      .then((j) => { if (alive && j?.ok) setDetail({ data: j.data, base: j.base, quote: j.quote }); })
+      .then((j) => { if (alive && j?.ok) setDetail({ data: j.data, base: j.base, quote: j.quote, institutional: j.institutional }); })
       .catch(() => undefined)
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
@@ -79,11 +79,11 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
                 <div className="mt-1 text-[11px] font-mono-code text-slate-500">90-day correlation with DXY: {Math.round(p.correlationToUsd * 100)}%</div>
               )}
             </div>
-            {detail.base && <AssetDetail asset={detail.base} compact title={`${p.base} — fundamental breakdown`} mirrors={detail.quote ? { [detail.quote.symbol]: detail.quote } : {}} />}
+            {detail.base && <AssetDetail asset={detail.base} compact institutional={detail.institutional?.base} title={`${p.base} — fundamental breakdown`} mirrors={detail.quote ? { [detail.quote.symbol]: detail.quote } : {}} />}
           </div>
           {/* RIGHT: quote analysis */}
           <div className="space-y-4">
-            {detail.quote && <AssetDetail asset={detail.quote} compact title={`${p.quote} — fundamental breakdown${usdPriced ? ' (enters inverted)' : ''}`} />}
+            {detail.quote && <AssetDetail asset={detail.quote} compact institutional={detail.institutional?.quote} title={`${p.quote} — fundamental breakdown${usdPriced ? ' (enters inverted)' : ''}`} />}
           </div>
         </div>
       </div>
