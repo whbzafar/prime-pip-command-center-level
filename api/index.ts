@@ -81,10 +81,11 @@ export default async function handler(req: Request, res: Response) {
     }
 
     // Fundamentals is served by its standalone bundle whenever the main server is unavailable.
-    if (path.startsWith('/api/macro/') && (!mainApp || mainError) && macroApp) return macroApp(req, res);
+    const standaloneRoute = path.startsWith('/api/macro/') || path.startsWith('/api/history/');
+    if (standaloneRoute && (!mainApp || mainError) && macroApp) return macroApp(req, res);
 
     if (mainApp) return mainApp(req, res);
-    if (path.startsWith('/api/macro/') && macroApp) return macroApp(req, res);
+    if (standaloneRoute && macroApp) return macroApp(req, res);
     return sendJson(res, 503, { ok: false, error: 'Server failed to start', detail: mainError });
   } catch (err: any) {
     console.error('[API] Handler failure:', err);

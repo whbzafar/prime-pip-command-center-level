@@ -5,7 +5,9 @@
  */
 import express from 'express';
 import { macroRouter } from '../routes/macroRoutes.js';
+import { historyRouter } from '../routes/historyRoutes.js';
 
 export const macroApp = express();
 macroApp.use('/api/macro', macroRouter);
-export { macroRouter };
+macroApp.use('/api/history', historyRouter);
+export { macroRouter, historyRouter };

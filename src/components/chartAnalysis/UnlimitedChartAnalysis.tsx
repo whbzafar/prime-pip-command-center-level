@@ -1201,36 +1201,10 @@ const DeepHistoryChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = ({
 };
 
 /**
- * Unlimited Charts: TradingView-powered multi-chart workspace (default) plus the Deep History
- * view (Dukascopy minute data from 2003, Binance from 2017) with CSV export.
+ * Unlimited Charts: TradingView-style multi-chart workspace with complete history
+ * (Dukascopy, Binance, Yahoo). Opens directly — no mode switch.
  */
-export const UnlimitedChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = (props) => {
-  const [mode, setMode] = useState<'PRO' | 'DEEP'>(() => {
-    try { return (localStorage.getItem('ppfx.unlimitedCharts.mode') as 'PRO' | 'DEEP') || 'PRO'; } catch { return 'PRO'; }
-  });
-  useEffect(() => { try { localStorage.setItem('ppfx.unlimitedCharts.mode', mode); } catch { /* ignore */ } }, [mode]);
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <button type="button" onClick={() => setMode('PRO')}
-          className={`text-left p-4 rounded-2xl border transition-all cursor-pointer ${mode === 'PRO' ? 'bg-cyan-500/10 border-cyan-400/60 ring-1 ring-cyan-400/30' : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'}`}>
-          <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-cyan-300" />
-            <span className="font-military font-bold text-sm text-white tracking-wide">TradingView Pro Charts</span>
-            <span className="text-[9px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase">Live · Free</span>
-          </div>
-          <p className="text-[11px] font-mono-code text-slate-400 mt-1">Up to 8 TradingView charts · any symbol &amp; timeframe · drawing tools · 100+ indicators</p>
-        </button>
-        <button type="button" onClick={() => setMode('DEEP')}
-          className={`text-left p-4 rounded-2xl border transition-all cursor-pointer ${mode === 'DEEP' ? 'bg-cyan-500/10 border-cyan-400/60 ring-1 ring-cyan-400/30' : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'}`}>
-          <div className="flex items-center gap-2">
-            <Database className="w-4 h-4 text-cyan-300" />
-            <span className="font-military font-bold text-sm text-white tracking-wide">Deep History &amp; Export</span>
-          </div>
-          <p className="text-[11px] font-mono-code text-slate-400 mt-1">Dukascopy minute data since 2003 (forex &amp; metals) · Binance since 2017 · CSV export</p>
-        </button>
-      </div>
-      {mode === 'PRO' ? <TradingViewWorkspace /> : <DeepHistoryChartAnalysis {...props} />}
-    </div>
-  );
-};
+export const UnlimitedChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = () => <TradingViewWorkspace />;
+
+// Previous single-chart view retained in code (not rendered) for reference.
+void DeepHistoryChartAnalysis;
