@@ -7,20 +7,6 @@ jobs:
     permissions: { contents: write }
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          B=https://prime-pip-command-center-level.vercel.app
-          curl -s $B/api/macro/sentiment | python3 -c "
-          import json,sys; j=json.load(sys.stdin)['data']; r=j['rows']
-          print('rows',len(r), {a:sum(1 for x in r if x['asset']==a) for a in ['FOREX','COMMODITIES','INDICES','CRYPTO']}, 'derived', sum(1 for x in r if x['method']=='derived'))
-          print([ (s['name'],s['ok'],s['count']) for s in j['sources']])
-          for x in r[:6]+[y for y in r if y['symbol'] in ('XAUUSD','US500','BTCUSDT','CADJPY','SOLUSDT')]: print(x['symbol'],x['longPct'],x['method'],x['contrarian'],[s['name'] for s in x['sources']])
-          print('currencies', [(c['currency'],c['longPct']) for c in j['currencies']])"
-          curl -s $B/api/macro/rankings | python3 -c "
-          import json,sys; d=json.load(sys.stdin)['data']
-          for h in ['longTerm','shortTerm']:
-            print(h,'BULL',[ (p['display'],p[h]) for p in d[h]['bullish'][:6]]); print(h,'BEAR',[ (p['display'],p[h]) for p in d[h]['bearish'][:6]])"
-          for t in GBPUSD EURUSD XAUUSD US500; do curl -s "$B/api/history/archive?ticker=$t"; echo; done
-          curl -s $B/api/macro/pair/USDCAD | python3 -c "import json,sys; j=json.load(sys.stdin); print('pair sentiment', json.dumps(j.get('sentiment'))[:300])"
       - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && node ui3.mjs
       - if: always()
         run: |

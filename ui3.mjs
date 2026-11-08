@@ -17,16 +17,8 @@ await click('Start Practice'); await page.waitForTimeout(1200); await click('Cre
 // close any notice popups
 for (const d of await page.getByText('Dismiss', { exact: true }).all()) await d.click().catch(() => {});
 
-// Fundamentals → Sentiment, Rankings
-await click('FUNDAMENTAL INDICATORS'); await page.waitForTimeout(9000);
-await click('Top Bullish / Bearish', true); await page.waitForTimeout(6000); await shot('f1-rankings');
-await page.mouse.wheel(0, 1200); await page.waitForTimeout(800); await shot('f2-matrix');
-await page.mouse.wheel(0, -3000);
-await page.getByRole('tab', { name: 'Sentiment' }).click(); await page.waitForTimeout(9000); await shot('f3-sentiment'); await page.mouse.wheel(0, 700); await page.waitForTimeout(600); await shot('f3b-sentiment');
-let t = await txt(); let i = t.indexOf('Live trader sentiment'); console.log('SENT:', t.slice(i, i + 700));
-
 // Premium TradingView
-await click('PREMIUM TRADINGVIEW'); await page.waitForTimeout(14000); await shot('p1-premium'); await page.mouse.wheel(0, 500); await page.waitForTimeout(800); await shot('p2-premium');
+await click('PREMIUM TRADINGVIEW'); await page.waitForTimeout(16000); { const tt = await txt(); console.log('PRICES:', (tt.match(/SELL [0-9.]+/)||[''])[0], (tt.match(/BUY [0-9.]+/)||[''])[0]); } await shot('p1-premium'); await page.mouse.wheel(0, 500); await page.waitForTimeout(800); await shot('p2-premium');
 t = await txt(); i = t.indexOf('Live fundamental bias'); console.log('BIAS:', t.slice(i, i + 400));
 const m = t.match(/MARKET:? [^|]{0,60}/); console.log('COUNTDOWN:', m ? m[0] : t.match(/CANDLE:? [^ ]+ ?[^ ]*/)?.[0]);
 
