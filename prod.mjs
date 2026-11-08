@@ -2,9 +2,10 @@ import { chromium } from 'playwright';
 const B = 'https://prime-pip-command-center-level.vercel.app';
 const user = { id: 'dev-owner-master', name: 'Probe', username: 'probe', role: 'CUSTOMER', subscriptionStatus: 'LIFETIME', isLifetime: true, paymentStatus: 'PAID', hasCompletedOnboarding: true };
 const ctx = await (await chromium.launch()).newContext({ viewport: { width: 1600, height: 1000 } });
+await ctx.addCookies([{ name: 'primepipfx_session', value: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', domain: 'prime-pip-command-center-level.vercel.app', path: '/', secure: true }]);
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('PAGEERROR', e.message.slice(0, 300)));
-page.on('console', (m) => { if (m.type() === 'error') console.log('CONSOLE', m.text().slice(0, 250)); });
+
 page.on('requestfailed', (r) => console.log('REQFAIL', r.url().slice(0, 160), r.failure()?.errorText));
 page.on('response', (r) => { if (r.status() >= 400 && !r.url().includes('tradingview')) console.log('HTTP', r.status(), r.url().slice(0, 160)); });
 await ctx.route('**/api/auth/me', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, user }) }));
@@ -14,7 +15,7 @@ for (let i = 0; i < 3; i++) { for (const t of ['ENTER COMMAND CENTER', 'Start Pr
 await page.evaluate(() => document.getElementById('onboarding-welcome-modal')?.remove());
 const nav = async (l) => page.evaluate((l) => { const el = [...document.querySelectorAll('button')].find((b) => (b.innerText || '').toUpperCase().includes(l)); if (el) { el.scrollIntoView(); el.click(); return true; } return false; }, l);
 const txt = async () => (await page.locator('body').innerText()).replace(/\s+/g, ' ');
-for (const [label, name] of [['UNLIMITED CHART ANALYSIS', 'charts'], ['BACKTESTING', 'backtest'], ['FUNDAMENTAL INDICATORS', 'fundamentals'], ['TRADER COMMUNITY FEED', 'community'], ['PREMIUM TRADINGVIEW', 'premium']]) {
+for (const [label, name] of [['UNLIMITED CHART ANALYSIS', 'charts'], ['BACKTESTING', 'backtest'], ['FUNDAMENTAL INDICATORS', 'fundamentals'], ['LIVE NEWS CALENDAR', 'calendar'], ['TRADER COMMUNITY FEED', 'community'], ['PREMIUM TRADINGVIEW', 'premium']]) {
   console.log('==== OPEN', label, await nav(label));
   await page.waitForTimeout(15000);
   const t = await txt();
