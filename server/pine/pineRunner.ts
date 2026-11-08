@@ -11,7 +11,10 @@
 // starting. `new Function` keeps esbuild from rewriting import() into require().
 const esmImport = new Function('s', 'return import(s)') as (s: string) => Promise<any>;
 let enginePromise: Promise<any> | null = null;
-const loadEngine = () => (enginePromise ??= esmImport('@luxalgo/vela-pinets').then((m) => m.PineEngine || m.default?.PineEngine));
+const loadEngine = () => (enginePromise ??= esmImport('@luxalgo/vela-pinets')
+  // Test runners (vm contexts) cannot use the Function-based import; use a regular one there.
+  .catch(() => import('@luxalgo/vela-pinets'))
+  .then((m: any) => m.PineEngine || m.default?.PineEngine));
 const newEngine = async () => { const PineEngine = await loadEngine(); return new PineEngine(); };
 
 export interface SeriesNeed { symbol: string; timeframe: string; range: { from?: number; to?: number; limit?: number } }

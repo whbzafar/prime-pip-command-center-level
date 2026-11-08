@@ -4,7 +4,7 @@
   "functions": {
     "api/index.ts": {
       "maxDuration": 60,
-      "includeFiles": "{data/**,dist/server.cjs,dist/macro.cjs,node_modules/@luxalgo/**,node_modules/pinets/**,node_modules/acorn/**,node_modules/acorn-walk/**,node_modules/astring/**,node_modules/@zag-js/**,node_modules/@floating-ui/**,node_modules/@internationalized/**,node_modules/@swc/helpers/**,node_modules/proxy-compare/**,node_modules/tslib/**}"
+      "includeFiles": "{data/**,dist/server.cjs,dist/macro.cjs}"
     }
   },
   "rewrites": [
