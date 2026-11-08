@@ -1,0 +1,59 @@
+name: Minute history backfill (HistData.com → release assets)
+
+# Fills every 1-minute month the Dukascopy archive has not reached yet, from HistData.com's free
+# yearly M1 files (one download per instrument-year). Never overwrites a Dukascopy month.
+on:
+  schedule:
+    - cron: '17 2 * * 1'   # weekly top-up
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: history-histdata
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: m
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          rows = json.load(open('scripts/history/instruments.json'))
+          print('matrix=' + json.dumps({'include': [{'ticker': r['ticker'], 'digits': r['digits'], 'start': r['start'][:4]} for r in rows]}))
+          PY
+
+  build:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: hist-${{ matrix.ticker }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure release exists
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --prerelease --latest=false \
+            --title "History archive · ${{ matrix.ticker }}" --notes "Candle history for ${{ matrix.ticker }} (Dukascopy datafeed + HistData.com minute backfill)."
+      - name: Build
+        run: |
+          EXISTING=$(gh release view "$TAG" --json assets --jq '[.assets[] | "\(.name):\(.size)"] | join(",")')
+          python3 scripts/history/build_histdata.py "${{ matrix.ticker }}" "${{ matrix.digits }}" "${{ matrix.start }}" out "$EXISTING"
+      - name: Upload
+        if: always()
+        run: |
+          [ -d out ] || exit 0
+          cd out; files=$(ls); [ -z "$files" ] && exit 0
+          # upload in batches to stay well inside API limits
+          echo "$files" | xargs -n 40 gh release upload "$TAG" --clobber

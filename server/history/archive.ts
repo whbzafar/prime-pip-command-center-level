@@ -49,8 +49,11 @@ export async function getManifest(ticker: string): Promise<ArchiveManifest | nul
   if (hit !== undefined) return hit;
   let m: ArchiveManifest | null = null;
   try {
-    const buf = await fetchAsset(ticker, 'manifest.json');
+    const [buf, hist] = await Promise.all([fetchAsset(ticker, 'manifest.json'), fetchAsset(ticker, 'hist_m1.json').catch(() => null)]);
     m = buf ? JSON.parse(buf.toString('utf8')) : null;
+    // Older minute months backfilled from HistData.com (Dukascopy months take priority; never both).
+    const hm: string[] = hist ? (JSON.parse(hist.toString('utf8')).months || []) : [];
+    if (m && hm.length) m.m1Months = Array.from(new Set([...(m.m1Months || []), ...hm])).sort();
   } catch { m = null; }
   cset(k, m, m ? 10 * MIN : 2 * MIN);
   return m;
