@@ -77,7 +77,14 @@ historyRouter.get('/instruments', (_req: Request, res: Response) => {
 });
 
 /** TEMP: reachability probe for sentiment sources. */
-historyRouter.get('/_sprobe', async (_req: Request, res: Response) => {
+historyRouter.get('/_sprobe', async (req: Request, res: Response) => {
+  const u = String(req.query.u || '');
+  if (u) {
+    if (!/^https:\/\/(c\.fxssi\.com|www\.ig\.com|fxssi\.com)\//.test(u)) return res.status(400).end();
+    const r = await fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36', Referer: 'https://fxssi.com/tools/current-ratio' } });
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).send(`STATUS ${r.status}\n` + (await r.text()).slice(0, 4000));
+  }
   const urls = ["https://www.myfxbook.com/community/outlook", "https://www.myfxbook.com/community/outlook/EURUSD", "https://www.a1trading.com/retail-sentiment/", "https://fxssi.com/tools/current-ratio", "https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio-contract?instId=BTC-USDT-SWAP&period=5m&limit=1", "https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?ccy=BTC&period=5m", "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT&period=5m&limit=1", "https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=BTCUSDT&period=5min&limit=1", "https://api.gateio.ws/api/v4/futures/usdt/contract_stats?contract=BTC_USDT&limit=1", "https://api.bitget.com/api/v2/mix/market/account-long-short?symbol=BTCUSDT&period=5m", "https://api.mexc.com/api/v3/ping", "https://contract.mexc.com/api/v1/contract/ticker?symbol=BTC_USDT", "https://www.dailyfx.com/sentiment", "https://www.ig.com/en/ig-client-sentiment", "https://freeserv.dukascopy.com/2.0/?path=api/sentimentIndex"];
   const out = await Promise.all(urls.map(async (url: string) => {
     const t = Date.now();
