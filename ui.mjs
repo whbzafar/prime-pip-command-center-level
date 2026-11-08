@@ -18,7 +18,7 @@ console.log('DEMO TEXT:', (await page.locator('body').innerText()).replace(/\s+/
 console.log('DEMO BUTTONS:', (await page.locator('button, a, [role=button]').allInnerTexts()).map((t) => t.trim().replace(/\s+/g, ' ')).filter(Boolean).slice(0, 120).join(' | '));
 async function open(labels, shot, wait = 9000) {
   for (const l of labels) {
-    const loc = page.getByText(l, { exact: true }).first();
+    const loc = page.getByText(l, { exact: false }).first();
     if (await loc.count()) { try { await loc.click({ timeout: 5000 }); console.log('clicked', l); break; } catch (e) { console.log('click fail', l, e.message.slice(0, 80)); } }
     else console.log('not found', l);
   }
@@ -26,9 +26,11 @@ async function open(labels, shot, wait = 9000) {
   await page.screenshot({ path: `shots/${shot}.png` });
   console.log(shot, 'text sample:', (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400));
 }
-await open(['Fundamental Indicators', 'Fundamentals', 'Fundamental Analysis'], '1-fundamentals', 12000);
-await open(['Institutional Positions', 'Institutional'], '1b-institutional', 4000);
-await open(['Chart Analysis', 'Unlimited Charts'], '2-charts', 15000);
-await open(['Backtesting'], '3-backtesting', 12000);
+await open(['08. FUNDAMENTAL INDICATORS'], '1-fundamentals', 15000);
+await page.mouse.wheel(0, 900); await page.waitForTimeout(1500); await page.screenshot({ path: 'shots/1a-fundamentals-scroll.png' });
+await open(['Institutional Positions', 'Institutional'], '1b-institutional', 5000);
+await page.mouse.wheel(0, 900); await page.waitForTimeout(1500); await page.screenshot({ path: 'shots/1c-institutional-scroll.png' });
+await open(['EUR'], '1d-eur', 8000);
+await page.mouse.wheel(0, 1400); await page.waitForTimeout(1500); await page.screenshot({ path: 'shots/1e-eur-scroll.png' });
 console.log('CONSOLE ERRORS', errors.length); errors.slice(0, 25).forEach((e) => console.log('  ', e));
 await browser.close();
