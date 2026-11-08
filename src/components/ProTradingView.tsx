@@ -3,6 +3,7 @@ import { fmtDuration, marketStatus, sessionKind } from '../utils/marketSession';
 import { LiveBiasStrip, chartSymbolFor } from './fundamentalAnalysis/LiveBiasStrip';
 import { CATALOG } from './chartAnalysis/fullHistoryDatafeed';
 import { createPortal } from 'react-dom';
+const PinePanelLazy = React.lazy(() => import('./pine/PinePanel'));
 import {
   CandlestickChart,
   Search,
@@ -61,6 +62,7 @@ import {
   Trash2,
   Play,
   Pause,
+  Code,
 } from 'lucide-react';
 import {
   getPairTechnicalAnalysis,
@@ -1273,6 +1275,7 @@ export type RightSideToolId =
   | 'NEWS'
   | 'COMMUNITY'
   | 'CALENDAR'
+  | 'WIDGET'
   | 'IDEAS';
 
 export interface ChartAlertItem {
@@ -1888,6 +1891,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   // Dynamic helper to resolve fundamental data for ANY symbol (FX, Indices, Metals, Crypto)
   // LIVE fundamentals engine (/api/macro) — replaces the static directory wherever a live pair exists.
   const [livePairs, setLivePairs] = useState<Record<string, any>>({});
+  const [liveAssets, setLiveAssets] = useState<Record<string, any>>({});
   const [liveSent, setLiveSent] = useState<Record<string, any>>({});
   useEffect(() => {
     let alive = true;
@@ -1898,7 +1902,10 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           fetch('/api/macro/sentiment').then((r) => (r.ok ? r.json() : null)).catch(() => null),
         ]);
         if (!alive) return;
-        if (ov?.ok) setLivePairs(Object.fromEntries((ov.data.pairs || []).map((p: any) => [p.symbol, p])));
+        if (ov?.ok) {
+          setLivePairs(Object.fromEntries((ov.data.pairs || []).map((p: any) => [p.symbol, p])));
+          setLiveAssets(Object.fromEntries((ov.data.assets || []).map((a: any) => [a.symbol, a])));
+        }
         if (se?.ok) setLiveSent(Object.fromEntries((se.data.rows || []).map((r: any) => [r.symbol, r])));
       } catch { /* keep last */ }
     };
@@ -1912,8 +1919,15 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       const clean = sym.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 
       // Live engine first (BTCUSDT chart ↔ BTCUSD engine pair, etc.)
-      const engineSym = clean.replace(/USDT$/, 'USD').replace(/^SPX500$/, 'US500').replace(/^BRENT$/, 'UKOIL');
-      const lp = livePairs[engineSym];
+      const ENGINE: Record<string, string> = { SPX500: 'US500', NAS100: 'US100', USOIL: 'WTIUSD', BRENT: 'WTIUSD', UKOIL: 'WTIUSD', XPTUSD: 'XPTUSD', COPPER: 'XCUUSD', NATGAS: 'NATGASUSD' };
+      const engineSym = ENGINE[clean] || clean.replace(/USDT$/, 'USD');
+      let lp = livePairs[engineSym];
+      if (!lp && liveAssets[engineSym]) {
+        // Index / stock: the asset's own live score (no quote leg).
+        const a = liveAssets[engineSym];
+        lp = { symbol: a.symbol, base: a.symbol, quote: '', assetClass: a.assetClass, score: a.score, bias: a.bias, confidence: a.confidence,
+          baseScore: a.score, quoteScore: null, explanation: a.summary || a.explanation || `${a.name} live fundamental score ${a.score > 0 ? '+' : ''}${Number(a.score).toFixed(1)}.` };
+      }
       if (lp && lp.score !== null && lp.score !== undefined) {
         const sc = Math.round(lp.score);
         const isBull = lp.score > 5, isBear = lp.score < -5;
@@ -2191,7 +2205,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         favoredAction: 'BUY' as const,
       };
     },
-    [pairDifferentials, masterIntelligenceReport, multiAssetFundamentals, livePairs, liveSent]
+    [pairDifferentials, masterIntelligenceReport, multiAssetFundamentals, livePairs, liveSent, liveAssets]
   );
 
   const activeInstrumentFundamental = useMemo(() => {
@@ -2882,8 +2896,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         // TradingView's own bar-close countdown, drawn on the price scale right beside the last
         // candle's price label (and paused by TradingView itself when the session is closed).
         overrides: JSON.stringify({ 'mainSeriesProperties.showCountdown': chartSettings.showCountdown !== false, 'scalesProperties.showSeriesLastValue': true }),
-        details: 'true',
-        hotlist: 'true',
+        details: 'false',
+        hotlist: 'false',
         calendar: 'true',
       });
 
@@ -3372,13 +3386,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
           {/* Right: Candle Countdown Timer + Snapshot + Indicators + Minimize */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Live Candle Close Countdown in Header (Always synchronized) */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono-code text-xs font-bold shadow-sm">
-              <Clock className={`w-3.5 h-3.5 text-amber-400 ${candleCountdown.closed ? '' : 'animate-pulse'}`} />
-              <span className="hidden sm:inline text-[11px]">MARKET:</span>
-              <span className="text-white font-mono tracking-wider font-extrabold">{candleCountdown.text}</span>
-            </div>
-
             <button
               type="button"
               onClick={handleCaptureSnapshot}
@@ -3547,21 +3554,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               )}
             </button>
 
-            {/* TIME DISPLAY 1 OF 2 (Shifted upwards and to the side - No overlap!) */}
-            <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition shadow-md ${
-                false
-                  ? 'bg-amber-500/25 border-amber-400 text-amber-200 animate-pulse'
-                  : 'bg-gradient-to-r from-blue-950/80 to-slate-950/90 border-cyan-500/40 text-cyan-300'
-              }`}
-              title={`Exact time remaining before current ${candleCountdown.label} candle closes (${candleCountdown.progressPercent}% completed)`}
-            >
-              <Clock className={`w-4 h-4 text-amber-400 shrink-0 ${candleCountdown.closed ? '' : 'animate-pulse'}`} />
-              <span className="text-slate-300 uppercase tracking-wide">MARKET:</span>
-              <span className="text-amber-300 bg-slate-950 px-2 py-0.5 rounded-lg font-mono-code tracking-widest text-xs font-black border border-slate-700/80 shadow-inner">
-                {candleCountdown.text}
-              </span>
-            </div>
           </div>
         </div>
 
@@ -3716,12 +3708,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                       type="button"
                       onClick={() => {
                         handleSelectSymbol(item.symbol, (item as any).broker);
-                        if (WATCHLIST_CATEGORIES[activeCategoryIndex]?.id === 'FUNDAMENTALS') {
-                          handleOpenPairModal(item.symbol);
-                        }
                       }}
                       className="px-3 py-1.5 flex items-center gap-2 cursor-pointer"
-                      title={`Load ${item.symbol} on chart (FXCM Feed)`}
+                      title={fund.biasLabel?.includes('LIVE') ? `${item.symbol}: ${fund.biasLabel} · score ${fund.score > 0 ? '+' : ''}${fund.score} · ${fund.confidence}% data confidence — click to load the chart` : `Load ${item.symbol}`}
                     >
                       <span>{item.label}</span>
                       {isSubscriber ? (
@@ -3736,7 +3725,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                               : 'bg-slate-800 text-slate-400'
                           }`}
                         >
-                          {fund.isBullish ? `🟢 ▲ Bullish (${fund.score >= 0 ? '+' : ''}${fund.score})` : fund.isBearish ? `🔴 ▼ Bearish (${fund.score})` : '● Neutral'}
+                          {!String(fund.biasLabel || '').includes('LIVE')
+                            ? '… live score'
+                            : fund.isBullish ? `▲ Bullish ${Math.round(50 + fund.score / 2)}%` : fund.isBearish ? `▼ Bearish ${Math.round(50 - fund.score / 2)}%` : `● Neutral ${Math.round(50 + Math.abs(fund.score) / 2)}%`}
                         </span>
                       ) : (
                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 flex items-center gap-1 font-mono font-medium">
@@ -3746,7 +3737,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                       )}
                     </button>
 
-                    {WATCHLIST_CATEGORIES[activeCategoryIndex]?.id === 'FUNDAMENTALS' && (
+                    {false && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -3773,7 +3764,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           {/* DYNAMIC FUNDAMENTAL INTELLIGENCE PANEL (Restored Feature)           */}
           {/* Pulls verified fundamental data & dynamically updates for pair      */}
           {/* =================================================================== */}
-          {(showFundamentalPanel || WATCHLIST_CATEGORIES[activeCategoryIndex]?.id === 'FUNDAMENTALS') && (
+          {false && (showFundamentalPanel || WATCHLIST_CATEGORIES[activeCategoryIndex]?.id === 'FUNDAMENTALS') && (
             !isSubscriber ? (
               <div className="p-3.5 rounded-2xl bg-gradient-to-r from-slate-950 via-[#0B132B]/90 to-slate-950 border border-amber-500/40 shadow-xl space-y-3 font-mono-code text-xs">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -4126,6 +4117,17 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   <span className="hidden sm:inline">Clear Chart</span>
                 </button>
               )}
+
+              {/* PINE EDITOR — real Pine Script v5/v6 on the Pine chart (Vela + PineTS) */}
+              <button
+                type="button"
+                onClick={() => setIsPineEditorOpen((o) => !o)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${isPineEditorOpen ? 'bg-violet-500/25 border-violet-400/60 text-violet-100' : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-violet-400/50'}`}
+                title="Open the Pine Editor — write, paste or open a Pine Script and run it on the Pine chart"
+              >
+                <Code className="w-4 h-4 text-violet-300" />
+                <span>Pine Editor</span>
+              </button>
 
               {/* FULL-SCREEN BUTTON (Directly next to Indicators) */}
               <button
@@ -4626,6 +4628,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           news={currentPairNews}
           community={currentPairCommunity}
           calendarEvents={liveCalendarEvents}
+          tvSymbol={tradingViewSymbol}
         />
 
         {/* =================================================================== */}
@@ -4643,8 +4646,15 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       {/* ========================================================================= */}
       {/* 2.5 TRADINGVIEW PINE EDITOR DOCK (Integrated bottom panel dock)           */}
       {/* ========================================================================= */}
-      {false && !isFullscreen && isPineEditorOpen && (
-        <div className="border border-slate-800 rounded-2xl overflow-hidden shadow-2xl bg-[#0d1117] my-2 animate-in fade-in slide-in-from-top-2 duration-200">
+      {isPineEditorOpen && (
+        <div className="my-2">
+          <React.Suspense fallback={<div className="rounded-2xl border border-slate-800 bg-[#0b0f17] p-6 text-[12px] text-slate-400">Loading Pine Editor…</div>}>
+            <PinePanelLazy symbol={selectedSymbol} interval={selectedInterval} onClose={() => setIsPineEditorOpen(false)} />
+          </React.Suspense>
+        </div>
+      )}
+      {false && (
+        <div>
           <PineEditorDock
             currentSymbol={selectedSymbol}
             currentTimeframe={selectedInterval}

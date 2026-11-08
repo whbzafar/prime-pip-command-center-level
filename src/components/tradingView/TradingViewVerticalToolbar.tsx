@@ -1,5 +1,5 @@
 import React from 'react';
-import {
+import { LayoutGrid,
   Bookmark,
   AlarmClock,
   BarChart2,
@@ -30,11 +30,11 @@ export const TradingViewVerticalToolbar: React.FC<TradingViewVerticalToolbarProp
   const tools = [
     { id: 'WATCHLIST' as const, icon: Bookmark, label: 'Watchlist & Details', badge: watchlistCount },
     { id: 'ALERTS' as const, icon: AlarmClock, label: 'Price Alerts', badge: alertsCount },
+    { id: 'WIDGET' as const, icon: LayoutGrid, label: 'Pair Widget — Fundamentals, Seasonality, COT & Sentiment' },
     { id: 'SENTIMENT' as const, icon: PieChart, label: 'Market Sentiment & Institutional COT' },
     { id: 'SEASONALITY' as const, icon: CalendarDays, label: 'Monthly Seasonality Tendencies' },
     { id: 'NEWS' as const, icon: Newspaper, label: 'Pair-Specific News & Headlines' },
-    { id: 'COMMUNITY' as const, icon: Users2, label: 'Community Insights & Trader Setups' },
-    { id: 'CALENDAR' as const, icon: Calendar, label: 'Economic Calendar' },
+    { id: 'CALENDAR' as const, icon: Calendar, label: 'Live News Calendar (TradingView)' },
   ];
 
   return (

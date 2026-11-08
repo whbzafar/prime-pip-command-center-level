@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { init, dispose, type Chart, type KLineData } from 'klinecharts';
-import { ChevronsRight, Download, Info, Pause, Play, SkipForward, StepForward, Target, Trash2, Undo2, X } from 'lucide-react';
+import { ChevronsRight, Download, Info, Maximize2, Minimize2, Pause, Play, SkipForward, StepForward, Target, Trash2, Undo2, X } from 'lucide-react';
 import { SymbolPicker } from '../chartAnalysis/SymbolPicker';
 import { CATALOG, FullHistoryDatafeed, PRO_PERIODS, type CatalogEntry } from '../chartAnalysis/fullHistoryDatafeed';
 
@@ -12,11 +12,11 @@ import { CATALOG, FullHistoryDatafeed, PRO_PERIODS, type CatalogEntry } from '..
  */
 
 type Side = 1 | -1;
-interface Position { id: number; side: Side; entry: number; sl: number | null; tp: number | null; lots: number; openTime: number; overlays: string[] }
-interface ClosedTrade extends Omit<Position, 'overlays'> { exit: number; exitTime: number; reason: 'TP' | 'SL' | 'Manual' | 'End'; pnl: number; r: number | null }
+interface Position { id: number; side: Side; entry: number; sl: number | null; tp: number | null; lots: number; openTime: number; overlays: string[]; slId?: string; tpId?: string }
+interface ClosedTrade extends Omit<Position, 'overlays' | 'slId' | 'tpId'> { exit: number; exitTime: number; reason: 'TP' | 'SL' | 'Manual' | 'End'; pnl: number; r: number | null }
 
 const PERIOD_MS: Record<string, number> = { '1m': 60e3, '3m': 180e3, '5m': 300e3, '15m': 900e3, '30m': 1800e3, '1H': 3600e3, '2H': 7200e3, '4H': 14400e3, D: 864e5, W: 6048e5, M: 2592e6 };
-const SPEEDS = [0.5, 1, 2, 4, 8, 16, 32];
+const SPEEDS = [0.5, 1, 2, 4, 8, 16, 32, 64, 128, 256];
 
 function contractSize(e: CatalogEntry): number {
   if (e.market === 'forex') return 100_000;
@@ -44,6 +44,8 @@ function calcPnl(e: CatalogEntry, side: Side, entry: number, exit: number, lots:
   return e.market === 'forex' && e.ticker.startsWith('USD') ? raw / exit : raw;
 }
 const fmt = (v: number, d = 2) => v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+/** Money without pointless trailing zeros: 500 → "500", 512.5 → "512.50". */
+const fmtMoney = (v: number) => (Math.abs(v - Math.round(v)) < 0.005 ? Math.round(v).toLocaleString('en-US') : v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
 export const BarReplayPro: React.FC = () => {
   const [ticker, setTicker] = useState('XAUUSD');
@@ -56,6 +58,7 @@ export const BarReplayPro: React.FC = () => {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(2);
   const [startBalance, setStartBalance] = useState(10_000);
+  const [balanceDraft, setBalanceDraft] = useState('10000');
   const [lots, setLots] = useState(0.1);
   const [slPips, setSlPips] = useState(20);
   const [tpPips, setTpPips] = useState(40);
@@ -71,6 +74,27 @@ export const BarReplayPro: React.FC = () => {
   const drawingsRef = useRef<string[]>([]);
   const setDraw = (d: string[]) => { drawingsRef.current = d; setDrawings(d); };
   const chartHost = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isFs, setIsFs] = useState(false);       // native full screen
+  const [fsFallback, setFsFallback] = useState(false); // CSS full screen when the API is unavailable
+  const fullscreen = isFs || fsFallback;
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); return; }
+    if (fsFallback) { setFsFallback(false); return; }
+    const el = cardRef.current;
+    if (el?.requestFullscreen) el.requestFullscreen().catch(() => setFsFallback(true)); else setFsFallback(true);
+  };
+  useEffect(() => {
+    const on = () => setIsFs(document.fullscreenElement === cardRef.current);
+    document.addEventListener('fullscreenchange', on);
+    return () => document.removeEventListener('fullscreenchange', on);
+  }, []);
+  useEffect(() => {
+    const t = setTimeout(() => chartRef.current?.resize(), 60);
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && fsFallback) setFsFallback(false); };
+    window.addEventListener('keydown', esc);
+    return () => { clearTimeout(t); window.removeEventListener('keydown', esc); };
+  }, [fullscreen, fsFallback]);
   const chartRef = useRef<Chart | null>(null);
   const feedRef = useRef<FullHistoryDatafeed | null>(null);
   const loadingMore = useRef(false);
@@ -223,11 +247,58 @@ export const BarReplayPro: React.FC = () => {
 
   // ── trading engine
   const lastBar = bars[cursor];
-  const addLines = (p: Omit<Position, 'overlays'>): string[] => {
+  // Entry line (locked) + DRAGGABLE stop-loss / take-profit lines, MetaTrader-style: drag a line to
+  // move the level; an invalid level (SL above the price on a buy, etc.) snaps back.
+  const levelLine = (posId: number, kind: 'sl' | 'tp', value: number): string => {
     const c = chartRef.current;
-    if (!c || !lastBar) return [];
-    const mk = (value: number, color: string) => c.createOverlay({ name: 'priceLine', lock: true, points: [{ timestamp: lastBar.timestamp, value }], styles: { line: { color, size: 1, style: 'dashed' as any }, text: { color: '#0b1220', backgroundColor: color, borderColor: color } } }) as string;
-    return [mk(p.entry, '#38bdf8'), p.sl !== null ? mk(p.sl, '#f43f5e') : '', p.tp !== null ? mk(p.tp, '#10b981') : ''].filter(Boolean);
+    if (!c || !lastBar) return '';
+    const color = kind === 'sl' ? '#f43f5e' : '#10b981';
+    return c.createOverlay({
+      name: 'priceLine', lock: false, points: [{ timestamp: lastBar.timestamp, value }],
+      styles: { line: { color, size: 1.5, style: 'dashed' as any }, point: { color, borderColor: color, activeColor: color, activeBorderColor: '#fff' }, text: { color: '#0b1220', backgroundColor: color, borderColor: color } } as any,
+      onPressedMoveEnd: (ev: any) => { moveLevel(posId, kind, ev.overlay.id, ev.overlay.points?.[0]?.value); return false; },
+    } as any) as string;
+  };
+  const addLines = (p: Omit<Position, 'overlays'>): { overlays: string[]; slId?: string; tpId?: string } => {
+    const c = chartRef.current;
+    if (!c || !lastBar) return { overlays: [] };
+    const entryId = c.createOverlay({ name: 'priceLine', lock: true, points: [{ timestamp: lastBar.timestamp, value: p.entry }], styles: { line: { color: '#38bdf8', size: 1, style: 'dashed' as any }, text: { color: '#0b1220', backgroundColor: '#38bdf8', borderColor: '#38bdf8' } } } as any) as string;
+    const slId = p.sl !== null ? levelLine(p.id, 'sl', p.sl) : undefined;
+    const tpId = p.tp !== null ? levelLine(p.id, 'tp', p.tp) : undefined;
+    return { overlays: [entryId, slId, tpId].filter(Boolean) as string[], slId, tpId };
+  };
+  const moveLevel = (posId: number, kind: 'sl' | 'tp', overlayId: string, value: number | undefined) => {
+    const cur = posRef.current.find((x) => x.id === posId);
+    const bar = barsRef.current[cursorRef.current];
+    if (!cur || !bar || value === undefined || !Number.isFinite(value)) return;
+    const bid = bar.close, ask = bar.close + spreadPips * pip;
+    const ref = cur.side > 0 ? bid : ask; // a buy closes at the bid, a sell at the ask
+    const valid = kind === 'sl' ? (cur.side > 0 ? value < ref : value > ref) : (cur.side > 0 ? value > ref : value < ref);
+    if (!valid) {
+      const old = kind === 'sl' ? cur.sl : cur.tp;
+      chartRef.current?.overrideOverlay({ id: overlayId, points: [{ timestamp: bar.timestamp, value: old ?? ref }] } as any);
+      setNotice(`${kind === 'sl' ? 'Stop loss' : 'Take profit'} must be ${(kind === 'sl') === (cur.side > 0) ? 'below' : 'above'} the current ${cur.side > 0 ? 'bid' : 'ask'} (${ref.toFixed(entry.pricePrecision ?? 2)}) — level kept at ${(old ?? ref).toFixed(entry.pricePrecision ?? 2)}.`);
+      return;
+    }
+    const rounded = Number(value.toFixed(entry.pricePrecision ?? 5));
+    setPos(posRef.current.map((x) => (x.id === posId ? { ...x, [kind]: rounded } : x)));
+  };
+  /** Add (or remove) an SL / TP line on an open position from the ticket. */
+  const toggleLevel = (posId: number, kind: 'sl' | 'tp') => {
+    const cur = posRef.current.find((x) => x.id === posId);
+    if (!cur) return;
+    const id = kind === 'sl' ? cur.slId : cur.tpId;
+    if (id) {
+      chartRef.current?.removeOverlay(id);
+      setPos(posRef.current.map((x) => (x.id === posId ? { ...x, [kind]: null, [kind === 'sl' ? 'slId' : 'tpId']: undefined, overlays: x.overlays.filter((o) => o !== id) } : x)));
+      return;
+    }
+    const bar = barsRef.current[cursorRef.current];
+    const dist = (kind === 'sl' ? slPips || 20 : tpPips || 40) * pip;
+    const value = Number((kind === 'sl' ? cur.entry - cur.side * dist : cur.entry + cur.side * dist).toFixed(entry.pricePrecision ?? 5));
+    const lid = levelLine(posId, kind, value);
+    void bar;
+    setPos(posRef.current.map((x) => (x.id === posId ? { ...x, [kind]: value, [kind === 'sl' ? 'slId' : 'tpId']: lid, overlays: [...x.overlays, lid] } : x)));
   };
 
   const open = (side: Side) => {
@@ -240,7 +311,7 @@ export const BarReplayPro: React.FC = () => {
       tp: tpPips > 0 ? price + side * tpPips * pip : null,
       openTime: lastBar.timestamp,
     };
-    setPos([...posRef.current, { ...p, overlays: addLines(p) }]);
+    setPos([...posRef.current, { ...p, ...addLines(p) }]);
   };
 
   const closePos = (pos: Position, exit: number, reason: ClosedTrade['reason'], time: number) => {
@@ -248,7 +319,7 @@ export const BarReplayPro: React.FC = () => {
     const pnl = calcPnl(entry, pos.side, pos.entry, exit, pos.lots);
     const risk = pos.sl !== null ? Math.abs(pos.entry - pos.sl) : 0;
     const r = risk > 0 ? ((exit - pos.entry) * pos.side) / risk : null;
-    const { overlays: _o, ...rest } = pos;
+    const { overlays: _o, slId: _s, tpId: _t, ...rest } = pos;
     closedRef.current = [...closedRef.current, { ...rest, exit, exitTime: time, reason, pnl, r }];
     setClosed(closedRef.current);
   };
@@ -275,7 +346,8 @@ export const BarReplayPro: React.FC = () => {
 
   useEffect(() => {
     if (!playing) return;
-    const id = setInterval(step, Math.max(30, 1000 / speed));
+    const perTick = Math.max(1, Math.ceil(speed / 30));
+    const id = setInterval(() => { for (let i = 0; i < perTick; i++) step(); }, Math.max(16, (1000 * perTick) / speed));
     return () => clearInterval(id);
   }, [playing, speed, step]);
 
@@ -411,15 +483,38 @@ export const BarReplayPro: React.FC = () => {
       </div>
 
       <div className="grid xl:grid-cols-[minmax(0,1fr)_320px] gap-3">
-        <div className="rounded-2xl border border-slate-800 bg-[#151517] overflow-hidden">
-          <div className="flex items-center gap-3 px-3 py-1.5 border-b border-slate-800 text-[10.5px] font-mono-code text-slate-400">
+        <div ref={cardRef} className={`border border-slate-800 bg-[#151517] overflow-hidden flex flex-col ${fsFallback ? 'fixed inset-0 z-[9999] rounded-none' : isFs ? 'rounded-none' : 'rounded-2xl'}`}>
+          <div className="flex items-center gap-2 px-2.5 py-1.5 border-b border-slate-800 text-[10.5px] font-mono-code text-slate-400 flex-wrap">
             <span className="text-slate-100 font-bold">{ticker}</span><span>{periodText}</span>
-            {lastBar && <span>Bar time {new Date(lastBar.timestamp).toISOString().replace('T', ' ').slice(0, 16)} UTC · O {lastBar.open.toFixed(entry.pricePrecision ?? 2)} H {lastBar.high.toFixed(entry.pricePrecision ?? 2)} L {lastBar.low.toFixed(entry.pricePrecision ?? 2)} C <b className="text-slate-100">{lastBar.close.toFixed(entry.pricePrecision ?? 2)}</b></span>}
-            <span className="ml-auto">{source}</span>
+            {lastBar && <span className="hidden md:inline">Bar {new Date(lastBar.timestamp).toISOString().replace('T', ' ').slice(0, 16)} UTC · O {lastBar.open.toFixed(entry.pricePrecision ?? 2)} H {lastBar.high.toFixed(entry.pricePrecision ?? 2)} L {lastBar.low.toFixed(entry.pricePrecision ?? 2)} C <b className="text-slate-100">{lastBar.close.toFixed(entry.pricePrecision ?? 2)}</b></span>}
+            <span className="hidden lg:inline text-slate-500">{source}</span>
+            {/* Replay & trading controls — always here, so they work in full screen too */}
+            <div className="ml-auto flex items-center gap-1">
+              <button type="button" onClick={() => setPlaying((p) => !p)} disabled={!bars.length} title="Play / pause (Space)" className="p-1.5 rounded-md bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 disabled:opacity-40 cursor-pointer">{playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}</button>
+              <button type="button" onClick={step} disabled={!bars.length} title="Next bar (→)" className="p-1.5 rounded-md bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 disabled:opacity-40 cursor-pointer"><StepForward className="w-3.5 h-3.5" /></button>
+              <button type="button" onClick={() => { for (let i = 0; i < 10; i++) step(); }} disabled={!bars.length} title="Forward 10 bars" className="p-1.5 rounded-md bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 disabled:opacity-40 cursor-pointer"><ChevronsRight className="w-3.5 h-3.5" /></button>
+              <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} aria-label="Replay speed" title="Replay speed" className="px-1 py-1 rounded-md bg-slate-900 border border-slate-700 text-[10.5px] text-slate-100">
+                {SPEEDS.map((s) => <option key={s} value={s}>{s}×/s</option>)}
+              </select>
+              <button type="button" onClick={() => open(1)} disabled={!lastBar} title="Buy at market (B)" className="px-2 py-1 rounded-md bg-emerald-500/20 border border-emerald-500/50 text-emerald-100 font-bold hover:bg-emerald-500/30 disabled:opacity-40 cursor-pointer">BUY</button>
+              <button type="button" onClick={() => open(-1)} disabled={!lastBar} title="Sell at market (S)" className="px-2 py-1 rounded-md bg-rose-500/20 border border-rose-500/50 text-rose-100 font-bold hover:bg-rose-500/30 disabled:opacity-40 cursor-pointer">SELL</button>
+              <button type="button" onClick={undoDrawing} disabled={!drawings.length} title="Undo last drawing" className="p-1.5 rounded-md bg-slate-900 border border-slate-700 text-slate-300 disabled:opacity-40 cursor-pointer"><Undo2 className="w-3.5 h-3.5" /></button>
+              <button type="button" onClick={clearDrawings} disabled={!drawings.length} title="Clear all drawings" className="p-1.5 rounded-md bg-slate-900 border border-slate-700 text-rose-300 disabled:opacity-40 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
+              <button type="button" onClick={toggleFullscreen} title={fullscreen ? 'Exit full screen (Esc)' : 'Full screen'} className="p-1.5 rounded-md bg-cyan-500/15 border border-cyan-500/50 text-cyan-100 hover:bg-cyan-500/25 cursor-pointer">{fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}</button>
+            </div>
           </div>
+          {fullscreen && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 border-b border-slate-800 text-[10px] font-mono-code overflow-x-auto">
+              {drawTools.map(([n, l]) => <button key={n} type="button" onClick={() => startDrawing(n)} className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer whitespace-nowrap">{l}</button>)}
+              <span className="text-slate-600 mx-1">|</span>
+              {indicators.map((n) => <button key={n} type="button" onClick={() => toggleIndicator(n)} className={`px-1.5 py-0.5 rounded border cursor-pointer ${activeInd[n] ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-200' : 'bg-slate-900 border-slate-800 text-slate-400'}`}>{n}</button>)}
+              {positions.length > 0 && <button type="button" onClick={() => { const b = barsRef.current[cursorRef.current]; if (!b) return; for (const p of posRef.current) closePos(p, b.close, 'Manual', b.timestamp); setPos([]); }} className="ml-2 px-1.5 py-0.5 rounded border border-amber-500/50 text-amber-200 cursor-pointer whitespace-nowrap">Close all ({positions.length})</button>}
+              <span className="ml-auto text-slate-400 whitespace-nowrap">Equity <b className={stats.net + floating >= 0 ? 'text-emerald-300' : 'text-rose-300'}>{fmtMoney(startBalance + stats.net + floating)} {ccy}</b> · open {positions.length} · trades {stats.trades}</span>
+            </div>
+          )}
           {error && <div className="px-3 py-2 text-[12px] text-rose-200 bg-rose-500/10 border-b border-rose-500/20 flex items-start gap-2"><span className="flex-1">{error}</span><button type="button" aria-label="Dismiss" onClick={() => setError(null)} className="text-rose-300 hover:text-white cursor-pointer"><X className="w-3.5 h-3.5" /></button></div>}
           {notice && !error && <div className="px-3 py-1.5 text-[11.5px] text-amber-200 bg-amber-500/10 border-b border-amber-500/20">{notice}</div>}
-          <div ref={chartHost} className="h-[560px]" />
+          <div ref={chartHost} className={fullscreen ? 'flex-1 min-h-0' : 'h-[560px]'} />
           <div className="h-1 bg-slate-800"><div className="h-full bg-cyan-500 transition-all" style={{ width: `${progress}%` }} /></div>
         </div>
 
@@ -443,7 +538,11 @@ export const BarReplayPro: React.FC = () => {
                 <div key={p.id} className="flex items-center gap-2 rounded-lg bg-slate-900 border border-slate-800 px-2 py-1.5 text-[11px] font-mono-code">
                   <span className={p.side > 0 ? 'text-emerald-400' : 'text-rose-400'}>{p.side > 0 ? 'BUY' : 'SELL'} {p.lots}</span>
                   <span className="text-slate-400">@ {p.entry.toFixed(entry.pricePrecision ?? 2)}</span>
-                  <span className={`ml-auto ${fl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{fl >= 0 ? '+' : ''}{fmt(fl)} {ccy}</span>
+                  <button type="button" onClick={() => toggleLevel(p.id, 'sl')} title={p.sl !== null ? `Stop loss ${p.sl.toFixed(entry.pricePrecision ?? 2)} (${(Math.abs(p.entry - p.sl) / pip).toFixed(1)} pips, ${fmtMoney(calcPnl(entry, p.side, p.entry, p.sl, p.lots))} ${ccy}) — drag the red line to move it; click to remove` : 'Add a stop-loss line (then drag it)'}
+                    className={`px-1 rounded border text-[9.5px] cursor-pointer ${p.sl !== null ? 'border-rose-500/50 text-rose-300' : 'border-slate-700 text-slate-500 hover:text-rose-300'}`}>{p.sl !== null ? `SL ${(Math.abs(p.entry - p.sl) / pip).toFixed(0)}p` : '+SL'}</button>
+                  <button type="button" onClick={() => toggleLevel(p.id, 'tp')} title={p.tp !== null ? `Take profit ${p.tp.toFixed(entry.pricePrecision ?? 2)} (${(Math.abs(p.tp - p.entry) / pip).toFixed(1)} pips, +${fmtMoney(calcPnl(entry, p.side, p.entry, p.tp, p.lots))} ${ccy}) — drag the green line to move it; click to remove` : 'Add a take-profit line (then drag it)'}
+                    className={`px-1 rounded border text-[9.5px] cursor-pointer ${p.tp !== null ? 'border-emerald-500/50 text-emerald-300' : 'border-slate-700 text-slate-500 hover:text-emerald-300'}`}>{p.tp !== null ? `TP ${(Math.abs(p.tp - p.entry) / pip).toFixed(0)}p` : '+TP'}</button>
+                  <span className={`ml-auto ${fl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{fl >= 0 ? '+' : ''}{fmtMoney(fl)} {ccy}</span>
                   <button type="button" aria-label="Close position" onClick={() => { closePos(p, lastBar.close, 'Manual', lastBar.timestamp); setPos(posRef.current.filter((x) => x.id !== p.id)); }} className="text-slate-500 hover:text-white cursor-pointer"><X className="w-3.5 h-3.5" /></button>
                 </div>
               );
@@ -452,13 +551,18 @@ export const BarReplayPro: React.FC = () => {
 
           <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 space-y-2">
             <div className="flex items-center gap-2"><Target className="w-3.5 h-3.5 text-cyan-400" /><span className="text-[10px] font-mono-code uppercase tracking-widest text-cyan-400">Performance</span>
-              <label className="ml-auto text-[10px] font-mono-code text-slate-500 flex items-center gap-1">Start balance<input type="number" value={startBalance} onChange={(e) => setStartBalance(Math.max(1, Number(e.target.value)))} className="w-20 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[11px]" /></label>
+              <label className="ml-auto text-[10px] font-mono-code text-slate-500 flex items-center gap-1">Start balance
+                <input type="text" inputMode="decimal" value={balanceDraft} aria-label="Start balance"
+                  onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'); setBalanceDraft(v); const n = Number(v); if (v && Number.isFinite(n) && n > 0) setStartBalance(n); }}
+                  onBlur={() => setBalanceDraft(String(startBalance))}
+                  className="w-24 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[11px]" />
+              </label>
             </div>
             <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono-code">
               {([
-                ['Balance', `${fmt(startBalance + stats.net)} ${ccy}`],
-                ['Equity', `${fmt(startBalance + stats.net + floating)} ${ccy}`],
-                ['Net P&L', `${stats.net >= 0 ? '+' : ''}${fmt(stats.net)}`],
+                ['Balance', `${fmtMoney(startBalance + stats.net)} ${ccy}`],
+                ['Equity', `${fmtMoney(startBalance + stats.net + floating)} ${ccy}`],
+                ['Net P&L', `${stats.net >= 0 ? '+' : ''}${fmtMoney(stats.net)}`],
                 ['Trades', String(stats.trades)],
                 ['Win rate', `${stats.winRate.toFixed(1)}%`],
                 ['Profit factor', stats.pf === Infinity ? '∞' : stats.pf.toFixed(2)],
