@@ -3,11 +3,11 @@ on: { push: { branches: [ci/macro-live-probe] } }
 jobs:
   p:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     permissions: { contents: write }
     steps:
       - uses: actions/checkout@v4
-      - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && node ui9.mjs
+      - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && node ui10.mjs
       - if: always()
         run: |
           git config user.name ci; git config user.email ci@example.com
