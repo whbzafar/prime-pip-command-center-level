@@ -59,6 +59,9 @@ export const CATALOG: CatalogEntry[] = [
   ...[['AAPL', 'Apple'], ['MSFT', 'Microsoft'], ['NVDA', 'NVIDIA'], ['AMZN', 'Amazon'], ['GOOGL', 'Alphabet'], ['META', 'Meta Platforms'], ['TSLA', 'Tesla'], ['AMD', 'AMD'], ['NFLX', 'Netflix'], ['JPM', 'JPMorgan Chase'], ['V', 'Visa'], ['XOM', 'Exxon Mobil'], ['WMT', 'Walmart'], ['LLY', 'Eli Lilly']].map(([t, n]) => stockEntry(t, n)),
 ];
 
+/** Catalog instruments mirrored into the deep-history archive (GitHub Actions → release assets). */
+const ARCHIVED = new Set(CATALOG.filter((c) => c.duka && !c.binance && c.ticker !== 'META').map((c) => c.ticker));
+
 function stockEntry(t: string, n?: string): CatalogEntry {
   return { ticker: t, name: n || t, shortName: t, market: 'stocks', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: `${t.toLowerCase()}ususd`, yahoo: t, alt: t };
 }
@@ -188,13 +191,13 @@ export class FullHistoryDatafeed implements Datafeed {
       const id = useYahoo ? e.yahoo : e.duka;
       if (!id) throw new Error('No data source for this symbol');
       const count = 500 * mult;
-      const altParam = !useYahoo && e.alt ? `&alt=${encodeURIComponent(e.alt)}` : '';
+      const altParam = (!useYahoo && e.alt ? `&alt=${encodeURIComponent(e.alt)}` : '') + (!useYahoo && ARCHIVED.has(e.ticker) ? `&arch=${e.ticker}` : '');
       let j = await getJson(`/api/history/candles?src=${src}&id=${encodeURIComponent(id)}&tf=${base}&before=${Math.floor(before)}&count=${count}${altParam}`);
       if (!j?.ok && useYahoo && e.duka) {
         j = await getJson(`/api/history/candles?src=duka&id=${encodeURIComponent(e.duka)}&tf=${base}&before=${Math.floor(before)}&count=${count}`);
       }
       if (!j?.ok) throw new Error(j?.error || 'History source unavailable');
-      const label = j.src === 'yahoo' ? (j.fallback ? 'Yahoo Finance (backup)' : 'Yahoo Finance') : 'Dukascopy Bank SA';
+      const label = j.src === 'yahoo' ? (j.fallback ? 'Yahoo Finance (backup)' : 'Yahoo Finance') : j.src === 'archive' ? 'Dukascopy Bank SA · full archive' : 'Dukascopy Bank SA';
       return done(combine(j.candles as KLineData[], base, mult), label, !!j.reachedStart);
     } catch (err: any) {
       this.report({ state: 'error', source: '', message: err?.message || String(err) });
@@ -231,7 +234,7 @@ export class FullHistoryDatafeed implements Datafeed {
         if (typeof navigator !== 'undefined' && !navigator.onLine) return;
         const src = useYahoo ? 'yahoo' : 'duka';
         const id = useYahoo ? e.yahoo : e.duka;
-        const altParam = !useYahoo && e.alt ? `&alt=${encodeURIComponent(e.alt)}` : '';
+        const altParam = (!useYahoo && e.alt ? `&alt=${encodeURIComponent(e.alt)}` : '') + (!useYahoo && ARCHIVED.has(e.ticker) ? `&arch=${e.ticker}` : '');
         const j = await getJson(`/api/history/candles?src=${src}&id=${encodeURIComponent(id!)}&tf=${base}&before=${Date.now() + 60_000}&count=${Math.max(3, mult * 2)}${altParam}`);
         if (!j?.ok || !j.candles?.length) return;
         const bars = combine(j.candles as KLineData[], base, mult);

@@ -18,7 +18,7 @@ on:
       budget:
         description: 'Seconds of minute-history backfill per instrument'
         required: false
-        default: '900'
+        default: '3000'
 
 permissions:
   contents: write
@@ -50,17 +50,17 @@ jobs:
   build:
     needs: plan
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 20
       matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: hist-${{ matrix.ticker }}
-      RATE: '4'
-      WORKERS: '3'
-      BUDGET: ${{ github.event.inputs.budget || '900' }}
+      RATE: '10'
+      WORKERS: '4'
+      BUDGET: ${{ github.event.inputs.budget || '3000' }}
     steps:
       - uses: actions/checkout@v4
       - name: Ensure release exists

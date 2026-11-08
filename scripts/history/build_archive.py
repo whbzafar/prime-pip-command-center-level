@@ -35,8 +35,8 @@ import urllib.error
 
 BASE = "https://datafeed.dukascopy.com/datafeed"
 UA = {"User-Agent": "Mozilla/5.0"}
-WORKERS = int(os.environ.get("WORKERS", "3"))
-RATE = float(os.environ.get("RATE", "3"))          # requests per second for this job (be polite)
+WORKERS = int(os.environ.get("WORKERS", "4"))
+RATE = float(os.environ.get("RATE", "10"))          # requests per second for this job (be polite)
 BUDGET = float(os.environ.get("BUDGET", "1500"))   # seconds of minute-history backfill per run
 T0 = time.time()
 
@@ -54,7 +54,7 @@ def _throttle():
         time.sleep(wait)
 
 
-def http_get(url, tries=6, timeout=40):
+def http_get(url, tries=6, timeout=25):
     """Returns bytes (b'' for a missing file). Raises after repeated network failures."""
     last = None
     for i in range(tries):
@@ -69,7 +69,7 @@ def http_get(url, tries=6, timeout=40):
             last = e
         except Exception as e:  # connection reset, timeout …
             last = e
-        time.sleep(8 * (i + 1))  # 503 = throttled: back off hard, then retry
+        time.sleep(4 + 4 * i)  # 503 = throttled: back off hard, then retry
     raise RuntimeError(f"{url}: {last}")
 
 
