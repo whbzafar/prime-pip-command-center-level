@@ -38,7 +38,7 @@ await click('Trend line', true); await page.waitForTimeout(300);
 const box = await page.locator('canvas').first().boundingBox();
 await page.mouse.click(box.x + 300, box.y + 200); await page.mouse.click(box.x + 500, box.y + 140); await page.waitForTimeout(500);
 await click('EMA', true); await click('RSI', true); await page.waitForTimeout(800); await shot('b3-trade-draw');
-t = await txt(); i = t.indexOf('ORDER TICKET'); console.log('TICKET:', t.slice(i, i + 500));
+t = await txt(); i = t.indexOf('ORDER TICKET'); console.log('TICKET:', t.slice(i, i + 500)); i = t.indexOf('# SIDE'); console.log('TRADES:', t.slice(i, i + 300));
 console.log('CLEAR BTN:', (await page.getByText(/Clear all \(\d+\)/).first().innerText().catch(() => 'n/a')));
 await click('Clear all', false); await click('RSI', true); await page.waitForTimeout(500); await shot('b4-cleared');
 console.log('CLEAR BTN AFTER:', (await page.getByText(/Clear all \(\d+\)/).first().innerText().catch(() => 'n/a')));
