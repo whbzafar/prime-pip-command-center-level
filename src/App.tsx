@@ -372,6 +372,13 @@ export default function App() {
     [isDemoMode, currentUser]
   );
 
+  // "Open chart" links from Fundamentals / Sentiment / rankings → Premium TradingView with that pair.
+  useEffect(() => {
+    const on = () => handleSelectTab('PRO_TRADING');
+    window.addEventListener('ppfx:open-chart', on);
+    return () => window.removeEventListener('ppfx:open-chart', on);
+  }, [handleSelectTab]);
+
   // Initial Load from IndexedDB
   const initApp = useCallback(async () => {
     setIsLoading(true);

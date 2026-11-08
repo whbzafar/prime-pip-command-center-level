@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { SERVERLESS, ensureStockLoaded, getSnapshot, refreshAndCompute, unmatchedCalendarTitles } from '../macro/macroService.js';
 import type { AssetResult, MacroSnapshot } from '../macro/types.js';
 import { COT_CODES, getInstitutional } from '../macro/sources/cot.js';
+import { getSentiment, sentimentFor } from '../macro/sources/sentiment.js';
 
 export const macroRouter = Router();
 
@@ -100,7 +101,55 @@ macroRouter.get('/pair/:symbol', async (req: Request, res: Response) => {
     const base = s.assets.find((x) => x.symbol === p.base) || null;
     const quote = s.assets.find((x) => x.symbol === p.quote) || null;
     cacheHeaders(res, s);
-    res.json({ ok: true, data: p, base, quote, institutional: { base: institutionalFor(p.base), quote: institutionalFor(p.quote) }, generatedAt: s.generatedAt });
+    const sent = await Promise.race([getSentiment().catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 6000))]);
+    const sentiment = sent ? { pair: sentimentFor(sent, p.symbol), base: sent.currencies.find((c) => c.currency === p.base) || null, quote: sent.currencies.find((c) => c.currency === p.quote) || null, updatedAt: sent.updatedAt } : null;
+    res.json({ ok: true, data: p, base, quote, institutional: { base: institutionalFor(p.base), quote: institutionalFor(p.quote) }, sentiment, generatedAt: s.generatedAt });
+  } catch (err) { fail(res, err); }
+});
+
+/** GET /api/macro/sentiment — live trader positioning for FX, commodities, indices and crypto USDT pairs. */
+macroRouter.get('/sentiment', async (_req: Request, res: Response) => {
+  try {
+    const data = await getSentiment();
+    res.setHeader('Cache-Control', SERVERLESS ? 'public, s-maxage=30, stale-while-revalidate=90' : 'no-store');
+    res.json({ ok: true, data });
+  } catch (err) { fail(res, err); }
+});
+
+/** Pillars that describe the slow-moving fundamental trend (risk mood, crowd and derivatives positioning excluded). */
+const SHORT_TERM_PILLARS = new Set(['risk', 'sentiment', 'derivatives', 'external']);
+function longTermScore(a: AssetResult | undefined): { score: number | null; pillars: string[] } {
+  if (!a) return { score: null, pillars: [] };
+  const ps = a.pillars.filter((p) => !SHORT_TERM_PILLARS.has(p.id) && p.score !== null && p.weight > 0);
+  const w = ps.reduce((s, p) => s + p.weight, 0);
+  return w ? { score: Math.round((ps.reduce((s, p) => s + (p.score as number) * p.weight, 0) / w) * 10) / 10, pillars: ps.map((p) => p.name) } : { score: null, pillars: [] };
+}
+
+/** GET /api/macro/rankings — strongest long-term and short-term bullish / bearish pairs. */
+macroRouter.get('/rankings', async (_req: Request, res: Response) => {
+  try {
+    const s = await getSnapshot();
+    const bySym = new Map(s.assets.map((a) => [a.symbol, a]));
+    const rows = s.pairs.map((p) => {
+      let lt: number | null; let basis: string[];
+      if (p.assetClass === 'FOREX') {
+        const b = longTermScore(bySym.get(p.base)), q = longTermScore(bySym.get(p.quote));
+        lt = b.score !== null && q.score !== null ? Math.round(((b.score - q.score) / 2) * 10) / 10 : null;
+        basis = Array.from(new Set([...b.pillars, ...q.pillars]));
+      } else {
+        const a = longTermScore(bySym.get(p.base)); lt = a.score; basis = a.pillars;
+      }
+      return { symbol: p.symbol, display: p.display, assetClass: p.assetClass, base: p.base, quote: p.quote, shortTerm: p.score, longTerm: lt, confidence: p.confidence, basis };
+    });
+    const ok = (k: 'longTerm' | 'shortTerm') => rows.filter((r) => r[k] !== null && r.confidence >= 25);
+    const top = (k: 'longTerm' | 'shortTerm', dir: 1 | -1) => ok(k).filter((r) => (r[k] as number) * dir > 0).sort((a, b) => ((b[k] as number) - (a[k] as number)) * dir).slice(0, 12);
+    cacheHeaders(res, s);
+    res.json({ ok: true, data: {
+      longTerm: { bullish: top('longTerm', 1), bearish: top('longTerm', -1) },
+      shortTerm: { bullish: top('shortTerm', 1), bearish: top('shortTerm', -1) },
+      method: 'Long-term = weighted structural pillars only (monetary policy, inflation, labour, growth, real rates, supply/demand, institutional COT positioning); risk mood, crowd sentiment and derivatives excluded. Pair = (base − quote) / 2. Short-term = full live score.',
+      generatedAt: s.generatedAt,
+    } });
   } catch (err) { fail(res, err); }
 });
 

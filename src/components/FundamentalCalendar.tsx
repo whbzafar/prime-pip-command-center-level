@@ -40,7 +40,7 @@ import {
   syncCalendar,
   getCalendarMeta,
 } from '../services/economicCalendarService';
-import { RetailSentimentView } from './sentiment/RetailSentimentView';
+import { SentimentBoard } from './fundamentalAnalysis/SentimentBoard';
 
 // Classic Forex Factory Folder Icon SVG (Color-coded by impact)
 const ForexFactoryFolderIcon: React.FC<{
@@ -909,7 +909,7 @@ export const FundamentalCalendar: React.FC = () => {
       </div>
 
       {activeCalendarTab === 'SENTIMENT' ? (
-        <RetailSentimentView />
+        <SentimentBoard />
       ) : (
         <div className="max-w-[1440px] mx-auto px-2 sm:px-6 mt-2">
 

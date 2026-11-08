@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { fmtDuration, marketStatus, sessionKind } from '../utils/marketSession';
+import { LiveBiasStrip, chartSymbolFor } from './fundamentalAnalysis/LiveBiasStrip';
 import { createPortal } from 'react-dom';
 import {
   CandlestickChart,
@@ -155,6 +157,7 @@ export function calculateCandleCountdown(interval: string): {
   progressPercent: number;
   label: string;
   candleStartUnix: number;
+  closed?: boolean;
 } {
   const norm = normalizeInterval(interval);
   const tf = TIMEFRAMES.find((t) => t.id === norm) || TIMEFRAMES[5];
@@ -2265,20 +2268,28 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   // --------------------------------------------------------------------------
   // CANDLE COUNTDOWN (EXACTLY TWO PLACES: Top header & In-Chart Price Scale)
   // --------------------------------------------------------------------------
+  // Market-hours aware: when the market is closed (e.g. forex at the weekend) the candle timer stops
+  // and shows when trading resumes instead of counting down a candle that will not form.
+  const sessionCountdown = useCallback((iv: string) => {
+    const cd = calculateCandleCountdown(iv);
+    const st = marketStatus(sessionKind(selectedSymbol.replace(/^[A-Z_]+:/, '')));
+    return st.open ? cd : { ...cd, closed: true, secondsRemaining: cd.totalSeconds, progressPercent: 0, text: `CLOSED · opens in ${fmtDuration(st.reopensInSec || 0)}` };
+  }, [selectedSymbol]);
   const [candleCountdown, setCandleCountdown] = useState(() => calculateCandleCountdown(selectedInterval));
 
   useEffect(() => {
+    setCandleCountdown(sessionCountdown(selectedInterval));
     const intervalTimer = setInterval(() => {
-      setCandleCountdown(calculateCandleCountdown(selectedInterval));
+      setCandleCountdown(sessionCountdown(selectedInterval));
     }, 1000);
     return () => clearInterval(intervalTimer);
-  }, [selectedInterval]);
+  }, [selectedInterval, sessionCountdown]);
 
   // Unified Interval Change handler (Synchronizes both time displays)
   const handleIntervalChange = (newInterval: string) => {
     const norm = normalizeInterval(newInterval);
     setSelectedInterval(norm);
-    const freshCountdown = calculateCandleCountdown(norm);
+    const freshCountdown = sessionCountdown(norm);
     setCandleCountdown(freshCountdown);
 
     const base = getInstrumentMeta(selectedSymbol);
@@ -2775,6 +2786,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         popup_height: '650',
         withdateranges: 'true',
         show_last_price_and_countdown: '1',
+        // TradingView's own bar-close countdown, drawn on the price scale right beside the last
+        // candle's price label (and paused by TradingView itself when the session is closed).
+        overrides: JSON.stringify({ 'mainSeriesProperties.showCountdown': chartSettings.showCountdown !== false, 'scalesProperties.showSeriesLastValue': true }),
         details: 'true',
         hotlist: 'true',
         calendar: 'true',
@@ -2810,6 +2824,16 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       handleSelectSymbol(firstPair.symbol);
     }
   };
+
+  // Open a pair chosen elsewhere in the app (Fundamentals, rankings, sentiment) — see openChart().
+  const selectRef = useRef<(s: string) => void>(() => {});
+  useEffect(() => {
+    const take = (sym?: string | null) => { if (sym) { selectRef.current(sym); try { sessionStorage.removeItem('ppfx_pending_chart'); } catch { /* ignore */ } } };
+    try { take(sessionStorage.getItem('ppfx_pending_chart')); } catch { /* ignore */ }
+    const on = (e: Event) => take((e as CustomEvent).detail?.symbol);
+    window.addEventListener('ppfx:open-chart', on);
+    return () => window.removeEventListener('ppfx:open-chart', on);
+  }, []);
 
   const handleSelectSymbol = (sym: string, brokerOverride?: string) => {
     const parsed = parseSymbolAndBroker(sym, brokerOverride || selectedBroker);
@@ -3288,8 +3312,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           <div className="flex items-center gap-2 shrink-0">
             {/* Live Candle Close Countdown in Header (Always synchronized) */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono-code text-xs font-bold shadow-sm">
-              <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span className="hidden sm:inline text-[11px]">{candleCountdown.label} CANDLE:</span>
+              <Clock className={`w-3.5 h-3.5 text-amber-400 ${candleCountdown.closed ? '' : 'animate-pulse'}`} />
+              <span className="hidden sm:inline text-[11px]">{candleCountdown.closed ? 'MARKET' : `${candleCountdown.label} CANDLE`}:</span>
               <span className="text-white font-mono tracking-wider font-extrabold">{candleCountdown.text}</span>
             </div>
 
@@ -3464,19 +3488,24 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             {/* TIME DISPLAY 1 OF 2 (Shifted upwards and to the side - No overlap!) */}
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition shadow-md ${
-                candleCountdown.secondsRemaining <= 10
+                !candleCountdown.closed && candleCountdown.secondsRemaining <= 10
                   ? 'bg-amber-500/25 border-amber-400 text-amber-200 animate-pulse'
                   : 'bg-gradient-to-r from-blue-950/80 to-slate-950/90 border-cyan-500/40 text-cyan-300'
               }`}
               title={`Exact time remaining before current ${candleCountdown.label} candle closes (${candleCountdown.progressPercent}% completed)`}
             >
-              <Clock className="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
-              <span className="text-slate-300 uppercase tracking-wide">{candleCountdown.label} CANDLE:</span>
+              <Clock className={`w-4 h-4 text-amber-400 shrink-0 ${candleCountdown.closed ? '' : 'animate-pulse'}`} />
+              <span className="text-slate-300 uppercase tracking-wide">{candleCountdown.closed ? 'MARKET' : `${candleCountdown.label} CANDLE`}:</span>
               <span className="text-amber-300 bg-slate-950 px-2 py-0.5 rounded-lg font-mono-code tracking-widest text-xs font-black border border-slate-700/80 shadow-inner">
                 {candleCountdown.text}
               </span>
             </div>
           </div>
+        </div>
+
+        {/* LIVE FUNDAMENTAL BIAS — strongest bullish / bearish pairs from the live engine; click → chart */}
+        <div className="px-3 pt-2">
+          <LiveBiasStrip activeSymbol={selectedSymbol} onSelect={(sym) => handleSelectSymbol(chartSymbolFor(sym))} />
         </div>
 
         {/* ===================================================================== */}
@@ -4011,7 +4040,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono-code shadow-inner shrink-0"
                 title={`Active Timeframe: ${candleCountdown.label} | Duration remaining before current candle closes: ${candleCountdown.text}`}
               >
-                <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
+                <Clock className={`w-3.5 h-3.5 text-amber-400 shrink-0 ${candleCountdown.closed ? '' : 'animate-pulse'}`} />
                 <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-black border border-cyan-500/40 text-[10px] uppercase">
                   {candleCountdown.label}
                 </span>
@@ -5227,5 +5256,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     return createPortal(workspaceElement, document.body);
   }
 
+  selectRef.current = (sym: string) => handleSelectSymbol(sym);
   return workspaceElement;
 };

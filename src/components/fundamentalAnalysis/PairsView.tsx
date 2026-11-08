@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Search, Users } from 'lucide-react';
+import { ArrowLeft, LineChart, Search, Users } from 'lucide-react';
 import type { AssetResult, PairResult } from './types';
+import { openChart } from './LiveBiasStrip';
+import { SplitBar } from './SentimentBoard';
 import { AssetDetail } from './AssetDetail';
 import { BiasPill, BullBearBar, fetchJsonSafe, fmtScore, scoreColor } from './ui';
 
@@ -10,7 +12,7 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
   const [filter, setFilter] = useState<Filter>('ALL');
   const [q, setQ] = useState('');
   const [sel, setSel] = useState<string | null>(initial || null);
-  const [detail, setDetail] = useState<{ data: PairResult; base: AssetResult | null; quote: AssetResult | null; institutional?: any } | null>(null);
+  const [detail, setDetail] = useState<{ data: PairResult; base: AssetResult | null; quote: AssetResult | null; institutional?: any; sentiment?: any } | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { if (initial) setSel(initial); }, [initial]);
@@ -20,7 +22,7 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
     let alive = true;
     setLoading(true);
     fetchJsonSafe<any>(`/api/macro/pair/${encodeURIComponent(sel)}`)
-      .then((j) => { if (alive && j?.ok) setDetail({ data: j.data, base: j.base, quote: j.quote, institutional: j.institutional }); })
+      .then((j) => { if (alive && j?.ok) setDetail({ data: j.data, base: j.base, quote: j.quote, institutional: j.institutional, sentiment: j.sentiment }); })
       .catch(() => undefined)
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
@@ -48,6 +50,7 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
                 <h2 className="font-military text-3xl font-bold text-white">{p.display}</h2>
                 <span className={`font-mono-code text-2xl font-bold ${scoreColor(p.score)}`}>{fmtScore(p.score)}</span>
                 <BiasPill bias={p.bias} score={p.score} />
+                <button type="button" onClick={() => openChart(p.symbol)} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-400/40 text-[12px] font-semibold text-cyan-100 hover:bg-cyan-500/25 cursor-pointer"><LineChart className="w-3.5 h-3.5" /> Open chart</button>
               </div>
               <div className="mt-3 flex items-center gap-3 text-[12px] font-mono-code">
                 <span className="text-emerald-400 font-bold">{p.bullishPct === null ? '—' : `${p.bullishPct.toFixed(1)}% Bullish`}</span>
@@ -70,11 +73,29 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
                 </div>
               </div>
               <p className="mt-3 text-[12.5px] text-slate-300 leading-relaxed">{p.explanation}</p>
-              {p.retailSentiment && (
+              {detail?.sentiment?.pair ? (() => {
+                const sp = detail.sentiment.pair;
+                return (
+                  <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                    <div className="flex items-center gap-2 text-[11px] font-mono-code">
+                      <Users className="w-3.5 h-3.5 text-cyan-400" />
+                      <span className="text-slate-300 uppercase tracking-wider">Live trader sentiment{sp.method === 'derived' ? ' (derived)' : ''}</span>
+                      <span className={`ml-auto px-1.5 py-0.5 rounded border ${sp.contrarian === 'BULLISH' ? 'text-emerald-300 border-emerald-500/40' : sp.contrarian === 'BEARISH' ? 'text-rose-300 border-rose-500/40' : 'text-slate-300 border-slate-700'}`}>{sp.contrarian === 'NEUTRAL' ? 'Neutral' : `Contrarian ${sp.contrarian.toLowerCase()}`}</span>
+                    </div>
+                    <div className="mt-2"><SplitBar longPct={sp.longPct} /></div>
+                    <div className="mt-1 flex justify-between text-[11px] font-mono-code"><span className="text-emerald-400">{sp.longPct}% long</span><span className="text-slate-500">{sp.sources.map((x: any) => x.name).join(' · ')}</span><span className="text-rose-400">{sp.shortPct}% short</span></div>
+                    {(detail.sentiment.base || detail.sentiment.quote) && (
+                      <div className="mt-1.5 text-[10.5px] font-mono-code text-slate-500">
+                        Crowd by currency: {detail.sentiment.base ? `${p.base} ${detail.sentiment.base.longPct}% long` : ''}{detail.sentiment.base && detail.sentiment.quote ? ' · ' : ''}{detail.sentiment.quote ? `${p.quote} ${detail.sentiment.quote.longPct}% long` : ''}
+                      </div>
+                    )}
+                  </div>
+                );
+              })() : p.retailSentiment ? (
                 <div className="mt-3 flex items-center gap-2 text-[11px] font-mono-code text-slate-400">
                   <Users className="w-3.5 h-3.5" /> Retail: {p.retailSentiment.longPct}% long / {p.retailSentiment.shortPct}% short ({p.retailSentiment.source})
                 </div>
-              )}
+              ) : null}
               {p.correlationToUsd !== null && p.correlationToUsd !== undefined && (
                 <div className="mt-1 text-[11px] font-mono-code text-slate-500">90-day correlation with DXY: {Math.round(p.correlationToUsd * 100)}%</div>
               )}

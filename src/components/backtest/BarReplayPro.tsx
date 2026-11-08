@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { init, dispose, type Chart, type KLineData } from 'klinecharts';
-import { ChevronsRight, Download, Pause, Play, SkipForward, StepForward, Target, Trash2, X } from 'lucide-react';
+import { ChevronsRight, Download, Info, Pause, Play, SkipForward, StepForward, Target, Trash2, Undo2, X } from 'lucide-react';
+import { SymbolPicker } from '../chartAnalysis/SymbolPicker';
 import { CATALOG, FullHistoryDatafeed, PRO_PERIODS, type CatalogEntry } from '../chartAnalysis/fullHistoryDatafeed';
 
 /**
@@ -62,10 +63,18 @@ export const BarReplayPro: React.FC = () => {
   const [positions, setPositions] = useState<Position[]>([]);
   const [closed, setClosed] = useState<ClosedTrade[]>([]);
   const [source, setSource] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
+  const [coverage, setCoverage] = useState<{ minuteFrom: string | null; hourlyFrom: number | null; dailyFrom: number | null } | null>(null);
+  const [activeInd, setActiveInd] = useState<Record<string, string>>({}); // indicator → pane id
+  const [drawings, setDrawings] = useState<string[]>([]);
+  const [selectedDrawing, setSelectedDrawing] = useState<string | null>(null);
+  const drawingsRef = useRef<string[]>([]);
+  const setDraw = (d: string[]) => { drawingsRef.current = d; setDrawings(d); };
   const chartHost = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
   const feedRef = useRef<FullHistoryDatafeed | null>(null);
   const loadingMore = useRef(false);
+  const feedErr = useRef<string | null>(null);
   const seq = useRef(1);
   const barsRef = useRef<KLineData[]>([]);
   const cursorRef = useRef(0);
@@ -86,9 +95,11 @@ export const BarReplayPro: React.FC = () => {
     if (!host) return;
     const chart = init(host, { styles: 'dark', timezone: 'Etc/UTC' });
     chartRef.current = chart;
+    chart?.setStyles(REPLAY_STYLES as any);
     chart?.createIndicator('MA', false, { id: 'candle_pane' });
-    chart?.createIndicator('VOL');
-    feedRef.current = new FullHistoryDatafeed((s) => { if (s.state === 'error') setError(s.message || 'Data error'); if (s.source) setSource(s.source); });
+    const volPane = chart?.createIndicator('VOL');
+    setActiveInd({ MA: 'candle_pane', ...(volPane ? { VOL: volPane } : {}) });
+    feedRef.current = new FullHistoryDatafeed((s) => { if (s.source) setSource(s.source); if (s.state === 'error') feedErr.current = s.message || 'Data source error'; });
     const ro = new ResizeObserver(() => chart?.resize());
     ro.observe(host);
     return () => { ro.disconnect(); dispose(host); chartRef.current = null; feedRef.current?.destroy(); };
@@ -96,37 +107,62 @@ export const BarReplayPro: React.FC = () => {
 
   useEffect(() => { chartRef.current?.setPriceVolumePrecision(entry.pricePrecision ?? 2, entry.volumePrecision ?? 0); }, [entry]);
 
+  // What history exists for this symbol (archive coverage per timeframe family).
+  useEffect(() => {
+    setCoverage(null);
+    if (entry.binance) return; // Binance: every timeframe since listing
+    let live = true;
+    fetch(`/api/history/archive?ticker=${encodeURIComponent(entry.ticker)}`).then((r) => (r.ok ? r.json() : null)).then((j) => {
+      if (!live || !j?.ok) return;
+      setCoverage({ minuteFrom: j.minuteFrom || null, hourlyFrom: j.hourlyYears?.[0] ?? null, dailyFrom: j.dailyYears?.[0] ?? null });
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [entry]);
+
   // ── data loading: context before the start date + future bars after it (hidden until replayed)
   const fetchBefore = useCallback(async (to: number) => (await feedRef.current!.getHistoryKLineData(entry, period, 0, to)) || [], [entry, period]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (overrideStart?: string) => {
     if (!feedRef.current) return;
-    setLoading(true); setError(null); setPlaying(false);
+    setLoading(true); setError(null); setNotice(null); setPlaying(false);
     for (const p of posRef.current) p.overlays.forEach((id) => chartRef.current?.removeOverlay(id));
     setPos([]); closedRef.current = []; setClosed([]);
     try {
-      const start = new Date(startDate + 'Z').getTime();
+      const startText = overrideStart ?? startDate;
+      const start = Date.parse(startText.length === 16 ? `${startText}:00Z` : `${startText}Z`);
+      if (!Number.isFinite(start)) throw new Error('Pick a valid start date and time.');
+      if (start > Date.now()) throw new Error('The start date is in the future — pick a past date.');
+      feedErr.current = null;
       const pMs = PERIOD_MS[periodText];
       const context = await fetchBefore(start);
       let future: KLineData[] = [];
       let to = start;
-      for (let i = 0; i < 6 && future.length < 300 && to < Date.now(); i++) {
+      for (let i = 0; i < 8 && future.length < 400 && to < Date.now(); i++) {
         to = Math.min(Date.now() + pMs, to + 500 * pMs);
         const chunk = await fetchBefore(to);
         future = mergeBars(future, chunk.filter((b) => b.timestamp >= start));
       }
       const all = mergeBars(context, future);
-      if (!all.length) throw new Error('No historical data for this symbol/timeframe at that date. Try a later start date.');
-      const startIdx = Math.max(0, all.findIndex((b) => b.timestamp >= start) - 1);
+      if (!all.length) {
+        const minute = ['1m', '3m', '5m', '15m', '30m'].includes(periodText);
+        throw new Error(minute && coverage?.minuteFrom
+          ? `Minute-level history for ${ticker} currently starts in ${coverage.minuteFrom} (the full archive back to 2003 is still being filled, about 1.5 years per day). Pick a later date, or use 1H or higher for earlier dates.`
+          : `No ${periodText} bars for ${ticker} around that date. Pick a later date or a higher timeframe.${feedErr.current ? ` (Source: ${feedErr.current})` : ''}`);
+      }
+      const firstFuture = all.findIndex((b) => b.timestamp >= start);
+      let cur: number;
+      if (firstFuture === -1) { cur = all.length - 1; setNotice('No bars after that date yet — replay starts at the latest bar.'); }
+      else if (firstFuture === 0) { cur = 0; setNotice(`History for this timeframe begins ${new Date(all[0].timestamp).toISOString().slice(0, 16).replace('T', ' ')} UTC — replay starts there.`); }
+      else cur = firstFuture - 1;
       barsRef.current = all;
       setBars(all);
-      setCur(startIdx < 0 ? all.length - 1 : startIdx);
-      chartRef.current?.applyNewData(all.slice(0, (startIdx < 0 ? all.length - 1 : startIdx) + 1));
+      setCur(cur);
+      chartRef.current?.applyNewData(all.slice(0, cur + 1));
     } catch (e: any) {
       setError(e?.message || String(e));
     } finally { setLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, periodText, fetchBefore]);
+  }, [startDate, periodText, fetchBefore, coverage, ticker]);
 
   useEffect(() => { load(); /* reload when symbol/timeframe change */ // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker, periodText]);
@@ -147,12 +183,12 @@ export const BarReplayPro: React.FC = () => {
   const addLines = (p: Omit<Position, 'overlays'>): string[] => {
     const c = chartRef.current;
     if (!c || !lastBar) return [];
-    const mk = (value: number, color: string) => c.createOverlay({ name: 'horizontalStraightLine', lock: true, points: [{ timestamp: lastBar.timestamp, value }], styles: { line: { color, size: 1, style: 'dashed' as any } } }) as string;
+    const mk = (value: number, color: string) => c.createOverlay({ name: 'priceLine', lock: true, points: [{ timestamp: lastBar.timestamp, value }], styles: { line: { color, size: 1, style: 'dashed' as any }, text: { color: '#0b1220', backgroundColor: color, borderColor: color } } }) as string;
     return [mk(p.entry, '#38bdf8'), p.sl !== null ? mk(p.sl, '#f43f5e') : '', p.tp !== null ? mk(p.tp, '#10b981') : ''].filter(Boolean);
   };
 
   const open = (side: Side) => {
-    if (!lastBar) return;
+    if (!lastBar) { setError('Load a replay first (pick a symbol, timeframe and start date, then press Load replay).'); return; }
     const spread = spreadPips * pip;
     const price = side > 0 ? lastBar.close + spread : lastBar.close; // data is bid-based: buys pay the spread
     const p: Omit<Position, 'overlays'> = {
@@ -207,12 +243,53 @@ export const BarReplayPro: React.FC = () => {
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
       if (e.code === 'Space') { e.preventDefault(); setPlaying((p) => !p); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); step(); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedDrawing) { e.preventDefault(); removeDrawing(selectedDrawing); }
+      else if (e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undoDrawing(); }
       else if (e.key.toLowerCase() === 'b') open(1);
       else if (e.key.toLowerCase() === 's') open(-1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+
+  // ── drawings (tracked so they can be selected, deleted, undone and cleared)
+  const DRAW_COLORS = ['#22d3ee', '#facc15', '#a78bfa', '#fb923c', '#34d399', '#f472b6'];
+  const startDrawing = (name: string) => {
+    const c = chartRef.current;
+    if (!c) return;
+    const color = DRAW_COLORS[drawingsRef.current.length % DRAW_COLORS.length];
+    const id = c.createOverlay({
+      name,
+      styles: { line: { color, size: 2 }, point: { color, borderColor: color, activeColor: color, activeBorderColor: '#ffffff' }, text: { color: '#e2e8f0' }, polygon: { color: `${color}22` } } as any,
+      onSelected: (ev: any) => { setSelectedDrawing(ev.overlay.id); return false; },
+      onDeselected: () => { setSelectedDrawing(null); return false; },
+      onRightClick: (ev: any) => { removeDrawing(ev.overlay.id); return true; },
+    } as any) as string | null;
+    if (id) setDraw([...drawingsRef.current, id]);
+  };
+  const removeDrawing = (id: string) => {
+    chartRef.current?.removeOverlay(id);
+    setDraw(drawingsRef.current.filter((x) => x !== id));
+    setSelectedDrawing((s) => (s === id ? null : s));
+  };
+  const undoDrawing = () => { const last = drawingsRef.current[drawingsRef.current.length - 1]; if (last) removeDrawing(last); };
+  const clearDrawings = () => { drawingsRef.current.forEach((id) => chartRef.current?.removeOverlay(id)); setDraw([]); setSelectedDrawing(null); };
+
+  // ── indicators: toggle on/off (no duplicates)
+  const MAIN_PANE = ['MA', 'EMA', 'BOLL', 'SAR'];
+  const toggleIndicator = (n: string) => {
+    const c = chartRef.current;
+    if (!c) return;
+    const pane = activeInd[n];
+    if (pane) {
+      c.removeIndicator(pane, n);
+      const { [n]: _gone, ...rest } = activeInd;
+      setActiveInd(rest);
+    } else {
+      const id = MAIN_PANE.includes(n) ? (c.createIndicator(n, true, { id: 'candle_pane' }), 'candle_pane') : c.createIndicator(n, false, { height: 110 });
+      if (id) setActiveInd({ ...activeInd, [n]: id });
+    }
+  };
 
   // ── statistics
   const floating = positions.reduce((s, p) => s + (lastBar ? calcPnl(entry, p.side, p.entry, lastBar.close, p.lots) : 0), 0);
@@ -239,47 +316,53 @@ export const BarReplayPro: React.FC = () => {
   };
 
   const drawTools: Array<[string, string]> = [['segment', 'Trend line'], ['rayLine', 'Ray'], ['horizontalStraightLine', 'Horizontal'], ['verticalStraightLine', 'Vertical'], ['parallelStraightLine', 'Channel'], ['fibonacciLine', 'Fibonacci'], ['priceLine', 'Price label'], ['simpleAnnotation', 'Note']];
-  const indicators = ['MA', 'EMA', 'BOLL', 'SAR', 'RSI', 'MACD', 'KDJ', 'CCI'];
+  const indicators = ['MA', 'EMA', 'BOLL', 'SAR', 'VOL', 'RSI', 'MACD', 'KDJ', 'CCI'];
   const progress = bars.length ? Math.round((cursor / Math.max(1, bars.length - 1)) * 100) : 0;
 
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-3 flex flex-wrap items-end gap-3">
-        <label className="text-[10px] font-mono-code uppercase text-slate-500 flex flex-col gap-1">Symbol
-          <input list="replay-symbols" value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} onBlur={(e) => { if (!CATALOG.some((c) => c.ticker === e.target.value.toUpperCase())) setTicker('XAUUSD'); }}
-            className="w-32 px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-[12px] text-slate-100 normal-case" />
-          <datalist id="replay-symbols">{CATALOG.map((c) => <option key={c.ticker} value={c.ticker}>{c.name}</option>)}</datalist>
-        </label>
+      <div className="rounded-2xl border border-slate-800/80 bg-gradient-to-b from-slate-900/80 to-slate-950/90 p-3 flex flex-wrap items-end gap-3 shadow-lg shadow-black/20">
+        <div className="text-[10px] font-mono-code uppercase text-slate-500 flex flex-col gap-1">Symbol
+          <SymbolPicker value={ticker} onChange={setTicker} />
+        </div>
         <label className="text-[10px] font-mono-code uppercase text-slate-500 flex flex-col gap-1">Timeframe
           <select value={periodText} onChange={(e) => setPeriodText(e.target.value)} className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-[12px] text-slate-100">
             {PRO_PERIODS.map((p) => <option key={p.text} value={p.text}>{p.text}</option>)}
           </select>
         </label>
         <label className="text-[10px] font-mono-code uppercase text-slate-500 flex flex-col gap-1">Start (UTC)
-          <input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-[12px] text-slate-100" />
+          <input type="datetime-local" value={startDate} max={new Date().toISOString().slice(0, 16)} onChange={(e) => setStartDate(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load(); }} className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-[12px] text-slate-100 [color-scheme:dark]" />
         </label>
-        <button type="button" onClick={load} disabled={loading} className="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/50 text-[12px] font-bold text-cyan-100 hover:bg-cyan-500/30 disabled:opacity-50 cursor-pointer">
-          {loading ? 'Loading…' : 'Load replay'}
+        <button type="button" onClick={() => load()} disabled={loading} className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-sky-500 text-[12px] font-bold text-slate-950 hover:brightness-110 disabled:opacity-50 cursor-pointer shadow shadow-cyan-500/30">
+          {loading ? 'Loading…' : 'Start replay'}
         </button>
         <div className="flex items-center gap-1.5 ml-auto">
-          <button type="button" onClick={() => setPlaying((p) => !p)} title="Play / pause (Space)" className="p-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 cursor-pointer">{playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}</button>
-          <button type="button" onClick={step} title="Next bar (→)" className="p-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 cursor-pointer"><StepForward className="w-4 h-4" /></button>
-          <button type="button" onClick={() => { for (let i = 0; i < 10; i++) step(); }} title="Forward 10 bars" className="p-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 cursor-pointer"><ChevronsRight className="w-4 h-4" /></button>
-          <button type="button" onClick={() => { for (let i = 0; i < 100; i++) step(); }} title="Forward 100 bars" className="p-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 cursor-pointer"><SkipForward className="w-4 h-4" /></button>
+          <button type="button" onClick={() => setPlaying((p) => !p)} disabled={!bars.length} title="Play / pause (Space)" className="p-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 disabled:opacity-40 cursor-pointer">{playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}</button>
+          <button type="button" onClick={step} disabled={!bars.length} title="Next bar (→)" className="p-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 disabled:opacity-40 cursor-pointer"><StepForward className="w-4 h-4" /></button>
+          <button type="button" onClick={() => { for (let i = 0; i < 10; i++) step(); }} disabled={!bars.length} title="Forward 10 bars" className="p-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 disabled:opacity-40 cursor-pointer"><ChevronsRight className="w-4 h-4" /></button>
+          <button type="button" onClick={() => { for (let i = 0; i < 100; i++) step(); }} disabled={!bars.length} title="Forward 100 bars" className="p-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 disabled:opacity-40 cursor-pointer"><SkipForward className="w-4 h-4" /></button>
           <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} aria-label="Replay speed" className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-[12px] text-slate-100">
             {SPEEDS.map((s) => <option key={s} value={s}>{s} bar/s</option>)}
           </select>
+        </div>
+        <div className="basis-full flex items-center gap-2 text-[10.5px] font-mono-code text-slate-500">
+          <Info className="w-3 h-3" />
+          {entry.binance ? <span>History: every timeframe since the Binance listing.</span>
+            : coverage ? <span>History available — minutes (1m–30m) from <b className="text-slate-300">{coverage.minuteFrom || '—'}</b> · hourly from <b className="text-slate-300">{coverage.hourlyFrom ?? '—'}</b> · daily from <b className="text-slate-300">{coverage.dailyFrom ?? '—'}</b> (Dukascopy archive; minute depth grows daily)</span>
+            : <span>Checking available history…</span>}
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 text-[10.5px] font-mono-code">
         <span className="text-slate-500 uppercase mr-1">Draw</span>
-        {drawTools.map(([n, l]) => <button key={n} type="button" onClick={() => chartRef.current?.createOverlay(n)} className="px-2 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-cyan-500/40 cursor-pointer">{l}</button>)}
-        <button type="button" onClick={() => { chartRef.current?.removeOverlay(); setPos(posRef.current.map((p) => ({ ...p, overlays: addLines(p) }))); }} className="px-2 py-1 rounded-md bg-slate-900 border border-slate-800 text-rose-300 hover:border-rose-500/40 cursor-pointer flex items-center gap-1"><Trash2 className="w-3 h-3" />Clear drawings</button>
+        {drawTools.map(([n, l]) => <button key={n} type="button" onClick={() => startDrawing(n)} className="px-2 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-cyan-500/40 cursor-pointer">{l}</button>)}
+        <button type="button" onClick={undoDrawing} disabled={!drawings.length} title="Undo last drawing (Ctrl+Z)" className="px-2 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-300 hover:border-cyan-500/40 disabled:opacity-40 cursor-pointer flex items-center gap-1"><Undo2 className="w-3 h-3" />Undo</button>
+        <button type="button" onClick={() => selectedDrawing && removeDrawing(selectedDrawing)} disabled={!selectedDrawing} title="Delete selected drawing (Delete key · or right-click a drawing)" className="px-2 py-1 rounded-md bg-slate-900 border border-slate-800 text-amber-300 hover:border-amber-500/40 disabled:opacity-40 cursor-pointer">Delete selected</button>
+        <button type="button" onClick={clearDrawings} disabled={!drawings.length} className="px-2 py-1 rounded-md bg-slate-900 border border-slate-800 text-rose-300 hover:border-rose-500/40 disabled:opacity-40 cursor-pointer flex items-center gap-1"><Trash2 className="w-3 h-3" />Clear all ({drawings.length})</button>
         <span className="text-slate-500 uppercase mx-1">Indicators</span>
         {indicators.map((n) => (
-          <button key={n} type="button" onClick={() => (['MA', 'EMA', 'BOLL', 'SAR'].includes(n) ? chartRef.current?.createIndicator(n, true, { id: 'candle_pane' }) : chartRef.current?.createIndicator(n))}
-            className="px-2 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-cyan-500/40 cursor-pointer">{n}</button>
+          <button key={n} type="button" onClick={() => toggleIndicator(n)} aria-pressed={!!activeInd[n]}
+            className={`px-2 py-1 rounded-md border cursor-pointer ${activeInd[n] ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-200' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:border-cyan-500/40'}`}>{n}</button>
         ))}
       </div>
 
@@ -290,7 +373,8 @@ export const BarReplayPro: React.FC = () => {
             {lastBar && <span>Bar time {new Date(lastBar.timestamp).toISOString().replace('T', ' ').slice(0, 16)} UTC · O {lastBar.open.toFixed(entry.pricePrecision ?? 2)} H {lastBar.high.toFixed(entry.pricePrecision ?? 2)} L {lastBar.low.toFixed(entry.pricePrecision ?? 2)} C <b className="text-slate-100">{lastBar.close.toFixed(entry.pricePrecision ?? 2)}</b></span>}
             <span className="ml-auto">{source}</span>
           </div>
-          {error && <div className="px-3 py-2 text-[12px] text-rose-300 bg-rose-500/10 border-b border-rose-500/20">{error}</div>}
+          {error && <div className="px-3 py-2 text-[12px] text-rose-200 bg-rose-500/10 border-b border-rose-500/20 flex items-start gap-2"><span className="flex-1">{error}</span><button type="button" aria-label="Dismiss" onClick={() => setError(null)} className="text-rose-300 hover:text-white cursor-pointer"><X className="w-3.5 h-3.5" /></button></div>}
+          {notice && !error && <div className="px-3 py-1.5 text-[11.5px] text-amber-200 bg-amber-500/10 border-b border-amber-500/20">{notice}</div>}
           <div ref={chartHost} className="h-[560px]" />
           <div className="h-1 bg-slate-800"><div className="h-full bg-cyan-500 transition-all" style={{ width: `${progress}%` }} /></div>
         </div>
@@ -373,11 +457,24 @@ export const BarReplayPro: React.FC = () => {
         </div>
       )}
       <p className="text-[10px] font-mono-code text-slate-500 leading-relaxed">
-        Keyboard: Space = play/pause · → = next bar · B = buy · S = sell. Fills: market orders at the revealed bar’s close (buys pay the spread, prices are bid-based); stops and targets fill on later bars
+        Keyboard: Space = play/pause · → = next bar · B = buy · S = sell · Delete = remove selected drawing · Ctrl+Z = undo drawing. Right-click a drawing to delete it. Fills: market orders at the revealed bar’s close (buys pay the spread, prices are bid-based); stops and targets fill on later bars
         at the level, or at the bar’s open if price gapped through it; if one bar touches both, the stop is assumed to fill first (conservative). P&L is in {ccy}{ccy !== 'USD' ? ' (quote currency)' : ''}.
       </p>
     </div>
   );
+};
+
+const REPLAY_STYLES = {
+  grid: { horizontal: { color: 'rgba(148,163,184,0.06)' }, vertical: { color: 'rgba(148,163,184,0.06)' } },
+  candle: {
+    bar: { upColor: '#26a69a', downColor: '#ef5350', noChangeColor: '#94a3b8', upBorderColor: '#26a69a', downBorderColor: '#ef5350', upWickColor: '#26a69a', downWickColor: '#ef5350' },
+    priceMark: { last: { upColor: '#26a69a', downColor: '#ef5350', line: { style: 'dashed' } } },
+    tooltip: { text: { color: '#cbd5e1' } },
+  },
+  xAxis: { axisLine: { color: '#1e293b' }, tickText: { color: '#64748b' } },
+  yAxis: { axisLine: { color: '#1e293b' }, tickText: { color: '#64748b' } },
+  separator: { color: '#1e293b' },
+  crosshair: { horizontal: { line: { color: '#475569' } }, vertical: { line: { color: '#475569' } } },
 };
 
 function mergeBars(a: KLineData[], b: KLineData[]): KLineData[] {

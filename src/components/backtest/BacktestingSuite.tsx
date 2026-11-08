@@ -1597,21 +1597,7 @@ const ClassicBacktestingSuite: React.FC<BacktestingSuiteProps> = ({
   );
 };
 
-/** Backtesting: Bar Replay Pro (full-history replay trading) + the classic backtester. */
-export const BacktestingSuite: React.FC<BacktestingSuiteProps> = (props) => {
-  const [mode, setMode] = useState<'REPLAY' | 'CLASSIC'>('REPLAY');
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {([['REPLAY', 'Bar Replay Pro', 'Replay any market bar by bar from any date · trade with SL/TP · full statistics'], ['CLASSIC', 'Classic Backtester', 'The original strategy backtesting workspace']] as const).map(([id, title, sub]) => (
-          <button key={id} type="button" onClick={() => setMode(id)}
-            className={`text-left p-4 rounded-2xl border transition-all cursor-pointer ${mode === id ? 'bg-cyan-500/10 border-cyan-400/60 ring-1 ring-cyan-400/30' : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'}`}>
-            <div className="font-military font-bold text-sm text-white tracking-wide">{title}</div>
-            <p className="text-[11px] font-mono-code text-slate-400 mt-1">{sub}</p>
-          </button>
-        ))}
-      </div>
-      {mode === 'REPLAY' ? <BarReplayPro /> : <ClassicBacktestingSuite {...props} />}
-    </div>
-  );
-};
+/** Backtesting: Bar Replay Pro (full-history replay trading). */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const BacktestingSuite: React.FC<BacktestingSuiteProps> = (_props) => <BarReplayPro />;
+void ClassicBacktestingSuite;

@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity, BarChart3, Bitcoin, Building2, CalendarClock, Coins, Gem, GitCompareArrows, Grid3x3, Info, Radio, RefreshCw,
-  ShieldCheck, TrendingUp, WifiOff, X, Zap,
+  ShieldCheck, TrendingUp, Trophy, Users, WifiOff, X, Zap,
 } from 'lucide-react';
+import { RankingsView } from './RankingsView';
+import { SentimentBoard } from './SentimentBoard';
 import type { AssetClass, AssetResult, Overview, ReleaseEvent } from './types';
 import { AssetDetail } from './AssetDetail';
 import { PairsView } from './PairsView';
 import { CorrelationView } from './CorrelationView';
 import { BiasPill, BullBearBar, StatusDot, fetchJsonSafe, fmtNum, fmtPkt, fmtScore, scoreColor, timeAgo } from './ui';
 
-type Tab = AssetClass | 'PAIRS' | 'CORRELATIONS' | 'SOURCES';
+type Tab = AssetClass | 'PAIRS' | 'RANKINGS' | 'SENTIMENT' | 'CORRELATIONS' | 'SOURCES';
 
 const TABS: Array<{ id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'FOREX', label: 'Forex', icon: Coins },
@@ -17,7 +19,9 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ComponentType<{ classNam
   { id: 'INDICES', label: 'Indices', icon: BarChart3 },
   { id: 'STOCKS', label: 'Stocks', icon: Building2 },
   { id: 'CRYPTO', label: 'Crypto', icon: Bitcoin },
+  { id: 'RANKINGS', label: 'Top Bullish / Bearish', icon: Trophy },
   { id: 'PAIRS', label: 'Pairs', icon: GitCompareArrows },
+  { id: 'SENTIMENT', label: 'Sentiment', icon: Users },
   { id: 'CORRELATIONS', label: 'Correlations', icon: Grid3x3 },
   { id: 'SOURCES', label: 'Sources & Method', icon: ShieldCheck },
 ];
@@ -256,6 +260,8 @@ export const FundamentalAnalysisView: React.FC = () => {
         </div>
       )}
 
+      {ov && tab === 'RANKINGS' && <RankingsView pairs={ov.pairs} onPair={openPair} />}
+      {tab === 'SENTIMENT' && <SentimentBoard />}
       {ov && tab === 'PAIRS' && <PairsView pairs={ov.pairs} generatedAt={ov.generatedAt} initial={pairJump} />}
       {ov && tab === 'CORRELATIONS' && <CorrelationView w30={ov.correlations.w30} w90={ov.correlations.w90} />}
       {ov && tab === 'SOURCES' && <SourcesPanel ov={ov} />}
