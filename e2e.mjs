@@ -54,7 +54,8 @@ console.log('ADMIN editor visible:', await A.page.locator('[aria-label="Pine Scr
 await A.page.locator('[aria-label="Pine Script editor"]').fill(SRC);
 await A.page.getByRole('button', { name: /Save & publish/ }).click(); await A.page.waitForTimeout(4000);
 console.log('ADMIN publish msg:', ((await txt(A.page)).match(/Published “[^”]+”[^.]*\.|Storage warning[^.]*\./) || ['(none)'])[0]);
-await A.page.getByRole('button', { name: /^Show$/ }).first().click(); await A.page.waitForTimeout(20000);
+await A.page.getByRole('button', { name: /^Show$/ }).first().click();
+console.log('ADMIN token signed:', String(T.admin.token).startsWith('ppfx1.')); await A.page.waitForTimeout(20000);
 let t = await txt(A.page);
 console.log('ADMIN strip:', (t.match(/\d+ indicators? on the chart/) || ['(no strip)'])[0], '| status:', (t.match(/“PPFX Private Trend” is on the chart\.|Line \d+:[^|]{0,120}/) || ['(no status)'])[0]);
 await A.page.locator('text=indicator on the chart').first().scrollIntoViewIfNeeded().catch(() => {}); await shot(A.page, 'admin-main-chart');
@@ -69,6 +70,7 @@ await A.page.getByRole('button', { name: /^Post$/ }).click(); await A.page.waitF
 // ── STUDENT: Show/Hide only, code never received
 const S = await ctxFor('student');
 await openPremium(S.page);
+console.log('STUDENT chip visible:', await S.page.getByRole('button', { name: /^PPFX Private Trend$/ }).count());
 await S.page.getByRole('button', { name: /^Indicators$/ }).first().click(); await S.page.waitForTimeout(4000);
 console.log('STUDENT editor visible:', await S.page.locator('[aria-label="Pine Script editor"]').count() > 0, '| Open .pine visible:', await S.page.getByText('Open .pine').count() > 0);
 t = await txt(S.page); console.log('STUDENT list:', (t.match(/Indicators Show applies[^|]{0,40}|PPFX Private Trend[^|]{0,60}/) || ['(empty)'])[0]);
