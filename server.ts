@@ -191,6 +191,7 @@ import newsCalendarRouter from "./server/routes/newsCalendarRoutes.js";
 import { sentimentRouter } from "./server/routes/sentimentRoutes.js";
 import { macroRouter } from "./server/routes/macroRoutes.js";
 import { historyRouter } from "./server/routes/historyRoutes.js";
+import { createPineRouter } from "./server/routes/pineRoutes.js";
 import { startMacroScheduler } from "./server/macro/macroService.js";
 import { sentimentService } from "./server/sentiment/sentimentService.js";
 import { backtestRouter } from "./server/backtestReplayService.js";
@@ -4067,32 +4068,26 @@ app.get('/api/auth/students-count', async (_req, res) => {
 
 // Admin Middleware: Developer / Admin check
 function requireDeveloper(req: express.Request, res: express.Response, next: express.NextFunction) {
-  // Support preview/teacher testing mode
-  if (req.headers['x-admin-role'] === 'ADMIN' || req.headers['x-admin-override'] === 'true') {
-    (req as any).currentUser = {
-      id: 'admin_master',
-      username: 'primepipfx-admin',
-      name: 'PrimePipFX Chief Admin / Teacher',
-      role: 'ADMIN',
-      isDeveloper: true,
-    };
-    return next();
-  }
-
+  // Admin access requires a real admin session — there is no header-based override.
   const token = getAuthToken(req);
   if (!token) {
     return res.status(401).json({ ok: false, error: '401 UNAUTHORIZED: Authentication token required' });
   }
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ ok: false, error: '401 UNAUTHORIZED: Invalid or expired session' });
-  }
-  if (user.role !== 'ADMIN' && user.role !== 'DEVELOPER' && !user.isDeveloper) {
-    console.warn(`[SECURITY] Forbidden access attempt to admin endpoint: ${req.path} by user: ${user.username} (${user.id})`);
-    return res.status(403).json({ ok: false, error: '403 FORBIDDEN: Developer/Admin authorization required' });
-  }
-  (req as any).currentUser = user;
-  next();
+  const check = (user: StoredUser | null) => {
+    if (!user) {
+      return res.status(401).json({ ok: false, error: '401 UNAUTHORIZED: Invalid or expired session' });
+    }
+    if (user.role !== 'ADMIN' && user.role !== 'DEVELOPER' && !user.isDeveloper) {
+      console.warn(`[SECURITY] Forbidden access attempt to admin endpoint: ${req.path} by user: ${user.username} (${user.id})`);
+      return res.status(403).json({ ok: false, error: '403 FORBIDDEN: Developer/Admin authorization required' });
+    }
+    (req as any).currentUser = user;
+    next();
+  };
+  const local = getUserByToken(token);
+  if (local) return check(local);
+  // Durable (Supabase) sessions on Vercel.
+  getCommunityUser(req).then(check).catch(() => check(null));
 }
 
 // ----------------------------------------------------
@@ -4119,10 +4114,11 @@ app.get('/api/pine-scripts', (req, res) => {
         ...ind,
         slotNumber: index + 1,
         hasCode: Boolean(ind.scriptCode && ind.scriptCode.trim().length > 0),
-        scriptCode: ind.scriptCode || '',
-        canEdit: true,
-        canCopy: true,
-        isReadOnly: false,
+        // Source code only ever goes to administrators.
+        scriptCode: isAdmin ? ind.scriptCode || '' : '',
+        canEdit: isAdmin,
+        canCopy: isAdmin,
+        isReadOnly: !isAdmin,
       };
     });
 
@@ -4133,7 +4129,7 @@ app.get('/api/pine-scripts', (req, res) => {
 });
 
 // Create or update a Pine Script indicator (Available to all traders in Pine Editor)
-app.post('/api/pine-scripts', (req, res) => {
+app.post('/api/pine-scripts', requireDeveloper, (req, res) => {
   try {
     const token = getAuthToken(req);
     const user = token ? getUserByToken(token) : null;
@@ -4168,7 +4164,7 @@ app.post('/api/pine-scripts', (req, res) => {
 });
 
 // Update existing Pine Script
-app.put('/api/pine-scripts/:id', (req, res) => {
+app.put('/api/pine-scripts/:id', requireDeveloper, (req, res) => {
   try {
     const token = getAuthToken(req);
     const user = token ? getUserByToken(token) : null;
@@ -4199,7 +4195,7 @@ app.put('/api/pine-scripts/:id', (req, res) => {
 });
 
 // Delete an indicator
-app.delete('/api/pine-scripts/:id', (req, res) => {
+app.delete('/api/pine-scripts/:id', requireDeveloper, (req, res) => {
   try {
     const { id } = req.params;
     let indicators = safeReadJsonFile<any[]>('pine_script_indicators.json', []);
@@ -5516,6 +5512,24 @@ app.get('/api/community/messages', async (req, res) => {
     console.error('[COMMUNITY GET] Resilient fallback triggered:', err);
     return res.json({ ok: true, messages: readCommunityMessages(), backend: 'resilient-fallback' });
   }
+});
+
+// Which community tables exist in the durable backend (no data is returned).
+const COMMUNITY_TABLES = ['trader_profiles','community_messages','community_message_seen','message_reads','friend_requests','friendships','private_messages','private_message_receipts','calls','call_signals','presence','chat_groups','chat_group_members','group_messages','app_notifications','notification_settings','user_blocks'];
+app.get('/api/community/health', async (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
+  const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!url || !key) return res.json({ ok: false, backend: 'local-fallback', supabase: false });
+  const tables: Record<string, boolean | string> = {};
+  await Promise.all(COMMUNITY_TABLES.map(async (t) => {
+    try {
+      const r = await fetch(`${url}/rest/v1/${t}?select=*&limit=0`, { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) });
+      tables[t] = r.ok ? true : `HTTP ${r.status}`;
+    } catch (e: any) { tables[t] = String(e?.message || e).slice(0, 60); }
+  }));
+  const missing = Object.entries(tables).filter(([, v]) => v !== true).map(([k]) => k);
+  return res.json({ ok: missing.length === 0, backend: 'supabase', supabase: true, supabaseAuth: isSupabaseAuthEnabled, missing, tables });
 });
 
 // Mark community messages as seen
@@ -6881,6 +6895,7 @@ app.use('/api/dukascopy', dukascopyRouter);
 app.use('/api/macro', macroRouter);
 // Full-history candles (Dukascopy since 2003/1973, Yahoo daily since first trade)
 app.use('/api/history', historyRouter);
+app.use('/api/pine', createPineRouter((req) => getCommunityUser(req) as any));
 
 // Initialize background sentiment polling
 sentimentService.init();
