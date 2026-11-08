@@ -14,7 +14,7 @@ jobs:
             curl -s "$B/api/history/candles?$q&count=500" | python3 -c "import sys,json,datetime as d; j=json.load(sys.stdin); c=j.get('candles') or []; print(j.get('src'), j.get('error'), len(c), c and d.datetime.utcfromtimestamp(c[0]['timestamp']/1000), c and d.datetime.utcfromtimestamp(c[-1]['timestamp']/1000), 'live', j.get('live'))"
           done
           curl -s "$B/api/history/archive?ticker=EURUSD"; echo
-      - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && node ui.mjs
+      - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && node ui2.mjs
       - if: always()
         run: |
           git config user.name ci; git config user.email ci@example.com
