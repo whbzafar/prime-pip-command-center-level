@@ -28,8 +28,13 @@ const txt = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, '
 const shot = (p, n) => p.screenshot({ path: `shots/${n}.png` });
 async function openPremium(p) {
   await p.goto(B, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(6000);
-  await p.getByText('Start Practice').first().click({ timeout: 2000 }).catch(() => {}); await p.waitForTimeout(600);
-  await p.getByText('Create Demo Account').first().click({ timeout: 2000 }).catch(() => {}); await p.waitForTimeout(1500);
+  for (let i = 0; i < 4; i++) {
+    await p.getByText('ENTER COMMAND CENTER').first().click({ timeout: 1500 }).catch(() => {}); await p.waitForTimeout(800);
+    await p.getByText('Start Practice').first().click({ timeout: 1500 }).catch(() => {}); await p.waitForTimeout(600);
+    await p.getByText('Create Demo Account').first().click({ timeout: 1500 }).catch(() => {}); await p.waitForTimeout(1200);
+  }
+  await p.evaluate(() => document.getElementById('onboarding-welcome-modal')?.remove());
+  await shot(p, 'start-' + Date.now());
   await p.getByText('PREMIUM TRADINGVIEW').first().click(); await p.waitForTimeout(8000);
 }
 
