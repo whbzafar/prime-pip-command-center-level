@@ -143,16 +143,16 @@ export const BarReplayPro: React.FC = () => {
       if (start > Date.now()) throw new Error('The start date is in the future — pick a past date.');
       feedErr.current = null;
       // Bars around the start date for one timeframe: context before it + future bars after it.
-      const gather = async (pText: string) => {
+      const gather = async (pText: string, from = start) => {
         const pMs = PERIOD_MS[pText];
-        const context = await fetchWith(pText, start);
+        const context = await fetchWith(pText, from);
         let future: KLineData[] = [];
-        let to = start;
+        let to = from;
         for (let i = 0; i < 8 && future.length < 400 && to < Date.now(); i++) {
           to = Math.min(Date.now() + pMs, to + 500 * pMs);
           const chunk = await fetchWith(pText, to);
-          future = mergeBars(future, chunk.filter((b) => b.timestamp >= start));
-          if (!chunk.length) break;
+          future = mergeBars(future, chunk.filter((b) => b.timestamp >= from));
+          if (!chunk.length && to > from + 4000 * pMs) break;
         }
         return mergeBars(context, future);
       };
@@ -173,6 +173,17 @@ export const BarReplayPro: React.FC = () => {
           }
         }
       }
+      // The date is before the instrument's first recorded bar → start the replay at its very first bar.
+      if (!all.length && entry.binance) {
+        const iv = ({ '1m': '1m', '3m': '3m', '5m': '5m', '15m': '15m', '30m': '30m', '1H': '1h', '2H': '2h', '4H': '4h', D: '1d', W: '1w', M: '1M' } as Record<string, string>)[periodText] || '1h';
+        const rows: any[] = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${entry.binance}&interval=${iv}&startTime=${Math.max(0, start)}&limit=1000`).then((r) => r.json()).catch(() => []);
+        if (stale()) return;
+        all = (Array.isArray(rows) ? rows : []).map((r) => ({ timestamp: r[0], open: +r[1], high: +r[2], low: +r[3], close: +r[4], volume: +r[5] }));
+      }
+      if (!all.length && coverage?.dailyFrom) {
+        const first = Date.UTC(coverage.dailyFrom, 0, 1);
+        if (first > start) { all = await gather('D', first); if (stale()) return; if (all.length) { skipReload.current = periodText !== 'D'; if (periodText !== 'D') setPeriodText('D'); } }
+      }
       if (!all.length) {
         const minute = ['1m', '3m', '5m', '15m', '30m'].includes(periodText);
         throw new Error(minute && coverage?.minuteFrom
@@ -183,14 +194,14 @@ export const BarReplayPro: React.FC = () => {
       const firstFuture = all.findIndex((b) => b.timestamp >= start);
       let cur: number;
       if (firstFuture === -1) { cur = all.length - 1; setNotice('No bars after that date yet — replay starts at the latest bar.'); }
-      else if (firstFuture === 0 && !skipReload.current) { cur = 0; setNotice(`History for this timeframe begins ${new Date(all[0].timestamp).toISOString().slice(0, 16).replace('T', ' ')} UTC — replay starts there.`); }
+      else if (firstFuture === 0) { cur = 0; setNotice(`${ticker} ${periodText} history begins ${new Date(all[0].timestamp).toISOString().slice(0, 16).replace('T', ' ')} UTC (its first recorded bar) — replay starts there.`); }
       else cur = firstFuture - 1;
       barsRef.current = all;
       setBars(all);
       setCur(cur);
       chartRef.current?.applyNewData(all.slice(0, cur + 1));
     } catch (e: any) {
-      if (!stale()) setError(e?.message || String(e));
+      if (!stale()) { setError(e?.message || String(e)); barsRef.current = []; setBars([]); setCur(0); chartRef.current?.applyNewData([]); }
     } finally { if (!stale()) setLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, periodText, fetchWith, coverage, ticker]);

@@ -24,20 +24,20 @@ function nyParts(d: Date) {
 }
 
 /** Is the market open at `d`? When closed, also seconds until it reopens. */
-export function marketStatus(kind: SessionKind, d = new Date()): { open: boolean; reopensInSec: number | null; label: string } {
-  if (kind === 'crypto') return { open: true, reopensInSec: null, label: '24/7' };
+export function marketStatus(kind: SessionKind, d = new Date()): { open: boolean; reopensInSec: number | null; closesInSec?: number | null; label: string } {
+  if (kind === 'crypto') return { open: true, reopensInSec: null, closesInSec: null, label: '24/7' };
   const { dow, secs } = nyParts(d);
   const weekSec = dow * 86400 + secs; // seconds since Sunday 00:00 New York
   if (kind === 'fx') {
     const open = 0 * 86400 + 17 * 3600; // Sun 17:00
     const close = 5 * 86400 + 17 * 3600; // Fri 17:00
-    if (weekSec >= open && weekSec < close) return { open: true, reopensInSec: null, label: 'Open' };
+    if (weekSec >= open && weekSec < close) return { open: true, reopensInSec: null, closesInSec: close - weekSec, label: 'Open' };
     const until = weekSec < open ? open - weekSec : 7 * 86400 - weekSec + open;
     return { open: false, reopensInSec: until, label: 'Weekend close' };
   }
   // stocks
   const day = 86400, o = 9.5 * 3600, c = 16 * 3600;
-  if (dow >= 1 && dow <= 5 && secs >= o && secs < c) return { open: true, reopensInSec: null, label: 'Open' };
+  if (dow >= 1 && dow <= 5 && secs >= o && secs < c) return { open: true, reopensInSec: null, closesInSec: c - secs, label: 'Open' };
   let k = 0;
   for (let i = 0; i <= 7; i++) {
     const dd = (dow + i) % 7;

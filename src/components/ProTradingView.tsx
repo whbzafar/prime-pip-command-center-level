@@ -2317,7 +2317,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const sessionCountdown = useCallback((iv: string) => {
     const cd = calculateCandleCountdown(iv);
     const st = marketStatus(sessionKind(selectedSymbol.replace(/^[A-Z_]+:/, '')));
-    return st.open ? cd : { ...cd, closed: true, secondsRemaining: cd.totalSeconds, progressPercent: 0, text: `CLOSED · opens in ${fmtDuration(st.reopensInSec || 0)}` };
+    return st.open
+      ? { ...cd, text: st.closesInSec ? `OPEN · closes in ${fmtDuration(st.closesInSec)}` : 'OPEN · 24/7' }
+      : { ...cd, closed: true, secondsRemaining: cd.totalSeconds, progressPercent: 0, text: `CLOSED · opens in ${fmtDuration(st.reopensInSec || 0)}` };
   }, [selectedSymbol]);
   const [candleCountdown, setCandleCountdown] = useState(() => calculateCandleCountdown(selectedInterval));
 
@@ -3360,37 +3362,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               <span className="text-[10px] text-cyan-400 font-mono">({selectedBroker})</span>
             </div>
 
-            {/* Quick Timeframe Buttons matching TradingView Top Bar (1m 3m 5m 15m 30m 1h 2h 3h 4h D W M) */}
-            <div className="flex items-center gap-0.5 bg-slate-950/90 p-0.5 rounded-lg border border-slate-800">
-              {[
-                { id: '1', label: '1m' },
-                { id: '3', label: '3m' },
-                { id: '5', label: '5m' },
-                { id: '15', label: '15m' },
-                { id: '30', label: '30m' },
-                { id: '60', label: '1h' },
-                { id: '120', label: '2h' },
-                { id: '180', label: '3h' },
-                { id: '240', label: '4h' },
-                { id: 'D', label: 'D' },
-                { id: 'W', label: 'W' },
-                { id: 'M', label: 'M' },
-              ].map((tf) => (
-                <button
-                  key={tf.id}
-                  type="button"
-                  onClick={() => handleIntervalChange(tf.id)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold transition cursor-pointer ${
-                    selectedInterval === tf.id
-                      ? 'bg-slate-900 text-cyan-300 border border-cyan-400/50 shadow-sm'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                  }`}
-                >
-                  {tf.label}
-                </button>
-              ))}
-            </div>
-
             <div className="hidden md:flex items-center gap-2 pl-2 border-l border-slate-800 font-mono text-xs">
               <span className="text-slate-400 text-[11px]">Price:</span>
               <span className={`font-bold ${liveCandle.close >= liveCandle.open ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -3404,7 +3375,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             {/* Live Candle Close Countdown in Header (Always synchronized) */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono-code text-xs font-bold shadow-sm">
               <Clock className={`w-3.5 h-3.5 text-amber-400 ${candleCountdown.closed ? '' : 'animate-pulse'}`} />
-              <span className="hidden sm:inline text-[11px]">{candleCountdown.closed ? 'MARKET' : `${candleCountdown.label} CANDLE`}:</span>
+              <span className="hidden sm:inline text-[11px]">MARKET:</span>
               <span className="text-white font-mono tracking-wider font-extrabold">{candleCountdown.text}</span>
             </div>
 
@@ -3579,14 +3550,14 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             {/* TIME DISPLAY 1 OF 2 (Shifted upwards and to the side - No overlap!) */}
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono-code font-bold transition shadow-md ${
-                !candleCountdown.closed && candleCountdown.secondsRemaining <= 10
+                false
                   ? 'bg-amber-500/25 border-amber-400 text-amber-200 animate-pulse'
                   : 'bg-gradient-to-r from-blue-950/80 to-slate-950/90 border-cyan-500/40 text-cyan-300'
               }`}
               title={`Exact time remaining before current ${candleCountdown.label} candle closes (${candleCountdown.progressPercent}% completed)`}
             >
               <Clock className={`w-4 h-4 text-amber-400 shrink-0 ${candleCountdown.closed ? '' : 'animate-pulse'}`} />
-              <span className="text-slate-300 uppercase tracking-wide">{candleCountdown.closed ? 'MARKET' : `${candleCountdown.label} CANDLE`}:</span>
+              <span className="text-slate-300 uppercase tracking-wide">MARKET:</span>
               <span className="text-amber-300 bg-slate-950 px-2 py-0.5 rounded-lg font-mono-code tracking-widest text-xs font-black border border-slate-700/80 shadow-inner">
                 {candleCountdown.text}
               </span>
@@ -4106,39 +4077,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
           {/* Right Controls: Timeframe Quick Switcher + Tools */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Timeframe Switcher (Syncs both time displays!) */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800 text-[11px] font-mono-code">
-                {TIMEFRAMES.map((tf) => (
-                  <button
-                    key={tf.id}
-                    type="button"
-                    onClick={() => handleIntervalChange(tf.id)}
-                    title={tf.desc}
-                    className={`px-2 py-1 rounded-lg transition cursor-pointer font-bold ${
-                      selectedInterval === tf.id
-                        ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-                    }`}
-                  >
-                    {tf.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Timeframe indicator alongside active candle duration remaining */}
-              <div
-                className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono-code shadow-inner shrink-0"
-                title={`Active Timeframe: ${candleCountdown.label} | Duration remaining before current candle closes: ${candleCountdown.text}`}
-              >
-                <Clock className={`w-3.5 h-3.5 text-amber-400 shrink-0 ${candleCountdown.closed ? '' : 'animate-pulse'}`} />
-                <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-black border border-cyan-500/40 text-[10px] uppercase">
-                  {candleCountdown.label}
-                </span>
-                <span className="text-amber-300 font-bold tracking-wider">{candleCountdown.text}</span>
-              </div>
-            </div>
-
+            {/* Timeframe: chosen in TradingView's own toolbar on the chart (single source, no duplicate). */}
             {/* Action Buttons: Camera, Settings, Share, Indicators, Fullscreen */}
             <div className="flex items-center gap-1.5">
               {/* CAMERA SNAPSHOT BUTTON */}
@@ -4187,30 +4126,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   <span className="hidden sm:inline">Clear Chart</span>
                 </button>
               )}
-
-              {/* PINE EDITOR DOCK TOGGLE BUTTON */}
-              <button
-                type="button"
-                onClick={() => setIsPineEditorOpen((prev) => !prev)}
-                className={`p-1.5 rounded-xl border transition cursor-pointer flex items-center gap-1.5 text-xs font-mono-code font-bold ${
-                  isPineEditorOpen
-                    ? 'bg-amber-500 text-slate-950 border-amber-300 shadow-md shadow-amber-500/30'
-                    : 'bg-slate-950 border-slate-700 text-slate-300 hover:text-white hover:border-amber-400'
-                }`}
-                title="Open TradingView Pine Editor Dock to paste code, create indicators, and apply to chart"
-              >
-                <Code2 className="w-4 h-4 text-amber-400" />
-                <span>Pine Editor</span>
-                {isPineEditorOpen ? (
-                  <span className="px-1 py-0.2 rounded bg-slate-950 text-amber-300 text-[8px] font-bold">
-                    DOCK OPEN
-                  </span>
-                ) : (
-                  <span className="px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[8px] font-bold">
-                    v5
-                  </span>
-                )}
-              </button>
 
               {/* FULL-SCREEN BUTTON (Directly next to Indicators) */}
               <button
@@ -4664,45 +4579,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             </div>
           )}
 
-          {/* ================================================================= */}
-          {/* TRADINGVIEW LIVE CANDLE CLOSE COUNTDOWN & PRICE SCALE TWIN BADGE  */}
-          {/* Exactly matching TradingView: Dotted price line + right scale twin badge */}
-          {/* ================================================================= */}
-          <div className="absolute inset-y-0 right-0 left-0 pointer-events-none select-none z-20 overflow-hidden">
-            {/* Horizontal Dotted Price Line */}
-            <div className="absolute left-0 right-0 flex items-center" style={{ top: '50%' }}>
-              <div
-                className={`w-full border-t border-dashed ${
-                  liveCandle.close >= liveCandle.open ? 'border-emerald-500/70' : 'border-rose-500/70'
-                }`}
-              />
-
-              {/* Right Price Axis Double-Badge (Exact TradingView screenshot replica) */}
-              <div className="absolute right-0 -top-5 flex flex-col items-end shadow-2xl z-30 select-none">
-                {/* Upper Badge: Symbol & Live Price */}
-                <div
-                  className={`flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-mono font-bold text-white shadow-md rounded-l ${
-                    liveCandle.close >= liveCandle.open ? 'bg-[#00897B]' : 'bg-[#E53935]'
-                  }`}
-                >
-                  <span className="text-[10px] tracking-tight">{selectedSymbol}</span>
-                  <span className="tracking-normal font-mono font-extrabold">
-                    {(liveCandle.close || priceMeta.price).toFixed(priceMeta.pipDecimals)}
-                  </span>
-                </div>
-
-                {/* Lower Badge Attached Directly Underneath: Live Candle Close Countdown (Exact TradingView replica) */}
-                <div
-                  className={`px-2 py-0.5 text-[11px] font-mono font-bold text-white shadow-inner rounded-bl text-right ${
-                    liveCandle.close >= liveCandle.open ? 'bg-[#00695C]' : 'bg-[#C62828]'
-                  }`}
-                  title={`Time remaining until current ${candleCountdown.label} candle close`}
-                >
-                  <span className="tracking-widest font-mono font-extrabold">{candleCountdown.text}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Candle countdown: TradingView's own, on the price scale beside the last candle (see overrides). */}
         </div>
 
         {/* =================================================================== */}
@@ -4766,7 +4643,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       {/* ========================================================================= */}
       {/* 2.5 TRADINGVIEW PINE EDITOR DOCK (Integrated bottom panel dock)           */}
       {/* ========================================================================= */}
-      {!isFullscreen && isPineEditorOpen && (
+      {false && !isFullscreen && isPineEditorOpen && (
         <div className="border border-slate-800 rounded-2xl overflow-hidden shadow-2xl bg-[#0d1117] my-2 animate-in fade-in slide-in-from-top-2 duration-200">
           <PineEditorDock
             currentSymbol={selectedSymbol}
@@ -4814,26 +4691,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             >
               <History className="w-3.5 h-3.5 text-cyan-400" />
               <span>Trade History ({closedPositions.length})</span>
-            </button>
-
-            {/* PINE EDITOR TAB (TradingView Style) */}
-            <button
-              type="button"
-              onClick={() => {
-                setIsPineEditorOpen((prev) => !prev);
-              }}
-              className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                isPineEditorOpen
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-military'
-                  : 'bg-slate-900 text-slate-400 hover:text-amber-300'
-              }`}
-              title="Toggle TradingView Pine Editor Dock"
-            >
-              <Code2 className="w-3.5 h-3.5 text-amber-400" />
-              <span>Pine Editor</span>
-              <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono font-bold">
-                {isPineEditorOpen ? 'OPEN' : 'v5'}
-              </span>
             </button>
 
             {/* INDICATORS TAB */}
