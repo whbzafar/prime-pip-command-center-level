@@ -279,7 +279,10 @@ app.use(async (req, res, next) => {
   if (!isSupabaseAuthEnabled) return next();
   const accessToken = req.cookies?.primepipfx_session;
   if (!accessToken) return next();
-
+  // Only Supabase JWTs (three dot-separated parts, starting "eyJ") go to Supabase; the app's own
+  // session tokens are validated locally. Any failure must never block the request.
+  if (!/^eyJ[\w-]*\.[\w-]+\.[\w-]+$/.test(accessToken)) return next();
+  try {
   let user = await getUserFromSupabaseAccessToken(accessToken);
   if (user) {
     const { cacheAuthenticatedUser } = await import('./server/authService.js');
@@ -316,6 +319,9 @@ app.use(async (req, res, next) => {
     } catch (error) {
       console.warn('[AUTH] Supabase session refresh failed:', error instanceof Error ? error.message : error);
     }
+  }
+  } catch (error) {
+    console.warn('[AUTH] Supabase session check skipped:', error instanceof Error ? error.message : error);
   }
   next();
 });

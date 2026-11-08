@@ -15,11 +15,21 @@ function adminHeaders() {
 function authEmail(username: string) {
   return `${username.trim().toLowerCase()}@auth.primepipfx.local`;
 }
+// When Supabase cannot be reached (paused/deleted project, DNS failure) stop calling it for a
+// minute instead of making every request wait on it.
+let supabaseDownUntil = 0;
+export const isSupabaseAuthReachable = () => Date.now() >= supabaseDownUntil;
 async function supaFetch(path: string, init: RequestInit = {}, admin = false) {
   const key = admin ? SUPABASE_SECRET_KEY : SUPABASE_PUBLISHABLE_KEY;
   if (!SUPABASE_URL || !key) throw new Error('Supabase Auth is not configured.');
+  if (!isSupabaseAuthReachable()) throw new Error('Supabase is unreachable (circuit open).');
   const headers = { ...(admin ? adminHeaders() : authHeaders()), ...(init.headers || {}) };
-  return fetch(`${SUPABASE_URL}${path}`, { ...init, headers });
+  try {
+    return await fetch(`${SUPABASE_URL}${path}`, { ...init, headers, signal: init.signal ?? AbortSignal.timeout(5000) });
+  } catch (err) {
+    supabaseDownUntil = Date.now() + 60_000;
+    throw err;
+  }
 }
 async function readJson(response: Response) {
   const text = await response.text();

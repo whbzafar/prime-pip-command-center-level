@@ -35,6 +35,7 @@ function headers(extra: Record<string, string> = {}) {
   };
 }
 
+let communityDownUntil = 0;
 async function supabaseRequest(path: string, init: RequestInit = {}) {
   const { url, key } = getSupabaseConfig();
   if (!url || !key) {
@@ -43,10 +44,20 @@ async function supabaseRequest(path: string, init: RequestInit = {}) {
     );
   }
 
-  const response = await fetch(`${url}/rest/v1/${path}`, {
-    ...init,
-    headers: headers((init.headers || {}) as Record<string, string>),
-  });
+  if (Date.now() < communityDownUntil) {
+    throw new Error("Supabase community backend is unreachable (fetch failed, ENOTFOUND) — retrying shortly.");
+  }
+  let response: Response;
+  try {
+    response = await fetch(`${url}/rest/v1/${path}`, {
+      ...init,
+      headers: headers((init.headers || {}) as Record<string, string>),
+      signal: init.signal ?? AbortSignal.timeout(8000),
+    });
+  } catch (err) {
+    communityDownUntil = Date.now() + 60_000;
+    throw err;
+  }
   const body = await response.text();
   let data: any = null;
   try {
@@ -66,6 +77,7 @@ async function ensureMediaBucket() {
   const { url, key } = getSupabaseConfig();
   if (!url || !key) return false;
   const response = await fetch(url + '/storage/v1/bucket', {
+    signal: AbortSignal.timeout(15000),
     method: 'POST',
     headers: { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -91,6 +103,7 @@ export async function uploadMediaSupabase(params: {
   const ext = params.mimeType.includes('mp4') ? 'm4a' : params.mimeType.includes('ogg') ? 'ogg' : params.mimeType.includes('png') ? 'png' : params.mimeType.includes('jpeg') ? 'jpg' : params.mimeType.includes('webm') ? 'webm' : 'bin';
   const objectPath = 'media/' + params.id + '.' + ext;
   const response = await fetch(url + '/storage/v1/object/primepipfx-media/' + objectPath, {
+    signal: AbortSignal.timeout(15000),
     method: 'POST',
     headers: {
       apikey: key,
@@ -112,6 +125,7 @@ export async function readMediaObjectSupabase(id: string) {
   if (!url || !key) return null;
   const prefix = 'media/' + id;
   const response = await fetch(url + '/storage/v1/object/list/primepipfx-media', {
+    signal: AbortSignal.timeout(15000),
     method: 'POST',
     headers: { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
     body: JSON.stringify({ prefix, limit: 10 }),
@@ -122,7 +136,7 @@ export async function readMediaObjectSupabase(id: string) {
   if (!row) return null;
   const ext = String(row.name).split('.').pop() || 'bin';
   const objectUrl = url + '/storage/v1/object/primepipfx-media/' + prefix + '.' + ext;
-  const file = await fetch(objectUrl, { headers: { apikey: key, Authorization: 'Bearer ' + key } });
+  const file = await fetch(objectUrl, { headers: { apikey: key, Authorization: 'Bearer ' + key }, signal: AbortSignal.timeout(15000) });
   if (!file.ok) return null;
   return { response: file, contentType: file.headers.get('content-type') || 'application/octet-stream' };
 }

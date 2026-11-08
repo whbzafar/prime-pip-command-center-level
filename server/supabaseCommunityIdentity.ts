@@ -22,6 +22,7 @@ async function request(path: string, init: RequestInit = {}) {
   if (!url || !key) throw new Error('Supabase durable community backend is not configured.');
   const response = await fetch(`${url}/rest/v1/${path}`, {
     ...init,
+    signal: init.signal ?? AbortSignal.timeout(8000),
     headers: {
       apikey: key,
       Authorization: `Bearer ${key}`,
