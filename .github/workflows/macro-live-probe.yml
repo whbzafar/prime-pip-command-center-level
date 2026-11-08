@@ -1,0 +1,21 @@
+name: Live probe (temporary)
+on:
+  push:
+    branches: [ci/macro-live-probe]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: |
+          mkdir -p .vercel
+          echo '{"projectId":"prj_probe","orgId":"team_probe","settings":{"framework":"vite","outputDirectory":"dist","installCommand":"true","nodeVersion":"22.x"}}' > .vercel/project.json
+          npx -y vercel@latest build --yes
+      - run: node --unhandled-rejections=strict scripts/final-probe.mjs
