@@ -48,10 +48,11 @@ const StatusLine: React.FC<{ id: string }> = ({ id }) => {
 };
 
 const ShowHide: React.FC<{ id: string; shown: boolean }> = ({ id, shown }) => (
-  <div className="inline-flex rounded-lg border border-slate-700 overflow-hidden text-[11px] font-bold shrink-0">
-    <button type="button" onClick={() => showIndicator(id)} className={`px-2.5 py-1 flex items-center gap-1 cursor-pointer ${shown ? 'bg-emerald-500/25 text-emerald-200' : 'text-slate-400 hover:text-white'}`} aria-pressed={shown}><Eye className="w-3.5 h-3.5" />Show</button>
-    <button type="button" onClick={() => hideIndicator(id)} className={`px-2.5 py-1 flex items-center gap-1 cursor-pointer border-l border-slate-700 ${!shown ? 'bg-slate-700/60 text-slate-100' : 'text-slate-400 hover:text-white'}`} aria-pressed={!shown}><EyeOff className="w-3.5 h-3.5" />Hide</button>
-  </div>
+  <button type="button" onClick={() => (shown ? hideIndicator(id) : showIndicator(id))} aria-pressed={shown}
+    title={shown ? 'On the chart — click to hide' : 'Click to apply on the chart'}
+    className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg border text-[11px] font-bold shrink-0 cursor-pointer ${shown ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-200' : 'border-slate-700 text-slate-300 hover:text-white'}`}>
+    {shown ? <><EyeOff className="w-3.5 h-3.5" />Hide</> : <><Eye className="w-3.5 h-3.5" />Show</>}
+  </button>
 );
 
 const block = (e: React.SyntheticEvent) => e.preventDefault();

@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 const PinePanelLazy = React.lazy(() => import('./pine/PinePanel'));
 const PineMainChartLazy = React.lazy(() => import('./pine/PineMainChart'));
 import { pineLib, loadLibrary as loadPineLibrary, hideAll as hideAllPine } from './pine/pineLibrary';
+import { PineIndicatorChips } from './pine/PineIndicatorChips';
 import {
   CandlestickChart,
   Search,
@@ -4222,6 +4223,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       )}
         </>
       )}
+
+      {/* ONE-CLICK INDICATORS (all users): click = apply on the chart, click again = hide */}
+      <div className="px-1"><PineIndicatorChips /></div>
 
       {/* ========================================================================= */}
       {/* 2. MAIN TRADINGVIEW WORKSPACE: CHART + PROJECTION LINES + RIGHT DOCK      */}

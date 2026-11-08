@@ -5503,7 +5503,7 @@ app.get('/api/community/messages', async (req, res) => {
         console.error('[COMMUNITY GET] Supabase read failed:', sbErr?.message || sbErr);
         return res.status(503).json({
           ok: false,
-          error: 'Community messaging service is temporarily unavailable.',
+          error: /ENOTFOUND|fetch failed/i.test(String(sbErr?.cause?.code || sbErr?.message || '')) ? 'The community database (Supabase) cannot be reached — the project is paused or deleted. The admin needs to restore it.' : 'Community messaging service is temporarily unavailable.',
           backend: 'supabase',
         });
       }
@@ -5563,7 +5563,8 @@ app.get('/api/community/hub', async (req, res) => {
     return res.json({ ok: true, posts: sortHub(posts as HubPost[]), isAdmin: isHubAdmin(user), me: user.id, backend: isSupabaseCommunityEnabled ? 'supabase' : 'local' });
   } catch (err: any) {
     console.error('[HUB GET]', err?.message || err);
-    return res.status(503).json({ ok: false, error: 'The Hub is temporarily unavailable.' });
+    const offline = /ENOTFOUND|fetch failed/i.test(String(err?.cause?.code || err?.message || ''));
+    return res.status(503).json({ ok: false, error: offline ? 'The community database (Supabase) cannot be reached — the project is paused or deleted. The admin needs to restore it.' : 'The Hub is temporarily unavailable.' });
   }
 });
 

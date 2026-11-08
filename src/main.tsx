@@ -35,6 +35,25 @@ try {
   applyInterfaceTemplate(savedTheme, savedBrightness);
 } catch {}
 
+// After a new deployment, a page that was already open still references the previous build's
+// code files, which no longer exist — sections then hang on "loading". Detect that and reload
+// once onto the new build (guarded so it can never loop).
+if (typeof window !== 'undefined') {
+  const reloadOnce = () => {
+    try {
+      const last = Number(sessionStorage.getItem('ppfx_chunk_reload') || 0);
+      if (Date.now() - last < 60_000) return;
+      sessionStorage.setItem('ppfx_chunk_reload', String(Date.now()));
+    } catch { /* storage blocked */ }
+    window.location.reload();
+  };
+  window.addEventListener('vite:preloadError', (e: Event) => { e.preventDefault(); reloadOnce(); });
+  window.addEventListener('unhandledrejection', (e) => {
+    const msg = String((e as PromiseRejectionEvent).reason?.message || (e as PromiseRejectionEvent).reason || '');
+    if (/Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|ChunkLoadError/i.test(msg)) reloadOnce();
+  });
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

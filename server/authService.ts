@@ -223,7 +223,7 @@ export function changeAuthenticatedPassword(userId: string, newPassword: string)
   users[index] = user;
   writeUsers(users);
 
-  const newToken = crypto.randomBytes(32).toString('hex');
+  const newToken = issueSessionToken(user);
   const sessions = readSessions().filter((s) => s.expiresAt > Date.now() && s.userId !== user.id);
   sessions.push({
     token: newToken,
@@ -253,7 +253,7 @@ export function changeDeveloperPassword(userId: string, newPassword: string): { 
   writeUsers(users);
 
   // Issue a bounded session after password rotation.
-  const newToken = crypto.randomBytes(32).toString('hex');
+  const newToken = issueSessionToken(dev);
   const sessions = readSessions().filter((s) => s.expiresAt > Date.now());
   const sessionTtlMs = 30 * 24 * 60 * 60 * 1000;
   sessions.push({
@@ -318,7 +318,7 @@ export function loginUser(
           writeUsers(users);
         }
 
-        const token = crypto.randomBytes(32).toString('hex');
+        const token = issueSessionToken(dev);
         const sessions = readSessions().filter((s) => s.expiresAt > Date.now());
         const ttlMs = rememberMe ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
         sessions.push({
@@ -387,7 +387,7 @@ export function loginUser(
   }
 
   // Create session token with persistent 1-year TTL if rememberMe, otherwise 30 days
-  const token = crypto.randomBytes(32).toString('hex');
+  const token = issueSessionToken(user);
   const sessions = readSessions().filter((s) => s.expiresAt > Date.now());
   const ttlMs = rememberMe ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
   
@@ -403,6 +403,35 @@ export function loginUser(
 }
 
 // Get user by token
+
+// ───────────────────────────── Signed session tokens
+// On Vercel every request can land on a different server instance, each with its own copy of the
+// sessions file, so a random token issued on one instance is unknown to the others. Signed
+// tokens carry the user id and expiry and are verified with a server secret, so any instance can
+// validate them. (User records come from the bundled data on every instance.)
+const SESSION_SECRET = process.env.PRIMEPIPFX_SESSION_SECRET || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const b64u = (b: Buffer | string) => Buffer.from(b).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+export function issueSessionToken(user: { id: string; passwordHash?: string; salt?: string }, ttlMs = 365 * 24 * 60 * 60 * 1000): string {
+  if (!SESSION_SECRET) return crypto.randomBytes(32).toString('hex');
+  const body = b64u(JSON.stringify({ u: user.id, e: Date.now() + ttlMs }));
+  const sig = b64u(crypto.createHmac('sha256', SESSION_SECRET).update(body).digest());
+  return `ppfx1.${body}.${sig}`;
+}
+function userFromSignedToken(token: string): StoredUser | null {
+  if (!SESSION_SECRET || !token.startsWith('ppfx1.')) return null;
+  const [, body, sig] = token.split('.');
+  if (!body || !sig) return null;
+  const expect = b64u(crypto.createHmac('sha256', SESSION_SECRET).update(body).digest());
+  const a = Buffer.from(sig); const b = Buffer.from(expect);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  let payload: any;
+  try { payload = JSON.parse(Buffer.from(body.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')); } catch { return null; }
+  if (!payload?.u || !(payload.e > Date.now())) return null;
+  const user = readUsers().find((u) => u.id === payload.u) || null;
+  if (!user) return null;
+  return user;
+}
+
 export function getUserByToken(token: string): StoredUser | null {
   if (!token) return null;
   const cached = authenticatedUserCache.get(token);
@@ -410,6 +439,8 @@ export function getUserByToken(token: string): StoredUser | null {
     if (cached.expiresAt > Date.now()) return cached.user;
     authenticatedUserCache.delete(token);
   }
+  const signed = userFromSignedToken(token);
+  if (signed) return signed;
   const sessions = readSessions();
   const session = sessions.find((s) => s.token === token && s.expiresAt > Date.now());
   if (!session) return null;
