@@ -8,7 +8,7 @@ await page.evaluate(() => {
   document.body.innerHTML = '';
   const f = document.createElement('iframe');
   f.id = 'tvtest'; f.style.cssText = 'width:1300px;height:800px;border:0';
-  f.src = 'https://s.tradingview.com/widgetembed/?frameElementId=tvtest&symbol=FX%3AEURUSD&interval=60&theme=dark&style=1&locale=en&hide_side_toolbar=0&allow_symbol_change=1&save_image=1&withdateranges=1';
+  f.src = 'https://s.tradingview.com/widgetembed/?frameElementId=tvtest&symbol=BINANCE%3ABTCUSDT&interval=60&theme=dark&style=1&locale=en&hide_side_toolbar=0&allow_symbol_change=1&save_image=1&withdateranges=1&overrides=' + encodeURIComponent(JSON.stringify({ 'mainSeriesProperties.candleStyle.upColor': '#2962ff', 'mainSeriesProperties.candleStyle.borderUpColor': '#2962ff', 'mainSeriesProperties.showCountdown': true }));
   document.body.appendChild(f);
 });
 await page.waitForTimeout(12000);
