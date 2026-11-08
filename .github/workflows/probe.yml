@@ -3,12 +3,11 @@ on: { push: { branches: [ci/macro-live-probe] } }
 jobs:
   p:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    permissions: { contents: write }
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && node ui8.mjs
-      - if: always()
-        run: |
-          git config user.name ci; git config user.email ci@example.com
-          git checkout -B probe-shots && git add -f shots && git commit -qm shots && git push -qf origin probe-shots
+      - run: |
+          B=https://prime-pip-command-center-level.vercel.app
+          for q in "before=1078905600000" "before=1078905600123" "before=1078909200000"; do
+            echo "== m15 $q"; curl -s -D h.txt "$B/api/history/candles?src=duka&id=eurusd&tf=m15&count=500&alt=EURUSD%3DX&arch=EURUSD&$q" -o b.json; grep -i "cache-control\|x-vercel-cache\|^age" h.txt; python3 -c "import json;j=json.load(open('b.json'));c=j.get('candles') or [];print(j.get('src'),j.get('error'),len(c),c and c[0]['timestamp'],c and c[-1]['timestamp'])"
+          done
+          curl -s "$B/api/history/archive?ticker=EURUSD" | head -c 300; echo
