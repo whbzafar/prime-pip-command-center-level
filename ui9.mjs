@@ -12,7 +12,7 @@ await page.goto(B, { waitUntil: 'networkidle' }); await page.waitForTimeout(3000
 await page.getByText('Start Practice').first().click().catch(() => {}); await page.waitForTimeout(800); await page.getByText('Create Demo Account').first().click().catch(() => {}); await page.waitForTimeout(3000);
 await page.getByText('BACKTESTING').first().click(); await page.waitForTimeout(6000);
 const start = page.getByRole('button', { name: 'Start replay' });
-const cases = [['EURUSD', '15m', '2004-03-10T08:00'], ['GBPUSD', '5m', '2006-07-12T13:00'], ['USDJPY', '1m', '2010-05-06T18:00'], ['XAUUSD', '15m', '2012-09-13T18:00'], ['EURUSD', '30m', '2008-09-15T12:00'], ['AUDJPY', '15m', '2005-11-03T03:00']];
+const cases = [['AUDJPY', '15m', '2005-11-03T03:00'], ['EURUSD', '5m', '2004-08-06T12:30'], ['USDCHF', '1m', '2011-09-06T08:58']];
 for (const [sym, tf, date] of cases) {
   await start.waitFor({ timeout: 60000 });
   await page.getByRole('button', { name: /British|Euro|Gold|Japanese|Dow|Bitcoin|Australian|Dollar|Pound/ }).first().click().catch(async () => { await page.locator('[aria-haspopup=listbox]').first().click(); });
