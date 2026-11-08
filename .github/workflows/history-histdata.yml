@@ -32,10 +32,10 @@ jobs:
   build:
     needs: plan
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 300
     strategy:
       fail-fast: false
-      max-parallel: 6
+      max-parallel: 3
       matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
     env:
       GH_TOKEN: ${{ github.token }}
@@ -54,6 +54,9 @@ jobs:
         if: always()
         run: |
           [ -d out ] || exit 0
-          cd out; files=$(ls); [ -z "$files" ] && exit 0
-          # upload in batches to stay well inside API limits
-          echo "$files" | xargs -n 40 gh release upload "$TAG" --clobber
+          cd out; [ -z "$(ls)" ] && exit 0
+          # One file at a time with retries: the repository API allows ~1000 calls/hour.
+          for f in $(ls | grep -v hist_m1.json) hist_m1.json; do
+            [ -f "$f" ] || continue
+            for i in 1 2 3 4 5 6; do gh release upload "$TAG" "$f" --clobber && break; echo "retry $f in $((i*60))s"; sleep $((i*60)); done
+          done

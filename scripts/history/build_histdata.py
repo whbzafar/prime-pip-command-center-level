@@ -110,38 +110,51 @@ def main():
         except Exception:
             supplied = []
     have = {n[3:10] for n, z in sizes.items() if n.startswith('m1_') and z > 40}  # months already archived
+    years_map = {}   # "YYYY" -> months stored in m1y_YYYY.csv.gz
+    try:
+        prev = json.loads(get(f"https://github.com/{repo}/releases/download/hist-{ticker}/hist_m1.json")) if 'hist_m1.json' in sizes else {}
+        years_map = {k: list(v) for k, v in (prev.get('years') or {}).items()}
+    except Exception:
+        pass
+    in_year_files = {m for ms in years_map.values() for m in ms}
     today = dt.date.today()
     for year in range(max(2000, start_year), today.year + 1):
-        months_needed = [m for m in range(1, 13) if f"{year}-{m:02d}" not in have and (year, m) < (today.year, today.month)]
-        if not months_needed:
+        want = [m for m in range(1, 13) if (year, m) < (today.year, today.month)
+                and f"{year}-{m:02d}" not in have and (f"{year}-{m:02d}" not in in_year_files or year == today.year)]
+        if not want:
             continue
-        chunks = [None] if year < today.year else months_needed  # whole year in one ZIP, running year per month
-        for m in chunks:
-            try:
-                rows = download(code, year, m)
-            except Exception as e:
-                print(f"  {year}{'-%02d' % m if m else ''}: download failed ({e})", flush=True)
-                continue
-            time.sleep(2)  # polite pacing
-            if not rows:
-                print(f"  {year}{'-%02d' % m if m else ''}: not available", flush=True)
-                continue
-            by_month = {}
-            for r in rows:
-                d = dt.datetime.fromtimestamp(r[0], dt.timezone.utc)
-                by_month.setdefault(f"{d.year}-{d.month:02d}", []).append(r)
-            wrote = 0
-            for key, mr in sorted(by_month.items()):
-                if key in have or key[:4] != str(year) or (m is not None and key != f"{year}-{m:02d}"):
-                    continue  # already archived, or spill-over hours of a neighbouring file (EST→UTC shift)
-                with open(os.path.join(out, f"m1_{key}.csv.gz"), 'wb') as f:
-                    f.write(to_csv_gz(mr, digits))
-                have.add(key); supplied.append(key); wrote += 1
-            print(f"  {year}{'-%02d' % m if m else ''}: {len(rows)} bars → {wrote} new month files", flush=True)
-    supplied = sorted(set(supplied))
+        rows = []
+        try:
+            if year < today.year:
+                rows = download(code, year) or []
+                time.sleep(2)
+            else:
+                for m in want:
+                    rows += download(code, year, m) or []
+                    time.sleep(2)
+        except Exception as e:
+            print(f"  {year}: download failed ({e})", flush=True)
+            continue
+        keep_months = set(years_map.get(str(year), []))
+        out_rows = []
+        for r in rows:
+            d = dt.datetime.fromtimestamp(r[0], dt.timezone.utc)
+            key = f"{d.year}-{d.month:02d}"
+            if d.year != year or key in have:
+                continue  # spill-over hours of a neighbouring year, or a month Dukascopy already has
+            out_rows.append(r); keep_months.add(key)
+        if not out_rows:
+            print(f"  {year}: not available", flush=True)
+            continue
+        out_rows.sort()
+        with open(os.path.join(out, f"m1y_{year}.csv.gz"), 'wb') as f:
+            f.write(to_csv_gz(out_rows, digits))
+        years_map[str(year)] = sorted(keep_months)
+        print(f"  {year}: {len(out_rows)} bars · {len(keep_months)} months → m1y_{year}.csv.gz", flush=True)
+    months = sorted({m for ms in years_map.values() for m in ms} | set(supplied) | have)
     with open(os.path.join(out, 'hist_m1.json'), 'w') as f:
-        json.dump({'source': 'HistData.com (M1, EST→UTC)', 'months': supplied, 'builtAt': int(time.time())}, f)
-    print(f"{ticker}: HistData supplies {len(supplied)} minute months ({supplied[0] if supplied else '-'} → {supplied[-1] if supplied else '-'})")
+        json.dump({'source': 'HistData.com (M1, EST→UTC)', 'months': months, 'years': years_map, 'builtAt': int(time.time())}, f)
+    print(f"{ticker}: {len(years_map)} yearly HistData files; minute months available {months[0] if months else '-'} → {months[-1] if months else '-'}")
 
 
 if __name__ == '__main__':

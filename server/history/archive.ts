@@ -19,7 +19,7 @@ const MIN = 60_000;
 const TF_MS: Record<Tf, number> = { m1: MIN, m5: 5 * MIN, m15: 15 * MIN, m30: 30 * MIN, h1: 60 * MIN, h4: 240 * MIN, d1: 1440 * MIN, w1: 7 * 1440 * MIN, mn1: 30 * 1440 * MIN };
 
 export interface ArchiveManifest {
-  ticker: string; scale: number; m1Months: string[]; m1Complete: boolean; m1Pending?: number; h1Years: number[]; d1Years?: number[];
+  ticker: string; scale: number; m1Months: string[]; m1YearOf?: Record<string, string>; m1Complete: boolean; m1Pending?: number; h1Years: number[]; d1Years?: number[];
   d1From: number | null; lastCandle: number; builtAt: number; source: string;
 }
 
@@ -30,9 +30,17 @@ function cget(k: string) {
   fileCache.delete(k); fileCache.set(k, v);
   return v.data;
 }
+const sizeOf = (d: any) => (Array.isArray(d) ? d.length : 1);
 function cset(k: string, data: any, ttl: number) {
   fileCache.set(k, { at: Date.now(), ttl, data });
-  while (fileCache.size > 160) fileCache.delete(fileCache.keys().next().value as string);
+  // Bound memory: at most 160 entries and ~2.5 M cached candles (a yearly minute file is ~370 k).
+  let total = 0;
+  for (const v of fileCache.values()) total += sizeOf(v.data);
+  while (fileCache.size > 160 || (total > 2_500_000 && fileCache.size > 1)) {
+    const oldest = fileCache.keys().next().value as string;
+    total -= sizeOf(fileCache.get(oldest)?.data);
+    fileCache.delete(oldest);
+  }
 }
 
 async function fetchAsset(ticker: string, name: string): Promise<Buffer | null> {
@@ -59,8 +67,12 @@ export async function getManifest(ticker: string): Promise<ArchiveManifest | nul
     // Older minute months backfilled from HistData.com (Dukascopy months take priority; never both).
     try {
       const hist = await fetchAsset(ticker, 'hist_m1.json');
-      const hm: string[] = hist ? (JSON.parse(hist.toString('utf8')).months || []) : [];
+      const hj = hist ? JSON.parse(hist.toString('utf8')) : null;
+      const hm: string[] = hj?.months || [];
       if (hm.length) m.m1Months = Array.from(new Set([...(m.m1Months || []), ...hm])).sort();
+      // Months stored inside yearly files (m1y_YYYY.csv.gz) rather than monthly ones.
+      m.m1YearOf = {};
+      for (const [y, ms] of Object.entries((hj?.years || {}) as Record<string, string[]>)) for (const mm of ms) m.m1YearOf[mm] = y;
     } catch { /* minute backfill list unavailable — Dukascopy months still served */ }
   }
   cset(k, m, m ? 10 * MIN : 20_000);
@@ -148,7 +160,13 @@ export async function archiveBefore(ticker: string, tf: Tf, before: number, coun
       : [...man.h1Years].sort((a, b) => b - a).filter((y) => y <= new Date(before - 1).getUTCFullYear()).map(String);
     let i = 0;
     for (; i < keys.length; i++) {
-      const rows = await loadFile(ticker, `${family}_${keys[i]}.csv.gz`, true);
+      const yearFile = family === 'm1' ? man.m1YearOf?.[keys[i]] : undefined;
+      let rows: Candle[];
+      if (yearFile) {
+        const all = await loadFile(ticker, `m1y_${yearFile}.csv.gz`, false);
+        rows = all.filter((c) => ym(c.timestamp) === keys[i]);
+        if (!rows.length) rows = await loadFile(ticker, `m1_${keys[i]}.csv.gz`, true); // month also stored singly
+      } else rows = await loadFile(ticker, `${family}_${keys[i]}.csv.gz`, true);
       acc = rows.filter((c) => c.timestamp < before).concat(acc);
       if (shape(acc, tf).length >= count) break;
       if (Date.now() - started > budgetMs) break;
