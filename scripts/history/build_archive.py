@@ -82,6 +82,8 @@ def decode(raw, base_sec, scale):
         t, o, c, lo, hi, v = struct.unpack(">IIIIIf", data[i:i + 24])
         if o == 0 or hi == 0:
             continue
+        if v == 0 and o == c == lo == hi:  # flat filler bar (market closed) — not a real candle
+            continue
         out.append((base_sec + t, o / scale, hi / scale, lo / scale, c / scale, round(float(v), 6)))
     return out
 

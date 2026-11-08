@@ -67,7 +67,9 @@ function parseCsv(buf: Buffer): Candle[] {
     i = j + 1;
     if (p.length < 5) continue;
     const c = { timestamp: Number(p[0]) * 1000, open: +p[1], high: +p[2], low: +p[3], close: +p[4], volume: Number(p[5] || 0) };
-    if (c.open > 0 && c.high >= c.low && Number.isFinite(c.timestamp)) out.push(c);
+    if (!(c.open > 0 && c.high >= c.low && Number.isFinite(c.timestamp))) continue;
+    if (c.volume === 0 && c.open === c.high && c.high === c.low && c.low === c.close) continue; // market-closed filler
+    out.push(c);
   }
   return out;
 }
