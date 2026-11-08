@@ -6,7 +6,14 @@ import fs from "fs";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { GoogleGenAI } from "@google/genai";
-import { PDFParse } from "pdf-parse";
+// pdf-parse (pdf.js) touches browser-only globals such as DOMMatrix when its module loads, which
+// crashed the whole server on Vercel's Node runtime ("ReferenceError: DOMMatrix is not defined").
+// Load it lazily, only when a PDF is actually parsed; callers already handle failures.
+let pdfParseCtor: any = null;
+async function getPDFParse(): Promise<any> {
+  if (!pdfParseCtor) pdfParseCtor = (await import("pdf-parse")).PDFParse;
+  return pdfParseCtor;
+}
 import dotenv from "dotenv";
 import { randomUUID } from "crypto";
 import {
@@ -2160,7 +2167,7 @@ app.post('/api/fundamental-extract-pdf-text', async (req, res) => {
     if (!pdfText) {
       try {
         const pdfBuf = Buffer.from(cleanBase64, 'base64');
-        const parser = new PDFParse({ data: pdfBuf });
+        const parser = new (await getPDFParse())({ data: pdfBuf });
         const parsedPdf = await parser.getText();
         await parser.destroy();
         pdfText = (parsedPdf?.text || '').trim();
@@ -2299,7 +2306,7 @@ app.post('/api/fundamental/extract-from-image', async (req, res) => {
       if (!pdfText) {
         try {
           const pdfBuf = Buffer.from(cleanBase64, 'base64');
-          const parser = new PDFParse({ data: pdfBuf });
+          const parser = new (await getPDFParse())({ data: pdfBuf });
           const parsedPdf = await parser.getText();
           await parser.destroy();
           pdfText = (parsedPdf?.text || '').trim();
@@ -2587,7 +2594,7 @@ app.post('/api/fundamental/extract-rates-from-image', async (req, res) => {
       if (!pdfText) {
         try {
           const pdfBuf = Buffer.from(cleanBase64, 'base64');
-          const parser = new PDFParse({ data: pdfBuf });
+          const parser = new (await getPDFParse())({ data: pdfBuf });
           const parsedPdf = await parser.getText();
           await parser.destroy();
           pdfText = (parsedPdf?.text || '').trim();
@@ -2759,7 +2766,7 @@ app.post('/api/fundamental/extract-cot-from-image', async (req, res) => {
       if (!pdfText) {
         try {
           const pdfBuf = Buffer.from(cleanBase64, 'base64');
-          const parser = new PDFParse({ data: pdfBuf });
+          const parser = new (await getPDFParse())({ data: pdfBuf });
           const parsedPdf = await parser.getText();
           await parser.destroy();
           pdfText = (parsedPdf?.text || '').trim();
@@ -2929,7 +2936,7 @@ app.post('/api/fundamental/extract-sentiment-from-image', async (req, res) => {
       if (!pdfText) {
         try {
           const pdfBuf = Buffer.from(cleanBase64, 'base64');
-          const parser = new PDFParse({ data: pdfBuf });
+          const parser = new (await getPDFParse())({ data: pdfBuf });
           const parsedPdf = await parser.getText();
           await parser.destroy();
           pdfText = (parsedPdf?.text || '').trim();
