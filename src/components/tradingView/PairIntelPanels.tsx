@@ -360,7 +360,7 @@ export const TvEmbed: React.FC<{ script: string; config: Record<string, unknown>
 export const PairNewsPanel: React.FC<{ tvSymbol: string; display: string }> = ({ tvSymbol, display }) => (
   <div className="h-[calc(100vh-260px)] min-h-[420px] rounded-xl overflow-hidden border border-slate-800">
     <TvEmbed key={tvSymbol} script="https://s3.tradingview.com/external-embedding/embed-widget-timeline.js"
-      config={{ feedMode: 'symbol', symbol: tvSymbol, isTransparent: true, displayMode: 'regular', width: '100%', height: '100%', colorTheme: 'dark', locale: 'en' }} />
+      config={{ feedMode: 'symbol', symbol: tvSymbol, colorTheme: 'dark', isTransparent: false, displayMode: 'regular', width: '100%', height: '100%', locale: 'en' }} />
     <span className="sr-only">Live news for {display}</span>
   </div>
 );
@@ -368,7 +368,7 @@ export const PairNewsPanel: React.FC<{ tvSymbol: string; display: string }> = ({
 export const TvCalendarPanel: React.FC = () => (
   <div className="h-[calc(100vh-260px)] min-h-[460px] rounded-xl overflow-hidden border border-slate-800">
     <TvEmbed script="https://s3.tradingview.com/external-embedding/embed-widget-events.js"
-      config={{ colorTheme: 'dark', isTransparent: true, width: '100%', height: '100%', locale: 'en', importanceFilter: '-1,0,1', countryFilter: 'us,eu,gb,jp,ch,au,nz,ca,cn,de,fr,it' }} />
+      config={{ colorTheme: 'dark', isTransparent: false, width: '100%', height: '100%', locale: 'en', importanceFilter: '-1,0,1', countryFilter: 'us,eu,gb,jp,ch,au,nz,ca,cn,de,fr,it' }} />
   </div>
 );
 

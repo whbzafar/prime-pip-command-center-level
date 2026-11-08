@@ -1904,7 +1904,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         if (!alive) return;
         if (ov?.ok) {
           setLivePairs(Object.fromEntries((ov.data.pairs || []).map((p: any) => [p.symbol, p])));
-          setLiveAssets(Object.fromEntries((ov.data.assets || []).map((a: any) => [a.symbol, a])));
+          setLiveAssets((prev) => Object.fromEntries((ov.data.assets || []).map((a: any) => [a.symbol, a.score == null && prev[a.symbol]?.score != null ? prev[a.symbol] : a])));
         }
         if (se?.ok) setLiveSent(Object.fromEntries((se.data.rows || []).map((r: any) => [r.symbol, r])));
       } catch { /* keep last */ }
@@ -1913,6 +1913,19 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     const id = setInterval(load, 60_000);
     return () => { alive = false; clearInterval(id); };
   }, []);
+  // Stocks are scored on demand (SEC filings load lazily): fetch any stock whose score is still empty.
+  useEffect(() => {
+    const pending = ['NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AMD', 'NFLX', 'JPM'].filter((t) => liveAssets[t] && liveAssets[t].score == null);
+    if (!pending.length) return;
+    let alive = true;
+    (async () => {
+      for (const t of pending) {
+        const j = await fetch(`/api/macro/asset/${t}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+        if (alive && j?.ok && j.data?.score != null) setLiveAssets((prev) => ({ ...prev, [t]: j.data }));
+      }
+    })();
+    return () => { alive = false; };
+  }, [liveAssets]);
 
   const getFundamentalForSymbol = useCallback(
     (sym: string) => {
@@ -1922,9 +1935,10 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       const ENGINE: Record<string, string> = { SPX500: 'US500', NAS100: 'US100', USOIL: 'WTIUSD', BRENT: 'WTIUSD', UKOIL: 'WTIUSD', XPTUSD: 'XPTUSD', COPPER: 'XCUUSD', NATGAS: 'NATGASUSD' };
       const engineSym = ENGINE[clean] || clean.replace(/USDT$/, 'USD');
       let lp = livePairs[engineSym];
-      if (!lp && liveAssets[engineSym]) {
-        // Index / stock: the asset's own live score (no quote leg).
-        const a = liveAssets[engineSym];
+      const assetKey = liveAssets[engineSym]?.score != null ? engineSym : liveAssets[engineSym.replace(/USD$/, '')]?.score != null ? engineSym.replace(/USD$/, '') : null;
+      if (!lp && assetKey) {
+        // Index / stock / coin without a USD pair: the asset's own live score (no quote leg).
+        const a = liveAssets[assetKey];
         lp = { symbol: a.symbol, base: a.symbol, quote: '', assetClass: a.assetClass, score: a.score, bias: a.bias, confidence: a.confidence,
           baseScore: a.score, quoteScore: null, explanation: a.summary || a.explanation || `${a.name} live fundamental score ${a.score > 0 ? '+' : ''}${Number(a.score).toFixed(1)}.` };
       }
@@ -2896,9 +2910,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         // TradingView's own bar-close countdown, drawn on the price scale right beside the last
         // candle's price label (and paused by TradingView itself when the session is closed).
         overrides: JSON.stringify({ 'mainSeriesProperties.showCountdown': chartSettings.showCountdown !== false, 'scalesProperties.showSeriesLastValue': true }),
-        details: 'false',
-        hotlist: 'false',
-        calendar: 'true',
       });
 
       container.innerHTML = '';
