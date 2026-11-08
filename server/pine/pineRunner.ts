@@ -1,3 +1,5 @@
+import path from 'path';
+import { pathToFileURL } from 'url';
 /**
  * Runs a stored Pine Script on the server and returns only its drawn output (plots, labels,
  * boxes, tables, strategy fills…). The browser of a student never receives the source.
@@ -11,7 +13,10 @@
 // starting. `new Function` keeps esbuild from rewriting import() into require().
 const esmImport = new Function('s', 'return import(s)') as (s: string) => Promise<any>;
 let enginePromise: Promise<any> | null = null;
-const loadEngine = () => (enginePromise ??= esmImport('@luxalgo/vela-pinets')
+// Production: dist/pine-engine.mjs is a single self-contained ES module built with the server.
+const bundled = () => esmImport(pathToFileURL(path.join(process.cwd(), 'dist', 'pine-engine.mjs')).href);
+const loadEngine = () => (enginePromise ??= bundled()
+  .catch(() => esmImport('@luxalgo/vela-pinets'))
   // Test runners (vm contexts) cannot use the Function-based import; use a regular one there.
   .catch(() => import('@luxalgo/vela-pinets'))
   .then((m: any) => m.PineEngine || m.default?.PineEngine));

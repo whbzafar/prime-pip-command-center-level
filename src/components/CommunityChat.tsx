@@ -4,6 +4,7 @@ import { UserAccount } from '../types';
 import { getKarachiDate, getKarachiTime } from '../utils/time';
 import { getStoredToken } from '../utils/authClient';
 import { FriendSystem } from './communication/FriendSystem';
+import { HubBoard } from './communication/HubBoard';
 import { PrivateChat } from './communication/PrivateChat';
 import { WebRTCCallModal } from './communication/WebRTCCallModal';
 import { VoiceMessagePlayer } from './communication/VoiceMessagePlayer';
@@ -77,7 +78,7 @@ interface CommunityChatProps {
 }
 
 export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpenLogin }) => {
-  const [commMode, setCommMode] = useState<'PUBLIC' | 'PRIVATE' | 'FRIENDS'>('PUBLIC');
+  const [commMode, setCommMode] = useState<'HUB' | 'PUBLIC' | 'PRIVATE' | 'FRIENDS'>('HUB');
   const [activePrivateContact, setActivePrivateContact] = useState<{
     id: string; username: string; displayName: string;
   } | null>(null);
@@ -572,7 +573,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       if (!document.hidden) {
         fetchMessages(false);
       }
-    }, 4000);
+    }, 2000);
     return () => clearInterval(interval);
   }, [commMode, currentUser?.id]);
 
@@ -928,12 +929,21 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
           <div className="flex items-center gap-1 bg-slate-900/80 p-0.5 rounded-lg border border-slate-800 text-[11px] font-mono-code">
             <button
               type="button"
+              onClick={() => { setCommMode('HUB'); setActivePrivateContact(null); }}
+              className={`px-2.5 py-1 rounded-md transition cursor-pointer flex items-center gap-1 text-[11px] ${
+                commMode === 'HUB' ? 'bg-blue-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Users className="w-3 h-3" /> <span className="hidden sm:inline">Hub</span>
+            </button>
+            <button
+              type="button"
               onClick={() => { setCommMode('PUBLIC'); setActivePrivateContact(null); }}
               className={`px-2.5 py-1 rounded-md transition cursor-pointer flex items-center gap-1 text-[11px] ${
                 commMode === 'PUBLIC' ? 'bg-blue-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Users className="w-3 h-3" /> <span className="hidden sm:inline">Hub</span>
+              <MessageSquare className="w-3 h-3" /> <span className="hidden sm:inline">Live Chat</span>
             </button>
             <button
               type="button"
@@ -942,7 +952,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
                 commMode === 'FRIENDS' ? 'bg-blue-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <UserPlus className="w-3 h-3" /> <span className="hidden sm:inline">Friends</span>
+              <UserPlus className="w-3 h-3" /> <span className="hidden sm:inline">Friends &amp; Groups</span>
             </button>
             {activePrivateContact && (
               <button
@@ -991,6 +1001,8 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
           onStartCall={() => handleStartCall(activePrivateContact)}
         />
       )}
+
+      {commMode === 'HUB' && <HubBoard />}
 
       {commMode === 'FRIENDS' && (
         <FriendSystem

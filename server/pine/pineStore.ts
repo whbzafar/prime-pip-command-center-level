@@ -41,7 +41,11 @@ function cfg() {
 
 const localFile = () => path.join(getDataDir(), 'pine_private_scripts.json');
 
-export const pineStoreBackend = () => (cfg().enabled ? 'supabase-private-storage' : 'local-file');
+let degraded: string | null = null;
+/** Where scripts are kept right now. 'temporary' = Supabase unreachable, kept on this server instance only. */
+export const pineStoreBackend = () => (!cfg().enabled ? 'local-file' : degraded ? `temporary (Supabase unreachable: ${degraded})` : 'supabase-private-storage');
+const readLocal = (): PineScriptRecord[] => { try { return JSON.parse(fs.readFileSync(localFile(), 'utf8')); } catch { return []; } };
+const netErr = (e: any) => `${e?.message || e}${e?.cause?.code ? ` ${e.cause.code}` : ''}`;
 
 export const titleOf = (src: string) =>
   (src.match(/(?:indicator|strategy|library)\s*\(\s*(?:title\s*=\s*)?["']([^"']+)["']/)?.[1] || 'Untitled script').slice(0, 80);
@@ -68,14 +72,21 @@ export async function readScripts(force = false): Promise<PineScriptRecord[]> {
   const { url, key, enabled } = cfg();
   let rows: PineScriptRecord[] = [];
   if (enabled) {
-    const r = await fetch(`${url}/storage/v1/object/authenticated/${BUCKET}/${OBJECT}`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
-      cache: 'no-store',
-    });
-    if (r.ok) rows = (await r.json().catch(() => [])) as PineScriptRecord[];
-    else if (r.status !== 400 && r.status !== 404) throw new Error(`Pine storage read: HTTP ${r.status}`);
+    try {
+      const r = await fetch(`${url}/storage/v1/object/authenticated/${BUCKET}/${OBJECT}`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(8000),
+      });
+      if (r.ok) rows = (await r.json().catch(() => [])) as PineScriptRecord[];
+      else if (r.status !== 400 && r.status !== 404) throw new Error(`Pine storage read: HTTP ${r.status}`);
+      degraded = null;
+    } catch (e: any) {
+      degraded = netErr(e);
+      rows = readLocal();
+    }
   } else {
-    try { rows = JSON.parse(fs.readFileSync(localFile(), 'utf8')); } catch { rows = []; }
+    rows = readLocal();
   }
   rows = Array.isArray(rows) ? rows.filter((s) => s && typeof s.id === 'string' && typeof s.source === 'string') : [];
   cache = { at: Date.now(), rows };
@@ -90,9 +101,15 @@ async function writeScripts(rows: PineScriptRecord[]) {
       headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'x-upsert': 'true', 'cache-control': 'no-store' },
       body: JSON.stringify(rows),
     });
-    let r = await put();
-    if (!r.ok) { await ensureBucket(); r = await put(); }
-    if (!r.ok) throw new Error(`Pine storage write: HTTP ${r.status} ${await r.text()}`);
+    try {
+      let r = await put();
+      if (!r.ok) { await ensureBucket(); r = await put(); }
+      if (!r.ok) throw new Error(`Pine storage write: HTTP ${r.status} ${await r.text()}`);
+      degraded = null;
+    } catch (e: any) {
+      if (!/HTTP \d/.test(String(e?.message))) { degraded = netErr(e); fs.writeFileSync(localFile(), JSON.stringify(rows, null, 2)); }
+      else throw e;
+    }
   } else {
     fs.writeFileSync(localFile(), JSON.stringify(rows, null, 2));
   }

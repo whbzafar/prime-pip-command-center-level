@@ -4,7 +4,7 @@
   "functions": {
     "api/index.ts": {
       "maxDuration": 60,
-      "includeFiles": "{data/**,dist/server.cjs,dist/macro.cjs}"
+      "includeFiles": "{data/**,dist/server.cjs,dist/macro.cjs,dist/pine-engine.mjs}"
     }
   },
   "rewrites": [

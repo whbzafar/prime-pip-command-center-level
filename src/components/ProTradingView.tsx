@@ -4,6 +4,8 @@ import { LiveBiasStrip, chartSymbolFor } from './fundamentalAnalysis/LiveBiasStr
 import { CATALOG } from './chartAnalysis/fullHistoryDatafeed';
 import { createPortal } from 'react-dom';
 const PinePanelLazy = React.lazy(() => import('./pine/PinePanel'));
+const PineMainChartLazy = React.lazy(() => import('./pine/PineMainChart'));
+import { pineLib, loadLibrary as loadPineLibrary, hideAll as hideAllPine } from './pine/pineLibrary';
 import {
   CandlestickChart,
   Search,
@@ -78,9 +80,7 @@ import {
 } from '../utils/tradingViewPairIntelligence';
 import { hasFullAccess, isUserAdmin, getStoredUser } from '../utils/authClient';
 import { Trade, UserAccount, AccountSettings, PineScriptIndicator } from '../types';
-import { PineScriptIndicatorModal } from './pineScript/PineScriptIndicatorModal';
 import { PineEditorDock } from './pineScript/PineEditorDock';
-import { PineScriptChartOverlay } from './pineScript/PineScriptChartOverlay';
 import { pineScriptService } from '../services/pineScriptService';
 import { TradingViewRightDock } from './tradingView/TradingViewRightDock';
 import { TradingViewVerticalToolbar } from './tradingView/TradingViewVerticalToolbar';
@@ -1501,6 +1501,19 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
   // Pine Editor Dock visibility
   const [isPineEditorOpen, setIsPineEditorOpen] = useState<boolean>(false);
+  // Pine indicators switched ON for the main chart (persisted per browser).
+  const [pineShownCount, setPineShownCount] = useState<number>(() => pineLib.get().shown.length);
+  const [preferTvChart, setPreferTvChart] = useState<boolean>(false);
+  const [pineIsAdmin, setPineIsAdmin] = useState<boolean>(false);
+  useEffect(() => {
+    const sync = () => { setPineShownCount(pineLib.get().shown.length); setPineIsAdmin(pineLib.get().isAdmin); };
+    const off = pineLib.subscribe(sync);
+    loadPineLibrary();
+    return off;
+  }, []);
+  // Showing or hiding an indicator always brings the indicator chart back.
+  useEffect(() => { setPreferTvChart(false); }, [pineShownCount]);
+  const pineOnChart = pineShownCount > 0 && !preferTvChart;
 
   // Active terminal sub-tab below chart
   const [terminalBottomTab, setTerminalBottomTab] = useState<'POSITIONS' | 'HISTORY' | 'FUNDAMENTALS' | 'PINE_EDITOR' | 'INDICATORS'>('POSITIONS');
@@ -4113,16 +4126,13 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 <span className="hidden lg:inline">Share</span>
               </button>
 
-              {/* CLEAR INDICATORS / PURE PRICE ACTION BUTTON */}
-              {activePineIndicators.length > 0 && (
+              {/* CLEAR INDICATORS — hide every Pine indicator from the main chart */}
+              {pineShownCount > 0 && (
                 <button
                   type="button"
-                  onClick={async () => {
-                    await pineScriptService.clearAllIndicators();
-                    setActivePineIndicators([]);
-                  }}
+                  onClick={() => hideAllPine()}
                   className="p-1.5 rounded-xl border border-rose-800/60 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 hover:text-white transition cursor-pointer flex items-center gap-1 text-xs font-mono-code font-bold"
-                  title="Remove all indicators from chart to show pure candlestick price action"
+                  title="Hide all indicators and show pure price action"
                 >
                   <Eraser className="w-4 h-4 text-rose-400" />
                   <span className="hidden sm:inline">Clear Chart</span>
@@ -4134,10 +4144,10 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 type="button"
                 onClick={() => setIsPineEditorOpen((o) => !o)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${isPineEditorOpen ? 'bg-violet-500/25 border-violet-400/60 text-violet-100' : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-violet-400/50'}`}
-                title="Open the Pine Editor — write, paste or open a Pine Script and run it on the Pine chart"
+                title={pineIsAdmin ? "Pine Editor — add, publish and apply indicator scripts on the main chart" : "Indicators — Show or Hide indicators on the main chart"}
               >
                 <Code className="w-4 h-4 text-violet-300" />
-                <span>Pine Editor</span>
+                <span>{pineIsAdmin ? 'Pine Editor' : 'Indicators'}</span>
               </button>
 
               {/* FULL-SCREEN BUTTON (Directly next to Indicators) */}
@@ -4159,74 +4169,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         </div>
       </div>
 
-      {/* Active Pine Script Indicators Bar with Explicit ON / OFF Controls */}
-      {activePineIndicators.length > 0 && (
-        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-mono-code overflow-x-auto shadow-sm">
-          <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1 shrink-0">
-            <Activity className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Active Indicators:</span>
-          </span>
-          <div className="flex items-center gap-2 overflow-x-auto">
-            {activePineIndicators.map((ind) => (
-              <div
-                key={ind.id}
-                className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-950 border border-slate-700/80 text-[11px] shrink-0"
-              >
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: ind.color }} />
-                <span className="font-bold text-white">{ind.shortName || ind.title}</span>
-
-                {/* Explicit ON and OFF Buttons directly on the chart pill */}
-                <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5 ml-1">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await pineScriptService.setIndicatorToggle(ind.id, true);
-                      setActivePineIndicators(pineScriptService.getActiveIndicators());
-                    }}
-                    className="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500 text-slate-950 flex items-center gap-1 shadow-xs"
-                    title={`[ON] ${ind.title} is currently active and applied to ${selectedSymbol}`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-pulse" />
-                    <span>ON</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await pineScriptService.setIndicatorToggle(ind.id, false);
-                      setActivePineIndicators(pineScriptService.getActiveIndicators());
-                    }}
-                    className="px-2 py-0.5 rounded text-[9px] font-bold text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition"
-                    title={`Click OFF to remove ${ind.title} from chart`}
-                  >
-                    <span>OFF</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 ml-auto shrink-0 pl-2">
-            <button
-              type="button"
-              onClick={async () => {
-                await pineScriptService.clearAllIndicators();
-                setActivePineIndicators([]);
-              }}
-              className="text-[10px] text-rose-400 hover:text-rose-300 font-bold cursor-pointer flex items-center gap-1 bg-rose-950/40 hover:bg-rose-900/50 px-2 py-0.5 rounded border border-rose-900/50 transition"
-              title="Remove all indicators and view clean price action only"
-            >
-              <Eraser className="w-3 h-3 text-rose-400" />
-              <span>Clear All</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowIndicatorsModal(true)}
-              className="text-[10px] text-cyan-400 hover:text-cyan-300 font-bold cursor-pointer flex items-center gap-1"
-            >
-              <span>+ Manage Indicators</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ========================================================================= */}
       {/* EXECUTION NOTIFICATION & 1-CLICK ADD TO JOURNAL BANNER                     */}
@@ -4299,11 +4241,35 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       >
         {/* CHART COLUMN WITH DRAGGABLE PROJECTION OVERLAY */}
         <div ref={chartContainerRef} className="flex-1 relative h-full flex flex-col min-w-0 select-none">
+          {/* INDICATOR STRIP — Pine indicators are applied directly on the main chart */}
+          {pineShownCount > 0 && (
+            <div className="relative z-30 flex items-center gap-2 px-3 py-1 text-[11px] border-b border-slate-800 bg-[#0b0f17]/95 shrink-0">
+              <Code className="w-3.5 h-3.5 text-violet-300" />
+              <span className="text-slate-300 font-semibold">{pineShownCount} indicator{pineShownCount > 1 ? 's' : ''} {pineOnChart ? 'on the chart' : 'hidden while the TradingView chart is shown'}</span>
+              <div className="ml-auto flex items-center gap-1.5">
+                <button type="button" onClick={() => setPreferTvChart((v) => !v)} className="px-2 py-0.5 rounded-md border border-slate-700 text-slate-300 hover:text-white cursor-pointer">
+                  {pineOnChart ? 'Show TradingView chart' : 'Back to the indicator chart'}
+                </button>
+                <button type="button" onClick={() => setIsPineEditorOpen(true)} className="px-2 py-0.5 rounded-md border border-violet-400/40 text-violet-200 hover:text-white cursor-pointer">Manage</button>
+                <button type="button" onClick={() => hideAllPine()} className="px-2 py-0.5 rounded-md border border-rose-800/60 text-rose-300 hover:text-white cursor-pointer">Hide all</button>
+              </div>
+            </div>
+          )}
+
+          {/* PINE MAIN CHART (while indicators are shown) */}
+          {pineOnChart && (
+            <div className="w-full flex-1 min-h-0 relative z-10">
+              <React.Suspense fallback={<div className="p-4 text-[12px] text-slate-400">Loading chart…</div>}>
+                <PineMainChartLazy symbol={selectedSymbol} interval={selectedInterval} />
+              </React.Suspense>
+            </div>
+          )}
+
           {/* TRADINGVIEW IFRAME CONTAINER */}
-          <div id={containerId} className="w-full h-full relative z-10" />
+          <div id={containerId} className={`w-full relative z-10 ${pineOnChart ? 'hidden' : 'flex-1 min-h-0'}`} />
 
           {/* AUTHENTIC TRADINGVIEW WATERMARK IN BACKGROUND */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[12] opacity-[0.04]">
+          <div className={`absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[12] opacity-[0.04] ${pineOnChart ? 'hidden' : ''}`}>
             <span className="text-6xl sm:text-8xl lg:text-9xl font-black font-sans tracking-widest text-white uppercase">
               {selectedSymbol}, {candleCountdown.label}
             </span>
@@ -4332,28 +4298,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 Vol <strong className="text-slate-200">{liveCandle.volume.toLocaleString()}</strong>
               </div>
             </div>
-          )}
-
-          {/* ACTIVE PINE SCRIPT INDICATOR & VISUAL DRAWING OVERLAY */}
-          {activePineIndicators.length > 0 && (
-            <PineScriptChartOverlay
-              symbol={selectedSymbol}
-              timeframe={selectedInterval}
-              indicators={activePineIndicators}
-              livePrice={liveCandle.close}
-              pipSize={priceMeta.pipSize}
-              topBoundPrice={topBoundPrice}
-              bottomBoundPrice={bottomBoundPrice}
-              getPriceYPercent={getPriceYPercent}
-              onRemoveIndicator={async (id) => {
-                await pineScriptService.setIndicatorToggle(id, false);
-                setActivePineIndicators(pineScriptService.getActiveIndicators());
-              }}
-              onToggleIndicator={async (id, enabled) => {
-                await pineScriptService.setIndicatorToggle(id, enabled);
-                setActivePineIndicators(pineScriptService.getActiveIndicators());
-              }}
-            />
           )}
 
           {/* DRAG EVENT CAPTURE OVERLAY (Active only while dragging so TradingView iframe never intercepts mouse/touch) */}
@@ -4714,16 +4658,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               <span>Trade History ({closedPositions.length})</span>
             </button>
 
-            {/* INDICATORS TAB */}
-            <button
-              type="button"
-              onClick={() => setShowIndicatorsModal(true)}
-              className="px-3 py-1.5 rounded-xl font-bold transition cursor-pointer flex items-center gap-1.5 bg-slate-900 text-slate-400 hover:text-cyan-300"
-              title="Manage Pine Script indicators with explicit On/Off controls"
-            >
-              <Activity className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Indicators ({activePineIndicators.length})</span>
-            </button>
           </div>
 
           <div className="flex items-center gap-3 text-slate-400 text-[11px]">
@@ -5207,17 +5141,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         />
       )}
 
-      {/* ========================================================================= */}
-      {/* 7. PINE SCRIPT & TECHNICAL INDICATORS MODAL                                */}
-      {/* Role-governed: Only Admin can view/edit Pine Script code.                  */}
-      {/* Students have simple On/Off toggles; code is protected and hidden.         */}
-      {/* ========================================================================= */}
-      <PineScriptIndicatorModal
-        isOpen={showIndicatorsModal}
-        onClose={() => setShowIndicatorsModal(false)}
-        currentSymbol={selectedSymbol}
-        currentTimeframe={selectedInterval}
-      />
     </div>
   );
 

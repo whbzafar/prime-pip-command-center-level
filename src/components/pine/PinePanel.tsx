@@ -1,28 +1,22 @@
 /**
- * PINE EDITOR — runs real Pine Script® v5/v6 (indicators AND strategies) on a full chart.
+ * PINE EDITOR / INDICATORS panel of the Premium terminal.
  *
- * TradingView's free embedded chart cannot load custom scripts, so scripts run here on Vela
- * (LuxAlgo's open-source chart, Apache-2.0) through PineTS (open-source Pine runtime, AGPL-3.0 —
- * this repository is public, which satisfies its source-availability terms). The chart is fed by
- * the app's own deep-history feed (Dukascopy archive / HistData / Yahoo / Binance), so a script
- * sees the same data as the rest of the app, back to each instrument's first bar.
+ * Administrator: full editor (paste, open .pine, edit, save to the private server library,
+ * publish to students, try on the main chart).
+ * Everyone else: the published indicators with Show / Hide only. Students never receive the
+ * code — their indicators run on the server and only the drawn result reaches the browser —
+ * and the panel blocks copy, cut, paste and the context menu.
  *
- * Editor: line numbers, Tab indent, Ctrl/Cmd+Enter = Add to chart, Ctrl/Cmd+S = Save.
- * "Save & publish" stores the script in this browser and keeps it applied on every symbol and
- * timeframe; published scripts load automatically whenever the Pine chart opens.
+ * Indicators are applied directly on the terminal's main chart (see PineMainChart) and stay
+ * applied across pairs, timeframes and reloads.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Code2, Eye, EyeOff, FilePlus2, Loader2, Play, Save, Trash2, Upload, X } from 'lucide-react';
-import { VelaWorkspace } from '@luxalgo/vela/workspace';
-import type { DataProvider, OHLCV } from '@luxalgo/vela';
-import { PineWorkerEngine } from '@luxalgo/vela-pinets';
-import { CATALOG, FullHistoryDatafeed, PRO_PERIODS, type CatalogEntry } from '../chartAnalysis/fullHistoryDatafeed';
-
-interface SavedScript { id: string; name: string; source: string; published: boolean; updatedAt: number }
-const STORE = 'ppfx_pine_scripts_v1';
-const loadScripts = (): SavedScript[] => { try { return JSON.parse(localStorage.getItem(STORE) || '[]'); } catch { return []; } };
-const saveScripts = (s: SavedScript[]) => { try { localStorage.setItem(STORE, JSON.stringify(s)); } catch { /* storage full/blocked */ } };
-const titleOf = (src: string) => (src.match(/(?:indicator|strategy|library)\s*\(\s*(?:title\s*=\s*)?["']([^"']+)["']/)?.[1] || 'Untitled script').slice(0, 60);
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Code2, Eye, EyeOff, FilePlus2, Loader2, Lock, Play, Save, Send, Trash2, Upload, X } from 'lucide-react';
+import { titleOf } from './pineData';
+import {
+  DRAFT_ID, clearDraft, deleteScript, hideIndicator, indicatorStatus, loadLibrary, pineLib, saveScript, setDraft, showIndicator,
+  type LibraryScript,
+} from './pineLibrary';
 
 const TEMPLATE = `//@version=6
 indicator("My indicator", overlay=true)
@@ -33,49 +27,34 @@ plot(slow, "EMA 21", color.new(color.orange, 0), 2)
 plotshape(ta.crossover(fast, slow), "Buy", shape.triangleup, location.belowbar, color.lime, size=size.small)
 plotshape(ta.crossunder(fast, slow), "Sell", shape.triangledown, location.abovebar, color.red, size=size.small)
 `;
+const LEGACY_STORE = 'ppfx_pine_scripts_v1';
 
-// ───────────────────────────── symbol / timeframe mapping
-const ALIAS: Record<string, string> = { SPX500: 'US500', NAS100: 'US100', BRENT: 'UKOIL' };
-export const catalogFor = (sym: string) => { const c = sym.replace(/^[A-Z_]+:/, '').toUpperCase().replace(/[^A-Z0-9]/g, ''); return CATALOG.find((e) => e.ticker === (ALIAS[c] || c)); };
-/** TradingView interval (1, 5, 60, 240, D, W, M) → Vela timeframe (same notation). */
-export const velaTf = (iv: string) => ({ '1': '1', '3': '3', '5': '5', '15': '15', '30': '30', '60': '60', '120': '120', '180': '180', '240': '240', D: 'D', '1D': 'D', W: 'W', '1W': 'W', M: 'M', '1M': 'M' } as Record<string, string>)[iv] || '60';
-const PERIOD_TEXT: Record<string, string> = { '1': '1m', '3': '3m', '5': '5m', '15': '15m', '30': '30m', '60': '1H', '120': '2H', '240': '4H', D: 'D', W: 'W', M: 'M' };
-const normTf = (tf: string) => {
-  const t = String(tf).trim();
-  const m = t.match(/^(\d+)\s*([mhdwM]?)$/);
-  if (m) { const n = Number(m[1]); const u = m[2]; if (u === 'h') return String(n * 60); if (u === 'd') return 'D'; if (u === 'w') return 'W'; if (u === 'M') return 'M'; return String(n); }
-  return t.toUpperCase().replace(/^1/, '');
+const useLib = () => {
+  const [s, setS] = useState(() => ({ ...pineLib.get() }));
+  useEffect(() => pineLib.subscribe(() => setS({ ...pineLib.get() })), []);
+  return s;
 };
 
-/** Vela data provider backed by the app's full-history feed (same data as Unlimited Charts / replay). */
-function makeProvider(): DataProvider {
-  const feed = new FullHistoryDatafeed(() => {});
-  return {
-    async getBars(ticker, timeframe, range) {
-      const entry = CATALOG.find((e) => e.ticker === ticker.replace(/^PPFX:/i, '').toUpperCase());
-      const text = PERIOD_TEXT[normTf(timeframe)];
-      const period = PRO_PERIODS.find((p) => p.text === text);
-      if (!entry || !period) return [];
-      const to = range.to ?? Date.now() + 60_000;
-      let rows: any[] = [];
-      for (let attempt = 0; attempt < 2 && !rows.length; attempt++) {
-        try { rows = (await feed.getHistoryKLineData(entry as any, period, 0, to)) || []; } catch { rows = []; }
-      }
-      const bars: OHLCV[] = rows.map((r) => ({ time: r.timestamp, open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume ?? 0 }))
-        .filter((b) => (range.from === undefined || b.time >= range.from) && b.time < to)
-        .sort((a, b) => a.time - b.time);
-      return bars.filter((b, i) => i === 0 || b.time !== bars[i - 1].time);
-    },
-    async listSymbols() {
-      return CATALOG.map((e) => ({ ticker: e.ticker, description: e.name, type: e.market === 'forex' ? 'forex' : e.market === 'crypto' ? 'crypto' : e.market === 'stocks' ? 'stock' : e.market === 'indices' ? 'index' : 'commodity' })) as any;
-    },
-    async getSymbolInfo(ticker: string) {
-      const e = CATALOG.find((x) => x.ticker === ticker) as CatalogEntry | undefined;
-      const p = e?.pricePrecision ?? 2;
-      return { ticker, description: e?.name || ticker, type: e?.market || 'forex', currency: e?.market === 'crypto' ? 'USDT' : 'USD', mintick: Number((10 ** -p).toFixed(p)), pricescale: 10 ** p, timezone: 'Etc/UTC', session: e?.market === 'crypto' ? '24x7' : '24x5' } as any;
-    },
-  } as DataProvider;
-}
+const StatusLine: React.FC<{ id: string }> = ({ id }) => {
+  useLib();
+  const st = indicatorStatus(id);
+  if (!st) return null;
+  return (
+    <div className={`text-[10.5px] mt-0.5 flex items-start gap-1 ${st.kind === 'error' ? 'text-rose-300' : st.kind === 'ok' ? 'text-emerald-300' : 'text-slate-400'}`}>
+      {st.kind === 'busy' ? <Loader2 className="w-3 h-3 animate-spin mt-0.5 shrink-0" /> : st.kind === 'ok' ? <CheckCircle2 className="w-3 h-3 mt-0.5 shrink-0" /> : <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />}
+      <span className="break-words">{st.kind === 'error' && st.line ? `Line ${st.line}: ` : ''}{st.text}</span>
+    </div>
+  );
+};
+
+const ShowHide: React.FC<{ id: string; shown: boolean }> = ({ id, shown }) => (
+  <div className="inline-flex rounded-lg border border-slate-700 overflow-hidden text-[11px] font-bold shrink-0">
+    <button type="button" onClick={() => showIndicator(id)} className={`px-2.5 py-1 flex items-center gap-1 cursor-pointer ${shown ? 'bg-emerald-500/25 text-emerald-200' : 'text-slate-400 hover:text-white'}`} aria-pressed={shown}><Eye className="w-3.5 h-3.5" />Show</button>
+    <button type="button" onClick={() => hideIndicator(id)} className={`px-2.5 py-1 flex items-center gap-1 cursor-pointer border-l border-slate-700 ${!shown ? 'bg-slate-700/60 text-slate-100' : 'text-slate-400 hover:text-white'}`} aria-pressed={!shown}><EyeOff className="w-3.5 h-3.5" />Hide</button>
+  </div>
+);
+
+const block = (e: React.SyntheticEvent) => e.preventDefault();
 
 // ───────────────────────────── editor with line numbers
 const CodeEditor: React.FC<{ value: string; onChange: (v: string) => void; onRun: () => void; onSave: () => void; errorLine?: number | null }> = ({ value, onChange, onRun, onSave, errorLine }) => {
@@ -108,136 +87,159 @@ const CodeEditor: React.FC<{ value: string; onChange: (v: string) => void; onRun
 
 // ───────────────────────────── panel
 export const PinePanel: React.FC<{ symbol: string; interval: string; onClose: () => void }> = ({ symbol, interval, onClose }) => {
-  const host = useRef<HTMLDivElement>(null);
-  const ws = useRef<VelaWorkspace | null>(null);
-  const running = useRef(new Map<string, () => void>()); // script id → remove()
-  const [scripts, setScripts] = useState<SavedScript[]>(() => loadScripts());
-  const [activeId, setActiveId] = useState<string | null>(() => loadScripts()[0]?.id || null);
-  const [code, setCode] = useState<string>(() => loadScripts()[0]?.source || TEMPLATE);
-  const [status, setStatus] = useState<{ kind: 'idle' | 'busy' | 'ok' | 'error'; text: string; line?: number | null }>({ kind: 'idle', text: 'Write or paste a Pine Script® (v5/v6), then “Add to chart”.' });
-  const [ready, setReady] = useState(false);
-  const entry = useMemo(() => catalogFor(symbol), [symbol]);
-  const tf = velaTf(interval);
+  const lib = useLib();
+  useEffect(() => { loadLibrary(true); }, []);
 
-  const persist = (next: SavedScript[]) => { setScripts(next); saveScripts(next); };
+  if (!lib.loaded) {
+    return <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] p-4 text-[12px] text-slate-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Loading indicators…</div>;
+  }
+  return lib.isAdmin ? <AdminEditor symbol={symbol} interval={interval} onClose={onClose} /> : <StudentIndicators onClose={onClose} />;
+};
 
-  const runOnChart = useCallback(async (id: string, source: string): Promise<boolean> => {
-    const chart = ws.current?.chart;
-    if (!chart) return false;
-    running.current.get(id)?.();
-    running.current.delete(id);
-    setStatus({ kind: 'busy', text: `Compiling and running “${titleOf(source)}”…` });
-    const res: any = await chart.runScript(source);
-    if (res?.ok) {
-      running.current.set(id, () => { try { res.remove(); } catch { /* already gone */ } });
-      const st = res.run?.strategy;
-      setStatus({ kind: 'ok', text: `“${titleOf(source)}” is running on ${entry?.ticker} ${PERIOD_TEXT[tf] || tf}.${st ? ` Strategy: net P&L ${Number(st.netPnl ?? 0).toFixed(2)}, ${st.closedTrades ?? st.totalTrades ?? 0} closed trades.` : ''}` });
-      return true;
-    }
-    const err = res?.error;
-    const msg = typeof err === 'string' ? err : err?.message || JSON.stringify(err || 'Unknown error');
-    const line = Number(err?.line ?? err?.loc?.line ?? (String(msg).match(/line\s+(\d+)/i)?.[1] ?? NaN));
-    setStatus({ kind: 'error', text: msg, line: Number.isFinite(line) ? line : null });
-    return false;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry, tf]);
+// ───────────────────────────── students: Show / Hide only
+const StudentIndicators: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const lib = useLib();
+  const list = lib.scripts;
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] overflow-hidden shadow-2xl select-none"
+      onCopy={block} onCut={block} onPaste={block} onContextMenu={block} onDragStart={block}>
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-800 bg-gradient-to-r from-[#0d1424] to-[#0b0f17]">
+        <Code2 className="w-4 h-4 text-cyan-400" />
+        <span className="text-[12px] font-bold text-slate-100 tracking-wide">Indicators</span>
+        <span className="text-[10.5px] text-slate-500 hidden md:inline">Show applies an indicator on the main chart · it stays on for every pair and timeframe</span>
+        <button type="button" onClick={onClose} aria-label="Close" className="ml-auto p-1 rounded-md text-slate-400 hover:text-white cursor-pointer"><X className="w-4 h-4" /></button>
+      </div>
+      {lib.error && <div className="px-3 py-2 text-[11.5px] text-rose-300 border-b border-slate-800">{/sign in/i.test(lib.error) ? 'Please sign in to use the indicators.' : `Indicators are unavailable right now (${lib.error}).`}</div>}
+      {!lib.error && list.length === 0 && <div className="px-3 py-4 text-[12px] text-slate-400">No indicators have been published yet.</div>}
+      <div className="divide-y divide-slate-800/70">
+        {list.map((s) => (
+          <div key={s.id} className="px-3 py-2.5 flex items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="text-[12.5px] font-semibold text-slate-100 truncate">{s.name}</div>
+              <div className="text-[10.5px] text-slate-500">{s.overlay ? 'On the price chart' : 'In its own pane'} · updated {new Date(s.updatedAt).toLocaleDateString()}</div>
+              <StatusLine id={s.id} />
+            </div>
+            <ShowHide id={s.id} shown={lib.shown.includes(s.id)} />
+          </div>
+        ))}
+      </div>
+      <div className="px-3 py-1.5 border-t border-slate-800 text-[10px] text-slate-500 flex items-center gap-1.5"><Lock className="w-3 h-3" />Indicator code is private to PrimePipFX and runs on our server.</div>
+    </div>
+  );
+};
 
-  // Build the chart once.
-  useEffect(() => {
-    if (!host.current || !entry) return;
-    const w = new VelaWorkspace(host.current, {
-      layout: false, symbol: entry.ticker, timeframe: tf, theme: 'dark', live: true, persist: false,
-      providers: { ppfx: () => makeProvider() },
-      engines: { pine: () => new PineWorkerEngine() },
-    } as any);
-    ws.current = w;
-    let alive = true;
-    w.chart.ready().then(async () => {
-      if (!alive) return;
-      setReady(true);
-      for (const s of loadScripts().filter((x) => x.published)) await runOnChart(s.id, s.source);
-    }).catch(() => {});
-    return () => { alive = false; running.current.clear(); try { w.destroy(); } catch { /* ignore */ } ws.current = null; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Follow the Premium chart's symbol / timeframe (scripts re-run automatically on the new bars).
-  useEffect(() => {
-    const chart = ws.current?.chart;
-    if (!chart || !entry) return;
-    chart.setMarket({ symbol: entry.ticker, timeframe: tf }).catch?.(() => {});
-  }, [entry, tf]);
-
+// ───────────────────────────── administrator: full editor
+const AdminEditor: React.FC<{ symbol: string; interval: string; onClose: () => void }> = ({ symbol, interval, onClose }) => {
+  const lib = useLib();
+  const scripts = lib.scripts as LibraryScript[];
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [code, setCode] = useState<string>(TEMPLATE);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'idle' | 'ok' | 'error'; text: string }>({ kind: 'idle', text: 'Paste or open a Pine Script® (v5/v6). “Add to chart” tries it on the main chart; “Save & publish” makes it available to students.' });
   const current = scripts.find((s) => s.id === activeId) || null;
-  const addToChart = () => runOnChart(activeId || 'draft', code);
-  const save = (publish: boolean) => {
-    const now = Date.now();
-    let next: SavedScript[];
-    let id = activeId;
-    if (current) next = scripts.map((s) => (s.id === current.id ? { ...s, source: code, name: titleOf(code), published: publish || s.published, updatedAt: now } : s));
-    else { id = `pine_${now}`; next = [{ id, name: titleOf(code), source: code, published: publish, updatedAt: now }, ...scripts]; setActiveId(id); }
-    persist(next);
-    if (publish && id) runOnChart(id, code);
-    else setStatus({ kind: 'ok', text: `Saved “${titleOf(code)}”.` });
-  };
-  const newScript = () => { setActiveId(null); setCode(TEMPLATE); setStatus({ kind: 'idle', text: 'New script — edit, then “Add to chart”.' }); };
-  const togglePublished = (s: SavedScript) => {
-    const next = scripts.map((x) => (x.id === s.id ? { ...x, published: !x.published } : x));
-    persist(next);
-    if (s.published) { running.current.get(s.id)?.(); running.current.delete(s.id); setStatus({ kind: 'idle', text: `“${s.name}” removed from the chart.` }); }
-    else runOnChart(s.id, s.source);
-  };
-  const remove = (s: SavedScript) => {
-    running.current.get(s.id)?.(); running.current.delete(s.id);
-    const next = scripts.filter((x) => x.id !== s.id);
-    persist(next);
-    if (activeId === s.id) { setActiveId(next[0]?.id || null); setCode(next[0]?.source || TEMPLATE); }
-  };
-  const importFile = (f: File) => f.text().then((t) => { setActiveId(null); setCode(t); setStatus({ kind: 'idle', text: `Loaded ${f.name} — “Add to chart” to run it.` }); });
+  const legacy = useMemo(() => { try { return (JSON.parse(localStorage.getItem(LEGACY_STORE) || '[]') as any[]).filter((s) => s?.source); } catch { return []; } }, []);
+  const [legacyLeft, setLegacyLeft] = useState(legacy.length);
 
-  if (!entry) return <div className="p-4 text-[12px] text-amber-300">No data feed for {symbol} in the Pine chart yet.</div>;
+  // Open the first script once the library arrives.
+  useEffect(() => {
+    if (activeId === null && scripts[0]?.source) { setActiveId(scripts[0].id); setCode(scripts[0].source); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scripts.length]);
+
+  const unchanged = Boolean(current && current.source === code);
+  const addToChart = () => {
+    if (unchanged && current) { clearDraft(); showIndicator(current.id); }
+    else setDraft(code, titleOf(code));
+    setMsg({ kind: 'ok', text: `“${titleOf(code)}” applied on the main chart (${symbol}, ${interval}).` });
+  };
+  const save = async (publish?: boolean) => {
+    setBusy(true);
+    try {
+      const rec = await saveScript({ id: current?.id, source: code, published: publish ? true : current?.published ?? false });
+      setActiveId(rec.id);
+      if (pineLib.get().shown.includes(DRAFT_ID)) { clearDraft(); showIndicator(rec.id); }
+      setMsg({ kind: 'ok', text: publish ? `Published “${rec.name}” — students can now Show/Hide it (the code stays private).` : `Saved “${rec.name}” to the private library.` });
+    } catch (e: any) { setMsg({ kind: 'error', text: e.message }); }
+    finally { setBusy(false); }
+  };
+  const togglePublish = async (s: LibraryScript) => {
+    setBusy(true);
+    try { await saveScript({ id: s.id, source: s.source || '', published: !s.published }); setMsg({ kind: 'ok', text: `${s.published ? 'Unpublished' : 'Published'} “${s.name}”.` }); }
+    catch (e: any) { setMsg({ kind: 'error', text: e.message }); }
+    finally { setBusy(false); }
+  };
+  const remove = async (s: LibraryScript) => {
+    if (!window.confirm(`Delete “${s.name}” for everyone? This cannot be undone.`)) return;
+    setBusy(true);
+    try { await deleteScript(s.id); if (activeId === s.id) { setActiveId(null); setCode(TEMPLATE); } setMsg({ kind: 'ok', text: `Deleted “${s.name}”.` }); }
+    catch (e: any) { setMsg({ kind: 'error', text: e.message }); }
+    finally { setBusy(false); }
+  };
+  const uploadLegacy = async () => {
+    setBusy(true);
+    try {
+      for (const s of legacy) await saveScript({ source: s.source, published: false });
+      localStorage.removeItem(LEGACY_STORE); setLegacyLeft(0);
+      setMsg({ kind: 'ok', text: `Moved ${legacy.length} script(s) from this browser to the private library (unpublished).` });
+    } catch (e: any) { setMsg({ kind: 'error', text: e.message }); }
+    finally { setBusy(false); }
+  };
+  const importFile = (f: File) => f.text().then((t) => { setActiveId(null); setCode(t); setMsg({ kind: 'idle', text: `Loaded ${f.name} — “Add to chart” to try it, “Save & publish” to share it.` }); });
+  const draftStatus = indicatorStatus(DRAFT_ID) || (current ? indicatorStatus(current.id) : null);
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] overflow-hidden shadow-2xl">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-800 bg-gradient-to-r from-[#0d1424] to-[#0b0f17]">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-800 bg-gradient-to-r from-[#0d1424] to-[#0b0f17] flex-wrap">
         <Code2 className="w-4 h-4 text-cyan-400" />
         <span className="text-[12px] font-bold text-slate-100 tracking-wide">Pine Editor</span>
-        <span className="text-[10.5px] text-slate-500 hidden md:inline">Pine Script® v5/v6 · indicators &amp; strategies · {entry.ticker} {PERIOD_TEXT[tf] || tf} · runs on the Pine chart below with full-depth data</span>
-        <div className="ml-auto flex items-center gap-1.5">
-          <button type="button" onClick={newScript} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 text-[11px] text-slate-300 hover:text-white cursor-pointer"><FilePlus2 className="w-3.5 h-3.5" />New</button>
+        <span className="text-[9.5px] uppercase px-1.5 py-0.5 rounded border border-amber-400/40 text-amber-200">Admin</span>
+        <span className="text-[10.5px] text-slate-500 hidden lg:inline">Pine Script® v5/v6 · applied on the main chart · {symbol} {interval}</span>
+        <div className="ml-auto flex items-center gap-1.5 flex-wrap">
+          <button type="button" onClick={() => { setActiveId(null); setCode(TEMPLATE); }} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 text-[11px] text-slate-300 hover:text-white cursor-pointer"><FilePlus2 className="w-3.5 h-3.5" />New</button>
           <label className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 text-[11px] text-slate-300 hover:text-white cursor-pointer"><Upload className="w-3.5 h-3.5" />Open .pine<input type="file" accept=".pine,.txt,.pinescript" className="hidden" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} /></label>
-          <button type="button" onClick={() => save(false)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 text-[11px] text-slate-300 hover:text-white cursor-pointer"><Save className="w-3.5 h-3.5" />Save</button>
-          <button type="button" onClick={() => save(true)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-violet-500/20 border border-violet-400/50 text-[11px] text-violet-100 font-semibold hover:bg-violet-500/30 cursor-pointer">Save &amp; publish</button>
-          <button type="button" onClick={addToChart} disabled={!ready || status.kind === 'busy'} className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-gradient-to-r from-cyan-500 to-sky-500 text-[11.5px] font-bold text-slate-950 disabled:opacity-50 cursor-pointer" title="Ctrl/Cmd + Enter">
-            {status.kind === 'busy' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}Add to chart
-          </button>
+          <button type="button" disabled={busy} onClick={() => save(false)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 text-[11px] text-slate-300 hover:text-white cursor-pointer disabled:opacity-50"><Save className="w-3.5 h-3.5" />Save</button>
+          <button type="button" disabled={busy} onClick={() => save(true)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-violet-500/20 border border-violet-400/50 text-[11px] text-violet-100 font-semibold hover:bg-violet-500/30 cursor-pointer disabled:opacity-50"><Send className="w-3.5 h-3.5" />Save &amp; publish</button>
+          <button type="button" onClick={addToChart} className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-gradient-to-r from-cyan-500 to-sky-500 text-[11.5px] font-bold text-slate-950 cursor-pointer" title="Ctrl/Cmd + Enter"><Play className="w-3.5 h-3.5" />Add to chart</button>
           <button type="button" onClick={onClose} aria-label="Close Pine Editor" className="p-1 rounded-md text-slate-400 hover:text-white cursor-pointer"><X className="w-4 h-4" /></button>
         </div>
       </div>
-      <div className={`px-3 py-1.5 text-[11.5px] border-b flex items-start gap-2 ${status.kind === 'error' ? 'bg-rose-500/10 border-rose-500/30 text-rose-200' : status.kind === 'ok' ? 'bg-emerald-500/[0.07] border-emerald-500/20 text-emerald-200' : 'bg-slate-900/60 border-slate-800 text-slate-400'}`}>
-        {status.kind === 'error' ? <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" /> : status.kind === 'ok' ? <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" /> : status.kind === 'busy' ? <Loader2 className="w-3.5 h-3.5 mt-0.5 animate-spin shrink-0" /> : null}
-        <span className="whitespace-pre-wrap break-words">{status.kind === 'error' && status.line ? `Line ${status.line}: ` : ''}{status.text}</span>
+      <div className={`px-3 py-1.5 text-[11.5px] border-b flex items-start gap-2 ${msg.kind === 'error' ? 'bg-rose-500/10 border-rose-500/30 text-rose-200' : msg.kind === 'ok' ? 'bg-emerald-500/[0.07] border-emerald-500/20 text-emerald-200' : 'bg-slate-900/60 border-slate-800 text-slate-400'}`}>
+        {busy ? <Loader2 className="w-3.5 h-3.5 mt-0.5 animate-spin shrink-0" /> : msg.kind === 'error' ? <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" /> : msg.kind === 'ok' ? <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" /> : null}
+        <span className="whitespace-pre-wrap break-words">{msg.text}</span>
       </div>
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_420px]">
-        <div ref={host} className="h-[620px] min-w-0 border-r border-slate-800" />
-        <div className="flex flex-col h-[620px]">
-          <div className="flex-1 min-h-0"><CodeEditor value={code} onChange={setCode} onRun={addToChart} onSave={() => save(false)} errorLine={status.kind === 'error' ? status.line : null} /></div>
-          <div className="border-t border-slate-800 max-h-[170px] overflow-y-auto">
-            <div className="px-3 py-1.5 text-[10px] font-mono-code uppercase tracking-[0.14em] text-slate-500">My scripts ({scripts.length})</div>
-            {scripts.length === 0 && <div className="px-3 pb-2 text-[11px] text-slate-500">Saved scripts appear here. Published scripts stay on the chart for every symbol and timeframe.</div>}
+      {draftStatus && <div className="px-3 py-1 border-b border-slate-800"><StatusLine id={pineLib.get().shown.includes(DRAFT_ID) ? DRAFT_ID : current!.id} /></div>}
+      {lib.error && <div className="px-3 py-1.5 text-[11px] text-rose-300 border-b border-slate-800">Library: {lib.error}</div>}
+      {lib.backend.startsWith('temporary') && <div className="px-3 py-1.5 text-[11px] text-amber-200 bg-amber-500/10 border-b border-amber-500/30">Storage warning — {lib.backend}. Scripts saved now are kept only temporarily on the server; reconnect Supabase so they are stored permanently.</div>}
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="h-[460px] min-w-0 border-r border-slate-800">
+          <CodeEditor value={code} onChange={setCode} onRun={addToChart} onSave={() => save(false)} errorLine={(draftStatus?.kind === 'error' && draftStatus.line) || null} />
+        </div>
+        <div className="flex flex-col h-[460px]">
+          <div className="px-3 py-1.5 text-[10px] font-mono-code uppercase tracking-[0.14em] text-slate-500 border-b border-slate-800">Private library ({scripts.length})</div>
+          {legacyLeft > 0 && (
+            <button type="button" disabled={busy} onClick={uploadLegacy} className="mx-3 my-2 px-2 py-1.5 rounded-md border border-cyan-500/40 bg-cyan-500/10 text-[11px] text-cyan-100 cursor-pointer text-left">Move {legacyLeft} script(s) saved in this browser to the private library</button>
+          )}
+          <div className="flex-1 overflow-y-auto">
+            {scripts.length === 0 && <div className="px-3 py-2 text-[11px] text-slate-500">Saved scripts appear here. Publish one to let students Show/Hide it.</div>}
             {scripts.map((s) => (
-              <div key={s.id} className={`flex items-center gap-2 px-3 py-1.5 text-[11.5px] ${s.id === activeId ? 'bg-cyan-500/10' : 'hover:bg-slate-900'}`}>
-                <button type="button" onClick={() => { setActiveId(s.id); setCode(s.source); }} className="flex-1 min-w-0 text-left truncate text-slate-200 cursor-pointer">{s.name}</button>
-                {s.published && <span className="text-[9px] uppercase px-1.5 py-0.5 rounded border border-violet-400/40 text-violet-200">published</span>}
-                <button type="button" onClick={() => togglePublished(s)} title={s.published ? 'Remove from chart' : 'Publish to chart'} className="text-slate-400 hover:text-white cursor-pointer">{s.published ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}</button>
-                <button type="button" onClick={() => remove(s)} title="Delete script" className="text-slate-500 hover:text-rose-300 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
+              <div key={s.id} className={`px-3 py-2 border-b border-slate-800/60 ${s.id === activeId ? 'bg-cyan-500/10' : 'hover:bg-slate-900'}`}>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => { setActiveId(s.id); setCode(s.source || ''); }} className="flex-1 min-w-0 text-left truncate text-[12px] text-slate-100 cursor-pointer" title="Open in the editor">{s.name}</button>
+                  <button type="button" disabled={busy} onClick={() => togglePublish(s)} className={`text-[9.5px] uppercase px-1.5 py-0.5 rounded border cursor-pointer ${s.published ? 'border-violet-400/50 text-violet-200 bg-violet-500/15' : 'border-slate-600 text-slate-400'}`} title={s.published ? 'Students can Show/Hide this — click to unpublish' : 'Only you can see this — click to publish to students'}>{s.published ? 'Published' : 'Private'}</button>
+                  <button type="button" disabled={busy} onClick={() => remove(s)} title="Delete" className="text-slate-500 hover:text-rose-300 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-slate-500">{new Date(s.updatedAt).toLocaleString()}</span>
+                  <ShowHide id={s.id} shown={lib.shown.includes(s.id)} />
+                </div>
+                <StatusLine id={s.id} />
               </div>
             ))}
           </div>
         </div>
       </div>
       <div className="px-3 py-1.5 border-t border-slate-800 text-[10px] text-slate-500 leading-relaxed">
-        Scripts run on Vela (open-source chart) through PineTS, an independent open-source Pine Script® runtime — TradingView’s embedded chart cannot load custom scripts. Most Pine v5/v6 features run (plots, shapes, labels, lines, boxes, tables, inputs, request.security on these symbols, strategy orders with on-chart fills); a feature PineTS has not implemented yet is reported here with its line. Scripts are saved in this browser.
+        Only administrators see this editor and the code. Students see published indicators with Show / Hide; their indicators run on the server, so the code never reaches their browser. Scripts run through PineTS (open-source Pine runtime); a feature it does not support yet is reported with its line.
       </div>
     </div>
   );

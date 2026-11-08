@@ -180,12 +180,18 @@ export const WebRTCCallModal: React.FC<WebRTCCallModalProps> = ({
       localStreamRef.current = stream;
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-        ],
-      });
+      // STUN always; a TURN relay too when one is configured on the server (needed when
+      // both callers are behind strict mobile / corporate networks).
+      let iceServers: RTCIceServer[] = [
+        { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+        { urls: 'stun:stun.cloudflare.com:3478' },
+      ];
+      try {
+        const iceRes = await fetch('/api/webrtc/ice', { credentials: 'include', cache: 'no-store' });
+        const ice = await iceRes.json();
+        if (Array.isArray(ice?.iceServers) && ice.iceServers.length) iceServers = ice.iceServers;
+      } catch { /* keep the STUN defaults */ }
+      const pc = new RTCPeerConnection({ iceServers });
       peerConnectionRef.current = pc;
 
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));

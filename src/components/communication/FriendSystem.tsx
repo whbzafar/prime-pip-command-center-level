@@ -115,7 +115,7 @@ export const FriendSystem: React.FC<FriendSystemProps> = ({
       if (!document.hidden) {
         fetchFriends();
       }
-    }, 8000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [currentUser]);
 

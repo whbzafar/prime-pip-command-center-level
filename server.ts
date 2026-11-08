@@ -5529,10 +5529,20 @@ app.get('/api/community/health', async (_req, res) => {
     try {
       const r = await fetch(`${url}/rest/v1/${t}?select=*&limit=0`, { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) });
       tables[t] = r.ok ? true : `HTTP ${r.status}`;
-    } catch (e: any) { tables[t] = String(e?.message || e).slice(0, 60); }
+    } catch (e: any) { tables[t] = `${String(e?.message || e).slice(0, 60)}${e?.cause?.code ? ` (${e.cause.code})` : ''}`; }
   }));
   const missing = Object.entries(tables).filter(([, v]) => v !== true).map(([k]) => k);
-  return res.json({ ok: missing.length === 0, backend: 'supabase', supabase: true, supabaseAuth: isSupabaseAuthEnabled, missing, tables });
+  // Reachability of the project itself (no secrets returned — only the host and the error code).
+  let host = '';
+  let reach: string = 'ok';
+  try { host = new URL(url).host; } catch { reach = 'SUPABASE_URL is not a valid URL'; }
+  if (reach === 'ok') {
+    try {
+      const r = await fetch(`${url}/auth/v1/health`, { headers: { apikey: key }, signal: AbortSignal.timeout(8000) });
+      reach = `HTTP ${r.status}`;
+    } catch (e: any) { reach = `${e?.message || e}${e?.cause?.code ? ` (${e.cause.code})` : ''}${e?.cause?.hostname ? ` ${e.cause.hostname}` : ''}`; }
+  }
+  return res.json({ ok: missing.length === 0, backend: 'supabase', supabase: true, supabaseAuth: isSupabaseAuthEnabled, host, reach, missing, tables });
 });
 
 // ----------------------------------------------------

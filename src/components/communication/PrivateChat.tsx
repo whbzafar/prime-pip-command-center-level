@@ -176,7 +176,7 @@ export const PrivateChat: React.FC<PrivateChatProps> = ({
       if (!document.hidden) {
         fetchPrivateMessages();
       }
-    }, 4000);
+    }, 1500);
     return () => clearInterval(interval);
   }, [activeContact.id, currentUser]);
 
