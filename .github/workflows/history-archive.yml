@@ -1,0 +1,82 @@
+name: Deep history archive (Dukascopy → release assets)
+
+# Dukascopy blocks Vercel's data-centre IPs, but its public datafeed is reachable from GitHub runners.
+# This job mirrors full candle history (minute since 2003, hourly, daily since inception) into
+# per-instrument release assets (tag hist-<TICKER>), which /api/history serves to the charts.
+# Daily run: refreshes the latest days and continues the minute-history backfill (newest → oldest)
+# until every instrument is complete. Public repo → Actions minutes are free.
+
+on:
+  schedule:
+    - cron: '41 */3 * * *'  # every 3 h: newest closed day + the next slice of the minute backfill
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Comma-separated tickers (empty = all)'
+        required: false
+        default: ''
+      budget:
+        description: 'Seconds of minute-history backfill per instrument'
+        required: false
+        default: '900'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: history-archive
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: m
+        env:
+          ONLY: ${{ github.event.inputs.only }}
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os
+          rows = json.load(open('scripts/history/instruments.json'))
+          only = {t.strip().upper() for t in os.environ.get('ONLY', '').split(',') if t.strip()}
+          if only:
+              rows = [r for r in rows if r['ticker'] in only]
+          print('matrix=' + json.dumps({'include': rows}))
+          EOF
+
+  build:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: hist-${{ matrix.ticker }}
+      RATE: '4'
+      WORKERS: '3'
+      BUDGET: ${{ github.event.inputs.budget || '900' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure release exists
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --prerelease --latest=false \
+            --title "History archive · ${{ matrix.ticker }}" \
+            --notes "Candle history for ${{ matrix.ticker }} mirrored from the Dukascopy Bank SA public datafeed (BID). Built automatically by the history-archive workflow; served to the charts by /api/history."
+      - name: Build
+        run: |
+          EXISTING=$(gh release view "$TAG" --json assets --jq '[.assets[] | "\(.name):\(.size)"] | join(",")')
+          python3 scripts/history/build_archive.py "${{ matrix.ticker }}" "${{ matrix.sym }}" "${{ matrix.alt }}" \
+            "${{ matrix.digits }}" "${{ matrix.start }}" "${{ matrix.dailyFrom }}" out "$EXISTING"
+      - name: Upload
+        if: always()
+        run: |
+          [ -d out ] || exit 0
+          cd out && ls | head -400 | wc -l
+          files=$(ls)
+          [ -n "$files" ] && gh release upload "$TAG" $files --clobber
