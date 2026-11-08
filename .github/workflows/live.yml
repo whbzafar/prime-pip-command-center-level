@@ -1,0 +1,8 @@
+name: live
+on: { push: { branches: [ci/macro-live-probe], paths: [curl.sh] } }
+jobs:
+  c:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash curl.sh
