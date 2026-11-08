@@ -1,59 +1,55 @@
-// PRIMEPIPFX Service Worker - Offline Cache & Fast Execution
-const CACHE_NAME = 'primepipfx-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon.svg',
-  '/apple-touch-icon.png'
-];
+// PRIMEPIPFX Service Worker v3 — always serves the newest deployed version.
+//  · Pages (navigations, index.html): NETWORK FIRST — a new deploy is visible on the next load.
+//    The cached copy is used only when offline.
+//  · /assets/* (content-hashed, immutable): cache first — fast and always matches its page.
+//  · Everything else: straight to the network.
+// On activation every older cache is deleted and open tabs are told to reload once.
+const CACHE = 'primepipfx-v3';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    }).catch(() => {
-      // Non-blocking caching
-    })
-  );
   self.skipWaiting();
+  event.waitUntil(caches.open(CACHE).then((c) => c.add(new Request('/', { cache: 'reload' }))).catch(() => {}));
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      );
-    })
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    const hadOld = keys.some((k) => k !== CACHE);
+    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+    await self.clients.claim();
+    if (hadOld) {
+      const tabs = await self.clients.matchAll({ type: 'window' });
+      tabs.forEach((t) => t.postMessage({ type: 'PPFX_SW_UPDATED' }));
+    }
+  })());
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pass-through for API requests and media streaming
-  if (event.request.url.includes('/api/') || event.request.method !== 'GET') {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+
+  if (req.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html') {
+    event.respondWith((async () => {
+      try {
+        const fresh = await fetch(req, { cache: 'no-store' });
+        if (fresh && fresh.ok) (await caches.open(CACHE)).put('/', fresh.clone());
+        return fresh;
+      } catch {
+        return (await caches.match('/')) || Response.error();
+      }
+    })());
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Fetch fresh in background
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, networkResponse);
-            });
-          }
-        }).catch(() => {});
-        return cachedResponse;
-      }
-      return fetch(event.request).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
-        }
-      });
-    })
-  );
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith((async () => {
+      const hit = await caches.match(req);
+      if (hit) return hit;
+      const res = await fetch(req);
+      if (res && res.ok) (await caches.open(CACHE)).put(req, res.clone());
+      return res;
+    })());
+  }
 });

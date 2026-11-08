@@ -64,12 +64,27 @@ function aistudioMediaPlugin(): Plugin {
 }
 // LINT.ThenChange(//depot/google3/java/com/google/alkali/boq/makersuite/applet_dev_service/templates/initializers/react_theme/vite.config.ts:aistudio_media_plugin)
 
+// Unique id per build: baked into the app and written to /version.json, so open tabs can detect a
+// newer deployment and offer a one-click reload.
+const BUILD_ID = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) || `local-${Date.now()}`;
+function versionFilePlugin(): Plugin {
+  return {
+    name: 'ppfx-version-file',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID, at: new Date().toISOString() }) });
+    },
+  };
+}
+
 export default defineConfig(() => {
   return {
+    define: { __PPFX_BUILD__: JSON.stringify(BUILD_ID) },
     plugins: [
       react(),
       tailwindcss(),
       aistudioMediaPlugin(),
+      versionFilePlugin(),
     ],
     resolve: {
       alias: {
