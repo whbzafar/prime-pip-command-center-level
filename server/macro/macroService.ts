@@ -50,7 +50,6 @@ if (!store.lastScores) store.lastScores = {};
 let snapshot: MacroSnapshot | null = null;
 let timer: NodeJS.Timeout | null = null;
 
-const last = { fred: 0, prices: 0, cot: 0, crypto: 0, edgar: 0 };
 const EVERY = { fred: 2 * 3600_000, prices: 30 * 60_000, cot: 3 * 3600_000, crypto: 5 * 60_000, edgar: 12 * 3600_000 };
 
 /** CFTC publishes Friday 15:30 ET; poll COT every 10 min from 15:30 to 18:00 ET on Fridays. */
@@ -65,37 +64,51 @@ function cotReleaseWindow(now = new Date()): boolean {
  * so one slow or failing provider can never hold back the others.
  */
 const inflight: Record<string, Promise<void> | undefined> = {};
+/** Next time each source is due. Set from the OUTCOME: success → normal interval, failure → 60 s retry. */
+const due: Record<string, number> = {};
 
 function recompute(): void {
   try { snapshot = computeSnapshot(); } catch (e: any) { console.warn('[Fundamentals] compute failed:', e?.message || e); }
 }
 
-function runJob(name: string, fn: () => Promise<unknown>): Promise<void> {
+function sourceSucceededSince(sourceId: string, since: number): boolean {
+  const h = getSourceHealth().find((x) => x.id === sourceId);
+  return !!h?.lastSuccess && Date.parse(h.lastSuccess) >= since - 1000;
+}
+
+function runJob(name: string, fn: () => Promise<unknown>, sourceId?: string, everyMs?: number): Promise<void> {
   const existing = inflight[name];
   if (existing) return existing;
+  const started = Date.now();
   const p = (async () => {
-    try { await fn(); } catch { /* source health already records the failure */ }
-    finally { inflight[name] = undefined; recompute(); }
+    try { await fn(); } catch { /* source health records the failure */ }
+    finally {
+      inflight[name] = undefined;
+      if (sourceId && everyMs) due[name] = Date.now() + (sourceSucceededSince(sourceId, started) ? everyMs : 60_000);
+      recompute();
+    }
   })();
   inflight[name] = p;
   return p;
 }
 
+const isDue = (name: string, force: boolean) => force || Date.now() >= (due[name] ?? 0);
+
 /** Launch every due source; returns { calendar, all } promises (neither ever rejects). */
 function refreshSources(force: boolean): { calendar: Promise<void>; all: Promise<void> } {
-  const now = Date.now();
   const jobs: Promise<void>[] = [];
   const hot = isHotWindow(12);
   const calendar = runJob('calendar', () => refreshCalendar({ force, minLiveIntervalMs: hot ? 45_000 : 4 * 60_000 }));
   jobs.push(calendar);
-  if (force || now - last.fred > EVERY.fred) { last.fred = now; jobs.push(runJob('fred', () => refreshFred(force))); }
-  if (force || now - last.prices > EVERY.prices) { last.prices = now; jobs.push(runJob('prices', () => refreshPrices(force))); }
-  if (force || now - last.cot > (cotReleaseWindow() ? 10 * 60_000 : EVERY.cot)) { last.cot = now; jobs.push(runJob('cot', () => refreshCot(true))); }
-  if (force || now - last.crypto > EVERY.crypto) { last.crypto = now; jobs.push(runJob('crypto', () => refreshCrypto(true))); }
+  if (isDue('fred', force)) { due.fred = Date.now() + 120_000; jobs.push(runJob('fred', () => refreshFred(force), 'fred', EVERY.fred)); }
+  if (isDue('prices', force)) { due.prices = Date.now() + 120_000; jobs.push(runJob('prices', () => refreshPrices(force), 'prices', EVERY.prices)); }
+  const cotEvery = cotReleaseWindow() ? 10 * 60_000 : EVERY.cot;
+  if (isDue('cot', force)) { due.cot = Date.now() + 120_000; jobs.push(runJob('cot', () => refreshCot(true), 'cftc_cot', cotEvery)); }
+  if (isDue('crypto', force)) { due.crypto = Date.now() + 120_000; jobs.push(runJob('crypto', () => refreshCrypto(true), 'crypto_fng', EVERY.crypto)); }
   if (SERVERLESS) {
-    // Company filings are large; on serverless load two companies per refresh in the background.
+    // Company filings are large; on serverless load two companies per refresh.
     for (const t of missingTickers(2)) jobs.push(runJob(`edgar_${t}`, () => loadEdgarTicker(t)));
-  } else if (force || now - last.edgar > EVERY.edgar) { last.edgar = now; jobs.push(runJob('edgar', () => refreshEdgar(force))); }
+  } else if (isDue('edgar', force)) { due.edgar = Date.now() + 120_000; jobs.push(runJob('edgar', () => refreshEdgar(force), 'sec_edgar', EVERY.edgar)); }
   return { calendar, all: Promise.all(jobs).then(() => undefined) };
 }
 
@@ -228,16 +241,20 @@ export async function refreshAndCompute(force = false): Promise<MacroSnapshot> {
  * at most for the economic calendar (the core feed) within `budgetMs` — every other source lands
  * on the following request as soon as it completes.
  */
-export async function getSnapshot(maxAgeMs = 60_000, budgetMs = SERVERLESS ? 8_000 : 25_000): Promise<MacroSnapshot> {
+export async function getSnapshot(maxAgeMs = 60_000, budgetMs = SERVERLESS ? 10_000 : 25_000): Promise<MacroSnapshot> {
   const age = snapshot ? Date.now() - new Date(snapshot.generatedAt).getTime() : Infinity;
   if (snapshot && age < maxAgeMs) {
     // Still fresh, but keep due sources moving in the background (cheap: runJob de-duplicates).
-    refreshSources(false);
+    const { all } = refreshSources(false);
+    if (SERVERLESS) await Promise.race([all, new Promise((r) => setTimeout(r, budgetMs))]);
     return snapshot;
   }
-  const { calendar } = refreshSources(false);
-  const wait = snapshot ? Math.min(budgetMs, 3_000) : budgetMs;
-  await Promise.race([calendar, new Promise((r) => setTimeout(r, wait))]);
+  const { calendar, all } = refreshSources(false);
+  // Serverless: a function is frozen as soon as it responds, killing unfinished downloads, so wait
+  // for every due source (bounded). Long-running servers only need the calendar before answering.
+  const waitFor = SERVERLESS ? all : calendar;
+  const wait = SERVERLESS ? budgetMs : snapshot ? Math.min(budgetMs, 3_000) : budgetMs;
+  await Promise.race([waitFor, new Promise((r) => setTimeout(r, wait))]);
   recompute();
   return snapshot ?? emptySnapshot();
 }

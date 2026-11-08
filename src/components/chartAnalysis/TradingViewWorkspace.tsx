@@ -51,21 +51,57 @@ export const TradingViewWorkspace: React.FC = () => {
   const [active, setActive] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [status, setStatus] = useState<Record<number, FeedStatus>>({});
+  /** Full-window overlay used when the browser refuses the Fullscreen API (e.g. inside a frame). */
+  const [overlay, setOverlay] = useState(false);
+  const [fsPane, setFsPane] = useState<number | null>(null);
+  const paneRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* ignore */ } }, [state]);
 
   useEffect(() => {
-    const onFs = () => setIsFullscreen(document.fullscreenElement === rootRef.current);
+    const onFs = () => {
+      const el = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      setIsFullscreen(!!el && el === rootRef.current);
+      // Leaving real full screen (Esc / browser UI) must also clear any pane/overlay state.
+      if (!el) { setFsPane(null); setOverlay(false); }
+    };
     document.addEventListener('fullscreenchange', onFs);
-    return () => document.removeEventListener('fullscreenchange', onFs);
+    document.addEventListener('webkitfullscreenchange', onFs as any);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOverlay(false); setFsPane(null); } };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFs);
+      document.removeEventListener('webkitfullscreenchange', onFs as any);
+      window.removeEventListener('keydown', onKey);
+    };
   }, []);
 
-  const toggleFullscreen = async () => {
+  /** Real browser full screen when permitted; otherwise a full-window overlay. */
+  const enterNativeFullscreen = async (el: HTMLElement | null): Promise<boolean> => {
+    if (!el) return false;
+    const req = (el.requestFullscreen || (el as any).webkitRequestFullscreen)?.bind(el);
+    if (!req || !(document.fullscreenEnabled ?? (document as any).webkitFullscreenEnabled)) return false;
+    try { await req(); return true; } catch { return false; }
+  };
+  const exitNativeFullscreen = async () => {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
-      else await rootRef.current?.requestFullscreen();
-    } catch { /* fullscreen not permitted */ }
+      else if ((document as any).webkitFullscreenElement) (document as any).webkitExitFullscreen();
+    } catch { /* ignore */ }
+  };
+
+  const fullscreenActive = isFullscreen || overlay;
+  const toggleFullscreen = async () => {
+    if (fullscreenActive) { setOverlay(false); await exitNativeFullscreen(); return; }
+    setFsPane(null);
+    if (!(await enterNativeFullscreen(rootRef.current))) setOverlay(true);
+  };
+
+  const togglePaneFullscreen = async (i: number) => {
+    if (fsPane === i) { setFsPane(null); await exitNativeFullscreen(); return; }
+    setFsPane(i);
+    await enterNativeFullscreen(paneRefs.current[i] || null); // overlay styling applies either way
   };
 
   const layout = LAYOUTS.find((l) => l.id === state.layout) || LAYOUTS[0];
@@ -92,11 +128,11 @@ export const TradingViewWorkspace: React.FC = () => {
     setState((s) => ({ ...s, layout: '4', syncSymbol: true, syncInterval: false, panes: s.panes.map((p, i) => (i < 4 ? { ticker: t, period: tfs[i] } : p)) }));
   };
 
-  const height = isFullscreen ? 'calc(100vh - 118px)' : state.height;
+  const height = fullscreenActive ? 'calc(100vh - 118px)' : state.height;
   const gridClass = maxIndex !== null ? 'grid-cols-1 grid-rows-1' : layout.grid;
 
   return (
-    <div ref={rootRef} className={`space-y-3 ${isFullscreen ? 'bg-slate-950 p-3 overflow-auto' : ''}`}>
+    <div ref={rootRef} className={`space-y-3 ${fullscreenActive ? 'bg-slate-950 p-3 overflow-auto' : ''} ${overlay ? 'fixed inset-0 z-[2147483000]' : ''}`}>
       <div className="rounded-2xl border border-slate-800 bg-slate-950/80 px-3 py-2.5 flex flex-wrap items-center gap-2">
         <span className="text-[10px] font-mono-code uppercase tracking-widest text-cyan-400 mr-1">Layout</span>
         <div className="flex gap-1">
@@ -122,7 +158,7 @@ export const TradingViewWorkspace: React.FC = () => {
           Multi-timeframe (15m · 1H · 4H · D)
         </button>
         <div className="ml-auto flex items-center gap-2">
-          {!isFullscreen && (
+          {!fullscreenActive && (
             <label className="flex items-center gap-2 text-[11px] font-mono-code text-slate-400">
               Height
               <input type="range" min={480} max={1600} step={20} value={state.height} onChange={(e) => setState((s) => ({ ...s, height: Number(e.target.value) }))} aria-label="Workspace height" />
@@ -130,7 +166,7 @@ export const TradingViewWorkspace: React.FC = () => {
           )}
           <button type="button" onClick={toggleFullscreen}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/50 bg-cyan-500/10 text-[11px] font-mono-code font-bold text-cyan-100 hover:bg-cyan-500/20 cursor-pointer">
-            {isFullscreen ? <><Shrink className="w-3.5 h-3.5" /> Exit full screen</> : <><Expand className="w-3.5 h-3.5" /> Full screen</>}
+            {fullscreenActive ? <><Shrink className="w-3.5 h-3.5" /> Exit full screen</> : <><Expand className="w-3.5 h-3.5" /> Full screen</>}
           </button>
         </div>
       </div>
@@ -157,20 +193,24 @@ export const TradingViewWorkspace: React.FC = () => {
         {visible.map((i) => {
           const p = state.panes[i];
           return (
-            <div key={i} onMouseDown={() => setActive(i)}
-              className={`flex flex-col min-h-[340px] min-w-0 rounded-xl border overflow-hidden bg-[#151517] ${active === i && layout.panes > 1 && maxIndex === null ? 'border-cyan-500/60' : 'border-slate-800'}`}>
+            <div key={i} ref={(el) => { paneRefs.current[i] = el; }} onMouseDown={() => setActive(i)}
+              className={`flex flex-col min-h-[340px] min-w-0 overflow-hidden bg-[#151517] ${fsPane === i ? 'fixed inset-0 z-[2147483000] rounded-none border-0' : 'rounded-xl border'} ${active === i && layout.panes > 1 && maxIndex === null ? 'border-cyan-500/60' : 'border-slate-800'}`}>
               <div className="flex items-center gap-2 px-2 py-1 border-b border-slate-800 bg-slate-950 text-[10.5px] font-mono-code">
                 <span className="text-slate-500">#{i + 1}</span>
                 <span className="text-slate-200 font-bold">{p.ticker}</span>
                 <span className="text-slate-500">· {p.period}</span>
                 <PaneStatus st={status[i]} />
+                <button type="button" onClick={() => togglePaneFullscreen(i)} aria-label={fsPane === i ? 'Exit full screen' : 'Full screen'}
+                  className="ml-auto px-1.5 py-0.5 rounded text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer flex items-center gap-1">
+                  {fsPane === i ? <><Shrink className="w-3.5 h-3.5" /> Exit</> : <Expand className="w-3.5 h-3.5" />}
+                </button>
                 <button type="button" onClick={() => setMaxIndex((m) => (m === i ? null : i))} aria-label={maxIndex === i ? 'Restore layout' : 'Maximize chart'}
-                  className="ml-auto p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
+                  className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
                   {maxIndex === i ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
                 </button>
               </div>
               <div className="flex-1 min-h-0">
-                <ProChartPane state={p} onStateChange={(s) => updatePane(i, s)} onStatus={(st) => setStatus((m) => ({ ...m, [i]: st }))} />
+                <ProChartPane state={p} onStateChange={(s) => updatePane(i, s)} onStatus={(st) => setStatus((m) => ({ ...m, [i]: st }))} onToggleFullscreen={() => togglePaneFullscreen(i)} />
               </div>
             </div>
           );

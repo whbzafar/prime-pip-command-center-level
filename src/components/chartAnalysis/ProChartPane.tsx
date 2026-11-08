@@ -21,7 +21,8 @@ export const ProChartPane: React.FC<{
   state: ProPaneState;
   onStateChange: (s: ProPaneState) => void;
   onStatus?: (s: FeedStatus) => void;
-}> = ({ state, onStateChange, onStatus }) => {
+  onToggleFullscreen?: () => void;
+}> = ({ state, onStateChange, onStatus, onToggleFullscreen }) => {
   const hostRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<KLineChartPro | null>(null);
   const feedRef = useRef<FullHistoryDatafeed | null>(null);
@@ -30,6 +31,8 @@ export const ProChartPane: React.FC<{
   cbRef.current = onStateChange;
   const statusRef = useRef(onStatus);
   statusRef.current = onStatus;
+  const fsRef = useRef(onToggleFullscreen);
+  fsRef.current = onToggleFullscreen;
 
   // Create once
   useEffect(() => {
@@ -61,7 +64,32 @@ export const ProChartPane: React.FC<{
         cbRef.current(s);
       }
     }, 800);
+    // The library's own Full Screen button calls requestFullscreen() with no fallback, which
+    // browsers refuse inside frames or without permission. Take it over (capture phase) and use
+    // the workspace's full screen, which falls back to a full-window overlay.
+    const onClickCapture = (ev: MouseEvent) => {
+      const target = ev.target as HTMLElement | null;
+      const item = target?.closest('.klinecharts-pro-period-bar .item.tools') as HTMLElement | null;
+      if (!item) return;
+      const tools = host.querySelectorAll('.klinecharts-pro-period-bar .item.tools');
+      if (tools.length && item === tools[tools.length - 1] && fsRef.current) {
+        ev.stopPropagation();
+        ev.preventDefault();
+        fsRef.current();
+      }
+    };
+    host.addEventListener('click', onClickCapture, true);
+    // Keep the canvas sized to its pane (layout changes, full screen, height slider).
+    let raf = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+    });
+    ro.observe(host);
     return () => {
+      host.removeEventListener('click', onClickCapture, true);
+      ro.disconnect();
+      cancelAnimationFrame(raf);
       clearInterval(iv);
       feed.destroy();
       chartRef.current = null;
