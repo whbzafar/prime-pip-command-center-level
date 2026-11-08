@@ -12,7 +12,7 @@ await page.goto(B, { waitUntil: 'networkidle' }); await page.waitForTimeout(3000
 await page.getByText('Start Practice').first().click().catch(() => {}); await page.waitForTimeout(800); await page.getByText('Create Demo Account').first().click().catch(() => {}); await page.waitForTimeout(3000);
 await page.getByText('BACKTESTING').first().click(); await page.waitForTimeout(6000);
 const start = page.getByRole('button', { name: 'Start replay' });
-const cases = [['EURUSD', '15m', '2004-03-10T08:00']];
+const cases = [['EURUSD', '15m', '2004-03-10T08:00'], ['GBPUSD', '5m', '2006-07-12T13:00'], ['USDJPY', '1m', '2010-05-06T18:00'], ['XAUUSD', '15m', '2012-09-13T18:00'], ['EURUSD', '30m', '2008-09-15T12:00'], ['AUDJPY', '15m', '2005-11-03T03:00']];
 for (const [sym, tf, date] of cases) {
   await start.waitFor({ timeout: 60000 });
   await page.getByRole('button', { name: /British|Euro|Gold|Japanese|Dow|Bitcoin|Australian|Dollar|Pound/ }).first().click().catch(async () => { await page.locator('[aria-haspopup=listbox]').first().click(); });
@@ -31,7 +31,7 @@ for (const [sym, tf, date] of cases) {
   console.log('   after BUY+10 bars:', (t2.match(/Bar time [^·]+/) || [''])[0], '| trades:', (t2.match(/TRADES \d+/) || [''])[0], (t2.match(/EQUITY [0-9,.]+ USD/) || [''])[0]);
   await page.screenshot({ path: `shots/r-${sym}-${tf}.png` });
 }
-console.log('ERRORS', errs.slice(0, 20)); console.log('NET\n' + netlog.slice(-30).join('\n'));
+console.log('ERRORS', errs.slice(0, 20)); console.log('NET\n' + netlog.filter((x) => !x.includes('archive n=500')).slice(-12).join('\n'));
 await page.getByText('PREMIUM TRADINGVIEW').first().click(); await page.waitForTimeout(14000);
 const pt = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
 console.log('PREMIUM: pine editor present:', /Pine Editor/i.test(pt), '| market chip:', (pt.match(/MARKET: [^|]{0,40}/) || [''])[0], '| top 1m..M row present:', /1m 3m 5m 15m 30m 1h 2h/.test(pt));
