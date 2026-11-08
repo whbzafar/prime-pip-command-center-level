@@ -233,7 +233,7 @@ const PaneStatus: React.FC<{ st?: FeedStatus }> = ({ st }) => {
   const from = st.oldest ? new Date(st.oldest).toISOString().slice(0, 10) : null;
   return (
     <span className="text-slate-500 truncate">
-      · {st.source}{from ? ` · loaded back to ${from}` : ''}{st.state === 'start' ? ' · start of available history' : ''}
+      · {st.source}{from ? ` · loaded back to ${from}` : ''}{st.state === 'start' ? (/backup/i.test(st.source) ? ' · backup source limit (full Dukascopy archive is being built)' : ' · start of available history') : ''}
     </span>
   );
 };
