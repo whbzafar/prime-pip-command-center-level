@@ -47,3 +47,23 @@ historyRouter.get('/instruments', (_req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800');
   res.json({ ok: true, instruments: listDukaInstruments() });
 });
+
+/** GET /api/history/_reach — connectivity check for the Dukascopy data hosts (no data returned). */
+historyRouter.get('/_reach', async (_req: Request, res: Response) => {
+  const targets = [
+    'https://datafeed.dukascopy.com/datafeed/EURUSD/2026/09/05/BID_candles_min_1.bi5',
+    'https://datafeed.dukascopy.com/datafeed/EURUSD/2026/09/05/12h_ticks.bi5',
+    'https://datafeed.dukascopy.com/datafeed/EURUSD/2025/BID_candles_hour_1.bi5',
+  ];
+  const out: any[] = [];
+  for (const url of targets) {
+    const t = Date.now();
+    try {
+      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(10_000) });
+      const buf = Buffer.from(await r.arrayBuffer());
+      out.push({ url, status: r.status, bytes: buf.length, waf: r.headers.get('x-amzn-waf-action'), type: r.headers.get('content-type'), head: buf.subarray(0, 8).toString('hex'), ms: Date.now() - t });
+    } catch (e: any) { out.push({ url, error: e?.message || String(e), ms: Date.now() - t }); }
+  }
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ ok: true, region: process.env.VERCEL_REGION || null, out });
+});
