@@ -14,13 +14,13 @@ const shot = (n) => page.screenshot({ path: `shots/${n}.png` });
 await page.getByText('PREMIUM TRADINGVIEW').first().click(); await page.waitForTimeout(12000);
 for (const cat of ['Forex', 'Indices', 'Commodities', 'Top Stocks', 'Top Crypto']) {
   await page.getByRole('button', { name: new RegExp('^' + cat) }).first().click().catch(() => console.log('nocat', cat)); await page.waitForTimeout(1500);
-  const t = await txt(); const chips = t.match(/[A-Z0-9/]{3,9} [▲▼●] (Bullish|Bearish|Neutral) \d+%/g) || [];
+  const t = await txt(); const chips = t.match(/[A-Za-z0-9/&() ]{2,22}? [▲▼●] (Bullish|Bearish|Neutral) \d+%/g) || [];
   console.log('CAT', cat, chips.length, chips.slice(0, 6).join(' | '), t.includes('… live score') ? '(some pending)' : '');
 }
 console.log('deep-dive present:', (await txt()).includes('Deep-Dive Modal'), '| Fundamental Intelligence:', (await txt()).includes('Fundamental Intelligence'));
 await page.getByRole('button', { name: /^Forex/ }).first().click(); await page.waitForTimeout(800);
 await page.getByRole('button', { name: /^GBP\/USD/ }).first().click().catch(() => {}); await page.waitForTimeout(3000);
-for (const [label, name] of [['Pair Widget', 'widget'], ['Market Sentiment', 'sentiment'], ['Monthly Seasonality', 'seasonality'], ['Pair-Specific News', 'news'], ['Live News Calendar', 'calendar']]) {
+for (const [label, name] of [['Pair-Specific News', 'news']]) {
   const b = page.locator(`[title*="${label}"]`).first();
   if (!(await b.count())) { console.log('NO TOOL', label); continue; }
   await b.click(); await page.waitForTimeout(label.includes('News') || label.includes('Calendar') ? 9000 : 6000);
@@ -33,7 +33,7 @@ for (const [label, name] of [['Pair Widget', 'widget'], ['Market Sentiment', 'se
 await page.getByRole('button', { name: /Pine Editor/ }).first().click(); await page.waitForTimeout(12000);
 await page.getByRole('button', { name: /Add to chart/ }).click(); await page.waitForTimeout(12000);
 let t = await txt(); console.log('PINE indicator:', (t.match(/(“[^”]+” is running[^.]*\.|Line \d+:[^|]{0,160}|is running[^.]*)/) || ['(no status)'])[0]);
-await page.locator('[aria-label="Pine Editor"]').scrollIntoViewIfNeeded(); await shot('pine-indicator');
+await page.locator('[aria-label="Pine Script editor"]').scrollIntoViewIfNeeded().catch(() => {}); await page.waitForTimeout(800); await shot('pine-indicator');
 const strat = `//@version=5
 strategy("EMA cross strategy", overlay=true, initial_capital=10000)
 f = ta.ema(close, 12)
