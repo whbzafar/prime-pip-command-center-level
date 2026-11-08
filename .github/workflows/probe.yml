@@ -1,0 +1,17 @@
+name: probe
+on: { push: { branches: [ci/macro-live-probe] }, workflow_dispatch: {} }
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for u in \
+            "https://datafeed.dukascopy.com/datafeed/EURUSD/2026/09/05/BID_candles_min_1.bi5" \
+            "https://datafeed.dukascopy.com/datafeed/EURUSD/2005/BID_candles_hour_1.bi5" \
+            "https://jetta.dukascopy.com/v1/candles/minute/EUR-USD/BID/2010/3/4" \
+            "https://candledata.fxcorporate.com/m1/EURUSD/2019/1.csv.gz" \
+            "https://candledata.fxcorporate.com/H1/EURUSD/2019/1.csv.gz" \
+            "https://stooq.com/q/d/l/?s=eurusd&i=d" \
+            "https://stooq.com/q/d/l/?s=eurusd&i=5" ; do
+            echo "== $u"; curl -sS -A 'Mozilla/5.0' -H 'Referer: https://freeserv.dukascopy.com/' -o /tmp/o -w "%{http_code} %{size_download} %{content_type}\n" -m 20 "$u"; head -c 120 /tmp/o | xxd | head -3
+          done
