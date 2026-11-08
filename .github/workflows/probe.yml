@@ -3,15 +3,10 @@ on: { push: { branches: [ci/macro-live-probe] }, workflow_dispatch: {} }
 jobs:
   p:
     runs-on: ubuntu-latest
+    strategy: { fail-fast: false, matrix: { i: [ "EURUSD EURUSD EURUSD=X 5", "XAUUSD XAUUSD GC=F 2", "US500 USA500IDXUSD ^GSPC 2", "AAPL AAPLUSUSD AAPL 2", "USDJPY USDJPY USDJPY=X 3", "USOIL LIGHTCMDUSD CL=F 2" ] } }
     steps:
+      - uses: actions/checkout@v4
       - run: |
-          for u in \
-            "https://datafeed.dukascopy.com/datafeed/EURUSD/2026/09/05/BID_candles_min_1.bi5" \
-            "https://datafeed.dukascopy.com/datafeed/EURUSD/2005/BID_candles_hour_1.bi5" \
-            "https://jetta.dukascopy.com/v1/candles/minute/EUR-USD/BID/2010/3/4" \
-            "https://candledata.fxcorporate.com/m1/EURUSD/2019/1.csv.gz" \
-            "https://candledata.fxcorporate.com/H1/EURUSD/2019/1.csv.gz" \
-            "https://stooq.com/q/d/l/?s=eurusd&i=d" \
-            "https://stooq.com/q/d/l/?s=eurusd&i=5" ; do
-            echo "== $u"; curl -sS -A 'Mozilla/5.0' -H 'Referer: https://freeserv.dukascopy.com/' -o /tmp/o -w "%{http_code} %{size_download} %{content_type}\n" -m 20 "$u"; head -c 120 /tmp/o | xxd | head -3
-          done
+          set -- ${{ matrix.i }}
+          time python3 build_archive.py $1 $2 $3 $4 2026-09-01 2024 out ""
+          ls -la out; for f in out/m1_2026-10.csv.gz out/d1.csv.gz; do zcat $f | head -3; zcat $f | tail -2; done; zcat out/h1_2026.csv.gz | tail -3
