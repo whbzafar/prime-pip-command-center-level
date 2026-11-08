@@ -302,25 +302,10 @@ export function loginUser(
 
     if (dev) {
       const cleanPassLower = cleanPass.toLowerCase();
-      const isMasterMatch =
-        cleanPass === masterPass ||
-        cleanPass === 'PPFX@Admin#2026' ||
-        cleanPass === 'PPFX@Admin2026' ||
-        cleanPassLower === 'ppfx@admin#2026' ||
-        cleanPassLower === 'ppfx@admin2026' ||
-        cleanPassLower === 'admin@2026' ||
-        cleanPassLower === 'admin' ||
-        cleanPassLower === 'admin123' ||
-        cleanPassLower === 'admin1234' ||
-        cleanPassLower === 'admin12345' ||
-        cleanPassLower === 'admin@123' ||
-        cleanPassLower === 'admin123!' ||
-        cleanPass === '123456' ||
-        cleanPass === '12345' ||
-        cleanPass === '03406671495' ||
-        cleanPassLower === 'password' ||
-        cleanPassLower === 'primepipfx' ||
-        cleanPassLower === 'primepipfx2026';
+      // Only the configured bootstrap password (PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD) or the stored
+      // password hash can open the admin account. The list of trivial fallback passwords was removed:
+      // the repository is public, so any password written here is known to everyone.
+      const isMasterMatch = cleanPass === masterPass;
       const isHashValid = dev.passwordHash && dev.salt ? verifyPassword(cleanPass, dev.passwordHash, dev.salt) : false;
 
       if (isMasterMatch || isHashValid) {
@@ -378,16 +363,13 @@ export function loginUser(
   if (!user) return null;
 
   const un = (user.username || '').toLowerCase();
-  const defaultPass = `${un}12345`;
   const cleanPassLower = cleanPass.toLowerCase();
-  const isDefaultMatch = cleanPassLower === defaultPass;
-  const isPlainMatch =
-    cleanPassLower === un ||
-    cleanPass === '12345' ||
-    cleanPass === '123456' ||
-    cleanPassLower === 'password' ||
-    cleanPassLower === 'zartab12345' ||
-    cleanPassLower === 'wahab12345';
+  // Legacy accounts that never had a password stored may still use their original default
+  // (username + 12345) once; it is then hashed. Universal passwords (123456, password, the
+  // username itself…) were removed — the repository is public, so they opened every account.
+  const hasStoredPassword = Boolean(user.passwordHash && user.salt);
+  const isDefaultMatch = !hasStoredPassword && !user.isDeveloper && user.role !== 'ADMIN' && cleanPassLower === `${un}12345`;
+  const isPlainMatch = false;
 
   const isHashValid = user.passwordHash && user.salt ? verifyPassword(cleanPass, user.passwordHash, user.salt) : false;
 
