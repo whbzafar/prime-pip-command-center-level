@@ -7,3 +7,4 @@ for tok in "" "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
  t /api/macro/sentiment "$tok" "tok$n"
  t /api/community/hub "$tok" "tok$n"
 done
+# rerun 1794160979
