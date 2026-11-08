@@ -353,6 +353,7 @@ export const INDEX_SPECS: AssetSpec[] = [
   ]),
   intlIndex('JP225', 'Nikkei 225', 'JP', 'Japan', [
     { id: 'yen', name: 'Yen (inverse)', desc: 'A weaker yen boosts Japanese exporters’ earnings.', weight: 12, indicators: [], mirror: { asset: 'JPY', sign: -1 } },
+    { id: 'positioning', name: 'Institutional Positioning', desc: 'CFTC COT in CME Nikkei 225 (yen) futures.', weight: 10, indicators: [cotInd('JP225', 1, 'Nikkei 225')] },
   ]),
   intlIndex('AUS200', 'ASX 200', 'AU', 'Australia', [
     { id: 'china', name: 'China & Resources', desc: 'Miners dominate the ASX; China is the key customer.', weight: 12, indicators: [chinaPmi(1)] },
@@ -423,7 +424,7 @@ function cryptoSpec(asset: string, name: string): AssetSpec {
           };
         },
       } satisfies CustomSpec,
-      ...(asset === 'BTC' || asset === 'ETH' ? [cotInd(asset, 1.5, `${name} (CME)`)] : []),
+      ...(asset === 'BTC' || asset === 'ETH' || asset === 'XRP' ? [cotInd(asset, 1.5, `${name} (CME)`)] : []),
     ] },
     { id: 'sentiment', name: 'Crowd Sentiment', desc: 'Contrarian sentiment gauges.', weight: 20, indicators: [
       {

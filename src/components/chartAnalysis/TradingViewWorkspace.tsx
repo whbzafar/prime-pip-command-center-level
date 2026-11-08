@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Columns2, Expand, Grid2x2, Layers3, LayoutGrid, Link2, Link2Off, Maximize2, Minimize2, Rows2, Shrink, Square } from 'lucide-react';
 import { ProChartPane, type ProPaneState } from './ProChartPane';
-import { CATALOG, FullHistoryDatafeed, PRO_PERIODS } from './fullHistoryDatafeed';
+import { CATALOG, PRO_PERIODS, type FeedStatus } from './fullHistoryDatafeed';
 
 /**
  * UNLIMITED CHARTS — TradingView-style multi-chart workspace with complete history.
@@ -50,6 +50,7 @@ export const TradingViewWorkspace: React.FC = () => {
   const [maxIndex, setMaxIndex] = useState<number | null>(null);
   const [active, setActive] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [status, setStatus] = useState<Record<number, FeedStatus>>({});
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* ignore */ } }, [state]);
@@ -155,8 +156,6 @@ export const TradingViewWorkspace: React.FC = () => {
       <div className={`grid gap-2 ${gridClass}`} style={{ height }}>
         {visible.map((i) => {
           const p = state.panes[i];
-          const period = PRO_PERIODS.find((x) => x.text === p.period) || PRO_PERIODS[5];
-          const sym = CATALOG.find((c) => c.ticker === p.ticker) || { ticker: p.ticker };
           return (
             <div key={i} onMouseDown={() => setActive(i)}
               className={`flex flex-col min-h-[340px] min-w-0 rounded-xl border overflow-hidden bg-[#151517] ${active === i && layout.panes > 1 && maxIndex === null ? 'border-cyan-500/60' : 'border-slate-800'}`}>
@@ -164,14 +163,14 @@ export const TradingViewWorkspace: React.FC = () => {
                 <span className="text-slate-500">#{i + 1}</span>
                 <span className="text-slate-200 font-bold">{p.ticker}</span>
                 <span className="text-slate-500">· {p.period}</span>
-                <span className="text-slate-600 truncate hidden sm:inline">· {FullHistoryDatafeed.describeSource(sym as any, period)}</span>
+                <PaneStatus st={status[i]} />
                 <button type="button" onClick={() => setMaxIndex((m) => (m === i ? null : i))} aria-label={maxIndex === i ? 'Restore layout' : 'Maximize chart'}
                   className="ml-auto p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
                   {maxIndex === i ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
                 </button>
               </div>
               <div className="flex-1 min-h-0">
-                <ProChartPane state={p} onStateChange={(s) => updatePane(i, s)} />
+                <ProChartPane state={p} onStateChange={(s) => updatePane(i, s)} onStatus={(st) => setStatus((m) => ({ ...m, [i]: st }))} />
               </div>
             </div>
           );
@@ -184,5 +183,17 @@ export const TradingViewWorkspace: React.FC = () => {
         Search any of 1,500+ instruments with the symbol button; drawing tools are on the left, indicators and screenshot in the top bar. Crypto streams live; other markets refresh every 15 s.
       </p>
     </div>
+  );
+};
+
+const PaneStatus: React.FC<{ st?: FeedStatus }> = ({ st }) => {
+  if (!st) return null;
+  if (st.state === 'loading') return <span className="text-slate-500">· loading…</span>;
+  if (st.state === 'error') return <span className="text-rose-400 truncate" title={st.message}>· data error: {st.message}</span>;
+  const from = st.oldest ? new Date(st.oldest).toISOString().slice(0, 10) : null;
+  return (
+    <span className="text-slate-500 truncate">
+      · {st.source}{from ? ` · loaded back to ${from}` : ''}{st.state === 'start' ? ' · start of available history' : ''}
+    </span>
   );
 };

@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { SERVERLESS, ensureStockLoaded, getSnapshot, refreshAndCompute, unmatchedCalendarTitles } from '../macro/macroService.js';
 import type { AssetResult, MacroSnapshot } from '../macro/types.js';
+import { COT_CODES, getInstitutional } from '../macro/sources/cot.js';
 
 export const macroRouter = Router();
 
@@ -9,8 +10,30 @@ function lite(a: AssetResult) {
     symbol: a.symbol, name: a.name, assetClass: a.assetClass, score: a.score, bullishPct: a.bullishPct, bearishPct: a.bearishPct,
     bias: a.bias, confidence: a.confidence, summary: a.summary, updatedAt: a.updatedAt, meta: a.meta,
     topDrivers: a.topDrivers.slice(0, 3),
+    institutional: instSummary(a.symbol),
     pillars: a.pillars.map((p) => ({ id: p.id, name: p.name, weight: p.weight, score: p.score, bullishPct: p.bullishPct, coverage: p.coverage })),
   };
+}
+
+/** CFTC asset key for an engine symbol (currencies, metals, energy, indices, crypto). */
+function cotKey(symbol: string): string | null {
+  return COT_CODES[symbol] ? symbol : null;
+}
+
+/** Full institutional positioning, or an explicit explanation when no CFTC market exists. */
+function institutionalFor(symbol: string) {
+  const key = cotKey(symbol);
+  if (!key) return { available: false, reason: `There is no CFTC-regulated futures market for ${symbol}, so official institutional positioning is not published for it.` };
+  const pos = getInstitutional(key);
+  if (!pos) return { available: false, reason: 'CFTC data is loading or temporarily unavailable — it fills in automatically.' };
+  return { available: true, ...pos };
+}
+
+function instSummary(symbol: string) {
+  const key = cotKey(symbol);
+  const pos = key ? getInstitutional(key) : null;
+  if (!pos) return null;
+  return { specNet: pos.speculators.net, specNetChange: pos.speculators.netChange, cotIndex52w: pos.speculators.cotIndex52w, longPct: pos.speculators.longPct, reportDate: pos.reportDate };
 }
 
 /** True while the core calendar feed has not loaded yet (first seconds after a cold start). */
@@ -63,7 +86,7 @@ macroRouter.get('/asset/:symbol', async (req: Request, res: Response) => {
       if (ref && m) mirrors[ref] = m;
     }
     cacheHeaders(res, s);
-    res.json({ ok: true, data: a, mirrors, generatedAt: s.generatedAt });
+    res.json({ ok: true, data: a, mirrors, institutional: institutionalFor(sym), generatedAt: s.generatedAt });
   } catch (err) { fail(res, err); }
 });
 
@@ -77,7 +100,7 @@ macroRouter.get('/pair/:symbol', async (req: Request, res: Response) => {
     const base = s.assets.find((x) => x.symbol === p.base) || null;
     const quote = s.assets.find((x) => x.symbol === p.quote) || null;
     cacheHeaders(res, s);
-    res.json({ ok: true, data: p, base, quote, generatedAt: s.generatedAt });
+    res.json({ ok: true, data: p, base, quote, institutional: { base: institutionalFor(p.base), quote: institutionalFor(p.quote) }, generatedAt: s.generatedAt });
   } catch (err) { fail(res, err); }
 });
 

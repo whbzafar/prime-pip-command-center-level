@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { KLineChartPro } from '@klinecharts/pro';
 import '@klinecharts/pro/dist/klinecharts-pro.css';
-import { CATALOG, FullHistoryDatafeed, PRO_PERIODS } from './fullHistoryDatafeed';
+import { CATALOG, FullHistoryDatafeed, PRO_PERIODS, type FeedStatus } from './fullHistoryDatafeed';
 
 export interface ProPaneState { ticker: string; period: string }
 
@@ -20,19 +20,22 @@ const findSymbol = (ticker: string) =>
 export const ProChartPane: React.FC<{
   state: ProPaneState;
   onStateChange: (s: ProPaneState) => void;
-}> = ({ state, onStateChange }) => {
+  onStatus?: (s: FeedStatus) => void;
+}> = ({ state, onStateChange, onStatus }) => {
   const hostRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<KLineChartPro | null>(null);
   const feedRef = useRef<FullHistoryDatafeed | null>(null);
   const lastReported = useRef<ProPaneState>(state);
   const cbRef = useRef(onStateChange);
   cbRef.current = onStateChange;
+  const statusRef = useRef(onStatus);
+  statusRef.current = onStatus;
 
   // Create once
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    const feed = new FullHistoryDatafeed();
+    const feed = new FullHistoryDatafeed((st) => statusRef.current?.(st));
     feedRef.current = feed;
     chartRef.current = new KLineChartPro({
       container: host,

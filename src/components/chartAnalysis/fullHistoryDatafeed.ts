@@ -19,9 +19,12 @@ export interface CatalogEntry extends SymbolInfo {
   duka?: string;   // Dukascopy instrument id (intraday + forex/metal/energy daily)
   yahoo?: string;  // Yahoo symbol (daily/weekly/monthly for indices & stocks)
   binance?: string; // Binance spot symbol
+  alt?: string;     // Yahoo symbol used automatically if Dukascopy is unavailable
 }
 
-const fx = (t: string, n: string): CatalogEntry => ({ ticker: t, name: n, shortName: t, market: 'forex', exchange: 'Dukascopy', pricePrecision: t.endsWith('JPY') ? 3 : 5, volumePrecision: 0, duka: t.toLowerCase() });
+export interface FeedStatus { state: 'loading' | 'ok' | 'error' | 'start'; source: string; oldest?: number; message?: string }
+
+const fx = (t: string, n: string): CatalogEntry => ({ ticker: t, name: n, shortName: t, market: 'forex', exchange: 'Dukascopy', pricePrecision: t.endsWith('JPY') ? 3 : 5, volumePrecision: 0, duka: t.toLowerCase(), alt: `${t}=X` });
 
 export const CATALOG: CatalogEntry[] = [
   fx('EURUSD', 'Euro / US Dollar'), fx('GBPUSD', 'British Pound / US Dollar'), fx('USDJPY', 'US Dollar / Japanese Yen'), fx('AUDUSD', 'Australian Dollar / US Dollar'),
@@ -33,23 +36,23 @@ export const CATALOG: CatalogEntry[] = [
   fx('AUDCHF', 'Australian Dollar / Franc'), fx('AUDNZD', 'Australian / New Zealand Dollar'), fx('CADCHF', 'Canadian Dollar / Franc'), fx('NZDCAD', 'New Zealand / Canadian Dollar'),
   fx('NZDCHF', 'New Zealand Dollar / Franc'), fx('USDMXN', 'US Dollar / Mexican Peso'), fx('USDZAR', 'US Dollar / Rand'), fx('USDTRY', 'US Dollar / Turkish Lira'),
   fx('USDSGD', 'US Dollar / Singapore Dollar'), fx('USDHKD', 'US Dollar / Hong Kong Dollar'), fx('USDNOK', 'US Dollar / Norwegian Krone'), fx('USDSEK', 'US Dollar / Swedish Krona'),
-  { ticker: 'XAUUSD', name: 'Gold / US Dollar', shortName: 'XAUUSD', market: 'metals', exchange: 'Dukascopy', pricePrecision: 2, volumePrecision: 0, duka: 'xauusd' },
-  { ticker: 'XAGUSD', name: 'Silver / US Dollar', shortName: 'XAGUSD', market: 'metals', exchange: 'Dukascopy', pricePrecision: 3, volumePrecision: 0, duka: 'xagusd' },
-  { ticker: 'USOIL', name: 'WTI Crude Oil', shortName: 'USOIL', market: 'energy', exchange: 'Dukascopy', pricePrecision: 2, volumePrecision: 0, duka: 'lightcmdusd' },
-  { ticker: 'UKOIL', name: 'Brent Crude Oil', shortName: 'UKOIL', market: 'energy', exchange: 'Dukascopy', pricePrecision: 2, volumePrecision: 0, duka: 'brentcmdusd' },
-  { ticker: 'NATGAS', name: 'Natural Gas', shortName: 'NATGAS', market: 'energy', exchange: 'Dukascopy', pricePrecision: 3, volumePrecision: 0, duka: 'gascmdusd' },
-  { ticker: 'COPPER', name: 'High Grade Copper', shortName: 'COPPER', market: 'energy', exchange: 'Dukascopy', pricePrecision: 4, volumePrecision: 0, duka: 'coppercmdusd', yahoo: 'HG=F' },
-  { ticker: 'US500', name: 'S&P 500', shortName: 'US500', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'usa500idxusd', yahoo: '^GSPC' },
-  { ticker: 'US100', name: 'Nasdaq 100', shortName: 'US100', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'usatechidxusd', yahoo: '^NDX' },
-  { ticker: 'US30', name: 'Dow Jones 30', shortName: 'US30', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'usa30idxusd', yahoo: '^DJI' },
-  { ticker: 'GER40', name: 'DAX 40', shortName: 'GER40', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'deuidxeur', yahoo: '^GDAXI' },
-  { ticker: 'UK100', name: 'FTSE 100', shortName: 'UK100', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'gbridxgbp', yahoo: '^FTSE' },
-  { ticker: 'JP225', name: 'Nikkei 225', shortName: 'JP225', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'jpnidxjpy', yahoo: '^N225' },
-  { ticker: 'FRA40', name: 'CAC 40', shortName: 'FRA40', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'fraidxeur', yahoo: '^FCHI' },
-  { ticker: 'AUS200', name: 'ASX 200', shortName: 'AUS200', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'ausidxaud', yahoo: '^AXJO' },
-  { ticker: 'HK50', name: 'Hang Seng', shortName: 'HK50', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'hkgidxhkd', yahoo: '^HSI' },
-  { ticker: 'DXY', name: 'US Dollar Index', shortName: 'DXY', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 3, volumePrecision: 0, duka: 'dollaridxusd', yahoo: 'DX-Y.NYB' },
-  { ticker: 'VIX', name: 'CBOE Volatility Index', shortName: 'VIX', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'volidxusd', yahoo: '^VIX' },
+  { ticker: 'XAUUSD', name: 'Gold / US Dollar', shortName: 'XAUUSD', market: 'metals', exchange: 'Dukascopy', pricePrecision: 2, volumePrecision: 0, duka: 'xauusd', alt: 'GC=F' },
+  { ticker: 'XAGUSD', name: 'Silver / US Dollar', shortName: 'XAGUSD', market: 'metals', exchange: 'Dukascopy', pricePrecision: 3, volumePrecision: 0, duka: 'xagusd', alt: 'SI=F' },
+  { ticker: 'USOIL', name: 'WTI Crude Oil', shortName: 'USOIL', market: 'energy', exchange: 'Dukascopy', pricePrecision: 2, volumePrecision: 0, duka: 'lightcmdusd', alt: 'CL=F' },
+  { ticker: 'UKOIL', name: 'Brent Crude Oil', shortName: 'UKOIL', market: 'energy', exchange: 'Dukascopy', pricePrecision: 2, volumePrecision: 0, duka: 'brentcmdusd', alt: 'BZ=F' },
+  { ticker: 'NATGAS', name: 'Natural Gas', shortName: 'NATGAS', market: 'energy', exchange: 'Dukascopy', pricePrecision: 3, volumePrecision: 0, duka: 'gascmdusd', alt: 'NG=F' },
+  { ticker: 'COPPER', name: 'High Grade Copper', shortName: 'COPPER', market: 'energy', exchange: 'Dukascopy', pricePrecision: 4, volumePrecision: 0, duka: 'coppercmdusd', yahoo: 'HG=F', alt: 'HG=F' },
+  { ticker: 'US500', name: 'S&P 500', shortName: 'US500', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'usa500idxusd', yahoo: '^GSPC', alt: '^GSPC' },
+  { ticker: 'US100', name: 'Nasdaq 100', shortName: 'US100', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'usatechidxusd', yahoo: '^NDX', alt: '^NDX' },
+  { ticker: 'US30', name: 'Dow Jones 30', shortName: 'US30', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'usa30idxusd', yahoo: '^DJI', alt: '^DJI' },
+  { ticker: 'GER40', name: 'DAX 40', shortName: 'GER40', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'deuidxeur', yahoo: '^GDAXI', alt: '^GDAXI' },
+  { ticker: 'UK100', name: 'FTSE 100', shortName: 'UK100', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'gbridxgbp', yahoo: '^FTSE', alt: '^FTSE' },
+  { ticker: 'JP225', name: 'Nikkei 225', shortName: 'JP225', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'jpnidxjpy', yahoo: '^N225', alt: '^N225' },
+  { ticker: 'FRA40', name: 'CAC 40', shortName: 'FRA40', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'fraidxeur', yahoo: '^FCHI', alt: '^FCHI' },
+  { ticker: 'AUS200', name: 'ASX 200', shortName: 'AUS200', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'ausidxaud', yahoo: '^AXJO', alt: '^AXJO' },
+  { ticker: 'HK50', name: 'Hang Seng', shortName: 'HK50', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'hkgidxhkd', yahoo: '^HSI', alt: '^HSI' },
+  { ticker: 'DXY', name: 'US Dollar Index', shortName: 'DXY', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 3, volumePrecision: 0, duka: 'dollaridxusd', yahoo: 'DX-Y.NYB', alt: 'DX-Y.NYB' },
+  { ticker: 'VIX', name: 'CBOE Volatility Index', shortName: 'VIX', market: 'indices', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: 'volidxusd', yahoo: '^VIX', alt: '^VIX' },
   ...['BTC', 'ETH', 'XRP', 'SOL', 'BNB', 'DOGE', 'ADA', 'LINK', 'AVAX', 'DOT', 'LTC', 'TRX', 'TON', 'SHIB', 'PEPE', 'SUI'].map((c) => ({
     ticker: `${c}USDT`, name: `${c} / Tether`, shortName: `${c}USDT`, market: 'crypto', exchange: 'Binance', pricePrecision: ['BTC', 'ETH', 'BNB', 'SOL', 'LTC', 'AVAX'].includes(c) ? 2 : ['SHIB', 'PEPE'].includes(c) ? 8 : 4, volumePrecision: 2, binance: `${c}USDT`,
   } as CatalogEntry)),
@@ -57,7 +60,7 @@ export const CATALOG: CatalogEntry[] = [
 ];
 
 function stockEntry(t: string, n?: string): CatalogEntry {
-  return { ticker: t, name: n || t, shortName: t, market: 'stocks', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: `${t.toLowerCase()}ususd`, yahoo: t };
+  return { ticker: t, name: n || t, shortName: t, market: 'stocks', exchange: 'Dukascopy · Yahoo', pricePrecision: 2, volumePrecision: 0, duka: `${t.toLowerCase()}ususd`, yahoo: t, alt: t };
 }
 
 // ───────────────────────────────────────── helpers
@@ -123,6 +126,9 @@ export class FullHistoryDatafeed implements Datafeed {
   private sockets = new Map<string, WebSocket>();
   private timers = new Map<string, ReturnType<typeof setInterval>>();
   private dukaList: Array<{ id: string; name: string; description: string }> | null = null;
+  private oldest = Infinity;
+  constructor(private onStatus?: (s: FeedStatus) => void) {}
+  private report(s: FeedStatus) { try { this.onStatus?.(s); } catch { /* ignore */ } }
 
   /** Exposed so the UI can show where each pane's data comes from. */
   static describeSource(symbol: SymbolInfo, period: Period): string {
@@ -162,30 +168,38 @@ export class FullHistoryDatafeed implements Datafeed {
     const e = entryFor(symbol);
     const { base, mult, binance } = periodToTf(period);
     const before = Math.min(to + 1, Date.now() + 60_000);
-
-    if (e.binance) {
-      const url = `https://data-api.binance.vision/api/v3/klines?symbol=${encodeURIComponent(e.binance)}&interval=${binance}&endTime=${Math.floor(before - 1)}&limit=1000`;
-      const res = await fetch(url);
-      if (!res.ok) return [];
-      const rows: any[] = await res.json();
-      return rows.map((r) => ({ timestamp: r[0], open: +r[1], high: +r[2], low: +r[3], close: +r[4], volume: +r[5] }));
-    }
-
-    const useYahoo = !isIntraday(base) && !!e.yahoo;
-    const src = useYahoo ? 'yahoo' : 'duka';
-    const id = useYahoo ? e.yahoo : e.duka;
-    if (!id) return [];
-    const count = 500 * mult;
-    const j = await getJson(`/api/history/candles?src=${src}&id=${encodeURIComponent(id)}&tf=${base}&before=${Math.floor(before)}&count=${count}`);
-    if (!j?.ok) {
-      // Daily/weekly/monthly: fall back to Dukascopy if Yahoo is unavailable.
-      if (useYahoo && e.duka) {
-        const k = await getJson(`/api/history/candles?src=duka&id=${encodeURIComponent(e.duka)}&tf=${base}&before=${Math.floor(before)}&count=${count}`);
-        return k?.ok ? combine(k.candles, base, mult) : [];
+    if (before > Date.now() - 60_000) this.oldest = Infinity; // fresh load (new symbol / timeframe)
+    const done = (bars: KLineData[], source: string, reachedStart = false): KLineData[] => {
+      if (bars.length) this.oldest = Math.min(this.oldest, bars[0].timestamp);
+      this.report({ state: !bars.length || reachedStart ? 'start' : 'ok', source, oldest: Number.isFinite(this.oldest) ? this.oldest : undefined });
+      return bars;
+    };
+    this.report({ state: 'loading', source: '' });
+    try {
+      if (e.binance) {
+        const url = `https://data-api.binance.vision/api/v3/klines?symbol=${encodeURIComponent(e.binance)}&interval=${binance}&endTime=${Math.floor(before - 1)}&limit=1000`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Binance HTTP ${res.status}${res.status === 400 ? ' (unknown symbol)' : ''}`);
+        const rows: any[] = await res.json();
+        return done(rows.map((r) => ({ timestamp: r[0], open: +r[1], high: +r[2], low: +r[3], close: +r[4], volume: +r[5] })), 'Binance', rows.length < 1000);
       }
+      const useYahoo = !isIntraday(base) && !!e.yahoo;
+      const src = useYahoo ? 'yahoo' : 'duka';
+      const id = useYahoo ? e.yahoo : e.duka;
+      if (!id) throw new Error('No data source for this symbol');
+      const count = 500 * mult;
+      const altParam = !useYahoo && e.alt ? `&alt=${encodeURIComponent(e.alt)}` : '';
+      let j = await getJson(`/api/history/candles?src=${src}&id=${encodeURIComponent(id)}&tf=${base}&before=${Math.floor(before)}&count=${count}${altParam}`);
+      if (!j?.ok && useYahoo && e.duka) {
+        j = await getJson(`/api/history/candles?src=duka&id=${encodeURIComponent(e.duka)}&tf=${base}&before=${Math.floor(before)}&count=${count}`);
+      }
+      if (!j?.ok) throw new Error(j?.error || 'History source unavailable');
+      const label = j.src === 'yahoo' ? (j.fallback ? 'Yahoo Finance (backup)' : 'Yahoo Finance') : 'Dukascopy Bank SA';
+      return done(combine(j.candles as KLineData[], base, mult), label, !!j.reachedStart);
+    } catch (err: any) {
+      this.report({ state: 'error', source: '', message: err?.message || String(err) });
       return [];
     }
-    return combine(j.candles as KLineData[], base, mult);
   }
 
   subscribe(symbol: SymbolInfo, period: Period, callback: DatafeedSubscribeCallback): void {
@@ -217,7 +231,8 @@ export class FullHistoryDatafeed implements Datafeed {
         if (typeof navigator !== 'undefined' && !navigator.onLine) return;
         const src = useYahoo ? 'yahoo' : 'duka';
         const id = useYahoo ? e.yahoo : e.duka;
-        const j = await getJson(`/api/history/candles?src=${src}&id=${encodeURIComponent(id!)}&tf=${base}&before=${Date.now() + 60_000}&count=${Math.max(3, mult * 2)}`);
+        const altParam = !useYahoo && e.alt ? `&alt=${encodeURIComponent(e.alt)}` : '';
+        const j = await getJson(`/api/history/candles?src=${src}&id=${encodeURIComponent(id!)}&tf=${base}&before=${Date.now() + 60_000}&count=${Math.max(3, mult * 2)}${altParam}`);
         if (!j?.ok || !j.candles?.length) return;
         const bars = combine(j.candles as KLineData[], base, mult);
         callback(bars[bars.length - 1]);

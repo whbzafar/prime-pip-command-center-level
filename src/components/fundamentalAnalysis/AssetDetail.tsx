@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, ExternalLink, Info, AlertTriangle } from 'lucide-react';
 import type { AssetResult, IndicatorResult, PillarResult } from './types';
+import { InstitutionalPanel, type InstitutionalData } from './InstitutionalPanel';
 import { BiasPill, BullBearBar, CenterBar, Gauge, StatusDot, fmtNum, fmtPkt, fmtScore, scoreColor, timeAgo } from './ui';
 
 const IndicatorRow: React.FC<{ ind: IndicatorResult }> = ({ ind }) => {
@@ -110,7 +111,7 @@ const PillarBlock: React.FC<{ p: PillarResult; totalWeight: number; mirror?: Ass
   );
 };
 
-export const AssetDetail: React.FC<{ asset: AssetResult; mirrors?: Record<string, AssetResult>; compact?: boolean; title?: string }> = ({ asset, mirrors = {} as Record<string, AssetResult>, compact, title }) => {
+export const AssetDetail: React.FC<{ asset: AssetResult; mirrors?: Record<string, AssetResult>; compact?: boolean; title?: string; institutional?: InstitutionalData | null }> = ({ asset, mirrors = {} as Record<string, AssetResult>, compact, title, institutional }) => {
   const total = asset.pillars.reduce((s, p) => s + p.weight, 0) || 1;
   const mirrorFor = (p: PillarResult) => (p.id === 'usd' ? mirrors.USD : p.id === 'yen' ? mirrors.JPY : p.id === 'macro' ? mirrors.US500 : undefined);
   return (
@@ -163,6 +164,7 @@ export const AssetDetail: React.FC<{ asset: AssetResult; mirrors?: Record<string
           </div>
         )}
       </div>
+      <InstitutionalPanel data={institutional} assetName={asset.name} />
       <div className="space-y-2.5">
         {asset.pillars.map((p, i) => <PillarBlock key={p.id} p={p} totalWeight={total} mirror={mirrorFor(p)} defaultOpen={!compact && i === 0} />)}
       </div>
