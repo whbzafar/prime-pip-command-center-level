@@ -3,7 +3,17 @@ on: { push: { branches: [ci/macro-live-probe] } }
 jobs:
   p:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - run: python3 rate.py GBPUSD
+      - run: |
+          B=https://prime-pip-command-center-level.vercel.app
+          curl -s $B/api/__health | head -c 300; echo
+          for q in "src=duka&id=eurusd&tf=m1&alt=EURUSD%3DX&arch=EURUSD" "src=duka&id=eurusd&tf=h1&alt=EURUSD%3DX&arch=EURUSD&before=1230000000000" "src=duka&id=xauusd&tf=m15&alt=GC%3DF&arch=XAUUSD" "src=duka&id=usa500idxusd&tf=h4&alt=%5EGSPC&arch=US500&before=1400000000000"; do
+            curl -s "$B/api/history/candles?$q&count=500" | python3 -c "import sys,json,datetime as d; j=json.load(sys.stdin); c=j.get('candles') or []; print(j.get('src'), j.get('error'), len(c), c and d.datetime.utcfromtimestamp(c[0]['timestamp']/1000), c and d.datetime.utcfromtimestamp(c[-1]['timestamp']/1000), 'live', j.get('live'))"
+          done
+          curl -s "$B/api/history/archive?ticker=EURUSD"; echo
+      - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && node ui.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: shots, path: shots }
