@@ -46,6 +46,7 @@ async function openPremium(p) {
 // ── ADMIN: publish a script and apply it on the main chart
 const A = await ctxFor('admin');
 await openPremium(A.page);
+console.log('ADMIN lib fetch:', await A.page.evaluate(async () => { const t = localStorage.getItem('primepipfx_session_token'); const r = await fetch('/api/pine/scripts', { credentials: 'include', headers: t ? { Authorization: 'Bearer ' + t } : {} }); return r.status + ' ' + (await r.text()).slice(0, 200) + ' | tokenKey=' + Boolean(t); }));
 const indBtnNextToHistory = await A.page.getByRole('button', { name: /^Indicators \(\d+\)$/ }).count();
 console.log('OLD "Indicators (n)" button next to Trade History present:', indBtnNextToHistory > 0);
 await A.page.getByRole('button', { name: /Pine Editor/ }).first().click(); await A.page.waitForTimeout(5000);
