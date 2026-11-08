@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CotReportModule } from './cot/CotReportModule';
-import { RetailSentimentView } from './sentiment/RetailSentimentView';
+import { SentimentBoard } from './fundamentalAnalysis/SentimentBoard';
 import { LiquidGlassThemeToggle } from './LiquidGlassThemeToggle';
 import { ShieldAlert, Activity, Sparkles, Layers, Gauge } from 'lucide-react';
 import { FundamentalAnalysisView } from './fundamentalAnalysis/FundamentalAnalysisView';
@@ -217,7 +217,7 @@ export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = () =>
 
         {activeTab === 'SENTIMENT' && (
           <div className="animate-in fade-in duration-200">
-            <RetailSentimentView />
+            <SentimentBoard />
           </div>
         )}
       </div>

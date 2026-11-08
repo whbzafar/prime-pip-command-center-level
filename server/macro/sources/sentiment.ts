@@ -90,7 +90,7 @@ async function loadFxssi(now: string) {
   for (const [sym, vals] of Object.entries(pairs)) {
     const avg = Number(vals.average);
     if (!Number.isFinite(avg)) continue;
-    const sources = Object.entries(vals).filter(([k]) => k !== 'average').map(([k, v]) => ({ name: BROKER_NAMES[k] || k, longPct: r1(Number(v)) })).filter((s) => Number.isFinite(s.longPct));
+    const sources = Object.entries(vals).filter(([k]) => k !== 'average' && BROKER_NAMES[k]).map(([k, v]) => ({ name: BROKER_NAMES[k] || k, longPct: r1(Number(v)) })).filter((s) => Number.isFinite(s.longPct));
     const m = FXSSI_MAP[sym];
     const isFx = !m && /^[A-Z]{6}$/.test(sym) && G8.includes(sym.slice(0, 3)) && G8.includes(sym.slice(3));
     if (!m && !isFx) continue;

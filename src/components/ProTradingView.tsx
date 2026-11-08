@@ -1885,9 +1885,52 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   }, []);
 
   // Dynamic helper to resolve fundamental data for ANY symbol (FX, Indices, Metals, Crypto)
+  // LIVE fundamentals engine (/api/macro) — replaces the static directory wherever a live pair exists.
+  const [livePairs, setLivePairs] = useState<Record<string, any>>({});
+  const [liveSent, setLiveSent] = useState<Record<string, any>>({});
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const [ov, se] = await Promise.all([
+          fetch('/api/macro/overview').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+          fetch('/api/macro/sentiment').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        ]);
+        if (!alive) return;
+        if (ov?.ok) setLivePairs(Object.fromEntries((ov.data.pairs || []).map((p: any) => [p.symbol, p])));
+        if (se?.ok) setLiveSent(Object.fromEntries((se.data.rows || []).map((r: any) => [r.symbol, r])));
+      } catch { /* keep last */ }
+    };
+    load();
+    const id = setInterval(load, 60_000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
   const getFundamentalForSymbol = useCallback(
     (sym: string) => {
       const clean = sym.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+      // Live engine first (BTCUSDT chart ↔ BTCUSD engine pair, etc.)
+      const engineSym = clean.replace(/USDT$/, 'USD').replace(/^SPX500$/, 'US500').replace(/^BRENT$/, 'UKOIL');
+      const lp = livePairs[engineSym];
+      if (lp && lp.score !== null && lp.score !== undefined) {
+        const sc = Math.round(lp.score);
+        const isBull = lp.score > 5, isBear = lp.score < -5;
+        const ls = liveSent[clean] || liveSent[engineSym];
+        const label = String(lp.bias || 'NEUTRAL').replace(/_/g, ' ');
+        return {
+          symbol: lp.symbol, baseCurrency: lp.base, quoteCurrency: lp.quote, category: lp.assetClass,
+          bias: (isBull ? 'BULLISH' : isBear ? 'BEARISH' : 'NEUTRAL') as BiasClassification,
+          biasLabel: `${label} (LIVE)`, isBullish: isBull, isBearish: isBear, score: sc,
+          confidence: lp.confidence ?? 0,
+          rateDiff: `${lp.base} ${lp.baseScore === null ? '—' : (lp.baseScore > 0 ? '+' : '') + lp.baseScore.toFixed(1)} vs ${lp.quote} ${lp.quoteScore === null ? '—' : (lp.quoteScore > 0 ? '+' : '') + lp.quoteScore.toFixed(1)} → ${sc > 0 ? '+' : ''}${sc}`,
+          yieldSpread: ls ? `${ls.longPct}% long / ${ls.shortPct}% short${ls.method === 'derived' ? ' (derived)' : ''} · ${ls.contrarian === 'NEUTRAL' ? 'neutral' : 'contrarian ' + ls.contrarian.toLowerCase()}` : 'No live retail data for this instrument',
+          rationale: lp.explanation,
+          drivers: [lp.explanation],
+          tradeSuitability: Math.abs(sc) >= 25 ? 'Strong fundamental divergence' : Math.abs(sc) >= 10 ? 'Moderate fundamental edge' : 'No clear fundamental edge',
+          favoredAction: isBull ? ('BUY' as const) : isBear ? ('SELL' as const) : ('NEUTRAL' as const),
+        };
+      }
 
       // 1. Check if it's one of the 28 FX Canonical Pairs (Calculated directly from Fundamental Category)
       const fxPair = pairDifferentials.find(
@@ -2147,7 +2190,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         favoredAction: 'BUY' as const,
       };
     },
-    [pairDifferentials, masterIntelligenceReport, multiAssetFundamentals]
+    [pairDifferentials, masterIntelligenceReport, multiAssetFundamentals, livePairs, liveSent]
   );
 
   const activeInstrumentFundamental = useMemo(() => {
@@ -3816,7 +3859,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 space-y-1">
                   <div className="text-slate-400 text-[10px] uppercase font-bold flex items-center gap-1">
                     <Building2 className="w-3 h-3 text-cyan-400" />
-                    Central Bank Rate Spread
+                    Base vs quote score (live)
                   </div>
                   <div className="font-bold text-white text-xs">{activeInstrumentFundamental.rateDiff}</div>
                 </div>
@@ -3824,7 +3867,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 space-y-1">
                   <div className="text-slate-400 text-[10px] uppercase font-bold flex items-center gap-1">
                     <Activity className="w-3 h-3 text-cyan-400" />
-                    10Y Sovereign Yield Spread
+                    Live trader sentiment
                   </div>
                   <div className="font-bold text-white text-xs">{activeInstrumentFundamental.yieldSpread}</div>
                 </div>
@@ -3844,7 +3887,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 text-slate-300 text-[11px] leading-relaxed flex items-start gap-2">
                 <Compass className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-white mr-1.5">Macro Rationale:</strong>
+                  <strong className="text-white mr-1.5">Live macro rationale:</strong>
                   {activeInstrumentFundamental.rationale}
                 </div>
               </div>
