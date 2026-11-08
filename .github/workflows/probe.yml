@@ -1,12 +1,9 @@
 name: probe
-on: { push: { branches: [ci/macro-live-probe] }, workflow_dispatch: {} }
+on: { push: { branches: [ci/macro-live-probe] } }
 jobs:
   p:
     runs-on: ubuntu-latest
-    strategy: { fail-fast: false, matrix: { i: [ "EURUSD EURUSD EURUSD=X 5", "XAUUSD XAUUSD GC=F 2", "US500 USA500IDXUSD ^GSPC 2", "AAPL AAPLUSUSD AAPL 2", "USDJPY USDJPY USDJPY=X 3", "USOIL LIGHTCMDUSD CL=F 2" ] } }
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          set -- ${{ matrix.i }}
-          time python3 build_archive.py $1 $2 $3 $4 2026-09-01 2024 out ""
-          ls -la out; for f in out/m1_2026-10.csv.gz out/d1.csv.gz; do zcat $f | head -3; zcat $f | tail -2; done; zcat out/h1_2026.csv.gz | tail -3
+      - run: python3 rate.py GBPUSD
