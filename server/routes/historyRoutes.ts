@@ -75,3 +75,18 @@ historyRouter.get('/instruments', (_req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800');
   res.json({ ok: true, instruments: listDukaInstruments() });
 });
+
+/** TEMP: reachability probe for sentiment sources. */
+historyRouter.get('/_sprobe', async (_req: Request, res: Response) => {
+  const urls = ["https://www.myfxbook.com/community/outlook", "https://www.myfxbook.com/community/outlook/EURUSD", "https://www.a1trading.com/retail-sentiment/", "https://fxssi.com/tools/current-ratio", "https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio-contract?instId=BTC-USDT-SWAP&period=5m&limit=1", "https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?ccy=BTC&period=5m", "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT&period=5m&limit=1", "https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=BTCUSDT&period=5min&limit=1", "https://api.gateio.ws/api/v4/futures/usdt/contract_stats?contract=BTC_USDT&limit=1", "https://api.bitget.com/api/v2/mix/market/account-long-short?symbol=BTCUSDT&period=5m", "https://api.mexc.com/api/v3/ping", "https://contract.mexc.com/api/v1/contract/ticker?symbol=BTC_USDT", "https://www.dailyfx.com/sentiment", "https://www.ig.com/en/ig-client-sentiment", "https://freeserv.dukascopy.com/2.0/?path=api/sentimentIndex"];
+  const out = await Promise.all(urls.map(async (url: string) => {
+    const t = Date.now();
+    try {
+      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36', Accept: 'text/html,application/json' }, signal: AbortSignal.timeout(12_000) });
+      const txt = await r.text();
+      return { url, status: r.status, bytes: txt.length, head: txt.replace(/\s+/g, ' ').slice(0, 160), ms: Date.now() - t };
+    } catch (e: any) { return { url, error: e?.message || String(e), ms: Date.now() - t }; }
+  }));
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ region: process.env.VERCEL_REGION || null, out });
+});
