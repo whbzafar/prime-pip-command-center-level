@@ -11,6 +11,10 @@ await page.waitForTimeout(3000);
 await page.screenshot({ path: 'shots/0-home.png' });
 console.log('HOME TEXT:', (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 1500));
 console.log('BUTTONS:', (await page.locator('button').allInnerTexts()).map((t) => t.trim()).filter(Boolean).slice(0, 80).join(' | '));
+try { await page.getByText('Explore in demo preview mode').first().click({ timeout: 8000 }); await page.waitForTimeout(5000); } catch (e) { console.log('demo click failed', e.message.slice(0, 80)); }
+await page.screenshot({ path: 'shots/0b-demo.png' });
+console.log('DEMO TEXT:', (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 1200));
+console.log('DEMO BUTTONS:', (await page.locator('button, a, [role=button]').allInnerTexts()).map((t) => t.trim().replace(/\s+/g, ' ')).filter(Boolean).slice(0, 120).join(' | '));
 async function open(labels, shot, wait = 9000) {
   for (const l of labels) {
     const loc = page.getByText(l, { exact: true }).first();
