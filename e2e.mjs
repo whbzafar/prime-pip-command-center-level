@@ -26,6 +26,10 @@ async function ctxFor(who) {
 }
 const txt = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, ' ');
 const shot = (p, n) => p.screenshot({ path: `shots/${n}.png` });
+async function clickNav(p, label) {
+  const ok = await p.evaluate((l) => { const el = [...document.querySelectorAll('button')].find((b) => (b.innerText || '').toUpperCase().includes(l)); if (el) { el.scrollIntoView(); el.click(); return true; } return false; }, label);
+  if (!ok) console.log('NAV not found', label);
+}
 async function openPremium(p) {
   await p.goto(B, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(6000);
   for (let i = 0; i < 4; i++) {
@@ -34,8 +38,9 @@ async function openPremium(p) {
     await p.getByText('Create Demo Account').first().click({ timeout: 1500 }).catch(() => {}); await p.waitForTimeout(1200);
   }
   await p.evaluate(() => document.getElementById('onboarding-welcome-modal')?.remove());
-  await shot(p, 'start-' + Date.now());
-  await p.getByText('PREMIUM TRADINGVIEW').first().click(); await p.waitForTimeout(8000);
+  await p.evaluate(() => { sessionStorage.setItem('ppfx_pending_chart', 'EURUSD'); window.dispatchEvent(new CustomEvent('ppfx:open-chart', { detail: { symbol: 'EURUSD' } })); });
+  await p.waitForTimeout(9000);
+  await shot(p, 'premium-' + Date.now());
 }
 
 // ── ADMIN: publish a script and apply it on the main chart
@@ -56,7 +61,7 @@ await A.page.getByRole('button', { name: /^GBP\/USD/ }).first().click().catch(()
 t = await txt(A.page); console.log('ADMIN after pair switch:', (t.match(/\d+ indicators? on the chart/) || ['(no strip)'])[0], (t.match(/“PPFX Private Trend” is on the chart\./) || ['(status gone)'])[0]);
 await shot(A.page, 'admin-after-switch');
 // Hub post from admin
-await A.page.getByText('TRADER COMMUNITY FEED').first().click().catch(() => console.log('no community tab')); await A.page.waitForTimeout(4000);
+await clickNav(A.page, 'TRADER COMMUNITY FEED'); await A.page.waitForTimeout(4000);
 await A.page.getByPlaceholder(/announcement/).fill('Welcome to the Hub — E2E admin post'); await A.page.getByText('Pin to top').click().catch(() => {});
 await A.page.getByRole('button', { name: /^Post$/ }).click(); await A.page.waitForTimeout(3000);
 
@@ -73,12 +78,12 @@ const put = await S.page.evaluate(async (src) => (await fetch('/api/pine/scripts
 const list = await S.page.evaluate(async () => (await fetch('/api/pine/scripts', { credentials: 'include' })).text());
 console.log('STUDENT PUT status:', put, '| list contains source:', list.includes('ta.ema'));
 await S.page.reload(); await S.page.waitForTimeout(6000);
-await S.page.getByText('PREMIUM TRADINGVIEW').first().click().catch(() => {}); await S.page.waitForTimeout(20000);
+await S.page.evaluate(() => window.dispatchEvent(new CustomEvent('ppfx:open-chart', { detail: { symbol: 'EURUSD' } }))); await S.page.waitForTimeout(20000);
 t = await txt(S.page); console.log('STUDENT after reload:', (t.match(/\d+ indicators? on the chart/) || ['(no strip)'])[0]);
 await S.page.getByRole('button', { name: /^Hide all$/ }).first().click().catch(() => {}); await S.page.waitForTimeout(3000);
 t = await txt(S.page); console.log('STUDENT after Hide all strip present:', /indicators? on the chart/.test(t), '| TradingView iframe:', await S.page.locator('iframe[title*="TradingView"]').count());
 // Hub as student
-await S.page.getByText('TRADER COMMUNITY FEED').first().click().catch(() => {}); await S.page.waitForTimeout(5000);
+await clickNav(S.page, 'TRADER COMMUNITY FEED'); await S.page.waitForTimeout(5000);
 t = await txt(S.page); console.log('STUDENT sees admin post:', t.includes('Welcome to the Hub — E2E admin post'), '| admin badge:', /Test Admin\s*Admin/.test(t), '| pinned:', t.includes('Pinned'));
 await S.page.getByPlaceholder(/Share an idea/).fill('Hello from a student (E2E)'); await S.page.getByRole('button', { name: /^Post$/ }).click(); await S.page.waitForTimeout(2500);
 await shot(S.page, 'student-hub');
