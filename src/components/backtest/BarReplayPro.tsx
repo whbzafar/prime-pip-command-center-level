@@ -127,9 +127,12 @@ export const BarReplayPro: React.FC = () => {
     return (await feedRef.current!.getHistoryKLineData(entry, p, 0, to)) || [];
   }, [entry, period]);
   const skipReload = useRef(false);
+  const loadSeq = useRef(0); // only the newest load may apply its bars (prevents races)
 
   const load = useCallback(async (overrideStart?: string) => {
     if (!feedRef.current) return;
+    const my = ++loadSeq.current;
+    const stale = () => my !== loadSeq.current;
     setLoading(true); setError(null); setNotice(null); setPlaying(false);
     for (const p of posRef.current) p.overlays.forEach((id) => chartRef.current?.removeOverlay(id));
     setPos([]); closedRef.current = []; setClosed([]);
@@ -154,6 +157,7 @@ export const BarReplayPro: React.FC = () => {
         return mergeBars(context, future);
       };
       let all = await gather(periodText);
+      if (stale()) return;
       // Covers the start date? If this timeframe's history does not reach back that far yet, fall back
       // to the finest timeframe that does, so a replay can start from any date.
       const reaches = (bars: KLineData[]) => bars.length > 0 && bars[0].timestamp <= start + 3 * 864e5;
@@ -161,6 +165,7 @@ export const BarReplayPro: React.FC = () => {
         const order = ['1m', '3m', '5m', '15m', '30m', '1H', '2H', '4H', 'D', 'W', 'M'];
         for (const fb of order.slice(order.indexOf(periodText) + 1).filter((x) => ['1H', '4H', 'D', 'W'].includes(x))) {
           const alt = await gather(fb);
+          if (stale()) return;
           if (reaches(alt)) {
             setNotice(`${periodText} history for ${ticker} does not reach ${startText.replace('T', ' ')} yet${coverage?.minuteFrom && ['1m', '3m', '5m', '15m', '30m'].includes(periodText) ? ` (minute archive currently from ${coverage.minuteFrom}, growing daily)` : ''} — replaying ${fb} bars from that date instead.`);
             all = alt; skipReload.current = true; setPeriodText(fb);
@@ -174,6 +179,7 @@ export const BarReplayPro: React.FC = () => {
           ? `Minute-level history for ${ticker} currently starts in ${coverage.minuteFrom} (the full archive back to 2003 is still being filled, about 1.5 years per day). Pick a later date, or use 1H or higher for earlier dates.`
           : `No ${periodText} bars for ${ticker} around that date. Pick a later date or a higher timeframe.${feedErr.current ? ` (Source: ${feedErr.current})` : ''}`);
       }
+      if (stale()) return;
       const firstFuture = all.findIndex((b) => b.timestamp >= start);
       let cur: number;
       if (firstFuture === -1) { cur = all.length - 1; setNotice('No bars after that date yet — replay starts at the latest bar.'); }
@@ -184,8 +190,8 @@ export const BarReplayPro: React.FC = () => {
       setCur(cur);
       chartRef.current?.applyNewData(all.slice(0, cur + 1));
     } catch (e: any) {
-      setError(e?.message || String(e));
-    } finally { setLoading(false); }
+      if (!stale()) setError(e?.message || String(e));
+    } finally { if (!stale()) setLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, periodText, fetchWith, coverage, ticker]);
 
@@ -198,8 +204,9 @@ export const BarReplayPro: React.FC = () => {
     const last = bars[bars.length - 1].timestamp;
     if (last > Date.now() - PERIOD_MS[periodText]) return;
     loadingMore.current = true;
+    const seqAtStart = loadSeq.current;
     fetchBefore(Math.min(Date.now() + PERIOD_MS[periodText], last + 500 * PERIOD_MS[periodText]))
-      .then((chunk) => setBars((prev) => { const m = mergeBars(prev, chunk.filter((b) => b.timestamp > last)); barsRef.current = m; return m; }))
+      .then((chunk) => { if (seqAtStart !== loadSeq.current) return; setBars((prev) => { const m = mergeBars(prev, chunk.filter((b) => b.timestamp > last)); barsRef.current = m; return m; }); })
       .finally(() => { loadingMore.current = false; });
   }, [cursor, bars, periodText, fetchBefore]);
 
