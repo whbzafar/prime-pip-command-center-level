@@ -50,9 +50,12 @@ historyRouter.get('/candles', async (req: Request, res: Response) => {
     const historic = before < Date.now() - 3 * 86_400_000;
     // Completed past ranges never change: cache them at the edge. Backup-source answers are cached
     // briefly only, so deeper archive history replaces them as soon as it is available.
-    res.setHeader('Cache-Control', !historic ? 'public, max-age=5, s-maxage=10, stale-while-revalidate=30'
-      : used === src ? 'public, max-age=86400, s-maxage=2592000, immutable' : 'public, max-age=300, s-maxage=900');
-    res.json({ ok: true, src: used, id, tf, candles: r.candles, reachedStart: r.reachedStart, fallback: used !== src });
+    // Never cache an empty or backup-source answer for long: the archive keeps growing and a transient
+    // archive miss must not be replayed to everyone from the edge.
+    res.setHeader('Cache-Control', !r.candles.length ? 'no-store'
+      : !historic ? 'public, max-age=5, s-maxage=10, stale-while-revalidate=30'
+      : used === src ? 'public, max-age=86400, s-maxage=2592000, immutable' : 'public, max-age=0, s-maxage=60');
+    res.json({ ok: true, src: used, id, tf, candles: r.candles, reachedStart: r.reachedStart, fallback: used !== src, archiveNote: primaryError || undefined });
   } catch (err: any) {
     res.setHeader('Cache-Control', 'no-store');
     res.status(502).json({ ok: false, error: err?.message || 'History source unavailable' });
