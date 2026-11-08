@@ -19,7 +19,7 @@ const MIN = 60_000;
 const TF_MS: Record<Tf, number> = { m1: MIN, m5: 5 * MIN, m15: 15 * MIN, m30: 30 * MIN, h1: 60 * MIN, h4: 240 * MIN, d1: 1440 * MIN, w1: 7 * 1440 * MIN, mn1: 30 * 1440 * MIN };
 
 export interface ArchiveManifest {
-  ticker: string; scale: number; m1Months: string[]; m1Complete: boolean; h1Years: number[];
+  ticker: string; scale: number; m1Months: string[]; m1Complete: boolean; m1Pending?: number; h1Years: number[]; d1Years?: number[];
   d1From: number | null; lastCandle: number; builtAt: number; source: string;
 }
 
@@ -32,7 +32,7 @@ function cget(k: string) {
 }
 function cset(k: string, data: any, ttl: number) {
   fileCache.set(k, { at: Date.now(), ttl, data });
-  while (fileCache.size > 60) fileCache.delete(fileCache.keys().next().value as string);
+  while (fileCache.size > 160) fileCache.delete(fileCache.keys().next().value as string);
 }
 
 async function fetchAsset(ticker: string, name: string): Promise<Buffer | null> {
@@ -122,8 +122,15 @@ export async function archiveBefore(ticker: string, tf: Tf, before: number, coun
   let reachedStart = false;
 
   if (family === 'd1') {
-    acc = (await loadFile(ticker, 'd1.csv.gz', true)).filter((c) => c.timestamp < before);
-    reachedStart = true; // the daily file holds the whole history
+    if (man.d1Years?.length) {
+      // One file per year; load all years up to `before` (small files, cached), oldest → newest.
+      const years = man.d1Years.filter((y) => y <= new Date(before - 1).getUTCFullYear()).sort((a, b) => a - b);
+      const parts = await Promise.all(years.map((y) => loadFile(ticker, `d1_${y}.csv.gz`, true)));
+      acc = parts.flat().filter((c) => c.timestamp < before);
+    } else {
+      acc = (await loadFile(ticker, 'd1.csv.gz', true)).filter((c) => c.timestamp < before);
+    }
+    reachedStart = true; // the daily files hold the whole history
   } else {
     const keys = family === 'm1'
       ? [...man.m1Months].sort().reverse().filter((k) => k <= ym(before - 1))

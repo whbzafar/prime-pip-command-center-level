@@ -54,7 +54,7 @@ def _throttle():
         time.sleep(wait)
 
 
-def http_get(url, tries=6, timeout=25):
+def http_get(url, tries=4, timeout=20):
     """Returns bytes (b'' for a missing file). Raises after repeated network failures."""
     last = None
     for i in range(tries):
@@ -156,21 +156,8 @@ def month_iter(start, end):
         y, m = (y + 1, 1) if m == 12 else (y, m + 1)
 
 
-def build_month_m1(sym, y, m, scale, until):
-    first = dt.date(y, m, 1)
-    days = []
-    d = first
-    while d.month == m and d <= until:
-        if d.weekday() != 5:  # Saturday has no FX/CFD trading
-            days.append(d)
-        d += dt.timedelta(days=1)
-    urls = [(d, f"{BASE}/{sym}/{d.year}/{d.month - 1:02d}/{d.day:02d}/BID_candles_min_1.bi5") for d in days]
-    rows = []
-    with cf.ThreadPoolExecutor(WORKERS) as ex:
-        for d, raw in zip(days, ex.map(lambda u: http_get(u[1]), urls)):
-            rows.extend(decode(raw, epoch(d), scale))
-    rows.sort()
-    return rows
+def over_budget():
+    return time.time() - T0 > BUDGET
 
 
 def write(out, name, rows, digits):
@@ -178,19 +165,80 @@ def write(out, name, rows, digits):
         f.write(to_csv_gz(rows, digits))
 
 
+def read_asset(release_base, name):
+    """Rows of an asset archived by an earlier run (empty if absent)."""
+    raw = http_get_plain(f"{release_base}/{name}")
+    if not raw:
+        return []
+    rows = []
+    for line in gzip.decompress(raw).decode().splitlines():
+        p = line.split(",")
+        if len(p) >= 6:
+            rows.append((int(p[0]), float(p[1]), float(p[2]), float(p[3]), float(p[4]), float(p[5])))
+    return rows
+
+
+def http_get_plain(url):
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60) as r:
+            return r.read()
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return b""
+        raise
+
+
+def fetch_units(units, fetch):
+    """Fetch many datafeed files in parallel. Returns ({unit: rows}, [failed units])."""
+    got, failed = {}, []
+    def one(u):
+        try:
+            return u, fetch(u), None
+        except Exception as e:
+            return u, None, e
+    with cf.ThreadPoolExecutor(WORKERS) as ex:
+        for u, rows, err in ex.map(one, units):
+            if err is None:
+                got[u] = rows
+            else:
+                failed.append(u)
+    return got, failed
+
+
+def merge(old_rows, new_rows, drop):
+    """Existing rows minus those `drop(t)` says are being replaced, plus new rows; sorted, unique."""
+    keep = {r[0]: r for r in old_rows if not drop(r[0])}
+    for r in new_rows:
+        keep[r[0]] = r
+    return [keep[k] for k in sorted(keep)]
+
+
 def main():
     ticker, sym, alt, digits = sys.argv[1], sys.argv[2].upper(), sys.argv[3], int(sys.argv[4])
     start = dt.date.fromisoformat(sys.argv[5])        # documented first minute-candle day
     daily_start_year = int(sys.argv[6])
     out = sys.argv[7]
-    # previously archived assets, "name:size,name:size,…"
-    sizes = {}
+    sizes = {}                                        # assets archived by earlier runs, "name:size,…"
     if len(sys.argv) > 8 and sys.argv[8]:
         for item in sys.argv[8].split(","):
             n, _, z = item.partition(":")
             sizes[n] = int(z or 0)
-    existing = set(sizes)
+    repo = os.environ.get("GITHUB_REPOSITORY", "whbzafar/prime-pip-command-center-level")
+    rel = f"https://github.com/{repo}/releases/download/hist-{ticker}"
     os.makedirs(out, exist_ok=True)
+
+    prev = {}
+    if "manifest.json" in sizes:
+        try:
+            prev = json.loads(http_get_plain(f"{rel}/manifest.json") or b"{}")
+        except Exception:
+            prev = {}
+    # Coverage bookkeeping carried between runs. A file archived without bookkeeping is complete.
+    m1_missing = {k: set(v) for k, v in (prev.get("m1Missing") or {}).items()}   # "YYYY-MM" -> missing days
+    m1_until = dict(prev.get("m1Until") or {})                                   # "YYYY-MM" -> last day considered
+    h1_missing = {k: set(v) for k, v in (prev.get("h1Missing") or {}).items()}   # "YYYY" -> missing months
+    h1_until = dict(prev.get("h1Until") or {})                                   # "YYYY" -> last month considered
+    d1_missing = set(prev.get("d1Missing") or [])
 
     scale, ratio = calibrate(sym, alt)
     print(f"{ticker}: scale 1e{int(math.log10(scale))} (check ratio {ratio:.4f})", flush=True)
@@ -198,99 +246,123 @@ def main():
     today = dt.datetime.now(dt.timezone.utc).date()
     until = today - dt.timedelta(days=1)  # the datafeed publishes a day once it has closed
     months = list(month_iter(start, until))
-    last_ts = 0
-    failed = []
+    cur_key = f"{until.year}-{until.month:02d}"
 
-    # 1) The running and previous month of minute candles (always refreshed).
-    cur_month_rows = []
+    def m1_file(y, m):
+        key = f"{y}-{m:02d}"
+        name = f"m1_{key}.csv.gz"
+        expected = []
+        d = dt.date(y, m, 1)
+        while d.month == m and d <= until:
+            if d.weekday() != 5:
+                expected.append(d.day)
+            d += dt.timedelta(days=1)
+        if name in sizes and key not in m1_missing and key not in m1_until:
+            considered = expected[-1] if expected else 0      # legacy complete file
+            lc = prev.get("lastCandle") or 0
+            if (y, m) >= months[-2] and lc:                   # legacy running month: resume after its last candle
+                last_day = dt.datetime.fromtimestamp(lc, dt.timezone.utc).date()
+                considered = last_day.day - 1 if (last_day.year, last_day.month) == (y, m) else 0
+        else:
+            considered = int(m1_until.get(key, 0)) if name in sizes else 0
+        need = sorted(set(m1_missing.get(key, set())) | {x for x in expected if x > considered})
+        if not need:
+            return None
+        got, failed = fetch_units(need, lambda day: decode(http_get(f"{BASE}/{sym}/{y}/{m - 1:02d}/{day:02d}/BID_candles_min_1.bi5"), epoch(dt.date(y, m, day)), scale))
+        fresh = [r for day in sorted(got) for r in got[day]]
+        old = read_asset(rel, name) if name in sizes and sizes[name] > 40 else []
+        rows = merge(old, fresh, lambda t: False)
+        write(out, name, rows, digits)
+        sizes[name] = os.path.getsize(os.path.join(out, name))
+        m1_until[key] = expected[-1] if expected else 0
+        if failed:
+            m1_missing[key] = set(failed)
+        else:
+            m1_missing.pop(key, None)
+        print(f"  {name}: {len(rows)} candles (+{len(fresh)}, {len(failed)} days pending)", flush=True)
+        return rows
+
+    # 1) Newest minute candles first: current and previous month.
+    cur_rows = None
     for y, m in months[-2:]:
-        try:
-            rows = build_month_m1(sym, y, m, scale, until)
-        except Exception as e:
-            failed.append(f"m1_{y}-{m:02d}: {e}"); continue
+        r = m1_file(y, m)
         if (y, m) == (until.year, until.month):
-            cur_month_rows = rows
-        if rows:
-            write(out, f"m1_{y}-{m:02d}.csv.gz", rows, digits)
-            last_ts = max(last_ts, rows[-1][0])
-            print(f"  m1_{y}-{m:02d}: {len(rows)}", flush=True)
+            cur_rows = r
+    if cur_rows is None:
+        cur_rows = read_asset(rel, f"m1_{cur_key}.csv.gz")
 
-    # 2) Hourly, one file per year: completed months from native hour files, the running month
-    #    aggregated from its minute candles. Completed years already archived are skipped.
-    this_year_hours = []
-    for y in range(start.year, until.year + 1):
-        name = f"h1_{y}.csv.gz"
-        if name in existing and y < until.year - 1:
-            continue
-        rows, ok = [], True
-        for m in range(1, 13):
-            if (y, m) > (until.year, until.month):
-                break
-            if (y, m) == (until.year, until.month):
-                rows.extend(aggregate(cur_month_rows, lambda t: t - t % 3600)); continue
-            try:
-                raw = http_get(f"{BASE}/{sym}/{y}/{m - 1:02d}/BID_candles_hour_1.bi5")
-            except Exception as e:
-                failed.append(f"{name} month {m}: {e}"); ok = False; break
-            rows.extend(decode(raw, epoch(dt.date(y, m, 1)), scale))
-        rows.sort()
-        if y == until.year:
-            this_year_hours = rows
-        if ok and rows:
-            write(out, name, rows, digits)
-            last_ts = max(last_ts, rows[-1][0])
-            print(f"  {name}: {len(rows)}", flush=True)
+    # 2) Hourly per year: native monthly hour files for closed months, running month from minutes.
+    cur_year_hours = []
+    for y in range(until.year, start.year - 1, -1):
+        if over_budget() and y != until.year:
+            break
+        key, name = str(y), f"h1_{y}.csv.gz"
+        last_closed = 12 if y < until.year else until.month - 1
+        if name in sizes and key not in h1_missing and key not in h1_until:
+            considered = last_closed if y < until.year else 0   # legacy complete year (current year re-checked)
+        else:
+            considered = int(h1_until.get(key, 0)) if name in sizes else 0
+        need = sorted(set(h1_missing.get(key, set())) | set(range(considered + 1, last_closed + 1)))
+        if y == until.year or need:
+            got, failed = fetch_units(need, lambda mo: decode(http_get(f"{BASE}/{sym}/{y}/{mo - 1:02d}/BID_candles_hour_1.bi5"), epoch(dt.date(y, mo, 1)), scale))
+            fresh = [r for mo in sorted(got) for r in got[mo]]
+            old = read_asset(rel, name) if name in sizes and sizes[name] > 40 else []
+            if y == until.year:
+                m0 = epoch(dt.date(until.year, until.month, 1))
+                fresh += aggregate(cur_rows or [], lambda t: t - t % 3600)
+                rows = merge(old, fresh, lambda t: t >= m0)
+            else:
+                rows = merge(old, fresh, lambda t: False)
+            if rows:
+                write(out, name, rows, digits)
+                sizes[name] = os.path.getsize(os.path.join(out, name))
+            h1_until[key] = last_closed
+            if failed:
+                h1_missing[key] = set(failed)
+            else:
+                h1_missing.pop(key, None)
+            print(f"  {name}: {len(rows)} candles ({len(failed)} months pending)", flush=True)
+            if y == until.year:
+                cur_year_hours = rows
 
-    # 3) Daily since inception: completed years from native day files, the running year from hours.
-    daily = []
-    try:
-        for y in range(daily_start_year, until.year):
-            raw = http_get(f"{BASE}/{sym}/{y}/BID_candles_day_1.bi5")
-            daily.extend(decode(raw, epoch(dt.date(y, 1, 1)), scale))
-        daily.extend(aggregate(this_year_hours, lambda t: t - t % 86400))
-        daily.sort()
-        if daily:
-            write(out, "d1.csv.gz", daily, digits)
-            print(f"  d1: {len(daily)} from {dt.datetime.fromtimestamp(daily[0][0], dt.timezone.utc).date()}", flush=True)
-    except Exception as e:
-        failed.append(f"d1: {e}"); daily = []
+    # 3) Daily per year since inception: native yearly day files, running year from the hours.
+    y0 = epoch(dt.date(until.year, 1, 1))
+    write(out, f"d1_{until.year}.csv.gz", aggregate([r for r in cur_year_hours if r[0] >= y0], lambda t: t - t % 86400), digits)
+    sizes[f"d1_{until.year}.csv.gz"] = 1
+    todo = [y for y in range(until.year - 1, daily_start_year - 1, -1) if f"d1_{y}.csv.gz" not in sizes or y in d1_missing]
+    if todo and not over_budget():
+        got, failed = fetch_units(todo, lambda y: decode(http_get(f"{BASE}/{sym}/{y}/BID_candles_day_1.bi5"), epoch(dt.date(y, 1, 1)), scale))
+        for y, rows in got.items():
+            write(out, f"d1_{y}.csv.gz", rows, digits)
+            sizes[f"d1_{y}.csv.gz"] = os.path.getsize(os.path.join(out, f"d1_{y}.csv.gz"))
+        d1_missing = (d1_missing - set(got)) | set(failed)
+        print(f"  d1: {len(got)} years fetched, {len(failed)} pending", flush=True)
 
     # 4) Older minute months, newest first, until this run's time budget is used.
-    pending = [ym for ym in reversed(months[:-2]) if f"m1_{ym[0]}-{ym[1]:02d}.csv.gz" not in existing]
-    done_old = 0
-    for y, m in pending:
-        if time.time() - T0 > BUDGET:
+    for y, m in reversed(months[:-2]):
+        if over_budget():
             break
-        name = f"m1_{y}-{m:02d}.csv.gz"
-        try:
-            rows = build_month_m1(sym, y, m, scale, until)
-        except Exception as e:
-            failed.append(f"{name}: {e}"); continue
-        if rows:
-            write(out, name, rows, digits)
-            print(f"  {name}: {len(rows)}", flush=True)
-        else:
-            write(out, name, [], digits)  # verified empty month (before inception) — don't refetch
-        done_old += 1
+        m1_file(y, m)
 
-    for n in os.listdir(out):
-        sizes[n] = os.path.getsize(os.path.join(out, n))
-    have = set(sizes)
-    m1_names = sorted(n for n in have if n.startswith("m1_") and sizes[n] > 40)  # skip verified-empty months
-    remaining = len(pending) - done_old
+    m1_all = sorted(n[3:10] for n in sizes if n.startswith("m1_"))
+    m1_with_data = [k for k in m1_all if sizes.get(f"m1_{k}.csv.gz", 0) > 40]
+    m1_left = [k for k in (f"{y}-{m:02d}" for y, m in months) if k not in m1_all or k in m1_missing]
+    d1_years = sorted(int(n[3:7]) for n in sizes if n.startswith("d1_") and n[3:7].isdigit())
     manifest = {
         "ticker": ticker, "dukascopy": sym, "scale": scale, "calibrationRatio": round(ratio, 5),
-        "m1Months": [n[3:10] for n in m1_names], "m1Complete": remaining == 0,
-        "h1Years": sorted(int(n[3:7]) for n in have if n.startswith("h1_")),
-        "d1From": daily[0][0] if daily else None,
-        "lastCandle": last_ts, "builtAt": int(time.time()),
-        "source": "Dukascopy Bank SA public datafeed (BID)", "failed": failed[:50],
+        "m1Months": m1_with_data, "m1Complete": not m1_left, "m1Pending": len(m1_left),
+        "h1Years": sorted(int(n[3:7]) for n in sizes if n.startswith("h1_")),
+        "d1Years": d1_years,
+        "lastCandle": (cur_rows[-1][0] if cur_rows else 0),
+        "builtAt": int(time.time()), "source": "Dukascopy Bank SA public datafeed (BID)",
+        "m1Missing": {k: sorted(v) for k, v in m1_missing.items()}, "m1Until": m1_until,
+        "h1Missing": {k: sorted(v) for k, v in h1_missing.items()}, "h1Until": h1_until,
+        "d1Missing": sorted(d1_missing),
     }
     with open(os.path.join(out, "manifest.json"), "w") as f:
         json.dump(manifest, f)
-    print(f"{ticker}: {len(m1_names)} minute months, {remaining} still to backfill, {len(failed)} failures", flush=True)
-    for f_ in failed[:10]:
-        print("  FAILED", f_)
+    print(f"{ticker}: {len(m1_with_data)} minute months with data, {len(m1_left)} months still pending, "
+          f"{len(manifest['h1Years'])} hourly years, {len(d1_years)} daily years", flush=True)
 
 
 if __name__ == "__main__":

@@ -66,7 +66,7 @@ historyRouter.get('/archive', async (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300');
   if (!m) return res.status(404).json({ ok: false, error: `No archive yet for ${t || '?'}` });
   res.json({ ok: true, ticker: t, minuteFrom: m.m1Months[0] || null, minuteMonths: m.m1Months.length, minuteComplete: m.m1Complete,
-    hourlyFrom: m.h1Years[0] || null, dailyFrom: m.d1From ? new Date(m.d1From * 1000).toISOString().slice(0, 10) : null,
+    minutePending: m.m1Pending ?? null, hourlyYears: m.h1Years, dailyYears: m.d1Years ?? null,
     lastCandle: new Date(m.lastCandle * 1000).toISOString(), builtAt: new Date(m.builtAt * 1000).toISOString(), source: m.source });
 });
 
