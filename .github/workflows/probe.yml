@@ -3,18 +3,25 @@ on: { push: { branches: [ci/macro-live-probe] } }
 jobs:
   p:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions: { contents: write }
     steps:
       - uses: actions/checkout@v4
       - run: |
-          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36'
-          mkdir -p dump
-          for q in "filter=EURUSD" "filter=fxssi" "filter=EURUSD&token=&user_id=0&rand=0.5"; do echo "== $q"; curl -sS -m 15 -A "$UA" -e https://fxssi.com/tools/current-ratio "https://c.fxssi.com/api/current-ratios?$q" | tee "dump/fxssi_$q.json" | head -c 1500; echo; done
-          curl -sSL -m 15 -A "$UA" https://www.ig.com/en/ig-client-sentiment > dump/ig.html; wc -c dump/ig.html
-          sleep 200
-          for u in "https://c.fxssi.com/api/current-ratios?filter=EURUSD" "https://www.ig.com/en/ig-client-sentiment"; do echo "== VERCEL $u"; curl -s -m 40 "https://prime-pip-command-center-level.vercel.app/api/history/_sprobe?u=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=''))" "$u")" | head -c 1200; echo; done
+          B=https://prime-pip-command-center-level.vercel.app
+          curl -s $B/api/macro/sentiment | python3 -c "
+          import json,sys; j=json.load(sys.stdin)['data']; r=j['rows']
+          print('rows',len(r), {a:sum(1 for x in r if x['asset']==a) for a in ['FOREX','COMMODITIES','INDICES','CRYPTO']}, 'derived', sum(1 for x in r if x['method']=='derived'))
+          print([ (s['name'],s['ok'],s['count']) for s in j['sources']])
+          for x in r[:6]+[y for y in r if y['symbol'] in ('XAUUSD','US500','BTCUSDT','CADJPY','SOLUSDT')]: print(x['symbol'],x['longPct'],x['method'],x['contrarian'],[s['name'] for s in x['sources']])
+          print('currencies', [(c['currency'],c['longPct']) for c in j['currencies']])"
+          curl -s $B/api/macro/rankings | python3 -c "
+          import json,sys; d=json.load(sys.stdin)['data']
+          for h in ['longTerm','shortTerm']:
+            print(h,'BULL',[ (p['display'],p[h]) for p in d[h]['bullish'][:6]]); print(h,'BEAR',[ (p['display'],p[h]) for p in d[h]['bearish'][:6]])"
+          curl -s $B/api/macro/pair/USDCAD | python3 -c "import json,sys; j=json.load(sys.stdin); print('pair sentiment', json.dumps(j.get('sentiment'))[:300])"
+      - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && node ui3.mjs
       - if: always()
         run: |
           git config user.name ci; git config user.email ci@example.com
-          git checkout -B probe-shots && git add -f dump && git commit -qm dump && git push -qf origin probe-shots
+          git checkout -B probe-shots && git add -f shots && git commit -qm shots && git push -qf origin probe-shots
