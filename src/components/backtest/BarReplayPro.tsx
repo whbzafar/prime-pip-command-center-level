@@ -64,7 +64,7 @@ export const BarReplayPro: React.FC = () => {
   const [closed, setClosed] = useState<ClosedTrade[]>([]);
   const [source, setSource] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
-  const [coverage, setCoverage] = useState<{ minuteFrom: string | null; hourlyFrom: number | null; dailyFrom: number | null } | null>(null);
+  const [coverage, setCoverage] = useState<{ minuteFrom: string | null; hourlyFrom: number | null; dailyFrom: number | null; building?: boolean } | null>(null);
   const [activeInd, setActiveInd] = useState<Record<string, string>>({}); // indicator → pane id
   const [drawings, setDrawings] = useState<string[]>([]);
   const [selectedDrawing, setSelectedDrawing] = useState<string | null>(null);
@@ -113,7 +113,8 @@ export const BarReplayPro: React.FC = () => {
     if (entry.binance) return; // Binance: every timeframe since listing
     let live = true;
     fetch(`/api/history/archive?ticker=${encodeURIComponent(entry.ticker)}`).then((r) => (r.ok ? r.json() : null)).then((j) => {
-      if (!live || !j?.ok) return;
+      if (!live) return;
+      if (!j?.ok) { setCoverage({ minuteFrom: null, hourlyFrom: null, dailyFrom: null, building: true }); return; }
       setCoverage({ minuteFrom: j.minuteFrom || null, hourlyFrom: j.hourlyYears?.[0] ?? null, dailyFrom: j.dailyYears?.[0] ?? null });
     }).catch(() => {});
     return () => { live = false; };
@@ -121,6 +122,11 @@ export const BarReplayPro: React.FC = () => {
 
   // ── data loading: context before the start date + future bars after it (hidden until replayed)
   const fetchBefore = useCallback(async (to: number) => (await feedRef.current!.getHistoryKLineData(entry, period, 0, to)) || [], [entry, period]);
+  const fetchWith = useCallback(async (pText: string, to: number) => {
+    const p = PRO_PERIODS.find((x) => x.text === pText) || period;
+    return (await feedRef.current!.getHistoryKLineData(entry, p, 0, to)) || [];
+  }, [entry, period]);
+  const skipReload = useRef(false);
 
   const load = useCallback(async (overrideStart?: string) => {
     if (!feedRef.current) return;
@@ -133,16 +139,35 @@ export const BarReplayPro: React.FC = () => {
       if (!Number.isFinite(start)) throw new Error('Pick a valid start date and time.');
       if (start > Date.now()) throw new Error('The start date is in the future — pick a past date.');
       feedErr.current = null;
-      const pMs = PERIOD_MS[periodText];
-      const context = await fetchBefore(start);
-      let future: KLineData[] = [];
-      let to = start;
-      for (let i = 0; i < 8 && future.length < 400 && to < Date.now(); i++) {
-        to = Math.min(Date.now() + pMs, to + 500 * pMs);
-        const chunk = await fetchBefore(to);
-        future = mergeBars(future, chunk.filter((b) => b.timestamp >= start));
+      // Bars around the start date for one timeframe: context before it + future bars after it.
+      const gather = async (pText: string) => {
+        const pMs = PERIOD_MS[pText];
+        const context = await fetchWith(pText, start);
+        let future: KLineData[] = [];
+        let to = start;
+        for (let i = 0; i < 8 && future.length < 400 && to < Date.now(); i++) {
+          to = Math.min(Date.now() + pMs, to + 500 * pMs);
+          const chunk = await fetchWith(pText, to);
+          future = mergeBars(future, chunk.filter((b) => b.timestamp >= start));
+          if (!chunk.length) break;
+        }
+        return mergeBars(context, future);
+      };
+      let all = await gather(periodText);
+      // Covers the start date? If this timeframe's history does not reach back that far yet, fall back
+      // to the finest timeframe that does, so a replay can start from any date.
+      const reaches = (bars: KLineData[]) => bars.length > 0 && bars[0].timestamp <= start + 3 * 864e5;
+      if (!reaches(all)) {
+        const order = ['1m', '3m', '5m', '15m', '30m', '1H', '2H', '4H', 'D', 'W', 'M'];
+        for (const fb of order.slice(order.indexOf(periodText) + 1).filter((x) => ['1H', '4H', 'D', 'W'].includes(x))) {
+          const alt = await gather(fb);
+          if (reaches(alt)) {
+            setNotice(`${periodText} history for ${ticker} does not reach ${startText.replace('T', ' ')} yet${coverage?.minuteFrom && ['1m', '3m', '5m', '15m', '30m'].includes(periodText) ? ` (minute archive currently from ${coverage.minuteFrom}, growing daily)` : ''} — replaying ${fb} bars from that date instead.`);
+            all = alt; skipReload.current = true; setPeriodText(fb);
+            break;
+          }
+        }
       }
-      const all = mergeBars(context, future);
       if (!all.length) {
         const minute = ['1m', '3m', '5m', '15m', '30m'].includes(periodText);
         throw new Error(minute && coverage?.minuteFrom
@@ -152,7 +177,7 @@ export const BarReplayPro: React.FC = () => {
       const firstFuture = all.findIndex((b) => b.timestamp >= start);
       let cur: number;
       if (firstFuture === -1) { cur = all.length - 1; setNotice('No bars after that date yet — replay starts at the latest bar.'); }
-      else if (firstFuture === 0) { cur = 0; setNotice(`History for this timeframe begins ${new Date(all[0].timestamp).toISOString().slice(0, 16).replace('T', ' ')} UTC — replay starts there.`); }
+      else if (firstFuture === 0 && !skipReload.current) { cur = 0; setNotice(`History for this timeframe begins ${new Date(all[0].timestamp).toISOString().slice(0, 16).replace('T', ' ')} UTC — replay starts there.`); }
       else cur = firstFuture - 1;
       barsRef.current = all;
       setBars(all);
@@ -162,9 +187,9 @@ export const BarReplayPro: React.FC = () => {
       setError(e?.message || String(e));
     } finally { setLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, periodText, fetchBefore, coverage, ticker]);
+  }, [startDate, periodText, fetchWith, coverage, ticker]);
 
-  useEffect(() => { load(); /* reload when symbol/timeframe change */ // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (skipReload.current) { skipReload.current = false; return; } load(); /* reload when symbol/timeframe change */ // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker, periodText]);
 
   // Fetch more future bars when the replay approaches the end of what is loaded.
@@ -348,6 +373,7 @@ export const BarReplayPro: React.FC = () => {
         <div className="basis-full flex items-center gap-2 text-[10.5px] font-mono-code text-slate-500">
           <Info className="w-3 h-3" />
           {entry.binance ? <span>History: every timeframe since the Binance listing.</span>
+            : coverage?.building ? <span>The full Dukascopy archive for {ticker} is still being built (it fills automatically within hours). Until then: daily bars from 2003, hourly for the last 2 years, minutes for the last 1–2 months — older dates replay on the finest timeframe available.</span>
             : coverage ? <span>History available — minutes (1m–30m) from <b className="text-slate-300">{coverage.minuteFrom || '—'}</b> · hourly from <b className="text-slate-300">{coverage.hourlyFrom ?? '—'}</b> · daily from <b className="text-slate-300">{coverage.dailyFrom ?? '—'}</b> (Dukascopy archive; minute depth grows daily)</span>
             : <span>Checking available history…</span>}
         </div>

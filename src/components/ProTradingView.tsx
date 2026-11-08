@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { fmtDuration, marketStatus, sessionKind } from '../utils/marketSession';
 import { LiveBiasStrip, chartSymbolFor } from './fundamentalAnalysis/LiveBiasStrip';
+import { CATALOG } from './chartAnalysis/fullHistoryDatafeed';
 import { createPortal } from 'react-dom';
 import {
   CandlestickChart,
@@ -2627,13 +2628,60 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   // --------------------------------------------------------------------------
   // LIVE TICK ENGINE + AUTO TP/SL EXECUTION
   // --------------------------------------------------------------------------
+  // REAL quotes (no simulated ticks): Binance for crypto, Dukascopy archive / Yahoo for everything else.
+  const realQuote = useRef<{ symbol: string; price: number; at: number } | null>(null);
+  const [quoteSource, setQuoteSource] = useState<string>('');
+  useEffect(() => {
+    let alive = true;
+    realQuote.current = null;
+    const clean = selectedSymbol.replace(/^[A-Z_]+:/, '').toUpperCase();
+    const alias: Record<string, string> = { SPX500: 'US500', NAS100: 'US100', BRENT: 'UKOIL' };
+    const e = CATALOG.find((c) => c.ticker === (alias[clean] || clean));
+    let first = true;
+    const pull = async () => {
+      try {
+        let price: number | null = null; let src = '';
+        if (e?.binance || /USDT$/.test(clean)) {
+          const sym = e?.binance || clean;
+          const j = await fetch(`https://data-api.binance.vision/api/v3/ticker/price?symbol=${sym}`).then((r) => r.json());
+          price = Number(j?.price); src = 'Binance';
+        } else if (e) {
+          const id = e.duka || e.yahoo;
+          const srcParam = e.duka ? 'duka' : 'yahoo';
+          const j = await fetch(`/api/history/candles?src=${srcParam}&id=${encodeURIComponent(id || '')}&tf=m1&count=3${e.alt ? `&alt=${encodeURIComponent(e.alt)}` : ''}&arch=${e.ticker}`).then((r) => r.json());
+          const c = j?.candles?.[j.candles.length - 1];
+          price = c ? Number(c.close) : null; src = j?.src === 'archive' ? 'Dukascopy' : j?.src === 'yahoo' ? 'Yahoo' : 'Dukascopy';
+        }
+        if (!alive || !price || !Number.isFinite(price)) return;
+        realQuote.current = { symbol: selectedSymbol, price, at: Date.now() };
+        setQuoteSource(src);
+        if (first) {
+          first = false;
+          const meta = getInstrumentMeta(selectedSymbol);
+          const spread = meta.spreadPips * meta.pipSize;
+          setLiveCandle((prev) => ({ ...prev, open: price!, high: price!, low: price!, close: price!, bid: price!, ask: Number((price! + spread).toFixed(meta.pipDecimals)) }));
+          setProjectionAnchorCenter(price); setEntryLinePrice(price);
+          setSlLinePrice(Number((price - 25 * meta.pipSize).toFixed(meta.pipDecimals)));
+          setTpLinePrice(Number((price + 50 * meta.pipSize).toFixed(meta.pipDecimals)));
+        }
+      } catch { /* keep last quote */ }
+    };
+    pull();
+    const id = setInterval(pull, e?.binance || /USDT$/.test(clean) ? 3000 : 10000);
+    return () => { alive = false; clearInterval(id); };
+  }, [selectedSymbol]);
+
   useEffect(() => {
     const tickInterval = setInterval(() => {
       setLiveCandle((prev) => {
         const meta = getInstrumentMeta(selectedSymbol);
         const pip = meta.pipSize;
-        const tickMove = (Math.random() - 0.495) * (pip * 0.8);
-        const newClose = Number((prev.close + tickMove).toFixed(meta.pipDecimals));
+        const q = realQuote.current;
+        // No real quote yet, or the market is closed → the price does not move.
+        if (!q || q.symbol !== selectedSymbol || !marketStatus(sessionKind(selectedSymbol.replace(/^[A-Z_]+:/, ''))).open && q.price === prev.close) return prev;
+        const tickMove = q.price - prev.close;
+        if (tickMove === 0) return prev;
+        const newClose = Number(q.price.toFixed(meta.pipDecimals));
         const newHigh = Math.max(prev.high, newClose);
         const newLow = Math.min(prev.low, newClose);
         const spread = meta.spreadPips * meta.pipSize;
@@ -2756,7 +2804,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           low: newLow,
           bid: newBid,
           ask: newAsk,
-          volume: prev.volume + Math.floor(Math.random() * 8) + 1,
+          volume: prev.volume,
           tickCount: prev.tickCount + 1,
           lastDirection: newDir,
           changePercent: Number((((newClose - prev.open) / prev.open) * 100).toFixed(2)),
