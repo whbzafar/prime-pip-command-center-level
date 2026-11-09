@@ -1518,7 +1518,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   // the bar-close countdown under the price and auto-saved drawings. The raw TradingView feed stays one click away.
   const [chartEngine, setChartEngine] = useState<'pro' | 'tv'>(() => { try { return localStorage.getItem('ppfx_premium_engine') === 'tv' ? 'tv' : 'pro'; } catch { return 'pro'; } });
   useEffect(() => { try { localStorage.setItem('ppfx_premium_engine', chartEngine); } catch {} }, [chartEngine]);
-  useEffect(() => { if (pineShownCount > 0) setChartEngine('pro'); }, [pineShownCount]);
+  // Switching an indicator ON brings the Pro chart (indicators only draw there) — but a reload keeps the user's choice.
+  const prevShown = useRef(pineShownCount);
+  useEffect(() => { if (pineShownCount > prevShown.current) setChartEngine('pro'); prevShown.current = pineShownCount; }, [pineShownCount]);
   void preferTvChart; void setPreferTvChart;
   const pineOnChart = chartEngine === 'pro' && Boolean(catalogFor(selectedSymbol));
   const [tvHintHidden, setTvHintHidden] = useState<boolean>(() => { try { return localStorage.getItem('ppfx_tv_hint_hidden') === '1'; } catch { return false; } });
