@@ -103,7 +103,7 @@ export async function flushDurable() { await Promise.allSettled([...pending]); }
 // ─────────────────────────────── small shared records (removed members, last logins, login log)
 // Stored in Redis when connected; otherwise in the app's existing kvdb.io bucket so they still
 // survive restarts and are shared by every server instance.
-const KVDB = 'https://kvdb.io/2ST3F4wjgBy2qEaTquQPuU';
+const KVDB = (process.env.PPFX_SHARED_KV_URL || 'https://kvdb.io/2ST3F4wjgBy2qEaTquQPuU').replace(/\/$/, '');
 const cache = new Map<string, { at: number; v: any }>();
 
 export async function getShared<T>(key: string, fallback: T, maxAgeMs = 8000): Promise<T> {
