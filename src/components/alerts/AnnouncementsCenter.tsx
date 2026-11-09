@@ -225,7 +225,7 @@ export const AnnouncementsCenter: React.FC = () => {
                       <span className="text-slate-500 ml-auto">{ago(x.publishedAt)}</span>
                     </div>
                     <a href={x.link} target="_blank" rel="noopener noreferrer" className="mt-1 block text-[12.5px] font-semibold text-slate-100 hover:text-cyan-200 leading-snug">{x.title} <ExternalLink className="inline w-3 h-3 opacity-60" /></a>
-                    {x.summary && <div className="mt-0.5 text-[11px] text-slate-400 line-clamp-2">{x.summary}</div>}
+                    {(() => { const sm = String(x.summary || '').replace(/<[^>]*>?/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim(); return sm && !sm.startsWith(x.title.slice(0, 30)) ? <div className="mt-0.5 text-[11px] text-slate-400 line-clamp-2">{sm}</div> : null; })()}
                     <div className="mt-0.5 text-[10px] text-slate-500">{x.source}</div>
                   </div>
                 ))}

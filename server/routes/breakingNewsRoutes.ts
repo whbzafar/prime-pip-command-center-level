@@ -27,11 +27,12 @@ export interface NewsItem {
   publishedAt: number; impact: 'HIGH' | 'MEDIUM' | 'LOW'; tags: string[]; category: string;
 }
 
-const decode = (s: string) => s
-  .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+const entities = (s: string) => s
+  .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+  .replace(/&#(\d+);/g, (_m, d) => String.fromCharCode(Number(d))).replace(/&amp;/g, '&');
+// Feeds often entity-encode their HTML (Google News does): decode first, then strip tags, twice.
+const decode = (s: string) => entities(entities(s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')).replace(/<[^>]+>/g, ' '))
   .replace(/<[^>]+>/g, ' ')
-  .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
-  .replace(/&#(\d+);/g, (_m, d) => String.fromCharCode(Number(d)))
   .replace(/\s+/g, ' ').trim();
 const tag = (xml: string, name: string) => xml.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`, 'i'))?.[1] ?? '';
 
@@ -83,7 +84,7 @@ async function readFeed(f: Feed): Promise<NewsItem[]> {
     const source = f.source.startsWith('Google News') ? (decode(tag(it, 'source')) || 'Google News') : f.source;
     // Google News titles end with " - Publisher"; keep the headline clean.
     const cleanTitle = f.source.startsWith('Google News') ? title.replace(/\s+-\s+[^-]+$/, '') : title;
-    return { id: `${publishedAt}-${cleanTitle.slice(0, 40)}`, title: cleanTitle, summary: summary === title ? '' : summary, link, source, kind: f.kind, publishedAt, impact, tags, category };
+    return { id: `${publishedAt}-${cleanTitle.slice(0, 40)}`, title: cleanTitle, summary: summary === title || summary.startsWith(cleanTitle.slice(0, 40)) ? '' : summary, link, source, kind: f.kind, publishedAt, impact, tags, category };
   }).filter((x) => x.title && x.link);
 }
 

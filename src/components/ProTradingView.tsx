@@ -4252,7 +4252,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       )}
 
       {/* ONE-CLICK INDICATORS (all users): click = apply on the chart, click again = hide */}
-      <div className="px-1"><PineIndicatorChips /></div>
+      {!(isFullscreen && pineOnChart) && <div className="px-1"><PineIndicatorChips /></div>}
 
       {/* ========================================================================= */}
       {/* 2. MAIN TRADINGVIEW WORKSPACE: CHART + PROJECTION LINES + RIGHT DOCK      */}
@@ -4261,7 +4261,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         className={`flex flex-col lg:flex-row overflow-hidden relative transition-all duration-300 ${
           isFullscreen
             ? `flex-1 w-full ${pineOnChart ? 'h-full' : 'h-[calc(100vh-44px)]'} m-0 p-0 border-0 rounded-none`
-            : 'border border-slate-800 rounded-2xl shadow-2xl h-[680px] sm:h-[750px] lg:h-[800px]'
+            : 'border border-slate-800/80 ring-1 ring-white/[0.04] rounded-2xl shadow-[0_30px_90px_-35px_rgba(41,98,255,0.45)] h-[680px] sm:h-[750px] lg:h-[800px]'
         }`}
         style={{
           background:

@@ -15,12 +15,12 @@
  * code. The administrator's scripts and drafts run locally in a worker.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, BellOff, Loader2, Minus, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { Bell, BellOff, Check, Loader2, Minus, Plus, RotateCcw, Search, Trash2, X } from 'lucide-react';
 import { VelaWorkspace } from '@luxalgo/vela/workspace';
 import { registerIcon, registerRendererLayer, registerWidgetAction } from '@luxalgo/vela/plugin';
 import { PineWorkerEngine } from '@luxalgo/vela-pinets';
 import { catalogFor, makeProvider, velaTf } from './pineData';
-import { DRAFT_ID, pineLib, setIndicatorStatus, type LibraryScript } from './pineLibrary';
+import { DRAFT_ID, hideIndicator, indicatorStatus, loadLibrary, pineLib, setIndicatorStatus, showIndicator, type LibraryScript } from './pineLibrary';
 import { RemotePineEngine, REMOTE_LANG, remoteRef } from './remoteEngine';
 import { markOnScreen, priceAlerts, type AlertCondition, type PriceAlert } from './priceAlerts';
 
@@ -80,6 +80,14 @@ function registerPlugins() {
     },
   } as any);
   const fire = (name: string, ctx: any, extra: Record<string, unknown> = {}) => window.dispatchEvent(new CustomEvent(name, { detail: { chart: ctx.chart, symbol: ctx.symbol, ...extra } }));
+  // The chart's own "Indicators" button (and the "/" key) opens the Prime Pip indicator library + built-in studies.
+  registerWidgetAction({
+    id: 'indicators', target: 'topbar', label: 'Indicators', icon: 'indicators',
+    run: (ctx: any) => {
+      const natives = Promise.resolve(ctx.chart?.availableNativeIndicators?.() || []).catch(() => []);
+      fire('ppfx:indicators-menu', ctx, { natives, addNative: (t: string) => ctx.addNativeIndicator?.(t) });
+    },
+  } as any);
   registerWidgetAction({ id: 'ppfx.price-alerts', target: 'topbar', label: 'Price alerts', icon: 'ppfx-bell', iconOnly: true, order: 5, run: (ctx: any) => fire('ppfx:alerts-panel', ctx) } as any);
   registerWidgetAction({ id: 'ppfx.fullscreen', target: 'topbar', label: 'Full screen (Esc to exit)', icon: 'ppfx-expand', iconOnly: true, order: 50, run: (ctx: any) => fire('ppfx:fullscreen', ctx) } as any);
   registerWidgetAction({
@@ -285,6 +293,17 @@ export const PineMainChart: React.FC<{
 
   // ── topbar / context-menu actions from this chart
   const [panel, setPanel] = useState(false);
+  const [indMenu, setIndMenu] = useState<{ natives: any[]; addNative: (t: string) => void } | null>(null);
+  useEffect(() => {
+    const onMenu = async (e: any) => {
+      if (!(e?.detail?.chart && e.detail.chart === ws.current?.chart)) return;
+      loadLibrary();
+      const natives = await e.detail.natives;
+      setIndMenu({ natives: Array.isArray(natives) ? natives : [], addNative: e.detail.addNative });
+    };
+    window.addEventListener('ppfx:indicators-menu', onMenu);
+    return () => window.removeEventListener('ppfx:indicators-menu', onMenu);
+  }, []);
   useEffect(() => {
     const mine = (e: any) => e?.detail?.chart && e.detail.chart === ws.current?.chart;
     const onPanel = (e: any) => { if (mine(e)) setPanel((v) => !v); };
@@ -314,12 +333,58 @@ export const PineMainChart: React.FC<{
     <div ref={wrap} className="relative w-full overflow-hidden" style={{ height }}>
       <div ref={host} className="absolute inset-0" />
       {ready && <AlertOverlay wrap={wrap} host={host} chartRef={ws} ticker={tickerRef.current || entry.ticker} digits={digits} panel={panel} setPanel={setPanel} />}
+      {indMenu && <IndicatorMenu lib={lib} natives={indMenu.natives} addNative={indMenu.addNative} onClose={() => setIndMenu(null)} />}
       {!ready && (
         <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 text-[12px] gap-2">
           <span className="flex items-center gap-2 pointer-events-none"><Loader2 className="w-4 h-4 animate-spin" /> Loading {entry.ticker} chart…</span>
           {slow && <button type="button" onClick={() => { setSlow(false); setBuild((n) => n + 1); }} className="px-3 py-1 rounded-lg border border-slate-600 text-slate-200 hover:text-white hover:border-cyan-400 cursor-pointer">Taking long — retry</button>}
         </div>
       )}
+    </div>
+  );
+};
+
+// ───────────────────────────── indicator menu (replaces the chart's built-in picker)
+const IndicatorMenu: React.FC<{ lib: ReturnType<typeof pineLib.get>; natives: any[]; addNative: (t: string) => void; onClose: () => void }> = ({ lib, natives, addNative, onClose }) => {
+  const [q, setQ] = useState('');
+  const ql = q.trim().toLowerCase();
+  const scripts = lib.scripts.filter((x) => !ql || x.name.toLowerCase().includes(ql));
+  const builtins = natives.filter((n) => n?.supported !== false && (!ql || String(n.title || n.type).toLowerCase().includes(ql)));
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [onClose]);
+  return (
+    <div className="absolute inset-0 z-[8] flex items-start justify-center pt-16 bg-black/30" onPointerDown={onClose} data-testid="ppfx-indicator-menu">
+      <div className="w-[min(460px,92%)] max-h-[70%] flex flex-col rounded-xl border border-slate-700 bg-[#1e222d] shadow-2xl text-[12.5px] text-slate-200" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-700">
+          <b className="text-[14px] text-slate-50">Indicators</b>
+          <button type="button" onClick={onClose} className="ml-auto p-1 rounded text-slate-400 hover:text-white hover:bg-[#2a2e39] cursor-pointer" aria-label="Close"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="px-4 py-2 border-b border-slate-800">
+          <div className="flex items-center gap-2 rounded-lg bg-[#131722] border border-slate-700 px-2.5 py-1.5"><Search className="w-4 h-4 text-slate-500" /><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="flex-1 bg-transparent outline-none text-slate-100 placeholder:text-slate-500" /></div>
+        </div>
+        <div className="overflow-y-auto py-1">
+          <div className="px-4 pt-2 pb-1 text-[10.5px] uppercase tracking-wider text-violet-300 font-bold">Prime Pip indicators</div>
+          {!scripts.length && <div className="px-4 py-2 text-slate-500">{lib.loaded ? 'No indicators published yet.' : 'Loading…'}</div>}
+          {scripts.map((x) => {
+            const on = lib.shown.includes(x.id);
+            const st = indicatorStatus(x.id);
+            return (
+              <button key={x.id} type="button" onClick={() => (on ? hideIndicator(x.id) : showIndicator(x.id))} className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-[#2a2e39] text-left cursor-pointer">
+                <span className={`w-4 h-4 rounded border flex items-center justify-center ${on ? 'bg-[#2962FF] border-[#2962FF]' : 'border-slate-500'}`}>{on && (st?.kind === 'busy' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />)}</span>
+                <span className="font-semibold text-slate-100">{x.name}</span>
+                {lib.isAdmin && x.published === false && <span className="text-[10px] text-amber-300">private</span>}
+                <span className="ml-auto text-[10.5px] text-slate-500">{on ? (st?.kind === 'error' ? 'error' : 'on chart') : 'add'}</span>
+              </button>
+            );
+          })}
+          {builtins.length > 0 && <div className="px-4 pt-3 pb-1 text-[10.5px] uppercase tracking-wider text-cyan-300 font-bold">Built-in studies</div>}
+          {builtins.map((n) => (
+            <button key={n.type} type="button" onClick={() => { addNative(n.type); onClose(); }} className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-[#2a2e39] text-left cursor-pointer">
+              <Plus className="w-4 h-4 text-slate-500" /><span className="text-slate-100">{n.title || n.type}</span>
+              {n.present && !n.multiInstance && <span className="ml-auto text-[10.5px] text-slate-500">on chart</span>}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
