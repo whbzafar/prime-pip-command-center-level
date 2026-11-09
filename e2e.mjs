@@ -38,7 +38,7 @@ await p.keyboard.press('Escape');
 await p.evaluate(() => { window.dispatchEvent(new CustomEvent('ppfx:open-chart', { detail: { symbol: 'EURUSD' } })); }); await p.waitForTimeout(4000);
 await p.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.trim() === 'TradingView'); b?.click(); }); await p.waitForTimeout(12000);
 console.log('TV tools:', await p.locator('[data-testid="tv-chart-tools"]').count(), (await p.locator('[data-testid="tv-countdown"]').innerText().catch(() => '')).replace(/\s+/g, ' '));
-await p.locator('[data-testid="tv-alert-btn"]').click().catch(() => {}); await p.waitForTimeout(6000);
+await p.locator('[data-testid="tv-alert-btn"]').click().catch(() => {}); for (let i = 0; i < 40 && !(await p.locator('[data-testid="tv-alert-price"]').inputValue().catch(() => '')); i++) await p.waitForTimeout(500);
 console.log('TV alert price prefill:', await p.locator('[data-testid="tv-alert-price"]').inputValue().catch(() => ''));
 await p.locator('[data-testid="tv-alert-create"]').click().catch(() => {}); await p.waitForTimeout(800);
 console.log('alerts stored:', await p.evaluate(() => (JSON.parse(localStorage.getItem('ppfx_price_alerts_v1') || '[]')).length));
@@ -46,7 +46,7 @@ await p.locator('iframe[src*="tradingview"]').first().scrollIntoViewIfNeeded().c
 await shot(p, 'w5-tv-tools');
 
 // 2) restart server with the local user file wiped → the new account must still sign in (from Redis)
-execSync("pkill -f 'dist/server.cjs' || true; sleep 1; cd app && git checkout -- data/users.json 2>/dev/null; git -C app status --short data | head -3; (KV_REST_API_URL=http://localhost:8799 KV_REST_API_TOKEN=t PORT=3000 nohup node dist/server.cjs > /tmp/server2.log 2>&1 &) ; sleep 10", { stdio: 'inherit', shell: '/bin/bash' });
+execSync("pkill -f '[d]ist/server.cjs' || true; sleep 1; cd app && git checkout -- data/users.json 2>/dev/null; git -C app status --short data | head -3; (KV_REST_API_URL=http://localhost:8799 KV_REST_API_TOKEN=t PORT=3000 nohup node dist/server.cjs > /tmp/server2.log 2>&1 &) ; sleep 10", { stdio: 'inherit', shell: '/bin/bash' });
 const localHas = fs.readFileSync('app/data/users.json', 'utf8').includes(U);
 const r = await (await fetch(B + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: U, password: 'secret123' }) })).json();
 console.log('AFTER RESTART local file had user before login:', localHas, '→ login ok:', r.ok, r.user?.username);
