@@ -182,7 +182,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-400 font-mono mt-0.5">
-              Capital Preservation • 1% Trade Cap • 2% Daily Halt • Instant Lot Sizing
+              Capital Preservation • {riskPerTradePercent}% Trade Cap • {dailyLossLimitPercent}% Daily Halt • Risk Ladder & Guides
             </p>
           </div>
         </div>
@@ -258,7 +258,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
         <div className="p-4 sm:p-5 rounded-2xl bg-[#0B0F19] border border-slate-800 shadow-lg flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-mono font-bold uppercase text-slate-400">
-              Max Risk Per Trade (1%)
+              Max Risk Per Trade ({riskPerTradePercent}%)
             </span>
             <Percent className="w-4 h-4 text-emerald-400" />
           </div>
@@ -277,7 +277,7 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
         <div className="p-4 sm:p-5 rounded-2xl bg-[#0B0F19] border border-slate-800 shadow-lg flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-mono font-bold uppercase text-slate-400">
-              Daily Loss Limit (2%)
+              Daily Loss Limit ({dailyLossLimitPercent}%)
             </span>
             <AlertTriangle className="w-4 h-4 text-amber-400" />
           </div>

@@ -957,7 +957,7 @@ export const FundamentalCalendar: React.FC = () => {
         <div className="bg-[#0b101b] border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
           {/* Table Header Bar */}
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left">
+            <table className="w-full min-w-[760px] table-fixed border-collapse text-left">
               <thead>
                 <tr className="bg-[#11192a] border-b border-slate-700/80 text-[11px] font-extrabold uppercase tracking-wider text-slate-300">
                   <th className="py-2 px-2 w-[88px] border-r border-slate-800/80">
@@ -972,7 +972,7 @@ export const FundamentalCalendar: React.FC = () => {
                   <th className="py-2 px-1.5 w-[54px] text-center border-r border-slate-800/80">
                     Impact
                   </th>
-                  <th className="py-2 px-2.5 min-w-[170px] border-r border-slate-800/80">
+                  <th className="py-2 px-2.5 border-r border-slate-800/80">
                     Event
                   </th>
                   <th className="py-2 px-1 w-[44px] text-center border-r border-slate-800/80">
