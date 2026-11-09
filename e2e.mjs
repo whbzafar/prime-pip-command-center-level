@@ -24,6 +24,7 @@ await p.getByRole('button', { name: /CREATE ACCOUNT & ENTER/ }).click();
 await p.waitForTimeout(9000);
 for (let i = 0; i < 3; i++) for (const t of ['Start Practice', 'Create Demo Account']) { await p.getByText(t).first().click({ timeout: 1200 }).catch(() => {}); await p.waitForTimeout(800); }
 await p.evaluate(() => document.getElementById('onboarding-welcome-modal')?.remove());
+console.log('PAYMENT gate shown:', /PAYMENT VERIFICATION REQUIRED/.test(await p.locator('body').innerText()));
 console.log('SIGNED IN as:', await p.evaluate(() => JSON.parse(localStorage.getItem('primepipfx_user_profile') || '{}').username));
 await shot(p, 'w3-after-signup');
 // psych center unlocked?
