@@ -186,7 +186,7 @@ const AdminEditor: React.FC<{ symbol: string; interval: string; onClose: () => v
     finally { setBusy(false); }
   };
   const importFile = (f: File) => f.text().then((t) => { setActiveId(null); setCode(t); setMsg({ kind: 'idle', text: `Loaded ${f.name} — “Add to chart” to try it, “Save & publish” to share it.` }); });
-  const draftStatus = indicatorStatus(DRAFT_ID) || (current ? indicatorStatus(current.id) : null);
+  const draftStatus = (pineLib.get().shown.includes(DRAFT_ID) ? indicatorStatus(DRAFT_ID) : null) || (current ? indicatorStatus(current.id) : null);
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] overflow-hidden shadow-2xl">
@@ -208,7 +208,7 @@ const AdminEditor: React.FC<{ symbol: string; interval: string; onClose: () => v
         {busy ? <Loader2 className="w-3.5 h-3.5 mt-0.5 animate-spin shrink-0" /> : msg.kind === 'error' ? <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" /> : msg.kind === 'ok' ? <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" /> : null}
         <span className="whitespace-pre-wrap break-words">{msg.text}</span>
       </div>
-      {draftStatus && <div className="px-3 py-1 border-b border-slate-800"><StatusLine id={pineLib.get().shown.includes(DRAFT_ID) ? DRAFT_ID : current!.id} /></div>}
+      {draftStatus && (pineLib.get().shown.includes(DRAFT_ID) || current) && <div className="px-3 py-1 border-b border-slate-800"><StatusLine id={pineLib.get().shown.includes(DRAFT_ID) ? DRAFT_ID : current!.id} /></div>}
       {lib.error && <div className="px-3 py-1.5 text-[11px] text-rose-300 border-b border-slate-800">Library: {lib.error}</div>}
       {lib.backend.startsWith('temporary') && <div className="px-3 py-1.5 text-[11px] text-amber-200 bg-amber-500/10 border-b border-amber-500/30">Storage warning — {lib.backend}. Scripts saved now are kept only temporarily on the server; reconnect Supabase so they are stored permanently.</div>}
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px]">

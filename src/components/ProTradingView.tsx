@@ -3473,13 +3473,14 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 font-mono-code hidden sm:block truncate">
-                Authentic Feed • Visual TP/SL Projection Lines • Demo Execution & Instant Journaling
+                Live TradingView charts · Fundamentals bias · Private Pine indicators
               </p>
             </div>
           </div>
 
           {/* Middle: ACCOUNT BALANCE DISPLAY (Reflecting initial balance set during account creation) */}
-          <div className="flex items-center gap-3 bg-slate-950/90 border border-slate-800 px-3.5 py-1.5 rounded-xl shadow-inner text-xs font-mono-code flex-wrap">
+          {false && ( /* removed: account balance */
+<div className="flex items-center gap-3 bg-slate-950/90 border border-slate-800 px-3.5 py-1.5 rounded-xl shadow-inner text-xs font-mono-code flex-wrap">
             <div className="flex items-center gap-2">
               <Wallet className="w-4 h-4 text-cyan-400" />
               <div>
@@ -3525,11 +3526,13 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
           </div>
+)}
 
           {/* Middle/Right: REAL-TIME FUNDAMENTALS BIAS BUTTON & CANDLE COUNTDOWN */}
           <div className="flex items-center gap-2 flex-wrap shrink-0">
             {/* Fundamental Bias Quick-Inspector Button */}
-            <button
+            {false && ( /* removed: fundamental bias badge */
+<button
               type="button"
               onClick={() => {
                 if (!isSubscriber) {
@@ -3579,6 +3582,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 </>
               )}
             </button>
+)}
 
           </div>
         </div>
@@ -3645,7 +3649,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               </form>
 
               {/* Broker Selector (Includes FXCM) */}
-              <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-700 text-xs font-mono-code">
+              {false && ( /* removed: broker / FX feed selector */
+<div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-700 text-xs font-mono-code">
                 <Building2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                 <select
                   value={selectedBroker}
@@ -3660,6 +3665,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   ))}
                 </select>
               </div>
+)}
             </div>
           </div>
 
@@ -3938,7 +3944,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         {/* ===================================================================== */}
         <div className="pt-2 border-t border-slate-800/70 flex items-center justify-between gap-3 flex-wrap">
           {/* Left Execution Widget: Lots + Manual SL/TP + Buy/Sell Buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {false && ( /* removed: lots, SL/TP, projection lines, buy/sell */
+<div className="flex items-center gap-2 flex-wrap">
             {/* LOT SIZE SETTING */}
             <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-700 text-xs font-mono-code">
               <span className="text-slate-400 font-bold text-[11px]">LOTS:</span>
@@ -4091,6 +4098,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               </button>
             </div>
           </div>
+)}
 
           {/* Right Controls: Timeframe Quick Switcher + Tools */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -4632,7 +4640,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       {/* ========================================================================= */}
       {/* 3. DEMO TRADING ACTIVITY & TRADE HISTORY (Active Trades & Profits/Losses) */}
       {/* ========================================================================= */}
-      {!isFullscreen && (
+      {false && !isFullscreen && ( /* removed: demo trade activity (no execution in Premium) */
         <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl overflow-hidden shadow-xl text-xs font-mono-code">
         {/* Tabs Bar */}
         <div className="p-3 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-3 flex-wrap">

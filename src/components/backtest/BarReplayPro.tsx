@@ -10,7 +10,7 @@ function ensureLevelOverlay() {
   registerOverlay({
     name: 'ppfxLevel',
     totalStep: 2,
-    needDefaultPointFigure: true,
+    needDefaultPointFigure: false,
     needDefaultXAxisFigure: false,
     needDefaultYAxisFigure: true,
     createPointFigures: ({ coordinates, bounding, overlay }: any) => {
@@ -20,9 +20,15 @@ function ensureLevelOverlay() {
       const value = overlay.points?.[0]?.value;
       const label = typeof ext.label === 'function' ? ext.label(value) : String(value ?? '');
       const color = ext.color || '#94a3b8';
+      // Rough label width (11px bold font) so the drag handle sits just left of the label.
+      const labelW = label.length * 6.4 + 14;
+      const hx = Math.max(16, bounding.width - 8 - labelW - 14);
       return [
         { type: 'line', attrs: { coordinates: [{ x: 0, y: c.y }, { x: bounding.width, y: c.y }] }, styles: { style: 'dashed', color, size: 1.5, dashedValue: [6, 4] }, ignoreEvent: false },
-        { type: 'text', attrs: { x: bounding.width - 8, y: c.y - 3, text: label, align: 'right', baseline: 'bottom' }, styles: { color: '#0b1220', backgroundColor: color, borderColor: color, size: 11, weight: 'bold', paddingLeft: 6, paddingRight: 6, paddingTop: 3, paddingBottom: 3, borderRadius: 3 }, ignoreEvent: true },
+        // Drag handle: a clear dot on the line — press and drag it (or the line) up / down.
+        { type: 'circle', attrs: { x: hx, y: c.y, r: 7 }, styles: { style: 'stroke_fill', color: '#0b1220', borderColor: color, borderSize: 2.5 }, ignoreEvent: false },
+        { type: 'circle', attrs: { x: hx, y: c.y, r: 2.5 }, styles: { style: 'fill', color }, ignoreEvent: false },
+        { type: 'text', attrs: { x: bounding.width - 8, y: c.y - 3, text: label, align: 'right', baseline: 'bottom' }, styles: { color: '#0b1220', backgroundColor: color, borderColor: color, size: 11, weight: 'bold', paddingLeft: 6, paddingRight: 6, paddingTop: 3, paddingBottom: 3, borderRadius: 3 }, ignoreEvent: false },
       ];
     },
   } as any);
@@ -568,7 +574,14 @@ export const BarReplayPro: React.FC = () => {
           )}
           {error && <div className="px-3 py-2 text-[12px] text-rose-200 bg-rose-500/10 border-b border-rose-500/20 flex items-start gap-2"><span className="flex-1">{error}</span><button type="button" aria-label="Dismiss" onClick={() => setError(null)} className="text-rose-300 hover:text-white cursor-pointer"><X className="w-3.5 h-3.5" /></button></div>}
           {notice && !error && <div className="px-3 py-1.5 text-[11.5px] text-amber-200 bg-amber-500/10 border-b border-amber-500/20">{notice}</div>}
-          <div ref={chartHost} className={fullscreen ? 'flex-1 min-h-0' : 'h-[560px]'} />
+          <div className={`relative ${fullscreen ? 'flex-1 min-h-0' : 'h-[560px]'}`}>
+            <div ref={chartHost} className="absolute inset-0" />
+            <button type="button" onClick={() => { try { chartRef.current?.scrollToRealTime(250); } catch { /* ignore */ } }}
+              title="Back to the latest bar" aria-label="Back to the latest bar"
+              className="absolute bottom-10 right-16 z-10 w-9 h-9 rounded-full bg-slate-900/90 border border-slate-600 text-slate-200 hover:text-white hover:border-cyan-400 shadow-lg flex items-center justify-center cursor-pointer">
+              <ChevronsRight className="w-4 h-4" />
+            </button>
+          </div>
           <div className="h-1 bg-slate-800"><div className="h-full bg-cyan-500 transition-all" style={{ width: `${progress}%` }} /></div>
         </div>
 

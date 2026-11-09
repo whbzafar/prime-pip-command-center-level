@@ -19,22 +19,34 @@ const normTf = (tf: string) => {
 
 /** Vela data provider backed by the app's full-history feed (same data as Unlimited Charts / replay). */
 export function makeProvider(): DataProvider {
-  const feed = new FullHistoryDatafeed(() => {});
   return {
     async getBars(ticker, timeframe, range) {
       const entry = CATALOG.find((e) => e.ticker === ticker.replace(/^PPFX:/i, '').toUpperCase());
       const text = PERIOD_TEXT[normTf(timeframe)];
       const period = PRO_PERIODS.find((p) => p.text === text);
       if (!entry || !period) return [];
-      const to = range.to ?? Date.now() + 60_000;
-      let rows: any[] = [];
-      for (let attempt = 0; attempt < 2 && !rows.length; attempt++) {
-        try { rows = (await feed.getHistoryKLineData(entry as any, period, 0, to)) || []; } catch { rows = []; }
+      // A fresh feed per request: the feed keeps paging state, and a shared one let a running
+      // strategy's history requests block the chart's scroll-back loads.
+      let cursor = range.to ?? Date.now() + 60_000;
+      const want = range.limit ?? 0;
+      const all = new Map<number, OHLCV>();
+      for (let page = 0; page < 12; page++) {
+        let rows: any[] = [];
+        for (let attempt = 0; attempt < 2 && !rows.length; attempt++) {
+          try { rows = (await new FullHistoryDatafeed(() => {}).getHistoryKLineData(entry as any, period, 0, cursor)) || []; } catch { rows = []; }
+        }
+        if (!rows.length) break;
+        for (const r of rows) if (r.timestamp < (range.to ?? Infinity) + 1) all.set(r.timestamp, { time: r.timestamp, open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume ?? 0 });
+        const oldest = rows[0].timestamp;
+        if (oldest >= cursor) break; // no progress
+        cursor = oldest - 1;
+        const coveredFrom = range.from !== undefined && oldest <= range.from;
+        const enough = want > 0 && all.size >= want;
+        if (coveredFrom || enough || (range.from === undefined && !want)) break;
       }
-      const bars: OHLCV[] = rows.map((r) => ({ time: r.timestamp, open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume ?? 0 }))
-        .filter((b) => (range.from === undefined || b.time >= range.from) && b.time < to)
-        .sort((a, b) => a.time - b.time);
-      return bars.filter((b, i) => i === 0 || b.time !== bars[i - 1].time);
+      let bars = [...all.values()].filter((b) => range.from === undefined || b.time >= range.from).sort((a, b) => a.time - b.time);
+      if (want > 0 && bars.length > want) bars = bars.slice(-want);
+      return bars;
     },
     async listSymbols() {
       return CATALOG.map((e) => ({ ticker: e.ticker, description: e.name, type: e.market === 'forex' ? 'forex' : e.market === 'crypto' ? 'crypto' : e.market === 'stocks' ? 'stock' : e.market === 'indices' ? 'index' : 'commodity' })) as any;

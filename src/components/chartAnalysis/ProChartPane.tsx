@@ -107,5 +107,14 @@ export const ProChartPane: React.FC<{
     lastReported.current = state;
   }, [state.ticker, state.period]);
 
-  return <div ref={hostRef} className="ppfx-pro-chart w-full h-full" />;
+  return (
+    <div className="relative w-full h-full">
+      <div ref={hostRef} className="ppfx-pro-chart w-full h-full" />
+      <button type="button" title="Back to the latest bar" aria-label="Back to the latest bar"
+        onClick={() => { const c: any = chartRef.current; if (!c) return; try { c.setPeriod({ ...c.getPeriod() }); } catch { /* ignore */ } }}
+        className="absolute bottom-12 right-20 z-20 w-9 h-9 rounded-full bg-slate-900/90 border border-slate-600 text-slate-200 hover:text-white hover:border-cyan-400 shadow-lg flex items-center justify-center cursor-pointer">
+        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 17 5-5-5-5" /><path d="m13 17 5-5-5-5" /></svg>
+      </button>
+    </div>
+  );
 };

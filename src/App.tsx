@@ -1382,11 +1382,18 @@ export default function App() {
           <ProLearningTrading onNavigateTab={(tab) => handleSelectTab(tab)} />
         )}
 
+        {/* TRADER COMMUNITY FEED — locked for everyone (admins included) until launch */}
         {activeTab === 'COMMUNITY' && (
-          <CommunityChat
-            currentUser={currentUser}
-            onOpenLogin={() => setIsLoginModalOpen(true)}
-          />
+          <div className="max-w-2xl mx-auto mt-10 rounded-3xl p-[1px] bg-gradient-to-br from-cyan-500/40 via-violet-500/30 to-amber-400/40">
+            <div className="rounded-[23px] bg-[#070b14] px-6 py-10 text-center">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-violet-500/30">
+                <Lock className="w-6 h-6 text-white" />
+              </div>
+              <div className="mt-4 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] px-2.5 py-1 rounded-full border border-amber-400/50 bg-amber-500/10 text-amber-200">Coming soon</div>
+              <h2 className="mt-3 text-2xl font-extrabold text-slate-50">Trader Community Feed</h2>
+              <p className="mt-2 text-[13px] text-slate-400 leading-relaxed">Friends, private messages, groups, voice &amp; video calls and the Hub are being prepared for launch. This section is locked for everyone until it is ready.</p>
+            </div>
+          </div>
         )}
 
         {activeTab === 'BOOK_SESSION' && (

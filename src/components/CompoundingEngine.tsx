@@ -110,6 +110,21 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
   const realWinRate = closedTrades.length > 0 ? (realWins / closedTrades.length) * 100 : 0;
   const realTotalPnl = closedTrades.reduce((acc, t) => acc + (t.profitLoss || 0), 0);
   const realReturnPct = account.initialBalance > 0 ? (realTotalPnl / account.initialBalance) * 100 : 0;
+  // Real edge from the journal: average win and loss in R (1R = average loss), trades per day.
+  const realEdge = useMemo(() => {
+    const wins = closedTrades.filter((t) => (t.profitLoss || 0) > 0);
+    const losses = closedTrades.filter((t) => (t.profitLoss || 0) < 0);
+    const avgWin = wins.length ? wins.reduce((a, t) => a + t.profitLoss, 0) / wins.length : 0;
+    const avgLoss = losses.length ? Math.abs(losses.reduce((a, t) => a + t.profitLoss, 0) / losses.length) : 0;
+    const rr = avgLoss > 0 ? avgWin / avgLoss : 0;
+    const days = new Set(closedTrades.map((t) => t.date)).size;
+    const perDay = days ? closedTrades.length / days : 0;
+    const bal = account.initialBalance > 0 ? account.initialBalance : activeBalance;
+    const riskPct = bal > 0 && avgLoss > 0 ? (avgLoss / bal) * 100 : 0;
+    const expectancyR = (realWinRate / 100) * rr - (1 - realWinRate / 100);
+    return { avgWin, avgLoss, rr, perDay, riskPct, expectancyR, days, enough: closedTrades.length >= 20 };
+  }, [closedTrades, realWinRate, account.initialBalance, activeBalance]);
+
 
   // Table Pagination supporting Daily, Weekly, and Monthly views
   const currentTableList = useMemo(() => {
@@ -500,78 +515,49 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
 
           {/* Results & Chart Column */}
           <div className="lg:col-span-7 space-y-4">
-            {/* Top Scorecards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
-                <span className="text-[10px] text-slate-400 font-mono-code uppercase block">START CAPITAL</span>
-                <span className="text-sm font-military font-bold text-slate-100 truncate block">
-                  {formatCurrency(effectiveStartBalance, currency)}
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-blue-500/30">
-                <span className="text-[10px] text-cyan-400 font-mono-code uppercase block">PROJECTED END</span>
-                <span className="text-sm font-military font-bold text-cyan-400 truncate block">
-                  {formatCurrency(projection.finalProjectedBalance, currency)}
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
-                <span className="text-[10px] text-slate-400 font-mono-code uppercase block">TOTAL RETURN</span>
-                <span className={`text-sm font-military font-bold truncate block ${projection.totalProjectedReturnPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  +{projection.totalProjectedReturnPercent.toFixed(1)}%
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
-                <span className="text-[10px] text-slate-400 font-mono-code uppercase block">AVG DAILY GAIN</span>
-                <span className="text-sm font-military font-bold text-emerald-400 truncate block">
-                  +{formatCurrency(projection.averageDailyGainDollars, currency)}
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
-                <span className="text-[10px] text-slate-400 font-mono-code uppercase block">AVG WEEKLY GAIN</span>
-                <span className="text-sm font-military font-bold text-emerald-400 truncate block">
-                  +{formatCurrency(projection.averageWeeklyGainDollars, currency)}
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
-                <span className="text-[10px] text-slate-400 font-mono-code uppercase block">AVG MONTHLY (21D)</span>
-                <span className="text-sm font-military font-bold text-amber-300 truncate block">
-                  +{formatCurrency(projection.averageMonthlyGainDollars, currency)}
-                </span>
-              </div>
-            </div>
-
-            {/* REALITY CHECK — 2,000 random trade orders with the same win rate, risk and R:R */}
-            <div className="rounded-xl border border-violet-500/30 bg-gradient-to-br from-violet-500/[0.07] to-slate-950 p-3.5">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="text-[11px] font-mono-code uppercase tracking-widest text-violet-300">Reality check · {projection.monteCarlo.runs.toLocaleString()} random trade sequences</div>
-                <div className="text-[10px] text-slate-500">Same win rate, risk and R:R — wins and losses in random order, so streaks happen</div>
-              </div>
-              <div className="mt-2.5 grid grid-cols-2 md:grid-cols-4 gap-2">
-                {[
-                  ['Bad case (1 in 10)', formatCurrency(projection.monteCarlo.p10, currency), 'text-rose-300'],
-                  ['Typical (median)', formatCurrency(projection.monteCarlo.median, currency), 'text-cyan-300'],
-                  ['Good case (1 in 10)', formatCurrency(projection.monteCarlo.p90, currency), 'text-emerald-300'],
-                  ['Chance of ending below start', `${projection.monteCarlo.probBelowStart}%`, projection.monteCarlo.probBelowStart > 20 ? 'text-rose-300' : 'text-slate-100'],
-                  ['Typical deepest drawdown', `${projection.monteCarlo.medianMaxDrawdownPct}%`, 'text-amber-300'],
-                  ['Bad-case drawdown (1 in 10)', `${projection.monteCarlo.p90MaxDrawdownPct}%`, 'text-rose-300'],
-                  ['Typical longest losing streak', `${projection.monteCarlo.medianLongestLosingStreak} trades`, 'text-slate-100'],
-                  ['Exact expected path (above)', formatCurrency(projection.finalProjectedBalance, currency), 'text-slate-100'],
-                ].map(([k, v, c]) => (
-                  <div key={k} className="rounded-lg border border-slate-800 bg-slate-950/70 px-2.5 py-2">
-                    <div className="text-[9.5px] uppercase tracking-wider text-slate-500">{k}</div>
-                    <div className={`text-[14px] font-bold font-mono-code ${c}`}>{v}</div>
+            {/* KEY RESULTS — only what a professional checks */}
+            {(() => {
+              const end = projection.finalProjectedBalance;
+              const ret = effectiveStartBalance > 0 ? ((end - effectiveStartBalance) / effectiveStartBalance) * 100 : 0;
+              const mc = projection.monteCarlo;
+              const expectancyR = (expectedWinRate / 100) * riskRewardRatio - (1 - expectedWinRate / 100);
+              const tone = (v: number) => (v >= 0 ? 'text-emerald-300' : 'text-rose-300');
+              return (
+                <div className="rounded-2xl p-[1px] bg-gradient-to-br from-cyan-500/40 via-violet-500/25 to-emerald-500/30">
+                  <div className="rounded-[15px] bg-[#070b14] p-4">
+                    <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Expected result · {projection.totalSimulatedTrades} trades ({projection.totalWins} wins / {projection.totalSimulatedTrades - projection.totalWins} losses)</div>
+                        <div className="mt-1 flex items-baseline gap-3 flex-wrap">
+                          <span className="text-[13px] text-slate-400 font-mono-code">{formatCurrency(effectiveStartBalance, currency)} →</span>
+                          <span className="text-[28px] font-extrabold font-mono-code text-slate-50">{formatCurrency(end, currency)}</span>
+                          <span className={`text-[16px] font-bold font-mono-code ${tone(ret)}`}>{ret >= 0 ? '+' : ''}{ret.toFixed(2)}%</span>
+                        </div>
+                      </div>
+                      <div className={`text-right text-[11px] font-mono-code ${expectancyR > 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                        Edge: {expectancyR >= 0 ? '+' : ''}{expectancyR.toFixed(2)}R per trade
+                        <div className="text-[10px] text-slate-500">{expectancyR > 0 ? 'positive expectancy' : 'no edge — this setup loses over time'}</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {[
+                        ['Realistic range', `${formatCurrency(mc.p10, currency)} – ${formatCurrency(mc.p90, currency)}`, 'text-slate-100', '8 in 10 outcomes land here'],
+                        ['Chance of a loss', `${mc.probBelowStart}%`, mc.probBelowStart > 25 ? 'text-rose-300' : mc.probBelowStart > 10 ? 'text-amber-300' : 'text-emerald-300', 'ending below the start'],
+                        ['Expected drawdown', `${mc.medianMaxDrawdownPct}%`, 'text-amber-300', `bad case ${mc.p90MaxDrawdownPct}%`],
+                        ['Losing streak to expect', `${mc.medianLongestLosingStreak} in a row`, 'text-slate-100', `at ${riskPercent}% risk = −${(mc.medianLongestLosingStreak * riskPercent).toFixed(1)}%`],
+                      ].map(([k, v, c, sub]) => (
+                        <div key={k} className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2">
+                          <div className="text-[9.5px] uppercase tracking-wider text-slate-500">{k}</div>
+                          <div className={`text-[14px] font-bold font-mono-code ${c}`}>{v}</div>
+                          <div className="text-[10px] text-slate-500">{sub}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2.5 text-[10.5px] text-slate-500 leading-relaxed">Expected result = your win rate hit exactly, with risk recalculated before every trade. The range, loss chance, drawdown and streak come from 2,000 random orders of the same trades. Compare the drawdown with your firm's daily and max loss limits before choosing the risk %.</p>
                   </div>
-                ))}
-              </div>
-              <p className="mt-2 text-[10.5px] text-slate-500 leading-relaxed">
-                The projection above is the exact expected path: risk is recalculated before every trade, and the win rate is hit precisely. Real trading delivers the same edge in a random order. Use the bad-case numbers and drawdowns to size risk so a normal losing streak never breaks a prop-firm daily or overall loss limit.
-              </p>
-            </div>
+                </div>
+              );
+            })()}
 
             {/* Compounding Visual Growth Chart (Item 8) */}
             <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg">
@@ -834,99 +820,55 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
         </div>
       )}
 
-      {engineTab === 'REAL_VS_PROJECTED' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* REAL DATA CARD */}
-            <div className="bg-slate-950/90 border border-emerald-500/40 rounded-xl p-5 shadow-xl space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4 text-emerald-400" />
-                  <h4 className="text-xs font-military font-bold text-slate-100 tracking-wider">
-                    REAL TRADING PERFORMANCE
-                  </h4>
-                </div>
-                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono-code font-bold text-[10px] border border-emerald-500/30">
-                  REAL DATA ONLY
-                </span>
+      {engineTab === 'REAL_VS_PROJECTED' && (() => {
+        const periodDays = projection.totalTradingDays || Math.max(1, Math.round(projection.totalSimulatedTrades / Math.max(1, tradesPerDay)));
+        const real = realEdge.rr > 0 && closedTrades.length > 0 ? calculateCompoundingProjection({
+          startingBalance: effectiveStartBalance, compoundingMode: 'PERCENTAGE_COMPOUNDING',
+          riskPercent: Math.max(0.05, realEdge.riskPct || riskPercent), fixedRiskAmount: 0,
+          expectedWinRate: realWinRate, riskRewardRatio: Math.max(0.1, realEdge.rr),
+          tradesPerDay: Math.max(1, Math.round(realEdge.perDay) || 1), tradingDaysPerMonth: 21, calculationMonths: 0, customDays: periodDays,
+        }) : null;
+        const planR = (expectedWinRate / 100) * riskRewardRatio - (1 - expectedWinRate / 100);
+        const rows: [string, string, string, boolean | null][] = [
+          ['Win rate', `${expectedWinRate.toFixed(0)}%`, closedTrades.length ? `${realWinRate.toFixed(1)}%` : '—', closedTrades.length ? realWinRate >= expectedWinRate : null],
+          ['Reward : risk (avg win ÷ avg loss)', `1:${riskRewardRatio.toFixed(2)}`, realEdge.rr ? `1:${realEdge.rr.toFixed(2)}` : '—', realEdge.rr ? realEdge.rr >= riskRewardRatio : null],
+          ['Edge per trade', `${planR >= 0 ? '+' : ''}${planR.toFixed(2)}R`, realEdge.rr ? `${realEdge.expectancyR >= 0 ? '+' : ''}${realEdge.expectancyR.toFixed(2)}R` : '—', realEdge.rr ? realEdge.expectancyR >= planR : null],
+          ['Risk per trade (avg loss)', `${riskPercent}%`, realEdge.riskPct ? `${realEdge.riskPct.toFixed(2)}%` : '—', realEdge.riskPct ? realEdge.riskPct <= riskPercent * 1.15 : null],
+          ['Trades per day', `${tradesPerDay}`, realEdge.perDay ? realEdge.perDay.toFixed(1) : '—', null],
+          [`Result after ${periodDays} trading days`, formatCurrency(projection.finalProjectedBalance, currency), real ? formatCurrency(real.finalProjectedBalance, currency) : '—', real ? real.finalProjectedBalance >= projection.finalProjectedBalance : null],
+        ];
+        const fixes: string[] = [];
+        if (closedTrades.length && realWinRate < expectedWinRate - 3) fixes.push(`Win rate is ${(expectedWinRate - realWinRate).toFixed(1)} points below plan — be stricter with entries (A+ setups only, confirm on the higher timeframe).`);
+        if (realEdge.rr && realEdge.rr < riskRewardRatio * 0.85) fixes.push(`Winners average 1:${realEdge.rr.toFixed(2)} instead of 1:${riskRewardRatio} — let trades reach the target; avoid closing early.`);
+        if (realEdge.riskPct && realEdge.riskPct > riskPercent * 1.15) fixes.push(`Average loss is ${realEdge.riskPct.toFixed(2)}% vs the planned ${riskPercent}% — size every trade with the Lot Size Calculator and never move the stop.`);
+        if (realEdge.rr && realEdge.expectancyR <= 0) fixes.push('Your real edge is negative — pause compounding, trade minimum size and review the journal until the edge is positive over 20+ trades.');
+        if (!fixes.length && closedTrades.length) fixes.push('You are trading at or above the plan — keep the same risk and process.');
+        return (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-cyan-300">Plan vs your real trading</div>
+              <p className="text-[11.5px] text-slate-400 mt-1">The plan uses the inputs from the Simulator tab. "Your trading" uses the closed trades in this account's journal, then projects them over the same period — so you see where you will really end up if nothing changes.</p>
+              {!closedTrades.length && <div className="mt-3 text-[12px] text-amber-200">No closed trades yet — log trades in the journal to compare.</div>}
+              {closedTrades.length > 0 && !realEdge.enough && <div className="mt-2 text-[11px] text-amber-200">Only {closedTrades.length} closed trades — the comparison becomes reliable after 20+.</div>}
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-[12px] font-mono-code">
+                  <thead><tr className="text-[10px] uppercase tracking-wider text-slate-500"><th className="text-left py-1.5">Metric</th><th className="text-right py-1.5">Plan</th><th className="text-right py-1.5">Your trading</th><th className="text-right py-1.5 w-8"></th></tr></thead>
+                  <tbody>
+                    {rows.map(([k, plan, mine, ok]) => (
+                      <tr key={k} className="border-t border-slate-800/70"><td className="py-2 text-slate-300 font-sans">{k}</td><td className="py-2 text-right text-cyan-200">{plan}</td><td className={`py-2 text-right ${ok === null ? 'text-slate-200' : ok ? 'text-emerald-300' : 'text-rose-300'}`}>{mine}</td><td className="py-2 text-right">{ok === null ? '' : ok ? '✓' : '✗'}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-
-              <div className="space-y-3 text-xs font-mono-code">
-                <div className="flex items-center justify-between p-2.5 rounded bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Total Recorded Trades:</span>
-                  <strong className="text-slate-100">{closedTrades.length}</strong>
-                </div>
-
-                <div className="flex items-center justify-between p-2.5 rounded bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Actual Win Rate:</span>
-                  <strong className={realWinRate >= 50 ? 'text-emerald-400' : 'text-slate-200'}>
-                    {closedTrades.length > 0 ? `${realWinRate.toFixed(1)}%` : 'NO CLOSED TRADES'}
-                  </strong>
-                </div>
-
-                <div className="flex items-center justify-between p-2.5 rounded bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Net Realized P&L:</span>
-                  <strong className={realTotalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                    {realTotalPnl >= 0 ? `+$${realTotalPnl.toLocaleString()}` : `-$${Math.abs(realTotalPnl).toLocaleString()}`}
-                  </strong>
-                </div>
-
-                <div className="flex items-center justify-between p-2.5 rounded bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Actual Return on Initial:</span>
-                  <strong className={realReturnPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                    {realReturnPct.toFixed(2)}%
-                  </strong>
-                </div>
-              </div>
-
-              <p className="text-[11px] text-slate-400 font-sans pt-2 border-t border-slate-800">
-                Generated strictly from verified executed orders recorded in your database. Zero assumed inputs.
-              </p>
             </div>
-
-            {/* PROJECTED SCENARIO CARD */}
-            <div className="bg-slate-950/90 border border-blue-500/40 rounded-xl p-5 shadow-xl space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <Calculator className="w-4 h-4 text-cyan-400" />
-                  <h4 className="text-xs font-military font-bold text-slate-100 tracking-wider">
-                    THEORETICAL MODEL PROJECTION
-                  </h4>
-                </div>
-                <span className="px-2 py-0.5 rounded bg-blue-500/20 text-cyan-400 font-mono-code font-bold text-[10px] border border-blue-500/30">
-                  PROJECTED SCENARIO
-                </span>
-              </div>
-
-              <div className="space-y-3 text-xs font-mono-code">
-                <div className="flex items-center justify-between p-2.5 rounded bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Simulation Period:</span>
-                  <strong className="text-slate-100">{projection.totalDays} Days ({selectedPeriodMonths} Months)</strong>
-                </div>
-
-                <div className="flex items-center justify-between p-2.5 rounded bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Assumed Win Rate:</span>
-                  <strong className="text-cyan-400">{expectedWinRate}%</strong>
-                </div>
-
-                <div className="flex items-center justify-between p-2.5 rounded bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Assumed R:R:</span>
-                  <strong className="text-cyan-400">{riskRewardRatio}:1</strong>
-                </div>
-
-                <div className="flex items-center justify-between p-2.5 rounded bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Projected Ending Capital:</span>
-                  <strong className="text-cyan-400">${Math.round(projection.finalProjectedBalance).toLocaleString()}</strong>
-                </div>
-              </div>
-
-              <p className="text-[11px] text-slate-400 font-sans pt-2 border-t border-slate-800">
-                Based entirely on hypothetical mathematical inputs. Intended for probability awareness, never as a profit guarantee.
-              </p>
+            <div className="rounded-2xl border border-violet-500/30 bg-violet-500/[0.05] p-4">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-violet-300">What to fix first</div>
+              <ul className="mt-2 space-y-1.5">{fixes.map((f) => <li key={f} className="text-[12.5px] text-slate-200 flex gap-2"><span className="text-violet-400">→</span><span>{f}</span></li>)}</ul>
+              <div className="mt-2 text-[10.5px] text-slate-500">Net realised P&L so far: <span className={realTotalPnl >= 0 ? 'text-emerald-300' : 'text-rose-300'}>{formatCurrency(realTotalPnl, currency)} ({realReturnPct.toFixed(2)}%)</span> over {closedTrades.length} trades.</div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

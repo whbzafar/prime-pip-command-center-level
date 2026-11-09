@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { MindCheckIn } from './psychology/MindCheckIn';
 import {
   Brain,
   AlertTriangle,
@@ -58,6 +59,7 @@ import {
   InteractiveSession,
   SessionResultLog,
   HabitProgressState,
+  PSYCHOLOGY_CATEGORIES,
 } from './psychology/psychologyData';
 import { CategoriesDashboard } from './psychology/CategoriesDashboard';
 import { CategoryDetailView } from './psychology/CategoryDetailView';
@@ -730,6 +732,12 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
           {/* ========================================================================= */}
           {/* SECTION: 17 DEDICATED PSYCHOLOGY CATEGORIES */}
           {/* ========================================================================= */}
+          {activeSection === 'CATEGORIES' && (
+            <MindCheckIn
+              userName={(currentUser as any)?.name}
+              onOpenCategory={(id) => { const c = PSYCHOLOGY_CATEGORIES[id]; if (c) { setSelectedCategory(c); window.scrollTo({ top: 0, behavior: 'smooth' }); } }}
+            />
+          )}
           {activeSection === 'CATEGORIES' && (
             <CategoriesDashboard
               onSelectCategory={(category) => setSelectedCategory(category)}

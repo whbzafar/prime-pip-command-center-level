@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { MindGuidePanel } from './MindGuidePanel';
 import {
   ArrowLeft,
   ArrowRight,
@@ -177,6 +178,8 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
           <span>({completedCount} completed)</span>
         </div>
       </div>
+
+      <MindGuidePanel categoryId={category.id} categoryName={category.name} />
 
       <section className="relative overflow-hidden rounded-3xl border border-indigo-500/30 bg-gradient-to-br from-[#0d1424] via-indigo-950/40 to-slate-950 p-5 shadow-2xl sm:p-7">
         <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl" />
