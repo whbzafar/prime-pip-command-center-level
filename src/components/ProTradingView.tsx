@@ -2934,10 +2934,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         popup_width: '1000',
         popup_height: '650',
         withdateranges: 'true',
-        show_last_price_and_countdown: '1',
-        // TradingView's own bar-close countdown, drawn on the price scale right beside the last
-        // candle's price label (and paused by TradingView itself when the session is closed).
-        overrides: JSON.stringify({ 'mainSeriesProperties.showCountdown': chartSettings.showCountdown !== false, 'scalesProperties.showSeriesLastValue': true }),
       });
 
       container.innerHTML = '';
