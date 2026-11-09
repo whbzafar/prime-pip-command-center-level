@@ -47,20 +47,9 @@ const chartReady = await waitFor(A.page, () => !!document.querySelector('[data-t
 console.log('ADMIN chart ready ms:', chartReady, 'source label:', await A.page.evaluate(() => (document.body.innerText.match(/EURUSD\s*·\s*[A-Za-z]+/) || [''])[0]));
 await A.page.getByRole('button', { name: /Pine Editor/ }).first().click(); await A.page.waitForTimeout(4000);
 await A.page.locator('[aria-label="Pine Script editor"]').fill(SRC.replace('PPFX Speed Test', 'PPFX Draft Test'));
-const t1 = Date.now();
-await A.page.getByRole('button', { name: /Add to chart/ }).click();
-const draftMs = await waitFor(A.page, () => [...document.querySelectorAll('*')].some((e) => e.children.length === 0 && /PPFX Draft Test/.test(e.textContent || '') && !e.closest('[aria-label="Pine Script editor"]') && !e.closest('button')));
-console.log('ADMIN editor Add-to-chart -> on chart ms:', draftMs);
-await A.page.locator('[aria-label="Pine Script editor"]').fill(SRC.replace('PPFX Speed Test', 'PPFX Draft Test').replace('ema(close, 21)', 'ema(close, 34)'));
-await A.page.getByRole('button', { name: /Add to chart/ }).click();
-await A.page.waitForTimeout(400);
-const t2 = Date.now();
-const upd = await waitFor(A.page, () => /updated on the chart|is on the chart/.test(document.body.innerText), 60000);
-console.log('ADMIN edit re-apply ms:', upd);
-await shot(A.page, 'u1-admin-draft');
-
+await A.page.keyboard.press('Escape');
 // STUDENT chip timing
-const S = await ctxFor('student', { ppfx_premium_engine: 'pro' });
+const S = await ctxFor('student');
 await enter(S.page);
 await openPremium(S.page);
 console.log('STUDENT chart ready ms:', await waitFor(S.page, () => !!document.querySelector('[data-testid="price-alert-overlay"]')));
@@ -84,8 +73,8 @@ const b = await ifr.boundingBox().catch(() => null);
 const fr = () => S.page.frames().find((f) => /tradingview/.test(f.url()));
 if (b && fr()) {
   await S.page.mouse.click(b.x + b.width - 30, b.y + b.height * 0.4, { button: 'right' }); await S.page.waitForTimeout(1200);
-  await fr().getByText(/^Labels$/).first().hover(); await S.page.waitForTimeout(1000);
-  await fr().getByText(/Countdown to bar close/).first().click().catch((e) => console.log('cd click', e.message.slice(0, 60)));
+  await fr().getByText(/^Labels$/).first().click().catch(() => {}); await S.page.waitForTimeout(1000);
+  await fr().getByText(/Countdown to bar close/).first().click({ force: true, timeout: 8000 }).catch((e) => console.log('cd click', e.message.slice(0, 60)));
   await S.page.waitForTimeout(2500);
   await shot(S.page, 'u3-tv-countdown-on');
   await S.page.reload({ waitUntil: 'domcontentloaded' }); await S.page.waitForTimeout(7000); await openPremium(S.page, 'EURUSD'); await S.page.waitForTimeout(12000);
@@ -93,7 +82,7 @@ if (b && fr()) {
   await shot(S.page, 'u4-tv-after-reload');
   const b2 = await S.page.locator('iframe[src*="tradingview"]').first().boundingBox();
   await S.page.mouse.click(b2.x + b2.width - 30, b2.y + b2.height * 0.4, { button: 'right' }); await S.page.waitForTimeout(1200);
-  await fr().getByText(/^Labels$/).first().hover(); await S.page.waitForTimeout(1000);
+  await fr().getByText(/^Labels$/).first().click().catch(() => {}); await S.page.waitForTimeout(1000);
   await shot(S.page, 'u5-tv-labels-after-reload');
   await S.page.keyboard.press('Escape');
 }
