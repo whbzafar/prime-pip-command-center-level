@@ -1,4 +1,4 @@
-// Compounding Engine & Loss Recovery Mathematical Simulator
+// Compounding Engine — projection + Monte Carlo realism check
 // 100% offline, zero external APIs, pure financial mathematics
 
 export type CompoundingMode = 'FIXED_RISK' | 'PERCENTAGE_COMPOUNDING';
@@ -72,6 +72,21 @@ export interface CompoundingResult {
   totalWins: number;
   totalLosses: number;
   simulatedWinRatePercent: number;
+  /** Realistic range from random trade orders with the same win rate (Monte Carlo). */
+  monteCarlo: MonteCarloSummary;
+}
+
+export interface MonteCarloSummary {
+  runs: number;
+  p10: number;          // 1 in 10 runs ends at or below this
+  median: number;
+  p90: number;          // 1 in 10 runs ends at or above this
+  worst: number;
+  best: number;
+  probBelowStart: number;     // % of runs ending below the starting balance
+  medianMaxDrawdownPct: number;
+  p90MaxDrawdownPct: number;  // 1 in 10 runs suffers at least this deepest drawdown
+  medianLongestLosingStreak: number;
 }
 
 /**
@@ -142,26 +157,22 @@ export function calculateCompoundingProjection(inputs: CompoundingInputs): Compo
     ? inputs.customDays
     : Math.round(inputs.calculationMonths * (inputs.tradingDaysPerMonth || 21));
 
-  const safeDays = Math.min(365, Math.max(1, totalDays));
-  const winRateFrac = Math.max(0.05, Math.min(0.95, inputs.expectedWinRate / 100));
-  const rr = Math.max(0.5, inputs.riskRewardRatio);
+  const safeDays = Math.min(1000, Math.max(1, totalDays));
+  const winRateFrac = Math.max(0, Math.min(1, inputs.expectedWinRate / 100));
+  const rr = Math.max(0.1, inputs.riskRewardRatio);
   const tradesPerDay = Math.max(1, Math.min(10, inputs.tradesPerDay));
   const totalTrades = safeDays * tradesPerDay;
 
-  // Generate deterministic win/loss distribution exactly matching expectedWinRate
+  // Main projection: the exact expected path — wins spread evenly through the period with the
+  // win rate hit precisely. With % risk compounding per trade the final balance is
+  // B × (1 + r·RR)^wins × (1 − r)^losses, independent of the order of wins and losses.
   const targetWins = Math.round(totalTrades * winRateFrac);
   const tradeOutcomes: boolean[] = [];
-  
-  // Bresenham-like balanced distribution with deterministic organic spacing
   let winAccumulator = 0;
   for (let i = 0; i < totalTrades; i++) {
     winAccumulator += targetWins;
-    if (winAccumulator >= totalTrades) {
-      tradeOutcomes.push(true);
-      winAccumulator -= totalTrades;
-    } else {
-      tradeOutcomes.push(false);
-    }
+    if (winAccumulator >= totalTrades) { tradeOutcomes.push(true); winAccumulator -= totalTrades; }
+    else tradeOutcomes.push(false);
   }
 
   let currentBalance = Math.max(10, inputs.startingBalance);
@@ -192,33 +203,27 @@ export function calculateCompoundingProjection(inputs: CompoundingInputs): Compo
 
     const startBal = currentBalance;
 
-    // Calculate risk per trade for this day
-    const riskPerTrade = inputs.compoundingMode === 'FIXED_RISK'
-      ? Math.max(1, inputs.fixedRiskAmount)
-      : (startBal * Math.max(0.1, inputs.riskPercent)) / 100;
-
+    let running = startBal;
     let dayPnl = 0;
     let dayWins = 0;
     let dayLosses = 0;
     const tradesDetail: { tradeNum: number; result: 'TP_HIT' | 'SL_HIT'; pnl: number }[] = [];
 
     for (let t = 1; t <= tradesPerDay; t++) {
-      const isWin = tradeOutcomes[tradeCursor] ?? (Math.random() < winRateFrac);
+      // Risk is set before EVERY trade: % of the current balance, or a fixed amount.
+      const riskPerTrade = inputs.compoundingMode === 'FIXED_RISK'
+        ? Math.max(1, inputs.fixedRiskAmount)
+        : (running * Math.max(0.01, inputs.riskPercent)) / 100;
+      const isWin = tradeOutcomes[tradeCursor] ?? false;
       tradeCursor++;
-
-      if (isWin) {
-        const winPnl = Number((riskPerTrade * rr).toFixed(2));
-        dayPnl += winPnl;
-        dayWins++;
-        totalWins++;
-        tradesDetail.push({ tradeNum: t, result: 'TP_HIT', pnl: winPnl });
-      } else {
-        const lossPnl = -Number(riskPerTrade.toFixed(2));
-        dayPnl += lossPnl;
-        dayLosses++;
-        totalLosses++;
-        tradesDetail.push({ tradeNum: t, result: 'SL_HIT', pnl: lossPnl });
-      }
+      const tradePnl = isWin ? riskPerTrade * rr : -Math.min(riskPerTrade, running);
+      running = Math.max(0, running + tradePnl);
+      dayPnl += tradePnl;
+      if (isWin) { dayWins++; totalWins++; } else { dayLosses++; totalLosses++; }
+      tradesDetail.push({ tradeNum: t, result: isWin ? 'TP_HIT' : 'SL_HIT', pnl: Number(tradePnl.toFixed(2)) });
+      // Drawdown is tracked trade by trade, not only at the end of the day.
+      if (running > peakBalance) peakBalance = running;
+      if (peakBalance - running > maxDrawdownDollars) maxDrawdownDollars = peakBalance - running;
     }
 
     const endBal = Math.max(0, startBal + dayPnl);
@@ -231,8 +236,8 @@ export function calculateCompoundingProjection(inputs: CompoundingInputs): Compo
     }
 
     const nextRisk = inputs.compoundingMode === 'FIXED_RISK'
-      ? riskPerTrade
-      : (endBal * Math.max(0.1, inputs.riskPercent)) / 100;
+      ? Math.max(1, inputs.fixedRiskAmount)
+      : (endBal * Math.max(0.01, inputs.riskPercent)) / 100;
 
     const y = currentDate.getFullYear();
     const m = String(currentDate.getMonth() + 1).padStart(2, '0');
@@ -297,71 +302,54 @@ export function calculateCompoundingProjection(inputs: CompoundingInputs): Compo
     totalWins,
     totalLosses,
     simulatedWinRatePercent: totalTrades > 0 ? Math.round((totalWins / totalTrades) * 100) : 0,
+    monteCarlo: runMonteCarlo(inputs, totalTrades, winRateFrac, rr),
   };
 }
 
 // ---------------------------------------------------------------------------
-// LOSS RECOVERY SIMULATOR (Item 25)
-// Pure mathematical asymmetry calculation
+// MONTE CARLO — the same win rate, risk and R:R with trades in random order. Shows the realistic
+// spread of outcomes (streaks happen), the true depth of drawdowns and the chance of ending down.
+// Seeded, so the same inputs always give the same numbers.
 // ---------------------------------------------------------------------------
-
-export interface LossRecoveryScenario {
-  drawdownPercent: number;
-  requiredGainPercent: number;
-  sampleStartingBalance: number;
-  balanceAfterLoss: number;
-  dollarGainRequired: number;
-  estimatedTradesRequiredAt1Pct: number; // assuming 1.5R and 50% WR
+function mulberry32(seed: number) {
+  return () => {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
+const pct = (sorted: number[], q: number) => sorted.length ? sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(q * (sorted.length - 1))))] : 0;
 
-export function calculateLossRecoveryMetrics(
-  currentBalance: number,
-  drawdownPercent: number,
-  riskPerTradePercent: number = 1.0,
-  winRate: number = 50,
-  riskReward: number = 2.0
-): {
-  drawdownPercent: number;
-  requiredGainPercent: number;
-  lossDollars: number;
-  requiredGainDollars: number;
-  estimatedTradesToRecover: number;
-  asymmetryTable: { dd: number; requiredGain: number; severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME' }[];
-} {
-  const safeDD = Math.max(0.1, Math.min(99.9, drawdownPercent));
-  // Required Gain % = (1 / (1 - DD/100) - 1) * 100
-  const requiredGainPercent = ((1 / (1 - safeDD / 100)) - 1) * 100;
-
-  const originalEquity = currentBalance / (1 - safeDD / 100);
-  const lossDollars = originalEquity - currentBalance;
-  const requiredGainDollars = lossDollars;
-
-  // Expected Value per trade in %
-  const wr = winRate / 100;
-  const evPercent = (wr * riskReward * riskPerTradePercent) - ((1 - wr) * riskPerTradePercent);
-  const estimatedTradesToRecover = evPercent > 0
-    ? Math.ceil(requiredGainPercent / evPercent)
-    : 999;
-
-  const asymmetryTable = [
-    { dd: 5, requiredGain: 5.26, severity: 'LOW' as const },
-    { dd: 10, requiredGain: 11.11, severity: 'LOW' as const },
-    { dd: 15, requiredGain: 17.65, severity: 'MEDIUM' as const },
-    { dd: 20, requiredGain: 25.0, severity: 'MEDIUM' as const },
-    { dd: 25, requiredGain: 33.33, severity: 'HIGH' as const },
-    { dd: 30, requiredGain: 42.86, severity: 'HIGH' as const },
-    { dd: 40, requiredGain: 66.67, severity: 'EXTREME' as const },
-    { dd: 50, requiredGain: 100.0, severity: 'EXTREME' as const },
-    { dd: 60, requiredGain: 150.0, severity: 'EXTREME' as const },
-    { dd: 75, requiredGain: 300.0, severity: 'EXTREME' as const },
-  ];
-
+export function runMonteCarlo(inputs: CompoundingInputs, totalTrades: number, winRateFrac: number, rr: number, runs = 2000): MonteCarloSummary {
+  const start = Math.max(10, inputs.startingBalance);
+  const seed = Math.round(start * 7 + inputs.riskPercent * 1000 + winRateFrac * 10000 + rr * 100 + totalTrades);
+  const rand = mulberry32(seed);
+  const finals: number[] = [];
+  const dds: number[] = [];
+  const streaks: number[] = [];
+  const n = Math.min(totalTrades, 20000);
+  for (let k = 0; k < runs; k++) {
+    let bal = start, peak = start, maxDd = 0, streak = 0, longest = 0;
+    for (let i = 0; i < n; i++) {
+      const risk = inputs.compoundingMode === 'FIXED_RISK' ? Math.max(1, inputs.fixedRiskAmount) : (bal * Math.max(0.01, inputs.riskPercent)) / 100;
+      if (rand() < winRateFrac) { bal += risk * rr; streak = 0; }
+      else { bal = Math.max(0, bal - Math.min(risk, bal)); streak++; if (streak > longest) longest = streak; }
+      if (bal > peak) peak = bal;
+      const dd = peak > 0 ? (peak - bal) / peak : 0;
+      if (dd > maxDd) maxDd = dd;
+      if (bal <= 0) break;
+    }
+    finals.push(bal); dds.push(maxDd * 100); streaks.push(longest);
+  }
+  finals.sort((a, b) => a - b); dds.sort((a, b) => a - b); streaks.sort((a, b) => a - b);
+  const r2 = (v: number) => Number(v.toFixed(2));
   return {
-    drawdownPercent: Number(safeDD.toFixed(2)),
-    requiredGainPercent: Number(requiredGainPercent.toFixed(2)),
-    lossDollars: Number(lossDollars.toFixed(2)),
-    requiredGainDollars: Number(requiredGainDollars.toFixed(2)),
-    estimatedTradesToRecover,
-    asymmetryTable,
+    runs,
+    p10: r2(pct(finals, 0.1)), median: r2(pct(finals, 0.5)), p90: r2(pct(finals, 0.9)),
+    worst: r2(finals[0] ?? start), best: r2(finals[finals.length - 1] ?? start),
+    probBelowStart: r2((finals.filter((f) => f < start).length / Math.max(1, runs)) * 100),
+    medianMaxDrawdownPct: r2(pct(dds, 0.5)), p90MaxDrawdownPct: r2(pct(dds, 0.9)),
+    medianLongestLosingStreak: pct(streaks, 0.5),
   };
 }

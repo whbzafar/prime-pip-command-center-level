@@ -22,7 +22,6 @@ import {
   CompoundingMode,
   CompoundingInputs,
   calculateCompoundingProjection,
-  calculateLossRecoveryMetrics,
 } from '../utils/compoundingEngine';
 import { formatCurrency, getCurrencySymbol } from '../utils/currencyFormatter';
 import { DedicatedCompoundingCalculator } from './compounding/DedicatedCompoundingCalculator';
@@ -36,7 +35,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
   account,
   trades,
 }) => {
-  const [engineTab, setEngineTab] = useState<'COMPOUNDING' | 'RECOVERY_SIMULATOR' | 'REAL_VS_PROJECTED'>('COMPOUNDING');
+  const [engineTab, setEngineTab] = useState<'COMPOUNDING' | 'REAL_VS_PROJECTED'>('COMPOUNDING');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Currency Selection (Requirement 2)
@@ -66,10 +65,6 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
   const [scheduleViewMode, setScheduleViewMode] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('DAILY');
   const [tablePage, setTablePage] = useState<number>(1);
   const rowsPerPage = 10;
-
-  // Loss Recovery Simulator State
-  const [recoveryDrawdownPct, setRecoveryDrawdownPct] = useState<number>(10);
-  const [recoveryRiskPct, setRecoveryRiskPct] = useState<number>(1.0);
 
   const effectiveStartBalance = balanceMode === 'ACTIVE' ? activeBalance : customStartBalance;
 
@@ -108,16 +103,6 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
     customDays,
   ]);
 
-  // Calculate Loss Recovery Metrics
-  const recoveryMetrics = useMemo(() => {
-    return calculateLossRecoveryMetrics(
-      effectiveStartBalance,
-      recoveryDrawdownPct,
-      recoveryRiskPct,
-      expectedWinRate,
-      riskRewardRatio
-    );
-  }, [effectiveStartBalance, recoveryDrawdownPct, recoveryRiskPct, expectedWinRate, riskRewardRatio]);
 
   // Real Trading Performance Metrics for Real vs Projection comparison
   const closedTrades = useMemo(() => trades.filter((t) => t.status !== 'OPEN'), [trades]);
@@ -181,7 +166,7 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
           </div>
           <div>
             <h3 className="text-base font-military font-bold text-slate-100 tracking-wider">
-              CAPITAL COMPOUNDING & RECOVERY ENGINE
+              CAPITAL COMPOUNDING ENGINE
             </h3>
             <p className="text-xs text-slate-400 font-sans">
               Mathematical modeling for account growth and capital defense. 100% offline & strictly segregated from real trading data.
@@ -203,18 +188,6 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
               }`}
             >
               SIMULATOR ENGINE
-            </button>
-            <button
-              id="tab-recovery-simulator"
-              type="button"
-              onClick={() => setEngineTab('RECOVERY_SIMULATOR')}
-              className={`px-3 py-1.5 rounded transition cursor-pointer ${
-                engineTab === 'RECOVERY_SIMULATOR'
-                  ? 'bg-blue-500 text-slate-950 font-bold shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              LOSS RECOVERY
             </button>
             <button
               id="tab-real-vs-projected"
@@ -572,6 +545,34 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
               </div>
             </div>
 
+            {/* REALITY CHECK — 2,000 random trade orders with the same win rate, risk and R:R */}
+            <div className="rounded-xl border border-violet-500/30 bg-gradient-to-br from-violet-500/[0.07] to-slate-950 p-3.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="text-[11px] font-mono-code uppercase tracking-widest text-violet-300">Reality check · {projection.monteCarlo.runs.toLocaleString()} random trade sequences</div>
+                <div className="text-[10px] text-slate-500">Same win rate, risk and R:R — wins and losses in random order, so streaks happen</div>
+              </div>
+              <div className="mt-2.5 grid grid-cols-2 md:grid-cols-4 gap-2">
+                {[
+                  ['Bad case (1 in 10)', formatCurrency(projection.monteCarlo.p10, currency), 'text-rose-300'],
+                  ['Typical (median)', formatCurrency(projection.monteCarlo.median, currency), 'text-cyan-300'],
+                  ['Good case (1 in 10)', formatCurrency(projection.monteCarlo.p90, currency), 'text-emerald-300'],
+                  ['Chance of ending below start', `${projection.monteCarlo.probBelowStart}%`, projection.monteCarlo.probBelowStart > 20 ? 'text-rose-300' : 'text-slate-100'],
+                  ['Typical deepest drawdown', `${projection.monteCarlo.medianMaxDrawdownPct}%`, 'text-amber-300'],
+                  ['Bad-case drawdown (1 in 10)', `${projection.monteCarlo.p90MaxDrawdownPct}%`, 'text-rose-300'],
+                  ['Typical longest losing streak', `${projection.monteCarlo.medianLongestLosingStreak} trades`, 'text-slate-100'],
+                  ['Exact expected path (above)', formatCurrency(projection.finalProjectedBalance, currency), 'text-slate-100'],
+                ].map(([k, v, c]) => (
+                  <div key={k} className="rounded-lg border border-slate-800 bg-slate-950/70 px-2.5 py-2">
+                    <div className="text-[9.5px] uppercase tracking-wider text-slate-500">{k}</div>
+                    <div className={`text-[14px] font-bold font-mono-code ${c}`}>{v}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-[10.5px] text-slate-500 leading-relaxed">
+                The projection above is the exact expected path: risk is recalculated before every trade, and the win rate is hit precisely. Real trading delivers the same edge in a random order. Use the bad-case numbers and drawdowns to size risk so a normal losing streak never breaks a prop-firm daily or overall loss limit.
+              </p>
+            </div>
+
             {/* Compounding Visual Growth Chart (Item 8) */}
             <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg">
               <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-xs font-mono-code">
@@ -833,163 +834,6 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
         </div>
       )}
 
-      {/* VIEW 2: LOSS RECOVERY SIMULATOR (Item 25) */}
-      {engineTab === 'RECOVERY_SIMULATOR' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Simulator Inputs */}
-            <div className="lg:col-span-5 bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
-              <div className="pb-3 border-b border-slate-800">
-                <h4 className="text-xs font-military font-bold text-slate-200 tracking-wider flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-rose-400" />
-                  DRAWDOWN ASYMMETRY CALCULATOR
-                </h4>
-                <span className="text-[10px] font-mono-code text-slate-500">
-                  MATHEMATICAL INFORMATION ONLY
-                </span>
-              </div>
-
-              <div className="space-y-3 text-xs font-mono-code">
-                <div>
-                  <label className="text-slate-400 block mb-1">Current Account Balance ($)</label>
-                  <input
-                    id="recovery-current-balance-input"
-                    type="number"
-                    value={effectiveStartBalance}
-                    disabled
-                    className="w-full px-3 py-1.5 rounded bg-slate-950/80 border border-slate-800 text-slate-300 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-slate-400">Current Drawdown (%)</label>
-                    <span className="text-rose-400 font-bold">{recoveryDrawdownPct}%</span>
-                  </div>
-                  <input
-                    id="recovery-drawdown-slider"
-                    type="range"
-                    min="1"
-                    max="60"
-                    step="1"
-                    value={recoveryDrawdownPct}
-                    onChange={(e) => setRecoveryDrawdownPct(parseFloat(e.target.value) || 10)}
-                    className="w-full accent-blue-500 cursor-pointer"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-slate-400 block mb-1">Risk Per Trade (%)</label>
-                    <input
-                      id="recovery-risk-input"
-                      type="number"
-                      step="0.25"
-                      min="0.25"
-                      max="3.0"
-                      value={recoveryRiskPct}
-                      onChange={(e) => setRecoveryRiskPct(parseFloat(e.target.value) || 1.0)}
-                      className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-cyan-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-slate-400 block mb-1">Target Win Rate (%)</label>
-                    <input
-                      id="recovery-wr-input"
-                      type="number"
-                      step="1"
-                      min="30"
-                      max="80"
-                      value={expectedWinRate}
-                      onChange={(e) => setExpectedWinRate(parseFloat(e.target.value) || 50)}
-                      className="w-full px-3 py-1.5 rounded bg-slate-950 border border-slate-800 text-slate-100 outline-none focus:border-cyan-400"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Recovery Outcome Badge */}
-              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-center space-y-1">
-                <span className="text-[10px] text-slate-400 uppercase font-mono-code">Required Return to Recover</span>
-                <div className="text-3xl font-military font-bold text-rose-400">
-                  +{recoveryMetrics.requiredGainPercent}%
-                </div>
-                <p className="text-[11px] text-slate-300 font-mono-code">
-                  An account suffering a <strong className="text-rose-400">{recoveryMetrics.drawdownPercent}%</strong> drawdown requires a <strong className="text-cyan-400">+{recoveryMetrics.requiredGainPercent}%</strong> gain to return to breakeven.
-                </p>
-                <div className="pt-2 text-[10px] text-slate-400 font-mono-code">
-                  Estimated trades required at current setup specs: <strong className="text-slate-200">{recoveryMetrics.estimatedTradesToRecover} disciplined trades</strong>
-                </div>
-              </div>
-            </div>
-
-            {/* Asymmetry Reference Table */}
-            <div className="lg:col-span-7 bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-3">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <h4 className="text-xs font-military font-bold text-slate-200 tracking-wider">
-                  MATHEMATICAL DRAWDOWN ASYMMETRY TABLE
-                </h4>
-                <span className="text-[10px] font-mono-code text-cyan-400">CORE DEFENSE LAW</span>
-              </div>
-
-              <p className="text-xs text-slate-400 font-sans leading-relaxed">
-                Notice how the required return increases non-linearly. A 10% loss requires an 11% gain, but a 50% loss requires a 100% gain. This mathematical reality proves why capital defense is paramount.
-              </p>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono-code mt-1">
-                  <thead>
-                    <tr className="text-[10px] text-slate-400 border-b border-slate-800">
-                      <th className="py-2 px-3">DRAWDOWN %</th>
-                      <th className="py-2 px-3">REQUIRED GAIN TO BREAKEVEN</th>
-                      <th className="py-2 px-3">SEVERITY</th>
-                      <th className="py-2 px-3 text-right">TACTICAL ACTION</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    {recoveryMetrics.asymmetryTable.map((row) => (
-                      <tr
-                        key={row.dd}
-                        className={`hover:bg-slate-800/30 ${recoveryDrawdownPct === row.dd ? 'bg-blue-500/10' : ''}`}
-                      >
-                        <td className="py-2 px-3 font-bold text-slate-200">-{row.dd}%</td>
-                        <td className="py-2 px-3 font-bold text-cyan-400">+{row.requiredGain}%</td>
-                        <td className="py-2 px-3">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              row.severity === 'LOW'
-                                ? 'bg-emerald-500/20 text-emerald-400'
-                                : row.severity === 'MEDIUM'
-                                ? 'bg-blue-500/20 text-cyan-400'
-                                : row.severity === 'HIGH'
-                                ? 'bg-orange-500/20 text-orange-400'
-                                : 'bg-rose-500/20 text-rose-400'
-                            }`}
-                          >
-                            {row.severity}
-                          </span>
-                        </td>
-                        <td className="py-2 px-3 text-right text-slate-400 text-[11px]">
-                          {row.dd <= 10
-                            ? 'Standard risk defense'
-                            : row.dd <= 20
-                            ? 'Cut risk by 50%'
-                            : row.dd <= 30
-                            ? 'Mandatory pause & re-audit'
-                            : 'Extreme capital jeopardy'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* VIEW 3: REAL PERFORMANCE VS PROJECTION (Item 9) */}
       {engineTab === 'REAL_VS_PROJECTED' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

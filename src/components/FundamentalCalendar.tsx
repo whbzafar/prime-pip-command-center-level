@@ -30,6 +30,8 @@ import {
   Zap,
   BarChart2,
   Users,
+  Radio,
+  CalendarRange,
 } from 'lucide-react';
 import {
   CalendarEvent,
@@ -40,7 +42,7 @@ import {
   syncCalendar,
   getCalendarMeta,
 } from '../services/economicCalendarService';
-import { SentimentBoard } from './fundamentalAnalysis/SentimentBoard';
+import { BreakingNewsPanel } from './calendar/BreakingNewsPanel';
 
 // Classic Forex Factory Folder Icon SVG (Color-coded by impact)
 const ForexFactoryFolderIcon: React.FC<{
@@ -152,7 +154,11 @@ const CURRENCY_FLAGS: Record<string, string> = {
 
 const MAJOR_CURRENCIES = ['ALL', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'CNY'];
 
-type PeriodPreset = 'TODAY' | 'THIS_WEEK' | 'NEXT_WEEK' | 'THIS_MONTH' | 'CUSTOM_WEEK';
+type PeriodPreset = 'TODAY' | 'THIS_WEEK' | 'NEXT_WEEK' | 'THIS_MONTH' | 'CUSTOM_WEEK' | 'CUSTOM_RANGE';
+
+/** 00:00 PKT of a YYYY-MM-DD date, as a UTC Date. */
+const pktDayStart = (key: string) => { const [y, m, d] = key.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d) - 5 * 3600_000); };
+const pktKey = (t: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi' }).format(new Date(t));
 
 function getPktNowParts(nowMs: number) {
   const d = new Date(nowMs);
@@ -303,7 +309,7 @@ function getWeeklyCotEvent(startDate: Date, endDate: Date, nowMs: number): Calen
 }
 
 export const FundamentalCalendar: React.FC = () => {
-  const [activeCalendarTab, setActiveCalendarTab] = useState<'CALENDAR' | 'SENTIMENT'>('CALENDAR');
+  const [activeCalendarTab, setActiveCalendarTab] = useState<'CALENDAR' | 'BREAKING'>('CALENDAR');
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [meta, setMeta] = useState<CalendarMeta | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -313,6 +319,9 @@ export const FundamentalCalendar: React.FC = () => {
   // Navigation & Filters (Forex Factory style)
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>('THIS_WEEK');
   const [weekOffset, setWeekOffset] = useState<number>(0);
+  const [rangeFrom, setRangeFrom] = useState<string>(() => pktKey(Date.now() - 7 * 86400_000));
+  const [rangeTo, setRangeTo] = useState<string>(() => pktKey(Date.now()));
+  const pickRange = (from: number, to: number) => { setRangeFrom(pktKey(from)); setRangeTo(pktKey(to)); setPeriodPreset('CUSTOM_RANGE'); };
   const [selectedMonth, setSelectedMonth] = useState<number>(() => {
     const pktMonth = Number(
       new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Karachi', month: 'numeric' }).format(
@@ -358,6 +367,14 @@ export const FundamentalCalendar: React.FC = () => {
   const pktNow = useMemo(() => getPktNowParts(nowMs), [nowMs]);
 
   const activeWeekBounds = useMemo(() => {
+    if (periodPreset === 'CUSTOM_RANGE') {
+      const a = rangeFrom <= rangeTo ? rangeFrom : rangeTo;
+      const b = rangeFrom <= rangeTo ? rangeTo : rangeFrom;
+      const start = pktDayStart(a);
+      let end = new Date(pktDayStart(b).getTime() + 86400_000 - 1000);
+      if (end.getTime() - start.getTime() > 92 * 86400_000) end = new Date(start.getTime() + 92 * 86400_000);
+      return { start, end, label: `${a} → ${pktKey(end.getTime())}` };
+    }
     if (periodPreset === 'TODAY') return getWeekBoundsInPkt(0);
     if (periodPreset === 'THIS_WEEK') return getWeekBoundsInPkt(0);
     if (periodPreset === 'NEXT_WEEK') return getWeekBoundsInPkt(1);
@@ -660,18 +677,16 @@ export const FundamentalCalendar: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveCalendarTab('SENTIMENT')}
+                onClick={() => setActiveCalendarTab('BREAKING')}
                 className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                  activeCalendarTab === 'SENTIMENT'
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow'
+                  activeCalendarTab === 'BREAKING'
+                    ? 'bg-rose-500/20 text-rose-200 border border-rose-500/50 shadow'
                     : 'text-slate-400 hover:text-white bg-slate-900/50 border border-slate-800'
                 }`}
               >
-                <Users className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Sentiment</span>
-                <span className="text-[9px] px-1 rounded bg-cyan-500/20 text-cyan-300">
-                  Retail
-                </span>
+                <Radio className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+                <span>Breaking News</span>
+                <span className="text-[9px] px-1 rounded bg-rose-500/20 text-rose-200">LIVE</span>
               </button>
             </div>
 
@@ -753,6 +768,31 @@ export const FundamentalCalendar: React.FC = () => {
                   >
                     Month
                   </button>
+                </div>
+
+                {/* DATE RANGE PICKER — jump to any period, including past years */}
+                <div className="inline-flex items-center gap-1.5 flex-wrap bg-[#060a10] border border-slate-800 rounded-lg px-2 py-1">
+                  <CalendarRange className="w-3.5 h-3.5 text-cyan-400" />
+                  <input type="date" value={rangeFrom} max={rangeTo} onChange={(e) => { if (e.target.value) { setRangeFrom(e.target.value); setPeriodPreset('CUSTOM_RANGE'); } }} className="bg-transparent text-[11px] font-mono text-slate-200 focus:outline-none [color-scheme:dark]" aria-label="From date" />
+                  <span className="text-slate-500 text-[10px]">to</span>
+                  <input type="date" value={rangeTo} min={rangeFrom} onChange={(e) => { if (e.target.value) { setRangeTo(e.target.value); setPeriodPreset('CUSTOM_RANGE'); } }} className="bg-transparent text-[11px] font-mono text-slate-200 focus:outline-none [color-scheme:dark]" aria-label="To date" />
+                  <select value="" onChange={(e) => {
+                      const now = Date.now(); const D = 86400_000; const v = e.target.value;
+                      if (v === 'Y') pickRange(now - D, now - D);
+                      else if (v === 'LW') pickRange(now - 13 * D, now - 7 * D);
+                      else if (v === 'L30') pickRange(now - 30 * D, now);
+                      else if (v === 'LM') { const d = new Date(); const s0 = new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime(); const e0 = new Date(d.getFullYear(), d.getMonth(), 0).getTime(); pickRange(s0, e0); }
+                      else if (v === 'LY') pickRange(now - 372 * D, now - 365 * D);
+                      else if (v === 'N30') pickRange(now, now + 30 * D);
+                    }} className="bg-slate-900 border border-slate-700 rounded text-[10.5px] text-slate-300 px-1 py-0.5 cursor-pointer">
+                    <option value="">Quick…</option>
+                    <option value="Y">Yesterday</option>
+                    <option value="LW">Last week</option>
+                    <option value="L30">Last 30 days</option>
+                    <option value="LM">Last month</option>
+                    <option value="LY">Same week last year</option>
+                    <option value="N30">Next 30 days</option>
+                  </select>
                 </div>
 
                 {/* Week Stepper */}
@@ -908,8 +948,8 @@ export const FundamentalCalendar: React.FC = () => {
         </div>
       </div>
 
-      {activeCalendarTab === 'SENTIMENT' ? (
-        <SentimentBoard />
+      {activeCalendarTab === 'BREAKING' ? (
+        <div className="max-w-[1440px] mx-auto px-2 sm:px-6 mt-2"><BreakingNewsPanel /></div>
       ) : (
         <div className="max-w-[1440px] mx-auto px-2 sm:px-6 mt-2">
 
@@ -920,31 +960,31 @@ export const FundamentalCalendar: React.FC = () => {
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="bg-[#11192a] border-b border-slate-700/80 text-[11px] font-extrabold uppercase tracking-wider text-slate-300">
-                  <th className="py-2.5 px-3 w-[115px] border-r border-slate-800/80">
+                  <th className="py-2 px-2 w-[88px] border-r border-slate-800/80">
                     Date (PKT)
                   </th>
-                  <th className="py-2.5 px-3 w-[95px] border-r border-slate-800/80">
+                  <th className="py-2 px-2 w-[68px] border-r border-slate-800/80">
                     Time (PKT)
                   </th>
-                  <th className="py-2.5 px-3 w-[78px] text-center border-r border-slate-800/80">
+                  <th className="py-2 px-1.5 w-[58px] text-center border-r border-slate-800/80">
                     Currency
                   </th>
-                  <th className="py-2.5 px-3 w-[92px] text-center border-r border-slate-800/80">
+                  <th className="py-2 px-1.5 w-[54px] text-center border-r border-slate-800/80">
                     Impact
                   </th>
-                  <th className="py-2.5 px-3.5 min-w-[260px] border-r border-slate-800/80">
-                    News Event / Topic (Click Folder to Open)
+                  <th className="py-2 px-2.5 min-w-[170px] border-r border-slate-800/80">
+                    Event
                   </th>
-                  <th className="py-2.5 px-2.5 w-[68px] text-center border-r border-slate-800/80">
+                  <th className="py-2 px-1 w-[44px] text-center border-r border-slate-800/80">
                     Detail
                   </th>
-                  <th className="py-2.5 px-3 w-[105px] text-right border-r border-slate-800/80">
+                  <th className="py-2 px-2 w-[78px] text-right border-r border-slate-800/80">
                     Actual
                   </th>
-                  <th className="py-2.5 px-3 w-[105px] text-right border-r border-slate-800/80">
+                  <th className="py-2 px-2 w-[78px] text-right border-r border-slate-800/80">
                     Forecast
                   </th>
-                  <th className="py-2.5 px-3 w-[105px] text-right">
+                  <th className="py-2 px-2 w-[78px] text-right">
                     Previous
                   </th>
                 </tr>
@@ -1055,13 +1095,13 @@ export const FundamentalCalendar: React.FC = () => {
                                 }`}
                               >
                                 {/* Date column (shown on first row of day like Forex Factory) */}
-                                <td className="py-2.5 px-3 border-r border-slate-800/60 font-mono text-[11px] whitespace-nowrap align-middle">
+                                <td className="py-2 px-2 border-r border-slate-800/60 font-mono text-[11px] whitespace-nowrap align-middle">
                                   {idx === 0 ? (
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex flex-col leading-tight">
                                       <span className="font-bold text-slate-200">
                                         {dayGroup.dayOfWeekPkt}
                                       </span>
-                                      <span className="text-slate-400">{dayGroup.datePkt}</span>
+                                      <span className="text-slate-500 text-[10px]">{String(dayGroup.datePkt).replace(/,\s*\d{4}$/, '')}</span>
                                     </div>
                                   ) : (
                                     <span className="text-slate-600 text-[10px]">↳</span>
@@ -1069,7 +1109,7 @@ export const FundamentalCalendar: React.FC = () => {
                                 </td>
 
                                 {/* Time (PKT) column */}
-                                <td className="py-2.5 px-3 border-r border-slate-800/60 font-mono text-[11px] whitespace-nowrap align-middle">
+                                <td className="py-2 px-2 border-r border-slate-800/60 font-mono text-[11px] whitespace-nowrap align-middle">
                                   <div className="flex items-center gap-1.5">
                                     {isUpNext && (
                                       <span
@@ -1094,7 +1134,7 @@ export const FundamentalCalendar: React.FC = () => {
                                 </td>
 
                                 {/* Currency column */}
-                                <td className="py-2.5 px-3 border-r border-slate-800/60 text-center whitespace-nowrap align-middle">
+                                <td className="py-2 px-1.5 border-r border-slate-800/60 text-center whitespace-nowrap align-middle">
                                   <span className="inline-flex items-center gap-1 font-extrabold text-slate-100">
                                     <span>{CURRENCY_FLAGS[ev.currency] || '🌐'}</span>
                                     <span>{ev.currency}</span>
@@ -1102,7 +1142,7 @@ export const FundamentalCalendar: React.FC = () => {
                                 </td>
 
                                 {/* Forex Factory Color-Coded Impact Folder column */}
-                                <td className="py-2.5 px-3 border-r border-slate-800/60 text-center whitespace-nowrap align-middle">
+                                <td className="py-2 px-1.5 border-r border-slate-800/60 text-center whitespace-nowrap align-middle">
                                   <div
                                     className="inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded hover:bg-slate-800/80 transition"
                                     title={`${ev.importance} Impact Folder — Click to open details`}
@@ -1116,7 +1156,7 @@ export const FundamentalCalendar: React.FC = () => {
                                 </td>
 
                                 {/* News Topic / Event Title */}
-                                <td className="py-2.5 px-3.5 border-r border-slate-800/60 align-middle">
+                                <td className="py-2 px-2.5 border-r border-slate-800/60 align-middle">
                                   <div className="flex items-center justify-between gap-2">
                                     <div className="flex items-center gap-2 min-w-0">
                                       <span
@@ -1134,14 +1174,14 @@ export const FundamentalCalendar: React.FC = () => {
                                         </span>
                                       )}
                                     </div>
-                                    <span className="text-[10px] text-slate-500 hidden sm:inline shrink-0">
+                                    <span className="text-[10px] text-slate-500 hidden 2xl:inline shrink-0 max-w-[140px] truncate">
                                       {ev.source}
                                     </span>
                                   </div>
                                 </td>
 
                                 {/* Detail Folder Action Icon (Classic Forex Factory folder button) */}
-                                <td className="py-2.5 px-2.5 border-r border-slate-800/60 text-center align-middle">
+                                <td className="py-2 px-1 border-r border-slate-800/60 text-center align-middle">
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -1169,7 +1209,7 @@ export const FundamentalCalendar: React.FC = () => {
                                 </td>
 
                                 {/* Actual Figure (Green for Better, Red for Worse, like Forex Factory) */}
-                                <td className="py-2.5 px-3 border-r border-slate-800/60 text-right font-mono font-bold whitespace-nowrap align-middle">
+                                <td className="py-2 px-2 border-r border-slate-800/60 text-right font-mono font-bold whitespace-nowrap align-middle">
                                   {ev.actual && ev.actual !== '—' ? (
                                     <span
                                       className={`inline-block px-1.5 py-0.5 rounded ${
@@ -1192,7 +1232,7 @@ export const FundamentalCalendar: React.FC = () => {
                                 </td>
 
                                 {/* Forecast Figure */}
-                                <td className="py-2.5 px-3 border-r border-slate-800/60 text-right font-mono text-slate-300 whitespace-nowrap align-middle">
+                                <td className="py-2 px-2 border-r border-slate-800/60 text-right font-mono text-slate-300 whitespace-nowrap align-middle">
                                   {ev.forecast && ev.forecast !== '—' ? (
                                     ev.forecast
                                   ) : (
@@ -1201,7 +1241,7 @@ export const FundamentalCalendar: React.FC = () => {
                                 </td>
 
                                 {/* Previous Figure */}
-                                <td className="py-2.5 px-3 text-right font-mono text-slate-400 whitespace-nowrap align-middle">
+                                <td className="py-2 px-2 text-right font-mono text-slate-400 whitespace-nowrap align-middle">
                                   {ev.previous && ev.previous !== '—' ? (
                                     ev.previous
                                   ) : (

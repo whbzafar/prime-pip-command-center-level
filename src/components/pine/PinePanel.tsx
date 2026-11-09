@@ -87,14 +87,14 @@ const CodeEditor: React.FC<{ value: string; onChange: (v: string) => void; onRun
 };
 
 // ───────────────────────────── panel
-export const PinePanel: React.FC<{ symbol: string; interval: string; onClose: () => void }> = ({ symbol, interval, onClose }) => {
+export const PinePanel: React.FC<{ symbol: string; interval: string; onClose: () => void; isAdminHint?: boolean }> = ({ symbol, interval, onClose, isAdminHint }) => {
   const lib = useLib();
   useEffect(() => { loadLibrary(true); }, []);
 
   if (!lib.loaded) {
     return <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] p-4 text-[12px] text-slate-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Loading indicators…</div>;
   }
-  return lib.isAdmin ? <AdminEditor symbol={symbol} interval={interval} onClose={onClose} /> : <StudentIndicators onClose={onClose} />;
+  return lib.isAdmin || isAdminHint ? <AdminEditor symbol={symbol} interval={interval} onClose={onClose} /> : <StudentIndicators onClose={onClose} />;
 };
 
 // ───────────────────────────── students: Show / Hide only

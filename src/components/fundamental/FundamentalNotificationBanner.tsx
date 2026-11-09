@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useRankings, type RankedPair } from '../fundamentalAnalysis/LiveBiasStrip';
 import {
   TrendingUp,
   TrendingDown,
@@ -180,8 +181,37 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
     ? propCurrencyScores
     : localScores || ({} as Record<CurrencyCode, CurrencyScoreResult>);
 
-  // Compute live long-term ranked pairs across all 28 pairs in Fundamental Intelligence
-  const rankedData = useMemo(() => {
+  // LIVE: the Long-Term ranking from the Fundamentals section (/api/macro/rankings), refreshed
+  // every minute. The local calculation below is only a fallback while it loads.
+  const { data: liveRankings } = useRankings(60_000);
+  const liveRanked = useMemo(() => {
+    if (!liveRankings) return null;
+    const toItem = (p: RankedPair) => {
+      const score = Number(p.longTerm ?? 0);
+      const strengthPercent = Math.min(100, Math.max(50, Math.round(50 + Math.abs(score) / 2)));
+      const bias = score >= 40 ? 'STRONG_BULLISH' : score <= -40 ? 'STRONG_BEARISH' : score > 0 ? 'BULLISH' : score < 0 ? 'BEARISH' : 'NEUTRAL';
+      return {
+        pair: p.display, baseCurrency: p.symbol.slice(0, 3) as any, quoteCurrency: p.symbol.slice(3) as any, score, strengthPercent,
+        isBullish: score > 0, isBearish: score < 0, bias, biasLabel: bias.replace(/_/g, ' '),
+        rationale: (p.basis && p.basis.length ? p.basis.slice(0, 2).join(' · ') : `Long-term fundamental score ${score > 0 ? '+' : ''}${score.toFixed(0)} · confidence ${p.confidence}%`),
+        actionTag: (score > 0 ? 'BUY' : score < 0 ? 'SELL' : 'HOLD') as 'BUY' | 'SELL' | 'HOLD',
+        horizon: 'Long-Term (live Fundamentals ranking)', rateSpread: undefined as any, yield10YSpread: undefined as any,
+        engineSymbol: p.symbol,
+      };
+    };
+    const bull = liveRankings.longTerm.bullish.map(toItem);
+    const bear = liveRankings.longTerm.bearish.map(toItem);
+    const all = [...bull, ...bear];
+    return {
+      all, all28Pairs: all, bullish28: bull, bearish28: bear,
+      topBullish: showAll28Pairs ? bull : bull.slice(0, 6),
+      topBearish: showAll28Pairs ? bear : bear.slice(0, 6),
+      bestBullish: bull[0] || all[0], bestBearish: bear[0] || all[all.length - 1],
+    };
+  }, [liveRankings, showAll28Pairs]);
+
+  // Fallback: local long-term calculation (used only until the live ranking arrives)
+  const fallbackRanked = useMemo(() => {
     const ltRankings = calculateLongTermPairRankings(activeCurrencyScores, liveObservations, liveRetail);
     const all28Pairs = (ltRankings.allPairs || []).map((p) => {
       const score = p.longTermDiff;
@@ -257,6 +287,7 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
       bestBearish: bearish28[0] || bearishSorted[0] || list[list.length - 1],
     };
   }, [activeCurrencyScores, liveObservations, liveRetail, liveCommodities, showAll28Pairs]);
+  const rankedData: any = liveRanked && liveRanked.all.length ? liveRanked : fallbackRanked;
 
   const todayStr = new Date().toLocaleDateString('en-US', {
     weekday: 'short',

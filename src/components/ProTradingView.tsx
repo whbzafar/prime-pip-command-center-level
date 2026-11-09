@@ -1506,6 +1506,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const [pineShownCount, setPineShownCount] = useState<number>(() => pineLib.get().shown.length);
   const [preferTvChart, setPreferTvChart] = useState<boolean>(false);
   const [pineIsAdmin, setPineIsAdmin] = useState<boolean>(false);
+  const isAdminUser = Boolean(currentUser && ((currentUser as any).isDeveloper || (currentUser as any).role === 'ADMIN' || (currentUser as any).role === 'DEVELOPER'));
   useEffect(() => {
     const sync = () => { setPineShownCount(pineLib.get().shown.length); setPineIsAdmin(pineLib.get().isAdmin); };
     const off = pineLib.subscribe(sync);
@@ -4145,10 +4146,10 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 type="button"
                 onClick={() => setIsPineEditorOpen((o) => !o)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${isPineEditorOpen ? 'bg-violet-500/25 border-violet-400/60 text-violet-100' : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-violet-400/50'}`}
-                title={pineIsAdmin ? "Pine Editor — add, publish and apply indicator scripts on the main chart" : "Indicators — Show or Hide indicators on the main chart"}
+                title={pineIsAdmin || isAdminUser ? "Pine Editor — add, publish and apply indicator scripts on the main chart" : "Indicators — Show or Hide indicators on the main chart"}
               >
                 <Code className="w-4 h-4 text-violet-300" />
-                <span>{pineIsAdmin ? 'Pine Editor' : 'Indicators'}</span>
+                <span>{pineIsAdmin || isAdminUser ? 'Pine Editor' : 'Indicators'}</span>
               </button>
 
               {/* FULL-SCREEN BUTTON (Directly next to Indicators) */}
@@ -4608,7 +4609,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       {isPineEditorOpen && (
         <div className="my-2">
           <React.Suspense fallback={<div className="rounded-2xl border border-slate-800 bg-[#0b0f17] p-6 text-[12px] text-slate-400">Loading Pine Editor…</div>}>
-            <PinePanelLazy symbol={selectedSymbol} interval={selectedInterval} onClose={() => setIsPineEditorOpen(false)} />
+            <PinePanelLazy isAdminHint={isAdminUser} symbol={selectedSymbol} interval={selectedInterval} onClose={() => setIsPineEditorOpen(false)} />
           </React.Suspense>
         </div>
       )}

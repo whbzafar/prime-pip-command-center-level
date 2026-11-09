@@ -46,7 +46,7 @@ import { calculateNextTradeReadiness } from '../utils/readinessEngine';
 import { evaluateFundedAccountRisk, isFundedAccount } from '../utils/fundedRiskEngine';
 import { FundamentalNotificationBanner } from './fundamental/FundamentalNotificationBanner';
 import { TradeApprovalModal } from './TradeApprovalModal';
-import { PersonalizedAccountDashboard } from './account/PersonalizedAccountDashboard';
+import { AccountCommandCenter } from './account/AccountCommandCenter';
 import { isFundamentalSurpriseLocked, hasFullAccess } from '../utils/authClient';
 
 interface MainDashboardProps {
@@ -374,12 +374,12 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
       {/* Phase 1/2, Funded, Personal, Demo), Starting Capital vs Current Equity,  */}
       {/* Profit Target progress, Max Trailing Drawdown, and Daily Loss Buffer.    */}
       {/* ========================================================================= */}
-      <PersonalizedAccountDashboard
+      <AccountCommandCenter
         account={account}
         trades={trades}
-        onUpdateAccount={onUpdateAccount || (() => {})}
-        onOpenNewTrade={onOpenNewTrade}
-        onOpenAccountSwitcher={onOpenAccountModal}
+        currentUser={currentUser}
+        onOpenNewTrade={() => onOpenNewTrade()}
+        onOpenAccountModal={onOpenAccountModal}
         onNavigateToTab={onNavigateToTab}
       />
 

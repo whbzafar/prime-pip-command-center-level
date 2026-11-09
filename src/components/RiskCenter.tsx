@@ -21,6 +21,7 @@ import { AccountSettings, TradingRule, Trade } from '../types';
 import { DashboardMetrics } from '../utils/tradeAnalytics';
 import { formatCurrency } from '../utils/currencyFormatter';
 import { getKarachiDate } from '../utils/time';
+import { RiskPlaybook } from './risk/RiskPlaybook';
 
 interface RiskCenterProps {
   account: AccountSettings;
@@ -337,168 +338,20 @@ export const RiskCenter: React.FC<RiskCenterProps> = ({
       </div>
 
       {/* ===================================================================== */}
-      {/* 3. ESSENTIAL TOOL: ONE-CLICK POSITION & LOT SIZE CALCULATOR           */}
+      {/* 3. VIP RISK PLAYBOOK — risk ladder, survival maths, complete guides     */}
       {/* ===================================================================== */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-[#0B0F19] border border-cyan-500/30 shadow-xl space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-              <Calculator className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-military font-bold text-white uppercase tracking-wider">
-                INSTANT POSITION SIZING CALCULATOR
-              </h3>
-              <p className="text-xs text-slate-400 font-mono">
-                Select your asset and stop loss pips to get your exact broker lot size
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-slate-400">Risk Mode:</span>
-            <div className="flex items-center rounded-xl bg-slate-900 border border-slate-800 p-0.5 text-xs font-mono">
-              <button
-                type="button"
-                onClick={() => {
-                  setCalcRiskMode('PERCENT');
-                  setCalcRiskValue(1.0);
-                }}
-                className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
-                  calcRiskMode === 'PERCENT'
-                    ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                1% Standard Risk
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCalcRiskMode('DOLLARS');
-                  setCalcRiskValue(riskPerTradeDollars);
-                }}
-                className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
-                  calcRiskMode === 'DOLLARS'
-                    ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                $ Cash Amount
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Inputs */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono text-slate-400 uppercase font-bold">
-              Instrument
-            </label>
-            <select
-              value={calcPair}
-              onChange={(e) => setCalcPair(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-100 font-mono text-sm font-bold outline-none focus:border-cyan-400 cursor-pointer"
-            >
-              <option value="XAUUSD">Gold (XAUUSD)</option>
-              <option value="EURUSD">EURUSD</option>
-              <option value="GBPUSD">GBPUSD</option>
-              <option value="USDJPY">USDJPY</option>
-              <option value="US30">US30 (Dow Jones)</option>
-              <option value="NAS100">NAS100 (Nasdaq)</option>
-              <option value="BTCUSDT">BTCUSDT</option>
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono text-slate-400 uppercase font-bold flex items-center justify-between">
-              <span>Stop Loss Distance</span>
-              <span className="text-cyan-400">{calcStopLossPips} Pips</span>
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="1"
-                max="1000"
-                value={calcStopLossPips}
-                onChange={(e) => setCalcStopLossPips(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-cyan-300 font-mono text-sm font-bold outline-none focus:border-cyan-400"
-              />
-              <span className="text-xs font-mono text-slate-500 font-bold">PIPS</span>
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono text-slate-400 uppercase font-bold flex items-center justify-between">
-              <span>{calcRiskMode === 'PERCENT' ? 'Risk Percentage' : 'Dollar Risk'}</span>
-              <span className="text-emerald-400">
-                {formatCurrency(calculatedRiskDollars, account.currency)}
-              </span>
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                step={calcRiskMode === 'PERCENT' ? '0.1' : '10'}
-                min="0.1"
-                max={calcRiskMode === 'PERCENT' ? '5.0' : activeBalance}
-                value={calcRiskValue}
-                onChange={(e) => setCalcRiskValue(parseFloat(e.target.value) || 1.0)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-emerald-300 font-mono text-sm font-bold outline-none focus:border-emerald-400"
-              />
-              <span className="text-xs font-mono text-slate-500 font-bold">
-                {calcRiskMode === 'PERCENT' ? '%' : account.currency}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Calculated Result Box */}
-        <div className="p-4 sm:p-5 rounded-xl bg-slate-900/90 border border-cyan-500/40 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="space-y-1 text-center sm:text-left">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5 justify-center sm:justify-start">
-              <Zap className="w-3.5 h-3.5 text-cyan-400" />
-              EXACT LOT SIZE TO ENTER IN BROKER
-            </span>
-            <div className="flex items-baseline gap-3">
-              <span className="text-3xl sm:text-4xl font-mono font-black text-white">
-                {calculatedLotSize.toFixed(2)}{' '}
-                <span className="text-base font-normal text-slate-400">Lots</span>
-              </span>
-              <span className="text-xs font-mono text-emerald-400">
-                Risk: {formatCurrency(calculatedRiskDollars, account.currency)} (
-                {((calculatedRiskDollars / activeBalance) * 100).toFixed(1)}%)
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(calculatedLotSize.toFixed(2));
-                setCopiedLot(true);
-                setTimeout(() => setCopiedLot(false), 2000);
-              }}
-              className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono text-xs font-bold transition shadow-lg shadow-cyan-500/20 flex items-center gap-1.5 cursor-pointer"
-            >
-              {copiedLot ? <Check className="w-4 h-4" /> : <Calculator className="w-4 h-4" />}
-              <span>{copiedLot ? 'Copied Lot Size!' : 'Copy Lot Size'}</span>
-            </button>
-
-            {onNavigateToTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateToTab('PRO_TRADING')}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-              >
-                <span>Open in Chart</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <RiskPlaybook
+        balance={activeBalance}
+        currency={account.currency || 'USD'}
+        baseRiskPct={riskPerTradePercent}
+        dailyLossPct={dailyLossLimitPercent}
+        maxDrawdownPct={maxDrawdownLimit}
+        currentDrawdownPct={account.initialBalance > 0 ? Math.max(0, ((account.initialBalance - activeBalance) / account.initialBalance) * 100) : 0}
+        todayLoss={dailyRiskUsedDollars}
+        lossStreak={metrics.currentLossStreak || 0}
+        winRatePct={metrics.winRate || 0}
+        onOpenLotSize={onNavigateToTab ? () => onNavigateToTab('LOT_SIZE') : undefined}
+      />
 
       {/* ===================================================================== */}
       {/* 4. ESSENTIAL RULES OF CAPITAL PRESERVATION (DECLUTTERED)              */}

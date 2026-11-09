@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { AnnouncementsCenter } from './alerts/AnnouncementsCenter';
 import { Bell, BellOff, MessageSquare, Phone, Users, Volume2, VolumeX, X } from 'lucide-react';
 import { UserAccount } from '../types';
 
@@ -124,6 +125,7 @@ export const CommunicationNotifications: React.FC<CommunicationNotificationsProp
   return (
     <>
       <div className="fixed top-3 right-3 z-[80] flex items-center gap-1.5">
+        <AnnouncementsCenter />
         <button type="button" onClick={() => updateSettings(!muted, soundEnabled)} title={muted ? 'Unmute notifications' : 'Mute notifications'} className="relative p-2 rounded-xl bg-slate-950/95 border border-slate-700 text-slate-300 shadow-xl">
           {muted ? <BellOff className="w-4 h-4 text-rose-300" /> : <Bell className="w-4 h-4 text-cyan-300" />}
           {unread > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">{unread > 99 ? '99+' : unread}</span>}

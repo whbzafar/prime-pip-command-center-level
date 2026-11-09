@@ -195,6 +195,7 @@ import { sentimentRouter } from "./server/routes/sentimentRoutes.js";
 import { macroRouter } from "./server/routes/macroRoutes.js";
 import { historyRouter } from "./server/routes/historyRoutes.js";
 import { createPineRouter } from "./server/routes/pineRoutes.js";
+import { breakingNewsRouter } from "./server/routes/breakingNewsRoutes.js";
 import { startMacroScheduler } from "./server/macro/macroService.js";
 import { sentimentService } from "./server/sentiment/sentimentService.js";
 import { backtestRouter } from "./server/backtestReplayService.js";
@@ -7000,6 +7001,7 @@ app.use('/api/dukascopy', dukascopyRouter);
 app.use('/api/macro', macroRouter);
 // Full-history candles (Dukascopy since 2003/1973, Yahoo daily since first trade)
 app.use('/api/history', historyRouter);
+app.use('/api/news', breakingNewsRouter);
 app.use('/api/pine', createPineRouter((req) => getCommunityUser(req) as any));
 
 // Initialize background sentiment polling

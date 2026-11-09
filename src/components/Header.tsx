@@ -924,6 +924,22 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </button>
 
+              {/* FUNDAMENTALS — one click to the live Fundamental Analysis engine */}
+              <button
+                id="header-fundamentals-btn"
+                type="button"
+                onClick={() => switchTab('FUNDAMENTAL_INDICATORS')}
+                title="Fundamentals — live bullish/bearish scores, long-term rankings, COT and sentiment"
+                className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition-all duration-200 cursor-pointer shadow-sm ${
+                  activeTab === 'FUNDAMENTAL_INDICATORS'
+                    ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-slate-950 border-emerald-300'
+                    : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-emerald-300 border-slate-800 hover:border-emerald-500/50'
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5 stroke-[2.2]" />
+                <span className="whitespace-nowrap">Fundamentals</span>
+              </button>
+
               {/* Dedicated Psychological Command Center Access Button Immediately Beside Profile */}
               <button
                 id="header-psychological-center-btn"
@@ -975,6 +991,22 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>LOGIN</span>
                 </button>
               )}
+
+              {/* FUNDAMENTALS — one click to the live Fundamental Analysis engine */}
+              <button
+                id="header-fundamentals-guest-btn"
+                type="button"
+                onClick={() => switchTab('FUNDAMENTAL_INDICATORS')}
+                title="Fundamentals — live bullish/bearish scores, long-term rankings, COT and sentiment"
+                className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition-all duration-200 cursor-pointer shadow-sm ${
+                  activeTab === 'FUNDAMENTAL_INDICATORS'
+                    ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-slate-950 border-emerald-300'
+                    : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-emerald-300 border-slate-800 hover:border-emerald-500/50'
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5 stroke-[2.2]" />
+                <span className="whitespace-nowrap">Fundamentals</span>
+              </button>
 
               {/* Dedicated Psychological Center Button in Demo/Pre-Login Mode */}
               <button

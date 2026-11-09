@@ -1,5 +1,32 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { init, dispose, type Chart, type KLineData } from 'klinecharts';
+import { init, dispose, registerOverlay, type Chart, type KLineData } from 'klinecharts';
+
+// MT5-style SL / TP line: a full-width dashed line whose label is recomputed on every frame, so
+// the money, % of balance and pips follow the line live while it is dragged.
+let levelOverlayRegistered = false;
+function ensureLevelOverlay() {
+  if (levelOverlayRegistered) return;
+  levelOverlayRegistered = true;
+  registerOverlay({
+    name: 'ppfxLevel',
+    totalStep: 2,
+    needDefaultPointFigure: true,
+    needDefaultXAxisFigure: false,
+    needDefaultYAxisFigure: true,
+    createPointFigures: ({ coordinates, bounding, overlay }: any) => {
+      const c = coordinates[0];
+      if (!c) return [];
+      const ext = overlay.extendData || {};
+      const value = overlay.points?.[0]?.value;
+      const label = typeof ext.label === 'function' ? ext.label(value) : String(value ?? '');
+      const color = ext.color || '#94a3b8';
+      return [
+        { type: 'line', attrs: { coordinates: [{ x: 0, y: c.y }, { x: bounding.width, y: c.y }] }, styles: { style: 'dashed', color, size: 1.5, dashedValue: [6, 4] }, ignoreEvent: false },
+        { type: 'text', attrs: { x: bounding.width - 8, y: c.y - 3, text: label, align: 'right', baseline: 'bottom' }, styles: { color: '#0b1220', backgroundColor: color, borderColor: color, size: 11, weight: 'bold', paddingLeft: 6, paddingRight: 6, paddingTop: 3, paddingBottom: 3, borderRadius: 3 }, ignoreEvent: true },
+      ];
+    },
+  } as any);
+}
 import { ChevronsRight, Download, Info, Maximize2, Minimize2, Pause, Play, SkipForward, StepForward, Target, Trash2, Undo2, X } from 'lucide-react';
 import { SymbolPicker } from '../chartAnalysis/SymbolPicker';
 import { CATALOG, FullHistoryDatafeed, PRO_PERIODS, type CatalogEntry } from '../chartAnalysis/fullHistoryDatafeed';
@@ -60,6 +87,9 @@ export const BarReplayPro: React.FC = () => {
   const [startBalance, setStartBalance] = useState(10_000);
   const [balanceDraft, setBalanceDraft] = useState('10000');
   const [lots, setLots] = useState(0.1);
+  const [riskPct, setRiskPct] = useState(1);
+  const startBalanceRef = useRef(10_000);
+  const statsNetRef = useRef(0);
   const [slPips, setSlPips] = useState(20);
   const [tpPips, setTpPips] = useState(40);
   const [spreadPips, setSpreadPips] = useState(1);
@@ -249,13 +279,27 @@ export const BarReplayPro: React.FC = () => {
   const lastBar = bars[cursor];
   // Entry line (locked) + DRAGGABLE stop-loss / take-profit lines, MetaTrader-style: drag a line to
   // move the level; an invalid level (SL above the price on a buy, etc.) snaps back.
+  const levelLabel = (posId: number, kind: 'sl' | 'tp', value: number | undefined) => {
+    const p = posRef.current.find((x) => x.id === posId);
+    if (!p || value === undefined || !Number.isFinite(value)) return kind.toUpperCase();
+    const money = calcPnl(entry, p.side, p.entry, value, p.lots);
+    const bal = startBalanceRef.current + statsNetRef.current;
+    const pct = bal > 0 ? (money / bal) * 100 : 0;
+    const pips = Math.abs(value - p.entry) / pip;
+    const slDist = p.sl !== null ? Math.abs(p.entry - p.sl) : 0;
+    const rr = kind === 'tp' && slDist > 0 ? ` · ${(Math.abs(value - p.entry) / slDist).toFixed(2)}R` : '';
+    const sign = money >= 0 ? '+' : '−';
+    return `${kind === 'sl' ? 'SL' : 'TP'} ${value.toFixed(entry.pricePrecision ?? 2)}   ${sign}${fmtMoney(Math.abs(money))} ${ccy} (${sign}${Math.abs(pct).toFixed(2)}%) · ${pips.toFixed(1)} pips${rr}`;
+  };
   const levelLine = (posId: number, kind: 'sl' | 'tp', value: number): string => {
     const c = chartRef.current;
     if (!c || !lastBar) return '';
+    ensureLevelOverlay();
     const color = kind === 'sl' ? '#f43f5e' : '#10b981';
     return c.createOverlay({
-      name: 'priceLine', lock: false, points: [{ timestamp: lastBar.timestamp, value }],
-      styles: { line: { color, size: 1.5, style: 'dashed' as any }, point: { color, borderColor: color, activeColor: color, activeBorderColor: '#fff' }, text: { color: '#0b1220', backgroundColor: color, borderColor: color } } as any,
+      name: 'ppfxLevel', lock: false, points: [{ timestamp: lastBar.timestamp, value }],
+      extendData: { color, label: (v: number) => levelLabel(posId, kind, v) },
+      styles: { point: { color, borderColor: color, activeColor: color, activeBorderColor: '#fff' } } as any,
       onPressedMoveEnd: (ev: any) => { moveLevel(posId, kind, ev.overlay.id, ev.overlay.points?.[0]?.value); return false; },
     } as any) as string;
   };
@@ -306,7 +350,7 @@ export const BarReplayPro: React.FC = () => {
     const spread = spreadPips * pip;
     const price = side > 0 ? lastBar.close + spread : lastBar.close; // data is bid-based: buys pay the spread
     const p: Omit<Position, 'overlays'> = {
-      id: seq.current++, side, entry: price, lots,
+      id: seq.current++, side, entry: price, lots: tradeLots,
       sl: slPips > 0 ? price - side * slPips * pip : null,
       tp: tpPips > 0 ? price + side * tpPips * pip : null,
       openTime: lastBar.timestamp,
@@ -422,6 +466,16 @@ export const BarReplayPro: React.FC = () => {
       maxDD: maxDD * 100, expectancyR: rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : null, curve,
     };
   }, [closed, startBalance]);
+  startBalanceRef.current = startBalance;
+  statsNetRef.current = stats.net;
+  // Risk-based sizing: with Risk % > 0 the lot size is worked out from the balance and the SL distance.
+  const refPrice = lastBar?.close ?? 0;
+  const lossPerLot = refPrice && slPips > 0 ? Math.abs(calcPnl(entry, 1, refPrice, refPrice - slPips * pip, 1)) : 0;
+  const balanceNow = startBalance + stats.net;
+  const autoLots = riskPct > 0 && lossPerLot > 0 ? Math.max(0.01, Math.floor(((balanceNow * riskPct) / 100 / lossPerLot) * 100) / 100) : null;
+  const tradeLots = autoLots ?? lots;
+  const riskMoney = lossPerLot * tradeLots;
+  const rewardMoney = refPrice && tpPips > 0 ? Math.abs(calcPnl(entry, 1, refPrice, refPrice + tpPips * pip, tradeLots)) : 0;
 
   const exportCsv = () => {
     const rows = [['#', 'Side', 'Lots', 'Open time (UTC)', 'Entry', 'SL', 'TP', 'Close time (UTC)', 'Exit', 'Reason', `P&L (${ccy})`, 'R'],
@@ -522,12 +576,21 @@ export const BarReplayPro: React.FC = () => {
           <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 space-y-2.5">
             <div className="text-[10px] font-mono-code uppercase tracking-widest text-cyan-400">Order ticket</div>
             <div className="grid grid-cols-2 gap-2 text-[10px] font-mono-code uppercase text-slate-500">
-              <label className="flex flex-col gap-1">Lots<input type="number" min={0.01} step={0.01} value={lots} onChange={(e) => setLots(Math.max(0.01, Number(e.target.value)))} className="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[12px]" /></label>
+              <label className="flex flex-col gap-1">Risk % per trade<input type="number" min={0} max={100} step={0.1} value={riskPct} onChange={(e) => setRiskPct(Math.max(0, Number(e.target.value)))} className="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[12px]" /></label>
+              <label className="flex flex-col gap-1">Lots{autoLots !== null ? ' (auto from risk)' : ''}<input type="number" min={0.01} step={0.01} value={autoLots ?? lots} disabled={autoLots !== null} onChange={(e) => setLots(Math.max(0.01, Number(e.target.value)))} className="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[12px] disabled:opacity-70" /></label>
               <label className="flex flex-col gap-1">Spread (pips)<input type="number" min={0} step={0.1} value={spreadPips} onChange={(e) => setSpreadPips(Math.max(0, Number(e.target.value)))} className="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[12px]" /></label>
               <label className="flex flex-col gap-1">Stop loss (pips)<input type="number" min={0} value={slPips} onChange={(e) => setSlPips(Math.max(0, Number(e.target.value)))} className="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[12px]" /></label>
               <label className="flex flex-col gap-1">Take profit (pips)<input type="number" min={0} value={tpPips} onChange={(e) => setTpPips(Math.max(0, Number(e.target.value)))} className="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[12px]" /></label>
             </div>
-            <div className="text-[10px] font-mono-code text-slate-500">1 pip = {pip} · contract {contractSize(entry).toLocaleString()} units/lot · 0 = no SL/TP</div>
+            {lastBar && slPips > 0 && (
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 px-2.5 py-1.5 text-[11px] font-mono-code flex flex-wrap gap-x-3 gap-y-0.5">
+                <span className="text-rose-300">Risk −{fmtMoney(riskMoney)} {ccy} ({balanceNow > 0 ? ((riskMoney / balanceNow) * 100).toFixed(2) : '0'}%)</span>
+                {tpPips > 0 && <span className="text-emerald-300">Reward +{fmtMoney(rewardMoney)} {ccy}</span>}
+                {tpPips > 0 && <span className="text-slate-400">R:R 1:{(tpPips / slPips).toFixed(2)}</span>}
+                <span className="text-slate-500">{tradeLots.toFixed(2)} lots</span>
+              </div>
+            )}
+            <div className="text-[10px] font-mono-code text-slate-500">1 pip = {pip} · contract {contractSize(entry).toLocaleString()} units/lot · 0 = no SL/TP · Risk % 0 = set lots by hand · drag the SL/TP lines on the chart — their $ and % update live</div>
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => open(1)} className="py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-emerald-100 font-bold text-[13px] hover:bg-emerald-500/30 cursor-pointer">BUY (B)<div className="text-[10px] font-mono-code font-normal">{lastBar ? fmt(lastBar.close + spreadPips * pip, entry.pricePrecision ?? 2) : '—'}</div></button>
               <button type="button" onClick={() => open(-1)} className="py-2 rounded-lg bg-rose-500/20 border border-rose-500/50 text-rose-100 font-bold text-[13px] hover:bg-rose-500/30 cursor-pointer">SELL (S)<div className="text-[10px] font-mono-code font-normal">{lastBar ? fmt(lastBar.close, entry.pricePrecision ?? 2) : '—'}</div></button>
