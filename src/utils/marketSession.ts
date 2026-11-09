@@ -51,3 +51,52 @@ export function fmtDuration(sec: number): string {
   const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
   return d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m ${Math.floor(sec % 60)}s`;
 }
+
+/**
+ * Seconds until the current candle closes, aligned the way TradingView aligns bars:
+ *  · up to 1h: clock-aligned (every timezone offset is a whole hour);
+ *  · 2h/3h/4h and Daily for forex/metals/indices: anchored to the 17:00 New York session
+ *    roll (DST-correct); crypto uses UTC midnight; US stocks use the 09:30 open / 16:00 close;
+ *  · Weekly: Friday 17:00 NY (forex), Monday 00:00 UTC (crypto), Friday 16:00 NY (stocks);
+ *  · Monthly: the 1st of next month, 00:00 UTC.
+ */
+export function barCloseIn(norm: string, kind: SessionKind, d = new Date()): { remaining: number; total: number } {
+  const epoch = Math.floor(d.getTime() / 1000);
+  const { dow, secs } = nyParts(d);
+  const minutes = Number(norm);
+  if (Number.isFinite(minutes) && minutes > 0) {
+    const P = minutes * 60;
+    if (P <= 3600 && kind !== 'stocks') return { remaining: P - (epoch % P), total: P };
+    if (kind === 'crypto') return { remaining: P - (epoch % P), total: P };
+    const anchor = kind === 'stocks' ? 9.5 * 3600 : 17 * 3600;
+    const since = (((secs - anchor) % 86400) + 86400) % 86400;
+    return { remaining: P - (since % P), total: P };
+  }
+  if (norm === 'D') {
+    if (kind === 'crypto') return { remaining: 86400 - (epoch % 86400), total: 86400 };
+    const close = kind === 'stocks' ? 16 * 3600 : 17 * 3600;
+    return { remaining: ((close - secs + 86400) % 86400) || 86400, total: 86400 };
+  }
+  if (norm === 'W') {
+    if (kind === 'crypto') {
+      const sinceMon = (epoch - 4 * 86400) % 604800; // 1970-01-05 was a Monday
+      return { remaining: 604800 - sinceMon, total: 604800 };
+    }
+    const target = 5 * 86400 + (kind === 'stocks' ? 16 : 17) * 3600;
+    const weekSec = dow * 86400 + secs;
+    return { remaining: ((target - weekSec + 604800) % 604800) || 604800, total: 604800 };
+  }
+  // Monthly
+  const next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) / 1000;
+  const start = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000;
+  return { remaining: Math.max(1, Math.round(next - epoch)), total: Math.round(next - start) };
+}
+
+/** TradingView-style countdown text: 42:07 · 03:12:09 · 2d 04:10:00 */
+export function fmtCountdown(sec: number): string {
+  const pad = (n: number) => String(Math.floor(n)).padStart(2, '0');
+  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  if (d > 0) return `${d}d ${pad(h)}:${pad(m)}:${pad(s)}`;
+  if (h > 0) return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  return `${pad(m)}:${pad(s)}`;
+}

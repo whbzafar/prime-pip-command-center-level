@@ -5020,6 +5020,17 @@ app.get('/api/signals', (_req, res) => {
   }
 });
 
+// Only the owner/admin may change signals or announcements.
+async function requireStaff(req: any, res: any): Promise<boolean> {
+  try {
+    const token = getAuthToken(req);
+    const user: any = (token ? getUserByToken(token) : null) || (await getCommunityUser(req));
+    if (user && (user.role === 'ADMIN' || user.role === 'DEVELOPER' || user.isDeveloper)) return true;
+  } catch {}
+  res.status(403).json({ ok: false, error: 'Only the administrator can do this.' });
+  return false;
+}
+
 app.post('/api/signals', async (req, res) => {
   try {
     const token = getAuthToken(req);
@@ -5119,7 +5130,8 @@ app.post('/api/signals', async (req, res) => {
   }
 });
 
-app.patch('/api/signals/:id', (req, res) => {
+app.patch('/api/signals/:id', async (req, res) => {
+  if (!(await requireStaff(req, res))) return;
   try {
     const { id } = req.params;
     const { status, closedPrice, resultPips, resultPercent, closeReason, notes } = req.body || {};
@@ -5137,7 +5149,8 @@ app.patch('/api/signals/:id', (req, res) => {
   }
 });
 
-app.delete('/api/signals/:id', (req, res) => {
+app.delete('/api/signals/:id', async (req, res) => {
+  if (!(await requireStaff(req, res))) return;
   try {
     const { id } = req.params;
     const success = deleteSignal(id);
@@ -5148,7 +5161,8 @@ app.delete('/api/signals/:id', (req, res) => {
   }
 });
 
-app.post('/api/signals/reset', (_req, res) => {
+app.post('/api/signals/reset', async (_req, res) => {
+  if (!(await requireStaff(_req, res))) return;
   try {
     resetAllSignals();
     return res.json({ ok: true, message: 'All signal records reset successfully.' });
@@ -5168,7 +5182,8 @@ app.get('/api/announcements', (_req, res) => {
   }
 });
 
-app.post('/api/announcements', (req, res) => {
+app.post('/api/announcements', async (req, res) => {
+  if (!(await requireStaff(req, res))) return;
   try {
     const { title, message, category, signalId, sender } = req.body || {};
     if (!message) {
@@ -5221,7 +5236,8 @@ app.post('/api/announcements', (req, res) => {
   }
 });
 
-app.delete('/api/announcements/:id', (req, res) => {
+app.delete('/api/announcements/:id', async (req, res) => {
+  if (!(await requireStaff(req, res))) return;
   try {
     const { id } = req.params;
     const success = deleteAnnouncement(id);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { fmtDuration, marketStatus, sessionKind } from '../utils/marketSession';
+import { barCloseIn, fmtCountdown, fmtDuration, marketStatus, sessionKind } from '../utils/marketSession';
 import { LiveBiasStrip, chartSymbolFor } from './fundamentalAnalysis/LiveBiasStrip';
 import { CATALOG } from './chartAnalysis/fullHistoryDatafeed';
 import { createPortal } from 'react-dom';
@@ -2359,12 +2359,16 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   // and shows when trading resumes instead of counting down a candle that will not form.
   const sessionCountdown = useCallback((iv: string) => {
     const cd = calculateCandleCountdown(iv);
-    const st = marketStatus(sessionKind(selectedSymbol.replace(/^[A-Z_]+:/, '')));
+    const kind = sessionKind(selectedSymbol.replace(/^[A-Z_]+:/, ''));
+    const st = marketStatus(kind);
+    const bar = barCloseIn(normalizeInterval(iv), kind);
+    const session = st.open ? (st.closesInSec ? `closes in ${fmtDuration(st.closesInSec)}` : '24/7') : `opens in ${fmtDuration(st.reopensInSec || 0)}`;
     return st.open
-      ? { ...cd, text: st.closesInSec ? `OPEN · closes in ${fmtDuration(st.closesInSec)}` : 'OPEN · 24/7' }
-      : { ...cd, closed: true, secondsRemaining: cd.totalSeconds, progressPercent: 0, text: `CLOSED · opens in ${fmtDuration(st.reopensInSec || 0)}` };
+      ? { ...cd, secondsRemaining: bar.remaining, totalSeconds: bar.total, progressPercent: Math.round(((bar.total - bar.remaining) / bar.total) * 100), text: fmtCountdown(bar.remaining), session, closed: false }
+      : { ...cd, closed: true, secondsRemaining: bar.total, totalSeconds: bar.total, progressPercent: 0, text: 'Closed', session };
   }, [selectedSymbol]);
-  const [candleCountdown, setCandleCountdown] = useState(() => calculateCandleCountdown(selectedInterval));
+  const [candleCountdown, setCandleCountdown] = useState<any>(() => sessionCountdown(selectedInterval));
+  const [cdTop, setCdTop] = useState<number>(() => { try { const v = Number(localStorage.getItem('ppfx_cd_top')); return v > 0 && v < 95 ? v : 42; } catch { return 42; } });
 
   useEffect(() => {
     setCandleCountdown(sessionCountdown(selectedInterval));
@@ -4280,6 +4284,41 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
           {/* TRADINGVIEW IFRAME CONTAINER */}
           <div id={containerId} className={`w-full relative z-10 ${pineOnChart ? 'hidden' : 'flex-1 min-h-0'}`} />
+
+          {/* LIVE BAR-CLOSE COUNTDOWN — on the right price scale, like TradingView. Drag it up/down to sit beside the price. */}
+          {!pineOnChart && (
+            <div
+              data-testid="candle-countdown"
+              title="Time left until this candle closes · drag to move"
+              className="absolute right-1 z-30 select-none cursor-ns-resize touch-none"
+              style={{ top: `${cdTop}%` }}
+              onPointerDown={(e) => {
+                const box = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
+                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                const move = (ev: PointerEvent) => {
+                  const pct = Math.min(92, Math.max(4, ((ev.clientY - box.top) / box.height) * 100));
+                  setCdTop(pct);
+                };
+                const up = () => {
+                  window.removeEventListener('pointermove', move);
+                  window.removeEventListener('pointerup', up);
+                  setCdTop((v) => { try { localStorage.setItem('ppfx_cd_top', String(Math.round(v))); } catch {} return v; });
+                };
+                window.addEventListener('pointermove', move);
+                window.addEventListener('pointerup', up);
+              }}
+            >
+              <div className={`rounded-md shadow-lg ring-1 px-2 py-1 text-center font-mono leading-tight min-w-[64px] ${candleCountdown.closed ? 'bg-slate-700/95 ring-slate-500/60 text-slate-200' : 'bg-[#2962FF] ring-blue-300/40 text-white'}`}>
+                <div className="text-[9px] font-sans font-bold uppercase tracking-wider opacity-80">{candleCountdown.label} close</div>
+                <div className="text-[13px] font-black tabular-nums">{candleCountdown.text}</div>
+                {candleCountdown.closed ? (
+                  <div className="text-[9px] font-sans opacity-80">{candleCountdown.session}</div>
+                ) : (
+                  <div className="mt-0.5 h-[3px] w-full rounded bg-white/25 overflow-hidden"><div className="h-full bg-white" style={{ width: `${candleCountdown.progressPercent}%` }} /></div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* AUTHENTIC TRADINGVIEW WATERMARK IN BACKGROUND */}
           <div className={`absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[12] opacity-[0.04] ${pineOnChart ? 'hidden' : ''}`}>
