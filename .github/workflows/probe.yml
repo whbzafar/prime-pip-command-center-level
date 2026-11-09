@@ -19,7 +19,6 @@ jobs:
           sleep 1
           rm -rf app2 && mkdir app2 && cp -r app/data app2/data && ln -s $PWD/app/node_modules app2/node_modules && cp -r app/dist app2/dist && cp app/package.json app2/
           cd app && (PPFX_SHARED_KV_URL=http://localhost:8798/b PORT=3000 node dist/server.cjs > /tmp/server.log 2>&1 &)
-          cd ../app2 && (PPFX_SHARED_KV_URL=http://localhost:8798/b PORT=3001 node dist/server.cjs > /tmp/server2.log 2>&1 &)
           sleep 14
       - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && (timeout 900 node e2e.mjs || true); tail -8 /tmp/server.log; echo ---B; tail -25 /tmp/server2.log
       - if: always()
