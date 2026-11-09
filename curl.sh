@@ -1,4 +1,9 @@
 B=https://prime-pip-command-center-level.vercel.app
-for r in "2026-11-01T00:00:00Z 2026-11-30T23:59:59Z" "2025-03-01T00:00:00Z 2025-03-31T23:59:59Z" "2024-01-01T00:00:00Z 2024-01-07T23:59:59Z"; do set -- $r; c=$(curl -s -m 40 "$B/api/calendar/week?start=$1&end=$2"); echo "LIVE cal $1..$2 -> $(echo "$c" | head -c 120) | events=$(echo "$c" | grep -o '"utcTimestamp"' | wc -l)"; done
-for u in https://www.forexlive.com/feed/news https://www.fxstreet.com/rss/news https://feeds.reuters.com/reuters/businessNews https://www.investing.com/rss/news_1.rss https://www.investing.com/rss/news_287.rss "https://news.google.com/rss/search?q=forex+OR+central+bank+OR+geopolitics&hl=en-US&gl=US&ceid=US:en" https://www.aljazeera.com/xml/rss/all.xml https://feeds.bbci.co.uk/news/world/rss.xml https://www.cnbc.com/id/100003114/device/rss/rss.html https://www.marketwatch.com/rss/topstories "https://finance.yahoo.com/news/rssindex" https://www.fxempire.com/api/v1/en/articles/rss/news ; do echo "LIVE rss $u -> $(curl -s -m 15 -A 'Mozilla/5.0' -o /tmp/r -w '%{http_code}' "$u") items=$(grep -o '<item' /tmp/r | wc -l)"; done
-# 1794192637
+n=$(curl -s -m 40 $B/api/news/breaking); echo "LIVE news: $(echo "$n" | head -c 100) count=$(echo "$n" | grep -o '"count":[0-9]*') sources=$(echo "$n" | grep -o '"sources":{[^}]*}')"
+echo "LIVE news HIGH sample: $(echo "$n" | grep -o '"title":"[^"]*","summary":"[^"]\{0,60\}[^"]*","link":"[^"]*","source":"[^"]*","kind":"[^"]*","publishedAt":[0-9]*,"impact":"HIGH"' | head -3 | sed 's/"summary":"[^"]*",//; s/"link":"[^"]*",//' | cut -c1-200)"
+r=$(curl -s $B/api/macro/rankings); echo "LIVE rankings generatedAt: $(echo "$r" | grep -o '"generatedAt":"[^"]*"')"
+s=$(curl -s $B/api/macro/sentiment); echo "LIVE sentiment updatedAt: $(echo "$s" | grep -o '"updatedAt":"[^"]*"' | head -1)"
+c=$(curl -s "$B/api/cot/latest" ); echo "LIVE cot: $(echo "$c" | head -c 200)"
+c2=$(curl -s "$B/api/macro/pair/EURUSD"); echo "LIVE pair EURUSD cot dates: $(echo "$c2" | grep -o '"reportDate":"[^"]*"' | head -2 | tr '\n' ' ') asOf: $(echo "$c2" | grep -o '"asOf":"[^"]*"' | head -3 | tr '\n' ' ')"
+echo "LIVE calendar next: $(curl -s "$B/api/calendar/upcoming?limit=2" | head -c 240)"
+# 1794193142
