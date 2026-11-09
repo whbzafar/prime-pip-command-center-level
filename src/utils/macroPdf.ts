@@ -31,7 +31,7 @@ class Doc {
     this.y = 40;
   }
   need(h: number) { if (this.y + h > 280) { this.d.addPage(); this.y = 18; } }
-  h2(t: string, color: readonly [number, number, number] = C.ink) { this.need(12); const d = this.d; d.setFont('helvetica', 'bold'); d.setFontSize(12); d.setTextColor(...color); d.text(safe(t), this.M, this.y); this.y += 2; d.setDrawColor(...C.line); d.line(this.M, this.y, this.W - this.M, this.y); this.y += 5; }
+  h2(t: string, color: readonly [number, number, number] = C.ink) { this.y += 3; this.need(12); const d = this.d; d.setFont('helvetica', 'bold'); d.setFontSize(12); d.setTextColor(...color); d.text(safe(t), this.M, this.y); this.y += 2; d.setDrawColor(...C.line); d.line(this.M, this.y, this.W - this.M, this.y); this.y += 5; }
   p(t: string, size = 9.5, color: readonly [number, number, number] = C.ink) {
     const d = this.d; d.setFont('helvetica', 'normal'); d.setFontSize(size); d.setTextColor(...color);
     for (const line of d.splitTextToSize(safe(t), this.W - 2 * this.M)) { this.need(5); d.text(line, this.M, this.y); this.y += size * 0.45; }
@@ -124,7 +124,7 @@ function assetSection(doc: Doc, a: AssetResult, title: string) {
   }
   for (const pl of a.pillars || []) {
     doc.need(14);
-    doc.p(`${pl.name} - score ${sc(pl.score)}${pl.bullishPct !== null ? ` · ${pl.bullishPct.toFixed(0)}% bullish` : ''} · weight ${Math.round((pl.weight || 0) * 100)}% · coverage ${Math.round((pl.coverage || 0) * 100)}%`, 9.5, tone(pl.score));
+    doc.p(`${pl.name} - score ${sc(pl.score)}${pl.bullishPct !== null ? ` · ${pl.bullishPct.toFixed(0)}% bullish` : ''} · weight ${Math.round((pl.weight || 0) > 1 ? pl.weight : (pl.weight || 0) * 100)}% · coverage ${Math.round((pl.coverage || 0) > 1 ? pl.coverage : (pl.coverage || 0) * 100)}%`, 9.5, tone(pl.score));
     const inds = (pl.indicators || []).filter((i) => i.status !== 'missing');
     if (inds.length) {
       doc.table(['Indicator', 'Actual', 'Forecast', 'Previous', 'Released', 'Score'], inds.map((i) => {
