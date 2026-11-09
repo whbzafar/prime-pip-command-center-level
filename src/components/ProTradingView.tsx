@@ -4290,7 +4290,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             <div
               data-testid="candle-countdown"
               title="Time left until this candle closes · drag to move"
-              className="absolute right-1 z-30 select-none cursor-ns-resize touch-none"
+              className="absolute right-1 md:right-[49px] z-30 select-none cursor-ns-resize touch-none"
               style={{ top: `${cdTop}%` }}
               onPointerDown={(e) => {
                 const box = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
