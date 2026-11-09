@@ -19,6 +19,9 @@ import { RemotePineEngine, REMOTE_LANG, remoteRef } from './remoteEngine';
 
 interface Running { key: string; remove: () => void }
 
+/** Bars of history loaded behind the chart (the library default is only 500). */
+const HISTORY_BARS = 5000;
+
 export const PineMainChart: React.FC<{ symbol: string; interval: string; height?: number | string }> = ({ symbol, interval, height = '100%' }) => {
   const host = useRef<HTMLDivElement>(null);
   const ws = useRef<VelaWorkspace | null>(null);
@@ -35,7 +38,7 @@ export const PineMainChart: React.FC<{ symbol: string; interval: string; height?
   useEffect(() => {
     if (!host.current || !entry) return;
     const w = new VelaWorkspace(host.current, {
-      layout: false, symbol: entry.ticker, timeframe: tf, theme: 'dark', live: true, persist: false,
+      layout: false, symbol: entry.ticker, timeframe: tf, bars: HISTORY_BARS, theme: 'dark', live: true, persist: false,
       providers: { ppfx: () => makeProvider() },
       engines: { pine: () => new PineWorkerEngine(), [REMOTE_LANG]: () => new RemotePineEngine() },
     } as any);
@@ -56,12 +59,12 @@ export const PineMainChart: React.FC<{ symbol: string; interval: string; height?
   useEffect(() => {
     const chart: any = ws.current?.chart;
     if (!chart || !entry || !ready) return;
-    chart.setMarket({ symbol: entry.ticker }).catch?.(() => {});
+    chart.setMarket({ symbol: entry.ticker, bars: HISTORY_BARS }).catch?.(() => {});
   }, [entry, ready]);
   useEffect(() => {
     const chart: any = ws.current?.chart;
     if (!chart || !ready) return;
-    chart.setMarket({ timeframe: tf }).catch?.(() => {});
+    chart.setMarket({ timeframe: tf, bars: HISTORY_BARS }).catch?.(() => {});
   }, [tf, ready]);
 
   // Keep the chart's indicators in step with the shown list.

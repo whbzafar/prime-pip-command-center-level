@@ -560,6 +560,14 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
         </div>
       </div>
 
+      {/* HOW DO YOU FEEL RIGHT NOW? — first thing a trader sees */}
+      {!selectedCategory && (
+        <MindCheckIn
+          userName={(currentUser as any)?.name}
+          onOpenCategory={(id) => { const c = PSYCHOLOGY_CATEGORIES[id]; if (c) { setActiveSection('CATEGORIES' as any); setSelectedCategory(c); setTimeout(() => document.getElementById('psych-nav-categories')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); } }}
+        />
+      )}
+
       {/* ========================================================================= */}
       {/* PSYCHOLOGICAL FOCUS PLAYLIST & AUDIO ENGINE */}
       {/* ========================================================================= */}
@@ -732,12 +740,6 @@ export const PsychologyCenter: React.FC<PsychologyCenterProps> = ({
           {/* ========================================================================= */}
           {/* SECTION: 17 DEDICATED PSYCHOLOGY CATEGORIES */}
           {/* ========================================================================= */}
-          {activeSection === 'CATEGORIES' && (
-            <MindCheckIn
-              userName={(currentUser as any)?.name}
-              onOpenCategory={(id) => { const c = PSYCHOLOGY_CATEGORIES[id]; if (c) { setSelectedCategory(c); window.scrollTo({ top: 0, behavior: 'smooth' }); } }}
-            />
-          )}
           {activeSection === 'CATEGORIES' && (
             <CategoriesDashboard
               onSelectCategory={(category) => setSelectedCategory(category)}
