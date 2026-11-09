@@ -104,7 +104,7 @@ function ensurePolling() {
       const e = CATALOG.find((c) => c.ticker === t);
       if (!e) continue;
       try {
-        const rows = await new FullHistoryDatafeed(() => {}).getHistoryKLineData(e as any, m1, 0, Date.now() + 60_000);
+        const f = new FullHistoryDatafeed(() => {}); f.pageSize = 3; const rows = await f.getHistoryKLineData(e as any, m1, 0, Date.now() + 60_000);
         const b = rows?.[rows.length - 1];
         if (b) { if (!last.has(t) && rows.length > 1) last.set(t, rows[rows.length - 2].close); priceAlerts.tick(t, b.close); }
       } catch { /* transient */ }
