@@ -21,8 +21,9 @@ console.log('engine', await p.evaluate(() => localStorage.getItem('ppfx_premium_
 await p.getByRole('button', { name: 'Got it' }).click().catch(() => {});
 await openLabels();
 await fr().getByText(/Countdown to bar close/).first().click({ force: true, timeout: 8000 }).catch((e) => console.log('cd click', e.message.slice(0, 60)));
-await p.waitForTimeout(3000);
+await p.waitForTimeout(8000);
 await p.screenshot({ path: 'shots/v1-tv-countdown-on.png' });
+console.log('frame props:', (await fr().evaluate(() => localStorage.getItem('tradingview-widget.chartproperties.mainSeriesProperties') || '')).match(/showCountdown[^,]*/)?.[0]);
 await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForTimeout(8000);
 await p.evaluate(() => document.getElementById('onboarding-welcome-modal')?.remove());
 await nav('10. PREMIUM TRADINGVIEW'); await p.waitForTimeout(15000);
@@ -34,6 +35,7 @@ await p.screenshot({ path: 'shots/v3-tv-labels.png' });
 await p.keyboard.press('Escape');
 await p.locator('#header-fundamentals-btn').click().catch(() => {}); await p.waitForTimeout(8000);
 await p.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /Top Bullish/.test(x.innerText)); b?.click(); }); await p.waitForTimeout(10000);
+process.exit(0);
 const dl = p.waitForEvent('download', { timeout: 30000 }).catch(() => null);
 await p.locator('[data-testid="export-rankings-pdf"]').first().click().catch((e) => console.log('rk', e.message.slice(0, 60)));
 const d = await dl; if (d) { await d.saveAs('shots/rankings.pdf'); console.log('PDF rankings', d.suggestedFilename(), fs.statSync('shots/rankings.pdf').size); } else console.log('no rankings pdf');
