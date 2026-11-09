@@ -33,7 +33,8 @@ await shot(p, 'w4-psych');
 // meta5 still locked
 await p.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /13\. META 5/.test(x.innerText)); b?.scrollIntoView(); b?.click(); }); await p.waitForTimeout(2000);
 console.log('META5 locked:', /Category Locked|locked/i.test(await p.locator('body').innerText()));
-await p.keyboard.press('Escape');
+await p.getByText('Continue Demo Exploration').click({ timeout: 3000 }).catch(() => {});
+await p.keyboard.press('Escape'); await p.waitForTimeout(800);
 // TradingView mode tools
 await p.evaluate(() => { window.dispatchEvent(new CustomEvent('ppfx:open-chart', { detail: { symbol: 'EURUSD' } })); }); await p.waitForTimeout(4000);
 await p.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.trim() === 'TradingView'); b?.click(); }); await p.waitForTimeout(12000);
@@ -55,7 +56,8 @@ await shot(p, 'w5-tv-tools');
 console.log('STEP restart begin');
 try { execFileSync('pkill', ['-f', 'dist/server.cjs']); } catch {}
 await new Promise((r) => setTimeout(r, 2000));
-execSync("cd app && git checkout -- data/users.json 2>/dev/null; (KV_REST_API_URL=http://localhost:8799 KV_REST_API_TOKEN=t PORT=3000 nohup node dist/server.cjs > /tmp/server2.log 2>&1 < /dev/null &) ; sleep 10", { stdio: 'ignore', shell: '/bin/bash' });
+{ const f = 'app/data/users.json'; const arr = JSON.parse(fs.readFileSync(f, 'utf8')); fs.writeFileSync(f, JSON.stringify(arr.filter((u) => u.username !== U), null, 2)); }
+execSync("cd app && (KV_REST_API_URL=http://localhost:8799 KV_REST_API_TOKEN=t PORT=3000 nohup node dist/server.cjs > /tmp/server2.log 2>&1 < /dev/null &) ; sleep 10", { stdio: 'ignore', shell: '/bin/bash' });
 console.log('STEP restarted');
 const localHas = fs.readFileSync('app/data/users.json', 'utf8').includes(U);
 const r = await (await fetch(B + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: U, password: 'secret123' }) })).json();
@@ -74,7 +76,9 @@ const mem = await ap.goto(B + '/api/admin/members').then((x) => x.json()).catch(
 console.log('MEMBERS api:', mem?.ok, 'count', mem?.members?.length, 'has new user', mem?.members?.some((m) => m.username === U && m.signupSource === 'self'), 'logins', mem?.logins?.length, 'storage', JSON.stringify(mem?.storage));
 await ap.goto(B, { waitUntil: 'domcontentloaded' }); await ap.waitForTimeout(7000);
 await ap.evaluate(() => document.getElementById('onboarding-welcome-modal')?.remove());
-await ap.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /ADMIN/.test(x.innerText) && /PANEL|ADMIN/.test(x.innerText)); b?.scrollIntoView(); b?.click(); }); await ap.waitForTimeout(5000);
+await ap.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /ADMIN PANEL/.test(x.innerText)); b?.scrollIntoView(); b?.click(); }); await ap.waitForTimeout(6000);
+await ap.locator('[data-testid="admin-tab-members"]').click({ timeout: 4000 }).catch(() => {}); await ap.waitForTimeout(3000);
+await ap.locator('[data-testid="members-panel"]').scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
 console.log('members panel visible:', await ap.locator('[data-testid="members-panel"]').count());
 await shot(ap, 'w6-admin-members');
 console.log('STEP delete');
