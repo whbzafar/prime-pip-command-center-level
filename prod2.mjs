@@ -13,16 +13,16 @@ async function session(vp) {
   await page.evaluate(() => document.getElementById('onboarding-welcome-modal')?.remove());
   return page;
 }
-const nav = (p, l) => p.evaluate((l) => { const el = [...document.querySelectorAll('button')].find((b) => (b.innerText || '').toUpperCase().includes(l)); if (el) { el.scrollIntoView(); el.click(); return true; } return false; }, l);
+const nav = async (p, l) => { await p.keyboard.press('Escape').catch(() => {}); const ok = await p.evaluate((l) => { const bs = [...document.querySelectorAll('button')]; const el = bs.find((b) => (b.innerText || '').trim().toUpperCase().startsWith(l)) || bs.find((b) => (b.innerText || '').trim().toUpperCase().replace(/^\d+\.\s*/, '').startsWith(l.replace(/^\d+\.\s*/, ''))); if (el) { el.scrollIntoView(); el.click(); return true; } return false; }, l); if (!ok) console.log('NAV miss', l); await p.waitForTimeout(500); await p.evaluate(() => { const c = [...document.querySelectorAll('button')].find((b) => (b.innerText || '').trim() === 'Close'); if (c && document.body.innerText.includes('Explore All Categories')) c.click(); }); };
 const txt = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, ' ');
 const p = await session({ width: 1440, height: 1000 });
 await nav(p, '01. DASHBOARD'); await p.waitForTimeout(6000);
 await p.screenshot({ path: 'shots/v-dashboard.png' });
 let t = await txt(p); console.log('DASH coach:', /Next trade · risk coach/i.test(t), '| longterm live:', /Long-Term \(live Fundamentals ranking\)|Top Long-Term/i.test(t));
-await p.getByRole('button', { name: 'Announcements' }).click(); await p.waitForTimeout(2500);
+await p.getByRole('button', { name: 'Announcements' }).click({ timeout: 8000 }).catch((e) => console.log('noann', e.message.slice(0, 60))); await p.waitForTimeout(2500);
 await p.screenshot({ path: 'shots/v-announce.png' });
 console.log('ANN:', ((await txt(p)).match(/Long-term bullish[^|]{0,120}/) || ['none'])[0]);
-await p.getByRole('button', { name: 'Announcements' }).click();
+await p.getByRole('button', { name: 'Announcements' }).click({ timeout: 3000 }).catch(() => {});
 await nav(p, 'LIVE NEWS CALENDAR'); await p.waitForTimeout(9000);
 await p.screenshot({ path: 'shots/v-calendar.png' });
 await p.getByText('Breaking News').first().click(); await p.waitForTimeout(6000);
