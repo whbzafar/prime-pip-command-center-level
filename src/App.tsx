@@ -1803,9 +1803,8 @@ export default function App() {
       {/* Subscription Gate Guard: Blocks expired, suspended, or unpaid non-developer accounts */}
       {currentUser &&
         currentUser.role !== 'DEVELOPER' &&
-        (currentUser.subscriptionStatus === 'EXPIRED' ||
-          currentUser.subscriptionStatus === 'SUSPENDED' ||
-          currentUser.subscriptionStatus === 'PAYMENT_REQUIRED') && (
+        (currentUser.subscriptionStatus === 'SUSPENDED' ||
+          (!isTrialActive() && (currentUser.subscriptionStatus === 'EXPIRED' || currentUser.subscriptionStatus === 'PAYMENT_REQUIRED'))) && (
           <SubscriptionGateModal
             user={currentUser}
             isOpen={true}

@@ -1,3 +1,4 @@
+import { isTrialActive } from '../utils/trial';
 import React, { useState } from 'react';
 import { Shield, Lock } from 'lucide-react';
 import { AccountSettings } from '../types';
@@ -77,7 +78,7 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
                 type="button"
                 onClick={() => {
                   const user = getStoredUser();
-                  if (!hasFullAccess(user)) {
+                  if (!hasFullAccess(user) && !isTrialActive()) {
                     setIsExploreLockedOpen(true);
                   } else {
                     onExploreDemo();
@@ -88,9 +89,9 @@ export const AccountOnboardingModal: React.FC<AccountOnboardingModalProps> = ({
               >
                 <Lock className="w-3.5 h-3.5 text-amber-400" />
                 <span>Explore in demo preview mode</span>
-                <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold">
+                {!isTrialActive() && <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold">
                   🔒 LOCKED
-                </span>
+                </span>}
               </button>
             )}
           </div>
