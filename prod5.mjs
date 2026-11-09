@@ -18,14 +18,14 @@ await p.getByRole('button', { name: 'Announcements' }).click().catch(() => {}); 
 await p.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => x.innerText.trim().startsWith('Important')); b?.click(); }); await p.waitForTimeout(2000);
 console.log('ANN has VIP SIGNAL text:', /VIP SIGNAL/.test(await txt())); await p.screenshot({ path: 'shots/x-ann-important.png' });
 await p.keyboard.press('Escape'); await p.mouse.click(5, 5);
-await nav('10. PREMIUM TRADINGVIEW'); await p.waitForTimeout(12000);
+await p.waitForTimeout(150000); await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForTimeout(6000); await nav('10. PREMIUM TRADINGVIEW'); await p.waitForTimeout(12000);
 for (const tf of [0, 1]) {
   const cd = p.locator('[data-testid="candle-countdown"]');
   console.log('COUNTDOWN', tf, await cd.count(), (await cd.first().innerText().catch(() => '')).replace(/\s+/g, ' '));
   await p.waitForTimeout(2200);
   console.log('COUNTDOWN later', tf, (await cd.first().innerText().catch(() => '')).replace(/\s+/g, ' '));
 }
-await p.screenshot({ path: 'shots/x-premium-countdown.png' });
+await p.locator('[data-testid="candle-countdown"]').first().scrollIntoViewIfNeeded().catch(() => {}); await p.waitForTimeout(1500); await p.screenshot({ path: 'shots/x-premium-countdown.png' });
 const box = await p.locator('[data-testid="candle-countdown"]').first().boundingBox().catch(() => null);
 if (box) await p.screenshot({ path: 'shots/x-countdown-zoom.png', clip: { x: Math.max(0, box.x - 500), y: Math.max(0, box.y - 200), width: 560, height: 420 } });
 process.exit(0);
