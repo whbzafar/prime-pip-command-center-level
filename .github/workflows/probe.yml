@@ -18,7 +18,7 @@ jobs:
         run: true
       - if: ${{ false }}
         run: true
-      - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && node prod2.mjs
+      - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && node prod3.mjs
       - if: always()
         run: |
           git config user.name ci; git config user.email ci@example.com
