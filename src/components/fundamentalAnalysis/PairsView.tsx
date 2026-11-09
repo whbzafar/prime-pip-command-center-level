@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, LineChart, Search, Users } from 'lucide-react';
+import { ArrowLeft, FileDown, LineChart, Search, Users } from 'lucide-react';
 import type { AssetResult, PairResult } from './types';
 import { openChart } from './LiveBiasStrip';
 import { SplitBar } from './SentimentBoard';
@@ -50,7 +50,8 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
                 <h2 className="font-military text-3xl font-bold text-white">{p.display}</h2>
                 <span className={`font-mono-code text-2xl font-bold ${scoreColor(p.score)}`}>{fmtScore(p.score)}</span>
                 <BiasPill bias={p.bias} score={p.score} />
-                <button type="button" onClick={() => openChart(p.symbol)} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-400/40 text-[12px] font-semibold text-cyan-100 hover:bg-cyan-500/25 cursor-pointer"><LineChart className="w-3.5 h-3.5" /> Open chart</button>
+                <button type="button" data-testid="export-pair-pdf" onClick={() => import('../../utils/macroPdf').then((m) => m.exportPairPdf(detail))} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-400/40 text-[12px] font-semibold text-emerald-100 hover:bg-emerald-500/25 cursor-pointer" title="Download this pair's full analysis as a PDF to share"><FileDown className="w-3.5 h-3.5" /> Export PDF</button>
+                <button type="button" onClick={() => openChart(p.symbol)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-400/40 text-[12px] font-semibold text-cyan-100 hover:bg-cyan-500/25 cursor-pointer"><LineChart className="w-3.5 h-3.5" /> Open chart</button>
               </div>
               <div className="mt-3 flex items-center gap-3 text-[12px] font-mono-code">
                 <span className="text-emerald-400 font-bold">{p.bullishPct === null ? '—' : `${p.bullishPct.toFixed(1)}% Bullish`}</span>
@@ -120,7 +121,8 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
             {f === 'ALL' ? 'All pairs' : f.charAt(0) + f.slice(1).toLowerCase()}
           </button>
         ))}
-        <div className="relative ml-auto">
+        <button type="button" onClick={() => import('../../utils/macroPdf').then((m) => m.exportPairsListPdf(rows, generatedAt))} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-400/40 bg-emerald-500/10 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-500/20 cursor-pointer" title="Download the list below as a PDF"><FileDown className="w-3.5 h-3.5" />Export PDF</button>
+        <div className="relative">
           <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search pair…" aria-label="Search pairs"
             className="pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[12px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50" />

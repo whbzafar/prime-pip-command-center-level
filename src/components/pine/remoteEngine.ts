@@ -85,7 +85,8 @@ export class RemotePineEngine {
       }
     };
 
-    if (!waitingForHistory) setTimeout(run, 0);
+    // Run at once on the bars already on screen (fast first paint), then again when the full history lands.
+    setTimeout(run, 0);
 
     return {
       stop() { stopped = true; try { ctrl?.abort(); } catch { /* ignore */ } },
@@ -96,7 +97,7 @@ export class RemotePineEngine {
       },
       setVisibleRange() { /* not viewport dependent */ },
       notifyBars(reason?: 'backfill' | 'complete') {
-        if (reason === 'backfill') return;
+        if (reason === 'backfill') { if (Date.now() - lastRunAt > 4000) run(); return; }
         if (reason === 'complete') { waitingForHistory = false; run(); return; }
         if (waitingForHistory) return;
         // Live tick: re-run on every new bar, otherwise at most every 20 s.

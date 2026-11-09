@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, Info, LineChart, RefreshCw, Trophy } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, FileDown, Info, LineChart, RefreshCw, Trophy } from 'lucide-react';
 import type { PairResult } from './types';
 import { fmtScore, scoreColor } from './ui';
 import { openChart, useRankings, type RankedPair } from './LiveBiasStrip';
@@ -90,7 +90,11 @@ export const RankingsView: React.FC<{ pairs: PairResult[]; onPair: (symbol: stri
           <div className="font-semibold text-slate-50">Top bullish &amp; bearish pairs</div>
           <div className="text-[11px] text-slate-500">Ranked live from the fundamentals engine · click a pair for its full analysis, or the chart icon to open it in Premium TradingView</div>
         </div>
-        <div className="ml-auto flex rounded-xl border border-slate-800 overflow-hidden text-[12px]">
+        <button type="button" disabled={!data} data-testid="export-rankings-pdf" onClick={() => data && import('../../utils/macroPdf').then((m) => m.exportRankingsPdf(data, horizon))}
+          className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-400/50 bg-emerald-500/10 text-[12px] font-semibold text-emerald-100 hover:bg-emerald-500/20 cursor-pointer disabled:opacity-40" title="Download these rankings as a PDF to share">
+          <FileDown className="w-4 h-4" />Export PDF
+        </button>
+        <div className="flex rounded-xl border border-slate-800 overflow-hidden text-[12px]">
           {(['longTerm', 'shortTerm'] as const).map((h) => (
             <button key={h} type="button" onClick={() => setHorizon(h)} className={`px-4 py-2 font-semibold cursor-pointer ${horizon === h ? 'bg-cyan-500/20 text-cyan-100' : 'text-slate-400 hover:text-slate-200'}`}>{h === 'longTerm' ? 'Long-term' : 'Current (short-term)'}</button>
           ))}

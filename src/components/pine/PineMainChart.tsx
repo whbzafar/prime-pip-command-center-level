@@ -19,7 +19,7 @@ import { Bell, BellOff, Check, Loader2, Minus, Plus, RotateCcw, Search, Trash2, 
 import { VelaWorkspace } from '@luxalgo/vela/workspace';
 import { registerIcon, registerRendererLayer, registerWidgetAction } from '@luxalgo/vela/plugin';
 import { PineWorkerEngine } from '@luxalgo/vela-pinets';
-import { catalogFor, makeProvider, velaTf } from './pineData';
+import { catalogFor, makeProvider, velaTf, venueSymbol } from './pineData';
 import { DRAFT_ID, hideIndicator, indicatorStatus, loadLibrary, pineLib, setIndicatorStatus, showIndicator, type LibraryScript } from './pineLibrary';
 import { RemotePineEngine, REMOTE_LANG, remoteRef } from './remoteEngine';
 import { markOnScreen, priceAlerts, type AlertCondition, type PriceAlert } from './priceAlerts';
@@ -148,9 +148,9 @@ export const PineMainChart: React.FC<{
     if (!host.current || !entry) return;
     registerPlugins();
     const w = new VelaWorkspace(host.current, {
-      layout: false, symbol: entry.ticker, timeframe: tf, bars: HISTORY_BARS, theme: 'dark', live: true, persist: false,
+      layout: false, symbol: venueSymbol(entry.ticker), timeframe: tf, bars: HISTORY_BARS, theme: 'dark', live: true, persist: false,
       timezone: 'Asia/Karachi',
-      providers: { ppfx: () => makeProvider() },
+      providers: { dukascopy: () => makeProvider('dukascopy'), binance: () => makeProvider('binance') },
       engines: { pine: () => new PineWorkerEngine(), [REMOTE_LANG]: () => new RemotePineEngine() },
     } as any);
     ws.current = w;
@@ -208,7 +208,7 @@ export const PineMainChart: React.FC<{
       markOnScreen(tickerRef.current, false);
       tickerRef.current = entry.ticker;
       markOnScreen(entry.ticker, true);
-      chart.setMarket({ symbol: entry.ticker, bars: HISTORY_BARS }).catch?.(() => {});
+      chart.setMarket({ symbol: venueSymbol(entry.ticker), bars: HISTORY_BARS }).catch?.(() => {});
       loadDrawings(entry.ticker);
     }
   }, [entry, ready, saveDrawings, loadDrawings]);
@@ -255,6 +255,18 @@ export const PineMainChart: React.FC<{
     queue.current = queue.current.then(async () => {
       for (const [id, r] of [...running.current]) {
         const w = wanted.get(id);
+        if (w && w.key !== r.key && w.language === 'pine') {
+          // Edited code: swap it in place (same legend row, no re-add) — much faster than remove + add.
+          const h = ((chart.indicators?.() || []) as any[]).find((x) => x?.id === `ind_${id}`);
+          if (h?.updateCode) {
+            setIndicatorStatus(id, { kind: 'busy', text: `Updating “${w.name}”…` });
+            const out: any = await h.updateCode(w.source).catch((e: any) => ({ ok: false, error: e }));
+            if (out?.ok) { r.key = w.key; setIndicatorStatus(id, { kind: 'ok', text: `“${w.name}” updated on the chart.` }); continue; }
+            const msg = out?.error?.message || String(out?.error || 'The indicator could not run.');
+            const line = Number(out?.error?.line ?? (String(msg).match(/line\s+(\d+)/i)?.[1] ?? NaN));
+            r.key = w.key; setIndicatorStatus(id, { kind: 'error', text: msg, line: Number.isFinite(line) ? line : null }); continue;
+          }
+        }
         if (!w || w.key !== r.key) { r.remove(); running.current.delete(id); if (!w) setIndicatorStatus(id, null); }
       }
       purge();

@@ -126,6 +126,8 @@ async function getJson(url: string): Promise<any> {
 // ───────────────────────────────────────── datafeed
 
 export class FullHistoryDatafeed implements Datafeed {
+  /** Bars per history request (the chart pages back in steps of this). */
+  pageSize = 500;
   private sockets = new Map<string, WebSocket>();
   private timers = new Map<string, ReturnType<typeof setInterval>>();
   private dukaList: Array<{ id: string; name: string; description: string }> | null = null;
@@ -190,7 +192,7 @@ export class FullHistoryDatafeed implements Datafeed {
       const src = useYahoo ? 'yahoo' : 'duka';
       const id = useYahoo ? e.yahoo : e.duka;
       if (!id) throw new Error('No data source for this symbol');
-      const count = 500 * mult;
+      const count = Math.min(5000, this.pageSize * mult);
       const altParam = (!useYahoo && e.alt ? `&alt=${encodeURIComponent(e.alt)}` : '') + (!useYahoo && ARCHIVED.has(e.ticker) ? `&arch=${e.ticker}` : '');
       let j = await getJson(`/api/history/candles?src=${src}&id=${encodeURIComponent(id)}&tf=${base}&before=${Math.floor(before)}&count=${count}${altParam}`);
       if (!j?.ok && useYahoo && e.duka) {

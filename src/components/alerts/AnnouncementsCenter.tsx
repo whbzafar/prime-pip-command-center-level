@@ -9,7 +9,7 @@
  * A red badge shows how many new items arrived since the panel was last opened.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, BellRing, BellOff, ExternalLink, Flame, Megaphone, RefreshCw, Trash2, Volume2, X } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, BellRing, BellOff, ExternalLink, FileDown, Flame, Megaphone, RefreshCw, Trash2, Volume2, X } from 'lucide-react';
 import { SOUNDS, playSound, type SoundId } from '../../utils/alertSounds';
 import { useRankings, openChart, type RankedPair } from '../fundamentalAnalysis/LiveBiasStrip';
 import { fetchAnnouncementsServer, type InAppAnnouncement } from '../../services/signalsService';
@@ -54,7 +54,7 @@ export const AnnouncementsCenter: React.FC = () => {
   const [dismissed, setDismissed] = useState<string[]>(() => read(K_DISMISSED, []));
   const known = useRef<Set<string> | null>(null);
   const [alerts, setAlerts] = useState<LtAlert[]>(() => read(K_ALERTS, []));
-  const [settings, setSettings] = useState<{ enabled: boolean; muted: boolean; lastAt: number; everyMin?: number; sound?: boolean; soundId?: SoundId }>(() => ({ everyMin: 180, sound: true, ...read(K_SETTINGS, { enabled: true, muted: false, lastAt: 0 }) }));
+  const [settings, setSettings] = useState<{ enabled: boolean; muted: boolean; lastAt: number; everyMin?: number; sound?: boolean; soundId?: SoundId; storiesSound?: boolean }>(() => ({ everyMin: 180, sound: true, ...read(K_SETTINGS, { enabled: true, muted: false, lastAt: 0 }) }));
   const [seenAt, setSeenAt] = useState<number>(() => read(K_SEEN, 0));
   const [perm, setPerm] = useState<string>(() => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission));
   const rankRef = useRef(rankings);
@@ -71,6 +71,8 @@ export const AnnouncementsCenter: React.FC = () => {
       if (!fresh.length) return;
       const st = read<typeof settings>(K_SETTINGS, { enabled: true, muted: false, lastAt: 0 });
       if (st.muted) return;
+      const onlyStories = fresh.every((id) => id.startsWith('n:'));
+      if (onlyStories && st.storiesSound === false) return; // Important → hottest stories muted
       if (st.sound !== false) playChime(st.soundId);
       notify(title, body);
     };
@@ -174,6 +176,7 @@ export const AnnouncementsCenter: React.FC = () => {
           <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
             {tab === 'FUNDAMENTALS' && (
               <>
+                <button type="button" disabled={!rankings} onClick={() => rankings && import('../../utils/macroPdf').then((m) => m.exportRankingsPdf(rankings as any, 'longTerm'))} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-400/50 bg-emerald-500/10 text-[11.5px] font-semibold text-emerald-100 hover:bg-emerald-500/20 cursor-pointer disabled:opacity-40"><FileDown className="w-3.5 h-3.5" />Export top long-term picks (PDF)</button>
                 <div className="text-[10.5px] text-slate-500">Live long-term fundamental ranking · {rankings?.generatedAt ? `updated ${when(Date.parse(rankings.generatedAt))} PKT` : 'loading…'} · tap a pair to open its chart</div>
                 {[['Long-term bullish', bull, true], ['Long-term bearish', bear, false]].map(([title, list, up]) => (
                   <div key={title as string} className={`rounded-xl border p-2.5 ${up ? 'border-emerald-500/25 bg-emerald-500/[0.04]' : 'border-rose-500/25 bg-rose-500/[0.04]'}`}>
@@ -214,7 +217,13 @@ export const AnnouncementsCenter: React.FC = () => {
                   );
                 })}
 
-                <div className="flex items-center gap-1.5 pt-1 text-[10px] uppercase tracking-[0.16em] font-bold text-orange-300"><Flame className="w-3.5 h-3.5" />Hottest stories</div>
+                <div className="flex items-center gap-1.5 pt-1 text-[10px] uppercase tracking-[0.16em] font-bold text-orange-300"><Flame className="w-3.5 h-3.5" />Hottest stories
+                  <button type="button" data-testid="stories-sound-toggle" onClick={() => saveSettings({ ...settings, storiesSound: settings.storiesSound === false })}
+                    title={settings.storiesSound === false ? 'Sound is off for new hottest stories — tap to turn it on' : 'A sound plays when a new hottest story arrives — tap to mute'}
+                    className={`ml-auto normal-case tracking-normal inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10.5px] font-semibold cursor-pointer ${settings.storiesSound === false ? 'border-rose-500/50 text-rose-200 bg-rose-500/10' : 'border-emerald-500/40 text-emerald-200 bg-emerald-500/10'}`}>
+                    {settings.storiesSound === false ? <><BellOff className="w-3 h-3" />Sound muted</> : <><BellRing className="w-3 h-3" />Sound on</>}
+                  </button>
+                </div>
                 {!highlights.length && <div className="text-[12px] text-slate-500 py-3 text-center">{news.length ? 'All caught up — no new market-moving stories.' : 'Loading the latest market news…'}</div>}
                 {highlights.map((x) => (
                   <div key={x.id} className={`relative rounded-xl border pl-3 pr-8 py-2.5 ${x.impact === 'HIGH' ? 'border-rose-500/30 bg-gradient-to-r from-rose-500/[0.08] to-transparent' : 'border-slate-800 bg-slate-950/60'}`}>

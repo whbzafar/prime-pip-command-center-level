@@ -18,40 +18,55 @@ const normTf = (tf: string) => {
   return t.toUpperCase().replace(/^1/, '');
 };
 
+/** Where each instrument's data really comes from (shown on the chart instead of a generic label). */
+export const sourceOf = (ticker: string): 'binance' | 'dukascopy' => (CATALOG.find((e) => e.ticker === ticker)?.binance ? 'binance' : 'dukascopy');
+export const SOURCE_LABEL = { dukascopy: 'Dukascopy', binance: 'Binance' } as const;
+/** The chart symbol for a ticker, pinned to its real venue, e.g. DUKASCOPY:EURUSD, BINANCE:BTCUSDT. */
+export const venueSymbol = (ticker: string) => `${sourceOf(ticker).toUpperCase()}:${ticker}`;
+
 /** Vela data provider backed by the app's full-history feed (same data as Unlimited Charts / replay). */
-export function makeProvider(): DataProvider {
-  return {
-    async getBars(ticker, timeframe, range) {
-      const entry = CATALOG.find((e) => e.ticker === ticker.replace(/^PPFX:/i, '').toUpperCase());
-      const text = PERIOD_TEXT[normTf(timeframe)];
-      const period = PRO_PERIODS.find((p) => p.text === text);
-      if (!entry || !period) return [];
-      // A fresh feed per request: the feed keeps paging state, and a shared one let a running
-      // strategy's history requests block the chart's scroll-back loads.
-      let cursor = range.to ?? Date.now() + 60_000;
-      const want = range.limit ?? 0;
-      const all = new Map<number, OHLCV>();
-      for (let page = 0; page < 12; page++) {
-        let rows: any[] = [];
-        for (let attempt = 0; attempt < 2 && !rows.length; attempt++) {
-          try { rows = (await new FullHistoryDatafeed(() => {}).getHistoryKLineData(entry as any, period, 0, cursor)) || []; } catch { rows = []; }
-        }
-        if (!rows.length) break;
-        for (const r of rows) if (r.timestamp < (range.to ?? Infinity) + 1) all.set(r.timestamp, { time: r.timestamp, open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume ?? 0 });
-        const oldest = rows[0].timestamp;
-        if (oldest >= cursor) break; // no progress
-        cursor = oldest - 1;
-        const coveredFrom = range.from !== undefined && oldest <= range.from;
-        const enough = want > 0 && all.size >= want;
-        if (coveredFrom || enough || (range.from === undefined && !want)) break;
-      }
+export function makeProvider(source: 'dukascopy' | 'binance' = 'dukascopy'): DataProvider {
+  const fetchBars = async (ticker: string, timeframe: string, range: any, onBatch?: (bars: OHLCV[]) => void, signal?: AbortSignal) => {
+    const entry = CATALOG.find((e) => e.ticker === ticker.replace(/^[A-Z]+:/i, '').toUpperCase());
+    const text = PERIOD_TEXT[normTf(timeframe)];
+    const period = PRO_PERIODS.find((p) => p.text === text);
+    if (!entry || !period) return [];
+    let cursor = range.to ?? Date.now() + 60_000;
+    const want = range.limit ?? 0;
+    const all = new Map<number, OHLCV>();
+    const sorted = () => {
       let bars = [...all.values()].filter((b) => range.from === undefined || b.time >= range.from).sort((a, b) => a.time - b.time);
       if (want > 0 && bars.length > want) bars = bars.slice(-want);
       return bars;
-    },
+    };
+    // A fresh feed per request (the feed keeps paging state). Big pages: 2,000 bars per request.
+    for (let page = 0; page < 12 && !signal?.aborted; page++) {
+      const feed = new FullHistoryDatafeed(() => {});
+      feed.pageSize = page === 0 ? 1500 : 2500;
+      let rows: any[] = [];
+      for (let attempt = 0; attempt < 2 && !rows.length; attempt++) {
+        try { rows = (await feed.getHistoryKLineData(entry as any, period, 0, cursor)) || []; } catch { rows = []; }
+      }
+      if (!rows.length) break;
+      for (const r of rows) if (r.timestamp < (range.to ?? Infinity) + 1) all.set(r.timestamp, { time: r.timestamp, open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume ?? 0 });
+      onBatch?.(sorted());
+      const oldest = rows[0].timestamp;
+      if (oldest >= cursor) break; // no progress
+      cursor = oldest - 1;
+      const coveredFrom = range.from !== undefined && oldest <= range.from;
+      const enough = want > 0 && all.size >= want;
+      if (coveredFrom || enough || (range.from === undefined && !want)) break;
+    }
+    return sorted();
+  };
+  return {
+    info: () => ({ name: source, displayName: SOURCE_LABEL[source], capabilities: {} }) as any,
+    getBars: (ticker, timeframe, range) => fetchBars(ticker, timeframe, range),
+    /** Paints the first page at once, then fills the rest of the history behind it. */
+    getBarsProgressive: (ticker: string, timeframe: string, range: any, onBatch: (bars: OHLCV[]) => void, opts?: { signal?: AbortSignal }) => fetchBars(ticker, timeframe, range, onBatch, opts?.signal),
     /** True live stream: Binance WebSocket for crypto, a 5-second poll for everything else. Also feeds price alerts. */
     subscribe(ticker: string, timeframe: string, onBar: (bar: OHLCV) => void) {
-      const t = ticker.replace(/^PPFX:/i, '').toUpperCase();
+      const t = ticker.replace(/^[A-Z]+:/i, '').toUpperCase();
       const entry = CATALOG.find((e) => e.ticker === t);
       const period = PRO_PERIODS.find((p) => p.text === PERIOD_TEXT[normTf(timeframe)]);
       if (!entry || !period) return () => {};
@@ -64,12 +79,12 @@ export function makeProvider(): DataProvider {
       return () => { try { feed.unsubscribe(entry as any, period); feed.destroy(); } catch { /* ignore */ } };
     },
     async listSymbols() {
-      return CATALOG.map((e) => ({ ticker: e.ticker, description: e.name, type: e.market === 'forex' ? 'forex' : e.market === 'crypto' ? 'crypto' : e.market === 'stocks' ? 'stock' : e.market === 'indices' ? 'index' : 'commodity' })) as any;
+      return CATALOG.filter((e) => (e.binance ? 'binance' : 'dukascopy') === source).map((e) => ({ ticker: e.ticker, description: e.name, type: e.market === 'forex' ? 'forex' : e.market === 'crypto' ? 'crypto' : e.market === 'stocks' ? 'stock' : e.market === 'indices' ? 'index' : 'commodity' })) as any;
     },
     async getSymbolInfo(ticker: string) {
-      const e = CATALOG.find((x) => x.ticker === ticker) as CatalogEntry | undefined;
+      const e = CATALOG.find((x) => x.ticker === ticker.replace(/^[A-Z]+:/i, '').toUpperCase()) as CatalogEntry | undefined;
       const p = e?.pricePrecision ?? 2;
-      return { ticker, description: e?.name || ticker, type: e?.market || 'forex', currency: e?.market === 'crypto' ? 'USDT' : 'USD', mintick: Number((10 ** -p).toFixed(p)), pricescale: 10 ** p, timezone: 'Etc/UTC', session: e?.market === 'crypto' ? '24x7' : '24x5' } as any;
+      return { ticker, exchange: SOURCE_LABEL[source], description: e?.name || ticker, type: e?.market || 'forex', currency: e?.market === 'crypto' ? 'USDT' : 'USD', mintick: Number((10 ** -p).toFixed(p)), pricescale: 10 ** p, timezone: 'Etc/UTC', session: e?.market === 'crypto' ? '24x7' : '24x5' } as any;
     },
   } as DataProvider;
 }

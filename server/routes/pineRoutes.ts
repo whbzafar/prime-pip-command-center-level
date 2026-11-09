@@ -86,7 +86,7 @@ export function createPineRouter(getUser: (req: Request) => Promise<UserLike>) {
     const b = req.body || {};
     const out = await runScript({
       source: s.source,
-      market: { symbol: String(b.market?.symbol || ''), timeframe: String(b.market?.timeframe || '60'), symbolInfo: b.market?.symbolInfo },
+      market: { symbol: String(b.market?.symbol || '').replace(/^[A-Z]+:/i, ''), timeframe: String(b.market?.timeframe || '60'), symbolInfo: b.market?.symbolInfo },
       bars: b.bars,
       inputs: b.inputs,
       props: b.props,

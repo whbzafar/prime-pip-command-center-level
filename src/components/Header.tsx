@@ -930,14 +930,16 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={() => switchTab('FUNDAMENTAL_INDICATORS')}
                 title="Fundamentals — live bullish/bearish scores, long-term rankings, COT and sentiment"
-                className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition-all duration-200 cursor-pointer shadow-sm ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border font-military font-bold text-[11.5px] tracking-wider transition-all duration-200 cursor-pointer ${
                   activeTab === 'FUNDAMENTAL_INDICATORS'
                     ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-slate-950 border-emerald-300'
-                    : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-emerald-300 border-slate-800 hover:border-emerald-500/50'
+                    : 'bg-gradient-to-r from-emerald-500/25 via-teal-500/20 to-cyan-500/25 hover:from-emerald-500/40 hover:to-cyan-500/40 text-emerald-100 border-emerald-400/70 shadow-[0_0_18px_-4px_rgba(16,185,129,0.75)] hover:shadow-[0_0_24px_-2px_rgba(16,185,129,0.9)]'
                 }`}
               >
+                <span className="relative flex w-2 h-2"><span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" /><span className="relative inline-flex rounded-full w-2 h-2 bg-emerald-400" /></span>
                 <Globe className="w-3.5 h-3.5 stroke-[2.2]" />
                 <span className="whitespace-nowrap">Fundamentals</span>
+                <span className="hidden sm:inline text-[8px] px-1 py-[1px] rounded bg-emerald-400 text-slate-950 font-bold tracking-wider">LIVE</span>
               </button>
 
               {/* Dedicated Psychological Command Center Access Button Immediately Beside Profile */}
@@ -998,14 +1000,16 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={() => switchTab('FUNDAMENTAL_INDICATORS')}
                 title="Fundamentals — live bullish/bearish scores, long-term rankings, COT and sentiment"
-                className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition-all duration-200 cursor-pointer shadow-sm ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border font-military font-bold text-[11.5px] tracking-wider transition-all duration-200 cursor-pointer ${
                   activeTab === 'FUNDAMENTAL_INDICATORS'
                     ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-slate-950 border-emerald-300'
-                    : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-emerald-300 border-slate-800 hover:border-emerald-500/50'
+                    : 'bg-gradient-to-r from-emerald-500/25 via-teal-500/20 to-cyan-500/25 hover:from-emerald-500/40 hover:to-cyan-500/40 text-emerald-100 border-emerald-400/70 shadow-[0_0_18px_-4px_rgba(16,185,129,0.75)] hover:shadow-[0_0_24px_-2px_rgba(16,185,129,0.9)]'
                 }`}
               >
+                <span className="relative flex w-2 h-2"><span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" /><span className="relative inline-flex rounded-full w-2 h-2 bg-emerald-400" /></span>
                 <Globe className="w-3.5 h-3.5 stroke-[2.2]" />
                 <span className="whitespace-nowrap">Fundamentals</span>
+                <span className="hidden sm:inline text-[8px] px-1 py-[1px] rounded bg-emerald-400 text-slate-950 font-bold tracking-wider">LIVE</span>
               </button>
 
               {/* Dedicated Psychological Center Button in Demo/Pre-Login Mode */}
