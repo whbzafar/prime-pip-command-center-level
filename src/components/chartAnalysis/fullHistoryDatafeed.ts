@@ -241,7 +241,8 @@ export class FullHistoryDatafeed implements Datafeed {
         callback(bars[bars.length - 1]);
       } catch { /* transient */ }
     };
-    const every = isIntraday(base) ? 15_000 : 60_000;
+    const every = isIntraday(base) ? 5_000 : 30_000;
+    poll();
     this.timers.set(key, setInterval(poll, every));
   }
 

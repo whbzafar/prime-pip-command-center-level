@@ -1,6 +1,7 @@
 /** Data + symbol helpers shared by the Pine main chart and the Pine Editor. */
 import type { DataProvider, OHLCV } from '@luxalgo/vela';
 import { CATALOG, FullHistoryDatafeed, PRO_PERIODS, type CatalogEntry } from '../chartAnalysis/fullHistoryDatafeed';
+import { priceAlerts } from './priceAlerts';
 
 export const titleOf = (src: string) => (src.match(/(?:indicator|strategy|library)\s*\(\s*(?:title\s*=\s*)?["']([^"']+)["']/)?.[1] || 'Untitled script').slice(0, 60);
 
@@ -47,6 +48,20 @@ export function makeProvider(): DataProvider {
       let bars = [...all.values()].filter((b) => range.from === undefined || b.time >= range.from).sort((a, b) => a.time - b.time);
       if (want > 0 && bars.length > want) bars = bars.slice(-want);
       return bars;
+    },
+    /** True live stream: Binance WebSocket for crypto, a 5-second poll for everything else. Also feeds price alerts. */
+    subscribe(ticker: string, timeframe: string, onBar: (bar: OHLCV) => void) {
+      const t = ticker.replace(/^PPFX:/i, '').toUpperCase();
+      const entry = CATALOG.find((e) => e.ticker === t);
+      const period = PRO_PERIODS.find((p) => p.text === PERIOD_TEXT[normTf(timeframe)]);
+      if (!entry || !period) return () => {};
+      const feed = new FullHistoryDatafeed(() => {});
+      feed.subscribe(entry as any, period, (k: any) => {
+        if (!k) return;
+        onBar({ time: k.timestamp, open: k.open, high: k.high, low: k.low, close: k.close, volume: k.volume ?? 0 });
+        try { priceAlerts.tick(t, k.close); } catch { /* ignore */ }
+      });
+      return () => { try { feed.unsubscribe(entry as any, period); feed.destroy(); } catch { /* ignore */ } };
     },
     async listSymbols() {
       return CATALOG.map((e) => ({ ticker: e.ticker, description: e.name, type: e.market === 'forex' ? 'forex' : e.market === 'crypto' ? 'crypto' : e.market === 'stocks' ? 'stock' : e.market === 'indices' ? 'index' : 'commodity' })) as any;

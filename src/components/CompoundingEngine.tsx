@@ -539,9 +539,44 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                         <div className="text-[10px] text-slate-500">{expectancyR > 0 ? 'positive expectancy' : 'no edge — this setup loses over time'}</div>
                       </div>
                     </div>
-                    <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {/* GAIN BREAKDOWN — what the % means per trade, per day, per week and in total */}
+                    {(() => {
+                      const days = Math.max(1, projection.totalTradingDays || Math.round(projection.totalSimulatedTrades / Math.max(1, tradesPerDay)));
+                      const growth = effectiveStartBalance > 0 ? end / effectiveStartBalance : 1;
+                      const perDayPct = (Math.pow(Math.max(growth, 1e-9), 1 / days) - 1) * 100;
+                      const perWeekPct = (Math.pow(Math.max(growth, 1e-9), Math.min(5, days) / days) - 1) * 100;
+                      const winPct = riskPercent * riskRewardRatio;
+                      const sign = (v: number) => (v >= 0 ? '+' : '');
+                      const cells: [string, string, string, string][] = [
+                        ['Each winning trade', `+${winPct.toFixed(2)}%`, 'text-emerald-300', `risk ${riskPercent}% × ${riskRewardRatio}R reward`],
+                        ['Each losing trade', `−${Number(riskPercent).toFixed(2)}%`, 'text-rose-300', 'the risk you set'],
+                        ['Average per day', `${sign(perDayPct)}${perDayPct.toFixed(2)}%`, tone(perDayPct), `${formatCurrency((end - effectiveStartBalance) / days, currency)} a day on average`],
+                        ['Average per week', `${sign(perWeekPct)}${perWeekPct.toFixed(2)}%`, tone(perWeekPct), '5 trading days, compounded'],
+                        [`Total over ${days} trading day${days > 1 ? 's' : ''}`, `${sign(ret)}${ret.toFixed(2)}%`, tone(ret), `${sign(end - effectiveStartBalance)}${formatCurrency(end - effectiveStartBalance, currency)}`],
+                      ];
+                      return (
+                        <div className="mt-3">
+                          <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500 mb-1.5">How the gain builds up</div>
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                            {cells.map(([k, v, c, sub]) => (
+                              <div key={k} className={`rounded-xl border px-3 py-2 ${k.startsWith('Total') ? 'border-cyan-500/40 bg-cyan-500/[0.06] col-span-2 md:col-span-1' : 'border-slate-800 bg-slate-950/70'}`}>
+                                <div className="text-[9.5px] uppercase tracking-wider text-slate-500">{k}</div>
+                                <div className={`text-[15px] font-bold font-mono-code ${c}`}>{v}</div>
+                                <div className="text-[10px] text-slate-500 leading-snug">{sub}</div>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="mt-1.5 text-[10.5px] text-slate-500 leading-relaxed">
+                            Your plan: {projection.totalSimulatedTrades} trades ({tradesPerDay} a day), {projection.totalWins} wins and {projection.totalSimulatedTrades - projection.totalWins} losses at a {expectedWinRate}% win rate. Because risk is recalculated from the new balance before every trade, the daily % compounds: {sign(perDayPct)}{perDayPct.toFixed(2)}% a day for {days} days = {sign(ret)}{ret.toFixed(2)}% in total.
+                          </p>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="mt-3 text-[10px] uppercase tracking-[0.16em] text-slate-500 mb-1.5">What can really happen (luck of the order)</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                       {[
-                        ['Realistic range', `${formatCurrency(mc.p10, currency)} – ${formatCurrency(mc.p90, currency)}`, 'text-slate-100', '8 in 10 outcomes land here'],
+                        ['Likely range (8 in 10)', `${formatCurrency(mc.p10, currency)} – ${formatCurrency(mc.p90, currency)}`, 'text-slate-100', `${((mc.p10 / Math.max(1e-9, effectiveStartBalance) - 1) * 100).toFixed(1)}% to ${((mc.p90 / Math.max(1e-9, effectiveStartBalance) - 1) * 100) >= 0 ? '+' : ''}${((mc.p90 / Math.max(1e-9, effectiveStartBalance) - 1) * 100).toFixed(1)}%`],
                         ['Chance of a loss', `${mc.probBelowStart}%`, mc.probBelowStart > 25 ? 'text-rose-300' : mc.probBelowStart > 10 ? 'text-amber-300' : 'text-emerald-300', 'ending below the start'],
                         ['Expected drawdown', `${mc.medianMaxDrawdownPct}%`, 'text-amber-300', `bad case ${mc.p90MaxDrawdownPct}%`],
                         ['Losing streak to expect', `${mc.medianLongestLosingStreak} in a row`, 'text-slate-100', `at ${riskPercent}% risk = −${(mc.medianLongestLosingStreak * riskPercent).toFixed(1)}%`],
@@ -553,7 +588,9 @@ export const CompoundingEngine: React.FC<CompoundingEngineProps> = ({
                         </div>
                       ))}
                     </div>
-                    <p className="mt-2.5 text-[10.5px] text-slate-500 leading-relaxed">Expected result = your win rate hit exactly, with risk recalculated before every trade. The range, loss chance, drawdown and streak come from 2,000 random orders of the same trades. Compare the drawdown with your firm's daily and max loss limits before choosing the risk %.</p>
+                    <p className="mt-2.5 text-[10.5px] text-slate-500 leading-relaxed">
+                      <span className="text-slate-300 font-semibold">How the likely range is worked out:</span> win rate and reward are real averages, but the order of wins and losses is luck. We replay your same {projection.totalSimulatedTrades} trades in 2,000 random orders (and let the number of wins vary as it would in real trading). The worst 10% and best 10% of results are cut off — the remaining 8 in 10 finish between {formatCurrency(mc.p10, currency)} and {formatCurrency(mc.p90, currency)}. Plan for the low end, not the headline number, and compare the drawdown with your firm's daily and max loss limits before choosing the risk %.
+                    </p>
                   </div>
                 </div>
               );

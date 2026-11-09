@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 const PinePanelLazy = React.lazy(() => import('./pine/PinePanel'));
 const PineMainChartLazy = React.lazy(() => import('./pine/PineMainChart'));
 import { pineLib, loadLibrary as loadPineLibrary, hideAll as hideAllPine } from './pine/pineLibrary';
+import { catalogFor } from './pine/pineData';
 import { PineIndicatorChips } from './pine/PineIndicatorChips';
 import {
   CandlestickChart,
@@ -1513,9 +1514,13 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     loadPineLibrary();
     return off;
   }, []);
-  // Showing or hiding an indicator always brings the indicator chart back.
-  useEffect(() => { setPreferTvChart(false); }, [pineShownCount]);
-  const pineOnChart = pineShownCount > 0 && !preferTvChart;
+  // ONE main chart: the Pro chart (TradingView-style, own live feed) shows indicators, strategies, price alerts,
+  // the bar-close countdown under the price and auto-saved drawings. The raw TradingView feed stays one click away.
+  const [chartEngine, setChartEngine] = useState<'pro' | 'tv'>(() => { try { return localStorage.getItem('ppfx_premium_engine') === 'tv' ? 'tv' : 'pro'; } catch { return 'pro'; } });
+  useEffect(() => { try { localStorage.setItem('ppfx_premium_engine', chartEngine); } catch {} }, [chartEngine]);
+  useEffect(() => { if (pineShownCount > 0) setChartEngine('pro'); }, [pineShownCount]);
+  void preferTvChart; void setPreferTvChart;
+  const pineOnChart = chartEngine === 'pro' && Boolean(catalogFor(selectedSymbol));
 
   // Active terminal sub-tab below chart
   const [terminalBottomTab, setTerminalBottomTab] = useState<'POSITIONS' | 'HISTORY' | 'FUNDAMENTALS' | 'PINE_EDITOR' | 'INDICATORS'>('POSITIONS');
@@ -2902,6 +2907,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     let timeoutId: any;
     const initChart = () => {
       const container = document.getElementById(containerId);
+      if (pineOnChart) { if (container) container.innerHTML = ''; return; } // the Pro chart is showing
       if (!container) {
         timeoutId = setTimeout(initChart, 60);
         return;
@@ -2948,7 +2954,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [containerId, tradingViewSymbol, selectedInterval, chartSettings.backgroundColor, chartSettings.timezone, chartSettings.showCountdown, isLightBg, selectedSymbol, isFullscreen]);
+  }, [containerId, tradingViewSymbol, selectedInterval, chartSettings.backgroundColor, chartSettings.timezone, chartSettings.showCountdown, isLightBg, selectedSymbol, isFullscreen, pineOnChart]);
 
   // --------------------------------------------------------------------------
   // CATEGORY & SYMBOL SELECTOR (Immediately opens pair + syncs broker settings!)
@@ -3376,8 +3382,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           : undefined
       }
     >
-      {/* Sleek Authentic TradingView Header when in Fullscreen Mode */}
-      {isFullscreen && (
+      {/* Full-screen header for the TradingView feed (the Pro chart's own top bar is the header there) */}
+      {isFullscreen && !pineOnChart && (
         <div className="h-12 px-3 bg-[#0B0F19] border-b border-slate-800 flex items-center justify-between shrink-0 select-none z-50 gap-2">
           {/* Left: Active Symbol Dropdown, Broker, Timeframe Switcher */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
@@ -4153,6 +4159,14 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 </button>
               )}
 
+              {/* CHART FEED — Pro chart (indicators, alerts, auto-save) or the raw TradingView feed */}
+              <div className="flex items-center rounded-xl border border-slate-700 bg-slate-950 p-0.5 text-[11px] font-bold" role="group" aria-label="Chart feed">
+                <button type="button" onClick={() => setChartEngine('pro')} title="Pro chart: indicators & strategies on the chart, price alerts, countdown under the price, auto-saved drawings"
+                  className={`px-2.5 py-1 rounded-[10px] cursor-pointer transition ${chartEngine === 'pro' ? 'bg-gradient-to-r from-cyan-500/30 to-violet-500/30 text-white' : 'text-slate-400 hover:text-white'}`}>Pro chart</button>
+                <button type="button" onClick={() => setChartEngine('tv')} title="TradingView's own chart feed (indicators and alerts are not available on it)"
+                  className={`px-2.5 py-1 rounded-[10px] cursor-pointer transition ${chartEngine === 'tv' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>TradingView</button>
+              </div>
+
               {/* PINE EDITOR — real Pine Script v5/v6 on the Pine chart (Vela + PineTS) */}
               <button
                 type="button"
@@ -4246,7 +4260,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       <div
         className={`flex flex-col lg:flex-row overflow-hidden relative transition-all duration-300 ${
           isFullscreen
-            ? 'flex-1 w-full h-[calc(100vh-44px)] m-0 p-0 border-0 rounded-none'
+            ? `flex-1 w-full ${pineOnChart ? 'h-full' : 'h-[calc(100vh-44px)]'} m-0 p-0 border-0 rounded-none`
             : 'border border-slate-800 rounded-2xl shadow-2xl h-[680px] sm:h-[750px] lg:h-[800px]'
         }`}
         style={{
@@ -4258,26 +4272,11 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       >
         {/* CHART COLUMN WITH DRAGGABLE PROJECTION OVERLAY */}
         <div ref={chartContainerRef} className="flex-1 relative h-full flex flex-col min-w-0 select-none">
-          {/* INDICATOR STRIP — Pine indicators are applied directly on the main chart */}
-          {pineShownCount > 0 && (
-            <div className="relative z-30 flex items-center gap-2 px-3 py-1 text-[11px] border-b border-slate-800 bg-[#0b0f17]/95 shrink-0">
-              <Code className="w-3.5 h-3.5 text-violet-300" />
-              <span className="text-slate-300 font-semibold">{pineShownCount} indicator{pineShownCount > 1 ? 's' : ''} {pineOnChart ? 'on the chart' : 'hidden while the TradingView chart is shown'}</span>
-              <div className="ml-auto flex items-center gap-1.5">
-                <button type="button" onClick={() => setPreferTvChart((v) => !v)} className="px-2 py-0.5 rounded-md border border-slate-700 text-slate-300 hover:text-white cursor-pointer">
-                  {pineOnChart ? 'Show TradingView chart' : 'Back to the indicator chart'}
-                </button>
-                <button type="button" onClick={() => setIsPineEditorOpen(true)} className="px-2 py-0.5 rounded-md border border-violet-400/40 text-violet-200 hover:text-white cursor-pointer">Manage</button>
-                <button type="button" onClick={() => hideAllPine()} className="px-2 py-0.5 rounded-md border border-rose-800/60 text-rose-300 hover:text-white cursor-pointer">Hide all</button>
-              </div>
-            </div>
-          )}
-
-          {/* PINE MAIN CHART (while indicators are shown) */}
+          {/* PRO MAIN CHART — indicators, strategies, alerts and drawings all on this one chart */}
           {pineOnChart && (
             <div className="w-full flex-1 min-h-0 relative z-10">
               <React.Suspense fallback={<div className="p-4 text-[12px] text-slate-400">Loading chart…</div>}>
-                <PineMainChartLazy symbol={selectedSymbol} interval={selectedInterval} />
+                <PineMainChartLazy symbol={selectedSymbol} interval={selectedInterval} onSymbolChange={(sym) => handleSelectSymbol(sym)} onIntervalChange={(iv) => { if (normalizeInterval(iv) !== selectedInterval) handleIntervalChange(iv); }} onToggleFullscreen={toggleFullscreen} />
               </React.Suspense>
             </div>
           )}
@@ -4327,8 +4326,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             </span>
           </div>
 
-          {/* AUTHENTIC TRADINGVIEW SUBHEADER (Euro / U.S. Dollar · 1h · FXCM) */}
-          {isFullscreen && (
+          {/* removed: overlay status line (it covered the chart's own header in full screen) */}
+          {false && isFullscreen && (
             <div className="absolute top-2 left-3 z-30 pointer-events-none flex flex-col gap-0.5 text-xs font-sans">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />

@@ -56,6 +56,11 @@ body {
   font-size: 16px;
 }
 
+/* Full-screen charts own the whole screen: hide the floating global buttons (announcements, bell, sound). */
+html.tv-fullscreen .ppfx-global-float { display: none !important; }
+.ppfx-global-float { transition: opacity .2s ease, transform .2s ease; }
+html.ppfx-chart-under-float .ppfx-global-float { opacity: 0; transform: translateY(-10px); pointer-events: none; }
+
 /* Ensure True Fullscreen Mode without filter-induced containing block or scroll offsets */
 html.freehand-fullscreen,
 html.tv-fullscreen {
