@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 const B = 'http://localhost:3000';
 const T = JSON.parse(fs.readFileSync('/tmp/tokens.json', 'utf8'));
 const browser = await chromium.launch();
@@ -46,7 +46,9 @@ await p.locator('iframe[src*="tradingview"]').first().scrollIntoViewIfNeeded().c
 await shot(p, 'w5-tv-tools');
 
 // 2) restart server with the local user file wiped → the new account must still sign in (from Redis)
-execSync("fuser -k 3000/tcp || true; sleep 2; cd app && git checkout -- data/users.json 2>/dev/null; git -C app status --short data | head -3; (KV_REST_API_URL=http://localhost:8799 KV_REST_API_TOKEN=t PORT=3000 nohup node dist/server.cjs > /tmp/server2.log 2>&1 &) ; sleep 10", { stdio: 'inherit', shell: '/bin/bash' });
+try { execFileSync('pkill', ['-f', 'dist/server.cjs']); } catch {}
+await new Promise((r) => setTimeout(r, 2000));
+execSync("cd app && git checkout -- data/users.json 2>/dev/null; (KV_REST_API_URL=http://localhost:8799 KV_REST_API_TOKEN=t PORT=3000 nohup node dist/server.cjs > /tmp/server2.log 2>&1 < /dev/null &) ; sleep 10", { stdio: 'ignore', shell: '/bin/bash' });
 const localHas = fs.readFileSync('app/data/users.json', 'utf8').includes(U);
 const r = await (await fetch(B + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: U, password: 'secret123' }) })).json();
 console.log('AFTER RESTART local file had user before login:', localHas, '→ login ok:', r.ok, r.user?.username);
