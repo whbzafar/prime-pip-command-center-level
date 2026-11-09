@@ -359,7 +359,7 @@ const IndicatorMenu: React.FC<{ lib: ReturnType<typeof pineLib.get>; natives: an
           <button type="button" onClick={onClose} className="ml-auto p-1 rounded text-slate-400 hover:text-white hover:bg-[#2a2e39] cursor-pointer" aria-label="Close"><X className="w-4 h-4" /></button>
         </div>
         <div className="px-4 py-2 border-b border-slate-800">
-          <div className="flex items-center gap-2 rounded-lg bg-[#131722] border border-slate-700 px-2.5 py-1.5"><Search className="w-4 h-4 text-slate-500" /><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="flex-1 bg-transparent outline-none text-slate-100 placeholder:text-slate-500" /></div>
+          <div className="flex items-center gap-2 rounded-lg bg-[#131722] border border-slate-700 px-2.5 py-1.5"><Search className="w-4 h-4 text-slate-500" /><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" style={{ boxShadow: "none", outline: "none", border: 0 }} className="flex-1 bg-transparent text-slate-100 placeholder:text-slate-500" /></div>
         </div>
         <div className="overflow-y-auto py-1">
           <div className="px-4 pt-2 pb-1 text-[10.5px] uppercase tracking-wider text-violet-300 font-bold">Prime Pip indicators</div>
