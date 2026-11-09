@@ -1,10 +1,4 @@
 B=https://prime-pip-command-center-level.vercel.app
-t() { s=$(date +%s%N); r=$(curl -s -m 30 -o /tmp/o -w '%{http_code}' -H "Cookie: primepipfx_session=$2" -H "Authorization: Bearer $2" "$B$1"); e=$(( ($(date +%s%N)-s)/1000000 )); echo "LIVE [$3] $1 -> $r ${e}ms $(head -c 120 /tmp/o | tr '\n' ' ')"; }
-for tok in "" "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.sig"; do
- n=${#tok}
- t /api/macro/rankings "$tok" "tok$n"
- t "/api/history/archive?ticker=XAUUSD" "$tok" "tok$n"
- t /api/macro/sentiment "$tok" "tok$n"
- t /api/community/hub "$tok" "tok$n"
-done
-# rerun 1794160979
+for r in "2026-11-01T00:00:00Z 2026-11-30T23:59:59Z" "2025-03-01T00:00:00Z 2025-03-31T23:59:59Z" "2024-01-01T00:00:00Z 2024-01-07T23:59:59Z"; do set -- $r; c=$(curl -s -m 40 "$B/api/calendar/week?start=$1&end=$2"); echo "LIVE cal $1..$2 -> $(echo "$c" | head -c 120) | events=$(echo "$c" | grep -o '"utcTimestamp"' | wc -l)"; done
+for u in https://www.forexlive.com/feed/news https://www.fxstreet.com/rss/news https://feeds.reuters.com/reuters/businessNews https://www.investing.com/rss/news_1.rss https://www.investing.com/rss/news_287.rss "https://news.google.com/rss/search?q=forex+OR+central+bank+OR+geopolitics&hl=en-US&gl=US&ceid=US:en" https://www.aljazeera.com/xml/rss/all.xml https://feeds.bbci.co.uk/news/world/rss.xml https://www.cnbc.com/id/100003114/device/rss/rss.html https://www.marketwatch.com/rss/topstories "https://finance.yahoo.com/news/rssindex" https://www.fxempire.com/api/v1/en/articles/rss/news ; do echo "LIVE rss $u -> $(curl -s -m 15 -A 'Mozilla/5.0' -o /tmp/r -w '%{http_code}' "$u") items=$(grep -o '<item' /tmp/r | wc -l)"; done
+# 1794192637
