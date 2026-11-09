@@ -32,7 +32,9 @@ export const TvChartTools: React.FC<{ symbol: string; countdown: { label: string
     const get = async () => {
       const lp = priceAlerts.lastPrice(ticker);
       if (lp !== undefined) { setLive(lp); return; }
-      try { const f = new FullHistoryDatafeed(() => {}); f.pageSize = 3; const rows = await f.getHistoryKLineData(e as any, PRO_PERIODS[0], 0, Date.now() + 60_000); const b = rows?.[rows.length - 1]; if (b && !stop) setLive(b.close); } catch { /* ignore */ }
+      for (const per of [PRO_PERIODS[0], PRO_PERIODS.find((x) => x.text === '1H') || PRO_PERIODS[0]]) {
+        try { const f = new FullHistoryDatafeed(() => {}); f.pageSize = 3; const rows = await f.getHistoryKLineData(e as any, per, 0, Date.now() + 60_000); const b = rows?.[rows.length - 1]; if (b) { if (!stop) setLive(b.close); return; } } catch { /* try the next timeframe */ }
+      }
     };
     get();
     const t = window.setInterval(get, 5000);
