@@ -120,6 +120,13 @@ await shot(S.page, 'z7-reload');
 
 // FULL SCREEN
 await S.page.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /Full-Screen/.test(x.innerText)); b?.click(); }); await S.page.waitForTimeout(12000);
+await S.page.locator('[data-testid="price-alert-overlay"]').first().boundingBox().then(async (b) => { await S.page.mouse.click(b.x + 200, b.y + 300); }).catch(() => {});
+await S.page.getByRole('button', { name: 'Indicators' }).last().click().catch((e) => console.log('ind btn', e.message.slice(0, 80)));
+await S.page.waitForTimeout(1500);
+console.log('FS indicator menu open:', await S.page.locator('[data-testid="ppfx-indicator-menu"]').count(), (await S.page.locator('[data-testid="ppfx-indicator-menu"]').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300));
+await shot(S.page, 'z8b-fs-indicators');
+await S.page.keyboard.press('Escape'); await S.page.waitForTimeout(500);
+console.log('FS top-left element:', await S.page.evaluate(() => document.elementsFromPoint(60, 12).slice(0, 3).map((e) => e.tagName + '.' + String(e.className).slice(0, 50)).join(' | ')));
 console.log('FS global float visible:', await S.page.evaluate(() => { const e = document.querySelector('.ppfx-global-float'); return e ? getComputedStyle(e).display : 'none-el'; }));
 await shot(S.page, 'z8-fullscreen');
 const ob = await S.page.locator('[data-testid="price-alert-overlay"]').first().boundingBox().catch(() => null);
