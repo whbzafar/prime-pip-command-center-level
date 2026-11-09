@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { UserAccount, ReferralRecord, AppointmentRecord, ModerationWarning } from '../types';
 import { getStoredToken, apiChangePassword, isUserAdmin } from '../utils/authClient';
+import { MembersPanel } from './admin/MembersPanel';
 import {
   saveLocalStudent,
   getLocalStudents,
@@ -45,7 +46,7 @@ interface DeveloperAdminPanelProps {
 export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ currentUser, onClose, onUserUpdated }) => {
   const isAuthorized = isUserAdmin(currentUser);
 
-  const [activeTab, setActiveTab] = useState<'CUSTOMERS' | 'CREATE' | 'APPOINTMENTS' | 'MODERATION' | 'REFERRALS' | 'DEVELOPER_SECURITY' | 'EVOLUTION'>('CUSTOMERS');
+  const [activeTab, setActiveTab] = useState<'MEMBERS' | 'CUSTOMERS' | 'CREATE' | 'APPOINTMENTS' | 'MODERATION' | 'REFERRALS' | 'DEVELOPER_SECURITY' | 'EVOLUTION'>('MEMBERS');
   const [customers, setCustomers] = useState<UserAccount[]>([]);
   const [referrals, setReferrals] = useState<ReferralRecord[]>([]);
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
@@ -621,6 +622,16 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       {/* Navigation Tabs */}
       <div className="flex border-b border-slate-800 gap-2 font-military text-xs overflow-x-auto pb-1">
         <button
+          onClick={() => setActiveTab('MEMBERS')}
+          data-testid="admin-tab-members"
+          className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
+            activeTab === 'MEMBERS' ? 'border-amber-300 text-amber-200' : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          MEMBERS &amp; LOGINS
+        </button>
+        <button
           onClick={() => setActiveTab('CUSTOMERS')}
           className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
             activeTab === 'CUSTOMERS'
@@ -706,6 +717,8 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       </div>
 
       {/* TAB 1: CUSTOMERS TABLE */}
+      {activeTab === 'MEMBERS' && <MembersPanel />}
+
       {activeTab === 'CUSTOMERS' && (
         <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">

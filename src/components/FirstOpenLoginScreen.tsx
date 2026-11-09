@@ -1,3 +1,4 @@
+import { isTrialActive } from '../utils/trial';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
@@ -33,6 +34,7 @@ import { ExploreLockedModal } from './subscription/ExploreLockedModal';
 import { FounderExperienceModal } from './FounderExperienceModal';
 import {
   apiLogin,
+  apiRegister,
   apiChangePassword,
   setStoredUser,
   getStoredUser,
@@ -84,6 +86,9 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   });
   // Category & Announcements Scrolling Ticker Index
   const [tickerIndex, setTickerIndex] = useState(0);
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [confirmNew, setConfirmNew] = useState('');
+  useEffect(() => { const f = () => { setMode('signup'); setError(null); }; window.addEventListener('ppfx:open-signup', f); return () => window.removeEventListener('ppfx:open-signup', f); }, []);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -265,6 +270,19 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === 'signup') {
+      if (!username.trim() || !password) { setError('Choose a username and a password.'); return; }
+      if (password !== confirmNew) { setError('The two passwords do not match.'); return; }
+      setLoading(true); setError(null);
+      const r = await apiRegister(username.trim(), password);
+      setLoading(false);
+      if (!r.ok || !r.user) { setError(r.error || 'Could not create the account.'); return; }
+      triggerBurst();
+      setCongratsUser(r.user);
+      setShowCongratulations(true);
+      setTimeout(() => { setShowCongratulations(false); proceedAfterAuth(r.user!, r.token); }, 900);
+      return;
+    }
     if (!username.trim() || !password.trim()) {
       setError('Please enter both username and password.');
       return;
@@ -387,7 +405,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
 
   const handleDemoClick = () => {
     const user = getStoredUser();
-    const hasSubscription = hasFullAccess(user);
+    const hasSubscription = hasFullAccess(user) || isTrialActive();
     if (!hasSubscription) {
       // Non-subscribed users encounter a lock modal when clicking Explore
       setIsExploreLockedModalOpen(true);
@@ -817,9 +835,18 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
             {/* Step 1: Sign In Form Matching Image 2 */}
             {step === 'LOGIN' ? (
               <form onSubmit={handleLoginSubmit} className="space-y-4 relative z-10">
+                <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-slate-900/90 border border-slate-700/80" role="tablist">
+                  {([['signin', 'Sign in'], ['signup', 'Create account']] as const).map(([m, l]) => (
+                    <button key={m} type="button" role="tab" aria-selected={mode === m} data-testid={`auth-tab-${m}`} onClick={() => { setMode(m); setError(null); }}
+                      className={`py-2 rounded-lg text-xs font-military font-bold uppercase tracking-wider cursor-pointer transition ${mode === m ? (m === 'signup' ? 'bg-gradient-to-r from-amber-300 to-orange-400 text-slate-950' : 'bg-cyan-500/90 text-slate-950') : 'text-slate-400 hover:text-white'}`}>{l}</button>
+                  ))}
+                </div>
+                {mode === 'signup' && (
+                  <p className="text-[11px] text-slate-300 font-mono-code leading-relaxed -mt-1">Pick any username and password — that's all. Your journals and settings stay private to your account.{isTrialActive() ? ' Everything is unlocked free for 3 days.' : ''}</p>
+                )}
                 <div>
                   <label className="text-xs font-mono-code text-slate-300 font-bold block mb-1.5 uppercase">
-                    USERNAME OR ID
+                    {mode === 'signup' ? 'CHOOSE A USERNAME' : 'USERNAME OR ID'}
                   </label>
                   <div className="relative">
                     <input
@@ -833,7 +860,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                       onFocus={() => setIsTypingActive(true)}
                       onBlur={() => setIsTypingActive(false)}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Enter username or email"
+                      placeholder={mode === 'signup' ? 'e.g. ali_trader' : 'Enter username or email'}
                       className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-700/80 rounded-xl font-mono-code text-base sm:text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 placeholder:text-slate-600"
                     />
                     <User className="w-4 h-4 text-cyan-400 absolute left-3.5 top-3.5" />
@@ -848,14 +875,14 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                     <input
                       type={showPassword ? 'text' : 'password'}
                       required
-                      autoComplete="current-password"
+                      autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                       autoCorrect="off"
                       spellCheck={false}
                       value={password}
                       onFocus={() => setIsTypingActive(true)}
                       onBlur={() => setIsTypingActive(false)}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter password"
+                      placeholder={mode === 'signup' ? 'At least 6 characters' : 'Enter password'}
                       className="w-full pl-10 pr-11 py-3 bg-slate-900 border border-slate-700/80 rounded-xl font-mono-code text-base sm:text-sm text-slate-100 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 placeholder:text-slate-600"
                     />
                     <KeyRound className="w-4 h-4 text-cyan-400 absolute left-3.5 top-3.5" />
@@ -870,6 +897,16 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   </div>
                 </div>
 
+                {mode === 'signup' && (
+                  <div>
+                    <label className="text-xs font-mono-code text-slate-300 font-bold block mb-1.5 uppercase">CONFIRM PASSWORD</label>
+                    <div className="relative">
+                      <input type={showPassword ? 'text' : 'password'} required autoComplete="new-password" value={confirmNew} onChange={(e) => setConfirmNew(e.target.value)} placeholder="Type the password again" data-testid="signup-confirm"
+                        className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-700/80 rounded-xl font-mono-code text-base sm:text-sm text-slate-100 focus:outline-none focus:border-amber-300 focus:ring-2 focus:ring-amber-300/20 placeholder:text-slate-600" />
+                      <KeyRound className="w-4 h-4 text-amber-300 absolute left-3.5 top-3.5" />
+                    </div>
+                  </div>
+                )}
                 {/* Persistent Session / Remember Me Option */}
                 <div className="flex items-center justify-between py-1 px-1">
                   <label className="flex items-center gap-2 text-xs font-mono-code text-slate-300 cursor-pointer select-none">
@@ -895,7 +932,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   className="w-full mt-2 py-3.5 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-military font-bold text-sm tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <Lock className="w-4 h-4" />
-                  <span>{loading ? 'AUTHENTICATING...' : 'ENTER COMMAND CENTER'}</span>
+                  <span>{loading ? (mode === 'signup' ? 'CREATING ACCOUNT...' : 'AUTHENTICATING...') : mode === 'signup' ? 'CREATE ACCOUNT & ENTER' : 'ENTER COMMAND CENTER'}</span>
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </motion.button>
 
@@ -907,13 +944,13 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   title="Explore / Demo Preview (Active Subscription Required)"
                 >
                   <Lock className="w-4 h-4 text-amber-400 group-hover:scale-110 transition" />
-                  <span className="tracking-wider uppercase">EXPLORE / DEMO PREVIEW (SUBSCRIPTION REQUIRED)</span>
-                  <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold">
+                  <span className="tracking-wider uppercase">{isTrialActive() ? 'EXPLORE WITHOUT AN ACCOUNT' : 'EXPLORE / DEMO PREVIEW (SUBSCRIPTION REQUIRED)'}</span>
+                  {!isTrialActive() && <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold">
                     🔒 LOCKED
-                  </span>
+                  </span>}
                 </button>
                 <p className="text-[10px] text-center text-slate-400 font-mono-code mt-1.5">
-                  Subscription required for full institutional suite. Click to unlock or preview demo features.
+                  {isTrialActive() ? 'Free 3-day open access — create an account so your work is saved.' : 'Subscription required for full institutional suite. Click to unlock or preview demo features.'}
                 </p>
               </form>
             ) : step === 'LINK_STORAGE' ? (

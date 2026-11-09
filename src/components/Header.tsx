@@ -1,3 +1,4 @@
+import { isTrialActive } from '../utils/trial';
 import React, { useState, useEffect } from 'react';
 import {
   Activity,
@@ -173,7 +174,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const switchTab = onSelectTab || setActiveTab || (() => {});
   const displayScore = overallScore ?? scores?.overallTradingScore ?? 76;
-  const isSubscriber = hasFullAccess(currentUser);
+  const isSubscriber = hasFullAccess(currentUser) || isTrialActive();
   const isPsychLocked = !isSubscriber;
   const [isTimeModalOpen, setIsTimeModalOpen] = React.useState<boolean>(false);
   const [liveClockStr, setLiveClockStr] = React.useState<string>('');

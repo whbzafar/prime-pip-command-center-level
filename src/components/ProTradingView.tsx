@@ -7,6 +7,8 @@ const PinePanelLazy = React.lazy(() => import('./pine/PinePanel'));
 const PineMainChartLazy = React.lazy(() => import('./pine/PineMainChart'));
 import { pineLib, loadLibrary as loadPineLibrary, hideAll as hideAllPine } from './pine/pineLibrary';
 import { catalogFor } from './pine/pineData';
+import { TvChartTools } from './pine/TvChartTools';
+import { isTrialActive } from '../utils/trial';
 import { PineIndicatorChips } from './pine/PineIndicatorChips';
 import {
   CandlestickChart,
@@ -1399,6 +1401,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const effectiveUser = currentUser || getStoredUser();
   const isAdmin = useMemo(() => isUserAdmin(effectiveUser), [effectiveUser]);
   const isSubscriber = useMemo(() => {
+    if (isTrialActive()) return true;
     if (isDemoMode) return false;
     return hasFullAccess(effectiveUser);
   }, [isDemoMode, effectiveUser]);
@@ -4286,7 +4289,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           <div id={containerId} className={`w-full relative z-10 ${pineOnChart ? 'hidden' : 'flex-1 min-h-0'}`} />
 
           {/* LIVE BAR-CLOSE COUNTDOWN — on the right price scale, like TradingView. Drag it up/down to sit beside the price. */}
-          {!pineOnChart && !tvHintHidden && (
+          {!pineOnChart && <TvChartTools symbol={selectedSymbol} countdown={candleCountdown} />}
+          {false && !pineOnChart && !tvHintHidden && (
             <div data-testid="tv-countdown-hint" className="absolute top-12 left-1/2 -translate-x-1/2 z-30 max-w-[92%] flex items-center gap-2 rounded-lg border border-[#2962FF]/50 bg-[#131722]/95 px-3 py-2 text-[11.5px] text-slate-200 shadow-xl">
               <span><b className="text-white">Bar-close countdown:</b> right-click the price scale → <b className="text-white">Labels</b> → <b className="text-white">Countdown to bar close</b> (TradingView's embedded chart resets it on reload). The countdown, price alerts (+) and your indicators are always on in the <button type="button" onClick={() => setChartEngine('pro')} className="underline text-cyan-300 cursor-pointer">Pro chart</button>.</span>
               <button type="button" onClick={() => { setTvHintHidden(true); try { localStorage.setItem('ppfx_tv_hint_hidden', '1'); } catch {} }} className="shrink-0 px-2 py-0.5 rounded border border-slate-600 hover:text-white cursor-pointer">Got it</button>

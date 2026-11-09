@@ -56,6 +56,7 @@ import { BacktestingSuite } from './components/backtest/BacktestingSuite';
 import { UnlimitedChartAnalysis } from './components/chartAnalysis/UnlimitedChartAnalysis';
 import { apiRecordTelemetrySignal } from './utils/evolutionClient';
 import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin, hasFullAccess } from './utils/authClient';
+import { isTrialActive } from './utils/trial';
 import {
   getAllAccounts,
   saveAccount,
@@ -324,7 +325,7 @@ export default function App() {
         return;
       }
       // Psychological Center is strictly locked for any user without an active subscription
-      if (tab === 'PSYCHOLOGY' && !hasFullAccess(currentUser)) {
+      if (tab === 'PSYCHOLOGY' && !hasFullAccess(currentUser) && !isTrialActive()) {
         const summary = CATEGORY_SUMMARIES['PSYCHOLOGY'] || {
           id: 'PSYCHOLOGY',
           name: '13. Psychological Center (Pro)',
@@ -344,7 +345,7 @@ export default function App() {
         });
         return;
       }
-      if (isDemoMode && !ALLOWED_DEMO_CATEGORIES.includes(tab)) {
+      if (isDemoMode && !isTrialActive() && !ALLOWED_DEMO_CATEGORIES.includes(tab)) {
         const summary = CATEGORY_SUMMARIES[tab] || {
           id: tab,
           name: tab,
@@ -1547,7 +1548,7 @@ export default function App() {
         )}
 
         {activeTab === 'PSYCHOLOGY' && (
-          hasFullAccess(currentUser) ? (
+          hasFullAccess(currentUser) || isTrialActive() ? (
             <PsychologyCenter
               trades={trades}
               account={activeAccount}

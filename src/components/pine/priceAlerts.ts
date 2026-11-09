@@ -110,7 +110,7 @@ function ensurePolling() {
       } catch { /* transient */ }
     }
   };
-  timer = window.setInterval(run, 20_000);
+  timer = window.setInterval(run, 10_000);
   window.setTimeout(run, 3000);
 }
 if (alerts.some((a) => !a.triggeredAt)) ensurePolling();

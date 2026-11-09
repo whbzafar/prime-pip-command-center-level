@@ -5,6 +5,8 @@ import './index.css';
 import './community-layout-fix.css';
 import './styles/liquid-glass-ui-kit.css';
 import { applyInterfaceTemplate } from './data/interfaceTemplates';
+import './utils/installApp';
+import TrialLayer from './components/trial/TrialLayer';
 
 if (typeof window !== 'undefined') {
   window.addEventListener(
@@ -57,6 +59,7 @@ if (typeof window !== 'undefined') {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <TrialLayer />
   </StrictMode>,
 );
 

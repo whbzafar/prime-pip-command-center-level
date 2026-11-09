@@ -2,6 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
+import { isTrialActive } from './trial.js';
+import { hydrateUsers, logLogin, persistUsers } from './durableStore.js';
 
 export type UserRole = 'ADMIN' | 'CUSTOMER' | 'DEVELOPER';
 
@@ -54,6 +56,11 @@ export interface StoredUser {
   };
   createdAt: string;
   updatedAt: string;
+  signupSource?: 'self' | 'admin';
+  lastLoginAt?: string;
+  loginCount?: number;
+  lastLoginIp?: string;
+  lastLoginDevice?: string;
 }
 
 export interface StoredSession {
@@ -117,6 +124,7 @@ export function readUsers(): StoredUser[] {
 
 export function writeUsers(users: StoredUser[]) {
   safeWriteJsonFile('users.json', users);
+  persistUsers(users);
 }
 
 function readSessions(): StoredSession[] {
@@ -861,8 +869,53 @@ export function updatePresencePrivacy(userId: string, showActiveStatus: boolean)
 }
 
 export function isActiveCommunityMember(user: StoredUser | null | undefined): boolean {
+  if (user && isTrialActive() && user.subscriptionStatus !== 'SUSPENDED') return true;
   if (!user) return false;
   if (user.isDeveloper || user.role === 'ADMIN' || user.role === 'DEVELOPER' || user.isLifetime) return true;
   if (user.subscriptionStatus !== 'ACTIVE' && user.subscriptionStatus !== 'LIFETIME') return false;
   return !user.expiryDate || new Date(user.expiryDate).getTime() >= Date.now();
+}
+
+// ─────────────────────────────── durable sync, self sign-up, login tracking
+/** Refresh the local user list from the durable store (no-op when none is connected). */
+export function syncUsersFromDurable(maxAgeMs = 4000) {
+  return hydrateUsers(() => readUsers(), (u) => writeUsers(u as StoredUser[]), maxAgeMs);
+}
+
+const recentLocalLogins: Record<string, unknown>[] = [];
+export const localLoginLog = () => recentLocalLogins;
+
+export function recordLogin(userId: string, meta: { ip?: string; device?: string; kind?: 'login' | 'signup' }) {
+  const users = readUsers();
+  const i = users.findIndex((u) => u.id === userId);
+  if (i < 0) return;
+  const now = new Date().toISOString();
+  users[i] = { ...users[i], lastLoginAt: now, loginCount: (users[i].loginCount || 0) + 1, lastLoginIp: meta.ip || users[i].lastLoginIp, lastLoginDevice: meta.device || users[i].lastLoginDevice };
+  writeUsers(users);
+  const entry = { at: now, userId, username: users[i].username, name: users[i].name, kind: meta.kind || 'login', ip: meta.ip || '', device: meta.device || '' };
+  recentLocalLogins.unshift(entry);
+  if (recentLocalLogins.length > 500) recentLocalLogins.length = 500;
+  logLogin(entry);
+}
+
+/** Anyone can create their own account with a username and password. */
+export function registerSelf(input: { username: string; password: string; name?: string }): { ok: boolean; user?: StoredUser; error?: string } {
+  const username = String(input.username || '').trim().toLowerCase();
+  const password = String(input.password || '');
+  if (!/^[a-z0-9][a-z0-9._-]{2,23}$/.test(username)) return { ok: false, error: 'Username: 3–24 characters — letters, numbers, dot, dash or underscore.' };
+  if (password.length < 6) return { ok: false, error: 'Password must be at least 6 characters.' };
+  if (/^(admin|administrator|developer|primepipfx|primepipfx-admin|support|root|system)$/.test(username) || username.includes('admin')) return { ok: false, error: 'That username is reserved — please choose another.' };
+  const res = createCustomer({
+    name: String(input.name || '').trim().slice(0, 60) || username,
+    username,
+    password,
+    subscriptionStatus: 'PAYMENT_REQUIRED',
+    paymentStatus: 'UNPAID',
+    adminNotes: 'Self sign-up',
+  });
+  if (!res.success || !res.user) return { ok: false, error: res.error === 'Username already exists' ? 'That username is taken — please choose another.' : res.error || 'Could not create the account.' };
+  const users = readUsers();
+  const i = users.findIndex((u) => u.id === res.user!.id);
+  if (i >= 0) { users[i] = { ...users[i], signupSource: 'self', mustChangePassword: false }; writeUsers(users); return { ok: true, user: users[i] }; }
+  return { ok: true, user: res.user };
 }

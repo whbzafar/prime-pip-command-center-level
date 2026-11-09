@@ -37,7 +37,12 @@ import {
   getAllRegisteredTraders,
   isActiveCommunityMember,
   updatePresencePrivacy,
+  registerSelf,
+  recordLogin,
+  syncUsersFromDurable,
+  localLoginLog,
 } from "./server/authService.js";
+import { durableStatus, flushDurable, hasPendingWrites, recentLogins } from "./server/durableStore.js";
 import { getCustomerData, saveCustomerData } from "./server/customerDataService.js";
 import { safeReadJsonFile, safeWriteJsonFile } from "./server/dataPath.js";
 import type { StoredUser } from "./server/authService.js";
@@ -273,6 +278,20 @@ app.use((req, _res, next) => {
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
+
+// Accounts live in the durable store (when connected): refresh before handling API calls, and make sure
+// every account change has reached it before the response is sent (serverless functions freeze after).
+app.use(async (req, res, next) => {
+  if (!req.path.startsWith('/api/')) return next();
+  try { await syncUsersFromDurable(); } catch { /* keep serving from the local copy */ }
+  const json = res.json.bind(res);
+  (res as any).json = (body: any) => {
+    if (!hasPendingWrites()) return json(body);
+    flushDurable().finally(() => json(body));
+    return res;
+  };
+  next();
+});
 
 const supabaseAuthCache = new Map<string, { userId: string; expiresAt: number }>();
 
@@ -3578,6 +3597,9 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   const localResult = loginUser(username, password, rememberMe);
+  if (localResult?.user) {
+    try { recordLogin(localResult.user.id, { ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim(), device: String(req.headers['user-agent'] || '').slice(0, 160), kind: 'login' }); } catch { /* tracking is best-effort */ }
+  }
 
   // Administrator authentication is authoritative in the server auth store.
   // A valid admin credential must not depend on a separate identity-provider
@@ -3732,6 +3754,35 @@ app.get('/api/fundamental-indicators/dashboard', async (_req, res) => {
     console.error('Fundamental strength dashboard error:', error);
     return res.status(502).json({ error: 'Fundamental strength data is temporarily unavailable.' });
   }
+});
+
+
+// Route: anyone can create their own account (username + password)
+const signupHits = new Map<string, number[]>();
+app.post('/api/auth/register', (req, res) => {
+  const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+  const now = Date.now();
+  const hits = (signupHits.get(ip) || []).filter((t) => now - t < 3600_000);
+  if (hits.length >= 8) return res.status(429).json({ ok: false, error: 'Too many new accounts from this network — please try again in an hour.' });
+  const { username, password, name } = req.body || {};
+  const r = registerSelf({ username, password, name });
+  if (!r.ok || !r.user) return res.status(400).json({ ok: false, error: r.error });
+  hits.push(now); signupHits.set(ip, hits);
+  const login = loginUser(r.user.username, String(password), true);
+  if (!login) return res.status(500).json({ ok: false, error: 'Account created — please sign in.' });
+  try { recordLogin(r.user.id, { ip, device: String(req.headers['user-agent'] || '').slice(0, 160), kind: 'signup' }); } catch { /* best-effort */ }
+  res.cookie('primepipfx_session', login.token, { httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL), sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000, path: '/' });
+  return res.json({ ok: true, user: sanitizeUser(login.user), token: login.token });
+});
+
+// Route: members & login activity for the administrator
+app.get('/api/admin/members', requireDeveloper, async (_req, res) => {
+  const users = getAllCustomers().map((u) => {
+    const s: any = sanitizeUser(u);
+    return { id: s.id, name: s.name, username: s.username, email: s.email || '', role: s.role, subscriptionStatus: s.subscriptionStatus, signupSource: (u as any).signupSource || 'admin', createdAt: u.createdAt, lastLoginAt: (u as any).lastLoginAt || null, loginCount: (u as any).loginCount || 0, lastLoginIp: (u as any).lastLoginIp || '', lastLoginDevice: (u as any).lastLoginDevice || '' };
+  }).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  const logins = (await recentLogins(300));
+  return res.json({ ok: true, members: users, logins: logins.length ? logins : localLoginLog(), storage: durableStatus() });
 });
 
 // Route: Get current user

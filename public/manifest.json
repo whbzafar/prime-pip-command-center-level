@@ -1,8 +1,10 @@
 {
   "name": "PRIMEPIPFX Trading Command Center",
   "short_name": "PRIMEPIPFX",
-  "description": "Professional institutional trading command center featuring real-time community, 1-on-1 encrypted messaging, WebRTC video calling, dedicated Psychological Command Center, Freehand Workspace, mentorship booking, and risk execution intelligence.",
+  "description": "PrimePipFX trading command center — journal, fundamentals, Pro charts with alerts, backtesting, risk and psychology tools.",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#070A11",
   "theme_color": "#070A11",
@@ -12,7 +14,7 @@
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/pwa-192x192.png",
