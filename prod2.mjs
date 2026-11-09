@@ -15,7 +15,7 @@ async function session(vp) {
 }
 const nav = async (p, l) => { await p.keyboard.press('Escape').catch(() => {}); const ok = await p.evaluate((l) => { const bs = [...document.querySelectorAll('button')]; const el = bs.find((b) => (b.innerText || '').trim().toUpperCase().startsWith(l)) || bs.find((b) => (b.innerText || '').trim().toUpperCase().replace(/^\d+\.\s*/, '').startsWith(l.replace(/^\d+\.\s*/, ''))); if (el) { el.scrollIntoView(); el.click(); return true; } return false; }, l); if (!ok) console.log('NAV miss', l); await p.waitForTimeout(500); await p.evaluate(() => { const c = [...document.querySelectorAll('button')].find((b) => (b.innerText || '').trim() === 'Close'); if (c && document.body.innerText.includes('Explore All Categories')) c.click(); }); };
 const txt = async (p) => (await p.locator('body').innerText()).replace(/\s+/g, ' ');
-const p = await session({ width: 1440, height: 1000 });
+const p = await session({ width: 1024, height: 900 });
 await nav(p, '01. DASHBOARD'); await p.waitForTimeout(6000);
 await p.screenshot({ path: 'shots/v-dashboard.png' });
 let t = await txt(p); console.log('DASH coach:', /Next trade · risk coach/i.test(t), '| longterm live:', /Long-Term \(live Fundamentals ranking\)|Top Long-Term/i.test(t));
@@ -25,21 +25,8 @@ console.log('ANN:', ((await txt(p)).match(/Long-term bullish[^|]{0,120}/) || ['n
 await p.getByRole('button', { name: 'Announcements' }).click({ timeout: 3000 }).catch(() => {});
 await nav(p, 'LIVE NEWS CALENDAR'); await p.waitForTimeout(9000);
 await p.screenshot({ path: 'shots/v-calendar.png' });
-await p.getByText('Breaking News').first().click(); await p.waitForTimeout(6000);
-await p.screenshot({ path: 'shots/v-breaking.png' });
-await p.locator('button:has-text("HIGH")').first().click().catch(() => {}); await p.waitForTimeout(1500);
-await p.screenshot({ path: 'shots/v-breaking-open.png' });
-await p.keyboard.press('Escape'); await p.mouse.click(10, 10);
-await nav(p, 'COMPOUNDING'); await p.waitForTimeout(4000);
-t = await txt(p); console.log('COMP recovery present:', /LOSS RECOVERY/i.test(t), '| reality check:', /Reality check/i.test(t));
-await p.locator('text=Reality check').first().scrollIntoViewIfNeeded().catch(() => {}); await p.screenshot({ path: 'shots/v-compounding.png' });
-await nav(p, '05. RISK MANAGEMENT'); await p.waitForTimeout(3000);
-t = await txt(p); console.log('RISK instant calc present:', /Instant Position|POSITION & LOT SIZE CALCULATOR/i.test(t), '| ladder:', /Risk ladder/i.test(t));
-await p.locator('text=Risk ladder').first().scrollIntoViewIfNeeded().catch(() => {}); await p.screenshot({ path: 'shots/v-risk.png' });
-await nav(p, '11. BACKTESTING'); await p.waitForTimeout(6000);
-await p.getByRole('button', { name: /Start replay|Load replay/ }).first().click().catch(() => {}); await p.waitForTimeout(9000);
-await p.getByRole('button', { name: /^BUY \(B\)/ }).first().click().catch((e) => console.log('nobuy', e.message.slice(0, 80))); await p.waitForTimeout(2500);
-await p.locator('canvas').first().scrollIntoViewIfNeeded().catch(() => {}); await p.screenshot({ path: 'shots/v-backtest.png' });
+console.log('CAL previous visible:', await p.evaluate(() => { const th = [...document.querySelectorAll('th')].find((t) => t.innerText.trim().toUpperCase() === 'PREVIOUS'); if (!th) return 'no th'; const r = th.getBoundingClientRect(); return r.right <= window.innerWidth && r.width > 20 ? 'yes' : `no (right ${Math.round(r.right)} vs ${window.innerWidth})`; }));
+process.exit(0);
 // mobile
 const m = await session({ width: 390, height: 844 });
 await nav(m, '01. DASHBOARD'); await m.waitForTimeout(6000);
