@@ -350,7 +350,7 @@ const IndicatorMenu: React.FC<{ lib: ReturnType<typeof pineLib.get>; natives: an
   const ql = q.trim().toLowerCase();
   const scripts = lib.scripts.filter((x) => !ql || x.name.toLowerCase().includes(ql));
   const builtins = natives.filter((n) => n?.supported !== false && (!ql || String(n.title || n.type).toLowerCase().includes(ql)));
-  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [onClose]);
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); onClose(); } }; window.addEventListener('keydown', k, true); return () => window.removeEventListener('keydown', k, true); }, [onClose]);
   return (
     <div className="absolute inset-0 z-[8] flex items-start justify-center pt-16 bg-black/30" onPointerDown={onClose} data-testid="ppfx-indicator-menu">
       <div className="w-[min(460px,92%)] max-h-[70%] flex flex-col rounded-xl border border-slate-700 bg-[#1e222d] shadow-2xl text-[12.5px] text-slate-200" onPointerDown={(e) => e.stopPropagation()}>

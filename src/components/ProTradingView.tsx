@@ -3313,6 +3313,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isFullscreen) {
+        // Esc closes an open chart dialog / menu first; only a second Esc leaves full screen.
+        if (e.defaultPrevented || document.querySelector('[role="dialog"], [role="menu"], [data-testid="ppfx-indicator-menu"]')) return;
         setIsFullscreen(false);
       }
     };
