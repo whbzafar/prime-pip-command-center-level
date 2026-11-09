@@ -4,13 +4,16 @@ const B = 'http://localhost:3000';
 const T = JSON.parse(fs.readFileSync('/tmp/tokens.json', 'utf8'));
 const SECRET = 'mySecretFactor';
 const SRC = `//@version=5
-indicator("PPFX Private Trend", overlay=true)
+strategy("PPFX Private Trend", overlay=true)
 ${SECRET} = 1.0
 fast = ta.ema(close, 9) * ${SECRET}
 slow = ta.ema(close, 21)
 plot(fast, "Fast", color.aqua, 2)
 plot(slow, "Slow", color.orange, 2)
-plotshape(ta.crossover(fast, slow), "Buy", shape.triangleup, location.belowbar, color.lime, size=size.small)
+if ta.crossover(fast, slow)
+    strategy.entry("L", strategy.long)
+if ta.crossunder(fast, slow)
+    strategy.close("L")
 `;
 const browser = await chromium.launch();
 const leaks = [];
@@ -59,6 +62,7 @@ console.log('ADMIN token signed:', String(T.admin.token).startsWith('ppfx1.')); 
 let t = await txt(A.page);
 console.log('ADMIN strip:', (t.match(/\d+ indicators? on the chart/) || ['(no strip)'])[0], '| status:', (t.match(/“PPFX Private Trend” is on the chart\.|Line \d+:[^|]{0,120}/) || ['(no status)'])[0]);
 await A.page.locator('text=indicator on the chart').first().scrollIntoViewIfNeeded().catch(() => {}); await shot(A.page, 'admin-main-chart');
+{ const box = await A.page.locator('canvas').nth(2).boundingBox().catch(() => null); if (box) { for (let k = 0; k < 6; k++) { await A.page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.5); await A.page.mouse.down(); await A.page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.5, { steps: 8 }); await A.page.mouse.up(); await A.page.waitForTimeout(1500); } } await A.page.waitForTimeout(5000); await shot(A.page, 'admin-scrolled-back'); }
 await A.page.getByRole('button', { name: /^GBP\/USD/ }).first().click().catch(() => console.log('no GBP chip')); await A.page.waitForTimeout(15000);
 t = await txt(A.page); console.log('ADMIN after pair switch:', (t.match(/\d+ indicators? on the chart/) || ['(no strip)'])[0], (t.match(/“PPFX Private Trend” is on the chart\./) || ['(status gone)'])[0]);
 await shot(A.page, 'admin-after-switch');
