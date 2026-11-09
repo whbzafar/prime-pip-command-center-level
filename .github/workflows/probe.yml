@@ -15,7 +15,7 @@ jobs:
       - run: cd app && npm ci --no-audit --no-fund >/dev/null 2>&1 && npm run build >/dev/null 2>&1 && ls dist | head -3
       - run: cd app && npx tsx ../setup.mts
       - run: (node fakeredis.mjs > /tmp/redis.log 2>&1 &) && sleep 1 && cd app && (KV_REST_API_URL=http://localhost:8799 KV_REST_API_TOKEN=t PORT=3000 node dist/server.cjs > /tmp/server.log 2>&1 &) && sleep 12
-      - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && node e2e.mjs; tail -20 /tmp/server.log; tail -5 /tmp/redis.log
+      - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && timeout 900 node e2e.mjs; tail -20 /tmp/server.log; tail -5 /tmp/redis.log
       - if: always()
         run: |
           git config user.name ci; git config user.email ci@example.com

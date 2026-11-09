@@ -46,15 +46,18 @@ await p.locator('iframe[src*="tradingview"]').first().scrollIntoViewIfNeeded().c
 await shot(p, 'w5-tv-tools');
 
 // 2) restart server with the local user file wiped → the new account must still sign in (from Redis)
+console.log('STEP restart begin');
 try { execFileSync('pkill', ['-f', 'dist/server.cjs']); } catch {}
 await new Promise((r) => setTimeout(r, 2000));
 execSync("cd app && git checkout -- data/users.json 2>/dev/null; (KV_REST_API_URL=http://localhost:8799 KV_REST_API_TOKEN=t PORT=3000 nohup node dist/server.cjs > /tmp/server2.log 2>&1 < /dev/null &) ; sleep 10", { stdio: 'ignore', shell: '/bin/bash' });
+console.log('STEP restarted');
 const localHas = fs.readFileSync('app/data/users.json', 'utf8').includes(U);
 const r = await (await fetch(B + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: U, password: 'secret123' }) })).json();
 console.log('AFTER RESTART local file had user before login:', localHas, '→ login ok:', r.ok, r.user?.username);
 const bad = await (await fetch(B + '/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: U, password: 'xxxxxx1' }) })).json();
 console.log('duplicate signup rejected:', !bad.ok, bad.error);
 
+console.log('STEP admin');
 // 3) admin Members panel + remove
 const A = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 await A.addCookies([{ name: 'primepipfx_session', value: T.admin.token, domain: 'localhost', path: '/' }]);
@@ -68,6 +71,7 @@ await ap.evaluate(() => document.getElementById('onboarding-welcome-modal')?.rem
 await ap.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /ADMIN/.test(x.innerText) && /PANEL|ADMIN/.test(x.innerText)); b?.scrollIntoView(); b?.click(); }); await ap.waitForTimeout(5000);
 console.log('members panel visible:', await ap.locator('[data-testid="members-panel"]').count());
 await shot(ap, 'w6-admin-members');
+console.log('STEP delete');
 const del = await ap.evaluate(async (u) => { const t = localStorage.getItem('primepipfx_session_token'); const m = (await (await fetch('/api/admin/members', { headers: { Authorization: 'Bearer ' + t } })).json()).members.find((x) => x.username === u); const r = await fetch('/api/admin/customers/' + m.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + t } }); return r.status; }, U);
 const r2 = await (await fetch(B + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: U, password: 'secret123' }) })).json();
 console.log('REMOVE status', del, '→ removed user can login:', r2.ok);
