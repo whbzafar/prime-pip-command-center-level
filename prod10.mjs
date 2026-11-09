@@ -1,0 +1,24 @@
+import { chromium } from 'playwright';
+const B = 'https://prime-pip-command-center-level.vercel.app';
+const user = { id: 'probe-user', name: 'Probe Trader', username: 'probe', role: 'CUSTOMER', subscriptionStatus: 'LIFETIME', isLifetime: true, paymentStatus: 'PAID', hasCompletedOnboarding: true };
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+await ctx.route('**/api/auth/me', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, user }) }));
+await ctx.addInitScript((u) => { try { localStorage.setItem('primepipfx_user_profile', JSON.stringify(u)); } catch {} }, user);
+const p = await ctx.newPage();
+p.on('pageerror', (e) => console.log('PAGEERROR', e.message.slice(0, 200)));
+await p.goto(B, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(7000);
+for (let i = 0; i < 3; i++) { for (const t of ['ENTER COMMAND CENTER', 'Start Practice', 'Create Demo Account']) await p.getByText(t).first().click({ timeout: 1200 }).catch(() => {}); await p.waitForTimeout(800); }
+await p.evaluate(() => document.getElementById('onboarding-welcome-modal')?.remove());
+const nav = async (l) => { await p.keyboard.press('Escape').catch(() => {}); const ok = await p.evaluate((l) => { const el = [...document.querySelectorAll('button')].find((b) => (b.innerText || '').trim().toUpperCase().startsWith(l)); if (el) { el.scrollIntoView(); el.click(); return true; } return false; }, l); if (!ok) console.log('NAV miss', l); await p.waitForTimeout(600); };
+await p.waitForTimeout(110000);
+const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const q = await c2.newPage();
+await q.goto(B, { waitUntil: 'domcontentloaded' }); await q.waitForTimeout(9000);
+console.log('PROD trial modal:', await q.locator('[data-testid="trial-modal"]').count(), (await q.locator('[data-testid="trial-countdown"]').innerText().catch(() => '')).replace(/\s+/g, ' '));
+await q.screenshot({ path: 'shots/x1-prod-trial.png' });
+const st = await q.evaluate(async () => (await (await fetch('/api/auth/students-count')).status));
+const reg = await q.evaluate(async () => { const r = await fetch('/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'x', password: '1' }) }); return r.status + ' ' + (await r.text()).slice(0, 100); });
+console.log('PROD register validation:', reg);
+console.log('manifest:', await q.evaluate(async () => (await (await fetch('/manifest.json')).json()).id));
+process.exit(0);
