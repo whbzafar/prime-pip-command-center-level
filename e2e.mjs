@@ -1,1 +1,2 @@
-await import('./prod10.mjs');
+await import('./kvprobe.mjs');
+process.exit(0);
