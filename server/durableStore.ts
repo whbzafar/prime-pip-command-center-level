@@ -99,3 +99,47 @@ export async function recentLogins(limit = 300): Promise<any[]> {
 
 export const hasPendingWrites = () => pending.size > 0;
 export async function flushDurable() { await Promise.allSettled([...pending]); }
+
+// ─────────────────────────────── small shared records (removed members, last logins, login log)
+// Stored in Redis when connected; otherwise in the app's existing kvdb.io bucket so they still
+// survive restarts and are shared by every server instance.
+const KVDB = 'https://kvdb.io/2ST3F4wjgBy2qEaTquQPuU';
+const cache = new Map<string, { at: number; v: any }>();
+
+export async function getShared<T>(key: string, fallback: T, maxAgeMs = 8000): Promise<T> {
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < maxAgeMs) return hit.v as T;
+  try {
+    let raw: string | null = null;
+    if (durableEnabled) raw = await cmd(['GET', `ppfx:${key}`]);
+    else {
+      const r = await fetch(`${KVDB}/ppfx_${key}`, { cache: 'no-store', signal: AbortSignal.timeout(4000) });
+      raw = r.ok ? await r.text() : null;
+    }
+    const v = raw ? JSON.parse(raw) : fallback;
+    cache.set(key, { at: Date.now(), v });
+    return v as T;
+  } catch {
+    return (hit?.v as T) ?? fallback;
+  }
+}
+
+export function setShared(key: string, value: unknown) {
+  cache.set(key, { at: Date.now(), v: value });
+  const body = JSON.stringify(value);
+  const p = (durableEnabled
+    ? cmd(['SET', `ppfx:${key}`, body])
+    : fetch(`${KVDB}/ppfx_${key}`, { method: 'PUT', body, signal: AbortSignal.timeout(5000) })
+  ).catch((e: any) => { lastError = String(e?.message || e); });
+  pending.add(p);
+  p.finally(() => pending.delete(p));
+  return p;
+}
+
+/** Read-modify-write helper (fresh read, then write). */
+export async function updateShared<T>(key: string, fallback: T, fn: (v: T) => T) {
+  const cur = await getShared<T>(key, fallback, 0);
+  const next = fn(cur);
+  await setShared(key, next);
+  return next;
+}

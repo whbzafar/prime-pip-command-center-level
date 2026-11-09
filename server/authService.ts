@@ -3,7 +3,8 @@ import path from 'path';
 import crypto from 'crypto';
 import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
 import { isTrialActive } from './trial.js';
-import { hydrateUsers, logLogin, persistUsers } from './durableStore.js';
+import { durableEnabled, getShared, hydrateUsers, logLogin, persistUsers, updateShared } from './durableStore.js';
+const durableEnabledFlag = () => durableEnabled;
 
 export type UserRole = 'ADMIN' | 'CUSTOMER' | 'DEVELOPER';
 
@@ -118,8 +119,23 @@ function verifyPassword(password: string, hash: string, salt: string): boolean {
 }
 
 // Read and write helpers using safe storage that never crashes on serverless
+// Members the administrator removed. Kept in shared storage so a removed member never comes back
+// from the bundled starter list, the legacy student registry or another server instance.
+type Removed = { ids: string[]; usernames: string[] };
+let removedIds = new Set<string>();
+let removedNames = new Set<string>();
+const isProtected = (u: StoredUser) => u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER';
+export const isRemovedMember = (username?: string, id?: string) => Boolean((username && removedNames.has(username.toLowerCase())) || (id && removedIds.has(id)));
+export async function refreshRemovedMembers() {
+  const r = await getShared<Removed>('removed_members', { ids: [], usernames: [] });
+  removedIds = new Set(r.ids || []);
+  removedNames = new Set((r.usernames || []).map((x) => String(x).toLowerCase()));
+}
+
 export function readUsers(): StoredUser[] {
-  return safeReadJsonFile<StoredUser[]>('users.json', []);
+  const all = safeReadJsonFile<StoredUser[]>('users.json', []);
+  if (!removedIds.size && !removedNames.size) return all;
+  return all.filter((u) => isProtected(u) || !isRemovedMember(u.username, u.id));
 }
 
 export function writeUsers(users: StoredUser[]) {
@@ -709,6 +725,12 @@ export function deleteCustomer(id: string): { success: boolean; error?: string }
     return { success: false, error: 'Cannot delete Developer/Admin account' };
   }
   const updatedUsers = users.filter((u) => u.id !== id);
+  removedIds.add(user.id);
+  removedNames.add(user.username.toLowerCase());
+  void updateShared<Removed>('removed_members', { ids: [], usernames: [] }, (r) => ({
+    ids: [...new Set([...(r.ids || []), user.id])].slice(-2000),
+    usernames: [...new Set([...(r.usernames || []), user.username.toLowerCase()])].slice(-2000),
+  }));
   writeUsers(updatedUsers);
 
   // Remove active sessions
@@ -879,7 +901,7 @@ export function isActiveCommunityMember(user: StoredUser | null | undefined): bo
 // ─────────────────────────────── durable sync, self sign-up, login tracking
 /** Refresh the local user list from the durable store (no-op when none is connected). */
 export function syncUsersFromDurable(maxAgeMs = 4000) {
-  return hydrateUsers(() => readUsers(), (u) => writeUsers(u as StoredUser[]), maxAgeMs);
+  return hydrateUsers(() => readUsers(), (u) => writeUsers((u as StoredUser[]).filter((x) => isProtected(x) || !isRemovedMember(x.username, x.id))), maxAgeMs);
 }
 
 const recentLocalLogins: Record<string, unknown>[] = [];
@@ -893,6 +915,8 @@ export function recordLogin(userId: string, meta: { ip?: string; device?: string
   users[i] = { ...users[i], lastLoginAt: now, loginCount: (users[i].loginCount || 0) + 1, lastLoginIp: meta.ip || users[i].lastLoginIp, lastLoginDevice: meta.device || users[i].lastLoginDevice };
   writeUsers(users);
   const entry = { at: now, userId, username: users[i].username, name: users[i].name, kind: meta.kind || 'login', ip: meta.ip || '', device: meta.device || '' };
+  void updateShared<Record<string, any>>('last_logins', {}, (m) => ({ ...m, [userId]: { at: now, count: (m?.[userId]?.count || 0) + 1, ip: entry.ip, device: entry.device } }));
+  if (!durableEnabledFlag()) void updateShared<any[]>('login_log', [], (l) => [entry, ...(Array.isArray(l) ? l : [])].slice(0, 300));
   recentLocalLogins.unshift(entry);
   if (recentLocalLogins.length > 500) recentLocalLogins.length = 500;
   logLogin(entry);
@@ -905,6 +929,10 @@ export function registerSelf(input: { username: string; password: string; name?:
   if (!/^[a-z0-9][a-z0-9._-]{2,23}$/.test(username)) return { ok: false, error: 'Username: 3–24 characters — letters, numbers, dot, dash or underscore.' };
   if (password.length < 6) return { ok: false, error: 'Password must be at least 6 characters.' };
   if (/^(admin|administrator|developer|primepipfx|primepipfx-admin|support|root|system)$/.test(username) || username.includes('admin')) return { ok: false, error: 'That username is reserved — please choose another.' };
+  if (removedNames.has(username)) {
+    removedNames.delete(username);
+    void updateShared<Removed>('removed_members', { ids: [], usernames: [] }, (r) => ({ ids: r.ids || [], usernames: (r.usernames || []).filter((x) => x !== username) }));
+  }
   const res = createCustomer({
     name: String(input.name || '').trim().slice(0, 60) || username,
     username,

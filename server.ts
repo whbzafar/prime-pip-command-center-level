@@ -41,8 +41,9 @@ import {
   recordLogin,
   syncUsersFromDurable,
   localLoginLog,
+  refreshRemovedMembers,
 } from "./server/authService.js";
-import { durableStatus, flushDurable, hasPendingWrites, recentLogins } from "./server/durableStore.js";
+import { durableStatus, flushDurable, getShared, hasPendingWrites, recentLogins } from "./server/durableStore.js";
 import { getCustomerData, saveCustomerData } from "./server/customerDataService.js";
 import { safeReadJsonFile, safeWriteJsonFile } from "./server/dataPath.js";
 import type { StoredUser } from "./server/authService.js";
@@ -283,6 +284,7 @@ app.use(cookieParser());
 // every account change has reached it before the response is sent (serverless functions freeze after).
 app.use(async (req, res, next) => {
   if (!req.path.startsWith('/api/')) return next();
+  try { await refreshRemovedMembers(); } catch { /* keep the last known list */ }
   try { await syncUsersFromDurable(); } catch { /* keep serving from the local copy */ }
   const json = res.json.bind(res);
   (res as any).json = (body: any) => {
@@ -3777,12 +3779,17 @@ app.post('/api/auth/register', (req, res) => {
 
 // Route: members & login activity for the administrator
 app.get('/api/admin/members', requireDeveloper, async (_req, res) => {
+  const last = await getShared<Record<string, any>>('last_logins', {}, 0);
   const users = getAllCustomers().map((u) => {
     const s: any = sanitizeUser(u);
-    return { id: s.id, name: s.name, username: s.username, email: s.email || '', role: s.role, subscriptionStatus: s.subscriptionStatus, signupSource: (u as any).signupSource || 'admin', createdAt: u.createdAt, lastLoginAt: (u as any).lastLoginAt || null, loginCount: (u as any).loginCount || 0, lastLoginIp: (u as any).lastLoginIp || '', lastLoginDevice: (u as any).lastLoginDevice || '' };
-  }).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-  const logins = (await recentLogins(300));
-  return res.json({ ok: true, members: users, logins: logins.length ? logins : localLoginLog(), storage: durableStatus() });
+    const l = last?.[u.id] || {};
+    const at = [l.at, (u as any).lastLoginAt].filter(Boolean).sort().pop() || null;
+    return { id: s.id, name: s.name, username: s.username, email: s.email || '', role: s.role, subscriptionStatus: s.subscriptionStatus, expiryDate: u.expiryDate, isLifetime: u.isLifetime, signupSource: (u as any).signupSource || 'admin', createdAt: u.createdAt, lastLoginAt: at, loginCount: Math.max(l.count || 0, (u as any).loginCount || 0), lastLoginIp: l.ip || (u as any).lastLoginIp || '', lastLoginDevice: l.device || (u as any).lastLoginDevice || '' };
+  }).sort((a, b) => String(b.lastLoginAt || '').localeCompare(String(a.lastLoginAt || '')) || String(b.createdAt).localeCompare(String(a.createdAt)));
+  let logins: any[] = await recentLogins(300);
+  if (!logins.length) logins = await getShared<any[]>('login_log', [], 0);
+  if (!Array.isArray(logins) || !logins.length) logins = localLoginLog();
+  return res.json({ ok: true, members: users, logins, storage: durableStatus() });
 });
 
 // Route: Get current user

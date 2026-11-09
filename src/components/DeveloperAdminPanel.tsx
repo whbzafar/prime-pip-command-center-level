@@ -119,11 +119,15 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
         }
       }
 
-      // Merge server customers and local students
-      const mergedMap = new Map<string, UserAccount>();
-      localStudents.forEach((st) => mergedMap.set(st.username.toLowerCase(), st));
-      serverCustomers.forEach((sc) => mergedMap.set(sc.username.toLowerCase(), sc));
-      setCustomers(Array.from(mergedMap.values()));
+      // The server list is the source of truth (it already imports the legacy registry and leaves out
+      // removed members). The browser copy is used only if the server could not be reached.
+      if (resCust && resCust.ok) {
+        setCustomers(serverCustomers);
+      } else {
+        const mergedMap = new Map<string, UserAccount>();
+        localStudents.forEach((st) => mergedMap.set(st.username.toLowerCase(), st));
+        setCustomers(Array.from(mergedMap.values()));
+      }
 
       if (resStats && resStats.ok) {
         const contentType = resStats.headers.get('content-type') || '';
@@ -438,17 +442,20 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
         },
         credentials: 'include',
       });
-      const contentType = res.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        const data = await res.json();
-        if (!data.ok) {
-          console.warn('Backend delete returned error, deleted locally:', data.error);
-        }
+      const data = await res.json().catch(() => null);
+      if (!data?.ok && data?.error !== 'Customer not found') {
+        setActionSuccess(`Could not remove @${username}: ${data?.error || `server error ${res.status}`}`);
+        setCustomerToDelete(null);
+        fetchAdminData();
+        return;
       }
     } catch (err: any) {
-      console.warn('Backend delete network error, customer deleted locally:', err);
+      setActionSuccess(`Could not reach the server to remove @${username}. Please try again.`);
+      setCustomerToDelete(null);
+      return;
     }
-    setActionSuccess(`Customer @${username} deleted permanently.`);
+    setCustomers((list) => list.filter((c) => c.id !== userId && c.username !== username));
+    setActionSuccess(`Customer @${username} removed permanently.`);
     setCustomerToDelete(null);
     fetchAdminData();
   };
@@ -471,8 +478,8 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
   });
 
   // Calculate stats
-  const regularCustomers = customers.filter((c) => !c.isDeveloper);
-  const activeCount = regularCustomers.filter((c) => c.subscriptionStatus === 'ACTIVE' || c.subscriptionStatus === 'LIFETIME').length;
+  const regularCustomers = customers.filter((c) => !c.isDeveloper && c.role !== 'ADMIN' && c.role !== 'DEVELOPER');
+  const activeCount = regularCustomers.filter((c) => c.subscriptionStatus === 'LIFETIME' || c.isLifetime || (c.subscriptionStatus === 'ACTIVE' && (!c.expiryDate || Date.parse(c.expiryDate) >= Date.now() - 86400_000))).length;
   const lifetimeCount = regularCustomers.filter((c) => c.subscriptionStatus === 'LIFETIME').length;
   const expiredCount = regularCustomers.filter((c) => c.subscriptionStatus === 'EXPIRED').length;
   const pendingPaymentCount = regularCustomers.filter((c) => c.paymentStatus === 'PENDING' || c.paymentStatus === 'UNPAID').length;

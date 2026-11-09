@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { readUsers, writeUsers } from "./authService.js";
+import { isRemovedMember, readUsers, writeUsers } from "./authService.js";
 import type { StoredUser } from "./authService.js";
 
 const LEGACY_STUDENTS_URL =
@@ -42,6 +42,7 @@ export async function syncLegacyStudentsToServer(force = false): Promise<number>
         if (!legacy || typeof legacy.username !== "string") continue;
         const username = legacy.username.trim().toLowerCase();
         if (!username || username === "primepipfx-admin" || username === "admin" || username === "developer") continue;
+        if (isRemovedMember(username, typeof legacy.id === "string" ? legacy.id : undefined)) continue; // removed by the admin
 
         const password = typeof legacy.password === "string" ? legacy.password :
           typeof legacy.originalPassword === "string" ? legacy.originalPassword : "";
@@ -81,7 +82,9 @@ export async function syncLegacyStudentsToServer(force = false): Promise<number>
           users.push(user);
           byUsername.set(username, user);
           changed++;
-        } else if (password) {
+        } else if (false && password) {
+          // Disabled: the legacy registry is publicly writable, so it must never change an existing
+          // member's password (it also undid passwords reset by the admin).
           let isMatch = false;
           if (user.passwordHash && user.salt) {
             isMatch = crypto.pbkdf2Sync(password, user.salt, 10000, 64, "sha512").toString("hex") === user.passwordHash;
