@@ -31,20 +31,20 @@ console.log('ALERTS logged', st.log.length, st.log.join(' | '));
 const wrong = st.log.filter((l) => { const [s, side] = l.split(' '); return (side === 'BUY') !== (rk.bull || []).includes(s); });
 console.log('ALIGNMENT wrong-side alerts:', wrong.length, wrong.join(' | '));
 await shot('01-home');
-await page.locator('[aria-label="Announcements"]').first().click({ timeout: 8000 }).catch(() => console.log('no megaphone')); await page.waitForTimeout(1500);
-let t = await txt(); console.log('ANNOUNCE panel:', t.includes('Market at key levels'), '| hits rows', await page.locator('[data-testid="level-hit"]').count(), '|', (t.match(/[A-Z/]{3,9} (Buy|Sell) Level \d reached/g) || []).slice(0, 6).join(' ; '));
-await shot('02-announcements');
-await page.locator('[aria-label="Close"]').first().click().catch(() => {});
 // second cycle must not alert again
 const before = st.log.length;
 await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(8000); await enter(); await page.waitForTimeout(20000);
 const after = await page.evaluate(() => JSON.parse(localStorage.getItem('ppfx_level_alerts_log_v1') || '[]').length);
 console.log('DEDUPE after reload: alerts', before, '→', after);
 for (const b of ['Maybe later', 'Start exploring', 'Got it']) await page.getByRole('button', { name: b }).first().click({ timeout: 1000 }).catch(() => {});
+await page.locator('[aria-label="Announcements"]').first().click({ timeout: 8000 }).catch(() => console.log('no megaphone')); await page.waitForTimeout(1500);
+let t = await txt(); console.log('ANNOUNCE panel:', t.includes('Market at key levels'), '| hits rows', await page.locator('[data-testid="level-hit"]').count(), '|', (t.match(/[A-Z/]{3,9} (Buy|Sell) Level \d reached/g) || []).slice(0, 6).join(' ; '));
+await shot('02-announcements');
+await page.locator('[aria-label="Close"]').first().click().catch(() => {});
 // Fundamentals → rankings
 await page.getByText(/^FUNDAMENTALS$/i).first().click().catch(async () => { await page.getByRole('button', { name: /Fundamentals/i }).first().click().catch(() => console.log('no fundamentals button')); });
 await page.waitForTimeout(6000);
-await page.getByRole('button', { name: /Rankings|Top pairs/i }).first().click().catch(() => console.log('no rankings tab')); await page.waitForTimeout(5000);
+await page.getByRole('button', { name: /Top Bullish/i }).first().click().catch(() => console.log('no rankings tab')); await page.waitForTimeout(5000);
 t = await txt(); console.log('FUNDAMENTALS panel:', t.includes('Market at key levels'), '| hit rows', await page.locator('[data-testid="level-hit"]').count());
 await page.locator('[data-testid="level-alerts"]').first().scrollIntoViewIfNeeded().catch(() => {}); await shot('03-fundamentals');
 // Premium TradingView: watchlist + brokers
@@ -54,17 +54,17 @@ console.log('WATCHLIST present', await wl.count(), '|', ((await wl.innerText().c
 await wl.locator('input').fill('gbpjpy'); await wl.locator('input').press('Enter'); await page.waitForTimeout(600);
 await wl.locator('input').fill('NAS100'); await wl.locator('input').press('Enter'); await page.waitForTimeout(600);
 console.log('MY PAIRS saved', await page.evaluate(() => localStorage.getItem('ppfx_watchlist_v1')));
-await wl.getByRole('button', { name: /Open GBP/ }).first().click().catch(() => console.log('cannot open my pair')); await page.waitForTimeout(6000);
+await wl.locator('[title="Open GBP/JPY"]').first().click().catch(() => console.log('cannot open my pair')); await page.waitForTimeout(6000);
 await wl.scrollIntoViewIfNeeded(); await shot('04-watchlist');
 const sel = page.locator('[data-testid="broker-select"]');
 console.log('BROKERS', (await sel.locator('option').allInnerTexts()).join(', '));
-for (const b of ['FOREXCOM', 'OANDA', 'PEPPERSTONE']) {
-  await sel.selectOption(b); await page.waitForTimeout(9000);
+for (const b of ['FOREXCOM', 'ICMARKETS', 'EIGHTCAP', 'FXOPEN', 'BLACKBULL', 'SAXO', 'FPMARKETS', 'VANTAGE', 'ACTIVTRADES', 'EASYMARKETS', 'SKILLING', 'TICKMILL', 'THINKMARKETS', 'FX_IDC', 'CAPITALCOM', 'FX']) {
+  await sel.selectOption(b); await page.waitForTimeout(7000);
   const frames = page.frames().map((f) => f.url()).filter((u) => /tradingview/.test(u));
   const m = frames.map((u) => decodeURIComponent(u).match(/symbol"?[=:]"?([A-Z_]+:[A-Z0-9]+)/)?.[1]).filter(Boolean);
   const ft = (await Promise.all(page.frames().filter((f) => /tradingview/.test(f.url())).map((f) => f.locator('body').innerText().catch(() => '')))).join(' ').replace(/\s+/g, ' ');
   console.log('BROKER', b, '→ widget symbol', m[0] || '(none)', '| invalid:', /Invalid symbol|only available on TradingView|symbol doesn.t exist/i.test(ft), '|', ft.slice(0, 90));
-  await sel.scrollIntoViewIfNeeded(); await shot('05-broker-' + b);
+  if (b === 'FOREXCOM') { await sel.scrollIntoViewIfNeeded(); await shot('05-broker-' + b); }
 }
 await sel.selectOption(''); await page.waitForTimeout(6000); await shot('06-pro-again');
 console.log('ERRORS', errs.length, errs.slice(0, 5).join(' || '));
