@@ -31,7 +31,7 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { title: 'Trading Tool Suite', category: 'Mindset & Health', subcategory: 'Regulation', description: 'Diaphragmatic breathing, binaural focus audio, and calming tools.', tab: 'CALMING_TOOLS' },
   { title: 'Academic Research', category: 'Research & Tools', subcategory: 'Market Science', description: 'OpenAlex academic quantitative and market literature engine.', tab: 'RESEARCH' },
   { title: 'Freehand Canvas', category: 'Research & Tools', subcategory: 'Markup Workspace', description: 'Drawings, chart markups, and diagramming canvas.', tab: 'FREEHAND_WORKSPACE' },
-  { title: 'Pro Learning / Trading', category: 'Research & Tools', subcategory: 'Education & Bots', description: 'Execution courses, trading playbooks, strategies, and learning command center.', tab: 'PRO_LEARNING' },
+  { title: 'Pro Trading Learning', category: 'Research & Tools', subcategory: 'Education & Bots', description: 'Execution courses, trading playbooks, strategies, and learning command center.', tab: 'PRO_LEARNING' },
   { title: 'Trader Community Feed', category: 'Community', subcategory: 'Peer Network', description: 'Verified trade dispatches, community chat, and trader discussions.', tab: 'COMMUNITY' },
   { title: 'Book a Session', category: 'Community', subcategory: '1-on-1 Mentorship', description: 'Direct mentorship consultations and private trade reviews.', tab: 'BOOK_SESSION' },
   { title: 'Data Export & Backup', category: 'Operations', subcategory: 'Data Management', description: 'Export trade history, backup settings, and cloud state.', tab: 'SETTINGS' },

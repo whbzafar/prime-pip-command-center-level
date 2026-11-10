@@ -271,9 +271,9 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'PRO_LEARNING',
     num: '19',
-    label: 'Pro Learning Trading',
-    name: 'Pro Learning / Trading',
-    desc: 'Complete trading strategies, courses, learning paths, and future trading bots in one professional learning command center.',
+    label: 'Pro Trading Learning',
+    name: 'Pro Trading Learning',
+    desc: 'Learn trading from zero, see how institutions really trade, and reserve the SBT trading bot (launch 1 Jan 2027).',
     section: 'Intelligence & Setups',
     icon: GraduationCap,
     comingSoon: false,

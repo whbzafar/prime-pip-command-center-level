@@ -40,28 +40,28 @@ const unseal = (text: string): any => {
 };
 const kvUrl = () => (process.env.PPFX_SHARED_KV_URL || 'https://kvdb.io/2ST3F4wjgBy2qEaTquQPuU').replace(/\/$/, '');
 /** null = could not read (network / tampered); [] = nothing stored yet. */
-async function sealedRead(): Promise<any[] | null> {
+async function sealedRead(prefix = SEAL_PREFIX): Promise<any[] | null> {
   try {
-    const m = await fetch(`${kvUrl()}/${SEAL_PREFIX}_meta`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    const m = await fetch(`${kvUrl()}/${prefix}_meta`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
     if (m.status === 404) return [];
     if (!m.ok) return null;
     const meta = JSON.parse(await m.text());
     const parts = await Promise.all(Array.from({ length: Number(meta.n) || 0 }, (_, i) =>
-      fetch(`${kvUrl()}/${SEAL_PREFIX}_${meta.v}_${i}`, { cache: 'no-store', signal: AbortSignal.timeout(5000) }).then((r) => { if (!r.ok) throw new Error(`part ${i}: ${r.status}`); return r.text(); })));
+      fetch(`${kvUrl()}/${prefix}_${meta.v}_${i}`, { cache: 'no-store', signal: AbortSignal.timeout(5000) }).then((r) => { if (!r.ok) throw new Error(`part ${i}: ${r.status}`); return r.text(); })));
     const users = unseal(parts.join(''));
     return Array.isArray(users) ? users : null;
   } catch (e: any) { lastError = `sealed read: ${e?.message || e}`; return null; }
 }
-async function sealedWrite(users: any[]) {
+async function sealedWrite(users: any[], prefix = SEAL_PREFIX) {
   const text = seal(users);
   const v = Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
   const n = Math.ceil(text.length / CHUNK);
   const put = (k: string, body: string) => fetch(`${kvUrl()}/${k}`, { method: 'PUT', body, signal: AbortSignal.timeout(6000) }).then((r) => { if (!r.ok) throw new Error(`write ${k}: ${r.status}`); });
-  await Promise.all(Array.from({ length: n }, (_, i) => put(`${SEAL_PREFIX}_${v}_${i}`, text.slice(i * CHUNK, (i + 1) * CHUNK))));
+  await Promise.all(Array.from({ length: n }, (_, i) => put(`${prefix}_${v}_${i}`, text.slice(i * CHUNK, (i + 1) * CHUNK))));
   let old: any = null;
-  try { const m = await fetch(`${kvUrl()}/${SEAL_PREFIX}_meta`, { cache: 'no-store', signal: AbortSignal.timeout(4000) }); if (m.ok) old = JSON.parse(await m.text()); } catch { /* first write */ }
-  await put(`${SEAL_PREFIX}_meta`, JSON.stringify({ v, n, at: Date.now() }));
-  if (old?.v && old.v !== v) for (let i = 0; i < (Number(old.n) || 0); i++) void fetch(`${kvUrl()}/${SEAL_PREFIX}_${old.v}_${i}`, { method: 'DELETE' }).catch(() => {});
+  try { const m = await fetch(`${kvUrl()}/${prefix}_meta`, { cache: 'no-store', signal: AbortSignal.timeout(4000) }); if (m.ok) old = JSON.parse(await m.text()); } catch { /* first write */ }
+  await put(`${prefix}_meta`, JSON.stringify({ v, n, at: Date.now() }));
+  if (old?.v && old.v !== v) for (let i = 0; i < (Number(old.n) || 0); i++) void fetch(`${kvUrl()}/${prefix}_${old.v}_${i}`, { method: 'DELETE' }).catch(() => {});
 }
 const stamp = (u: any) => Date.parse(u?.updatedAt || u?.createdAt || '') || 0;
 /** Per user, the more recently changed copy wins; on a tie the `prefer` side wins. */
@@ -248,3 +248,34 @@ export async function updateShared<T>(key: string, fallback: T, fn: (v: T) => T)
 /** Private blob (Redis only — never the public fallback bucket). Returns null when Redis is not connected. */
 export async function privateGet(key: string): Promise<string | null> { if (!durableEnabled) return null; return (await cmd(['GET', `ppfx:private:${key}`])) ?? ''; }
 export async function privateSet(key: string, value: string): Promise<void> { if (!durableEnabled) throw new Error('Redis is not connected'); await cmd(['SET', `ppfx:private:${key}`, value]); }
+
+/**
+ * Small private records (bot reservations, feedback, error reports): Redis when connected, otherwise
+ * the same AES-256-GCM sealing as the account backup, in the shared bucket under its own key.
+ * Readable only by this server. Returns [] when nothing is stored, null when it could not be read.
+ */
+export async function privateListGet(name: string): Promise<any[] | null> {
+  const key = name.replace(/[^a-z0-9_]/gi, '');
+  try {
+    if (durableEnabled) { const raw = await privateGet(`list_${key}`); return raw ? JSON.parse(zlib.gunzipSync(Buffer.from(raw, 'base64')).toString('utf8')) : []; }
+    if (!SEAL_SECRET || SEAL_SECRET.length < 16) return null;
+    return await sealedRead(`ppfx_sealed_${key}`);
+  } catch { return null; }
+}
+let listQueue: Promise<unknown> = Promise.resolve();
+/** Read-modify-write, one at a time on this server. */
+export function privateListUpdate(name: string, fn: (list: any[]) => any[]): Promise<any[]> {
+  const key = name.replace(/[^a-z0-9_]/gi, '');
+  const p = listQueue.then(async () => {
+    const cur = await privateListGet(key);
+    if (cur === null) throw new Error('storage unavailable');
+    const next = fn(cur);
+    if (durableEnabled) await privateSet(`list_${key}`, zlib.gzipSync(Buffer.from(JSON.stringify(next), 'utf8')).toString('base64'));
+    else {
+      await sealedWrite(next, `ppfx_sealed_${key}`);
+    }
+    return next;
+  });
+  listQueue = p.catch(() => undefined);
+  return p;
+}

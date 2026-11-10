@@ -314,7 +314,7 @@ export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
   },
   PRO_LEARNING: {
     id: 'PRO_LEARNING',
-    name: '19. Pro Learning / Academy',
+    name: '19. Pro Trading Learning',
     shortDesc: 'Complete institutional trading strategies, execution courses, and trading bot library.',
     overview: 'Comprehensive video and text curriculum covering institutional order flow, macroeconomic analysis, risk engineering, and algorithmic bot automation.',
     keyFeatures: [

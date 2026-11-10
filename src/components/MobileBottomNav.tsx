@@ -87,7 +87,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'FREEHAND_WORKSPACE' as MainNavTab, label: '16. Freehand Canvas', desc: 'Diagramming & markup workspace', icon: PenTool, section: 'Research & Tools' },
       { id: 'SITUATION_SAVER' as MainNavTab, label: '17. Situation Saver', desc: 'Multi-timeframe market situations & setups vault', icon: FileText, highlight: true, section: 'Research & Tools' },
       { id: 'PAIR_SAVER' as MainNavTab, label: '18. Pair Saver', desc: 'Multi-timeframe direction alignment & Fibonacci scenarios', icon: Compass, highlight: true, section: 'Research & Tools' },
-      { id: 'PRO_LEARNING' as MainNavTab, label: '19. Pro Learning / Trading', desc: 'Complete trading strategies, execution courses & trading bots', icon: GraduationCap, highlight: true, section: 'Research & Tools' },
+      { id: 'PRO_LEARNING' as MainNavTab, label: '19. Pro Trading Learning', desc: 'Learn trading from zero · institutional trading · SBT bot', icon: GraduationCap, highlight: true, section: 'Research & Tools' },
       { id: 'COMMUNITY' as MainNavTab, label: '20. Trader Community Feed', desc: 'Live dispatches & peer sharing', icon: Users, section: 'Community' },
       { id: 'BOOK_SESSION' as MainNavTab, label: '21. Book a Session', desc: '1-on-1 mentorship consultation', icon: MessageSquare, highlight: true, section: 'Community' },
       { id: 'SETTINGS' as MainNavTab, label: '22. Data Export & Backup', desc: 'Export journal & restore state', icon: Settings2, section: 'Operations' },

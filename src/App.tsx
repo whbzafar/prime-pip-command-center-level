@@ -1,4 +1,6 @@
 // Force HMR refresh
+import { LearningHub } from './components/learning/LearningHub';
+import { startInsights, trackSection } from './utils/insights';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Header } from './components/Header';
@@ -1149,6 +1151,8 @@ export default function App() {
     );
   }
 
+  useEffect(() => { startInsights(); }, []);
+  useEffect(() => { trackSection(String(activeTab)); }, [activeTab]);
   const handleLogout = () => {
           logoutUser();
           try {
@@ -1382,7 +1386,7 @@ export default function App() {
         )}
 
         {activeTab === 'PRO_LEARNING' && (
-          <ProLearningTrading onNavigateTab={(tab) => handleSelectTab(tab)} />
+          <LearningHub onNavigateTab={(tab) => handleSelectTab(tab)} />
         )}
 
         {/* TRADER COMMUNITY FEED — locked for everyone (admins included) until launch */}

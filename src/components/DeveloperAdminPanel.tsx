@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { HubInsightsPanel } from './admin/HubInsightsPanel';
 import {
   Users,
   UserPlus,
@@ -46,7 +47,7 @@ interface DeveloperAdminPanelProps {
 export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ currentUser, onClose, onUserUpdated }) => {
   const isAuthorized = isUserAdmin(currentUser);
 
-  const [activeTab, setActiveTab] = useState<'MEMBERS' | 'CUSTOMERS' | 'CREATE' | 'APPOINTMENTS' | 'MODERATION' | 'REFERRALS' | 'DEVELOPER_SECURITY' | 'EVOLUTION'>('MEMBERS');
+  const [activeTab, setActiveTab] = useState<'MEMBERS' | 'HUB' | 'CUSTOMERS' | 'CREATE' | 'APPOINTMENTS' | 'MODERATION' | 'REFERRALS' | 'DEVELOPER_SECURITY' | 'EVOLUTION'>('MEMBERS');
   const [customers, setCustomers] = useState<UserAccount[]>([]);
   const [referrals, setReferrals] = useState<ReferralRecord[]>([]);
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
@@ -634,6 +635,15 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
           MEMBERS &amp; LOGINS
         </button>
         <button
+          onClick={() => setActiveTab('HUB')}
+          data-testid="admin-tab-hub"
+          className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
+            activeTab === 'HUB' ? 'border-emerald-300 text-emerald-200' : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          BOT RESERVATIONS &amp; FEEDBACK
+        </button>
+        <button
           onClick={() => setActiveTab('CUSTOMERS')}
           className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
             activeTab === 'CUSTOMERS'
@@ -720,6 +730,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
 
       {/* TAB 1: CUSTOMERS TABLE */}
       {activeTab === 'MEMBERS' && <MembersPanel />}
+      {activeTab === 'HUB' && <HubInsightsPanel />}
 
       {activeTab === 'CUSTOMERS' && (
         <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
