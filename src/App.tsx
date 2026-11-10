@@ -382,7 +382,10 @@ export default function App() {
   useEffect(() => {
     const on = () => handleSelectTab('PRO_TRADING');
     window.addEventListener('ppfx:open-chart', on);
-    return () => window.removeEventListener('ppfx:open-chart', on);
+    // "Go to section" requests from inside pages (e.g. the Academy's SBT link).
+    const nav = (e: Event) => { const t = (e as CustomEvent).detail?.tab; if (typeof t === 'string' && t) handleSelectTab(t as MainNavTab); };
+    window.addEventListener('primepipfx_navigate_tab', nav);
+    return () => { window.removeEventListener('ppfx:open-chart', on); window.removeEventListener('primepipfx_navigate_tab', nav); };
   }, [handleSelectTab]);
 
   // Initial Load from IndexedDB
