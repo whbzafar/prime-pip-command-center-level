@@ -100,7 +100,8 @@ export const PinePanel: React.FC<{ symbol: string; interval: string; onClose: ()
 // ───────────────────────────── students: Show / Hide only
 const StudentIndicators: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const lib = useLib();
-  const list = lib.scripts;
+  const [q, setQ] = useState('');
+  const list = lib.scripts.filter((x) => !q.trim() || x.name.toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] overflow-hidden shadow-2xl select-none"
       onCopy={block} onCut={block} onPaste={block} onContextMenu={block} onDragStart={block}>
@@ -111,7 +112,13 @@ const StudentIndicators: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <button type="button" onClick={onClose} aria-label="Close" className="ml-auto p-1 rounded-md text-slate-400 hover:text-white cursor-pointer"><X className="w-4 h-4" /></button>
       </div>
       {lib.error && <div className="px-3 py-2 text-[11.5px] text-rose-300 border-b border-slate-800">{/sign in/i.test(lib.error) ? 'Please sign in to use the indicators.' : `Indicators are unavailable right now (${lib.error}).`}</div>}
-      {!lib.error && list.length === 0 && <div className="px-3 py-4 text-[12px] text-slate-400">No indicators have been published yet.</div>}
+      {lib.scripts.length > 0 && (
+        <div className="px-3 py-2 border-b border-slate-800">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${lib.scripts.length} indicators…`} aria-label="Search indicators" data-testid="indicator-search"
+            className="w-full bg-[#131722] border border-slate-700 focus:border-cyan-400 rounded-lg px-3 py-1.5 text-[12.5px] text-slate-100 placeholder:text-slate-500 outline-none" />
+        </div>
+      )}
+      {!lib.error && list.length === 0 && <div className="px-3 py-4 text-[12px] text-slate-400">{lib.scripts.length ? 'No indicator matches that search.' : 'No indicators have been published yet.'}</div>}
       <div className="divide-y divide-slate-800/70">
         {list.map((s) => (
           <div key={s.id} className="px-3 py-2.5 flex items-start gap-3">
@@ -131,6 +138,7 @@ const StudentIndicators: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 // ───────────────────────────── administrator: full editor
 const AdminEditor: React.FC<{ symbol: string; interval: string; onClose: () => void }> = ({ symbol, interval, onClose }) => {
+  const [libQ, setLibQ] = useState('');
   const lib = useLib();
   const scripts = lib.scripts as LibraryScript[];
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -217,12 +225,13 @@ const AdminEditor: React.FC<{ symbol: string; interval: string; onClose: () => v
         </div>
         <div className="flex flex-col h-[460px]">
           <div className="px-3 py-1.5 text-[10px] font-mono-code uppercase tracking-[0.14em] text-slate-500 border-b border-slate-800">Private library ({scripts.length})</div>
+          {scripts.length > 3 && <div className="px-2 py-1.5 border-b border-slate-800"><input value={libQ} onChange={(e) => setLibQ(e.target.value)} placeholder="Search scripts…" aria-label="Search scripts" className="w-full bg-[#131722] border border-slate-700 focus:border-cyan-400 rounded-md px-2 py-1 text-[11.5px] text-slate-100 placeholder:text-slate-500 outline-none" /></div>}
           {legacyLeft > 0 && (
             <button type="button" disabled={busy} onClick={uploadLegacy} className="mx-3 my-2 px-2 py-1.5 rounded-md border border-cyan-500/40 bg-cyan-500/10 text-[11px] text-cyan-100 cursor-pointer text-left">Move {legacyLeft} script(s) saved in this browser to the private library</button>
           )}
           <div className="flex-1 overflow-y-auto">
             {scripts.length === 0 && <div className="px-3 py-2 text-[11px] text-slate-500">Saved scripts appear here. Publish one to let students Show/Hide it.</div>}
-            {scripts.map((s) => (
+            {scripts.filter((x) => !libQ.trim() || x.name.toLowerCase().includes(libQ.trim().toLowerCase())).map((s) => (
               <div key={s.id} className={`px-3 py-2 border-b border-slate-800/60 ${s.id === activeId ? 'bg-cyan-500/10' : 'hover:bg-slate-900'}`}>
                 <div className="flex items-center gap-2">
                   <button type="button" onClick={() => { setActiveId(s.id); setCode(s.source || ''); }} className="flex-1 min-w-0 text-left truncate text-[12px] text-slate-100 cursor-pointer" title="Open in the editor">{s.name}</button>

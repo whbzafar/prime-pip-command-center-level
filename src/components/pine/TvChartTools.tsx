@@ -11,7 +11,10 @@ import { catalogFor } from './pineData';
 import { priceAlerts, type AlertCondition, type PriceAlert } from './priceAlerts';
 import { CATALOG, FullHistoryDatafeed, PRO_PERIODS } from '../chartAnalysis/fullHistoryDatafeed';
 
-export const TvChartTools: React.FC<{ symbol: string; countdown: { label: string; text: string; closed?: boolean; progressPercent?: number; session?: string } }> = ({ symbol, countdown }) => {
+const TFS: [string, string][] = [['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'], ['60', '1h'], ['240', '4h'], ['D', '1D'], ['W', '1W']];
+
+export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInterval?: (iv: string) => void; countdown: { label: string; text: string; closed?: boolean; progressPercent?: number; session?: string } }> = ({ symbol, interval, onInterval, countdown }) => {
+  const [tfOpen, setTfOpen] = useState(false);
   const entry = catalogFor(symbol);
   const ticker = entry?.ticker || '';
   const digits = entry?.pricePrecision ?? 2;
@@ -73,11 +76,22 @@ export const TvChartTools: React.FC<{ symbol: string; countdown: { label: string
           className={`flex items-center justify-center gap-0.5 h-[19px] text-[11px] font-mono tabular-nums font-semibold cursor-ns-resize touch-none ${countdown.closed ? 'bg-[#2a2e39] text-slate-300' : 'bg-[#2962FF] text-white'}`}>
           <GripVertical className="w-2.5 h-2.5 opacity-60" />{countdown.text}
         </div>
-        {ticker && (
-          <button type="button" onClick={() => setOpen((v) => !v)} data-testid="tv-scale-plus" title="Add a price alert" aria-label="Add a price alert"
-            className="flex items-center justify-center gap-0.5 h-[18px] bg-[#131722] hover:bg-[#1e222d] text-[10px] font-semibold text-slate-200 hover:text-white cursor-pointer">
-            <Plus className="w-3 h-3" />Alert
-          </button>
+        <div className="flex h-[19px] bg-[#131722] text-[10px] font-semibold text-slate-200">
+          {onInterval && (
+            <button type="button" onClick={() => setTfOpen((v) => !v)} data-testid="tv-scale-tf" title="Timeframe of the chart and of this countdown"
+              className="flex-1 hover:bg-[#1e222d] hover:text-white cursor-pointer border-r border-slate-700">{(TFS.find((t) => t[0] === interval) || ['', countdown.label])[1]} ▾</button>
+          )}
+          {ticker && (
+            <button type="button" onClick={() => setOpen((v) => !v)} data-testid="tv-scale-plus" title="Add a price alert" aria-label="Add a price alert"
+              className="flex-1 flex items-center justify-center hover:bg-[#1e222d] hover:text-white cursor-pointer"><Plus className="w-3 h-3" /></button>
+          )}
+        </div>
+        {tfOpen && onInterval && (
+          <div className="grid grid-cols-2 bg-[#1e222d] border-t border-slate-700" data-testid="tv-scale-tf-menu">
+            {TFS.map(([v, l]) => (
+              <button key={v} type="button" onClick={() => { onInterval(v); setTfOpen(false); }} className={`h-[20px] text-[10.5px] font-semibold cursor-pointer ${v === interval ? 'bg-[#2962FF] text-white' : 'text-slate-200 hover:bg-[#2a2e39]'}`}>{l}</button>
+            ))}
+          </div>
         )}
       </div>
 

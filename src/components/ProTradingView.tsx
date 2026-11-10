@@ -4310,7 +4310,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           <div id={containerId} className={`w-full relative z-10 ${pineOnChart ? 'hidden' : 'flex-1 min-h-0'}`} />
 
           {/* LIVE BAR-CLOSE COUNTDOWN — on the right price scale, like TradingView. Drag it up/down to sit beside the price. */}
-          {!pineOnChart && <TvChartTools symbol={selectedSymbol} countdown={candleCountdown} />}
+          {!pineOnChart && <TvChartTools symbol={selectedSymbol} interval={selectedInterval} onInterval={(iv) => handleIntervalChange(iv)} countdown={candleCountdown} />}
           {false && !pineOnChart && !tvHintHidden && (
             <div data-testid="tv-countdown-hint" className="absolute top-12 left-1/2 -translate-x-1/2 z-30 max-w-[92%] flex items-center gap-2 rounded-lg border border-[#2962FF]/50 bg-[#131722]/95 px-3 py-2 text-[11.5px] text-slate-200 shadow-xl">
               <span><b className="text-white">Bar-close countdown:</b> right-click the price scale → <b className="text-white">Labels</b> → <b className="text-white">Countdown to bar close</b> (TradingView's embedded chart resets it on reload). The countdown, price alerts (+) and your indicators are always on in the <button type="button" onClick={() => setChartEngine('pro')} className="underline text-cyan-300 cursor-pointer">Pro chart</button>.</span>

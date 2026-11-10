@@ -449,6 +449,8 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
 
       {/* Dynamic Ambient Background Elements */}
       <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-cover bg-center opacity-[0.22] blur-3xl scale-110" style={{ backgroundImage: 'url(/assets/you-can-do-it-720.webp)' }} />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#030712]/70 via-[#030712]/85 to-[#030712]" />
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-cyan-500/10 via-blue-600/10 to-transparent rounded-full blur-3xl" />
         <div className="absolute bottom-10 left-10 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
         <div className="absolute top-10 right-10 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl" />
@@ -694,37 +696,47 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
           transition={{ type: 'spring', damping: 20, stiffness: 140 }}
           className="w-full max-w-md mx-auto relative z-10"
         >
-          {/* Iridescent Cyber Rim Glow */}
-          <div className="absolute -inset-[1.5px] rounded-3xl bg-gradient-to-r from-cyan-400 via-blue-600 to-violet-500 opacity-85 blur-[2px] transition duration-500" />
+          {/* Golden-hour rim: warm gold flowing into the app's cyan */}
+          <div className="absolute -inset-[1.5px] rounded-3xl bg-gradient-to-br from-amber-300 via-orange-400 to-cyan-400 opacity-90 blur-[2px] transition duration-500" />
+          <div className="absolute -inset-6 rounded-[2.5rem] bg-gradient-to-br from-amber-400/25 via-orange-500/10 to-cyan-500/20 blur-2xl pointer-events-none" />
 
-          {/* Core Frosted Glass Card Body Matching Image 2 */}
-          <div className="relative rounded-3xl bg-slate-950/95 border border-white/10 p-5 sm:p-7 backdrop-blur-2xl shadow-2xl shadow-cyan-950/50 overflow-hidden ring-1 ring-cyan-400/10">
-            {/* Top Glossy Reflection Sheen */}
-            <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+          {/* Core card */}
+          <div className="relative rounded-3xl bg-[#070a12]/95 border border-white/10 p-5 sm:p-7 backdrop-blur-2xl shadow-[0_30px_90px_-20px_rgba(251,146,60,0.45)] overflow-hidden ring-1 ring-amber-300/20">
+            {/* HERO — "You can do it" at golden hour */}
+            <div className="relative -mx-5 sm:-mx-7 -mt-5 sm:-mt-7 mb-4 overflow-hidden" data-testid="login-hero">
+              <picture>
+                <source type="image/webp" srcSet="/assets/you-can-do-it-720.webp 720w, /assets/you-can-do-it-1280.webp 1280w" sizes="(min-width: 640px) 448px, 100vw" />
+                <img src="/assets/you-can-do-it-1280.jpg" alt="You can do it" width={1280} height={716} decoding="async" fetchPriority="high"
+                  className="block w-full aspect-[16/9] object-cover ppfx-hero-drift" />
+              </picture>
+              {/* light sweep + fade into the card */}
+              <div className="absolute inset-0 pointer-events-none ppfx-hero-sheen" />
+              <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-[#070a12] via-[#070a12]/70 to-transparent pointer-events-none" />
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/80 to-transparent" />
+              <div className="absolute top-3 right-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/45 backdrop-blur-md border border-amber-200/40 text-[9.5px] font-bold tracking-[0.18em] text-amber-100 uppercase">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse" />Members
+              </div>
+              {/* Brand, sitting on the fade */}
+              <div className="absolute inset-x-0 bottom-0 px-5 sm:px-7 pb-2.5 text-center">
+                <h2 className="text-[19px] sm:text-[22px] font-military font-bold tracking-[0.12em] uppercase bg-gradient-to-r from-amber-100 via-white to-amber-200 bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+                  PrimePipFX Command Center
+                </h2>
+                <p className="mt-0.5 text-[10.5px] sm:text-[11px] font-mono-code tracking-[0.2em] uppercase text-amber-200/85">
+                  Trade with discipline · You can do it
+                </p>
+              </div>
+            </div>
 
             {/* Modal / Demo Dismiss button */}
             <button
               type="button"
               onClick={onClose || handleDemoClick}
-              className="absolute top-4 left-4 p-2 text-slate-400 hover:text-white transition rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/60 cursor-pointer z-20"
+              className="absolute top-3 left-3 p-2 text-white/90 hover:text-white transition rounded-full bg-black/45 hover:bg-black/65 backdrop-blur-md border border-white/25 cursor-pointer z-20"
               aria-label="Dismiss to Demo"
               title="Explore in Demo Mode"
             >
               <X className="w-4 h-4" />
             </button>
-
-            {/* Header: Shield Icon & Title Matching Image 2 */}
-            <div className="text-center mb-4 relative z-10 pt-1">
-              <div className="inline-flex p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 mb-2 shadow-lg shadow-cyan-500/15">
-                <Shield className="w-6 h-6" />
-              </div>
-              <h2 className="text-lg sm:text-xl font-military font-bold tracking-wider text-slate-100 uppercase">
-                PRIMEPIPFX COMMAND CENTER
-              </h2>
-              <p className="text-xs text-slate-400 font-mono-code mt-0.5">
-                Authorized Trader & Developer Access
-              </p>
-            </div>
 
             {/* WHO IS WAHAB? SURPRISE -> Interactive Founder Discovery Invitation */}
             <div
@@ -929,7 +941,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-2 py-3.5 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-military font-bold text-sm tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full mt-2 py-3.5 bg-gradient-to-r from-amber-300 via-orange-400 to-amber-400 hover:from-amber-200 hover:to-orange-300 text-slate-950 font-military font-bold text-sm tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-orange-500/40 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <Lock className="w-4 h-4" />
                   <span>{loading ? (mode === 'signup' ? 'CREATING ACCOUNT...' : 'AUTHENTICATING...') : mode === 'signup' ? 'CREATE ACCOUNT & ENTER' : 'ENTER COMMAND CENTER'}</span>

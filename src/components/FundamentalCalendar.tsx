@@ -957,34 +957,34 @@ export const FundamentalCalendar: React.FC = () => {
         <div className="bg-[#0b101b] border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
           {/* Table Header Bar */}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] table-fixed border-collapse text-left">
+            <table className="w-full sm:min-w-[760px] table-fixed border-collapse text-left">
               <thead>
                 <tr className="bg-[#11192a] border-b border-slate-700/80 text-[11px] font-extrabold uppercase tracking-wider text-slate-300">
-                  <th className="py-2 px-2 w-[88px] border-r border-slate-800/80">
+                  <th className="hidden sm:table-cell py-2 px-2 w-[88px] border-r border-slate-800/80">
                     Date (PKT)
                   </th>
-                  <th className="py-2 px-2 w-[68px] border-r border-slate-800/80">
+                  <th className="py-2 px-1.5 sm:px-2 w-[62px] sm:w-[68px] border-r border-slate-800/80">
                     Time (PKT)
                   </th>
-                  <th className="py-2 px-1.5 w-[58px] text-center border-r border-slate-800/80">
+                  <th className="py-2 px-1 sm:px-1.5 w-[52px] sm:w-[58px] text-center border-r border-slate-800/80">
                     Currency
                   </th>
-                  <th className="py-2 px-1.5 w-[54px] text-center border-r border-slate-800/80">
+                  <th className="hidden sm:table-cell py-2 px-1.5 w-[54px] text-center border-r border-slate-800/80">
                     Impact
                   </th>
                   <th className="py-2 px-2.5 border-r border-slate-800/80">
-                    Event
+                    <span className="sm:hidden">Event · Actual / Forecast / Previous</span><span className="hidden sm:inline">Event</span>
                   </th>
-                  <th className="py-2 px-1 w-[44px] text-center border-r border-slate-800/80">
+                  <th className="hidden sm:table-cell py-2 px-1 w-[44px] text-center border-r border-slate-800/80">
                     Detail
                   </th>
-                  <th className="py-2 px-2 w-[78px] text-right border-r border-slate-800/80">
+                  <th className="hidden sm:table-cell py-2 px-2 w-[78px] text-right border-r border-slate-800/80">
                     Actual
                   </th>
-                  <th className="py-2 px-2 w-[78px] text-right border-r border-slate-800/80">
+                  <th className="hidden sm:table-cell py-2 px-2 w-[78px] text-right border-r border-slate-800/80">
                     Forecast
                   </th>
-                  <th className="py-2 px-2 w-[78px] text-right">
+                  <th className="hidden sm:table-cell py-2 px-2 w-[78px] text-right">
                     Previous
                   </th>
                 </tr>
@@ -1095,7 +1095,7 @@ export const FundamentalCalendar: React.FC = () => {
                                 }`}
                               >
                                 {/* Date column (shown on first row of day like Forex Factory) */}
-                                <td className="py-2 px-2 border-r border-slate-800/60 font-mono text-[11px] whitespace-nowrap align-middle">
+                                <td className="hidden sm:table-cell py-2 px-2 border-r border-slate-800/60 font-mono text-[11px] whitespace-nowrap align-middle">
                                   {idx === 0 ? (
                                     <div className="flex flex-col leading-tight">
                                       <span className="font-bold text-slate-200">
@@ -1109,7 +1109,7 @@ export const FundamentalCalendar: React.FC = () => {
                                 </td>
 
                                 {/* Time (PKT) column */}
-                                <td className="py-2 px-2 border-r border-slate-800/60 font-mono text-[11px] whitespace-nowrap align-middle">
+                                <td className="py-2 px-1.5 sm:px-2 border-r border-slate-800/60 font-mono text-[10.5px] sm:text-[11px] whitespace-nowrap align-top sm:align-middle">
                                   <div className="flex items-center gap-1.5">
                                     {isUpNext && (
                                       <span
@@ -1134,15 +1134,16 @@ export const FundamentalCalendar: React.FC = () => {
                                 </td>
 
                                 {/* Currency column */}
-                                <td className="py-2 px-1.5 border-r border-slate-800/60 text-center whitespace-nowrap align-middle">
+                                <td className="py-2 px-1 sm:px-1.5 border-r border-slate-800/60 text-center whitespace-nowrap align-top sm:align-middle">
                                   <span className="inline-flex items-center gap-1 font-extrabold text-slate-100">
-                                    <span>{CURRENCY_FLAGS[ev.currency] || '🌐'}</span>
+                                    <span className="hidden sm:inline">{CURRENCY_FLAGS[ev.currency] || '🌐'}</span>
                                     <span>{ev.currency}</span>
                                   </span>
+                                  <div className="sm:hidden mt-1 flex justify-center"><ForexFactoryFolderIcon importance={ev.importance} isOpen={isFolderOpen} size={15} /></div>
                                 </td>
 
                                 {/* Forex Factory Color-Coded Impact Folder column */}
-                                <td className="py-2 px-1.5 border-r border-slate-800/60 text-center whitespace-nowrap align-middle">
+                                <td className="hidden sm:table-cell py-2 px-1.5 border-r border-slate-800/60 text-center whitespace-nowrap align-middle">
                                   <div
                                     className="inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded hover:bg-slate-800/80 transition"
                                     title={`${ev.importance} Impact Folder — Click to open details`}
@@ -1156,11 +1157,11 @@ export const FundamentalCalendar: React.FC = () => {
                                 </td>
 
                                 {/* News Topic / Event Title */}
-                                <td className="py-2 px-2.5 border-r border-slate-800/60 align-middle">
+                                <td className="py-2 px-2 sm:px-2.5 sm:border-r border-slate-800/60 align-middle">
                                   <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 min-w-0">
+                                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-0.5 min-w-0">
                                       <span
-                                        className={`font-semibold truncate ${
+                                        className={`font-semibold sm:truncate ${
                                           ev.importance === 'HIGH'
                                             ? 'text-white font-bold'
                                             : 'text-slate-200'
@@ -1178,10 +1179,25 @@ export const FundamentalCalendar: React.FC = () => {
                                       {ev.source}
                                     </span>
                                   </div>
+                                  {/* Phones: the three figures sit under the event name (the wide columns are hidden). */}
+                                  <div className="sm:hidden mt-1.5 grid grid-cols-3 gap-1 font-mono text-[11px]" data-testid="cal-mobile-figures">
+                                    <div className={`rounded border px-1.5 py-1 ${ev.actual && ev.actual !== '—' ? (outcome === 'BETTER' ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' : outcome === 'WORSE' ? 'border-red-500/40 bg-red-500/10 text-red-300' : 'border-slate-700 bg-slate-800/70 text-slate-100') : 'border-slate-800 text-slate-500'}`}>
+                                      <div className="font-sans text-[8.5px] uppercase tracking-wider opacity-70">Actual</div>
+                                      <div className="font-bold truncate">{ev.actual && ev.actual !== '—' ? ev.actual : isUpNext ? 'Pending' : '—'}</div>
+                                    </div>
+                                    <div className="rounded border border-slate-800 px-1.5 py-1 text-slate-300">
+                                      <div className="font-sans text-[8.5px] uppercase tracking-wider opacity-70">Forecast</div>
+                                      <div className="truncate">{ev.forecast && ev.forecast !== '—' ? ev.forecast : '—'}</div>
+                                    </div>
+                                    <div className="rounded border border-slate-800 px-1.5 py-1 text-slate-400">
+                                      <div className="font-sans text-[8.5px] uppercase tracking-wider opacity-70">Previous</div>
+                                      <div className="truncate">{ev.previous && ev.previous !== '—' ? ev.previous : '—'}</div>
+                                    </div>
+                                  </div>
                                 </td>
 
                                 {/* Detail Folder Action Icon (Classic Forex Factory folder button) */}
-                                <td className="py-2 px-1 border-r border-slate-800/60 text-center align-middle">
+                                <td className="hidden sm:table-cell py-2 px-1 border-r border-slate-800/60 text-center align-middle">
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -1209,7 +1225,7 @@ export const FundamentalCalendar: React.FC = () => {
                                 </td>
 
                                 {/* Actual Figure (Green for Better, Red for Worse, like Forex Factory) */}
-                                <td className="py-2 px-2 border-r border-slate-800/60 text-right font-mono font-bold whitespace-nowrap align-middle">
+                                <td className="hidden sm:table-cell py-2 px-2 border-r border-slate-800/60 text-right font-mono font-bold whitespace-nowrap align-middle">
                                   {ev.actual && ev.actual !== '—' ? (
                                     <span
                                       className={`inline-block px-1.5 py-0.5 rounded ${
@@ -1232,7 +1248,7 @@ export const FundamentalCalendar: React.FC = () => {
                                 </td>
 
                                 {/* Forecast Figure */}
-                                <td className="py-2 px-2 border-r border-slate-800/60 text-right font-mono text-slate-300 whitespace-nowrap align-middle">
+                                <td className="hidden sm:table-cell py-2 px-2 border-r border-slate-800/60 text-right font-mono text-slate-300 whitespace-nowrap align-middle">
                                   {ev.forecast && ev.forecast !== '—' ? (
                                     ev.forecast
                                   ) : (
@@ -1241,7 +1257,7 @@ export const FundamentalCalendar: React.FC = () => {
                                 </td>
 
                                 {/* Previous Figure */}
-                                <td className="py-2 px-2 text-right font-mono text-slate-400 whitespace-nowrap align-middle">
+                                <td className="hidden sm:table-cell py-2 px-2 text-right font-mono text-slate-400 whitespace-nowrap align-middle">
                                   {ev.previous && ev.previous !== '—' ? (
                                     ev.previous
                                   ) : (

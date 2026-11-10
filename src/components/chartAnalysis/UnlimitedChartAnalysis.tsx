@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { PineWorkspace } from '../pine/PineWorkspace';
 import {
   TrendingUp,
   TrendingDown,
@@ -1204,7 +1205,12 @@ const DeepHistoryChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = ({
  * Unlimited Charts: TradingView-style multi-chart workspace with complete history
  * (Dukascopy, Binance, Yahoo). Opens directly — no mode switch.
  */
-export const UnlimitedChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = () => <TradingViewWorkspace />;
+export const UnlimitedChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = () => (
+  <div className="space-y-2">
+    <PineWorkspace storageKey="charts" />
+    <TradingViewWorkspace />
+  </div>
+);
 
 // Previous single-chart view retained in code (not rendered) for reference.
 void DeepHistoryChartAnalysis;

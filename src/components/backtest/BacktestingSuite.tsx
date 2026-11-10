@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { PineWorkspace } from '../pine/PineWorkspace';
 import { BarReplayPro } from './BarReplayPro';
 import {
   createChart,
@@ -1599,5 +1600,10 @@ const ClassicBacktestingSuite: React.FC<BacktestingSuiteProps> = ({
 
 /** Backtesting: Bar Replay Pro (full-history replay trading). */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const BacktestingSuite: React.FC<BacktestingSuiteProps> = (_props) => <BarReplayPro />;
+export const BacktestingSuite: React.FC<BacktestingSuiteProps> = (_props) => (
+  <div className="space-y-2">
+    <PineWorkspace storageKey="backtest" />
+    <BarReplayPro />
+  </div>
+);
 void ClassicBacktestingSuite;
