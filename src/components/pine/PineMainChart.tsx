@@ -14,6 +14,7 @@
  * Students' indicators run on the server (RemotePineEngine) — their browser never receives the
  * code. The administrator's scripts and drafts run locally in a worker.
  */
+import { IND_CATS, indCategory } from '../../utils/indicatorCategories';
 import { pineCompat } from '../../utils/pineCompat';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, BellOff, Check, Loader2, Minus, Plus, RotateCcw, Search, Trash2, X } from 'lucide-react';
@@ -358,17 +359,6 @@ export const PineMainChart: React.FC<{
 };
 
 // ───────────────────────────── indicator menu (replaces the chart's built-in picker)
-
-// Built-in studies sorted into the groups traders look for.
-const IND_CATS = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Other'] as const;
-function indCategory(n: any): string {
-  const k = `${n?.type || ''} ${n?.title || ''}`.toUpperCase();
-  if (/VOL|OBV|VWAP|MFI|CMF|PVT|EMV|VR\b|AD\b|ACCUM|MONEY FLOW|CHAIKIN|NVI|PVI/.test(k)) return 'Volume';
-  if (/ATR|BOLL|BB\b|BANDS?|KELTNER|KC\b|DONCHIAN|DC\b|STD|DEVIATION|VOLATIL|ENVELOPE|CHANNEL/.test(k)) return 'Volatility';
-  if (/RSI|MACD|KDJ|STOCH|CCI|WR\b|WILLIAMS|MTM|MOMENTUM|ROC|TRIX|AO\b|AWESOME|BIAS|PSY|BRAR|CR\b|DMI|ADX|DPO|OSC|CMO|ULTIMATE|TSI|FISHER|RVI/.test(k)) return 'Momentum';
-  if (/MA\b|EMA|SMA|WMA|HMA|DEMA|TEMA|AVL|SAR|ICHIMOKU|SUPERTREND|AVERAGE|TREND|ZIGZAG|ALLIGATOR|BBI|PIVOT/.test(k)) return 'Trend';
-  return 'Other';
-}
 
 const IndicatorMenu: React.FC<{ lib: ReturnType<typeof pineLib.get>; natives: any[]; addNative: (t: string) => void; onClose: () => void }> = ({ lib, natives, addNative, onClose }) => {
   const [q, setQ] = useState('');

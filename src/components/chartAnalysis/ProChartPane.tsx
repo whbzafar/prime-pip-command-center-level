@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { KLineChartPro } from '@klinecharts/pro';
 import '@klinecharts/pro/dist/klinecharts-pro.css';
+import { enhanceIndicatorDialogs } from '../../utils/indicatorCategories';
 import { CATALOG, FullHistoryDatafeed, PRO_PERIODS, type FeedStatus } from './fullHistoryDatafeed';
 
 export interface ProPaneState { ticker: string; period: string }
@@ -79,6 +80,7 @@ export const ProChartPane: React.FC<{
       }
     };
     host.addEventListener('click', onClickCapture, true);
+    const unEnhance = enhanceIndicatorDialogs(host);
     // Keep the canvas sized to its pane (layout changes, full screen, height slider).
     let raf = 0;
     const ro = new ResizeObserver(() => {
@@ -88,6 +90,7 @@ export const ProChartPane: React.FC<{
     ro.observe(host);
     return () => {
       host.removeEventListener('click', onClickCapture, true);
+      unEnhance();
       ro.disconnect();
       cancelAnimationFrame(raf);
       clearInterval(iv);
