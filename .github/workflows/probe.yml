@@ -5,13 +5,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - run: |
+      - shell: bash {0}
+        run: |
           B=https://prime-pip-command-center-level.vercel.app
           for i in 1 2 3 4 5 6 7 8 9 10; do
             n=0; for f in $(curl -s $B/ | grep -o 'assets/[^"]*\.js' | sort -u); do c=$(curl -s $B/$f | grep -c 'watchlist-body'); n=$((n+c)); done
             echo "TRY $i watchlist-body in bundle: $n"
             if [ "$n" -gt 0 ]; then break; fi; sleep 30
           done
-          curl -s -o /dev/null -w 'LOGIN bad creds → %{http_code} (401 expected, not 503)\n' -X POST -H 'Content-Type: application/json' -d '{"username":"nobody-xyz","password":"wrong-pass"}' $B/api/auth/login
+          curl -s -o /dev/null -w 'LOGIN bad creds: %{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{"username":"nobody-xyz","password":"wrong-pass"}' $B/api/auth/login
           curl -s -w ' SCAN %{http_code}\n' "$B/api/sbt/scan?symbol=EURUSD" | cut -c1-160
-          curl -s $B/api/macro/diagnostics | head -c 1500
+          echo "DIAG $(curl -s $B/api/macro/diagnostics | head -c 1400)"
