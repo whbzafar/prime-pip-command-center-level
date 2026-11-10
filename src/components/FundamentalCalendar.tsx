@@ -309,6 +309,9 @@ function getWeeklyCotEvent(startDate: Date, endDate: Date, nowMs: number): Calen
 }
 
 export const FundamentalCalendar: React.FC = () => {
+  // Phones show 3 columns (time, currency, event with its figures); full-width rows must span exactly that many.
+  const [narrow, setNarrow] = useState<boolean>(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
+  useEffect(() => { const m = window.matchMedia('(max-width: 639px)'); const f = () => setNarrow(m.matches); m.addEventListener('change', f); return () => m.removeEventListener('change', f); }, []);
   const [activeCalendarTab, setActiveCalendarTab] = useState<'CALENDAR' | 'BREAKING'>('CALENDAR');
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [meta, setMeta] = useState<CalendarMeta | null>(null);
@@ -973,7 +976,7 @@ export const FundamentalCalendar: React.FC = () => {
                     Impact
                   </th>
                   <th className="py-2 px-2.5 border-r border-slate-800/80">
-                    <span className="sm:hidden">Event · Actual / Forecast / Previous</span><span className="hidden sm:inline">Event</span>
+                    <span className="sm:hidden">Event</span><span className="hidden sm:inline">Event</span>
                   </th>
                   <th className="hidden sm:table-cell py-2 px-1 w-[44px] text-center border-r border-slate-800/80">
                     Detail
@@ -993,7 +996,7 @@ export const FundamentalCalendar: React.FC = () => {
               <tbody className="divide-y divide-slate-800/70 text-xs">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={9} className="py-16 text-center">
+                    <td colSpan={narrow ? 3 : 9} className="py-16 text-center">
                       <div className="inline-flex flex-col items-center gap-2">
                         <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
                         <div className="text-sm font-bold text-slate-200">
@@ -1007,7 +1010,7 @@ export const FundamentalCalendar: React.FC = () => {
                   </tr>
                 ) : groupedByPktDay.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-16 text-center">
+                    <td colSpan={narrow ? 3 : 9} className="py-16 text-center">
                       <div className="inline-flex flex-col items-center gap-2 max-w-md mx-auto">
                         <ForexFactoryFolderIcon importance="MEDIUM" size={28} />
                         <div className="text-sm font-bold text-slate-200">
@@ -1034,7 +1037,7 @@ export const FundamentalCalendar: React.FC = () => {
                               : 'bg-[#0e1625] border-y border-slate-800'
                           }`}
                         >
-                          <td colSpan={9} className="py-2 px-3">
+                          <td colSpan={narrow ? 3 : 9} className="py-2 px-3">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <Calendar
@@ -1269,7 +1272,7 @@ export const FundamentalCalendar: React.FC = () => {
                               {/* EXPANDED FOREX FACTORY FOLDER DETAIL PANEL */}
                               {isFolderOpen && (
                                 <tr className="bg-[#09111f] border-b-2 border-cyan-500/30">
-                                  <td colSpan={9} className="p-0">
+                                  <td colSpan={narrow ? 3 : 9} className="p-0">
                                     <div className="p-4 sm:p-5 bg-gradient-to-b from-[#101c31] to-[#09101d] border-l-4 border-l-cyan-400">
                                       {/* Folder Header Strip */}
                                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-3.5 mb-4 border-b border-slate-800">

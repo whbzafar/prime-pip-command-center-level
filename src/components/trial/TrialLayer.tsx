@@ -58,7 +58,16 @@ export const InstallAppButton: React.FC<{ className?: string; compact?: boolean 
 
 export const TrialLayer: React.FC = () => {
   const [active, setActive] = useState(isTrialActive());
-  const [open, setOpen] = useState(() => { try { return isTrialActive() && !localStorage.getItem(K_SEEN); } catch { return isTrialActive(); } });
+  // The sign-in screen (with its hero picture) is the first thing a visitor sees; the surprise
+  // announcement follows a few seconds later instead of covering it immediately.
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    let first = false;
+    try { first = isTrialActive() && !localStorage.getItem(K_SEEN); } catch { first = isTrialActive(); }
+    if (!first) return;
+    const t = window.setTimeout(() => setOpen(true), 6000);
+    return () => window.clearTimeout(t);
+  }, []);
   const [strip, setStrip] = useState(() => { try { return localStorage.getItem(K_STRIP) !== 'min'; } catch { return true; } });
   const [authed, setAuthed] = useState(loggedIn());
   const r = useCountdown();
