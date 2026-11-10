@@ -20,23 +20,24 @@ await page.addInitScript((u) => { try { localStorage.setItem('primepipfx_user_pr
 await page.goto(B, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(9000);
 const txt = async () => (await page.locator('body').innerText()).replace(/\s+/g, ' ');
 const shot = (n) => page.screenshot({ path: `shots/${n}.png` });
-for (const b of ['Maybe later', 'Start exploring', 'Got it', 'Close']) await page.getByRole('button', { name: b }).first().click({ timeout: 1500 }).catch(() => {});
+const enter = async () => { await page.getByText('Start Practice').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(800); await page.getByText('Create Demo Account').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(3000); for (const b of ['Maybe later', 'Start exploring', 'Got it']) await page.getByRole('button', { name: b }).first().click({ timeout: 1000 }).catch(() => {}); };
+await enter();
 const rk = await page.evaluate(() => fetch('/api/macro/rankings').then((r) => r.json()).then((j) => ({ bull: j.data.longTerm.bullish.slice(0, 6).map((p) => p.symbol), bear: j.data.longTerm.bearish.slice(0, 6).map((p) => p.symbol) })).catch((e) => String(e)));
 console.log('RANKINGS', JSON.stringify(rk));
-await page.waitForTimeout(25000);
+await page.waitForTimeout(30000);
 console.log('SCANS asked', scans, asked.join(','));
 const st = await page.evaluate(() => ({ seen: JSON.parse(localStorage.getItem('ppfx_level_alerts_seen_v1') || '[]'), log: JSON.parse(localStorage.getItem('ppfx_level_alerts_log_v1') || '[]').map((a) => `${a.symbol} ${a.side > 0 ? 'BUY' : 'SELL'} L${a.level}`) }));
 console.log('ALERTS logged', st.log.length, st.log.join(' | '));
 const wrong = st.log.filter((l) => { const [s, side] = l.split(' '); return (side === 'BUY') !== (rk.bull || []).includes(s); });
 console.log('ALIGNMENT wrong-side alerts:', wrong.length, wrong.join(' | '));
 await shot('01-home');
-await page.locator('[aria-label="Announcements"]').first().click(); await page.waitForTimeout(1500);
+await page.locator('[aria-label="Announcements"]').first().click({ timeout: 8000 }).catch(() => console.log('no megaphone')); await page.waitForTimeout(1500);
 let t = await txt(); console.log('ANNOUNCE panel:', t.includes('Market at key levels'), '| hits rows', await page.locator('[data-testid="level-hit"]').count(), '|', (t.match(/[A-Z/]{3,9} (Buy|Sell) Level \d reached/g) || []).slice(0, 6).join(' ; '));
 await shot('02-announcements');
 await page.locator('[aria-label="Close"]').first().click().catch(() => {});
 // second cycle must not alert again
 const before = st.log.length;
-await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(30000);
+await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(8000); await enter(); await page.waitForTimeout(25000);
 const after = await page.evaluate(() => JSON.parse(localStorage.getItem('ppfx_level_alerts_log_v1') || '[]').length);
 console.log('DEDUPE after reload: alerts', before, '→', after);
 for (const b of ['Maybe later', 'Start exploring', 'Got it']) await page.getByRole('button', { name: b }).first().click({ timeout: 1000 }).catch(() => {});
