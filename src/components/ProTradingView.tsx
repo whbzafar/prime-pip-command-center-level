@@ -8,6 +8,7 @@ const PineMainChartLazy = React.lazy(() => import('./pine/PineMainChart'));
 import { pineLib, loadLibrary as loadPineLibrary, hideAll as hideAllPine } from './pine/pineLibrary';
 import { catalogFor } from './pine/pineData';
 import { TvChartTools } from './pine/TvChartTools';
+import { PremiumWatchlist } from './sbt/PremiumWatchlist';
 import { isTrialActive } from '../utils/trial';
 import { PineIndicatorChips } from './pine/PineIndicatorChips';
 import {
@@ -319,7 +320,7 @@ export function parseSymbolAndBroker(input: string, fallbackBroker?: string): { 
   }
 
   // Remove known broker prefixes if accidentally concatenated (e.g., FXCMEURUSD -> EURUSD)
-  const KNOWN_PREFIXES = ['CAPITALCOM', 'PEPPERSTONE', 'BLACKBULL', 'FOREXCOM', 'BINANCE', 'NASDAQ', 'OANDA', 'FXCM', 'FCM', 'TVC', 'FX'];
+  const KNOWN_PREFIXES = ['THINKMARKETS', 'EASYMARKETS', 'ACTIVTRADES', 'ICMARKETS', 'FPMARKETS', 'EIGHTCAP', 'SKILLING', 'TICKMILL', 'VANTAGE', 'FXOPEN', 'FX_IDC', 'SAXO', 'CAPITALCOM', 'PEPPERSTONE', 'BLACKBULL', 'FOREXCOM', 'BINANCE', 'NASDAQ', 'OANDA', 'FXCM', 'FCM', 'TVC', 'FX'];
   for (const p of KNOWN_PREFIXES) {
     if (raw.toUpperCase().startsWith(p) && raw.length > p.length + 2) {
       detectedBroker = (p === 'FCM' || p === 'FXCM') ? 'FX' : p;
@@ -1007,21 +1008,18 @@ export function resolveTradingViewSymbol(symbol: string, broker?: string): strin
   ]);
 
   if (CANONICAL_28.has(clean)) {
-    if (requestedBroker === 'OANDA') return `OANDA:${clean}`;
-    if (requestedBroker === 'CAPITALCOM') return `CAPITALCOM:${clean}`;
-    if (requestedBroker === 'FOREXCOM') return `FOREXCOM:${clean}`;
-    return `FX:${clean}`;
+    return FX_BROKER_PREFIXES.has(requestedBroker) ? `${requestedBroker}:${clean}` : `FX:${clean}`;
   }
 
   // 2. Metals & Commodities (Verified working TradingView symbols)
   if (clean === 'XAUUSD' || clean === 'GOLD') {
     if (requestedBroker === 'CAPITALCOM') return 'CAPITALCOM:GOLD';
-    if (requestedBroker === 'FOREXCOM') return 'FOREXCOM:XAUUSD';
+    if (requestedBroker !== 'FX' && requestedBroker !== 'FX_IDC' && FX_BROKER_PREFIXES.has(requestedBroker)) return `${requestedBroker}:XAUUSD`;
     return 'OANDA:XAUUSD';
   }
   if (clean === 'XAGUSD' || clean === 'SILVER') {
     if (requestedBroker === 'CAPITALCOM') return 'CAPITALCOM:SILVER';
-    if (requestedBroker === 'FOREXCOM') return 'FOREXCOM:XAGUSD';
+    if (requestedBroker !== 'FX' && requestedBroker !== 'FX_IDC' && FX_BROKER_PREFIXES.has(requestedBroker)) return `${requestedBroker}:XAGUSD`;
     return 'OANDA:XAGUSD';
   }
   if (clean === 'USOIL' || clean === 'WTI' || clean === 'OIL' || clean === 'CRUDEOIL') {
@@ -1087,14 +1085,27 @@ export function resolveTradingViewSymbol(symbol: string, broker?: string): strin
 // BROKERS & CATEGORIES (Forex, Indices, Metals, Cryptos, Stocks, Fundamentals)
 // ============================================================================
 export const BROKERS = [
-  { id: 'fx', label: 'FX (TradingView Official Direct Feed)', prefix: 'FX' },
-  { id: 'oanda', label: 'OANDA (Institutional Raw)', prefix: 'OANDA' },
-  { id: 'capitalcom', label: 'CAPITALCOM (Zero Spread Multi-Asset)', prefix: 'CAPITALCOM' },
-  { id: 'forexcom', label: 'FOREX.COM (Global ECN Feed)', prefix: 'FOREXCOM' },
-  { id: 'binance', label: 'BINANCE (Crypto Spot/Perp)', prefix: 'BINANCE' },
-  { id: 'nasdaq', label: 'NASDAQ (US Equities)', prefix: 'NASDAQ' },
-  { id: 'tvc', label: 'TVC (TradingView Benchmark)', prefix: 'TVC' },
+  { id: 'fx', label: 'FXCM', prefix: 'FX' },
+  { id: 'forexcom', label: 'FOREX.com', prefix: 'FOREXCOM' },
+  { id: 'oanda', label: 'OANDA', prefix: 'OANDA' },
+  { id: 'capitalcom', label: 'Capital.com', prefix: 'CAPITALCOM' },
+  { id: 'pepperstone', label: 'Pepperstone', prefix: 'PEPPERSTONE' },
+  { id: 'icmarkets', label: 'IC Markets', prefix: 'ICMARKETS' },
+  { id: 'eightcap', label: 'Eightcap', prefix: 'EIGHTCAP' },
+  { id: 'fxopen', label: 'FXOpen', prefix: 'FXOPEN' },
+  { id: 'blackbull', label: 'BlackBull Markets', prefix: 'BLACKBULL' },
+  { id: 'saxo', label: 'Saxo', prefix: 'SAXO' },
+  { id: 'fpmarkets', label: 'FP Markets', prefix: 'FPMARKETS' },
+  { id: 'vantage', label: 'Vantage', prefix: 'VANTAGE' },
+  { id: 'activtrades', label: 'ActivTrades', prefix: 'ACTIVTRADES' },
+  { id: 'easymarkets', label: 'easyMarkets', prefix: 'EASYMARKETS' },
+  { id: 'skilling', label: 'Skilling', prefix: 'SKILLING' },
+  { id: 'tickmill', label: 'Tickmill', prefix: 'TICKMILL' },
+  { id: 'thinkmarkets', label: 'ThinkMarkets', prefix: 'THINKMARKETS' },
+  { id: 'fxidc', label: 'ICE (FX_IDC composite)', prefix: 'FX_IDC' },
 ];
+/** Broker feeds TradingView carries for currency pairs and gold / silver. */
+export const FX_BROKER_PREFIXES = new Set(BROKERS.map((b) => b.prefix));
 
 export const WATCHLIST_CATEGORIES = [
   {
@@ -1243,6 +1254,9 @@ export const WATCHLIST_CATEGORIES = [
     ],
   },
 ];
+
+/** Every instrument in the categories, once (for the watchlist's add box). */
+const WATCHLIST_SYMBOLS: { symbol: string; label: string }[] = Array.from(new Map(WATCHLIST_CATEGORIES.flatMap((c) => c.symbols).map((x) => [x.symbol, { symbol: x.symbol, label: x.label }])).values());
 
 // ============================================================================
 // DEMO POSITION & TRADE TRACKING
@@ -3002,12 +3016,12 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         targetBroker = 'CAPITALCOM';
       }
     } else if (['XAUUSD', 'XAGUSD'].includes(cleanSym)) {
-      if (targetBroker !== 'CAPITALCOM' && targetBroker !== 'FOREXCOM') {
+      if (!FX_BROKER_PREFIXES.has(targetBroker) || targetBroker === 'FX' || targetBroker === 'FX_IDC') {
         targetBroker = 'OANDA';
       }
     } else {
       // 28 currency pairs: support FX, OANDA, CAPITALCOM, FOREXCOM (FX is TradingView official direct feed)
-      if (targetBroker === 'FXCM' || targetBroker === 'FCM' || !['FX', 'OANDA', 'CAPITALCOM', 'FOREXCOM'].includes(targetBroker)) {
+      if (targetBroker === 'FXCM' || targetBroker === 'FCM' || !FX_BROKER_PREFIXES.has(targetBroker)) {
         targetBroker = 'FX';
       }
     }
@@ -3605,6 +3619,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         <div className="px-3 pt-2">
           <LiveBiasStrip activeSymbol={selectedSymbol} onSelect={(sym) => handleSelectSymbol(chartSymbolFor(sym))} />
         </div>
+        <div className="px-3 pt-2">
+          <PremiumWatchlist activeSymbol={selectedSymbol} onSelect={(sym) => handleSelectSymbol(sym)} known={WATCHLIST_SYMBOLS} />
+        </div>
 
         {/* ===================================================================== */}
         {/* ROW 2: CATEGORY SELECTION (Forex, Indices, Metals, Top Crypto, Fundamentals) */}
@@ -4170,6 +4187,17 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 <button type="button" onClick={() => setChartEngine('tv')} title="TradingView's own chart feed (indicators and alerts are not available on it)"
                   className={`px-2.5 py-1 rounded-[10px] cursor-pointer transition ${chartEngine === 'tv' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>TradingView</button>
               </div>
+
+              {/* BROKER — which broker's prices the TradingView chart shows (the Pro chart has its own feed) */}
+              <label className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950 pl-2 pr-1 py-1 text-[11px] font-bold text-slate-300" title="Open this pair with another broker's prices. Broker feeds are shown on the TradingView chart; the Pro chart uses its own institutional feed.">
+                <Building2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <select data-testid="broker-select" aria-label="Broker" value={chartEngine === 'tv' ? selectedBroker : ''} onChange={(e) => { const v = e.target.value; if (!v) { setChartEngine('pro'); return; } setSelectedBroker(v); setChartEngine('tv'); }}
+                  className="bg-transparent text-slate-100 outline-none cursor-pointer max-w-[150px]">
+                  <option value="" className="bg-slate-900">Broker: Pro feed</option>
+                  {BROKERS.map((b) => <option key={b.id} value={b.prefix} className="bg-slate-900">{b.label}</option>)}
+                  {chartEngine === 'tv' && !FX_BROKER_PREFIXES.has(selectedBroker) && <option value={selectedBroker} className="bg-slate-900">{selectedBroker}</option>}
+                </select>
+              </label>
 
               {/* PINE EDITOR — real Pine Script v5/v6 on the Pine chart (Vela + PineTS) */}
               <button

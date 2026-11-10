@@ -1,5 +1,6 @@
 import path from 'path';
 import { pathToFileURL } from 'url';
+import { pineCompat } from '../../src/utils/pineCompat';
 /**
  * Runs a stored Pine Script on the server and returns only its drawn output (plots, labels,
  * boxes, tables, strategy fills…). The browser of a student never receives the source.
@@ -54,7 +55,7 @@ const cleanBars = (bars: any[]) =>
 
 /** Prepare (parse) a script and return its schema WITHOUT the source-bearing token. */
 export async function prepareScript(source: string, instanceId: string) {
-  const prepared: any = await (await newEngine()).prepare(source, instanceId);
+  const prepared: any = await (await newEngine()).prepare(pineCompat(source), instanceId);
   const { token: _token, ...safe } = prepared;
   return safe;
 }
@@ -75,7 +76,7 @@ export async function runScript(input: RunInput): Promise<RunOutput> {
   const alerts: any[] = [];
   let prepared: any;
   try {
-    prepared = await engine.prepare(input.source, 'srv');
+    prepared = await engine.prepare(pineCompat(input.source), 'srv');
   } catch (err: any) {
     return { ok: false, error: String(err?.message || err), line: errorLine(err), ms: Date.now() - t0 };
   }
@@ -121,7 +122,7 @@ export async function runScript(input: RunInput): Promise<RunOutput> {
           onModel: (m: any) => { model = m; },
           onWarning: (w: any) => { warnings.push(String(w?.message || w)); },
           onAlert: (a: any) => { alerts.push(a); },
-          onError: (err: any) => finish({ ok: false, error: String(err?.message || err), line: errorLine(err) }),
+          onError: (err: any) => { if (process.env.PPFX_PINE_DEBUG) console.error('PINE-ERR', err?.stack || err, JSON.stringify(err)?.slice(0, 500)); finish({ ok: false, error: String(err?.message || err), line: errorLine(err) }); },
           onDone: () => {
             if (need.size) finish({ ok: true, need: [...need.values()] });
             else finish({ ok: true, model, warnings, alerts: alerts.slice(-50) });

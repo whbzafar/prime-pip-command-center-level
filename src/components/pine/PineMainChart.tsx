@@ -14,6 +14,7 @@
  * Students' indicators run on the server (RemotePineEngine) — their browser never receives the
  * code. The administrator's scripts and drafts run locally in a worker.
  */
+import { pineCompat } from '../../utils/pineCompat';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, BellOff, Check, Loader2, Minus, Plus, RotateCcw, Search, Trash2, X } from 'lucide-react';
 import { VelaWorkspace } from '@luxalgo/vela/workspace';
@@ -260,7 +261,7 @@ export const PineMainChart: React.FC<{
           const h = ((chart.indicators?.() || []) as any[]).find((x) => x?.id === `ind_${id}`);
           if (h?.updateCode) {
             setIndicatorStatus(id, { kind: 'busy', text: `Updating “${w.name}”…` });
-            const out: any = await h.updateCode(w.source).catch((e: any) => ({ ok: false, error: e }));
+            const out: any = await h.updateCode(w.language === 'pine' ? pineCompat(w.source) : w.source).catch((e: any) => ({ ok: false, error: e }));
             if (out?.ok) { r.key = w.key; setIndicatorStatus(id, { kind: 'ok', text: `“${w.name}” updated on the chart.` }); continue; }
             const msg = out?.error?.message || String(out?.error || 'The indicator could not run.');
             const line = Number(out?.error?.line ?? (String(msg).match(/line\s+(\d+)/i)?.[1] ?? NaN));
@@ -274,7 +275,7 @@ export const PineMainChart: React.FC<{
         if (running.current.has(id)) continue;
         for (const h of (chart.indicators?.() || []) as any[]) if (h?.id === `ind_${id}`) { try { h.remove(); } catch { /* gone */ } }
         setIndicatorStatus(id, { kind: 'busy', text: `Loading “${w.name}”…` });
-        const res: any = await chart.runScript(w.source, { id: `ind_${id}`, language: w.language, title: w.name }).catch((e: any) => ({ ok: false, error: e }));
+        const res: any = await chart.runScript(w.language === 'pine' ? pineCompat(w.source) : w.source, { id: `ind_${id}`, language: w.language, title: w.name }).catch((e: any) => ({ ok: false, error: e }));
         if (res?.ok) {
           running.current.set(id, { key: w.key, remove: () => { try { res.remove(); } catch { /* gone */ } } });
           const st = res.run?.strategy;

@@ -12,6 +12,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDownRight, ArrowUpRight, BellRing, BellOff, ExternalLink, FileDown, Flame, Megaphone, RefreshCw, Trash2, Volume2, X } from 'lucide-react';
 import { SOUNDS, playSound, type SoundId } from '../../utils/alertSounds';
 import { useRankings, openChart, type RankedPair } from '../fundamentalAnalysis/LiveBiasStrip';
+import { LevelAlertsPanel, LevelBadge } from '../sbt/LevelAlerts';
+import { markLevelAlertsSeen, useLevelAlerts } from '../../services/sbtSetups';
 import { fetchAnnouncementsServer, type InAppAnnouncement } from '../../services/signalsService';
 
 interface LtAlert { id: string; at: number; bullish: { symbol: string; display: string; score: number }[]; bearish: { symbol: string; display: string; score: number }[] }
@@ -49,6 +51,8 @@ export const AnnouncementsCenter: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'FUNDAMENTALS' | 'ANNOUNCEMENTS' | 'ALERTS'>('FUNDAMENTALS');
   const { data: rankings } = useRankings(5 * 60_000);
+  const levels = useLevelAlerts();
+  const levelHits = levels.pairs.filter((p) => p.hit).length;
   const [anns, setAnns] = useState<InAppAnnouncement[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [dismissed, setDismissed] = useState<string[]>(() => read(K_DISMISSED, []));
@@ -140,7 +144,7 @@ export const AnnouncementsCenter: React.FC = () => {
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    if (next) { const now = Date.now(); write(K_SEEN, now); window.setTimeout(() => setSeenAt(now), 1500); }
+    if (next) { markLevelAlertsSeen(); if (levels.unseen) setTab('FUNDAMENTALS'); const now = Date.now(); write(K_SEEN, now); window.setTimeout(() => setSeenAt(now), 1500); }
   };
   const enableNotifications = async () => {
     if (typeof Notification === 'undefined') return;
@@ -156,8 +160,9 @@ export const AnnouncementsCenter: React.FC = () => {
   return (
     <>
       <button type="button" onClick={toggle} title="Announcements & long-term alerts" aria-label="Announcements" className="relative p-2 rounded-xl bg-slate-950/95 border border-slate-700 text-slate-300 shadow-xl cursor-pointer">
-        <Megaphone className={`w-4 h-4 ${unread ? 'text-amber-300' : 'text-violet-300'}`} />
-        {unread > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center animate-pulse">{unread > 99 ? '99+' : unread}</span>}
+        <Megaphone className={`w-4 h-4 ${unread + levels.unseen ? 'text-amber-300' : 'text-violet-300'}`} />
+        {unread + levels.unseen > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center animate-pulse">{unread + levels.unseen > 99 ? '99+' : unread + levels.unseen}</span>}
+        {unread + levels.unseen === 0 && levelHits > 0 && <span title="A top fundamental pair is at its key level" className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-slate-950" />}
       </button>
 
       {open && (
@@ -168,7 +173,7 @@ export const AnnouncementsCenter: React.FC = () => {
             <button type="button" onClick={() => setOpen(false)} className="ml-auto p-1 text-slate-400 hover:text-white cursor-pointer" aria-label="Close"><X className="w-4 h-4" /></button>
           </div>
           <div className="flex gap-1 px-3 pt-2">
-            {([['FUNDAMENTALS', 'Long-term'], ['ANNOUNCEMENTS', `Important${visibleAnns.length + highlights.length ? ` (${visibleAnns.length + highlights.length})` : ''}`], ['ALERTS', `Alerts${alerts.length ? ` (${alerts.length})` : ''}`]] as const).map(([k, l]) => (
+            {([['FUNDAMENTALS', `Long-term${levelHits ? ` · ${levelHits} at level` : ''}`], ['ANNOUNCEMENTS', `Important${visibleAnns.length + highlights.length ? ` (${visibleAnns.length + highlights.length})` : ''}`], ['ALERTS', `Alerts${alerts.length ? ` (${alerts.length})` : ''}`]] as const).map(([k, l]) => (
               <button key={k} type="button" onClick={() => setTab(k)} className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer ${tab === k ? 'bg-violet-500/20 border border-violet-400/50 text-violet-100' : 'text-slate-400 hover:text-white border border-transparent'}`}>{l}</button>
             ))}
           </div>
@@ -176,6 +181,7 @@ export const AnnouncementsCenter: React.FC = () => {
           <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
             {tab === 'FUNDAMENTALS' && (
               <>
+                <LevelAlertsPanel dense onOpen={(sym) => { openChart(sym); setOpen(false); }} />
                 <button type="button" disabled={!rankings} onClick={() => rankings && import('../../utils/macroPdf').then((m) => m.exportRankingsPdf(rankings as any, 'longTerm'))} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-400/50 bg-emerald-500/10 text-[11.5px] font-semibold text-emerald-100 hover:bg-emerald-500/20 cursor-pointer disabled:opacity-40"><FileDown className="w-3.5 h-3.5" />Export top long-term picks (PDF)</button>
                 <div className="text-[10.5px] text-slate-500">Live long-term fundamental ranking · {rankings?.generatedAt ? `updated ${when(Date.parse(rankings.generatedAt))} PKT` : 'loading…'} · tap a pair to open its chart</div>
                 {[['Long-term bullish', bull, true], ['Long-term bearish', bear, false]].map(([title, list, up]) => (
@@ -185,7 +191,7 @@ export const AnnouncementsCenter: React.FC = () => {
                       {(list as RankedPair[]).map((p) => (
                         <button key={p.symbol} type="button" onClick={() => { openChart(p.symbol); setOpen(false); }} className="flex items-center justify-between gap-1 px-2 py-1 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-slate-600 text-[11.5px] cursor-pointer">
                           <span className="flex items-center gap-1 text-slate-100 font-semibold">{up ? <ArrowUpRight className="w-3 h-3 text-emerald-400" /> : <ArrowDownRight className="w-3 h-3 text-rose-400" />}{p.display}</span>
-                          <span className={`font-mono-code text-[10.5px] ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{fmt(p.longTerm)}</span>
+                          <span className="flex items-center gap-1"><LevelBadge symbol={p.symbol} state={levels} compact /><span className={`font-mono-code text-[10.5px] ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{fmt(p.longTerm)}</span></span>
                         </button>
                       ))}
                       {!(list as RankedPair[]).length && <span className="text-[11px] text-slate-500">Loading…</span>}

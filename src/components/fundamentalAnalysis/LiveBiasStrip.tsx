@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, LineChart, RefreshCw } from 'lucide-react';
 import { fetchJsonSafe, fmtScore } from './ui';
+import { LevelBadge } from '../sbt/LevelAlerts';
 
 export interface RankedPair { symbol: string; display: string; assetClass: string; shortTerm: number | null; longTerm: number | null; confidence: number; basis?: string[] }
 export interface Rankings { longTerm: { bullish: RankedPair[]; bearish: RankedPair[] }; shortTerm: { bullish: RankedPair[]; bearish: RankedPair[] }; method: string; generatedAt: string }
@@ -46,6 +47,7 @@ const Chip: React.FC<{ p: RankedPair; horizon: 'shortTerm' | 'longTerm'; onSelec
       className={`shrink-0 inline-flex items-center gap-1.5 pl-2 pr-2.5 py-1 rounded-lg border text-[11.5px] font-semibold cursor-pointer transition-all hover:-translate-y-px ${active ? 'ring-1 ring-cyan-400/60' : ''} ${up ? 'border-emerald-500/30 bg-emerald-500/[0.07] text-emerald-100 hover:border-emerald-400/60' : 'border-rose-500/30 bg-rose-500/[0.07] text-rose-100 hover:border-rose-400/60'}`}>
       {up ? <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" /> : <ArrowDownRight className="w-3.5 h-3.5 text-rose-400" />}
       {p.display}
+      {horizon === 'longTerm' && <LevelBadge symbol={p.symbol} compact />}
       <span className={`font-mono-code text-[10.5px] ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{fmtScore(v)}</span>
     </button>
   );

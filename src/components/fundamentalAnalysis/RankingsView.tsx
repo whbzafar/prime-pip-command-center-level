@@ -3,6 +3,7 @@ import { ArrowDownRight, ArrowUpRight, FileDown, Info, LineChart, RefreshCw, Tro
 import type { PairResult } from './types';
 import { fmtScore, scoreColor } from './ui';
 import { openChart, useRankings, type RankedPair } from './LiveBiasStrip';
+import { LevelAlertsPanel, LevelBadge } from '../sbt/LevelAlerts';
 
 const Row: React.FC<{ p: RankedPair; i: number; horizon: 'longTerm' | 'shortTerm'; onPair: (s: string) => void }> = ({ p, i, horizon, onPair }) => {
   const v = p[horizon];
@@ -16,6 +17,7 @@ const Row: React.FC<{ p: RankedPair; i: number; horizon: 'longTerm' | 'shortTerm
         <div className="flex items-center gap-2">
           {up ? <ArrowUpRight className="w-4 h-4 text-emerald-400" /> : <ArrowDownRight className="w-4 h-4 text-rose-400" />}
           <span className="font-semibold text-slate-50">{p.display}</span>
+          {horizon === 'longTerm' && <LevelBadge symbol={p.symbol} />}
           <span className="text-[9.5px] uppercase tracking-wider text-slate-500">{p.assetClass.toLowerCase()}</span>
         </div>
         <div className="mt-1 h-1.5 rounded-full bg-slate-800 overflow-hidden">
@@ -103,6 +105,8 @@ export const RankingsView: React.FC<{ pairs: PairResult[]; onPair: (symbol: stri
 
       {!data && !error && <div className="rounded-2xl border border-slate-800 p-8 text-center text-sm text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-cyan-400" />Ranking every pair…</div>}
       {error && !data && <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-[12px] text-amber-200">{error} — retrying automatically.</div>}
+
+      <LevelAlertsPanel onOpen={openChart} />
 
       {set && (
         <div className="grid lg:grid-cols-2 gap-4">
