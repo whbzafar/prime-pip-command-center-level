@@ -230,7 +230,7 @@ const currentAppDir = process.cwd();
 const app = express();
 // Wait (once, ≤2.5 s on a cold start) for the Supabase reachability check so no request races it.
 app.use((_req, _res, next) => { supabaseReady.then(() => next(), () => next()); });
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const presenceSockets = new Map<string, Set<WebSocket>>();
 
 function broadcastPresence() {
