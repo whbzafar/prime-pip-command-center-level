@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { LevelAlertBanner } from './sbt/LevelAlerts';
+import { openChart } from './fundamentalAnalysis/LiveBiasStrip';
 import { AnnouncementsCenter } from './alerts/AnnouncementsCenter';
 import { Bell, BellOff, MessageSquare, Phone, Users, Volume2, VolumeX, X } from 'lucide-react';
 import { UserAccount } from '../types';
@@ -141,6 +143,7 @@ export const CommunicationNotifications: React.FC<CommunicationNotificationsProp
 
   return (
     <>
+      <LevelAlertBanner onOpen={openChart} />
       <div className="ppfx-global-float fixed top-[calc(env(safe-area-inset-top,0px)+0.75rem)] right-[calc(env(safe-area-inset-right,0px)+0.75rem)] z-[80] flex items-center gap-1.5">
         <AnnouncementsCenter />
         <button type="button" onClick={() => updateSettings(!muted, soundEnabled)} title={muted ? 'Unmute notifications' : 'Mute notifications'} className="relative p-2 rounded-xl bg-slate-950/95 border border-slate-700 text-slate-300 shadow-xl">

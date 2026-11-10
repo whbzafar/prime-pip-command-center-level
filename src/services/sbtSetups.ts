@@ -9,7 +9,7 @@
  * per closed H1 candle (the answer is cached for everyone), and notifies once per new setup.
  */
 import { useEffect, useState } from 'react';
-import { playSound, type SoundId } from '../utils/alertSounds';
+import { playSound, speak, spokenPair, unlockAudio, type SoundId } from '../utils/alertSounds';
 
 const H1 = 3_600_000;
 export const TOP_N = 6;
@@ -17,7 +17,36 @@ const FRESH_MS = 24 * H1;        // how long a reached level stays listed
 const NOTIFY_MS = 2 * H1 + 5 * 60_000; // only candles that closed recently ring (no old alerts after re-opening the app)
 const K_SEEN = 'ppfx_level_alerts_seen_v1';
 const K_LOG = 'ppfx_level_alerts_log_v1';
-const K_SETTINGS = 'ppfx_lt_alert_settings_v1';
+const K_LEVEL_SETTINGS = 'ppfx_level_alert_settings_v1';
+
+/** Sound settings for key-level setups (separate from the news alerts, so muting news never silences a setup). */
+export interface LevelAlertSettings { sound: boolean; voice: boolean; soundId: SoundId }
+export const getLevelSettings = (): LevelAlertSettings => ({ sound: true, voice: true, soundId: 'alarm', ...read<Partial<LevelAlertSettings>>(K_LEVEL_SETTINGS, {}) });
+export function setLevelSettings(p: Partial<LevelAlertSettings>) { write(K_LEVEL_SETTINGS, { ...getLevelSettings(), ...p }); subs.forEach((f) => f()); }
+
+/** Sound + spoken pair for one or more setups: "Buy, G B P, C A D. Level 1 reached." */
+export function announceSetups(list: { display: string; side: 1 | -1; level: 1 | 2 }[]) {
+  const cfg = getLevelSettings();
+  if (cfg.sound) { playSound(cfg.soundId); setTimeout(() => playSound(cfg.soundId), 900); }
+  if (cfg.voice && list.length) {
+    const text = list.slice(0, 4).map((a) => `${a.side > 0 ? 'Buy' : 'Sell'}, ${spokenPair(a.display)}. Level ${a.level} reached.`).join(' ');
+    setTimeout(() => speak(`Fundamental setup. ${text}`), cfg.sound ? 1800 : 0);
+  }
+}
+
+/** Ask for notifications (must run inside a tap) and unlock sound; returns the notification state. */
+export async function enableLevelAlerts(): Promise<NotificationPermission | 'unsupported'> {
+  unlockAudio();
+  if (typeof Notification === 'undefined') return 'unsupported';
+  if (Notification.permission === 'default') { try { return await Notification.requestPermission(); } catch { return Notification.permission; } }
+  return Notification.permission;
+}
+
+export function testLevelAlert() {
+  unlockAudio();
+  announceSetups([{ display: 'GBP/CAD', side: 1, level: 1 }]);
+  void notify('TEST · BUY GBP/CAD — Level 1 reached (H1)', 'This is how a fundamental setup alert looks and sounds.');
+}
 
 export interface LevelSignal { time: number; dir: 1 | -1; level: 1 | 2; price: number; stop: number; target: number; zoneTop: number; zoneBottom: number; models: string[] }
 export interface LevelZone { top: number; bottom: number; modelReady: boolean }
@@ -124,8 +153,7 @@ async function cycle() {
     if (fresh.length) {
       alerts = [...fresh, ...alerts].slice(0, 40);
       write(K_LOG, alerts);
-      const cfg = read<{ muted?: boolean; sound?: boolean; soundId?: SoundId; enabled?: boolean }>(K_SETTINGS, {});
-      if (!cfg.muted && cfg.sound !== false) { try { playSound(cfg.soundId || 'chime'); } catch { /* audio blocked until the first tap */ } }
+      announceSetups(fresh);
       for (const a of fresh) notify(`${a.side > 0 ? 'BUY' : 'SELL'} ${a.display} — Level ${a.level} reached (H1)`, `Why: long-term ${a.side > 0 ? 'bullish' : 'bearish'} pair (score ${a.score > 0 ? '+' : ''}${a.score.toFixed(0)}) and price is at its ${a.side > 0 ? 'buy' : 'sell'} level${a.models.length ? ` with ${a.models.join(' + ')} complete` : ''}. H1 close ${fmtPrice(a.price)} · zone ${fmtPrice(a.zoneBottom)} – ${fmtPrice(a.zoneTop)}.`);
       try { window.dispatchEvent(new CustomEvent('ppfx:level-alert', { detail: fresh })); } catch { /* ignore */ }
     }

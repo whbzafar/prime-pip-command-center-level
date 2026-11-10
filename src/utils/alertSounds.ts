@@ -30,17 +30,48 @@ const PATTERNS: Record<SoundId, Note[]> = {
   alarm: [0, 0.5].flatMap((o) => [740, 932, 1175].map((f, i) => ({ f, at: o + i * 0.12, dur: 0.14, type: 'sawtooth' as OscillatorType, vol: 0.05 }))),
 };
 
-export function playSound(id: SoundId = 'chime', volume = 1) {
+// One shared audio engine. Phones (iPhone above all) keep audio muted until the person has tapped
+// the page once; a context created later, outside a tap, stays silent. So the engine is created and
+// unlocked on the first tap anywhere, and every alert reuses it.
+let shared: AudioContext | null = null;
+const getCtx = (): AudioContext | null => {
   try {
     const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx: AudioContext = new Ctx();
+    if (!Ctx) return null;
+    if (!shared || (shared as any).state === 'closed') shared = new Ctx();
+    return shared;
+  } catch { return null; }
+};
+let unlocked = false;
+export const audioUnlocked = () => unlocked;
+export function unlockAudio() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  try {
+    if (ctx.state === 'suspended') void ctx.resume();
+    // a silent blip inside the tap is what actually unlocks iOS
+    const b = ctx.createBuffer(1, 1, 22050); const src = ctx.createBufferSource(); src.buffer = b; src.connect(ctx.destination); src.start(0);
+    unlocked = true;
+  } catch { /* ignore */ }
+  try { if ('speechSynthesis' in window && !(window as any).__ppfxSpeechPrimed) { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); (window as any).__ppfxSpeechPrimed = true; } } catch { /* ignore */ }
+}
+if (typeof window !== 'undefined') {
+  const once = () => { unlockAudio(); };
+  window.addEventListener('pointerdown', once, { passive: true });
+  window.addEventListener('touchend', once, { passive: true });
+  window.addEventListener('keydown', once);
+}
+
+export function playSound(id: SoundId = 'chime', volume = 1) {
+  try {
+    const ctx = getCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') void ctx.resume();
     const master = ctx.createGain();
     master.gain.value = Math.max(0, Math.min(1, volume));
     master.connect(ctx.destination);
-    let end = 0;
     for (const n of PATTERNS[id] || PATTERNS.chime) {
-      const t = ctx.currentTime + n.at;
+      const t = ctx.currentTime + 0.03 + n.at;
       for (const [k, mult] of [1, ...(n.partials || [])].entries()) {
         const o = ctx.createOscillator();
         const g = ctx.createGain();
@@ -53,8 +84,20 @@ export function playSound(id: SoundId = 'chime', volume = 1) {
         o.connect(g); g.connect(master);
         o.start(t); o.stop(t + n.dur + 0.05);
       }
-      end = Math.max(end, n.at + n.dur);
     }
-    setTimeout(() => { try { ctx.close(); } catch { /* ignore */ } }, (end + 0.5) * 1000);
   } catch { /* audio blocked until the user interacts */ }
 }
+
+/** Reads a short message aloud (e.g. "Buy, G B P, C A D. Level 1 reached."). */
+export function speak(text: string) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.95; u.pitch = 1; u.volume = 1; u.lang = 'en-US';
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  } catch { /* not supported */ }
+}
+
+/** "GBP/CAD" → "G B P, C A D" so the pair is spelled out clearly. */
+export const spokenPair = (display: string) => display.split('/').map((p) => (/^[A-Z]{2,5}$/.test(p) ? p.split('').join(' ') : p)).join(', ');

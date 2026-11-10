@@ -1024,11 +1024,16 @@ export function resolveTradingViewSymbol(symbol: string, broker?: string): strin
   }
   if (clean === 'USOIL' || clean === 'WTI' || clean === 'OIL' || clean === 'CRUDEOIL') {
     if (requestedBroker === 'CAPITALCOM') return 'CAPITALCOM:OIL_CRUDE';
+    if (requestedBroker === 'FOREXCOM') return 'FOREXCOM:USOIL';
     return 'TVC:USOIL';
   }
   if (clean === 'BRENT' || clean === 'UKOIL') {
     if (requestedBroker === 'CAPITALCOM') return 'CAPITALCOM:OIL_BRENT';
+    if (requestedBroker === 'FOREXCOM') return 'FOREXCOM:UKOIL';
     return 'TVC:UKOIL';
+  }
+  if (clean === 'COPPER' || clean === 'XCUUSD' || clean === 'HG') {
+    if (requestedBroker === 'FOREXCOM') return 'FOREXCOM:COPPER';
   }
 
   // 3. Global Benchmark Indices (Verified active symbols on TradingView)
@@ -1046,10 +1051,18 @@ export function resolveTradingViewSymbol(symbol: string, broker?: string): strin
     return 'CAPITALCOM:US500';
   }
   if (clean === 'GER40' || clean === 'DAX' || clean === 'DE40') {
+    if (requestedBroker === 'FOREXCOM') return 'FOREXCOM:GER40';
     return 'CAPITALCOM:DE40';
   }
   if (clean === 'UK100' || clean === 'FTSE') {
+    if (requestedBroker === 'FOREXCOM') return 'FOREXCOM:UK100';
     return 'CAPITALCOM:UK100';
+  }
+  if (clean === 'JP225' || clean === 'NIKKEI' || clean === 'JPN225') {
+    if (requestedBroker === 'FOREXCOM') return 'FOREXCOM:JP225';
+  }
+  if (clean === 'AUS200' || clean === 'ASX200') {
+    if (requestedBroker === 'FOREXCOM') return 'FOREXCOM:AUS200';
   }
 
   // 4. US Equities / Stocks
@@ -1455,10 +1468,12 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
   // Default to FX official direct feed
   const [selectedBroker, setSelectedBroker] = useState<string>(() => {
-    if (savedFullState?.broker && savedFullState.broker !== 'FXCM' && savedFullState.broker !== 'FCM') {
-      return savedFullState.broker;
-    }
-    return 'FX';
+    // Default broker: FOREX.com (the broker used for trading). A saved choice is kept, except the old
+    // automatic default (FX/FXCM), which moves to FOREX.com once.
+    let migrated = false; try { migrated = localStorage.getItem('ppfx_broker_default_v2') === '1'; localStorage.setItem('ppfx_broker_default_v2', '1'); } catch { /* storage blocked */ }
+    const saved = savedFullState?.broker;
+    if (saved && !['FXCM', 'FCM'].includes(saved) && (migrated || saved !== 'FX')) return saved;
+    return 'FOREXCOM';
   });
 
   const [selectedInterval, setSelectedInterval] = useState<string>(() => {
@@ -3012,10 +3027,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       targetBroker = 'BINANCE';
     } else if (['NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA'].includes(cleanSym)) {
       if (targetBroker !== 'CAPITALCOM') targetBroker = 'NASDAQ';
-    } else if (['US30', 'NAS100', 'SPX500', 'GER40', 'UK100'].includes(cleanSym)) {
-      if (targetBroker !== 'FOREXCOM' && targetBroker !== 'CAPITALCOM') {
-        targetBroker = 'CAPITALCOM';
-      }
+    } else if (['US30', 'NAS100', 'US100', 'SPX500', 'US500', 'GER40', 'UK100', 'JP225', 'AUS200', 'USOIL', 'UKOIL', 'COPPER'].includes(cleanSym)) {
+      // FOREX.com carries these on TradingView; Capital.com is the alternative when chosen.
+      if (targetBroker !== 'FOREXCOM' && targetBroker !== 'CAPITALCOM') targetBroker = 'FOREXCOM';
     } else if (['XAUUSD', 'XAGUSD'].includes(cleanSym)) {
       if (!FX_BROKER_PREFIXES.has(targetBroker) || targetBroker === 'FX' || targetBroker === 'FX_IDC') {
         targetBroker = 'OANDA';

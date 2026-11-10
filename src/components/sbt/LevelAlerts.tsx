@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Crosshair, RefreshCw } from 'lucide-react';
-import { fmtPrice, levelTime, pairLevel, useLevelAlerts, type LevelState, type PairScan } from '../../services/sbtSetups';
+import { enableLevelAlerts, fmtPrice, getLevelSettings, levelTime, pairLevel, setLevelSettings, testLevelAlert, useLevelAlerts, type LevelAlert, type LevelState, type PairScan } from '../../services/sbtSetups';
+import { BellRing, Mic, MicOff, Volume2, VolumeX, X as XIcon } from 'lucide-react';
+import { SOUNDS } from '../../utils/alertSounds';
 
 const ago = (t: number) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : `${Math.floor(m / 60)}h ${m % 60}m ago`; };
 
@@ -45,6 +47,70 @@ const HitRow: React.FC<{ p: PairScan; onOpen: (s: string) => void }> = ({ p, onO
   );
 };
 
+/** Sound / voice / phone-notification switches for setup alerts. */
+const AlertControls: React.FC = () => {
+  const cfg = getLevelSettings();
+  const [perm, setPerm] = useState<string>(() => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission));
+  const ios = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const standalone = typeof window !== 'undefined' && (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone);
+  const btn = 'inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[10.5px] font-bold cursor-pointer transition';
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" data-testid="level-alert-controls">
+      <button type="button" onClick={() => setLevelSettings({ sound: !cfg.sound })} className={`${btn} ${cfg.sound ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200' : 'border-rose-500/50 bg-rose-500/10 text-rose-200'}`} title="Alarm sound when a setup reaches its level">
+        {cfg.sound ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}Sound {cfg.sound ? 'on' : 'off'}
+      </button>
+      <button type="button" onClick={() => setLevelSettings({ voice: !cfg.voice })} className={`${btn} ${cfg.voice ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200' : 'border-slate-600 bg-slate-900 text-slate-300'}`} title="Read the pair aloud: Buy, G B P, C A D. Level 1 reached.">
+        {cfg.voice ? <Mic className="w-3 h-3" /> : <MicOff className="w-3 h-3" />}Voice {cfg.voice ? 'on' : 'off'}
+      </button>
+      <select value={cfg.soundId} onChange={(e) => setLevelSettings({ soundId: e.target.value as any })} aria-label="Alert sound" className="px-1.5 py-1 rounded-lg border border-slate-700 bg-slate-900 text-[10.5px] text-slate-200 cursor-pointer outline-none">
+        {SOUNDS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+      </select>
+      {perm !== 'granted' && perm !== 'unsupported' && (
+        <button type="button" data-testid="level-enable-notifications" onClick={async () => setPerm(await enableLevelAlerts())} className={`${btn} border-amber-400/60 bg-amber-500/15 text-amber-100 animate-pulse`}>
+          <BellRing className="w-3 h-3" />{perm === 'denied' ? 'Notifications blocked — allow in browser settings' : 'Turn on phone / PC notifications'}
+        </button>
+      )}
+      {perm === 'granted' && <span className={`${btn} border-emerald-500/40 text-emerald-200 cursor-default`}><BellRing className="w-3 h-3" />Notifications on</span>}
+      <button type="button" data-testid="level-test-alert" onClick={() => { void enableLevelAlerts().then(setPerm); testLevelAlert(); }} className={`${btn} border-cyan-500/50 bg-cyan-500/10 text-cyan-100`}>Test alert</button>
+      {ios && !standalone && <span className="text-[10px] text-slate-400 w-full">iPhone: notifications need the app on your Home Screen (Share → Add to Home Screen), then open it from there and tap “Turn on notifications”.</span>}
+      {(perm === 'unsupported' || ios) && standalone === false && null}
+    </div>
+  );
+};
+
+/** Big banner shown anywhere in the app the moment a setup reaches its level (stays until closed). */
+export const LevelAlertBanner: React.FC<{ onOpen: (engineSymbol: string) => void }> = ({ onOpen }) => {
+  const [items, setItems] = useState<LevelAlert[]>([]);
+  useEffect(() => {
+    const on = (e: Event) => setItems((cur) => [...((e as CustomEvent).detail as LevelAlert[]), ...cur].slice(0, 4));
+    window.addEventListener('ppfx:level-alert', on);
+    return () => window.removeEventListener('ppfx:level-alert', on);
+  }, []);
+  if (!items.length) return null;
+  return (
+    <div className="fixed left-1/2 -translate-x-1/2 top-[calc(env(safe-area-inset-top,0px)+4rem)] z-[2147482000] w-[min(520px,calc(100vw-1rem))] space-y-2" data-testid="level-alert-banner" role="alert" aria-live="assertive">
+      {items.map((a) => {
+        const up = a.side > 0;
+        return (
+          <div key={a.id} className={`relative rounded-2xl border-2 shadow-2xl backdrop-blur-xl p-3 pr-9 ${up ? 'border-emerald-400 bg-emerald-950/90 shadow-emerald-500/30' : 'border-rose-400 bg-rose-950/90 shadow-rose-500/30'}`}>
+            <button type="button" onClick={() => setItems((c) => c.filter((x) => x.id !== a.id))} aria-label="Dismiss" className="absolute top-2 right-2 p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 cursor-pointer"><XIcon className="w-4 h-4" /></button>
+            <button type="button" onClick={() => { onOpen(a.symbol); setItems((c) => c.filter((x) => x.id !== a.id)); }} className="w-full text-left cursor-pointer">
+              <div className="text-[10px] font-mono-code uppercase tracking-[0.18em] text-amber-200 font-bold">Fundamental setup · key level reached · H1</div>
+              <div className="mt-1 flex items-center gap-2 flex-wrap">
+                <span className={`px-2.5 py-0.5 rounded-lg text-[15px] font-black ${up ? 'bg-emerald-400 text-emerald-950' : 'bg-rose-400 text-rose-950'}`}>{up ? 'BUY' : 'SELL'}</span>
+                <span className="text-[22px] font-black text-white tracking-wide">{a.display}</span>
+                <span className="text-[12px] font-bold text-amber-100">Level {a.level}</span>
+              </div>
+              <div className="mt-1 text-[11.5px] text-slate-200">H1 close {fmtPrice(a.price)} · zone {fmtPrice(a.zoneBottom)} – {fmtPrice(a.zoneTop)}{a.models.length ? ` · ${a.models.join(' + ')}` : ''}</div>
+              <div className="text-[11px] text-slate-300">Long-term {up ? 'bullish' : 'bearish'} pair (score {a.score > 0 ? '+' : ''}{a.score.toFixed(0)}) · tap to open the chart</div>
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 /** "Market at key levels" — which top fundamental pairs have reached their buy / sell level. */
 export const LevelAlertsPanel: React.FC<{ onOpen: (engineSymbol: string) => void; dense?: boolean }> = ({ onOpen, dense }) => {
   const st = useLevelAlerts();
@@ -61,6 +127,7 @@ export const LevelAlertsPanel: React.FC<{ onOpen: (engineSymbol: string) => void
         {hits.length > 0 && <span className="px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 text-[10px] font-extrabold">{hits.filter((p) => p.side > 0).length} buy · {hits.filter((p) => p.side < 0).length} sell</span>}
         <span className="ml-auto text-[10px] text-slate-500 inline-flex items-center gap-1">{(loading || pending > 0) && <RefreshCw className="w-3 h-3 animate-spin" />}{loading ? 'checking the top pairs…' : pending ? `checking ${pending} more…` : `H1 · checked ${levelTime(st.updatedAt)} PKT`}</span>
       </div>
+      <AlertControls />
       {!dense && <div className="text-[11px] text-slate-400">The top long-term bullish pairs are checked for their <b className="text-emerald-300">buy</b> levels and the top bearish pairs for their <b className="text-rose-300">sell</b> levels on the 1-hour chart. A pair appears here only when price has reached Level 1 or Level 2 and the H1 candle has closed.</div>}
       {hits.map((p) => <HitRow key={p.symbol} p={p} onOpen={onOpen} />)}
       {!hits.length && !loading && <div className="text-[11.5px] text-slate-400 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2.5">No top pair is at its level right now. You will be notified the moment one gets there.</div>}
