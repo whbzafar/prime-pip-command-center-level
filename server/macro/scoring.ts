@@ -360,9 +360,13 @@ export function scoreAsset(spec: AssetSpec, ctx: EngineContext): AssetResult {
   const scored = pillars.filter((p) => p.score !== null && p.coverage > 0);
   const effW = (p: PillarResult) => p.weight * (0.5 + 0.5 * Math.min(1, p.coverage));
   const W = scored.reduce((s, p) => s + effW(p), 0);
-  const score = W > 0 ? round(scored.reduce((s, p) => s + (p.score as number) * effW(p), 0) / W, 1) : null;
   const totalPW = pillars.reduce((s, p) => s + p.weight, 0) || 1;
   const confidence = Math.round((pillars.reduce((s, p) => s + p.weight * Math.min(1, p.coverage), 0) / totalPW) * 100);
+  // Below 25% of the model backed by live data a number would mostly reflect the few inputs that happen
+  // to be present (e.g. a stock whose company filings have not loaded yet would only show the market's
+  // mood). No score is shown then — "not enough live data" — rather than a misleading reading.
+  const MIN_CONFIDENCE = 25;
+  const score = W > 0 && confidence >= MIN_CONFIDENCE ? round(scored.reduce((s, p) => s + (p.score as number) * effW(p), 0) / W, 1) : null;
 
   const drivers: AssetResult['topDrivers'] = [];
   for (const p of pillars) {
@@ -382,7 +386,7 @@ export function scoreAsset(spec: AssetSpec, ctx: EngineContext): AssetResult {
   const pos = top.filter((d) => d.impact > 0).map((d) => d.name);
   const neg = top.filter((d) => d.impact < 0).map((d) => d.name);
   const summary = score === null
-    ? `Not enough live data to score ${spec.name} yet.`
+    ? `Not enough live data to score ${spec.name} yet${spec.assetClass === 'STOCKS' ? ' — waiting for the latest company filings (SEC EDGAR)' : ''}.`
     : `${spec.name} is ${biasLabel(bias)} at ${score > 0 ? '+' : ''}${score} (${round((score + 100) / 2, 0)}% bullish / ${100 - round((score + 100) / 2, 0)}% bearish), confidence ${confidence}%.` +
       (pos.length ? ` Supported by ${pos.join(', ')}.` : '') +
       (neg.length ? ` Weighed down by ${neg.join(', ')}.` : '');

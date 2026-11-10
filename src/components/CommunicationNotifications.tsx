@@ -112,6 +112,23 @@ export const CommunicationNotifications: React.FC<CommunicationNotificationsProp
     } catch {}
   };
 
+  // Phones: the floating buttons step aside while you scroll down (so they never sit on what you are
+  // reading) and come back the moment you scroll up or reach the top.
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const phone = window.innerWidth < 768;
+      const hide = phone && y > 80 && y > last + 4;
+      const show = !phone || y < 80 || y < last - 4;
+      if (hide) document.documentElement.classList.add('ppfx-float-away');
+      else if (show) document.documentElement.classList.remove('ppfx-float-away');
+      if (Math.abs(y - last) > 4) last = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => { window.removeEventListener('scroll', onScroll); document.documentElement.classList.remove('ppfx-float-away'); };
+  }, []);
+
   if (!currentUser) return null;
 
   const unread = notifications.filter((item) => !item.read_at).length;
