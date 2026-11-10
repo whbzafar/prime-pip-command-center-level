@@ -1,0 +1,34 @@
+import { chromium, devices } from 'playwright';
+const B = 'https://prime-pip-command-center-level.vercel.app';
+// wait for deploy
+for (let i = 0; i < 20; i++) { const h = await (await fetch(B + '/')).text(); const js = [...h.matchAll(/assets\/[^"]+\.js/g)].map((m) => m[0]); let hit = false; for (const f of js) { const t = await (await fetch(B + '/' + f)).text(); if (t.includes('ppfx-float-away')) { hit = true; break; } } console.log('DEPLOY try', i, hit); if (hit) break; await new Promise((r) => setTimeout(r, 20000)); }
+const t = await (await fetch(B + '/api/time')).json().catch(() => null); console.log('API time', t && Math.abs(t.now - Date.now()) < 5000 ? 'ok' : JSON.stringify(t));
+const ov = await (await fetch(B + '/api/macro/overview')).json(); const st = (ov.data?.assets || ov.assets || []).filter((a) => a.assetClass === 'STOCKS'); console.log('STOCKS', st.map((a) => `${a.symbol}:${a.score ?? '—'}(${a.confidence}%)`).join(' '));
+const sc = await fetch(B + '/api/sbt/scan?symbol=EURUSD'); console.log('SBT scan', sc.status, (await sc.text()).slice(0, 200));
+const user = { id: 'ui-test', name: 'UI Test', username: 'uitest', role: 'MEMBER', subscriptionStatus: 'LIFETIME', subscriptionPrice: 0, isLifetime: true, paymentStatus: 'PAID' };
+const br = await chromium.launch();
+const ctx = await br.newContext({ ...devices['iPhone 14 Pro Max'], isMobile: true, hasTouch: true });
+await ctx.route('**/api/auth/me', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, user }) }));
+const page = await ctx.newPage(); const errs = []; page.on('pageerror', (e) => errs.push(e.message.slice(0, 160)));
+await page.addInitScript((u) => { try { localStorage.setItem('primepipfx_user_profile', JSON.stringify(u)); localStorage.setItem('primepipfx_session_token', 'ui-test'); } catch {} }, user);
+const enter = async () => { await page.getByText('Start Practice').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(800); await page.getByText('Create Demo Account').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(3000); for (let k = 0; k < 2; k++) { await page.getByText(/ENTER\s*COMMAND\s*CENTER/i).first().click({ timeout: 2500 }).catch(() => {}); for (const b of ['Maybe later', 'Start exploring', 'Got it']) await page.getByRole('button', { name: b }).first().click({ timeout: 800 }).catch(() => {}); await page.waitForTimeout(1200); } };
+await page.goto(B, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(9000); await enter(); await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(8000); await enter();
+const vis = (sel) => page.evaluate((sel) => { const el = document.querySelector(sel); if (!el) return 'MISSING'; const r = el.getBoundingClientRect(); const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return `${Math.round(r.left)},${Math.round(r.top)} ${top && (el === top || el.contains(top)) ? 'VISIBLE' : 'covered'}`; }, sel);
+console.log('PHONE announcements', await vis('[aria-label="Announcements"]'));
+await page.screenshot({ path: 'shots/p1-home.png' });
+await page.locator('[aria-label="Announcements"]').click(); await page.waitForTimeout(2500); await page.screenshot({ path: 'shots/p2-ann.png' });
+console.log('PHONE ann panel text', ((await page.locator('body').innerText()).match(/Fundamental setups at key levels[\s\S]{0,300}/) || ['(no setups panel — none at a level / strategy key not set)'])[0].replace(/\s+/g, ' ').slice(0, 300));
+await page.locator('[aria-label="Announcements"]').click(); await page.waitForTimeout(800);
+await page.locator('[title="More Categories"]').first().click().catch(() => {}); await page.waitForTimeout(1200);
+console.log('PHONE logout in More', await vis('[data-testid="mobile-logout"]')); await page.screenshot({ path: 'shots/p3-more.png' });
+await page.keyboard.press('Escape'); await page.getByRole('button', { name: 'Close' }).last().click().catch(() => {}); await page.waitForTimeout(800);
+await page.locator('#header-fundamentals-btn').click().catch(() => console.log('no fund btn')); await page.waitForTimeout(9000);
+await page.getByRole('tab', { name: /Pairs/ }).click().catch(() => {}); await page.waitForTimeout(5000);
+await page.locator('button:has-text("EUR/USD")').first().click().catch(() => {}); await page.waitForTimeout(7000);
+const cut = await page.evaluate(() => { const w = innerWidth; let n = 0; for (const el of document.querySelectorAll('#root *')) { const r = el.getBoundingClientRect(); if (r.width && r.right > w + 2 && r.left < w - 10 && getComputedStyle(el).position !== 'fixed' && getComputedStyle(el).position !== 'absolute') { let p = el.parentElement, sc = false; while (p) { if (/(auto|scroll)/.test(getComputedStyle(p).overflowX) && p.getBoundingClientRect().right <= w + 2) { sc = true; break; } p = p.parentElement; } if (!sc) n++; } } return n; });
+console.log('PHONE pair page elements cut off at right edge:', cut);
+await page.evaluate(() => window.scrollBy(0, 900)); await page.waitForTimeout(1200); console.log('PHONE float while scrolling down', await vis('[aria-label="Announcements"]'));
+await page.screenshot({ path: 'shots/p4-pair.png' });
+await page.evaluate(() => window.scrollBy(0, -300)); await page.waitForTimeout(1200); console.log('PHONE float after scrolling up', await vis('[aria-label="Announcements"]'));
+console.log('ERRORS', errs.length, errs.slice(0, 3).join(' || '));
+await br.close(); process.exit(0);

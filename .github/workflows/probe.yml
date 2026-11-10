@@ -3,9 +3,15 @@ on: { push: { branches: [ci/macro-live-probe] } }
 jobs:
   p:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 20
+    permissions: { contents: write }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - run: node prodcheck.mjs
+      - run: mkdir -p /tmp/pw && cd /tmp/pw && npm init -y >/dev/null && npm i playwright@1.48.2 >/dev/null && npx playwright install --with-deps chromium >/dev/null 2>&1
+      - run: mkdir -p shots && cp produi.mjs /tmp/pw/ && (cd /tmp/pw && mkdir -p shots && timeout 900 node produi.mjs); cp -r /tmp/pw/shots/. shots/ || true
+      - if: always()
+        run: |
+          git config user.name ci; git config user.email ci@example.com
+          git checkout -B probe-shots && git add -f shots && git commit -qm shots && git push -qf origin probe-shots
