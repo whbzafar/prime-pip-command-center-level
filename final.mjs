@@ -11,6 +11,8 @@ const cut = (page, label) => page.evaluate((label) => { const w = innerWidth; co
 for (const [name, opts] of [['desk', { viewport: { width: 1440, height: 900 } }], ['phone', { ...devices['iPhone 14 Pro Max'], isMobile: true, hasTouch: true }]]) {
   const ctx = await br.newContext(opts); const page = await ctx.newPage(); const errs = []; page.on('pageerror', (e) => errs.push(e.message.slice(0, 150)));
   await page.goto(B, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(7000);
+  for (const b of [/Start exploring/i, /Got it/i, /Maybe later/i, /Continue/i, /Close/i]) await page.getByRole('button', { name: b }).first().click({ timeout: 1500 }).catch(() => {});
+  await page.keyboard.press('Escape').catch(() => {}); await page.waitForTimeout(1200);
   log('LOGIN', name, 'hero motion layer', await page.locator('[data-testid="hero-motion"]').count(), '| wahab teaser', await page.locator('[data-testid="wahab-teaser"]').count());
   await page.locator('[data-testid="login-hero"]').scrollIntoViewIfNeeded().catch(() => {});
   await page.screenshot({ path: `shots/${name}-login-a.png` }); await page.waitForTimeout(2200); await page.screenshot({ path: `shots/${name}-login-b.png` });
