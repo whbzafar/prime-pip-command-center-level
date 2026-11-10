@@ -43,10 +43,9 @@ for (const [name, opts] of [['desk', { viewport: { width: 1440, height: 900 } }]
   await page.locator('[aria-label="Announcements"]').click().catch(() => {}); await page.waitForTimeout(2500);
   log('ALERT controls', await page.locator('[data-testid="level-alert-controls"]').count(), ((await page.locator('[data-testid="level-alert-controls"]').first().innerText().catch(() => '')) || '').replace(/\s+/g, ' ').slice(0, 160));
   await page.screenshot({ path: 'shots/phone-ann.png' });
-  await page.locator('[aria-label="Announcements"]').click().catch(() => {}); await page.waitForTimeout(600);
+  await page.keyboard.press('Escape').catch(() => {}); await page.locator('[aria-label="Close"]').first().click({ timeout: 1500 }).catch(() => {}); await page.waitForTimeout(600);
   // premium tradingview
-  await page.locator('[title="More Categories"]').first().click().catch(() => {}); await page.waitForTimeout(1000);
-  await page.getByText(/Premium TradingView/i).first().click().catch(() => log('no premium in More')); await page.waitForTimeout(14000);
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('primepipfx_navigate_tab', { detail: { tab: 'PRO_TRADING' } }))); await page.waitForTimeout(14000);
   log('CUT', await cut(page, 'premium'));
   const fs = page.getByRole('button', { name: /Full-Screen|Fullscreen/i }).first();
   await fs.scrollIntoViewIfNeeded().catch(() => {}); await page.screenshot({ path: 'shots/phone-premium-toolbar.png' });
@@ -59,8 +58,7 @@ for (const [name, opts] of [['desk', { viewport: { width: 1440, height: 900 } }]
   await page.getByRole('button', { name: /Pine Editor/i }).first().click({ timeout: 5000 }).then(() => log('PINE clicked')).catch((e) => log('PINE click failed', e.message.slice(0, 80)));
   await page.waitForTimeout(4000); log('CUT', await cut(page, 'pine')); await page.screenshot({ path: 'shots/phone-pine.png' });
   // learning hub
-  await page.locator('[title="More Categories"]').first().click().catch(() => {}); await page.waitForTimeout(1000);
-  await page.getByText(/Pro Trading Learning/i).first().click().catch(() => log('no learning in More')); await page.waitForTimeout(5000);
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('primepipfx_navigate_tab', { detail: { tab: 'PRO_LEARNING' } }))); await page.waitForTimeout(5000);
   log('HUB present', await page.locator('[data-testid="learning-hub"]').count()); log('CUT', await cut(page, 'learning')); await page.screenshot({ path: 'shots/phone-learn.png' });
   await page.getByRole('tab', { name: /Trading Bot Automation/ }).click().catch(() => {}); await page.waitForTimeout(1500);
   log('BOT countdown', ((await page.locator('[data-testid="bot-countdown"]').innerText().catch(() => '')) || '').replace(/\s+/g, ' '));
@@ -85,16 +83,16 @@ for (const [name, opts] of [['desk', { viewport: { width: 1440, height: 900 } }]
   await page.addInitScript((u) => { try { localStorage.setItem('primepipfx_user_profile', JSON.stringify(u)); localStorage.setItem('primepipfx_session_token', 'ui-test'); } catch {} }, member);
   const enter = enterFor(page);
   await page.goto(B, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(9000); await enter(); await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(8000); await enter();
-  await page.getByText('PREMIUM TRADINGVIEW').first().click().catch(() => log('no premium nav')); await page.waitForTimeout(10000);
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('primepipfx_navigate_tab', { detail: { tab: 'PRO_TRADING' } }))); await page.waitForTimeout(10000);
   log('BROKER default select value', await page.locator('[data-testid="broker-select"]').inputValue().catch(() => '?'));
   await page.locator('[data-testid="broker-select"]').selectOption('FOREXCOM').catch(() => {}); await page.waitForTimeout(9000);
   log('TV symbol', page.frames().map((f) => f.url()).filter((u) => /widgetembed/.test(u)).map((u) => decodeURIComponent(u.match(/symbol=([^&]*)/)?.[1] || '')).join(','));
-  await page.getByText(/UNLIMITED CHART/i).first().click().catch(() => log('no unlimited nav')); await page.waitForTimeout(9000);
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('primepipfx_navigate_tab', { detail: { tab: 'CHART_ANALYSIS' } }))); await page.waitForTimeout(9000);
   await page.locator('[data-testid="instrument-search"]').fill('gold', { timeout: 5000 }).catch(() => log('no instrument search')); await page.waitForTimeout(800);
   log('SEARCH gold', ((await page.locator('[data-testid="instrument-picker"]').innerText().catch(() => '')) || '').replace(/\s+/g, ' ').slice(0, 160));
   await page.locator('[data-testid="instrument-picker"]').scrollIntoViewIfNeeded(); await page.screenshot({ path: 'shots/desk-unlimited.png' });
   await page.locator('[data-testid="instrument-search"]').fill('', { timeout: 3000 }).catch(() => {});
-  await page.getByText(/^Indicator$/).first().click().catch(() => log('no Indicator button')); await page.waitForTimeout(2000);
+  await page.getByText('Indicator', { exact: true }).first().click({ timeout: 5000 }).catch(() => log('no Indicator button')); await page.waitForTimeout(2000);
   log('IND menu', ((await page.locator('[data-testid="ppfx-indicator-menu"]').innerText().catch(() => '')) || '').replace(/\s+/g, ' ').slice(0, 260));
   await page.screenshot({ path: 'shots/desk-indicators.png' });
   await ctx.close();
