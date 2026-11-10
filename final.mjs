@@ -8,7 +8,7 @@ const enterFor = (page) => async () => { await page.getByText('Start Practice').
 const cut = (page, label) => page.evaluate((label) => { const w = innerWidth; const out = []; for (const el of document.querySelectorAll('#root *')) { const r = el.getBoundingClientRect(); if (r.width && r.right > w + 2 && r.left < w - 10 && !['fixed', 'absolute'].includes(getComputedStyle(el).position)) { let p = el.parentElement, sc = false; while (p) { if (/(auto|scroll|hidden)/.test(getComputedStyle(p).overflowX) && p.getBoundingClientRect().right <= w + 2) { sc = true; break; } p = p.parentElement; } if (!sc) out.push((el.id ? '#' + el.id : el.tagName.toLowerCase() + '.' + String(el.className).split(' ').slice(0, 3).join('.')).slice(0, 60) + '→' + Math.round(r.right)); } } return label + ': ' + (out.slice(0, 6).join(' | ') || 'none'); }, label);
 
 // 1) Logged out: sign-in hero + Wahab (desktop + phone)
-for (const [name, opts] of [['desk', { viewport: { width: 1440, height: 900 } }], ['phone', { ...devices['iPhone 14 Pro Max'], isMobile: true, hasTouch: true }]]) {
+for (const [name, opts] of []) {
   const ctx = await br.newContext(opts); const page = await ctx.newPage(); const errs = []; page.on('pageerror', (e) => errs.push(e.message.slice(0, 150)));
   await page.goto(B, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(7000);
   for (const b of [/Start exploring/i, /Got it/i, /Maybe later/i, /Continue/i, /Close/i]) await page.getByRole('button', { name: b }).first().click({ timeout: 1500 }).catch(() => {});
@@ -53,7 +53,7 @@ for (const [name, opts] of [['desk', { viewport: { width: 1440, height: 900 } }]
   await page.waitForTimeout(4000);
   log('FS state', await page.evaluate(() => { const c = !!document.querySelector('.tv-fullscreen-active'); const big = [...document.querySelectorAll('canvas, iframe')].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 200).sort((a, b) => b.width * b.height - a.width * a.height)[0]; return `class=${c} vw=${innerWidth}x${innerHeight} biggest chart=${big ? Math.round(big.width) + 'x' + Math.round(big.height) + ' @' + Math.round(big.top) : 'none'}`; }));
   await page.screenshot({ path: 'shots/phone-fullscreen.png' });
-  await page.getByRole('button', { name: /Exit Fullscreen/i }).first().click({ timeout: 3000 }).catch(() => log('no exit fs button'));
+  await page.locator('[data-testid="exit-fullscreen"]').click({ timeout: 3000 }).then(() => log('EXIT fs ok')).catch(() => log('no exit fs button'));
   await page.waitForTimeout(2000);
   await page.getByRole('button', { name: /Pine Editor/i }).first().click({ timeout: 5000 }).then(() => log('PINE clicked')).catch((e) => log('PINE click failed', e.message.slice(0, 80)));
   await page.waitForTimeout(4000); log('CUT', await cut(page, 'pine')); await page.screenshot({ path: 'shots/phone-pine.png' });
@@ -93,7 +93,9 @@ for (const [name, opts] of [['desk', { viewport: { width: 1440, height: 900 } }]
   await page.locator('[data-testid="instrument-picker"]').scrollIntoViewIfNeeded(); await page.screenshot({ path: 'shots/desk-unlimited.png' });
   await page.locator('[data-testid="instrument-search"]').fill('', { timeout: 3000 }).catch(() => {});
   await page.getByText('Indicator', { exact: true }).first().click({ timeout: 5000 }).catch(() => log('no Indicator button')); await page.waitForTimeout(2000);
-  log('IND menu', ((await page.locator('[data-testid="ppfx-indicator-menu"]').innerText().catch(() => '')) || '').replace(/\s+/g, ' ').slice(0, 260));
+  log('IND search box', await page.locator('[data-testid="lib-indicator-search"]').count());
+  await page.locator('[data-testid="lib-indicator-search"]').fill('rsi').catch(() => {}); await page.waitForTimeout(500);
+  log('IND visible rows after rsi', await page.evaluate(() => [...document.querySelectorAll('.klinecharts-pro-indicator-modal-list .row')].filter((r) => r.offsetParent && !r.classList.contains('title')).map((r) => r.textContent.trim()).join(' | ')));
   await page.screenshot({ path: 'shots/desk-indicators.png' });
   await ctx.close();
 }
