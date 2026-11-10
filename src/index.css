@@ -50,6 +50,10 @@ html:not([data-display-resolution]) {
 }
 
 body {
+  /* iPhone (installed app, notch / Dynamic Island): keep the page out from under the status bar. */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;

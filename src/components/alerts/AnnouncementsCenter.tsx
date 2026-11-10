@@ -166,7 +166,7 @@ export const AnnouncementsCenter: React.FC = () => {
       </button>
 
       {open && (
-        <div className="fixed top-14 right-3 z-[85] w-[min(420px,calc(100vw-1.5rem))] max-h-[min(78vh,680px)] flex flex-col rounded-2xl border border-violet-500/30 bg-[#080c16]/98 backdrop-blur-xl shadow-[0_25px_80px_-20px_rgba(139,92,246,0.45)]">
+        <div className="fixed top-[calc(env(safe-area-inset-top,0px)+3.5rem)] right-3 z-[85] w-[min(420px,calc(100vw-1.5rem))] max-h-[min(calc(100dvh-env(safe-area-inset-top,0px)-9rem),680px)] flex flex-col rounded-2xl border border-violet-500/30 bg-[#080c16]/98 backdrop-blur-xl shadow-[0_25px_80px_-20px_rgba(139,92,246,0.45)]">
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-slate-800">
             <Megaphone className="w-4 h-4 text-violet-300" />
             <span className="text-[13px] font-bold text-slate-50">Announcements</span>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import {
+import { LogOut,
   Activity,
   BookOpen,
   Brain,
@@ -46,6 +46,7 @@ interface MobileBottomNavProps {
   onOpenBackupModal?: () => void;
   onOpenAllCategories?: () => void;
   isDemoMode?: boolean;
+  onLogout?: () => void;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -57,6 +58,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onOpenBackupModal,
   onOpenAllCategories,
   isDemoMode,
+  onLogout,
 }) => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -246,7 +248,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           {/* Backdrop dismiss */}
           <div className="flex-1" onClick={() => setIsMoreOpen(false)} />
 
-          <div className="bg-[#0B0F19] border-t border-slate-800 rounded-t-3xl max-h-[85vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">
+          <div className="bg-[#0B0F19] border-t border-slate-800 rounded-t-3xl max-h-[calc(85vh-env(safe-area-inset-top,0px))] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">
             {/* Sheet Handle */}
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-12 h-1.5 bg-slate-700 rounded-full" />
@@ -274,6 +276,17 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Account — signed in as … / Log Out (always reachable on phones) */}
+            {currentUser && onLogout && (
+              <div className="px-5 pt-3 flex items-center gap-2" data-testid="more-account">
+                <div className="flex-1 min-w-0 text-[11px] font-mono-code text-slate-400 truncate">Signed in as <b className="text-slate-100">{currentUser.username}</b></div>
+                <button type="button" data-testid="mobile-logout" onClick={() => { setIsMoreOpen(false); onLogout(); }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-500/50 bg-rose-500/10 text-rose-200 text-[12px] font-bold cursor-pointer hover:bg-rose-500/20">
+                  <LogOut className="w-3.5 h-3.5" />Log Out
+                </button>
+              </div>
+            )}
 
             {/* Search Input */}
             <div className="px-5 pt-3 pb-2">

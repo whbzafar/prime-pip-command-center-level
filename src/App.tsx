@@ -1149,6 +1149,22 @@ export default function App() {
     );
   }
 
+  const handleLogout = () => {
+          logoutUser();
+          try {
+            localStorage.removeItem('primepipfx_demo_mode');
+            localStorage.removeItem('primepipfx_session_token');
+            localStorage.removeItem('primepipfx_user_profile');
+          } catch {}
+          setCurrentUser(null);
+          setIsDemoMode(false);
+          setActiveAccount(null);
+          setAccounts([]);
+          setTrades([]);
+          setRules([]);
+          setGoals([]);
+        };
+
   return (
     <div className="prime-command-shell w-full max-w-full min-h-screen text-slate-100 flex flex-col selection:bg-blue-500/30 selection:text-cyan-200 relative overflow-x-clip">
       <CommunicationNotifications currentUser={currentUser} onOpenCommunication={() => setActiveTab('COMMUNITY')} />
@@ -1181,21 +1197,7 @@ export default function App() {
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         currentUser={currentUser}
         onOpenLogin={() => setIsLoginModalOpen(true)}
-        onLogout={() => {
-          logoutUser();
-          try {
-            localStorage.removeItem('primepipfx_demo_mode');
-            localStorage.removeItem('primepipfx_session_token');
-            localStorage.removeItem('primepipfx_user_profile');
-          } catch {}
-          setCurrentUser(null);
-          setIsDemoMode(false);
-          setActiveAccount(null);
-          setAccounts([]);
-          setTrades([]);
-          setRules([]);
-          setGoals([]);
-        }}
+        onLogout={handleLogout}
         onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
         onOpenAdmin={() => {
           if (currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' || currentUser?.isDeveloper) {
@@ -1685,6 +1687,7 @@ export default function App() {
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         onOpenAllCategories={() => setIsAllCategoriesOpen(true)}
         isDemoMode={isDemoMode}
+        onLogout={currentUser ? handleLogout : undefined}
       />
 
       {/* All 21 Categories Directory Modal */}

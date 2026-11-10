@@ -124,7 +124,7 @@ export const CommunicationNotifications: React.FC<CommunicationNotificationsProp
 
   return (
     <>
-      <div className="ppfx-global-float fixed top-3 right-3 z-[80] flex items-center gap-1.5">
+      <div className="ppfx-global-float fixed top-[calc(env(safe-area-inset-top,0px)+0.75rem)] right-[calc(env(safe-area-inset-right,0px)+0.75rem)] z-[80] flex items-center gap-1.5">
         <AnnouncementsCenter />
         <button type="button" onClick={() => updateSettings(!muted, soundEnabled)} title={muted ? 'Unmute notifications' : 'Mute notifications'} className="relative p-2 rounded-xl bg-slate-950/95 border border-slate-700 text-slate-300 shadow-xl">
           {muted ? <BellOff className="w-4 h-4 text-rose-300" /> : <Bell className="w-4 h-4 text-cyan-300" />}
@@ -136,7 +136,7 @@ export const CommunicationNotifications: React.FC<CommunicationNotificationsProp
       </div>
 
       {toast && (
-        <div className="fixed top-14 right-3 z-[81] w-[min(360px,calc(100vw-1.5rem))] rounded-2xl bg-slate-950 border border-cyan-500/30 shadow-2xl p-3">
+        <div className="fixed top-[calc(env(safe-area-inset-top,0px)+3.5rem)] right-3 z-[81] w-[min(360px,calc(100vw-1.5rem))] rounded-2xl bg-slate-950 border border-cyan-500/30 shadow-2xl p-3">
           <div className="flex items-start gap-2">
             <div className="p-2 rounded-xl bg-blue-500/10 text-cyan-300">{iconFor(toast.type)}</div>
             <button type="button" onClick={() => setToast(null)} className="ml-auto text-slate-500 hover:text-slate-200"><X className="w-4 h-4" /></button>
