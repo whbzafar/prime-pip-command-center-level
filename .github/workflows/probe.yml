@@ -20,7 +20,6 @@ jobs:
           (cd app && PORT=3000 node dist/server.cjs > /tmp/server.log 2>&1 &)
           sleep 5; (cd app2 && PORT=3001 node dist/server.cjs > /tmp/server2.log 2>&1 &); sleep 14
           true
-          grep -c PUT /tmp/kv.log; grep PUT /tmp/kv.log | tail -4 | cut -c1-120
       - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && (timeout 900 node e2e.mjs || true); tail -5 /tmp/server.log
       - if: always()
         run: |
