@@ -3415,6 +3415,13 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           : undefined
       }
     >
+      {/* Always-visible way out of full screen (phones have no Esc key) */}
+      {isFullscreen && (
+        <button type="button" onClick={toggleFullscreen} data-testid="exit-fullscreen" aria-label="Exit full screen"
+          className="fixed z-[100000000] right-2 bottom-[calc(env(safe-area-inset-bottom,0px)+3.75rem)] inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-slate-600 text-[11px] font-bold text-slate-100 shadow-lg backdrop-blur cursor-pointer">
+          <Minimize2 className="w-3.5 h-3.5" />Exit
+        </button>
+      )}
       {/* Full-screen header for the TradingView feed (the Pro chart's own top bar is the header there) */}
       {isFullscreen && !pineOnChart && (
         <div className="h-12 px-3 bg-[#0B0F19] border-b border-slate-800 flex items-center justify-between shrink-0 select-none z-50 gap-2">

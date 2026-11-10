@@ -38,9 +38,9 @@ export const TradingViewVerticalToolbar: React.FC<TradingViewVerticalToolbarProp
   ];
 
   return (
-    <div className="w-11 bg-[#0B0F19] border-l border-slate-800/80 flex flex-col items-center justify-between py-2 z-20 shrink-0 select-none">
+    <div className="w-full h-11 lg:h-auto lg:w-11 bg-[#0B0F19] border-t lg:border-t-0 lg:border-l border-slate-800/80 flex flex-row lg:flex-col items-center justify-between px-2 lg:px-0 py-0 lg:py-2 z-20 shrink-0 select-none overflow-x-auto" data-testid="tv-side-toolbar">
       {/* Top Dock Tools */}
-      <div className="flex flex-col items-center gap-1.5 w-full">
+      <div className="flex flex-row lg:flex-col items-center gap-1.5 lg:w-full">
         {tools.map((tool) => {
           const Icon = tool.icon;
           const isActive = activeTool === tool.id;
@@ -68,7 +68,7 @@ export const TradingViewVerticalToolbar: React.FC<TradingViewVerticalToolbarProp
       </div>
 
       {/* Bottom Settings Button */}
-      <div className="flex flex-col items-center gap-1.5 w-full">
+      <div className="flex flex-row lg:flex-col items-center gap-1.5 lg:w-full">
         <button
           type="button"
           onClick={onOpenSettings}

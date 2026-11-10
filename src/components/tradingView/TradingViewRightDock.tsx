@@ -201,7 +201,7 @@ export const TradingViewRightDock: React.FC<TradingViewRightDockProps> = ({
   if (!activeTool) return null;
 
   return (
-    <div className="w-full lg:w-84 xl:w-96 bg-[#0B0F19] border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col z-30 shrink-0 h-80 lg:h-full animate-in slide-in-from-right duration-200 select-none font-sans">
+    <div className="w-full lg:w-84 xl:w-96 bg-[#0B0F19] border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col z-30 shrink-0 h-[45vh] max-h-80 lg:max-h-none lg:h-full animate-in slide-in-from-right duration-200 select-none font-sans">
       {/* Dock Header */}
       <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/90 shrink-0">
         <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
