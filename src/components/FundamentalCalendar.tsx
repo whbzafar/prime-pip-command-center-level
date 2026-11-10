@@ -970,7 +970,7 @@ export const FundamentalCalendar: React.FC = () => {
                     Time (PKT)
                   </th>
                   <th className="py-2 px-1 sm:px-1.5 w-[52px] sm:w-[58px] text-center border-r border-slate-800/80">
-                    Currency
+                    <span className="sm:hidden">Cur.</span><span className="hidden sm:inline">Currency</span>
                   </th>
                   <th className="hidden sm:table-cell py-2 px-1.5 w-[54px] text-center border-r border-slate-800/80">
                     Impact
