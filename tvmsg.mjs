@@ -1,26 +1,24 @@
 import { chromium } from 'playwright';
-import http from 'http';
-const html = `<!doctype html><html><body style="margin:0;background:#000"><div style="width:1200px;height:700px"><iframe id="f" style="width:100%;height:100%;border:0" src="https://s.tradingview.com/widgetembed/?symbol=FX%3AEURUSD&interval=60&theme=dark&style=1&locale=en&hide_top_toolbar=false&allow_symbol_change=true&withdateranges=true"></iframe></div>
-<script>window.__msgs=[];addEventListener('message',e=>{let d=e.data;try{if(typeof d==='string')d=JSON.parse(d)}catch{};window.__msgs.push({o:e.origin,d:JSON.stringify(d).slice(0,400)})});</script></body></html>`;
-http.createServer((q, r) => { r.setHeader('content-type', 'text/html'); r.end(html); }).listen(8811);
-const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1300, height: 800 } });
 import fs from 'fs'; fs.mkdirSync('shots', { recursive: true });
-await p.goto('http://localhost:8811'); await p.waitForTimeout(12000);
-const dump = async (tag) => { const m = await p.evaluate(() => { const x = window.__msgs; window.__msgs = []; return x; }); console.log('MSG', tag, m.length); for (const x of m) console.log('   ', x.o, x.d); };
-await dump('load');
-const f = p.frames().find((x) => /widgetembed/.test(x.url()));
-console.log('FRAME', f?.url().slice(0, 80));
-const t = await f.locator('body').innerText().catch(() => ''); console.log('TOOLBAR', t.replace(/\s+/g, ' ').slice(0, 200));
-for (const label of ['1m', '5m', '30m', '1D', '4h']) {
-  let ok = await f.getByRole('radio', { name: new RegExp('^' + label.replace('m', ' ?min').replace('h', ' ?hour').replace('D', ' ?day') + '|^' + label + '$', 'i') }).first().click({ timeout: 2500 }).then(() => true).catch(() => false);
-  if (!ok) ok = await f.getByText(label, { exact: true }).first().click({ timeout: 2500 }).then(() => true).catch(() => false);
-  if (!ok) { await f.locator('[data-name="date-ranges-menu"], #header-toolbar-intervals button').first().click({ timeout: 2000 }).catch(() => {}); await p.waitForTimeout(800); ok = await f.getByText(new RegExp('^' + label + '$')).first().click({ timeout: 2500 }).then(() => true).catch(() => false); }
-  await p.waitForTimeout(3500);
-  const btns = await f.locator('#header-toolbar-intervals').innerText().catch(() => '?');
-  console.log('CLICK', label, ok, '| interval bar now:', btns.replace(/\s+/g, ' ').slice(0, 60), '| iframe url', f.url().match(/interval=[^&]*/)?.[0]);
-  await dump(label);
+const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1300, height: 800 } });
+const base = 'https://s.tradingview.com/widgetembed/?symbol=FX%3AEURUSD&interval=1&theme=dark&style=1&locale=en&hide_top_toolbar=false&allow_symbol_change=true&timezone=Asia%2FKarachi';
+const variants = {
+  plain: '',
+  df_json: '&disabled_features=' + encodeURIComponent(JSON.stringify(['header_resolutions', 'show_interval_dialog_on_key_press', 'timeframes_toolbar'])),
+  df_json_ranges: '&withdateranges=true&disabled_features=' + encodeURIComponent(JSON.stringify(['header_resolutions', 'timeframes_toolbar'])),
+  df_csv: '&disabled_features=header_resolutions,timeframes_toolbar',
+};
+for (const [k, v] of Object.entries(variants)) {
+  await p.setContent(`<body style="margin:0"><iframe id="f" style="width:1200px;height:700px;border:0" src="${base + v}"></iframe></body>`);
+  await p.waitForTimeout(11000);
+  const f = p.frames().find((x) => /widgetembed/.test(x.url()));
+  const t = (await f.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ');
+  console.log('VAR', k, '| intervals btns:', await f.locator('#header-toolbar-intervals').count(), '|', t.slice(0, 160));
+  // keyboard interval change
+  await f.locator('canvas').first().click({ position: { x: 300, y: 300 } }).catch(() => {});
+  await p.keyboard.type('5'); await p.waitForTimeout(700); await p.keyboard.press('Enter'); await p.waitForTimeout(2500);
+  const t2 = (await f.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ');
+  console.log('    after typing 5:', (t2.match(/Dollar · ?\S+|Dollar \S+ \S+/) || [''])[0], '| legend', t2.slice(t2.indexOf('Euro'), t2.indexOf('Euro') + 40));
+  await p.screenshot({ path: `shots/tv-${k}.png` });
 }
-// does the frame expose anything via URL hash / title?
-console.log('TITLE', await f.title().catch(() => ''));
-await p.screenshot({ path: process.cwd() + '/shots/tvmsg.png' });
 process.exit(0);
