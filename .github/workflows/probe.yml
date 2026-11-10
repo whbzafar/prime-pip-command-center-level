@@ -3,25 +3,9 @@ on: { push: { branches: [ci/macro-live-probe] } }
 jobs:
   p:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
-    permissions: { contents: write }
-    env: { PRIMEPIPFX_SESSION_SECRET: ci-only-secret-0123456789, PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD: ci-admin-pass-123456, PPFX_SHARED_KV_URL: 'http://localhost:8798/b' }
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with: { ref: feature/fundamental-analysis-engine, path: app }
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - run: cd app && npm ci --no-audit --no-fund >/dev/null 2>&1 && npm run build >/dev/null 2>&1 && ls dist | head -3
-      - run: |
-          (node fakekv.mjs > /tmp/kv.log 2>&1 &)
-          sleep 1
-          rm -rf app2 && mkdir app2 && cp -r app/data app2/data && ln -s $PWD/app/node_modules app2/node_modules && cp -r app/dist app2/dist && cp app/package.json app2/
-          (cd app && PORT=3000 node dist/server.cjs > /tmp/server.log 2>&1 &)
-          true
-          true
-      - run: npm i -s playwright@1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1 && mkdir -p shots && (timeout 900 node e2e.mjs || true); tail -5 /tmp/server.log
-      - if: always()
-        run: |
-          git config user.name ci; git config user.email ci@example.com
-          git checkout -B probe-shots && git add -f shots && git commit -qm shots && git push -qf origin probe-shots
+      - run: node prodcheck.mjs
