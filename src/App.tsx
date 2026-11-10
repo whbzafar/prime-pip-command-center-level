@@ -93,6 +93,9 @@ import { TabErrorBoundary } from './components/common/TabErrorBoundary';
 export default function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<MainNavTab>('DASHBOARD');
+  // Health + usage signals (errors on screen, which sections are opened). Declared up here: hooks must run before any early return.
+  useEffect(() => { startInsights(); }, []);
+  useEffect(() => { trackSection(String(activeTab)); }, [activeTab]);
 
   // Demo Mode State with persistence to prevent repeated login prompts
   const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
@@ -1151,8 +1154,6 @@ export default function App() {
     );
   }
 
-  useEffect(() => { startInsights(); }, []);
-  useEffect(() => { trackSection(String(activeTab)); }, [activeTab]);
   const handleLogout = () => {
           logoutUser();
           try {
