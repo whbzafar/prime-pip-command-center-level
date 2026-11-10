@@ -33,7 +33,9 @@ export const DailyPrayerBar: React.FC = () => {
   const [prayerRecord, setPrayerRecord] = useState<DailyPrayerRecord>(() => getTodayPrayerRecord());
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
-    return localStorage.getItem('primepipfx_prayer_collapsed') === 'true';
+    const saved = localStorage.getItem('primepipfx_prayer_collapsed');
+    // Phones start with the bar folded (one tap opens it) so the page content is not pushed down.
+    return saved === null ? window.innerWidth < 768 : saved === 'true';
   });
   const [activeAlert, setActiveAlert] = useState<{
     prayerName: string;
