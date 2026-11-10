@@ -20,7 +20,7 @@ await page.addInitScript((u) => { try { localStorage.setItem('primepipfx_user_pr
 await page.goto(B, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(9000);
 const txt = async () => (await page.locator('body').innerText()).replace(/\s+/g, ' ');
 const shot = (n) => page.screenshot({ path: `shots/${n}.png` });
-const enter = async () => { await page.getByText('Start Practice').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(800); await page.getByText('Create Demo Account').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(3000); for (const b of ['Maybe later', 'Start exploring', 'Got it']) await page.getByRole('button', { name: b }).first().click({ timeout: 1000 }).catch(() => {}); };
+const enter = async () => { await page.getByText('Start Practice').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(800); await page.getByText('Create Demo Account').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(3000); for (let k = 0; k < 2; k++) { await page.getByText(/ENTER\s*COMMAND\s*CENTER/i).first().click({ timeout: 2500 }).catch(() => {}); for (const b of ['Maybe later', 'Start exploring', 'Got it']) await page.getByRole('button', { name: b }).first().click({ timeout: 800 }).catch(() => {}); await page.waitForTimeout(1200); } };
 await enter();
 const rk = await page.evaluate(() => fetch('/api/macro/rankings').then((r) => r.json()).then((j) => ({ bull: j.data.longTerm.bullish.slice(0, 6).map((p) => p.symbol), bear: j.data.longTerm.bearish.slice(0, 6).map((p) => p.symbol) })).catch((e) => String(e)));
 console.log('RANKINGS', JSON.stringify(rk));
@@ -37,7 +37,7 @@ await shot('02-announcements');
 await page.locator('[aria-label="Close"]').first().click().catch(() => {});
 // second cycle must not alert again
 const before = st.log.length;
-await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(8000); await enter(); await page.waitForTimeout(25000);
+await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(8000); await enter(); await page.waitForTimeout(20000);
 const after = await page.evaluate(() => JSON.parse(localStorage.getItem('ppfx_level_alerts_log_v1') || '[]').length);
 console.log('DEDUPE after reload: alerts', before, '→', after);
 for (const b of ['Maybe later', 'Start exploring', 'Got it']) await page.getByRole('button', { name: b }).first().click({ timeout: 1000 }).catch(() => {});
