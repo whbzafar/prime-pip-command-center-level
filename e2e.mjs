@@ -23,8 +23,17 @@ for (const [name, opt] of [['desktop', { viewport: { width: 1600, height: 1000 }
   const hero = page.locator('[data-testid="login-hero"] img');
   const ok = await hero.evaluate((i) => i.complete && i.naturalWidth > 0).catch(() => false);
   console.log('LOGIN', name, 'hero present', await hero.count(), 'image loaded', ok, 'scrollWidth', await page.evaluate(() => document.documentElement.scrollWidth), 'of', await page.evaluate(() => document.documentElement.clientWidth));
-  await hero.scrollIntoViewIfNeeded().catch(() => {}); await page.screenshot({ path: `shots/login-${name}.png` });
+  await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(500); await page.screenshot({ path: `shots/login-${name}.png` });
   await page.screenshot({ path: `shots/login-${name}-full.png`, fullPage: true });
+  await ctx.close();
+}
+{
+  const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  const page = await setup(ctx); await open(page);
+  await page.screenshot({ path: 'shots/d-home.png' });
+  await page.getByText('PREMIUM TRADINGVIEW').first().click().catch(() => {}); await page.waitForTimeout(12000);
+  await page.screenshot({ path: 'shots/d-premium.png' });
+  await page.locator('[aria-label="Announcements"]').first().click().catch(() => {}); await page.waitForTimeout(1500); await page.screenshot({ path: 'shots/d-announce.png' });
   await ctx.close();
 }
 // ───────── phone: calendar
