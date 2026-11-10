@@ -864,7 +864,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                     <input
                       type="text"
                       required
-                      autoFocus
+                      autoFocus={typeof window !== "undefined" && window.innerWidth >= 1024 && window.innerHeight >= 860}
                       autoComplete="off"
                       autoCorrect="off"
                       spellCheck={false}
