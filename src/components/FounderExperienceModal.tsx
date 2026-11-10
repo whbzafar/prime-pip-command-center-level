@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { WinterNightIntro } from './login/WinterNightIntro';
 import {
   Play,
   Pause,
@@ -471,6 +472,7 @@ export const FounderExperienceModal: React.FC<FounderExperienceModalProps> = ({
 
             {/* Main Content Area */}
             <div className="relative z-10 flex-1 max-w-5xl mx-auto w-full px-3 sm:px-8 py-6 sm:py-12 space-y-12 sm:space-y-16">
+              <WinterNightIntro onContinue={() => document.getElementById('section-intro')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
               {/* ======================================================== */}
               {/* SECTION A: FOUNDER INTRODUCTION (TOP)                    */}
               {/* ======================================================== */}

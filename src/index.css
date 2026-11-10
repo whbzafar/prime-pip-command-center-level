@@ -2703,3 +2703,36 @@ html[data-theme='liquid-glass-ui-kit'] #app-perimeter-animated-frame {
 html[data-theme] :is([class*="bg-slate-9"], .prime-card, .prime-card-elevated).absolute:not([class*=":relative"]):not([class*=":static"]) { position: absolute; }
 html[data-theme] :is([class*="bg-slate-9"], .prime-card, .prime-card-elevated).fixed:not([class*=":relative"]):not([class*=":static"]) { position: fixed; }
 html[data-theme] :is([class*="bg-slate-9"], .prime-card, .prime-card-elevated).sticky:not([class*=":relative"]):not([class*=":static"]) { position: sticky; }
+
+/* ── Sign-in hero motion ("You can do it") ── */
+@keyframes ppfx-rays { 0% { transform: rotate(-3deg); opacity: .55 } 50% { transform: rotate(3deg); opacity: 1 } 100% { transform: rotate(-3deg); opacity: .55 } }
+@keyframes ppfx-flare { 0%,100% { opacity: .75; transform: scale(1) } 50% { opacity: 1; transform: scale(1.06) } }
+@keyframes ppfx-soul { 0% { opacity: 0; transform: translateY(0) scale(1); filter: brightness(2.2) saturate(.4) blur(.5px) sepia(.6) } 18% { opacity: .85 } 70% { opacity: .35; filter: brightness(3.2) saturate(.2) blur(2.5px) sepia(.8) } 100% { opacity: 0; transform: translateY(-34%) scale(1.18); filter: brightness(3.6) blur(6px) sepia(1) } }
+@keyframes ppfx-aura { 0%,100% { opacity: .55 } 50% { opacity: 1 } }
+.ppfx-rays { animation: ppfx-rays 14s ease-in-out infinite; }
+.ppfx-flare { animation: ppfx-flare 5s ease-in-out infinite; transform-origin: 97% 44%; }
+.ppfx-soul { animation: ppfx-soul 5.2s cubic-bezier(.25,.6,.3,1) infinite; opacity: 0; }
+.ppfx-aura { animation: ppfx-aura 5.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .ppfx-rays, .ppfx-flare, .ppfx-soul, .ppfx-aura { animation: none; } .ppfx-soul { display: none; } }
+
+/* ── Who is Wahab: winter night ── */
+@keyframes ppfx-walk { 0% { transform: translateX(-60px) } 100% { transform: translateX(140px) } }
+@keyframes ppfx-step { 0%,100% { transform: rotate(0deg) } 50% { transform: rotate(10deg) } }
+@keyframes ppfx-lamp { 0%,100% { opacity: .75 } 40% { opacity: 1 } 60% { opacity: .82 } }
+@keyframes ppfx-cloud { 0% { transform: translateX(0) } 100% { transform: translateX(-60px) } }
+@keyframes ppfx-moon { 0%,100% { opacity: .6 } 50% { opacity: .78 } }
+.ppfx-walker { animation: ppfx-walk 38s linear infinite alternate; }
+.ppfx-step-a { transform-box: fill-box; transform-origin: top; animation: ppfx-step 1.4s ease-in-out infinite; }
+.ppfx-step-b { transform-box: fill-box; transform-origin: top; animation: ppfx-step 1.4s ease-in-out infinite reverse; }
+.ppfx-lamp { animation: ppfx-lamp 2.6s ease-in-out infinite; }
+.ppfx-cloud { animation: ppfx-cloud 24s ease-in-out infinite alternate; }
+.ppfx-moon { animation: ppfx-moon 7s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .ppfx-walker, .ppfx-step-a, .ppfx-step-b, .ppfx-lamp, .ppfx-cloud, .ppfx-moon { animation: none; } }
+
+@keyframes ppfx-mini-snow { from { background-position: 0 0, 0 0, 0 0 } to { background-position: 30px 220px, -20px 160px, 10px 110px } }
+.ppfx-mini-snow {
+  background-image: radial-gradient(1.6px 1.6px at 20px 30px, #e6eeff 50%, transparent 52%), radial-gradient(1.1px 1.1px at 60px 80px, #dfe8ff 50%, transparent 52%), radial-gradient(0.8px 0.8px at 110px 40px, #cfdcf7 50%, transparent 52%);
+  background-size: 140px 110px, 90px 80px, 70px 55px;
+  animation: ppfx-mini-snow 9s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .ppfx-mini-snow { animation: none; } }

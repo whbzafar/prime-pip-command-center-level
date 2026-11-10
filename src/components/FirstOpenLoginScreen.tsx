@@ -32,6 +32,7 @@ import {
 import { SbtBotShowcaseModal } from './sbt/SbtBotShowcaseModal';
 import { ExploreLockedModal } from './subscription/ExploreLockedModal';
 import { FounderExperienceModal } from './FounderExperienceModal';
+import { HeroMotion } from './login/HeroMotion';
 import {
   apiLogin,
   apiRegister,
@@ -709,6 +710,8 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                 <img src="/assets/you-can-do-it-1280.jpg" alt="You can do it" width={1280} height={716} decoding="async" fetchPriority="high"
                   className="block w-full aspect-[16/9] object-cover ppfx-hero-drift" />
               </picture>
+              {/* motion: sun rays, flare, the rising soul, golden motes */}
+              <HeroMotion src="/assets/you-can-do-it-1280.jpg" />
               {/* light sweep + fade into the card */}
               <div className="absolute inset-0 pointer-events-none ppfx-hero-sheen" />
               <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-[#070a12] via-[#070a12]/70 to-transparent pointer-events-none" />
@@ -744,7 +747,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                 setIsFounderModalOpen(true);
                 setIsFounderModalMinimized(false);
               }}
-              className="mb-3.5 p-[1.5px] rounded-2xl bg-gradient-to-r from-cyan-400 via-violet-500 to-fuchsia-500 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-400/40 hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 cursor-pointer group relative overflow-hidden"
+              className="mb-3.5 p-[1.5px] rounded-2xl bg-gradient-to-r from-sky-300/70 via-slate-500/40 to-amber-300/80 shadow-lg shadow-sky-500/20 hover:shadow-amber-300/40 hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 cursor-pointer group relative overflow-hidden"
               title="Click to discover the visionary journey of Wahab Zafar, Founder of Prime Pip FX"
               role="button"
               tabIndex={0}
@@ -756,40 +759,24 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                 }
               }}
             >
-              {/* Ambient animated light sweep shimmer effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
-
-              <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl bg-slate-950/90 border border-cyan-500/30 backdrop-blur-md group-hover:bg-slate-900/90 group-hover:border-cyan-400/60 transition-all duration-300">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="relative">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 via-indigo-500 to-violet-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/30 group-hover:shadow-cyan-400/50 group-hover:scale-105 transition-all duration-300">
-                      <Sparkles className="w-4 h-4 text-cyan-100 animate-pulse" />
-                    </div>
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 border border-slate-950 animate-ping" />
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 border border-slate-950" />
-                  </div>
-                  <div className="flex flex-col text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-military font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-violet-200 to-white uppercase">
-                        WHO IS WAHAB?
-                      </span>
-                      <span className="text-[9px] font-mono-code font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 shadow-sm shadow-cyan-500/20">
-                        FOUNDER OF THE SBT INDICATOR
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-mono-code text-slate-400 group-hover:text-slate-300 transition">
-                      The Man Behind Prime Pip FX & The 1st Iteration of the Bot
-                    </span>
-                  </div>
+              <div className="relative overflow-hidden rounded-2xl bg-[radial-gradient(ellipse_at_80%_0%,#1d2c4f_0%,#0a1122_55%,#05080f_100%)] px-4 py-3.5 min-h-[92px]" data-testid="wahab-teaser">
+                {/* snow */}
+                <div className="absolute inset-0 ppfx-mini-snow opacity-80 pointer-events-none" aria-hidden="true" />
+                {/* lantern glow + lone figure */}
+                <div className="absolute right-3 bottom-0 w-24 h-full pointer-events-none" aria-hidden="true">
+                  <div className="absolute right-4 bottom-4 w-16 h-16 rounded-full bg-[radial-gradient(circle,rgba(255,214,130,0.85)_0%,rgba(255,170,60,0.25)_40%,transparent_70%)] ppfx-lamp" />
+                  <svg viewBox="0 0 40 60" className="absolute right-9 bottom-1 w-6 h-9" fill="#02040a"><circle cx="16" cy="9" r="4.5" /><path d="M11 15 q5-3 10 0 l3 22 q-8 2-16 0z" /><path d="M21 18 l9 5 -1 2 -9-4z" /><path d="M12 36 l-3 18 3 .5 5-17z" /><path d="M19 36 l5 18 -3 .5 -5-17z" /><rect x="28" y="22" width="4" height="6" rx="1" fill="#ffcf73" /></svg>
+                  <div className="absolute inset-x-0 bottom-0 h-3 bg-gradient-to-t from-slate-200/30 to-transparent" />
                 </div>
-
-                <div className="flex items-center gap-2 pl-2 shrink-0">
-                  <span className="text-[11px] font-military font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-violet-400 uppercase group-hover:brightness-125 transition">
-                    SURPRISE
-                  </span>
-                  <div className="w-6 h-6 rounded-full bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center text-cyan-300 group-hover:bg-cyan-400 group-hover:text-slate-950 group-hover:translate-x-1 transition-all duration-300 shadow-sm shadow-cyan-500/20">
-                    <ArrowRight className="w-3.5 h-3.5" />
+                <div className="relative pr-24">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[16px] sm:text-[18px] font-display font-extrabold tracking-wide text-white drop-shadow-[0_0_12px_rgba(160,190,255,0.5)]">Who is Wahab?</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-ping" />
                   </div>
+                  <p className="mt-0.5 text-[11.5px] leading-snug text-sky-100/80 italic">One winter night. One faint light. One goal the world called impossible.</p>
+                  <span className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase text-amber-200 group-hover:text-amber-100">
+                    Discover his story <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+                  </span>
                 </div>
               </div>
             </div>

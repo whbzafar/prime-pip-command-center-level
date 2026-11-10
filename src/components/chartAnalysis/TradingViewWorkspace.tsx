@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Columns2, Expand, Grid2x2, Layers3, LayoutGrid, Link2, Link2Off, Maximize2, Minimize2, Rows2, Shrink, Square } from 'lucide-react';
+import { Search, X as XIcon, Columns2, Expand, Grid2x2, Layers3, LayoutGrid, Link2, Link2Off, Maximize2, Minimize2, Rows2, Shrink, Square } from 'lucide-react';
 import { ProChartPane, type ProPaneState } from './ProChartPane';
 import { CATALOG, PRO_PERIODS, type FeedStatus } from './fullHistoryDatafeed';
 
@@ -27,6 +27,52 @@ const QUICK: Array<{ group: string; tickers: string[] }> = [
   { group: 'Crypto', tickers: ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'SOLUSDT', 'BNBUSDT', 'DOGEUSDT'] },
   { group: 'Stocks', tickers: ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'META', 'JPM'] },
 ];
+
+
+/** Instruments: one search box + one category at a time (instead of every chip at once). */
+const InstrumentPicker: React.FC<{ active: string; paneNo: number; onPick: (t: string) => void }> = ({ active, paneNo, onPick }) => {
+  const [q, setQ] = useState('');
+  const [group, setGroup] = useState<string>(() => QUICK.find((g) => g.tickers.includes(active))?.group || 'Forex');
+  const term = q.trim().toUpperCase().replace(/[^A-Z0-9 ]/g, '');
+  const list: string[] = term
+    ? CATALOG.filter((c) => c.ticker.includes(term.replace(/ /g, '')) || c.name.toUpperCase().includes(term)).map((c) => c.ticker).slice(0, 40)
+    : (QUICK.find((g) => g.group === group)?.tickers || []);
+  return (
+    <div className="space-y-2" data-testid="instrument-picker">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="relative flex-1 min-w-[180px] max-w-sm">
+          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search instrument — e.g. gold, GBPJPY, Nasdaq" aria-label="Search instruments" data-testid="instrument-search"
+            className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-slate-950 border border-slate-700 focus:border-cyan-400 outline-none text-[12px] text-slate-100 placeholder:text-slate-500" />
+          {q && <button type="button" onClick={() => setQ('')} aria-label="Clear search" className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-500 hover:text-white cursor-pointer"><XIcon className="w-3.5 h-3.5" /></button>}
+        </label>
+        {!term && (
+          <div className="flex flex-wrap gap-1" role="tablist" aria-label="Instrument category">
+            {QUICK.map((g) => (
+              <button key={g.group} type="button" role="tab" aria-selected={g.group === group} onClick={() => setGroup(g.group)}
+                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition ${g.group === group ? 'border-cyan-400/70 bg-cyan-500/15 text-cyan-100' : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:text-white hover:border-slate-600'}`}>
+                {g.group} <span className="text-slate-500 font-normal">{g.tickers.length}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <span className="text-[10px] text-slate-500">→ chart {paneNo}</span>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {list.map((t) => {
+          const c = CATALOG.find((x) => x.ticker === t);
+          return (
+            <button key={t} type="button" title={`${c?.name || t} → chart ${paneNo}`} onClick={() => onPick(t)}
+              className={`px-2 py-1 rounded-md border text-[11px] cursor-pointer transition ${active === t ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-100' : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-600'}`}>
+              <b className="font-mono-code">{t}</b>{term && c ? <span className="ml-1 text-slate-500">{c.name}</span> : null}
+            </button>
+          );
+        })}
+        {term && !list.length && <span className="text-[11px] text-slate-500">No instrument matches “{q}”.</span>}
+      </div>
+    </div>
+  );
+};
 
 interface WorkspaceState { layout: LayoutId; panes: ProPaneState[]; syncSymbol: boolean; syncInterval: boolean; height: number }
 const STORAGE_KEY = 'ppfx.unlimitedCharts.pro.v2';
@@ -171,23 +217,7 @@ export const TradingViewWorkspace: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-        {QUICK.map((g) => (
-          <div key={g.group} className="flex items-center gap-1 flex-wrap">
-            <span className="text-[9.5px] font-mono-code uppercase text-slate-500 mr-0.5">{g.group}</span>
-            {g.tickers.map((t) => {
-              const c = CATALOG.find((x) => x.ticker === t);
-              return (
-                <button key={t} type="button" title={`${c?.name || t} → chart ${active + 1}`}
-                  onClick={() => updatePane(active, { ...state.panes[active], ticker: t })}
-                  className={`px-2 py-0.5 rounded-md border text-[10.5px] cursor-pointer ${state.panes[active].ticker === t ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-100' : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-cyan-500/40'}`}>
-                  {t}
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
+      <InstrumentPicker active={state.panes[active].ticker} paneNo={active + 1} onPick={(t) => updatePane(active, { ...state.panes[active], ticker: t })} />
 
       <div className={`grid gap-2 ${gridClass}`} style={{ height }}>
         {visible.map((i) => {

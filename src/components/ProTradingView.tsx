@@ -4144,10 +4144,10 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 )}
 
           {/* Right Controls: Timeframe Quick Switcher + Tools */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap max-w-full min-w-0">
             {/* Timeframe: chosen in TradingView's own toolbar on the chart (single source, no duplicate). */}
             {/* Action Buttons: Camera, Settings, Share, Indicators, Fullscreen */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5 max-w-full" data-testid="premium-chart-toolbar">
               {/* CAMERA SNAPSHOT BUTTON */}
               <button
                 type="button"

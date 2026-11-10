@@ -358,11 +358,26 @@ export const PineMainChart: React.FC<{
 };
 
 // ───────────────────────────── indicator menu (replaces the chart's built-in picker)
+
+// Built-in studies sorted into the groups traders look for.
+const IND_CATS = ['Trend', 'Momentum', 'Volatility', 'Volume', 'Other'] as const;
+function indCategory(n: any): string {
+  const k = `${n?.type || ''} ${n?.title || ''}`.toUpperCase();
+  if (/VOL|OBV|VWAP|MFI|CMF|PVT|EMV|VR\b|AD\b|ACCUM|MONEY FLOW|CHAIKIN|NVI|PVI/.test(k)) return 'Volume';
+  if (/ATR|BOLL|BB\b|BANDS?|KELTNER|KC\b|DONCHIAN|DC\b|STD|DEVIATION|VOLATIL|ENVELOPE|CHANNEL/.test(k)) return 'Volatility';
+  if (/RSI|MACD|KDJ|STOCH|CCI|WR\b|WILLIAMS|MTM|MOMENTUM|ROC|TRIX|AO\b|AWESOME|BIAS|PSY|BRAR|CR\b|DMI|ADX|DPO|OSC|CMO|ULTIMATE|TSI|FISHER|RVI/.test(k)) return 'Momentum';
+  if (/MA\b|EMA|SMA|WMA|HMA|DEMA|TEMA|AVL|SAR|ICHIMOKU|SUPERTREND|AVERAGE|TREND|ZIGZAG|ALLIGATOR|BBI|PIVOT/.test(k)) return 'Trend';
+  return 'Other';
+}
+
 const IndicatorMenu: React.FC<{ lib: ReturnType<typeof pineLib.get>; natives: any[]; addNative: (t: string) => void; onClose: () => void }> = ({ lib, natives, addNative, onClose }) => {
   const [q, setQ] = useState('');
   const ql = q.trim().toLowerCase();
   const scripts = lib.scripts.filter((x) => !ql || x.name.toLowerCase().includes(ql));
-  const builtins = natives.filter((n) => n?.supported !== false && (!ql || String(n.title || n.type).toLowerCase().includes(ql)));
+  const [cat, setCat] = useState<string>('All');
+  const builtinsAll = natives.filter((n) => n?.supported !== false && (!ql || String(n.title || n.type).toLowerCase().includes(ql) || indCategory(n).toLowerCase().includes(ql)));
+  const builtins = builtinsAll.filter((n) => cat === 'All' || indCategory(n) === cat);
+  const cats = ['All', ...IND_CATS.filter((c) => builtinsAll.some((n) => indCategory(n) === c))];
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); onClose(); } }; window.addEventListener('keydown', k, true); return () => window.removeEventListener('keydown', k, true); }, [onClose]);
   return (
     <div className="absolute inset-0 z-[8] flex items-start justify-center pt-16 bg-black/30" onPointerDown={onClose} data-testid="ppfx-indicator-menu">
@@ -389,13 +404,33 @@ const IndicatorMenu: React.FC<{ lib: ReturnType<typeof pineLib.get>; natives: an
               </button>
             );
           })}
-          {builtins.length > 0 && <div className="px-4 pt-3 pb-1 text-[10.5px] uppercase tracking-wider text-cyan-300 font-bold">Built-in studies</div>}
-          {builtins.map((n) => (
+          {builtinsAll.length > 0 && <div className="px-4 pt-3 pb-1 text-[10.5px] uppercase tracking-wider text-cyan-300 font-bold">Built-in studies</div>}
+          {builtinsAll.length > 0 && (
+            <div className="px-4 pb-1.5 flex flex-wrap gap-1" role="tablist" aria-label="Indicator category">
+              {cats.map((c) => (
+                <button key={c} type="button" role="tab" aria-selected={c === cat} onClick={() => setCat(c)}
+                  className={`px-2 py-0.5 rounded-md border text-[11px] font-semibold cursor-pointer ${c === cat ? 'border-[#2962FF] bg-[#2962FF]/20 text-white' : 'border-slate-700 text-slate-400 hover:text-white'}`}>
+                  {c}{c !== 'All' ? <span className="ml-1 text-slate-500">{builtinsAll.filter((n) => indCategory(n) === c).length}</span> : null}
+                </button>
+              ))}
+            </div>
+          )}
+          {(cat === 'All' ? IND_CATS : [cat]).map((c) => {
+            const group = builtins.filter((n) => indCategory(n) === c);
+            if (!group.length) return null;
+            return (
+              <React.Fragment key={c}>
+                {cat === 'All' && <div className="px-4 pt-2 pb-0.5 text-[10px] uppercase tracking-wider text-slate-500 font-bold">{c}</div>}
+                {group.map((n) => (
             <button key={n.type} type="button" onClick={() => { addNative(n.type); onClose(); }} className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-[#2a2e39] text-left cursor-pointer">
               <Plus className="w-4 h-4 text-slate-500" /><span className="text-slate-100">{n.title || n.type}</span>
               {n.present && !n.multiInstance && <span className="ml-auto text-[10.5px] text-slate-500">on chart</span>}
             </button>
-          ))}
+                ))}
+              </React.Fragment>
+            );
+          })}
+          {ql && !scripts.length && !builtinsAll.length && <div className="px-4 py-3 text-slate-500">No indicator matches “{q}”.</div>}
         </div>
       </div>
     </div>
