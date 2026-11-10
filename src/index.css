@@ -2691,3 +2691,10 @@ html[data-theme='liquid-glass-ui-kit'] #app-perimeter-animated-frame {
 .ppfx-hero-drift { animation: ppfx-hero-drift 18s ease-in-out infinite alternate; transform-origin: 60% 55%; will-change: transform; }
 .ppfx-hero-sheen::before { content: ''; position: absolute; inset: 0; width: 45%; background: linear-gradient(90deg, transparent, rgba(255, 240, 200, 0.22), transparent); animation: ppfx-hero-sheen 7s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .ppfx-hero-drift, .ppfx-hero-sheen::before { animation: none; } }
+
+/* The glass themes give every dark card `position: relative` (for their light overlay). That rule
+   must not un-position cards that are deliberately absolute / fixed / sticky — on wide screens it
+   pushed the sign-in screen's floating cards into the layout and shoved the sign-in card aside. */
+html[data-theme] :is([class*="bg-slate-9"], .prime-card, .prime-card-elevated).absolute:not([class*=":relative"]):not([class*=":static"]) { position: absolute; }
+html[data-theme] :is([class*="bg-slate-9"], .prime-card, .prime-card-elevated).fixed:not([class*=":relative"]):not([class*=":static"]) { position: fixed; }
+html[data-theme] :is([class*="bg-slate-9"], .prime-card, .prime-card-elevated).sticky:not([class*=":relative"]):not([class*=":static"]) { position: sticky; }
