@@ -14,7 +14,12 @@ const open = async (page) => { await page.goto(B, { waitUntil: 'domcontentloaded
 // ───────── sign-in screen (no account), desktop + phone
 for (const [name, opt] of [['desktop', { viewport: { width: 1600, height: 1000 } }], ['phone', { ...devices['iPhone 13'] }], ['tablet', { viewport: { width: 820, height: 1180 } }]]) {
   const ctx = await browser.newContext(opt); const page = await ctx.newPage();
-  await page.goto(B, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(4500);
+  await page.goto(B, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(3000);
+  console.log('LOGIN', name, 'surprise modal at 3s:', await page.locator('[data-testid="trial-modal"]').count());
+  await page.screenshot({ path: `shots/login-${name}-3s.png` });
+  await page.waitForTimeout(6000); console.log('LOGIN', name, 'surprise modal at 9s:', await page.locator('[data-testid="trial-modal"]').count());
+  await page.locator('[data-testid="trial-modal"] button[aria-label="Close"], [data-testid="trial-modal"] button').first().click({ timeout: 2000 }).catch(() => {}); await page.keyboard.press('Escape'); await page.waitForTimeout(800);
+  console.log('LOGIN', name, 'modal after close:', await page.locator('[data-testid="trial-modal"]').count());
   const hero = page.locator('[data-testid="login-hero"] img');
   const ok = await hero.evaluate((i) => i.complete && i.naturalWidth > 0).catch(() => false);
   console.log('LOGIN', name, 'hero present', await hero.count(), 'image loaded', ok, 'scrollWidth', await page.evaluate(() => document.documentElement.scrollWidth), 'of', await page.evaluate(() => document.documentElement.clientWidth));
