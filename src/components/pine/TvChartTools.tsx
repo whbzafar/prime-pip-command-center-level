@@ -82,13 +82,6 @@ export const TvChartTools: React.FC<{ symbol: string; countdown: { label: string
       </div>
 
       <div className="absolute top-[5px] right-[92px] z-30 hidden md:flex items-center gap-1.5" data-testid="tv-chart-tools">
-        <div title="Time left until this candle closes" data-testid="tv-countdown"
-          className={`flex items-center gap-1.5 h-[28px] pl-2 pr-2.5 rounded-md border text-[12px] font-semibold ${countdown.closed ? 'border-slate-700 bg-[#1e222d] text-slate-300' : 'border-[#2962FF]/60 bg-[#2962FF]/15 text-white'}`}>
-          <Timer className="w-3.5 h-3.5 opacity-80" />
-          <span className="text-[10.5px] uppercase tracking-wide opacity-70">{countdown.label}</span>
-          <span className="font-mono tabular-nums">{countdown.text}</span>
-          {!countdown.closed && <span className="w-10 h-[3px] rounded bg-white/15 overflow-hidden"><span className="block h-full bg-[#2962FF]" style={{ width: `${countdown.progressPercent || 0}%` }} /></span>}
-        </div>
         {ticker && (
           <button type="button" onClick={() => setOpen((v) => !v)} data-testid="tv-alert-btn" title="Price alerts"
             className={`relative flex items-center gap-1.5 h-[28px] px-2.5 rounded-md border text-[12px] font-semibold cursor-pointer ${open ? 'border-orange-400 bg-orange-500/20 text-white' : 'border-slate-700 bg-[#1e222d] text-slate-200 hover:text-white hover:border-slate-500'}`}>

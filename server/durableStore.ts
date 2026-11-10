@@ -106,7 +106,9 @@ export async function hydrateUsers(read: () => any[], write: (u: any[]) => void,
       try {
         const remote = await sealedRead();
         if (remote) {
-          const local = read();
+          // An account this server knew was in the bucket and is no longer there was deleted elsewhere.
+          const there = new Set(remote.map((u) => String(u.id)));
+          const local = read().filter((u) => !sealedIds.has(String(u?.id)) || there.has(String(u?.id)));
           const merged = mergeUsers(local, remote);
           sealedSnapshot = JSON.stringify([...remote].sort((a, b) => String(a.id).localeCompare(String(b.id))));
           sealedIds = new Set(remote.map((u) => String(u.id)));
