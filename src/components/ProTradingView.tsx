@@ -320,7 +320,7 @@ export function parseSymbolAndBroker(input: string, fallbackBroker?: string): { 
   }
 
   // Remove known broker prefixes if accidentally concatenated (e.g., FXCMEURUSD -> EURUSD)
-  const KNOWN_PREFIXES = ['THINKMARKETS', 'EASYMARKETS', 'ACTIVTRADES', 'ICMARKETS', 'FPMARKETS', 'EIGHTCAP', 'SKILLING', 'TICKMILL', 'VANTAGE', 'FXOPEN', 'FX_IDC', 'SAXO', 'CAPITALCOM', 'PEPPERSTONE', 'BLACKBULL', 'FOREXCOM', 'BINANCE', 'NASDAQ', 'OANDA', 'FXCM', 'FCM', 'TVC', 'FX'];
+  const KNOWN_PREFIXES = ['THINKMARKETS', 'EASYMARKETS', 'ACTIVTRADES', 'ICMARKETS', 'FPMARKETS', 'EIGHTCAP', 'SKILLING', 'TICKMILL', 'VANTAGE', 'FX_IDC', 'SAXO', 'CAPITALCOM', 'PEPPERSTONE', 'BLACKBULL', 'FOREXCOM', 'BINANCE', 'NASDAQ', 'OANDA', 'FXCM', 'FCM', 'TVC', 'FX'];
   for (const p of KNOWN_PREFIXES) {
     if (raw.toUpperCase().startsWith(p) && raw.length > p.length + 2) {
       detectedBroker = (p === 'FCM' || p === 'FXCM') ? 'FX' : p;
@@ -1092,7 +1092,6 @@ export const BROKERS = [
   { id: 'pepperstone', label: 'Pepperstone', prefix: 'PEPPERSTONE' },
   { id: 'icmarkets', label: 'IC Markets', prefix: 'ICMARKETS' },
   { id: 'eightcap', label: 'Eightcap', prefix: 'EIGHTCAP' },
-  { id: 'fxopen', label: 'FXOpen', prefix: 'FXOPEN' },
   { id: 'blackbull', label: 'BlackBull Markets', prefix: 'BLACKBULL' },
   { id: 'saxo', label: 'Saxo', prefix: 'SAXO' },
   { id: 'fpmarkets', label: 'FP Markets', prefix: 'FPMARKETS' },
