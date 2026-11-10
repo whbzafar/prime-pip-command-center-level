@@ -7081,6 +7081,7 @@ app.use('/api/macro', macroRouter);
 // Full-history candles (Dukascopy since 2003/1973, Yahoo daily since first trade)
 app.use('/api/history', historyRouter);
 app.use('/api/news', breakingNewsRouter);
+app.get('/api/time', (_req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json({ now: Date.now() }); });
 app.use('/api/sbt', sbtRouter);
 app.use('/api/pine', createPineRouter((req) => getCommunityUser(req) as any));
 

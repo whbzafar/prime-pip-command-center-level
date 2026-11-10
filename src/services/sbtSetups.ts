@@ -50,7 +50,7 @@ async function notify(title: string, body: string) {
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   try {
     const reg = await navigator.serviceWorker?.getRegistration?.();
-    if (reg?.showNotification) { await reg.showNotification(title, { body, icon: '/favicon.ico', tag: `ppfx-level-${title}`, renotify: true } as any); return; }
+    if (reg?.showNotification) { await reg.showNotification(title, { body, icon: '/favicon.ico', tag: `ppfx-level-${title}`, requireInteraction: true, renotify: true } as any); return; }
   } catch { /* fall back */ }
   try { new Notification(title, { body, icon: '/favicon.ico' }); } catch { /* not allowed */ }
 }
@@ -126,7 +126,7 @@ async function cycle() {
       write(K_LOG, alerts);
       const cfg = read<{ muted?: boolean; sound?: boolean; soundId?: SoundId; enabled?: boolean }>(K_SETTINGS, {});
       if (!cfg.muted && cfg.sound !== false) { try { playSound(cfg.soundId || 'chime'); } catch { /* audio blocked until the first tap */ } }
-      for (const a of fresh) notify(`${a.display}: ${a.side > 0 ? 'BUY' : 'SELL'} Level ${a.level} reached`, `${a.side > 0 ? 'Long-term bullish' : 'Long-term bearish'} pair · H1 close ${fmtPrice(a.price)} · level ${fmtPrice(a.zoneBottom)} – ${fmtPrice(a.zoneTop)}`);
+      for (const a of fresh) notify(`${a.side > 0 ? 'BUY' : 'SELL'} ${a.display} — Level ${a.level} reached (H1)`, `Why: long-term ${a.side > 0 ? 'bullish' : 'bearish'} pair (score ${a.score > 0 ? '+' : ''}${a.score.toFixed(0)}) and price is at its ${a.side > 0 ? 'buy' : 'sell'} level${a.models.length ? ` with ${a.models.join(' + ')} complete` : ''}. H1 close ${fmtPrice(a.price)} · zone ${fmtPrice(a.zoneBottom)} – ${fmtPrice(a.zoneTop)}.`);
       try { window.dispatchEvent(new CustomEvent('ppfx:level-alert', { detail: fresh })); } catch { /* ignore */ }
     }
     set({ status: 'ready', pairs, alerts, updatedAt: Date.now(), unseen: state.unseen + fresh.length });

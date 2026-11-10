@@ -95,10 +95,24 @@ export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInter
         )}
       </div>
 
-      <div className="absolute top-[5px] right-[92px] z-30 hidden md:flex items-center gap-1.5" data-testid="tv-chart-tools">
+      <div className="absolute top-[5px] right-[46px] md:right-[92px] z-30 flex items-center gap-1.5" data-testid="tv-chart-tools">
+        {onInterval && (
+          <>
+            <div className="hidden lg:flex items-center h-[28px] rounded-md border border-slate-700 bg-[#1e222d] overflow-hidden" role="radiogroup" aria-label="Timeframe" data-testid="tv-tf-buttons">
+              {TFS.map(([v, l]) => (
+                <button key={v} type="button" role="radio" aria-checked={v === interval} onClick={() => onInterval(v)} data-testid={`tv-tf-${l}`}
+                  className={`h-full px-2 text-[12px] font-semibold cursor-pointer ${v === interval ? 'bg-[#2962FF] text-white' : 'text-slate-300 hover:bg-[#2a2e39] hover:text-white'}`}>{l}</button>
+              ))}
+            </div>
+            <select value={interval} onChange={(e) => onInterval(e.target.value)} aria-label="Timeframe" data-testid="tv-tf-select"
+              className="lg:hidden h-[28px] rounded-md border border-slate-700 bg-[#1e222d] px-1.5 text-[12px] font-semibold text-slate-100 cursor-pointer outline-none">
+              {TFS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </>
+        )}
         {ticker && (
           <button type="button" onClick={() => setOpen((v) => !v)} data-testid="tv-alert-btn" title="Price alerts"
-            className={`relative flex items-center gap-1.5 h-[28px] px-2.5 rounded-md border text-[12px] font-semibold cursor-pointer ${open ? 'border-orange-400 bg-orange-500/20 text-white' : 'border-slate-700 bg-[#1e222d] text-slate-200 hover:text-white hover:border-slate-500'}`}>
+            className={`relative hidden md:flex items-center gap-1.5 h-[28px] px-2.5 rounded-md border text-[12px] font-semibold cursor-pointer ${open ? 'border-orange-400 bg-orange-500/20 text-white' : 'border-slate-700 bg-[#1e222d] text-slate-200 hover:text-white hover:border-slate-500'}`}>
             <BellPlus className="w-3.5 h-3.5" />Alert
             {list.filter((a) => !a.triggeredAt).length > 0 && <span className="ml-0.5 px-1 rounded bg-orange-500 text-[10px] text-white">{list.filter((a) => !a.triggeredAt).length}</span>}
           </button>

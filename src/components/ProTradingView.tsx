@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { serverNow } from '../utils/serverClock';
 import { barCloseIn, fmtCountdown, fmtDuration, marketStatus, sessionKind } from '../utils/marketSession';
 import { LiveBiasStrip, chartSymbolFor } from './fundamentalAnalysis/LiveBiasStrip';
 import { CATALOG } from './chartAnalysis/fullHistoryDatafeed';
@@ -2381,8 +2382,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const sessionCountdown = useCallback((iv: string) => {
     const cd = calculateCandleCountdown(iv);
     const kind = sessionKind(selectedSymbol.replace(/^[A-Z_]+:/, ''));
-    const st = marketStatus(kind);
-    const bar = barCloseIn(normalizeInterval(iv), kind);
+    const st = marketStatus(kind, new Date(serverNow()));
+    const bar = barCloseIn(normalizeInterval(iv), kind, new Date(serverNow()));
     const session = st.open ? (st.closesInSec ? `closes in ${fmtDuration(st.closesInSec)}` : '24/7') : `opens in ${fmtDuration(st.reopensInSec || 0)}`;
     return st.open
       ? { ...cd, secondsRemaining: bar.remaining, totalSeconds: bar.total, progressPercent: Math.round(((bar.total - bar.remaining) / bar.total) * 100), text: fmtCountdown(bar.remaining), session, closed: false }
@@ -2946,7 +2947,11 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         show_popup_button: 'true',
         popup_width: '1000',
         popup_height: '650',
-        withdateranges: 'true',
+        // TradingView's own timeframe buttons, keyboard interval box and date-range bar are switched off:
+        // the embedded chart never tells the page when its timeframe changes, so a change made there left
+        // the candle countdown on the old timeframe. The app's timeframe buttons (on the chart) are the
+        // only control now, so the chart and the countdown always show the same timeframe.
+        disabled_features: JSON.stringify(['header_resolutions', 'show_interval_dialog_on_key_press', 'timeframes_toolbar']),
       });
 
       container.innerHTML = '';
