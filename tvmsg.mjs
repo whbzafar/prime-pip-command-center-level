@@ -4,6 +4,7 @@ const html = `<!doctype html><html><body style="margin:0;background:#000"><div s
 <script>window.__msgs=[];addEventListener('message',e=>{let d=e.data;try{if(typeof d==='string')d=JSON.parse(d)}catch{};window.__msgs.push({o:e.origin,d:JSON.stringify(d).slice(0,400)})});</script></body></html>`;
 http.createServer((q, r) => { r.setHeader('content-type', 'text/html'); r.end(html); }).listen(8811);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1300, height: 800 } });
+import fs from 'fs'; fs.mkdirSync('shots', { recursive: true });
 await p.goto('http://localhost:8811'); await p.waitForTimeout(12000);
 const dump = async (tag) => { const m = await p.evaluate(() => { const x = window.__msgs; window.__msgs = []; return x; }); console.log('MSG', tag, m.length); for (const x of m) console.log('   ', x.o, x.d); };
 await dump('load');
@@ -21,5 +22,5 @@ for (const label of ['1m', '5m', '30m', '1D', '4h']) {
 }
 // does the frame expose anything via URL hash / title?
 console.log('TITLE', await f.title().catch(() => ''));
-await p.screenshot({ path: 'shots/tvmsg.png' });
+await p.screenshot({ path: process.cwd() + '/shots/tvmsg.png' });
 process.exit(0);

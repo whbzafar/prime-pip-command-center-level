@@ -9,8 +9,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: npm i --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
-      - run: mkdir -p shots && timeout 300 node tvmsg.mjs || true
+      - run: mkdir -p /tmp/pw && cd /tmp/pw && npm init -y >/dev/null && npm i playwright@1.48.2 && npx playwright install --with-deps chromium
+      - run: mkdir -p shots && cp tvmsg.mjs /tmp/pw/ && (cd /tmp/pw && timeout 300 node tvmsg.mjs) ; cp -r /tmp/pw/shots/. shots/ 2>/dev/null || true
       - run: |
           git config user.name ci; git config user.email ci@example.com
           git checkout --orphan probe-shots-tmp; git rm -rqf --cached . ; git add shots; git commit -qm shots; git push -qf origin HEAD:probe-shots
