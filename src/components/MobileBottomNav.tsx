@@ -125,7 +125,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     <>
       <nav
         aria-label="Mobile Navigation"
-        className="fixed bottom-0 left-0 right-0 z-50 bg-[#070b14]/98 border-t border-cyan-500/25 px-2 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] md:hidden select-none shadow-2xl backdrop-blur-md"
+        className="fixed bottom-0 left-0 right-0 z-40 bg-[#070b14]/98 border-t border-cyan-500/25 px-2 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] md:hidden select-none shadow-2xl backdrop-blur-md"
         style={{ touchAction: 'manipulation' }}
       >
         <div className="flex items-center justify-around max-w-md mx-auto relative">

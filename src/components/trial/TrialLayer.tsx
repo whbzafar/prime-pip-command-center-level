@@ -117,7 +117,7 @@ export const TrialLayer: React.FC = () => {
 
       {!open && (
         strip ? (
-          <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[45] max-w-[96vw] flex items-center gap-2 sm:gap-3 rounded-2xl border border-amber-300/40 bg-[#0d0a18]/95 backdrop-blur px-3 py-2 shadow-[0_10px_50px_-10px_rgba(251,191,36,0.5)] text-[12px]" data-testid="trial-strip">
+          <div className="fixed bottom-[84px] md:bottom-3 left-1/2 -translate-x-1/2 z-[45] max-w-[96vw] flex items-center gap-2 sm:gap-3 rounded-2xl border border-amber-300/40 bg-[#0d0a18]/95 backdrop-blur px-3 py-2 shadow-[0_10px_50px_-10px_rgba(251,191,36,0.5)] text-[12px]" data-testid="trial-strip">
             <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 font-bold text-amber-200 cursor-pointer whitespace-nowrap"><Gift className="w-4 h-4" />Free full access</button>
             <span className="font-mono tabular-nums text-white whitespace-nowrap">{r.days}d {pad(r.hours)}:{pad(r.minutes)}:{pad(r.seconds)}</span>
             {!authed && <button type="button" onClick={signup} className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-300 text-slate-950 font-bold text-[11px] cursor-pointer"><UserPlus className="w-3.5 h-3.5" />Create account</button>}
@@ -126,7 +126,7 @@ export const TrialLayer: React.FC = () => {
           </div>
         ) : (
           <button type="button" onClick={() => { setStrip(true); try { localStorage.removeItem(K_STRIP); } catch { /* ignore */ } }} title="Free full access — time left"
-            className="fixed bottom-3 left-3 z-[45] inline-flex items-center gap-1.5 rounded-full border border-amber-300/50 bg-[#0d0a18]/95 px-2.5 py-1 text-[11px] font-bold text-amber-200 cursor-pointer">
+            className="fixed bottom-[84px] md:bottom-3 left-3 z-[45] inline-flex items-center gap-1.5 rounded-full border border-amber-300/50 bg-[#0d0a18]/95 px-2.5 py-1 text-[11px] font-bold text-amber-200 cursor-pointer">
             <Gift className="w-3.5 h-3.5" />{r.days}d {pad(r.hours)}h
           </button>
         )
