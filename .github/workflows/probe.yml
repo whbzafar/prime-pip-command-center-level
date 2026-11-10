@@ -3,14 +3,14 @@ on: { push: { branches: [ci/macro-live-probe] } }
 jobs:
   p:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
+    permissions: { contents: write }
     steps:
-      - shell: bash {0}
-        run: |
-          B=https://prime-pip-command-center-level.vercel.app
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            n=0; for f in $(curl -s $B/ | grep -o 'assets/[^"]*\.js' | sort -u); do c=$(curl -s $B/$f | grep -c 'login-hero'); n=$((n+c)); done
-            echo "TRY $i login-hero in bundle: $n"
-            if [ "$n" -gt 0 ]; then break; fi; sleep 30
-          done
-          curl -s -o /dev/null -w 'HERO image %{http_code} %{content_type} %{size_download}\n' $B/assets/you-can-do-it-720.webp
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm i --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
+      - run: mkdir -p shots && timeout 300 node tvmsg.mjs || true
+      - run: |
+          git config user.name ci; git config user.email ci@example.com
+          git checkout --orphan probe-shots-tmp; git rm -rqf --cached . ; git add shots; git commit -qm shots; git push -qf origin HEAD:probe-shots
