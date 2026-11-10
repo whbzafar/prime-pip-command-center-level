@@ -102,5 +102,24 @@ function fix(s: string): string {
 }
 
 export function pineCompat(source: string): string {
-  try { return fix(String(source || '')); } catch { return source; }
+  try { const f = fix(String(source || '').replace(/\r\n/g, '\n')); return guardLoops(f) ?? f; } catch { return source; }
 }
+
+/**
+ * Safety guard for one loop in the script's SBT 8B scan: `for k = <start> to i`. When <start> is the
+ * candle AFTER the newest one (start = i + 1), Pine counts DOWN and reads a candle that does not
+ * exist yet, which stops the whole script with "Index out of bounds". The guard skips the loop in
+ * exactly that case (there is nothing to check yet); every other case is unchanged. It cannot change a result: without it that case can only stop the script.
+ */
+export function guardLoops(src: string): string | null {
+  const lines = src.split('\n');
+  const at = lines.findIndex((l) => /^\s+for k = \(s\.tst \? s\.next : math\.max\(s\.next, sI\)\) to i\b/.test(l));
+  if (at < 0) return null;
+  const indent = lines[at].match(/^\s+/)![0];
+  let end = at + 1;
+  while (end < lines.length && (lines[end].trim() === '' || lines[end].match(/^\s*/)![0].length > indent.length)) end++;
+  while (end > at + 1 && lines[end - 1].trim() === '') end--;
+  const block = lines.slice(at, end).map((l) => (l.trim() ? `    ${l}` : l));
+  return [...lines.slice(0, at), `${indent}if (s.tst ? s.next : math.max(s.next, sI)) <= i`, ...block, ...lines.slice(end)].join('\n');
+}
+

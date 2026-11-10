@@ -380,9 +380,12 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       if (data.ok) {
         setActionSuccess(`Customer ${data.user.username} updated!`);
         fetchAdminData();
+      } else {
+        setActionSuccess(`Could not update this customer: ${data?.error || `server error ${res.status}`}`);
       }
     } catch (err) {
       console.error('Update error:', err);
+      setActionSuccess('Could not reach the server. Please try again.');
     }
   };
 
@@ -399,25 +402,17 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       });
       const data = await res.json();
       if (data.ok) {
-        const existing = customers.find((customer) =>
-          customer.id === userId || customer.username.toLowerCase() === username.toLowerCase()
-        );
-        if (existing && data.password) {
-          saveLocalStudent({
-            ...existing,
-            password: data.password,
-            originalPassword: data.password,
-            updatedAt: new Date().toISOString(),
-          });
-          await syncStudentsToCloud();
-        }
+        // The new password is saved by the server only; it is never copied into the public student registry.
         const msg = `*PrimePipFX Password Reset*\n\nUsername: ${username}\nNew Password: ${data.password}\n\nSupport: 03406671495`;
         setCreatedCredentialMessage(msg);
         setActionSuccess(`Password reset for ${username}! Message generated below.`);
         await fetchAdminData();
+      } else {
+        setActionSuccess(`Could not reset the password for ${username}: ${data?.error || `server error ${res.status}`}`);
       }
     } catch (err) {
       console.error('Reset error:', err);
+      setActionSuccess('Could not reach the server. Please try again.');
     }
   };
 

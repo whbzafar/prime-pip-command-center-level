@@ -5,6 +5,8 @@
  * server's secret key), so the source code never leaves the server except to an administrator.
  * Without Supabase (local development) they are kept in the data directory.
  */
+import zlib from 'zlib';
+import { durableEnabled, privateGet, privateSet } from '../durableStore.js';
 import fs from 'fs';
 import path from 'path';
 import { getDataDir } from '../dataPath.js';
@@ -43,7 +45,7 @@ const localFile = () => path.join(getDataDir(), 'pine_private_scripts.json');
 
 let degraded: string | null = null;
 /** Where scripts are kept right now. 'temporary' = Supabase unreachable, kept on this server instance only. */
-export const pineStoreBackend = () => (!cfg().enabled ? 'local-file' : degraded ? `temporary (Supabase unreachable: ${degraded})` : 'supabase-private-storage');
+export const pineStoreBackend = () => (durableEnabled ? (degraded ? `temporary (database unreachable: ${degraded})` : 'redis-private') : process.env.VERCEL ? 'temporary (no database connected)' : !cfg().enabled ? 'local-file' : degraded ? `temporary (Supabase unreachable: ${degraded})` : 'supabase-private-storage');
 const readLocal = (): PineScriptRecord[] => { try { return JSON.parse(fs.readFileSync(localFile(), 'utf8')); } catch { return []; } };
 const netErr = (e: any) => `${e?.message || e}${e?.cause?.code ? ` ${e.cause.code}` : ''}`;
 
@@ -71,7 +73,14 @@ export async function readScripts(force = false): Promise<PineScriptRecord[]> {
   if (!force && cache && Date.now() - cache.at < CACHE_MS) return cache.rows;
   const { url, key, enabled } = cfg();
   let rows: PineScriptRecord[] = [];
-  if (enabled) {
+  if (durableEnabled) {
+    // Private Redis database (Vercel → Storage → Upstash): scripts survive restarts and stay admin-only.
+    try {
+      const raw = await privateGet('pine_scripts');
+      rows = raw ? JSON.parse(zlib.gunzipSync(Buffer.from(raw, 'base64')).toString('utf8')) : [];
+      degraded = null;
+    } catch (e: any) { degraded = netErr(e); rows = cache?.rows || readLocal(); }
+  } else if (enabled) {
     try {
       const r = await fetch(`${url}/storage/v1/object/authenticated/${BUCKET}/${OBJECT}`, {
         headers: { apikey: key, Authorization: `Bearer ${key}` },
@@ -95,7 +104,11 @@ export async function readScripts(force = false): Promise<PineScriptRecord[]> {
 
 async function writeScripts(rows: PineScriptRecord[]) {
   const { url, key, enabled } = cfg();
-  if (enabled) {
+  if (durableEnabled) {
+    try { fs.writeFileSync(localFile(), JSON.stringify(rows)); } catch { /* read-only disk */ }
+    await privateSet('pine_scripts', zlib.gzipSync(Buffer.from(JSON.stringify(rows), 'utf8')).toString('base64'));
+    degraded = null;
+  } else if (enabled) {
     const put = () => fetch(`${url}/storage/v1/object/${BUCKET}/${OBJECT}`, {
       method: 'POST',
       headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'x-upsert': 'true', 'cache-control': 'no-store' },

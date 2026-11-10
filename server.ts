@@ -138,6 +138,7 @@ import {
 } from "./server/verifiedFundamentalBaselines.js";
 import {
   isSupabaseAuthEnabled,
+  supabaseReady,
   authenticatePrimePipfx,
   refreshSupabaseSession,
   getUserFromSupabaseAccessToken,
@@ -227,6 +228,8 @@ if (isSupabaseAuthEnabled) {
 const currentAppDir = process.cwd();
 
 const app = express();
+// Wait (once, ≤2.5 s on a cold start) for the Supabase reachability check so no request races it.
+app.use((_req, _res, next) => { supabaseReady.then(() => next(), () => next()); });
 const PORT = 3000;
 const presenceSockets = new Map<string, Set<WebSocket>>();
 
@@ -286,7 +289,8 @@ app.use(cookieParser());
 app.use(async (req, res, next) => {
   if (!req.path.startsWith('/api/')) return next();
   try { await refreshRemovedMembers(); } catch { /* keep the last known list */ }
-  try { await syncUsersFromDurable(); } catch { /* keep serving from the local copy */ }
+  // Account pages always see fresh accounts; data feeds (charts, fundamentals) do not wait on the account store.
+  try { await syncUsersFromDurable(/^\/api\/(auth|admin|members|trial|account|profile|appointments|community|pine)/.test(req.path) ? 4000 : 120_000); } catch { /* keep serving from the local copy */ }
   const json = res.json.bind(res);
   (res as any).json = (body: any) => {
     if (!hasPendingWrites()) return json(body);

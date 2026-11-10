@@ -5,8 +5,8 @@
  *  · Alert: create / edit / delete price alerts — the same alerts as the Pro chart (they fire with
  *    the chosen alert sound + a notification on either chart).
  */
-import React, { useEffect, useState } from 'react';
-import { Bell, BellOff, BellPlus, RotateCcw, Timer, Trash2, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Bell, BellOff, BellPlus, GripVertical, Plus, RotateCcw, Timer, Trash2, X } from 'lucide-react';
 import { catalogFor } from './pineData';
 import { priceAlerts, type AlertCondition, type PriceAlert } from './priceAlerts';
 import { CATALOG, FullHistoryDatafeed, PRO_PERIODS } from '../chartAnalysis/fullHistoryDatafeed';
@@ -49,8 +49,38 @@ export const TvChartTools: React.FC<{ symbol: string; countdown: { label: string
     setPrice('');
   };
 
+  // Price-scale chip: sits on the right price scale like the Pro chart's countdown. TradingView's
+  // chart is a sealed frame, so the app cannot read where the price label is; the chip is dragged
+  // once to sit beside it and remembers its place.
+  const [chipY, setChipY] = useState<number>(() => { try { return Number(localStorage.getItem('ppfx_tv_chip_y')) || 46; } catch { return 46; } });
+  const drag = useRef<{ startY: number; base: number; moved: boolean } | null>(null);
+  const chipRef = useRef<HTMLDivElement>(null);
+  const onDown = (e: React.PointerEvent) => { drag.current = { startY: e.clientY, base: chipY, moved: false }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); };
+  const onMove = (e: React.PointerEvent) => {
+    const d = drag.current; if (!d) return;
+    const h = chipRef.current?.parentElement?.clientHeight || 600;
+    const pct = Math.min(88, Math.max(8, d.base + ((e.clientY - d.startY) / h) * 100));
+    if (Math.abs(e.clientY - d.startY) > 3) d.moved = true;
+    setChipY(pct);
+  };
+  const onUp = () => { if (drag.current) { try { localStorage.setItem('ppfx_tv_chip_y', String(chipY)); } catch { /* storage blocked */ } } drag.current = null; };
+
   return (
     <>
+      <div ref={chipRef} data-testid="tv-scale-chip" style={{ top: `${chipY}%` }}
+        className="absolute right-[3px] z-30 flex flex-col items-stretch w-[62px] rounded-[4px] overflow-hidden shadow-lg border border-[#2962FF]/70 select-none">
+        <div onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} title="Time left until this candle closes — drag up or down to sit beside the price"
+          className={`flex items-center justify-center gap-0.5 h-[19px] text-[11px] font-mono tabular-nums font-semibold cursor-ns-resize touch-none ${countdown.closed ? 'bg-[#2a2e39] text-slate-300' : 'bg-[#2962FF] text-white'}`}>
+          <GripVertical className="w-2.5 h-2.5 opacity-60" />{countdown.text}
+        </div>
+        {ticker && (
+          <button type="button" onClick={() => setOpen((v) => !v)} data-testid="tv-scale-plus" title="Add a price alert" aria-label="Add a price alert"
+            className="flex items-center justify-center gap-0.5 h-[18px] bg-[#131722] hover:bg-[#1e222d] text-[10px] font-semibold text-slate-200 hover:text-white cursor-pointer">
+            <Plus className="w-3 h-3" />Alert
+          </button>
+        )}
+      </div>
+
       <div className="absolute top-[5px] right-[92px] z-30 hidden md:flex items-center gap-1.5" data-testid="tv-chart-tools">
         <div title="Time left until this candle closes" data-testid="tv-countdown"
           className={`flex items-center gap-1.5 h-[28px] pl-2 pr-2.5 rounded-md border text-[12px] font-semibold ${countdown.closed ? 'border-slate-700 bg-[#1e222d] text-slate-300' : 'border-[#2962FF]/60 bg-[#2962FF]/15 text-white'}`}>
@@ -69,7 +99,7 @@ export const TvChartTools: React.FC<{ symbol: string; countdown: { label: string
       </div>
 
       {open && ticker && (
-        <div className="absolute top-[40px] right-[92px] z-40 w-[290px] rounded-xl border border-slate-700 bg-[#1e222d] shadow-2xl text-[12px] text-slate-200" data-testid="tv-alert-panel">
+        <div className="absolute top-[40px] right-2 md:right-[92px] z-40 w-[290px] max-w-[calc(100%-16px)] rounded-xl border border-slate-700 bg-[#1e222d] shadow-2xl text-[12px] text-slate-200" data-testid="tv-alert-panel">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-700"><Bell className="w-4 h-4 text-orange-300" /><b className="text-slate-50">Alert on {ticker}</b><button type="button" onClick={() => setOpen(false)} className="ml-auto p-0.5 text-slate-400 hover:text-white cursor-pointer" aria-label="Close"><X className="w-4 h-4" /></button></div>
           <div className="p-3 space-y-2">
             <label className="block text-[10.5px] text-slate-400">Price {live !== null && <span className="text-slate-500">· live {live.toFixed(digits)}</span>}

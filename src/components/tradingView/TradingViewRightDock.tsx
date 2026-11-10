@@ -42,6 +42,67 @@ import { CotMarketSummary } from '../../types/cotTypes';
 import { fetchCotMarketSummaries } from '../../services/cotService';
 import { getCotPairForSymbol, CotPairResult } from '../../utils/cotPairEngine';
 
+import { chartSymbolFor, useRankings } from '../fundamentalAnalysis/LiveBiasStrip';
+import { LevelBadge } from '../sbt/LevelAlerts';
+import { TOP_N, useLevelAlerts } from '../../services/sbtSetups';
+import { useQuotes } from '../sbt/useQuotes';
+
+/**
+ * Watchlist body: the live top long-term bullish and bearish pairs (they follow the fundamentals
+ * engine, so the lists update on their own) and the user's own pairs. Every price is the real
+ * last price from the chart feed; a pair with no feed shows a dash.
+ */
+const WatchlistBody: React.FC<{ mine: string[]; selectedSymbol: string; livePrice: number; pipDecimals: number; onSelectSymbol: (s: string) => void; onRemove: (s: string) => void; onClear: () => void }> = ({ mine, selectedSymbol, livePrice, pipDecimals, onSelectSymbol, onRemove, onClear }) => {
+  const { data } = useRankings();
+  const levels = useLevelAlerts();
+  const bull = (data?.longTerm.bullish || []).slice(0, TOP_N);
+  const bear = (data?.longTerm.bearish || []).slice(0, TOP_N);
+  const all = [...bull.map((p) => chartSymbolFor(p.symbol)), ...bear.map((p) => chartSymbolFor(p.symbol)), ...mine];
+  const quotes = useQuotes(all, true);
+  const Row: React.FC<{ sym: string; label: string; score?: number | null; onRemove?: () => void }> = ({ sym, label, score, onRemove }) => {
+    const cs = chartSymbolFor(sym);
+    const on = cs === selectedSymbol;
+    const q = quotes.get(cs);
+    const price = on && livePrice ? livePrice.toFixed(pipDecimals) : q ? q.price.toFixed(q.digits) : '—';
+    const ch = q?.changePct;
+    return (
+      <div onClick={() => onSelectSymbol(cs)} data-testid="watchlist-row"
+        className={`px-2 py-1.5 rounded-xl border flex items-center justify-between gap-2 transition cursor-pointer group ${on ? 'bg-cyan-500/15 border-cyan-500/50 shadow-md' : 'bg-slate-950/70 border-slate-800/80 hover:bg-slate-900 hover:border-slate-700'}`}>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${on ? 'bg-cyan-400 animate-pulse' : score == null ? 'bg-slate-600' : score > 0 ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+          <div className="min-w-0">
+            <span className="font-bold font-mono text-xs text-white group-hover:text-cyan-300 flex items-center gap-1.5">{label}<LevelBadge symbol={sym} state={levels} compact /></span>
+            {score != null && <span className={`text-[10px] ${score > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>Long-term {score > 0 ? 'bullish' : 'bearish'} {score > 0 ? '+' : ''}{score.toFixed(0)}</span>}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="text-right">
+            <span className="font-mono font-bold text-xs block text-slate-200">{price}</span>
+            <span className={`text-[10px] font-mono ${ch == null ? 'text-slate-600' : ch >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{ch == null ? '' : `${ch >= 0 ? '+' : ''}${ch.toFixed(2)}% 24h`}</span>
+          </div>
+          {onRemove && <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }} className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-slate-800 transition cursor-pointer" title="Remove from watchlist" aria-label={`Remove ${label}`}>✕</button>}
+        </div>
+      </div>
+    );
+  };
+  const Head: React.FC<{ title: string; cls: string; right?: React.ReactNode }> = ({ title, cls, right }) => (
+    <div className={`flex items-center justify-between text-[10px] uppercase tracking-widest font-bold pt-2 pb-1 border-b border-slate-800 ${cls}`}><span>{title}</span>{right}</div>
+  );
+  const scoreOf = (sym: string) => [...bull, ...bear].find((p) => chartSymbolFor(p.symbol) === sym)?.longTerm ?? null;
+  return (
+    <div className="space-y-1" data-testid="watchlist-body">
+      <Head title="Top bullish pairs" cls="text-emerald-300" right={<span className="normal-case tracking-normal font-normal text-slate-500">live · fundamentals</span>} />
+      {bull.map((p) => <Row key={p.symbol} sym={p.symbol} label={p.display} score={p.longTerm} />)}
+      {!data && <div className="text-[11px] text-slate-500 py-1">Loading live ranking…</div>}
+      <Head title="Top bearish pairs" cls="text-rose-300" />
+      {bear.map((p) => <Row key={p.symbol} sym={p.symbol} label={p.display} score={p.longTerm} />)}
+      <Head title={`My pairs (${mine.length})`} cls="text-slate-300" right={mine.length > 0 ? <button type="button" onClick={onClear} className="normal-case tracking-normal font-normal text-rose-400 hover:underline cursor-pointer">Clear</button> : undefined} />
+      {mine.map((s) => <Row key={s} sym={s} label={s} score={scoreOf(s)} onRemove={() => onRemove(s)} />)}
+      {!mine.length && <div className="text-[11px] text-slate-500 py-1">Add any pair above and it stays here on this device.</div>}
+    </div>
+  );
+};
+
 export interface TradingViewRightDockProps {
   activeTool: RightSideToolId | null;
   onClose: () => void;
@@ -198,7 +259,9 @@ export const TradingViewRightDock: React.FC<TradingViewRightDockProps> = ({
                   type="text"
                   value={watchlistInput}
                   onChange={(e) => setWatchlistInput(e.target.value)}
-                  placeholder="Add symbol e.g. XAUUSD, NAS100..."
+                  placeholder="Add pair e.g. XAUUSD, NAS100..."
+                  aria-label="Add a pair to my watchlist"
+                  data-testid="watchlist-add"
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none uppercase font-bold"
                 />
               </div>
@@ -230,80 +293,15 @@ export const TradingViewRightDock: React.FC<TradingViewRightDockProps> = ({
               ))}
             </div>
 
-            {/* Watchlist Items */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-[11px] text-slate-400 pb-1 border-b border-slate-800">
-                <span>Symbol</span>
-                <div className="flex items-center gap-4">
-                  <span>Price</span>
-                  {watchlistSymbols.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={onClearWatchlist}
-                      className="text-rose-400 hover:underline text-[10px] cursor-pointer"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {watchlistSymbols.map((sym) => {
-                const isSelected = sym === selectedSymbol;
-                const isGold = sym.includes('XAU');
-                const isCrypto = sym.includes('BTC') || sym.includes('ETH');
-                const isIndex = sym.includes('US30') || sym.includes('NAS') || sym.includes('SPX');
-                const defaultP = isGold ? 4039.2 : isCrypto ? 68450 : isIndex ? 42850 : 1.0845;
-                const priceStr = isSelected ? livePrice.toFixed(pipDecimals) : defaultP.toFixed(pipDecimals);
-
-                return (
-                  <div
-                    key={sym}
-                    onClick={() => onSelectSymbol(sym)}
-                    className={`p-2 rounded-xl border flex items-center justify-between transition cursor-pointer group ${
-                      isSelected
-                        ? 'bg-cyan-500/15 border-cyan-500/50 text-white shadow-md'
-                        : 'bg-slate-950/70 border-slate-800/80 text-slate-300 hover:bg-slate-900 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-cyan-400 animate-pulse' : 'bg-slate-600'}`} />
-                      <div>
-                        <span className="font-bold font-mono text-xs block text-white group-hover:text-cyan-300">
-                          {sym}
-                        </span>
-                        <span className="text-[10px] text-slate-500">
-                          {isGold ? 'Gold Spot' : isCrypto ? 'Binance Spot' : isIndex ? 'Index CFD' : 'FX Major'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <div className="text-right">
-                        <span className="font-mono font-bold text-xs block text-slate-200">
-                          {priceStr}
-                        </span>
-                        <span className="text-[10px] font-mono text-emerald-400">
-                          +0.14%
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRemoveWatchlistSymbol(sym);
-                        }}
-                        className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-slate-800 transition cursor-pointer"
-                        title="Remove from Watchlist"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <WatchlistBody
+              mine={watchlistSymbols}
+              selectedSymbol={selectedSymbol}
+              livePrice={livePrice}
+              pipDecimals={pipDecimals}
+              onSelectSymbol={onSelectSymbol}
+              onRemove={onRemoveWatchlistSymbol}
+              onClear={onClearWatchlist}
+            />
           </div>
         )}
 

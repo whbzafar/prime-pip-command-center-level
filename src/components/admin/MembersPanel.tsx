@@ -33,7 +33,7 @@ const device = (ua = '') => {
 export const MembersPanel: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [logins, setLogins] = useState<LoginRow[]>([]);
-  const [storage, setStorage] = useState<{ enabled: boolean; lastError?: string } | null>(null);
+  const [storage, setStorage] = useState<{ enabled: boolean; mode?: string; lastError?: string } | null>(null);
   const [q, setQ] = useState('');
   const [onlyLogged, setOnlyLogged] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -73,7 +73,7 @@ export const MembersPanel: React.FC = () => {
           <div><b>Accounts are not yet saved permanently.</b> The hosting wipes its files on every restart, so new sign-ups can disappear. Connect the free database once: Vercel → your project → <b>Storage</b> → <b>Create Database</b> → <b>Upstash for Redis</b> (free) → <b>Connect</b> to this project, then redeploy. Nothing else to configure.</div>
         </div>
       )}
-      {storage?.enabled && <div className="text-[11px] text-emerald-300 flex items-center gap-1.5"><Database className="w-3.5 h-3.5" />Accounts are saved permanently in the database.{storage.lastError ? <span className="text-rose-300"> Last sync error: {storage.lastError}</span> : null}</div>}
+      {storage?.enabled && <div className="text-[11px] text-emerald-300 flex items-center gap-1.5"><Database className="w-3.5 h-3.5" />{storage.mode === 'sealed' ? 'Accounts are saved permanently (encrypted backup store).' : 'Accounts are saved permanently in the database.'}{storage.lastError ? <span className="text-rose-300"> Last sync error: {storage.lastError}</span> : null}</div>}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {[['Members', members.length, Users], ['Active subscriptions', members.filter((m) => status(m)[0].startsWith('Active') || status(m)[0] === 'Lifetime').length, Users], ['Logged in last 24h', today, LogIn], ['Signed up today', newToday, UserPlus]].map(([k, v, I]: any) => (

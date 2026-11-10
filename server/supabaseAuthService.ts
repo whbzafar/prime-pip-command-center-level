@@ -4,7 +4,23 @@ const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || '';
 
-export const isSupabaseAuthEnabled = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY && SUPABASE_SECRET_KEY);
+export let isSupabaseAuthEnabled = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY && SUPABASE_SECRET_KEY);
+
+/**
+ * The Supabase project can be gone (deleted / paused: its address no longer resolves). Every account
+ * action used to wait on it and then fail ("service temporarily unavailable"), so nothing in the admin
+ * panel worked. One quick reachability check per server start: if the project cannot be reached at
+ * all, Supabase is switched off for this instance and the app's own account store is used alone.
+ */
+export const supabaseReady: Promise<void> = (async () => {
+  if (!isSupabaseAuthEnabled) return;
+  try {
+    await fetch(`${SUPABASE_URL}/auth/v1/health`, { headers: { apikey: SUPABASE_PUBLISHABLE_KEY }, signal: AbortSignal.timeout(2500) });
+  } catch (e: any) {
+    isSupabaseAuthEnabled = false;
+    console.warn('[AUTH] Supabase is unreachable — using the built-in account store only:', e?.cause?.code || e?.message || e);
+  }
+})();
 
 function authHeaders(key = SUPABASE_PUBLISHABLE_KEY) {
   return { apikey: key, 'Content-Type': 'application/json' };

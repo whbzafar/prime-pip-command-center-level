@@ -943,34 +943,21 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="hidden sm:inline text-[8px] px-1 py-[1px] rounded bg-emerald-400 text-slate-950 font-bold tracking-wider">LIVE</span>
               </button>
 
-              {/* Dedicated Psychological Command Center Access Button Immediately Beside Profile */}
+              {/* LIVE NEWS CALENDAR — one click to the economic calendar */}
               <button
-                id="header-psychological-center-btn"
+                id="header-news-calendar-btn"
                 type="button"
-                onClick={() => switchTab('PSYCHOLOGY')}
-                title={isPsychLocked ? "Psychological Center is locked — Active subscription required. Click to view." : "Psychological Center — Train your mindset. Protect your discipline. Improve your execution."}
-                className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition-all duration-200 cursor-pointer shadow-sm group ${
-                  activeTab === 'PSYCHOLOGY'
-                    ? 'bg-gradient-to-r from-blue-500 to-amber-600 text-slate-950 border-cyan-400 shadow-blue-500/25 ring-1 ring-cyan-400'
-                    : isPsychLocked
-                    ? 'bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-amber-300 border-slate-800 hover:border-amber-500/40'
-                    : 'bg-slate-950 hover:bg-slate-800 text-slate-200 hover:text-amber-300 border-slate-800 hover:border-blue-500/50'
+                onClick={() => switchTab('FUNDAMENTAL_CALENDAR')}
+                title="Live News Calendar — today's economic releases, impact and forecasts"
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border font-military font-bold text-[11.5px] tracking-wider transition-all duration-200 cursor-pointer ${
+                  activeTab === 'FUNDAMENTAL_CALENDAR'
+                    ? 'bg-gradient-to-r from-amber-300 to-orange-400 text-slate-950 border-amber-200'
+                    : 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/35 hover:to-orange-500/35 text-amber-100 border-amber-400/60'
                 }`}
               >
-                <div className={`w-4 h-4 rounded flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
-                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : isPsychLocked ? 'text-amber-400' : 'text-cyan-400'
-                }`}>
-                  <Brain className="w-3.5 h-3.5 stroke-[2.2]" />
-                </div>
-                <div className="text-left flex items-center gap-1.5 leading-tight">
-                  <span className="whitespace-nowrap">Psych Center</span>
-                  {isPsychLocked && (
-                    <span className="flex items-center gap-0.5 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1 py-0.2 rounded font-bold uppercase shadow-xs">
-                      <Lock className="w-2 h-2 text-amber-400" />
-                      LOCKED
-                    </span>
-                  )}
-                </div>
+                <Calendar className="w-3.5 h-3.5 stroke-[2.2]" />
+                <span className="whitespace-nowrap hidden sm:inline">Live News Calendar</span>
+                <span className="whitespace-nowrap sm:hidden">News</span>
               </button>
 
               {onLogout && (
@@ -1013,31 +1000,21 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="hidden sm:inline text-[8px] px-1 py-[1px] rounded bg-emerald-400 text-slate-950 font-bold tracking-wider">LIVE</span>
               </button>
 
-              {/* Dedicated Psychological Center Button in Demo/Pre-Login Mode */}
+              {/* LIVE NEWS CALENDAR — one click to the economic calendar */}
               <button
-                id="header-psychological-center-guest-btn"
+                id="header-news-calendar-guest-btn"
                 type="button"
-                onClick={() => switchTab('PSYCHOLOGY')}
-                title="Psychological Center is locked — Active subscription required. Click to view."
-                className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-md border font-military font-bold text-[11px] tracking-wider transition-all duration-200 cursor-pointer shadow-sm group prime-ios-touch ${
-                  activeTab === 'PSYCHOLOGY'
-                    ? 'bg-gradient-to-r from-blue-500 to-amber-600 text-slate-950 border-cyan-400 shadow-blue-500/25 ring-1 ring-cyan-400'
-                    : 'bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-amber-300 border-amber-500/40 hover:border-amber-400'
+                onClick={() => switchTab('FUNDAMENTAL_CALENDAR')}
+                title="Live News Calendar — today's economic releases, impact and forecasts"
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border font-military font-bold text-[11.5px] tracking-wider transition-all duration-200 cursor-pointer ${
+                  activeTab === 'FUNDAMENTAL_CALENDAR'
+                    ? 'bg-gradient-to-r from-amber-300 to-orange-400 text-slate-950 border-amber-200'
+                    : 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/35 hover:to-orange-500/35 text-amber-100 border-amber-400/60'
                 }`}
               >
-                <div className={`w-4 h-4 rounded flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
-                  activeTab === 'PSYCHOLOGY' ? 'bg-slate-950/20 text-slate-950' : 'text-amber-400'
-                }`}>
-                  <Brain className="w-3.5 h-3.5 stroke-[2.2]" />
-                </div>
-                <div className="text-left flex items-center gap-1 leading-tight">
-                  <span className="whitespace-nowrap hidden sm:inline">Psych Center</span>
-                  <span className="sm:hidden font-mono-code text-[10px]">MINDSET</span>
-                  <span className="flex items-center gap-0.5 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1 py-0.2 rounded font-bold uppercase shadow-xs">
-                    <Lock className="w-2 h-2 text-amber-400" />
-                    LOCKED
-                  </span>
-                </div>
+                <Calendar className="w-3.5 h-3.5 stroke-[2.2]" />
+                <span className="whitespace-nowrap hidden sm:inline">Live News Calendar</span>
+                <span className="whitespace-nowrap sm:hidden">News</span>
               </button>
             </div>
           )}

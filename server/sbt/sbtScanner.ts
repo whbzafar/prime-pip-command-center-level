@@ -23,7 +23,7 @@ import { archiveBefore } from '../history/archive.js';
 import { dukaBefore, yahooAny, yahooBefore, type Candle, type Tf } from '../history/historyService.js';
 import { readScripts } from '../pine/pineStore.js';
 import { runScript, seriesKey } from '../pine/pineRunner.js';
-import { pineCompat } from '../../src/utils/pineCompat';
+import { guardLoops } from '../../src/utils/pineCompat';
 
 export const H1 = 3_600_000;
 const H1_BARS = Number(process.env.PPFX_SBT_BARS || 2500);
@@ -88,25 +88,6 @@ export function instrument(src: string): string | null {
     '',
   );
   return out.join('\n');
-}
-
-/**
- * Safety guard for one loop in the script's SBT 8B scan: `for k = <start> to i`. When <start> is the
- * candle AFTER the newest one (start = i + 1), Pine counts DOWN and reads a candle that does not
- * exist yet, which stops the whole script with "Index out of bounds". The guard skips the loop in
- * exactly that case (there is nothing to check yet); every other case is unchanged. It is applied
- * only when a run stopped with that error, and the result is marked `guarded`.
- */
-export function guardLoops(src: string): string | null {
-  const lines = src.split('\n');
-  const at = lines.findIndex((l) => /^\s+for k = \(s\.tst \? s\.next : math\.max\(s\.next, sI\)\) to i\b/.test(l));
-  if (at < 0) return null;
-  const indent = lines[at].match(/^\s+/)![0];
-  let end = at + 1;
-  while (end < lines.length && (lines[end].trim() === '' || lines[end].match(/^\s*/)![0].length > indent.length)) end++;
-  while (end > at + 1 && lines[end - 1].trim() === '') end--;
-  const block = lines.slice(at, end).map((l) => (l.trim() ? `    ${l}` : l));
-  return [...lines.slice(0, at), `${indent}if (s.tst ? s.next : math.max(s.next, sI)) <= i`, ...block, ...lines.slice(end)].join('\n');
 }
 
 type Loaded = { src: string; guarded: string | null; source: 'library' | 'bundled' };

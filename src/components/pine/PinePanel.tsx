@@ -210,7 +210,7 @@ const AdminEditor: React.FC<{ symbol: string; interval: string; onClose: () => v
       </div>
       {draftStatus && (pineLib.get().shown.includes(DRAFT_ID) || current) && <div className="px-3 py-1 border-b border-slate-800"><StatusLine id={pineLib.get().shown.includes(DRAFT_ID) ? DRAFT_ID : current!.id} /></div>}
       {lib.error && <div className="px-3 py-1.5 text-[11px] text-rose-300 border-b border-slate-800">Library: {lib.error}</div>}
-      {lib.backend.startsWith('temporary') && <div className="px-3 py-1.5 text-[11px] text-amber-200 bg-amber-500/10 border-b border-amber-500/30">Storage warning — {lib.backend}. Scripts saved now are kept only temporarily on the server; reconnect Supabase so they are stored permanently.</div>}
+      {lib.backend.startsWith('temporary') && <div className="px-3 py-1.5 text-[11px] text-amber-200 bg-amber-500/10 border-b border-amber-500/30">Scripts are not saved permanently yet ({lib.backend}). Connect the free database once — Vercel → your project → Storage → Upstash for Redis → Connect, then redeploy — and published scripts will stay in your library.</div>}
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="h-[460px] min-w-0 border-r border-slate-800">
           <CodeEditor value={code} onChange={setCode} onRun={addToChart} onSave={() => save(false)} errorLine={(draftStatus?.kind === 'error' && draftStatus.line) || null} />

@@ -8,7 +8,6 @@ const PineMainChartLazy = React.lazy(() => import('./pine/PineMainChart'));
 import { pineLib, loadLibrary as loadPineLibrary, hideAll as hideAllPine } from './pine/pineLibrary';
 import { catalogFor } from './pine/pineData';
 import { TvChartTools } from './pine/TvChartTools';
-import { PremiumWatchlist } from './sbt/PremiumWatchlist';
 import { isTrialActive } from '../utils/trial';
 import { PineIndicatorChips } from './pine/PineIndicatorChips';
 import {
@@ -1254,8 +1253,6 @@ export const WATCHLIST_CATEGORIES = [
   },
 ];
 
-/** Every instrument in the categories, once (for the watchlist's add box). */
-const WATCHLIST_SYMBOLS: { symbol: string; label: string }[] = Array.from(new Map(WATCHLIST_CATEGORIES.flatMap((c) => c.symbols).map((x) => [x.symbol, { symbol: x.symbol, label: x.label }])).values());
 
 // ============================================================================
 // DEMO POSITION & TRADE TRACKING
@@ -1476,7 +1473,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   });
 
   // Modals & Panels
-  const [activeRightTool, setActiveRightTool] = useState<RightSideToolId | null>(null);
+  const [activeRightTool, setActiveRightTool] = useState<RightSideToolId | null>(() => (typeof window !== 'undefined' && window.innerWidth >= 1280 ? 'WATCHLIST' : null));
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [autoSaveStatus, setAutoSaveStatus] = useState<string>('Saved');
@@ -3617,9 +3614,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         {/* LIVE FUNDAMENTAL BIAS — strongest bullish / bearish pairs from the live engine; click → chart */}
         <div className="px-3 pt-2">
           <LiveBiasStrip activeSymbol={selectedSymbol} onSelect={(sym) => handleSelectSymbol(chartSymbolFor(sym))} />
-        </div>
-        <div className="px-3 pt-2">
-          <PremiumWatchlist activeSymbol={selectedSymbol} onSelect={(sym) => handleSelectSymbol(sym)} known={WATCHLIST_SYMBOLS} />
         </div>
 
         {/* ===================================================================== */}
