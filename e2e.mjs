@@ -44,7 +44,7 @@ await page.locator('[aria-label="Close"]').first().click().catch(() => {});
 // Fundamentals → rankings
 await page.getByText(/^FUNDAMENTALS$/i).first().click().catch(async () => { await page.getByRole('button', { name: /Fundamentals/i }).first().click().catch(() => console.log('no fundamentals button')); });
 await page.waitForTimeout(6000);
-await page.getByRole('button', { name: /Top Bullish/i }).first().click().catch(() => console.log('no rankings tab')); await page.waitForTimeout(5000);
+await page.getByText(/Top Bullish\s*\/\s*Bearish/i).first().click({ timeout: 8000 }).catch(() => console.log('no rankings tab')); await page.waitForTimeout(5000);
 t = await txt(); console.log('FUNDAMENTALS panel:', t.includes('Market at key levels'), '| hit rows', await page.locator('[data-testid="level-hit"]').count());
 await page.locator('[data-testid="level-alerts"]').first().scrollIntoViewIfNeeded().catch(() => {}); await shot('03-fundamentals');
 // Premium TradingView: watchlist + brokers
@@ -58,7 +58,7 @@ await wl.locator('[title="Open GBP/JPY"]').first().click().catch(() => console.l
 await wl.scrollIntoViewIfNeeded(); await shot('04-watchlist');
 const sel = page.locator('[data-testid="broker-select"]');
 console.log('BROKERS', (await sel.locator('option').allInnerTexts()).join(', '));
-for (const b of ['FOREXCOM', 'ICMARKETS', 'EIGHTCAP', 'FXOPEN', 'BLACKBULL', 'SAXO', 'FPMARKETS', 'VANTAGE', 'ACTIVTRADES', 'EASYMARKETS', 'SKILLING', 'TICKMILL', 'THINKMARKETS', 'FX_IDC', 'CAPITALCOM', 'FX']) {
+for (const b of ['FOREXCOM']) {
   await sel.selectOption(b); await page.waitForTimeout(7000);
   const frames = page.frames().map((f) => f.url()).filter((u) => /tradingview/.test(u));
   const m = frames.map((u) => decodeURIComponent(u).match(/symbol"?[=:]"?([A-Z_]+:[A-Z0-9]+)/)?.[1]).filter(Boolean);
@@ -66,6 +66,10 @@ for (const b of ['FOREXCOM', 'ICMARKETS', 'EIGHTCAP', 'FXOPEN', 'BLACKBULL', 'SA
   console.log('BROKER', b, '→ widget symbol', m[0] || '(none)', '| invalid:', /Invalid symbol|only available on TradingView|symbol doesn.t exist/i.test(ft), '|', ft.slice(0, 90));
   if (b === 'FOREXCOM') { await sel.scrollIntoViewIfNeeded(); await shot('05-broker-' + b); }
 }
+// gold with a broker feed
+await page.getByRole('button', { name: /^Commodities/ }).first().click().catch(() => {}); await page.waitForTimeout(1500);
+await page.getByRole('button', { name: /Gold|XAU/ }).first().click().catch(() => console.log('no gold pill')); await page.waitForTimeout(3000);
+for (const b of ['FOREXCOM', 'PEPPERSTONE', 'ICMARKETS']) { await sel.selectOption(b); await page.waitForTimeout(7000); const ft = (await Promise.all(page.frames().filter((f) => /tradingview/.test(f.url())).map((f) => f.locator('body').innerText().catch(() => '')))).join(' ').replace(/\s+/g, ' '); console.log('GOLD', b, '| invalid:', /doesn.t exist|Invalid symbol/i.test(ft), '|', ft.slice(0, 80)); }
 await sel.selectOption(''); await page.waitForTimeout(6000); await shot('06-pro-again');
 console.log('ERRORS', errs.length, errs.slice(0, 5).join(' || '));
 process.exit(0);
