@@ -718,7 +718,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
               </div>
               {/* Brand, sitting on the fade */}
               <div className="absolute inset-x-0 bottom-0 px-5 sm:px-7 pb-2.5 text-center">
-                <h2 className="text-[19px] sm:text-[22px] font-military font-bold tracking-[0.12em] uppercase bg-gradient-to-r from-amber-100 via-white to-amber-200 bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+                <h2 className="text-[15px] min-[400px]:text-[17px] sm:text-[21px] whitespace-nowrap font-military font-bold tracking-[0.08em] sm:tracking-[0.12em] uppercase bg-gradient-to-r from-amber-100 via-white to-amber-200 bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
                   PrimePipFX Command Center
                 </h2>
                 <p className="mt-0.5 text-[10.5px] sm:text-[11px] font-mono-code tracking-[0.2em] uppercase text-amber-200/85">
