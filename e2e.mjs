@@ -15,34 +15,33 @@ const open = async (page) => { await page.goto(B, { waitUntil: 'domcontentloaded
 const vis = (page, sel) => page.evaluate((sel) => { const el = document.querySelector(sel); if (!el) return 'MISSING'; const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); if (!r.width || !r.height) return `zero-size display=${cs.display}`; const x = r.left + r.width / 2, y = r.top + r.height / 2; const top = document.elementFromPoint(x, y); const onTop = top && (el === top || el.contains(top)); return `box ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)} vw=${innerWidth} ${onTop ? 'ON TOP' : 'COVERED by ' + (top ? top.tagName + '.' + String(top.className).slice(0, 80) : 'nothing')} opacity=${cs.opacity}`; }, sel);
 const overflow = async (page, label) => { const o = await page.evaluate(() => { const w = document.documentElement.clientWidth; const bad = []; for (const el of document.querySelectorAll('body *')) { const r = el.getBoundingClientRect(); if (r.width > 0 && r.height > 0 && r.right > w + 4 && r.left < w) { let p = el.parentElement, clipped = false; while (p && p !== document.body) { const s = getComputedStyle(p); if (/(auto|scroll|hidden|clip)/.test(s.overflowX)) { clipped = true; break; } p = p.parentElement; } if (!clipped && getComputedStyle(el).position !== 'fixed') bad.push((el.id ? '#' + el.id : el.tagName.toLowerCase() + '.' + String(el.className).split(' ').slice(0, 4).join('.')) + ' →' + Math.round(r.right)); } } return { w, sw: document.documentElement.scrollWidth, bad: bad.slice(0, 10) }; }); console.log('OVERFLOW', label, 'vw', o.w, 'scrollW', o.sw, o.sw > o.w + 2 ? 'OVERFLOWS' : 'fits', '|', o.bad.join(' | ')); };
 
-for (const [engine, bt] of [['webkit', webkit], ['chromium', chromium]]) {
+for (const [engine, bt] of [['chromium', chromium]]) {
   const browser = await bt.launch();
-  const ctx = await browser.newContext({ ...devices['iPhone 14 Pro Max'], ...(engine === 'chromium' ? { isMobile: true, hasTouch: true } : {}) });
+  const ctx = await browser.newContext({ ...devices['iPhone 14 Pro Max'], isMobile: true, hasTouch: true });
   const page = await setup(ctx); const errs = []; page.on('pageerror', (e) => errs.push(e.message.slice(0, 200)));
   await open(page);
-  const shot = (n, full = false) => page.screenshot({ path: `shots/${engine}-${n}.png`, fullPage: full });
-  console.log(`== ${engine} iPhone 14 Pro Max`);
-  console.log('ANN button', await vis(page, '[aria-label="Announcements"]'));
-  console.log('LOGOUT button', await vis(page, '[title^="Logout"]'));
-  console.log('PROFILE button', await vis(page, '[title="Edit Your Profile & Status"]'));
-  await overflow(page, 'home'); await shot('1-home');
-  await page.waitForTimeout(20000);
-  await page.locator('[aria-label="Announcements"]').first().click({ timeout: 5000 }).catch((e) => console.log('ANN click failed', e.message.slice(0, 120)));
-  await page.waitForTimeout(2000); await shot('2-announcements'); await overflow(page, 'announcements');
-  console.log('ANN hits', await page.locator('[data-testid="level-hit"]').count(), '|', ((await page.locator('[data-testid="level-hit"]').first().innerText().catch(() => '')) || '').replace(/\s+/g, ' ').slice(0, 260));
-  await page.keyboard.press('Escape').catch(() => {}); await page.locator('[aria-label="Close"]').first().click({ timeout: 2000 }).catch(() => {}); await page.locator('[aria-label="Announcements"]').first().click({ timeout: 2000 }).catch(() => {});
-  await page.waitForTimeout(800);
-  await page.locator('#header-fundamentals-btn, #header-fundamentals-guest-btn').first().click({ timeout: 5000 }).catch(() => console.log('no fundamentals btn'));
-  await page.waitForTimeout(9000); await shot('3-fundamentals'); await overflow(page, 'fundamentals');
-  // open a pair
-  const tabs = await page.locator('button').allInnerTexts(); console.log('FUND buttons', tabs.map((t) => t.trim()).filter((t) => t && t.length < 30).slice(0, 40).join(' | '));
-  await page.getByRole('button', { name: /^Pairs/ }).first().click({ timeout: 4000 }).catch(() => console.log('no Pairs tab'));
-  await page.waitForTimeout(6000); await shot('4-pairs'); await overflow(page, 'pairs');
-  await page.getByText(/EUR\/USD|EURUSD/).first().click({ timeout: 4000 }).catch(() => console.log('no EURUSD row'));
-  await page.waitForTimeout(7000); await shot('5-pair-detail'); await shot('5-pair-detail-full', true); await overflow(page, 'pair detail');
+  const shot = (n, full = false) => page.screenshot({ path: `shots/m-${n}.png`, fullPage: full });
+  await page.locator('[aria-label="More Categories"], [title="More Categories"]').first().click({ timeout: 4000 }).catch(() => console.log('no More'));
+  await page.waitForTimeout(1200); console.log('MORE logout', await vis(page, '[data-testid="mobile-logout"]')); await shot('0-more');
+  await page.locator('[data-testid="mobile-logout"]').click({ timeout: 3000 }).then(() => console.log('LOGOUT clicked')).catch(() => console.log('LOGOUT not clickable'));
+  await page.waitForTimeout(3000); console.log('AFTER logout token', await page.evaluate(() => localStorage.getItem('primepipfx_session_token'))); await shot('0b-after-logout');
+  await open(page);
+  await page.locator('#header-fundamentals-btn').click({ timeout: 6000 }).catch((e) => console.log('no fundamentals btn', e.message.slice(0, 100)));
+  await page.waitForTimeout(10000); await shot('1-fund'); await overflow(page, 'fund forex');
+  // tap a currency / asset in Forex
+  await page.getByRole('tab', { name: /Pairs/ }).click({ timeout: 5000 }).catch(() => console.log('no Pairs tab'));
+  await page.waitForTimeout(6000); await shot('2-pairs'); await overflow(page, 'pairs list');
+  await page.locator('button:has-text("EUR/USD")').first().click({ timeout: 5000 }).catch(() => console.log('no EUR/USD'));
+  await page.waitForTimeout(8000); await shot('3-pair', false); await shot('3-pair-full', true); await overflow(page, 'pair detail');
+  await page.getByRole('button', { name: /Open chart|chart/i }).first().click({ timeout: 4000 }).catch(() => console.log('no open chart'));
+  await page.waitForTimeout(14000); await shot('4-chart'); await overflow(page, 'chart from pair');
+  await page.evaluate(() => window.scrollBy(0, 500)); await page.waitForTimeout(1500); await shot('5-chart-scrolled');
+  const ifr = await page.evaluate(() => { const f = [...document.querySelectorAll('iframe')].find((x) => /tradingview/.test(x.src)); if (!f) return 'no iframe'; const r = f.getBoundingClientRect(); return `${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)} vw ${innerWidth} vh ${innerHeight}`; });
+  console.log('CHART iframe', ifr);
   console.log('ERRORS', engine, errs.length, errs.slice(0, 4).join(' || '));
   await browser.close();
 }
+process.exit(0);
 // desktop TradingView timeframe + countdown
 {
   const browser = await chromium.launch();
