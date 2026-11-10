@@ -3,16 +3,27 @@ on: { push: { branches: [ci/macro-live-probe] } }
 jobs:
   p:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 50
+    permissions: { contents: write }
+    env: { PRIMEPIPFX_SESSION_SECRET: ci-only-secret-0123456789, PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD: ci-admin-pass-123456, PPFX_SHARED_KV_URL: 'http://localhost:8798/b' }
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: { ref: feature/fundamental-analysis-engine, path: app }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: cd app && npm ci --no-audit --no-fund >/dev/null 2>&1 && npm run build >/dev/null 2>&1 && ls dist | head -3
       - run: |
-          B=https://prime-pip-command-center-level.vercel.app
-          for i in 1 2 3 4 5 6 7 8; do
-            js=$(curl -s $B/ | grep -o 'assets/index-[^"]*\.js' | head -1)
-            code=$(curl -s -o /tmp/s.json -w '%{http_code}' "$B/api/sbt/scan?symbol=EURUSD")
-            echo "TRY $i bundle=$js scan=$code $(head -c 200 /tmp/s.json)"
-            if [ "$code" = "503" ] || [ "$code" = "200" ]; then break; fi
-            sleep 30
-          done
-          curl -s $B/ | grep -o 'assets/[^"]*\.js' | sort -u | while read f; do curl -s $B/$f | grep -c 'premium-watchlist' | sed "s|^|WATCHLIST in $f: |"; done | grep -v ': 0' | head -3
-          curl -s -o /dev/null -w 'UNKNOWN %{http_code}\n' "$B/api/sbt/scan?symbol=NOPE"
+          (node fakekv.mjs > /tmp/kv.log 2>&1 &)
+          sleep 1
+          rm -rf app2 && mkdir app2 && cp -r app/data app2/data && ln -s $PWD/app/node_modules app2/node_modules && cp -r app/dist app2/dist && cp app/package.json app2/
+          (cd app && PORT=3000 node dist/server.cjs > /tmp/server.log 2>&1 &)
+          (cd app2 && PORT=3001 node dist/server.cjs > /tmp/server2.log 2>&1 &)
+          sleep 16
+          node sealed.mjs || true
+          grep -c PUT /tmp/kv.log; grep PUT /tmp/kv.log | tail -4 | cut -c1-120
+      - run: npm i -s playwright@1 && npx playwright install --with-deps chromium >/dev/null 2>&1 && mkdir -p shots && (timeout 900 node e2e.mjs || true); tail -5 /tmp/server.log
+      - if: always()
+        run: |
+          git config user.name ci; git config user.email ci@example.com
+          git checkout -B probe-shots && git add -f shots && git commit -qm shots && git push -qf origin probe-shots

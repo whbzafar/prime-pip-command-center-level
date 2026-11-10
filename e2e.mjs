@@ -1,75 +1,60 @@
-import { chromium } from 'playwright';
+import { chromium, devices } from 'playwright';
 const B = 'http://localhost:3000';
 const user = { id: 'ui-test', name: 'UI Test', username: 'uitest', role: 'MEMBER', subscriptionStatus: 'LIFETIME', subscriptionPrice: 0, isLifetime: true, paymentStatus: 'PAID' };
-const ctx = await (await chromium.launch()).newContext({ viewport: { width: 1600, height: 1000 }, permissions: ['notifications'] });
-const page = await ctx.newPage();
-const errs = []; page.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message.slice(0, 220)));
-await ctx.route('**/api/auth/me', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, user }) }));
-const H1 = 3600000; let scans = 0; const asked = [];
-// Simulated scanner answer: the pair closed its last H1 candle on a level, on BOTH sides, so the
-// client must show only the side that agrees with the fundamentals.
-await ctx.route('**/api/sbt/scan*', (r) => {
-  const u = new URL(r.request().url()); const symbol = u.searchParams.get('symbol'); const bar = Number(u.searchParams.get('bar'));
-  scans++; asked.push(symbol);
-  const t = bar - H1;
-  const sig = (dir, level, time) => ({ time, dir, level, price: 1.2345, stop: 1.2, target: 1.3, zoneTop: 1.236, zoneBottom: 1.233, bosTime: time - 10 * H1, models: [dir > 0 ? 'SBT 5' : 'SBT 2'] });
-  const quiet = scans % 3 === 0; // every third pair: no level reached
-  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, symbol, bar, lastCandle: t, bars: 2500, trend: 1, armed: true, dir: 1, level1: { top: 1.236, bottom: 1.233, modelReady: true }, level2: { top: 1.23, bottom: 1.228, modelReady: false }, level1Done: false, htfWait: false, inTrade: false, signals: quiet ? [sig(1, 1, t - 40 * H1)] : [sig(1, 1, t), sig(-1, 2, t)], ms: 1, source: 'bundled', guarded: false, stale: false }) });
-});
-await page.addInitScript((u) => { try { localStorage.setItem('primepipfx_user_profile', JSON.stringify(u)); localStorage.setItem('primepipfx_session_token', 'ui-test'); } catch {} }, user);
-await page.goto(B, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(9000);
-const txt = async () => (await page.locator('body').innerText()).replace(/\s+/g, ' ');
-const shot = (n) => page.screenshot({ path: `shots/${n}.png` });
-const enter = async () => { await page.getByText('Start Practice').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(800); await page.getByText('Create Demo Account').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(3000); for (let k = 0; k < 2; k++) { await page.getByText(/ENTER\s*COMMAND\s*CENTER/i).first().click({ timeout: 2500 }).catch(() => {}); for (const b of ['Maybe later', 'Start exploring', 'Got it']) await page.getByRole('button', { name: b }).first().click({ timeout: 800 }).catch(() => {}); await page.waitForTimeout(1200); } };
-await enter();
-const rk = await page.evaluate(() => fetch('/api/macro/rankings').then((r) => r.json()).then((j) => ({ bull: j.data.longTerm.bullish.slice(0, 6).map((p) => p.symbol), bear: j.data.longTerm.bearish.slice(0, 6).map((p) => p.symbol) })).catch((e) => String(e)));
-console.log('RANKINGS', JSON.stringify(rk));
-await page.waitForTimeout(30000);
-console.log('SCANS asked', scans, asked.join(','));
-const st = await page.evaluate(() => ({ seen: JSON.parse(localStorage.getItem('ppfx_level_alerts_seen_v1') || '[]'), log: JSON.parse(localStorage.getItem('ppfx_level_alerts_log_v1') || '[]').map((a) => `${a.symbol} ${a.side > 0 ? 'BUY' : 'SELL'} L${a.level}`) }));
-console.log('ALERTS logged', st.log.length, st.log.join(' | '));
-const wrong = st.log.filter((l) => { const [s, side] = l.split(' '); return (side === 'BUY') !== (rk.bull || []).includes(s); });
-console.log('ALIGNMENT wrong-side alerts:', wrong.length, wrong.join(' | '));
-await shot('01-home');
-// second cycle must not alert again
-const before = st.log.length;
-await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(8000); await enter(); await page.waitForTimeout(20000);
-const after = await page.evaluate(() => JSON.parse(localStorage.getItem('ppfx_level_alerts_log_v1') || '[]').length);
-console.log('DEDUPE after reload: alerts', before, '→', after);
-for (const b of ['Maybe later', 'Start exploring', 'Got it']) await page.getByRole('button', { name: b }).first().click({ timeout: 1000 }).catch(() => {});
-await page.locator('[aria-label="Announcements"]').first().click({ timeout: 8000 }).catch(() => console.log('no megaphone')); await page.waitForTimeout(1500);
-let t = await txt(); console.log('ANNOUNCE panel:', t.includes('Market at key levels'), '| hits rows', await page.locator('[data-testid="level-hit"]').count(), '|', (t.match(/[A-Z/]{3,9} (Buy|Sell) Level \d reached/g) || []).slice(0, 6).join(' ; '));
-await shot('02-announcements');
-await page.locator('[aria-label="Close"]').first().click().catch(() => {});
-// Fundamentals → rankings
-await page.getByText(/^FUNDAMENTALS$/i).first().click().catch(async () => { await page.getByRole('button', { name: /Fundamentals/i }).first().click().catch(() => console.log('no fundamentals button')); });
-await page.waitForTimeout(6000);
-await page.getByText(/Top Bullish\s*\/\s*Bearish/i).first().click({ timeout: 8000 }).catch(() => console.log('no rankings tab')); await page.waitForTimeout(5000);
-t = await txt(); console.log('FUNDAMENTALS panel:', t.includes('Market at key levels'), '| hit rows', await page.locator('[data-testid="level-hit"]').count());
-await page.locator('[data-testid="level-alerts"]').first().scrollIntoViewIfNeeded().catch(() => {}); await shot('03-fundamentals');
-// Premium TradingView: watchlist + brokers
-await page.getByText('PREMIUM TRADINGVIEW').first().click().catch(() => console.log('no premium nav')); await page.waitForTimeout(12000);
-const wl = page.locator('[data-testid="premium-watchlist"]');
-console.log('WATCHLIST present', await wl.count(), '|', ((await wl.innerText().catch(() => '')) || '').replace(/\s+/g, ' ').slice(0, 420));
-await wl.locator('input').fill('gbpjpy'); await wl.locator('input').press('Enter'); await page.waitForTimeout(600);
-await wl.locator('input').fill('NAS100'); await wl.locator('input').press('Enter'); await page.waitForTimeout(600);
-console.log('MY PAIRS saved', await page.evaluate(() => localStorage.getItem('ppfx_watchlist_v1')));
-await wl.locator('[title="Open GBP/JPY"]').first().click().catch(() => console.log('cannot open my pair')); await page.waitForTimeout(6000);
-await wl.scrollIntoViewIfNeeded(); await shot('04-watchlist');
-const sel = page.locator('[data-testid="broker-select"]');
-console.log('BROKERS', (await sel.locator('option').allInnerTexts()).join(', '));
-for (const b of ['FOREXCOM']) {
-  await sel.selectOption(b); await page.waitForTimeout(7000);
-  const frames = page.frames().map((f) => f.url()).filter((u) => /tradingview/.test(u));
-  const m = frames.map((u) => decodeURIComponent(u).match(/symbol"?[=:]"?([A-Z_]+:[A-Z0-9]+)/)?.[1]).filter(Boolean);
-  const ft = (await Promise.all(page.frames().filter((f) => /tradingview/.test(f.url())).map((f) => f.locator('body').innerText().catch(() => '')))).join(' ').replace(/\s+/g, ' ');
-  console.log('BROKER', b, '→ widget symbol', m[0] || '(none)', '| invalid:', /Invalid symbol|only available on TradingView|symbol doesn.t exist/i.test(ft), '|', ft.slice(0, 90));
-  if (b === 'FOREXCOM') { await sel.scrollIntoViewIfNeeded(); await shot('05-broker-' + b); }
+const browser = await chromium.launch();
+const H1 = 3600000;
+const setup = async (ctx) => {
+  await ctx.route('**/api/auth/me', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, user }) }));
+  let n = 0;
+  await ctx.route('**/api/sbt/scan*', (r) => { const u = new URL(r.request().url()); const bar = Number(u.searchParams.get('bar')); const t = bar - H1; n++; const sig = (dir, level) => ({ time: t, dir, level, price: 1.2345, stop: 1.2, target: 1.3, zoneTop: 1.236, zoneBottom: 1.233, bosTime: t - 10 * H1, models: ['SBT 5'] }); r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, symbol: u.searchParams.get('symbol'), bar, lastCandle: t, dir: 1, level1: { top: 1.236, bottom: 1.233, modelReady: true }, level2: null, signals: n % 4 === 0 ? [sig(1, 1), sig(-1, 2)] : [], stale: false }) }); });
+  const page = await ctx.newPage();
+  await page.addInitScript((u) => { try { localStorage.setItem('primepipfx_user_profile', JSON.stringify(u)); localStorage.setItem('primepipfx_session_token', 'ui-test'); } catch {} }, user);
+  return page;
+};
+const enter = async (page) => { await page.getByText('Start Practice').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(800); await page.getByText('Create Demo Account').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(3000); for (let k = 0; k < 2; k++) { await page.getByText(/ENTER\s*COMMAND\s*CENTER/i).first().click({ timeout: 2500 }).catch(() => {}); for (const b of ['Maybe later', 'Start exploring', 'Got it']) await page.getByRole('button', { name: b }).first().click({ timeout: 800 }).catch(() => {}); await page.waitForTimeout(1200); } };
+const open = async (page) => { await page.goto(B, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(9000); await enter(page); await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(8000); await enter(page); };
+
+// ───────── desktop
+{
+  const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  const page = await setup(ctx); const errs = []; page.on('pageerror', (e) => errs.push(e.message.slice(0, 200)));
+  await open(page);
+  const shot = (n) => page.screenshot({ path: `shots/${n}.png` });
+  console.log('HEADER news btn', await page.locator('#header-news-calendar-btn').count(), '| psych btn', await page.locator('#header-psychological-center-btn').count());
+  await page.locator('#header-news-calendar-btn').click().catch(() => console.log('no news btn')); await page.waitForTimeout(6000);
+  console.log('NEWS page', ((await page.locator('body').innerText()).match(/LIVE NEWS CALENDAR|Economic Calendar/i) || [''])[0]); await shot('d1-news');
+  await page.getByText('PREMIUM TRADINGVIEW').first().click().catch(() => console.log('no premium nav')); await page.waitForTimeout(14000);
+  console.log('OLD watchlist panel', await page.locator('[data-testid="premium-watchlist"]').count(), '| dock watchlist', await page.locator('[data-testid="watchlist-body"]').count());
+  await page.waitForTimeout(20000);
+  const rows = await page.locator('[data-testid="watchlist-row"]').allInnerTexts();
+  console.log('WATCH rows', rows.length, '|', rows.slice(0, 14).map((t) => t.replace(/\s+/g, ' ')).join(' ;; '));
+  await page.locator('[data-testid="watchlist-add"]').fill('gbpjpy'); await page.locator('[data-testid="watchlist-add"]').press('Enter'); await page.waitForTimeout(8000);
+  console.log('WATCH after add', (await page.locator('[data-testid="watchlist-row"]').allInnerTexts()).slice(-1).map((t) => t.replace(/\s+/g, ' ')).join(''));
+  await page.locator('[data-testid="watchlist-body"]').scrollIntoViewIfNeeded(); await shot('d2-watchlist-pro');
+  await page.locator('[data-testid="broker-select"]').selectOption('FX'); await page.waitForTimeout(10000);
+  console.log('TV chip', await page.locator('[data-testid="tv-scale-chip"]').count(), (await page.locator('[data-testid="tv-scale-chip"]').innerText().catch(() => '')).replace(/\s+/g, ' '));
+  await page.locator('[data-testid="tv-scale-plus"]').click().catch(() => console.log('no plus')); await page.waitForTimeout(2500);
+  console.log('TV alert panel', await page.locator('[data-testid="tv-alert-panel"]').count());
+  await page.locator('[data-testid="tv-scale-chip"]').scrollIntoViewIfNeeded(); await shot('d3-tv-chart');
+  console.log('ERRORS desktop', errs.length, errs.slice(0, 4).join(' || '));
+  await ctx.close();
 }
-// gold with a broker feed
-await page.getByRole('button', { name: /^Commodities/ }).first().click().catch(() => {}); await page.waitForTimeout(1500);
-await page.getByRole('button', { name: /Gold|XAU/ }).first().click().catch(() => console.log('no gold pill')); await page.waitForTimeout(3000);
-for (const b of ['FOREXCOM', 'PEPPERSTONE', 'ICMARKETS']) { await sel.selectOption(b); await page.waitForTimeout(7000); const ft = (await Promise.all(page.frames().filter((f) => /tradingview/.test(f.url())).map((f) => f.locator('body').innerText().catch(() => '')))).join(' ').replace(/\s+/g, ' '); console.log('GOLD', b, '| invalid:', /doesn.t exist|Invalid symbol/i.test(ft), '|', ft.slice(0, 80)); }
-await sel.selectOption(''); await page.waitForTimeout(6000); await shot('06-pro-again');
-console.log('ERRORS', errs.length, errs.slice(0, 5).join(' || '));
+// ───────── phone
+{
+  const ctx = await browser.newContext({ ...devices['iPhone 13'] });
+  const page = await setup(ctx); const errs = []; page.on('pageerror', (e) => errs.push(e.message.slice(0, 200)));
+  await open(page);
+  const shot = (n, full = false) => page.screenshot({ path: `shots/${n}.png`, fullPage: full });
+  const overflow = async (label) => { const o = await page.evaluate(() => { const w = document.documentElement.clientWidth; const bad = []; for (const el of document.querySelectorAll('body *')) { const r = el.getBoundingClientRect(); if (r.width > 0 && r.height > 0 && r.right > w + 6 && r.left < w && getComputedStyle(el).position !== 'fixed') { let p = el.parentElement, clipped = false; while (p && p !== document.body) { const s = getComputedStyle(p); if (/(auto|scroll|hidden|clip)/.test(s.overflowX)) { clipped = true; break; } p = p.parentElement; } if (!clipped) bad.push((el.id ? '#' + el.id : el.tagName.toLowerCase() + '.' + String(el.className).split(' ').slice(0, 3).join('.')) + ' →' + Math.round(r.right)); } } return { w, sw: document.documentElement.scrollWidth, bad: bad.slice(0, 8) }; }); console.log('MOBILE', label, 'viewport', o.w, 'scrollWidth', o.sw, o.sw > o.w + 2 ? 'OVERFLOWS' : 'fits', o.bad.join(' | ')); };
+  await overflow('home'); await shot('m1-home'); await shot('m1-home-full', true);
+  await page.locator('[aria-label="Announcements"]').first().click({ timeout: 5000 }).catch(() => console.log('no megaphone (mobile)')); await page.waitForTimeout(1500); await shot('m2-announcements'); await overflow('announcements');
+  await page.locator('[aria-label="Close"]').first().click().catch(() => {});
+  await page.locator('#header-fundamentals-btn, #header-fundamentals-guest-btn').first().click().catch(() => console.log('no fundamentals btn (mobile)')); await page.waitForTimeout(9000); await overflow('fundamentals'); await shot('m3-fundamentals');
+  await page.getByText(/Top Bullish\s*\/\s*Bearish/i).first().click({ timeout: 6000 }).catch(() => {}); await page.waitForTimeout(5000); await overflow('rankings'); await shot('m4-rankings');
+  await page.locator('#header-news-calendar-btn, #header-news-calendar-guest-btn').first().click().catch(() => console.log('no news btn (mobile)')); await page.waitForTimeout(8000); await overflow('news'); await shot('m5-news');
+  await page.getByText('PREMIUM TRADINGVIEW').first().click({ timeout: 6000 }).catch(() => console.log('no premium nav (mobile)')); await page.waitForTimeout(14000); await overflow('premium'); await shot('m6-premium');
+  await page.evaluate(() => window.scrollBy(0, 700)); await page.waitForTimeout(1500); await shot('m7-premium-chart');
+  console.log('ERRORS mobile', errs.length, errs.slice(0, 4).join(' || '));
+  await ctx.close();
+}
 process.exit(0);
