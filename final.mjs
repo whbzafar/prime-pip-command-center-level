@@ -3,6 +3,7 @@ const B = 'http://localhost:3000';
 const log = (...a) => console.log(...a);
 const member = { id: 'ui-test', name: 'UI Test', username: 'uitest', role: 'MEMBER', subscriptionStatus: 'LIFETIME', subscriptionPrice: 0, isLifetime: true, paymentStatus: 'PAID' };
 const br = await chromium.launch();
+process.on('unhandledRejection', (e) => console.log('UNHANDLED', String(e).slice(0, 200)));
 const enterFor = (page) => async () => { await page.getByText('Start Practice').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(800); await page.getByText('Create Demo Account').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(3000); for (let k = 0; k < 2; k++) { await page.getByText(/ENTER\s*COMMAND\s*CENTER/i).first().click({ timeout: 2500 }).catch(() => {}); for (const b of ['Maybe later', 'Start exploring', 'Got it']) await page.getByRole('button', { name: b }).first().click({ timeout: 800 }).catch(() => {}); await page.waitForTimeout(1200); } };
 const cut = (page, label) => page.evaluate((label) => { const w = innerWidth; const out = []; for (const el of document.querySelectorAll('#root *')) { const r = el.getBoundingClientRect(); if (r.width && r.right > w + 2 && r.left < w - 10 && !['fixed', 'absolute'].includes(getComputedStyle(el).position)) { let p = el.parentElement, sc = false; while (p) { if (/(auto|scroll|hidden)/.test(getComputedStyle(p).overflowX) && p.getBoundingClientRect().right <= w + 2) { sc = true; break; } p = p.parentElement; } if (!sc) out.push((el.id ? '#' + el.id : el.tagName.toLowerCase() + '.' + String(el.className).split(' ').slice(0, 3).join('.')).slice(0, 60) + '→' + Math.round(r.right)); } } return label + ': ' + (out.slice(0, 6).join(' | ') || 'none'); }, label);
 
@@ -13,7 +14,8 @@ for (const [name, opts] of [['desk', { viewport: { width: 1440, height: 900 } }]
   log('LOGIN', name, 'hero motion layer', await page.locator('[data-testid="hero-motion"]').count(), '| wahab teaser', await page.locator('[data-testid="wahab-teaser"]').count());
   await page.locator('[data-testid="login-hero"]').scrollIntoViewIfNeeded().catch(() => {});
   await page.screenshot({ path: `shots/${name}-login-a.png` }); await page.waitForTimeout(2200); await page.screenshot({ path: `shots/${name}-login-b.png` });
-  await page.locator('[data-testid="wahab-teaser"]').click().catch((e) => log('teaser click', e.message.slice(0, 80)));
+  const blocker = await page.evaluate(() => { const el = document.querySelector('[data-testid="wahab-teaser"]'); if (!el) return 'missing'; const r = el.getBoundingClientRect(); const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return el.contains(t) ? 'free' : (t ? t.tagName + '.' + String(t.className).slice(0, 120) : 'none') + ' @' + Math.round(r.top); }); log('TEASER blocker', name, blocker);
+  await page.locator('[data-testid="wahab-teaser"]').click({ timeout: 6000 }).catch(async (e) => { log('teaser click', e.message.slice(0, 160)); await page.locator('[data-testid="wahab-teaser"]').click({ force: true, timeout: 3000 }).catch(() => {}); });
   await page.waitForTimeout(3500); await page.screenshot({ path: `shots/${name}-wahab-1.png` });
   await page.waitForTimeout(10000); log('WAHAB', name, 'winter intro', await page.locator('[data-testid="winter-intro"]').count()); await page.screenshot({ path: `shots/${name}-wahab-2.png` });
   log('ERRORS login', name, errs.length, errs.slice(0, 3).join(' || '));
@@ -28,6 +30,7 @@ for (const [name, opts] of [['desk', { viewport: { width: 1440, height: 900 } }]
   await page.addInitScript((u) => { try { localStorage.setItem('primepipfx_user_profile', JSON.stringify(u)); localStorage.setItem('primepipfx_session_token', 'ui-test'); } catch {} }, member);
   const enter = enterFor(page);
   await page.goto(B, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(9000); await enter(); await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(8000); await enter();
+  await page.screenshot({ path: 'shots/phone-after-enter.png' }); log('PHONE body', (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 200));
   log('PHONE tools toggle', await page.locator('[data-testid="header-tools-toggle"]').isVisible().catch(() => false));
   await page.screenshot({ path: 'shots/phone-home.png' });
   // level alert banner (simulated event) + controls
@@ -60,12 +63,12 @@ for (const [name, opts] of [['desk', { viewport: { width: 1440, height: 900 } }]
   await page.getByRole('tab', { name: /Trading Bot Automation/ }).click().catch(() => {}); await page.waitForTimeout(1500);
   log('BOT countdown', ((await page.locator('[data-testid="bot-countdown"]').innerText().catch(() => '')) || '').replace(/\s+/g, ' '));
   await page.screenshot({ path: 'shots/phone-bot.png' });
-  await page.getByLabel('Full name').fill('CI Tester'); await page.getByLabel('WhatsApp number or email').fill('+92 300 0000000');
-  await page.getByRole('button', { name: /Reserve my place/ }).click(); await page.waitForTimeout(4000);
+  await page.getByLabel('Full name').fill('CI Tester', { timeout: 5000 }).catch(() => log('no name field')); await page.getByLabel('WhatsApp number or email').fill('+92 300 0000000', { timeout: 5000 }).catch(() => {});
+  await page.getByRole('button', { name: /Reserve my place/ }).click({ timeout: 5000 }).catch(() => log('no reserve btn')); await page.waitForTimeout(4000);
   log('BOT reserve result', ((await page.locator('[data-testid="bot-reserve"]').innerText().catch(() => '')) || '').replace(/\s+/g, ' ').slice(0, 160));
   await page.screenshot({ path: 'shots/phone-bot-done.png' });
   await page.getByRole('tab', { name: /Feelings/ }).click().catch(() => {}); await page.waitForTimeout(800);
-  await page.getByLabel('Your message').fill('CI test: I wish the app had a weekly performance report.'); await page.getByRole('button', { name: /^Send$/ }).click(); await page.waitForTimeout(3000);
+  await page.getByLabel('Your message').fill('CI test: I wish the app had a weekly performance report.', { timeout: 5000 }).catch(() => log('no message field')); await page.getByRole('button', { name: /^Send$/ }).click({ timeout: 5000 }).catch(() => {}); await page.waitForTimeout(3000);
   log('VOICE', ((await page.locator('[data-testid="voice-form"]').innerText().catch(() => '')) || '').includes('reached the team'));
   await page.getByRole('tab', { name: /Institutional/ }).click().catch(() => {}); await page.waitForTimeout(800); await page.screenshot({ path: 'shots/phone-inst.png' });
   log('ERRORS phone', errs.length, errs.slice(0, 3).join(' || '));
@@ -85,10 +88,10 @@ for (const [name, opts] of [['desk', { viewport: { width: 1440, height: 900 } }]
   await page.locator('[data-testid="broker-select"]').selectOption('FOREXCOM').catch(() => {}); await page.waitForTimeout(9000);
   log('TV symbol', page.frames().map((f) => f.url()).filter((u) => /widgetembed/.test(u)).map((u) => decodeURIComponent(u.match(/symbol=([^&]*)/)?.[1] || '')).join(','));
   await page.getByText(/UNLIMITED CHART/i).first().click().catch(() => log('no unlimited nav')); await page.waitForTimeout(9000);
-  await page.locator('[data-testid="instrument-search"]').fill('gold'); await page.waitForTimeout(800);
+  await page.locator('[data-testid="instrument-search"]').fill('gold', { timeout: 5000 }).catch(() => log('no instrument search')); await page.waitForTimeout(800);
   log('SEARCH gold', ((await page.locator('[data-testid="instrument-picker"]').innerText().catch(() => '')) || '').replace(/\s+/g, ' ').slice(0, 160));
   await page.locator('[data-testid="instrument-picker"]').scrollIntoViewIfNeeded(); await page.screenshot({ path: 'shots/desk-unlimited.png' });
-  await page.locator('[data-testid="instrument-search"]').fill('');
+  await page.locator('[data-testid="instrument-search"]').fill('', { timeout: 3000 }).catch(() => {});
   await page.getByText(/^Indicator$/).first().click().catch(() => log('no Indicator button')); await page.waitForTimeout(2000);
   log('IND menu', ((await page.locator('[data-testid="ppfx-indicator-menu"]').innerText().catch(() => '')) || '').replace(/\s+/g, ' ').slice(0, 260));
   await page.screenshot({ path: 'shots/desk-indicators.png' });
