@@ -572,14 +572,14 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => setIsTimeModalOpen(true)}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-950/90 hover:bg-slate-800 border border-slate-800 hover:border-sky-500/50 text-slate-200 transition cursor-pointer group text-[10px]"
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-950/90 hover:bg-slate-800 border border-slate-800 hover:border-sky-500/50 text-slate-200 transition cursor-pointer group text-[10px] max-w-full min-w-0 overflow-hidden"
             title="Click to change timezone, switch 12h/24h format, and view global market sessions"
           >
             <Clock className="w-3 h-3 text-sky-400 group-hover:rotate-12 transition-transform shrink-0" />
-            <span className="font-bold">{liveClockStr || 'WORLD CLOCK'}</span>
+            <span className="font-bold truncate min-w-0">{liveClockStr || 'WORLD CLOCK'}</span>
             {activeSessionSummary && (
               <span
-                  className={`inline-block max-w-[42vw] truncate px-1 py-0.2 rounded text-[9px] font-bold tracking-tight ${
+                  className={`hidden min-[460px]:inline-block max-w-[42vw] truncate px-1 py-0.2 rounded text-[9px] font-bold tracking-tight ${
                   isPeakLiquidity
                     ? 'bg-blue-500/20 text-amber-300 border border-blue-500/40 animate-pulse'
                     : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
@@ -602,7 +602,7 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 max-w-full">
           {/* Discipline Audio Alert Status & Tester */}
           <button
             id="header-sound-status-btn"
@@ -878,10 +878,10 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {/* Global discovery and account actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 max-w-full">
           <GlobalSearch onNavigate={switchTab} />
           {currentUser ? (
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <button
                 onClick={onOpenProfile}
                 title="Edit Your Profile & Status"

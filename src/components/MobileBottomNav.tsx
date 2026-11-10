@@ -281,7 +281,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             {currentUser && onLogout && (
               <div className="px-5 pt-3 flex items-center gap-2" data-testid="more-account">
                 <div className="flex-1 min-w-0 text-[11px] font-mono-code text-slate-400 truncate">Signed in as <b className="text-slate-100">{currentUser.username}</b></div>
-                <button type="button" data-testid="mobile-logout" onClick={() => { setIsMoreOpen(false); onLogout(); }}
+                <button type="button" data-testid="mobile-logout-sheet" onClick={() => { setIsMoreOpen(false); onLogout(); }}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-500/50 bg-rose-500/10 text-rose-200 text-[12px] font-bold cursor-pointer hover:bg-rose-500/20">
                   <LogOut className="w-3.5 h-3.5" />Log Out
                 </button>

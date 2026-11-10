@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import {
+import { LogOut,
   X,
   Search,
   Activity,
@@ -326,11 +326,13 @@ interface AllCategoriesModalProps {
   currentUser?: UserAccount | null;
   isDemoMode?: boolean;
   onOpenSubscription?: () => void;
+  onLogout?: () => void;
 }
 
 export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
   isOpen,
   onClose,
+  onLogout,
   activeTab,
   onSelectTab,
   currentUser,
@@ -601,7 +603,18 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
         {/* Footer */}
         <div className="p-3 sm:p-4 border-t border-slate-800/80 bg-[#090E1A] flex items-center justify-between gap-3 text-xs text-slate-400 font-mono-code shrink-0">
           <span className="hidden sm:inline">Select any category to jump directly to its tools</span>
-          <span className="sm:hidden">Tap any category to open</span>
+          {currentUser && onLogout ? (
+            <span className="sm:hidden min-w-0 truncate">Signed in as <b className="text-slate-200">{currentUser.username}</b></span>
+          ) : (
+            <span className="sm:hidden">Tap any category to open</span>
+          )}
+          <span className="flex-1 hidden sm:block" />
+          {currentUser && onLogout && (
+            <button type="button" data-testid="mobile-logout" onClick={() => { onClose(); onLogout(); }}
+              className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-rose-500/50 bg-rose-500/10 hover:bg-rose-500/20 text-rose-200 text-xs font-bold transition cursor-pointer shrink-0">
+              <LogOut className="w-3.5 h-3.5" />Log Out
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}

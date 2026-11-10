@@ -217,7 +217,7 @@ export const FundamentalAnalysisView: React.FC = () => {
             </div>
           )}
 
-          <div className="grid lg:grid-cols-[320px_minmax(0,1fr)] gap-4 items-start">
+          <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)] gap-4 items-start">
             <div className="space-y-2 lg:sticky lg:top-4">
               {list.map((a) => (
                 <button key={a.symbol} type="button" onClick={() => setSelected((s) => ({ ...s, [tab]: a.symbol }))}
@@ -268,7 +268,7 @@ export const FundamentalAnalysisView: React.FC = () => {
 
       {/* Release feed + upcoming */}
       {ov && (
-        <div className="grid lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-2 gap-4">
           <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
             <div className="flex items-center gap-2 mb-3"><Radio className="w-4 h-4 text-cyan-400" /><span className="text-[11px] font-mono-code uppercase tracking-widest text-cyan-300">Latest scored releases</span></div>
             <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
@@ -310,7 +310,7 @@ export const FundamentalAnalysisView: React.FC = () => {
 };
 
 const SourcesPanel: React.FC<{ ov: Overview }> = ({ ov }) => (
-  <div className="grid lg:grid-cols-2 gap-4">
+  <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-2 gap-4">
     <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-2">
       <div className="flex items-center gap-2 mb-1"><Activity className="w-4 h-4 text-cyan-400" /><span className="text-[11px] font-mono-code uppercase tracking-widest text-cyan-300">Live data sources (all free, no paid subscriptions)</span></div>
       {ov.sources.map((s) => (

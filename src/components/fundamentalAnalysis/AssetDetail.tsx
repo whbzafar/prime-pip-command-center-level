@@ -36,7 +36,7 @@ const IndicatorRow: React.FC<{ ind: IndicatorResult }> = ({ ind }) => {
           <p className="text-slate-400 leading-relaxed pt-2.5">{ind.description}</p>
           <p className="leading-relaxed"><span className="text-cyan-300 font-semibold">Why this score: </span>{ind.reasoning}</p>
           {ind.components.length > 0 && (
-            <div className="grid sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-3 gap-2">
               {ind.components.map((c) => (
                 <div key={c.key + c.label} className="rounded-lg bg-slate-950/70 border border-slate-800 p-2">
                   <div className="text-[9.5px] font-mono-code uppercase text-slate-500">{c.label} · weight {Math.round(c.weight * 100)}%</div>
@@ -95,7 +95,7 @@ const PillarBlock: React.FC<{ p: PillarResult; totalWeight: number; mirror?: Ass
             : mirror && (
               <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
                 <div className="text-[11px] font-mono-code text-slate-400 mb-2">{mirror.name} pillars (open the {mirror.symbol} card for full detail)</div>
-                <div className="grid sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-2 gap-2">
                   {mirror.pillars.map((mp) => (
                     <div key={mp.id} className="flex items-center justify-between gap-2 text-[11.5px]">
                       <span className="text-slate-300 truncate">{mp.name}</span>

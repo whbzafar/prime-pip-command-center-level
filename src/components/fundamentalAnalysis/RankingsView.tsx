@@ -109,7 +109,7 @@ export const RankingsView: React.FC<{ pairs: PairResult[]; onPair: (symbol: stri
       <LevelAlertsPanel onOpen={openChart} />
 
       {set && (
-        <div className="grid lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-2 gap-4">
           {([['bullish', `${horizon === 'longTerm' ? 'Long-term' : 'Current'} bullish`, 'text-emerald-300'], ['bearish', `${horizon === 'longTerm' ? 'Long-term' : 'Current'} bearish`, 'text-rose-300']] as const).map(([k, title, cls]) => (
             <div key={k} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 space-y-2">
               <div className={`text-[11px] font-mono-code uppercase tracking-[0.16em] ${cls} px-1`}>{title}</div>

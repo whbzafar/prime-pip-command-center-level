@@ -164,7 +164,7 @@ export const SentimentBoard: React.FC<{ compactHeader?: boolean }> = ({ compactH
 
       {loading && !data && <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-8 text-center text-sm text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-cyan-400" />Pulling live positioning from 9 brokers and 3 crypto exchanges…</div>}
       {error && !data && <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-[12px] text-amber-200">{error} — retrying automatically.</div>}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
         {rows.map((r) => <SentCard key={`${r.symbol}-${r.method}`} r={r} />)}
       </div>
       {data && rows.length === 0 && <div className="text-center text-sm text-slate-500 py-6">No instruments match.</div>}

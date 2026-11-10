@@ -1693,6 +1693,7 @@ export default function App() {
       {/* All 21 Categories Directory Modal */}
       <AllCategoriesModal
         isOpen={isAllCategoriesOpen}
+        onLogout={currentUser ? handleLogout : undefined}
         onClose={() => setIsAllCategoriesOpen(false)}
         activeTab={activeTab}
         onSelectTab={(tab) => {

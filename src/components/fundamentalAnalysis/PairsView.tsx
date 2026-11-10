@@ -41,9 +41,9 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
         <button type="button" onClick={() => setSel(null)} className="inline-flex items-center gap-1.5 text-[12px] text-cyan-400 hover:text-cyan-300 cursor-pointer">
           <ArrowLeft className="w-3.5 h-3.5" /> All pairs
         </button>
-        <div className="grid xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] gap-4 items-start">
+        <div className="grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] gap-4 items-start">
           {/* LEFT: pair verdict + base analysis */}
-          <div className="space-y-4">
+          <div className="space-y-4 min-w-0">
             <div className="rounded-3xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/10 via-slate-950 to-slate-950 p-5">
               <div className="text-[10px] font-mono-code uppercase tracking-widest text-cyan-400">Pair fundamental verdict</div>
               <div className="flex flex-wrap items-end gap-3 mt-1">
@@ -104,7 +104,7 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
             {detail.base && <AssetDetail asset={detail.base} compact institutional={detail.institutional?.base} title={`${p.base} — fundamental breakdown`} mirrors={detail.quote ? { [detail.quote.symbol]: detail.quote } : {}} />}
           </div>
           {/* RIGHT: quote analysis */}
-          <div className="space-y-4">
+          <div className="space-y-4 min-w-0">
             {detail.quote && <AssetDetail asset={detail.quote} compact institutional={detail.institutional?.quote} title={`${p.quote} — fundamental breakdown${usdPriced ? ' (enters inverted)' : ''}`} />}
           </div>
         </div>

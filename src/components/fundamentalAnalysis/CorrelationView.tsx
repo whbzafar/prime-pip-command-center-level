@@ -60,7 +60,7 @@ export const CorrelationView: React.FC<{ w30: CorrelationMatrix | null; w90: Cor
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_280px] gap-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[1fr_280px] gap-4">
         <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 overflow-x-auto">
           <table className="border-separate" style={{ borderSpacing: 2 }}>
             <thead>
