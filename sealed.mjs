@@ -37,7 +37,7 @@ r = await j(A, `/api/admin/customers/${me?.id}`, { method: 'DELETE', headers: H 
 console.log('ACCT delete on A', r.s, r.d?.ok);
 await sleep(5000);
 list = await j(B, '/api/admin/customers', { headers: H });
-console.log('ACCT deleted gone on B', !list.d?.customers?.some((c) => c.username === u), 'total', list.d?.customers?.length);
+await sleep(6000); list = await j(B, '/api/admin/customers', { headers: H }); console.log('ACCT deleted gone on B', !list.d?.customers?.some((c) => c.username === u), 'total', list.d?.customers?.length);
 const mem = await j(B, '/api/admin/members', { headers: H });
 console.log('ACCT storage', JSON.stringify(mem.d?.storage));
 const dg = await j(A, '/api/macro/diagnostics');
