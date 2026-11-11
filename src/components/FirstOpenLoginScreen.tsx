@@ -953,7 +953,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   title="Explore / Demo Preview (Active Subscription Required)"
                 >
                   <Lock className="w-4 h-4 text-amber-400 group-hover:scale-110 transition" />
-                  <span className="tracking-wider uppercase">{isTrialActive() ? 'EXPLORE WITHOUT AN ACCOUNT' : 'EXPLORE / DEMO PREVIEW (SUBSCRIPTION REQUIRED)'}</span>
+                  <span className="tracking-wider uppercase">{isTrialActive() ? 'CONTINUE EXPLORING WITHOUT AN ACCOUNT / DEMO' : 'CONTINUE EXPLORING WITHOUT AN ACCOUNT / DEMO (SUBSCRIPTION REQUIRED)'}</span>
                   {!isTrialActive() && <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold">
                     🔒 LOCKED
                   </span>}

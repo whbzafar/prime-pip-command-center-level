@@ -25,13 +25,15 @@ export interface LevelAlertSettings { sound: boolean; voice: boolean; soundId: S
 export const getLevelSettings = (): LevelAlertSettings => ({ sound: true, voice: true, soundId: 'alarm', confirmedOnly: true, ...read<Partial<LevelAlertSettings>>(K_LEVEL_SETTINGS, {}) });
 export function setLevelSettings(p: Partial<LevelAlertSettings>) { write(K_LEVEL_SETTINGS, { ...getLevelSettings(), ...p }); subs.forEach((f) => f()); }
 
-/** Sound + spoken pair for one or more setups: "Buy, G B P, C A D. Level 1 reached." */
+/** Sound + female voice for one or more setups: "G B P C A D. This pair has arrived — Level 1, buy." */
 export function announceSetups(list: { display: string; side: 1 | -1; level: 1 | 2 }[]) {
   const cfg = getLevelSettings();
   if (cfg.sound) { playSound(cfg.soundId); setTimeout(() => playSound(cfg.soundId), 900); }
   if (cfg.voice && list.length) {
-    const text = list.slice(0, 4).map((a) => `${a.side > 0 ? 'Buy' : 'Sell'}, ${spokenPair(a.display)}. Level ${a.level} reached.`).join(' ');
-    setTimeout(() => speak(`Fundamental setup. ${text}`), cfg.sound ? 1800 : 0);
+    const text = list.slice(0, 4).map((a) =>
+      `${spokenPair(a.display)}. This pair has arrived! Level ${a.level}, ${a.side > 0 ? 'buy' : 'sell'} setup.`
+    ).join(' ');
+    setTimeout(() => speak(text), cfg.sound ? 1800 : 0);
   }
 }
 

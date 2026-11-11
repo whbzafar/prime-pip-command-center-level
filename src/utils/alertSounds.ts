@@ -88,12 +88,46 @@ export function playSound(id: SoundId = 'chime', volume = 1) {
   } catch { /* audio blocked until the user interacts */ }
 }
 
-/** Reads a short message aloud (e.g. "Buy, G B P, C A D. Level 1 reached."). */
+// ── Natural female voice selection ───────────────────────────────────────────
+// Known natural-sounding female English voices across platforms, best first.
+const FEMALE_VOICE_HINTS = [
+  'samantha', 'google us english', 'google uk english female', 'microsoft aria', 'microsoft jenny',
+  'microsoft zira', 'microsoft michelle', 'microsoft sonia', 'karen', 'moira', 'tessa', 'serena',
+  'victoria', 'allison', 'ava', 'susan', 'fiona', 'female',
+];
+let chosenVoice: SpeechSynthesisVoice | null = null;
+function pickFemaleVoice(): SpeechSynthesisVoice | null {
+  try {
+    if (chosenVoice) return chosenVoice;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return null;
+    const en = voices.filter((v) => /^en(-|_|$)/i.test(v.lang));
+    const pool = en.length ? en : voices;
+    const score = (v: SpeechSynthesisVoice) => {
+      const n = v.name.toLowerCase();
+      let s = 0;
+      const hint = FEMALE_VOICE_HINTS.findIndex((h) => n.includes(h));
+      if (hint >= 0) s += 100 - hint;               // prefer earlier (more natural) hints
+      if (/natural|neural|online|premium|enhanced/.test(n)) s += 30; // natural engines
+      if (/^en-US/i.test(v.lang)) s += 5;
+      return s;
+    };
+    const best = [...pool].sort((a, b) => score(b) - score(a))[0];
+    chosenVoice = best && score(best) > 0 ? best : (en[0] || voices[0]);
+    return chosenVoice;
+  } catch { return null; }
+}
+// Voices load asynchronously on some browsers.
+try { if ('speechSynthesis' in window) window.speechSynthesis.addEventListener?.('voiceschanged', () => { chosenVoice = null; pickFemaleVoice(); }); } catch { /* ignore */ }
+
+/** Reads a short message aloud in a natural female voice (e.g. "G B P C A D. This pair has arrived — Level 1."). */
 export function speak(text: string) {
   try {
     if (!('speechSynthesis' in window)) return;
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.95; u.pitch = 1; u.volume = 1; u.lang = 'en-US';
+    const v = pickFemaleVoice();
+    if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'en-US'; }
+    u.rate = 0.96; u.pitch = 1.08; u.volume = 1; // slightly higher pitch reads warmer/female on fallback engines
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(u);
   } catch { /* not supported */ }

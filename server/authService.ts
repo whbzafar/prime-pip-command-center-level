@@ -766,11 +766,12 @@ export function checkReferralCode(code: string): {
 
   const clean = code.trim().toUpperCase();
 
-  // Official discount code: 'PrimePopFX' (case-insensitive; the 'PrimePipFX' spelling is accepted too)
-  if (clean === 'PRIMEPOPFX' || clean === 'PRIMEPIPFX') {
+  // Official coupon code: 'PRIME' (case-insensitive). The older 'PrimePopFX' / 'PrimePipFX'
+  // spellings are still accepted so any existing links keep working.
+  if (clean === 'PRIME' || clean === 'PRIMEPOPFX' || clean === 'PRIMEPIPFX') {
     return {
       valid: true,
-      referrerName: 'PrimePopFX official discount code',
+      referrerName: 'PRIME official coupon code',
       price: discountedPrice,
       originalPrice: standardPrice,
       discountPercent,
