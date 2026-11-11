@@ -61,7 +61,7 @@ export const PART3: Division[] = [
     id: 'fx', no: 11,
     title: { en: 'Foreign Exchange Institutional Intelligence', ur: 'فاریکس ادارہ جاتی انٹیلیجنس' },
     intro: { en: 'Forex is the largest market in the world, run mainly by banks. Knowing its plumbing — fixes, sessions, swaps, carry — explains many daily moves.', ur: 'فاریکس دنیا کی سب سے بڑی مارکیٹ ہے جو زیادہ تر بینک چلاتے ہیں۔ اس کے نظام — فکس، سیشن، سوَیپ، کیری — کو جاننا روز کی بہت سی حرکتیں سمجھاتا ہے۔' },
-    links: [{ label: 'BIS Triennial FX Survey', url: 'https://en.wikipedia.org/wiki/Triennial_Central_Bank_Survey', site: 'Wikipedia' }, { label: 'Foreign exchange market', url: 'https://en.wikipedia.org/wiki/Foreign_exchange_market', site: 'Wikipedia' }],
+    links: [{ label: 'Foreign exchange market', url: 'https://en.wikipedia.org/wiki/Foreign_exchange_market', site: 'Wikipedia' }],
     topics: [
       ['Global FX Market Structure', 'عالمی فاریکس ڈھانچہ', 'A 24-hour, decentralised market of banks, brokers, funds and corporates, trading trillions daily.', '24 گھنٹے کی غیر مرکزی مارکیٹ — بینک، بروکر، فنڈز اور کمپنیاں روزانہ کھربوں کی ٹریڈ کرتے ہیں۔'],
       ['Interbank FX Market', 'انٹربینک فاریکس مارکیٹ', 'Where big banks trade with each other; it sets the prices retail brokers pass on.', 'جہاں بڑے بینک آپس میں ٹریڈ کرتے ہیں؛ یہی ریٹیل بروکرز کو دی جانے والی قیمتیں طے کرتا ہے۔'],

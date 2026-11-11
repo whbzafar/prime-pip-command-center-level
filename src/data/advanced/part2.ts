@@ -5,7 +5,7 @@ export const PART2: Division[] = [
     id: 'flow', no: 5,
     title: { en: 'Institutional Order Flow & Positioning', ur: 'ادارہ جاتی آرڈر فلو اور پوزیشننگ' },
     intro: { en: 'Who is actually buying and selling, how big, and how they are already positioned. Positioning tells you which side is crowded and could be forced out.', ur: 'اصل میں کون خرید اور بیچ رہا ہے، کتنا بڑا، اور پہلے سے کس طرح پوزیشن لیے ہوئے ہے۔ پوزیشننگ بتاتی ہے کون سی طرف بھری ہوئی ہے اور زبردستی نکل سکتی ہے۔' },
-    links: [{ label: 'CFTC Commitments of Traders', url: 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm', site: 'CFTC' }, { label: 'Order flow', url: 'https://en.wikipedia.org/wiki/Order_flow', site: 'Wikipedia' }],
+    links: [{ label: 'CFTC Commitments of Traders', url: 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm', site: 'CFTC' }],
     topics: [
       ['Institutional Order Flow', 'ادارہ جاتی آرڈر فلو', 'The buying and selling of banks, funds and corporations. Their size moves markets, so traders try to read its direction.', 'بینکوں، فنڈز اور کمپنیوں کی خرید و فروخت۔ ان کا حجم مارکیٹ ہلاتا ہے، اس لیے ٹریڈر اس کی سمت سمجھنے کی کوشش کرتے ہیں۔'],
       ['Smart Order Routing', 'اسمارٹ آرڈر روٹنگ', 'Software that sends each part of an order to the venue with the best price and liquidity at that moment.', 'سافٹ ویئر جو آرڈر کا ہر حصہ اس جگہ بھیجتا ہے جہاں اس لمحے بہترین قیمت اور لیکویڈیٹی ہو۔'],
@@ -33,7 +33,7 @@ export const PART2: Division[] = [
     id: 'deriv', no: 6,
     title: { en: 'Advanced Derivatives Intelligence', ur: 'ایڈوانسڈ ڈیریویٹیوز انٹیلیجنس' },
     intro: { en: 'Options, futures and swaps are where institutions hedge and express views. Their prices reveal expected volatility and where big hedging flows will appear.', ur: 'آپشنز، فیوچرز اور سوَیپس میں ادارے ہیج کرتے اور اپنی رائے ظاہر کرتے ہیں۔ ان کی قیمتیں متوقع اتار چڑھاؤ اور بڑے ہیجنگ بہاؤ کی جگہیں بتاتی ہیں۔' },
-    links: [{ label: 'Investor.gov — options', url: 'https://www.investor.gov/introduction-investing/investing-basics/investment-products/options', site: 'Investor.gov' }, { label: 'Option (finance)', url: 'https://en.wikipedia.org/wiki/Option_(finance)', site: 'Wikipedia' }],
+    links: [{ label: 'Option (finance)', url: 'https://en.wikipedia.org/wiki/Option_(finance)', site: 'Wikipedia' }],
     topics: [
       ['Options Market Structure', 'آپشنز مارکیٹ کا ڈھانچہ', 'How options are listed, quoted and hedged by market makers, and who the main buyers and sellers are.', 'آپشنز کیسے لسٹ، قیمت اور مارکیٹ میکرز کے ذریعے ہیج ہوتے ہیں، اور بڑے خریدار و فروخت کنندہ کون ہیں۔'],
       ['Implied Volatility (IV)', 'امپلائیڈ وولیٹیلیٹی (IV)', 'The future volatility the option price is assuming. High IV = market expects big moves.', 'آپشن کی قیمت میں شامل متوقع مستقبل کا اتار چڑھاؤ۔ زیادہ IV = مارکیٹ بڑی حرکت کی توقع رکھتی ہے۔'],
