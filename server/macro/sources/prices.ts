@@ -30,6 +30,7 @@ export const PRICE_UNIVERSE: PriceSpec[] = [
   { symbol: 'XAGUSD', label: 'Silver', yahoo: 'SI=F' },
   { symbol: 'XPTUSD', label: 'Platinum', yahoo: 'PL=F' },
   { symbol: 'XCUUSD', label: 'Copper', yahoo: 'HG=F' },
+  { symbol: 'IRONORE', label: 'Iron Ore', yahoo: 'TIO=F' },
   { symbol: 'USOIL', label: 'WTI Crude', yahoo: 'CL=F', fred: 'DCOILWTICO' },
   { symbol: 'NATGAS', label: 'Natural Gas', yahoo: 'NG=F', fred: 'DHHNGSP' },
   { symbol: 'US500', label: 'S&P 500', yahoo: '^GSPC', fred: 'SP500' },

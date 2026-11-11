@@ -430,7 +430,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       onMouseLeave={handleMouseLeave}
       className={`${
         isModal
-          ? 'fixed inset-0 z-[200] overflow-y-auto bg-[#030712]/95 backdrop-blur-2xl'
+          ? 'fixed inset-0 z-[100000] overflow-y-auto bg-[#030712]/95 backdrop-blur-2xl'
           : 'min-h-screen min-h-[100dvh]'
       } w-full bg-[#030712] text-slate-100 flex flex-col items-center justify-start sm:justify-center p-2.5 sm:p-6 pt-3 sm:pt-6 relative overflow-x-hidden selection:bg-cyan-500/30 selection:text-cyan-200`}
       style={{ perspective: '1200px' }}

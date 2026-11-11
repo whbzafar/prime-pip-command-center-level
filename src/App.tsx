@@ -1779,17 +1779,19 @@ export default function App() {
       )}
 
       {/* User Login Modal - Renders authentic first screen in modal mode */}
-      {isLoginModalOpen && (
+      {/* Rendered on document.body: inside the app shell it could end up underneath the header / off-screen. */}
+      {isLoginModalOpen && createPortal(
         <FirstOpenLoginScreen
           isModal={true}
           onClose={() => setIsLoginModalOpen(false)}
           onLoginSuccess={handleAuthenticatedUser}
-          onExploreDemo={handleEnterDemoMode}
+          onExploreDemo={() => setIsLoginModalOpen(false)}
           onOpenSubscription={() => {
             setIsLoginModalOpen(false);
             setIsSubscriptionModalOpen(true);
           }}
-        />
+        />,
+        document.body
       )}
 
       {/* Subscription Pricing & Referral Modal */}

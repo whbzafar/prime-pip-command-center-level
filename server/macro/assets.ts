@@ -12,6 +12,7 @@ import type { AssetSpec, CalSpec, CustomOut, CustomSpec, EngineContext, Indicato
 import type { ScoreComponent } from './types.js';
 import { squash, clamp, findLatest } from './scoring.js';
 import { getCachedFred, latest, valueDaysAgo, zScore, type FredId } from './sources/fred.js';
+import { getPrices, getPriceVia } from './sources/prices.js';
 import { getCotSignal } from './sources/cot.js';
 import { getDeriv, getFng, getHashrate, getStables } from './sources/crypto.js';
 import { STOCKS, getStockFundamentals } from './sources/edgar.js';
@@ -62,6 +63,31 @@ function fredInd(o: {
     },
   };
 }
+
+/** Market-price indicator from the daily price feed (Yahoo → FRED fallback): % change over `days`. */
+function priceInd(o: { id: string; name: string; desc: string; symbol: string; days: number; changeScale: number; polarity: 1 | -1; weight: number; polarityNote: string }): CustomSpec {
+  return {
+    kind: 'custom', id: o.id, name: o.name, desc: o.desc, freq: 'Daily', polarity: o.polarity, weight: o.weight, polarityNote: o.polarityNote,
+    compute: (ctx) => {
+      const pts = getPrices(o.symbol);
+      const last = latest(pts);
+      const prev = valueDaysAgo(pts, o.days);
+      if (!last || !prev || !prev.value) return null;
+      const chg = ((last.value - prev.value) / prev.value) * 100;
+      return {
+        observation: { actual: last.value, forecast: null, previous: prev.value, releasedAt: new Date(last.date).toISOString(), period: last.date,
+          sourceTitle: o.name, sourceName: `Daily closes (${getPriceVia(o.symbol) || 'Yahoo Finance'})`, sourceUrl: 'https://finance.yahoo.com/', extra: { changePct: r2(chg) } },
+        components: [{ key: 'trend', label: `${o.days}-day change`, value: squash(chg / o.changeScale), weight: 1, detail: `${r2(prev.value)} → ${r2(last.value)} (${chg >= 0 ? '+' : ''}${r2(chg)}%)` }],
+        reasoning: `${o.name} moved ${chg >= 0 ? '+' : ''}${r2(chg)}% over ~${o.days} days (${r2(prev.value)} → ${r2(last.value)}).`,
+        ageDays: ageOf(last.date, ctx.now) - 1, intervalDays: 4,
+      } satisfies CustomOut;
+    },
+  };
+}
+const us10y = (pol: 1 | -1, w: number, note: string, id: string) => fredInd({ id, name: 'US 10-Year Treasury Yield', desc: 'The world’s benchmark long-term interest rate.',
+  series: 'DGS10', days: 21, changeScale: 0.2, polarity: pol, weight: w, unit: '%', polarityNote: note });
+const copperPx = (w: number, note: string, id: string) => priceInd({ id, name: 'Copper Price Trend', desc: 'COMEX copper — the bellwether of global industrial demand.', symbol: 'XCUUSD', days: 21, changeScale: 6, polarity: 1, weight: w, polarityNote: note });
+const ironOrePx = (w: number, note: string, id: string) => priceInd({ id, name: 'Iron Ore Price Trend', desc: 'SGX 62% Fe iron ore futures — Australia’s largest export.', symbol: 'IRONORE', days: 21, changeScale: 7, polarity: 1, weight: w, polarityNote: note });
 
 function cotInd(asset: string, weight: number, label: string): CustomSpec {
   return {
@@ -154,7 +180,11 @@ function currencySpec(ccy: string): AssetSpec {
   if (ccy === 'USD') {
     monetary.push(fredInd({ id: 'us2y', name: '2-Year Treasury Yield', desc: 'The market’s pricing of the Fed path over the next two years.',
       series: 'DGS2', days: 21, changeScale: 0.2, polarity: 1, weight: 2.5, unit: '%', polarityNote: 'Rising 2Y yield (fewer cuts priced) = bullish USD' }));
+    monetary.push(us10y(1, 1.5, 'Rising US long-term yields attract foreign capital = bullish USD', 'usd_us10y'));
   }
+  // The yen is the classic funding currency: USD/JPY tracks US yields more closely than any Japanese data release.
+  if (ccy === 'JPY') monetary.push(us10y(-1, 2.5, 'Rising US yields widen the gap with Japan = bearish JPY; falling US yields = bullish JPY', 'jpy_us10y'));
+  if (ccy === 'CHF') monetary.push(us10y(-1, 1, 'Rising US yields pull capital out of the low-yielding franc = bearish CHF', 'chf_us10y'));
 
   const inflation: IndicatorSpec[] = [
     cal('cpi_yoy', c, 1, 3, HAWK(ccy), { level: inflLevel }),
@@ -164,6 +194,7 @@ function currencySpec(ccy: string): AssetSpec {
     cal('ppi', c, 1, 1, HAWK(ccy)),
     cal('wages', c, 1, 2, HAWK(ccy)),
   ];
+  if (ccy === 'JPY') inflation.push(cal('tokyo_cpi', c, 1, 2, 'Tokyo CPI leads the national figure by three weeks — a hotter print pushes the BoJ toward hikes = bullish JPY', { level: inflLevel }));
   if (ccy === 'USD') {
     inflation.push(cal('pce_core_yoy', c, 1, 2.5, HAWK(ccy), { level: { neutral: 2, scale: 1, label: '2% Fed target' } }));
     inflation.push(cal('pce_core_mom', c, 1, 1.5, HAWK(ccy)));
@@ -200,6 +231,19 @@ function currencySpec(ccy: string): AssetSpec {
   if (['USD', 'JPY', 'CHF'].includes(ccy)) external.push(vixInd(1, ccy === 'USD' ? 1 : 2.5, `Rising fear drives safe-haven demand = bullish ${ccy}`));
   if (['AUD', 'NZD', 'CAD'].includes(ccy)) external.push(vixInd(-1, 2, `Rising fear hurts risk-sensitive ${ccy}`));
   if (ccy === 'AUD' || ccy === 'NZD') external.push(cal('mfg_pmi', 'CN', 1, 2.5, `China is the largest export market — stronger Chinese factories = bullish ${ccy}`, { name: 'China Manufacturing PMI (terms of trade)' }));
+  if (ccy === 'AUD') {
+    external.push(ironOrePx(2.5, 'Iron ore is Australia’s largest export — rising prices = bullish AUD', 'aud_iron'));
+    external.push(copperPx(1.5, 'Rising industrial-metal prices improve Australia’s terms of trade = bullish AUD', 'aud_copper'));
+    external.push(cal('retail_sales', 'CN', 1, 1, 'Stronger Chinese demand = bullish AUD', { name: 'China Retail Sales' }));
+  }
+  if (ccy === 'NZD') external.push(cal('dairy_auction', 'NZ', 1, 2.5, 'Dairy is New Zealand’s largest export — rising auction prices = bullish NZD'));
+  if (ccy === 'JPY') external.push(fredInd({ id: 'jpy_wti', name: 'Crude Oil (import bill)', desc: 'Japan imports almost all of its energy; dearer oil worsens its trade balance.',
+    series: 'DCOILWTICO', days: 21, changeScale: 6, pct: true, polarity: -1, weight: 1.5, polarityNote: 'Rising oil = larger import bill = bearish JPY' }));
+  if (ccy === 'EUR') {
+    external.push(cal('industrial_production', 'DE', 1, 1, 'Germany is the euro area’s largest economy — stronger output = bullish EUR', { name: 'German Industrial Production' }));
+    external.push(priceInd({ id: 'eur_gas', name: 'Natural Gas Price (energy import bill)', desc: 'Europe is a large net energy importer; gas-price spikes hit its trade balance and growth.', symbol: 'NATGAS', days: 21, changeScale: 12, polarity: -1, weight: 0.75, polarityNote: 'Rising gas prices = bearish EUR' }));
+  }
+  if (ccy === 'CAD') external.push(cal('mfg_pmi', 'US', 1, 1.5, 'About three-quarters of Canada’s exports go to the US — stronger US industry = bullish CAD', { name: 'US ISM Manufacturing PMI (main export market)' }));
   if (ccy === 'CAD') external.push(fredInd({ id: 'cad_wti', name: 'Crude Oil (terms of trade)', desc: 'Oil is Canada’s largest export; WTI strength improves Canada’s terms of trade.',
     series: 'DCOILWTICO', days: 21, changeScale: 6, pct: true, polarity: 1, weight: 2.5, polarityNote: 'Rising oil = bullish CAD' }));
 
@@ -318,6 +362,8 @@ function usIndex(symbol: string, name: string, cotKey: string, rateSensitivity: 
         cal('core_cpi_yoy', 'US', -1, 2, EQ_HAWK, { use: ['surprise', 'momentum'] }), cal('pce_core_mom', 'US', -1, 1, EQ_HAWK, { use: ['surprise', 'momentum'] })] },
       { id: 'risk', name: 'Risk & Credit', desc: 'Volatility and credit spreads lead equity drawdowns.', weight: 20, indicators: [
         vixInd(-1, 2, 'Rising volatility = bearish equities'), hyOas(-1, 2), nfci(-1, 1)] },
+      { id: 'consumer', name: 'Consumer', desc: 'Household spending is about two-thirds of the US economy.', weight: 7, indicators: [
+        cal('consumer_conf', 'US', 1, 1, 'Confident consumers spend more = bullish equities')] },
       { id: 'liquidity', name: 'Liquidity', desc: 'Central-bank balance-sheet liquidity.', weight: 8, indicators: [fedBs(1)] },
       { id: 'positioning', name: 'Institutional Positioning', desc: 'CFTC COT in index futures.', weight: 10, indicators: [cotInd(cotKey, 1, name)] },
     ],
@@ -346,17 +392,21 @@ export const INDEX_SPECS: AssetSpec[] = [
   usIndex('US30', 'Dow Jones 30', 'US30', 0.8),
   intlIndex('GER40', 'DAX 40', 'EU', 'Germany / Euro Area', [
     { id: 'china', name: 'China Exposure', desc: 'German exporters are highly exposed to Chinese demand.', weight: 8, indicators: [chinaPmi(1)] },
+    { id: 'euro', name: 'Euro (inverse)', desc: 'DAX companies earn most of their revenue outside Germany; a weaker euro lifts those earnings.', weight: 6, indicators: [], mirror: { asset: 'EUR', sign: -1 } },
   ], 'DE'),
   intlIndex('UK100', 'FTSE 100', 'GB', 'United Kingdom', [
     { id: 'commodities', name: 'Commodity Earnings', desc: 'Energy and mining are a large share of FTSE earnings.', weight: 10, indicators: [
-      fredInd({ id: 'ftse_wti', name: 'Crude Oil Trend', desc: 'Oil majors’ earnings track crude.', series: 'DCOILWTICO', days: 21, changeScale: 6, pct: true, polarity: 1, weight: 1, polarityNote: 'Rising oil = higher energy earnings = bullish FTSE' }), chinaPmi(1)] },
+      fredInd({ id: 'ftse_wti', name: 'Crude Oil Trend', desc: 'Oil majors’ earnings track crude.', series: 'DCOILWTICO', days: 21, changeScale: 6, pct: true, polarity: 1, weight: 1, polarityNote: 'Rising oil = higher energy earnings = bullish FTSE' }), chinaPmi(1),
+      copperPx(1, 'Rising metal prices = higher mining earnings = bullish FTSE', 'ftse_copper')] },
+    { id: 'pound', name: 'Pound (inverse)', desc: 'About three-quarters of FTSE 100 revenue is earned abroad; a weaker pound inflates it in sterling terms.', weight: 10, indicators: [], mirror: { asset: 'GBP', sign: -1 } },
   ]),
   intlIndex('JP225', 'Nikkei 225', 'JP', 'Japan', [
     { id: 'yen', name: 'Yen (inverse)', desc: 'A weaker yen boosts Japanese exporters’ earnings.', weight: 12, indicators: [], mirror: { asset: 'JPY', sign: -1 } },
     { id: 'positioning', name: 'Institutional Positioning', desc: 'CFTC COT in CME Nikkei 225 (yen) futures.', weight: 10, indicators: [cotInd('JP225', 1, 'Nikkei 225')] },
   ]),
   intlIndex('AUS200', 'ASX 200', 'AU', 'Australia', [
-    { id: 'china', name: 'China & Resources', desc: 'Miners dominate the ASX; China is the key customer.', weight: 12, indicators: [chinaPmi(1)] },
+    { id: 'china', name: 'China & Resources', desc: 'Miners dominate the ASX; China is the key customer.', weight: 14, indicators: [chinaPmi(1.5),
+      ironOrePx(2, 'Rising iron ore = higher miner earnings (BHP, Rio, Fortescue) = bullish ASX', 'asx_iron'), copperPx(1, 'Rising copper = higher miner earnings = bullish ASX', 'asx_copper')] },
   ]),
 ];
 

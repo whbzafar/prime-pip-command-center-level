@@ -319,6 +319,24 @@ export const CONCEPTS: Record<string, ConceptDef> = {
     scaleMode: 'relative',
   },
 
+  tokyo_cpi: {
+    name: 'Tokyo CPI (leading)',
+    desc: 'Consumer prices in Tokyo, published about three weeks before the national figure — the BoJ’s earliest inflation read.',
+    freq: 'Monthly',
+    patterns: [{ re: /^tokyo core cpi yoy$/ }, { re: /^tokyo cpi ex fresh food yoy$/ }, { re: /^tokyo cpi yoy$/ }],
+    exclude: /energy/i,
+    scale: 0.2,
+    range: [-5, 15],
+  },
+  dairy_auction: {
+    name: 'Global Dairy Trade Price Index',
+    desc: 'Fortnightly auction result for whole-milk powder and other dairy — New Zealand’s biggest export earner.',
+    freq: 'Weekly',
+    patterns: [{ re: /^global dairy trade price index$/ }, { re: /^gdt price index$/ }, { re: /global dairy trade/ }],
+    scale: 2,
+    range: [-25, 25],
+  },
+
   // ─────────────────────────── COMMODITY-SPECIFIC (US EIA / Baker Hughes)
   eia_crude: {
     name: 'EIA Crude Oil Inventories',
