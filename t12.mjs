@@ -11,9 +11,11 @@ for (const [name, opts] of [['desk', { viewport: { width: 1500, height: 950 } }]
   await page.screenshot({ path: `shots/${name}-d0.png` });
   log(name, 'buttons on first screen:', (await page.getByRole('button').allInnerTexts()).map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 30).join(' | '));
   // go into demo the way a visitor does
-  await page.getByRole('button', { name: /EXPLORE WITHOUT AN ACCOUNT/i }).first().click({ timeout: 5000 }).catch((e) => log(name, 'explore click failed', e.message.split('\n')[0]));
+  const cover = (loc) => loc.evaluate((el) => { el.scrollIntoView({ block: 'center' }); const r = el.getBoundingClientRect(); const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return top && !el.contains(top) && top !== el ? 'COVERED BY ' + top.tagName + '.' + String(top.className).slice(0, 120) : 'clear'; }).catch((e) => 'n/a ' + e.message.slice(0, 80));
+  const tap = async (loc, label) => { log(name, label, await cover(loc)); await loc.click({ timeout: 3000 }).then(() => log(name, label, 'clicked normally')).catch(async (e) => { log(name, label, 'normal click failed:', e.message.replace(/\s+/g, ' ').slice(0, 420)); await loc.evaluate((el) => el.click()).catch(() => {}); }); };
+  await tap(page.getByRole('button', { name: /EXPLORE WITHOUT AN ACCOUNT/i }).first(), 'explore');
   await page.waitForTimeout(1500);
-  await page.getByRole('button', { name: /Continue in Demo Mode/i }).first().click({ timeout: 5000 }).catch((e) => log(name, 'continue-demo click failed', e.message.split('\n')[0]));
+  await tap(page.getByRole('button', { name: /Continue in Demo Mode/i }).first(), 'continue-demo');
   await page.waitForTimeout(3500);
   log(name, 'after demo: buttons', (await page.getByRole('button').allInnerTexts()).map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 25).join(' | ').slice(0, 900));
   await page.screenshot({ path: `shots/${name}-d05.png` });
@@ -34,7 +36,7 @@ for (const [name, opts] of [['desk', { viewport: { width: 1500, height: 950 } }]
     const info = await b.evaluate((el) => { const r = el.getBoundingClientRect(); const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), covered: top && !el.contains(top) && top !== el ? (top.tagName + '.' + String(top.className).slice(0, 80)) : null }; }).catch(() => null);
     log(name, 'login#' + i, 'visible', vis, JSON.stringify(info));
     if (!vis) continue;
-    await b.click({ timeout: 4000 }).catch((e) => log(name, 'click failed', e.message.split('\n')[0]));
+    await tap(b, 'LOGIN button');
     await page.waitForTimeout(1500);
     const field = page.locator('input[type="password"]').first();
     log(name, 'after click → password field visible', await field.isVisible().catch(() => false));
@@ -47,7 +49,7 @@ for (const [name, opts] of [['desk', { viewport: { width: 1500, height: 950 } }]
       const cov = await submit.evaluate((el) => { el.scrollIntoView({ block: 'center' }); const r = el.getBoundingClientRect(); const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return top && !el.contains(top) && top !== el ? (top.tagName + '.' + String(top.className).slice(0, 90)) : null; }).catch(() => 'n/a');
       log(name, 'submit covered by', cov);
       const resp = page.waitForResponse((r) => r.url().includes('/api/auth/login'), { timeout: 8000 }).then((r) => r.status()).catch(() => 'no request');
-      await submit.click({ timeout: 4000 }).catch((e) => log(name, 'submit click failed', e.message.split('\n')[0]));
+      await tap(submit, 'submit');
       log(name, 'login request →', await resp);
       await page.waitForTimeout(5000);
       await page.screenshot({ path: `shots/${name}-d3.png` });
@@ -60,7 +62,7 @@ for (const [name, opts] of [['desk', { viewport: { width: 1500, height: 950 } }]
     log(name, 'setup path → password field visible', await field.isVisible().catch(() => false));
     await page.locator('input[type="text"], input[autocomplete="username"]').first().fill(u).catch(() => {}); await field.fill('Ci-pass-12345').catch(() => {});
     const resp = page.waitForResponse((r) => r.url().includes('/api/auth/login'), { timeout: 8000 }).then((r) => r.status()).catch(() => 'no request');
-    await page.locator('form button[type="submit"]').first().click({ timeout: 4000 }).catch((e) => log(name, 'submit click failed', e.message.split('\n')[0]));
+    await tap(page.locator('form button[type="submit"]').first(), 'setup submit');
     log(name, 'setup path login request →', await resp); await page.waitForTimeout(4000);
     await page.screenshot({ path: `shots/${name}-d4.png` });
     log(name, 'setup path after: ', (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 160));
