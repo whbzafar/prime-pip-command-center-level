@@ -10,12 +10,24 @@ for (const [name, opts] of [['desk', { viewport: { width: 1500, height: 950 } }]
   await page.goto(B, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(9000);
   await page.screenshot({ path: `shots/${name}-d0.png` });
   log(name, 'buttons on first screen:', (await page.getByRole('button').allInnerTexts()).map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 30).join(' | '));
-  // go into demo
-  for (const t of [/explore.*demo/i, /demo/i, 'Start Practice', 'Create Demo Account']) { await page.getByRole('button', { name: t }).first().click({ timeout: 2500 }).then(() => log(name, 'clicked', String(t))).catch(() => {}); await page.waitForTimeout(1800); }
-  for (let k = 0; k < 2; k++) { await page.getByText(/ENTER\s*COMMAND\s*CENTER/i).first().click({ timeout: 2000 }).catch(() => {}); for (const b of ['Maybe later', 'Start exploring', 'Got it', 'Skip']) await page.getByRole('button', { name: b }).first().click({ timeout: 700 }).catch(() => {}); await page.waitForTimeout(1000); }
+  // go into demo the way a visitor does
+  await page.getByRole('button', { name: /EXPLORE WITHOUT AN ACCOUNT/i }).first().click({ timeout: 5000 }).catch((e) => log(name, 'explore click failed', e.message.split('\n')[0]));
+  await page.waitForTimeout(1500);
+  await page.getByRole('button', { name: /Continue in Demo Mode/i }).first().click({ timeout: 5000 }).catch((e) => log(name, 'continue-demo click failed', e.message.split('\n')[0]));
+  await page.waitForTimeout(3500);
+  log(name, 'after demo: buttons', (await page.getByRole('button').allInnerTexts()).map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 25).join(' | ').slice(0, 900));
+  await page.screenshot({ path: `shots/${name}-d05.png` });
+  if (process.env.VIA_SETUP) {
+    await page.getByRole('button', { name: /Sign in to existing account/i }).first().click({ timeout: 4000 }).then(() => log(name, 'clicked setup sign-in')).catch(() => log(name, 'no setup sign-in link'));
+  } else {
+    for (const t of [/explore.*demo/i, /skip/i, /quick/i, 'Start Practice', 'Create Demo Account']) { await page.getByRole('button', { name: t }).first().click({ timeout: 1500 }).then(() => log(name, 'clicked', String(t))).catch(() => {}); await page.waitForTimeout(1500); }
+    for (let k = 0; k < 2; k++) { await page.getByText(/ENTER\s*COMMAND\s*CENTER/i).first().click({ timeout: 1500 }).catch(() => {}); for (const b of ['Maybe later', 'Start exploring', 'Got it', 'Skip']) await page.getByRole('button', { name: b }).first().click({ timeout: 700 }).catch(() => {}); await page.waitForTimeout(1000); }
+    await page.mouse.wheel(0, 900).catch(() => {}); await page.waitForTimeout(500);
+  }
+  await page.waitForTimeout(1500);
   await page.screenshot({ path: `shots/${name}-d1.png` });
   log(name, 'demo flag', await page.evaluate(() => localStorage.getItem('primepipfx_demo_mode')));
-  const logins = page.getByRole('button', { name: /^\s*log\s*in\s*$/i });
+  const logins = process.env.VIA_SETUP ? page.locator('form button[type="submit"]').locator('xpath=ancestor::form').first().locator('xpath=..').locator('button:has-text("zzz-none")') : page.getByRole('button', { name: /^\s*log\s*in\s*$/i });
   const n = await logins.count(); log(name, 'login buttons', n);
   for (let i = 0; i < n; i++) {
     const b = logins.nth(i); const vis = await b.isVisible().catch(() => false);
@@ -42,6 +54,16 @@ for (const [name, opts] of [['desk', { viewport: { width: 1500, height: 950 } }]
       log(name, 'after sign-in: demo flag', await page.evaluate(() => localStorage.getItem('primepipfx_demo_mode')), '| modal still open', await field.isVisible().catch(() => false), '| page says', (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 200));
       break;
     }
+  }
+  if (process.env.VIA_SETUP) {
+    const field = page.locator('input[type="password"]').first();
+    log(name, 'setup path → password field visible', await field.isVisible().catch(() => false));
+    await page.locator('input[type="text"], input[autocomplete="username"]').first().fill(u).catch(() => {}); await field.fill('Ci-pass-12345').catch(() => {});
+    const resp = page.waitForResponse((r) => r.url().includes('/api/auth/login'), { timeout: 8000 }).then((r) => r.status()).catch(() => 'no request');
+    await page.locator('form button[type="submit"]').first().click({ timeout: 4000 }).catch((e) => log(name, 'submit click failed', e.message.split('\n')[0]));
+    log(name, 'setup path login request →', await resp); await page.waitForTimeout(4000);
+    await page.screenshot({ path: `shots/${name}-d4.png` });
+    log(name, 'setup path after: ', (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 160));
   }
   log(name, 'ERRORS', errs.length, errs.slice(0, 3).join(' || '));
   await ctx.close();

@@ -17,7 +17,7 @@ jobs:
           (node fakekv.mjs > /tmp/kv.log 2>&1 &)
           (cd app && PORT=3000 PRIMEPIPFX_SESSION_SECRET=ci-only-secret-0123456789 PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD=ci-admin-pass-123456 PPFX_SHARED_KV_URL=http://localhost:8798/b node dist/server.cjs > /tmp/server.log 2>&1 &)
           sleep 15
-          mkdir -p shots; cp t12.mjs /tmp/pw/ && (cd /tmp/pw && mkdir -p shots && timeout 1500 node t12.mjs) || true; cp -r /tmp/pw/shots/. shots/ || true
+          mkdir -p shots; cp t12.mjs /tmp/pw/ && (cd /tmp/pw && mkdir -p shots && timeout 700 node t12.mjs; VIA_SETUP=1 timeout 500 node t12.mjs) || true; cp -r /tmp/pw/shots/. shots/ || true
           grep -iE "error|warn" /tmp/server.log | tail -8
       - if: always()
         run: |
