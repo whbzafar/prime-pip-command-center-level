@@ -44,6 +44,7 @@ import {
   refreshRemovedMembers,
 } from "./server/authService.js";
 import { durableStatus, flushDurable, getShared, hasPendingWrites, recentLogins } from "./server/durableStore.js";
+import { waitUntil as vercelWaitUntil } from "@vercel/functions";
 import { getCustomerData, saveCustomerData } from "./server/customerDataService.js";
 import { safeReadJsonFile, safeWriteJsonFile } from "./server/dataPath.js";
 import type { StoredUser } from "./server/authService.js";
@@ -285,18 +286,25 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 
-// Accounts live in the durable store (when connected): refresh before handling API calls, and make sure
-// every account change has reached it before the response is sent (serverless functions freeze after).
+// Accounts live in the durable store. Account pages read fresh accounts first (removed list + accounts
+// in parallel); data feeds never wait on it. Changes are saved after the reply is sent: on Vercel the
+// function is kept alive for that with waitUntil, so signing in / creating an account answers at once.
+const ACCOUNT_PATH = /^\/api\/(auth|admin|members|trial|account|profile|appointments|community|pine|bot|insights)/;
 app.use(async (req, res, next) => {
   if (!req.path.startsWith('/api/')) return next();
-  try { await refreshRemovedMembers(); } catch { /* keep the last known list */ }
-  // Account pages always see fresh accounts; data feeds (charts, fundamentals) do not wait on the account store.
-  try { await syncUsersFromDurable(/^\/api\/(auth|admin|members|trial|account|profile|appointments|community|pine)/.test(req.path) ? 4000 : 120_000); } catch { /* keep serving from the local copy */ }
+  if (ACCOUNT_PATH.test(req.path)) {
+    await Promise.allSettled([refreshRemovedMembers(), syncUsersFromDurable(4000)]);
+  } else {
+    void refreshRemovedMembers().catch(() => undefined);
+    void syncUsersFromDurable(120_000).catch(() => undefined);
+  }
   const json = res.json.bind(res);
   (res as any).json = (body: any) => {
-    if (!hasPendingWrites()) return json(body);
-    flushDurable().finally(() => json(body));
-    return res;
+    if (hasPendingWrites()) {
+      const done = flushDurable();
+      if (process.env.VERCEL) { try { vercelWaitUntil(done); } catch { /* not on Vercel's runtime */ } }
+    }
+    return json(body);
   };
   next();
 });
@@ -3604,7 +3612,10 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(400).json({ ok: false, error: 'Username and password are required' });
   }
 
-  const localResult = loginUser(username, password, rememberMe);
+  let localResult = loginUser(username, password, rememberMe);
+  // A just-created account (or a just-changed password) may have been saved by another server a moment
+  // ago: re-read the account store once before refusing.
+  if (!localResult?.user) { try { await syncUsersFromDurable(0); localResult = loginUser(username, password, rememberMe); } catch { /* keep the first answer */ } }
   if (localResult?.user) {
     try { recordLogin(localResult.user.id, { ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim(), device: String(req.headers['user-agent'] || '').slice(0, 160), kind: 'login' }); } catch { /* tracking is best-effort */ }
   }

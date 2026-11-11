@@ -13,8 +13,8 @@ import { playSound, speak, spokenPair, unlockAudio, type SoundId } from '../util
 
 const H1 = 3_600_000;
 export const TOP_N = 6;
-const FRESH_MS = 24 * H1;        // how long a reached level stays listed
-const NOTIFY_MS = 2 * H1 + 5 * 60_000; // only candles that closed recently ring (no old alerts after re-opening the app)
+const FRESH_MS = 24 * H1;        // how long an earlier touch stays listed (as "earlier", with where price is now)
+const NOTIFY_MS = 75 * 60_000; // only the candle that has just closed rings (no old alerts after re-opening the app)
 const K_SEEN = 'ppfx_level_alerts_seen_v1';
 const K_LOG = 'ppfx_level_alerts_log_v1';
 const K_LEVEL_SETTINGS = 'ppfx_level_alert_settings_v1';
@@ -48,18 +48,25 @@ export function testLevelAlert() {
   void notify('TEST · BUY GBP/CAD — Level 1 reached (H1)', 'This is how a fundamental setup alert looks and sounds.');
 }
 
-export interface LevelSignal { time: number; dir: 1 | -1; level: 1 | 2; price: number; stop: number; target: number; zoneTop: number; zoneBottom: number; models: string[] }
+export interface LevelSignal { time: number; dir: 1 | -1; level: 1 | 2; price: number; stop: number; target: number; zoneTop: number; zoneBottom: number; models: string[]; candleHigh?: number; candleLow?: number; depthPips?: number }
+/** A wick that entered the zone by less than this many pips may not have touched on another broker's prices. */
+export const EDGE_PIPS = 1.5;
 export interface LevelZone { top: number; bottom: number; modelReady: boolean }
 export interface PairScan {
   symbol: string; display: string; side: 1 | -1; score: number;
   state: 'loading' | 'ok' | 'unavailable';
   lastCandle?: number; dir?: -1 | 0 | 1; level1?: LevelZone | null; level2?: LevelZone | null;
-  /** Newest level touch that agrees with the fundamentals (within the last 24 hours). */
+  /** Level reached on the H1 candle that has JUST closed, on the fundamental side. */
   hit?: LevelSignal | null;
+  /** The latest earlier touch on the fundamental side (last 24 h), with where price is now. */
+  recent?: LevelSignal | null;
+  lastClose?: number; pip?: number;
+  /** Price now relative to the zone of `recent`: 0 = inside it, otherwise pips away. */
+  awayPips?: number | null;
   /** The strategy is currently tracking levels on the fundamental side. */
   watching?: boolean;
 }
-export interface LevelAlert { id: string; symbol: string; display: string; side: 1 | -1; level: 1 | 2; price: number; zoneTop: number; zoneBottom: number; models: string[]; time: number; score: number }
+export interface LevelAlert { id: string; symbol: string; display: string; side: 1 | -1; level: 1 | 2; price: number; zoneTop: number; zoneBottom: number; models: string[]; time: number; score: number; depthPips?: number }
 export interface LevelState { status: 'idle' | 'loading' | 'ready' | 'not_configured'; pairs: PairScan[]; alerts: LevelAlert[]; updatedAt: number; unseen: number }
 
 const read = <T,>(k: string, d: T): T => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v ?? d; } catch { return d; } };
@@ -106,8 +113,16 @@ function toPair(p: { symbol: string; display: string; side: 1 | -1; score: numbe
   if (!j) return { ...p, state: 'loading' };
   if (!j.ok || j.stale) return { ...p, state: 'unavailable' };
   const now = Date.now();
-  const hit = [...(j.signals || [])].reverse().find((s: LevelSignal) => s.dir === p.side && now - (s.time + H1) < FRESH_MS) || null;
-  return { ...p, state: 'ok', lastCandle: j.lastCandle, dir: j.dir, level1: j.level1, level2: j.level2, hit, watching: j.dir === p.side && Boolean(j.level1 || j.level2) };
+  const sigs: LevelSignal[] = (j.signals || []).filter((s: LevelSignal) => s.dir === p.side);
+  // "At the level" = the strategy's test candle is the candle that has just closed (nothing older).
+  const hit = sigs.find((s) => s.time === j.lastCandle) || null;
+  const recent = hit ? null : [...sigs].reverse().find((s) => now - (s.time + H1) < FRESH_MS) || null;
+  let awayPips: number | null = null;
+  if (recent && Number.isFinite(j.lastClose) && j.pip) {
+    const c = j.lastClose as number;
+    awayPips = c >= recent.zoneBottom && c <= recent.zoneTop ? 0 : Math.round((Math.min(Math.abs(c - recent.zoneTop), Math.abs(c - recent.zoneBottom)) / j.pip) * 10) / 10;
+  }
+  return { ...p, state: 'ok', lastCandle: j.lastCandle, dir: j.dir, level1: j.level1, level2: j.level2, hit, recent, awayPips, lastClose: j.lastClose, pip: j.pip, watching: j.dir === p.side && Boolean(j.level1 || j.level2) };
 }
 
 async function cycle() {
@@ -146,7 +161,7 @@ async function cycle() {
       if (seen.has(id)) continue;
       seen.add(id);
       if (Date.now() - (h.time + H1) > NOTIFY_MS) continue;
-      fresh.push({ id, symbol: p.symbol, display: p.display, side: p.side, level: h.level, price: h.price, zoneTop: h.zoneTop, zoneBottom: h.zoneBottom, models: h.models, time: h.time + H1, score: p.score });
+      fresh.push({ id, symbol: p.symbol, display: p.display, side: p.side, level: h.level, price: h.price, zoneTop: h.zoneTop, zoneBottom: h.zoneBottom, models: h.models, time: h.time + H1, score: p.score, depthPips: h.depthPips });
     }
     write(K_SEEN, [...seen].slice(-400));
     let alerts = state.alerts;

@@ -40,16 +40,22 @@ const unseal = (text: string): any => {
 };
 const kvUrl = () => (process.env.PPFX_SHARED_KV_URL || 'https://kvdb.io/2ST3F4wjgBy2qEaTquQPuU').replace(/\/$/, '');
 /** null = could not read (network / tampered); [] = nothing stored yet. */
+// Last version read / written per key: an unchanged version needs only the small "meta" request.
+const sealedSeen = new Map<string, { v: string; n: number; data: any[] }>();
 async function sealedRead(prefix = SEAL_PREFIX): Promise<any[] | null> {
   try {
     const m = await fetch(`${kvUrl()}/${prefix}_meta`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
     if (m.status === 404) return [];
     if (!m.ok) return null;
     const meta = JSON.parse(await m.text());
+    const seen = sealedSeen.get(prefix);
+    if (seen && seen.v === meta.v) return seen.data.map((u) => ({ ...u }));
     const parts = await Promise.all(Array.from({ length: Number(meta.n) || 0 }, (_, i) =>
       fetch(`${kvUrl()}/${prefix}_${meta.v}_${i}`, { cache: 'no-store', signal: AbortSignal.timeout(5000) }).then((r) => { if (!r.ok) throw new Error(`part ${i}: ${r.status}`); return r.text(); })));
     const users = unseal(parts.join(''));
-    return Array.isArray(users) ? users : null;
+    if (!Array.isArray(users)) return null;
+    sealedSeen.set(prefix, { v: String(meta.v), n: Number(meta.n) || 0, data: users });
+    return users.map((u) => ({ ...u }));
   } catch (e: any) { lastError = `sealed read: ${e?.message || e}`; return null; }
 }
 async function sealedWrite(users: any[], prefix = SEAL_PREFIX) {
@@ -58,10 +64,10 @@ async function sealedWrite(users: any[], prefix = SEAL_PREFIX) {
   const n = Math.ceil(text.length / CHUNK);
   const put = (k: string, body: string) => fetch(`${kvUrl()}/${k}`, { method: 'PUT', body, signal: AbortSignal.timeout(6000) }).then((r) => { if (!r.ok) throw new Error(`write ${k}: ${r.status}`); });
   await Promise.all(Array.from({ length: n }, (_, i) => put(`${prefix}_${v}_${i}`, text.slice(i * CHUNK, (i + 1) * CHUNK))));
-  let old: any = null;
-  try { const m = await fetch(`${kvUrl()}/${prefix}_meta`, { cache: 'no-store', signal: AbortSignal.timeout(4000) }); if (m.ok) old = JSON.parse(await m.text()); } catch { /* first write */ }
+  const old = sealedSeen.get(prefix); // the version this write replaces (just read before writing)
   await put(`${prefix}_meta`, JSON.stringify({ v, n, at: Date.now() }));
-  if (old?.v && old.v !== v) for (let i = 0; i < (Number(old.n) || 0); i++) void fetch(`${kvUrl()}/${prefix}_${old.v}_${i}`, { method: 'DELETE' }).catch(() => {});
+  sealedSeen.set(prefix, { v, n, data: users.map((u) => ({ ...u })) });
+  if (old?.v && old.v !== v) for (let i = 0; i < old.n; i++) void fetch(`${kvUrl()}/${prefix}_${old.v}_${i}`, { method: 'DELETE' }).catch(() => {});
 }
 const stamp = (u: any) => Date.parse(u?.updatedAt || u?.createdAt || '') || 0;
 /** Per user, the more recently changed copy wins; on a tie the `prefer` side wins. */

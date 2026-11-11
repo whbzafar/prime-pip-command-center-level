@@ -37,7 +37,6 @@ import { FundamentalCalendar } from './components/FundamentalCalendar';
 import { FundamentalIndicators } from './components/FundamentalIndicators';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { FreehandWorkspace } from './components/FreehandWorkspace';
-import { ProLearningTrading } from './components/ProLearningTrading';
 import { CommunityChat } from './components/CommunityChat';
 import { BookSessionView } from './components/BookSessionView';
 import { TradingResearchCenter } from './components/TradingResearchCenter';

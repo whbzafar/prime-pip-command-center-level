@@ -1,52 +1,58 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, BookOpen, Bot, Building2, CheckCircle2, ChevronDown, ExternalLink, GraduationCap, Landmark, Lightbulb, Loader2, MessageCircle, Search, ShieldAlert } from 'lucide-react';
+import { ArrowRight, Bot, Building2, CheckCircle2, ChevronDown, ExternalLink, GraduationCap, Landmark, Languages, Library, Lightbulb, Loader2, MessageCircle, Search, ShieldAlert } from 'lucide-react';
 import { BOT_LAUNCH, BOT_TIERS, COURSE, INSTITUTIONAL, type Module } from '../../data/learningHub';
-import { ProLearningTrading } from '../ProLearningTrading';
+import { LESSON_UR, LEVEL_UR, MODULE_UR } from '../../data/learningHubUr';
+import { TOPIC_COUNT } from '../../data/advanced';
+import { AdvancedLibrary, URDU_FONT, type Lang } from './AdvancedLibrary';
 
-type Tab = 'LEARN' | 'INSTITUTIONAL' | 'BOT' | 'VOICE' | 'ACADEMY';
-const TABS: { id: Tab; label: string; icon: React.ElementType; tone: string }[] = [
-  { id: 'LEARN', label: 'Pro Trading Learning', icon: GraduationCap, tone: 'from-cyan-400 to-sky-500' },
-  { id: 'INSTITUTIONAL', label: 'Institutional Trading', icon: Landmark, tone: 'from-amber-300 to-orange-500' },
-  { id: 'BOT', label: 'Trading Bot Automation', icon: Bot, tone: 'from-emerald-300 to-teal-500' },
-  { id: 'VOICE', label: 'Feelings → Solutions', icon: Lightbulb, tone: 'from-fuchsia-400 to-violet-500' },
-  { id: 'ACADEMY', label: 'Classic Academy', icon: BookOpen, tone: 'from-slate-300 to-slate-500' },
+type Tab = 'LEARN' | 'INSTITUTIONAL' | 'LIBRARY' | 'BOT' | 'VOICE';
+const TABS: { id: Tab; en: string; ur: string; icon: React.ElementType; tone: string }[] = [
+  { id: 'LEARN', en: 'Pro Trading Learning', ur: 'پرو ٹریڈنگ لرننگ', icon: GraduationCap, tone: 'from-cyan-400 to-sky-500' },
+  { id: 'INSTITUTIONAL', en: 'Institutional Trading', ur: 'ادارہ جاتی ٹریڈنگ', icon: Landmark, tone: 'from-amber-300 to-orange-500' },
+  { id: 'LIBRARY', en: 'Research Library · 22 divisions', ur: 'ریسرچ لائبریری · 22 شعبے', icon: Library, tone: 'from-violet-400 to-fuchsia-500' },
+  { id: 'BOT', en: 'Trading Bot', ur: 'ٹریڈنگ بوٹ', icon: Bot, tone: 'from-emerald-300 to-teal-500' },
+  { id: 'VOICE', en: 'Feelings → Solutions', ur: 'احساسات ← حل', icon: Lightbulb, tone: 'from-fuchsia-400 to-violet-500' },
 ];
+const LANG_KEY = 'ppfx_learning_lang';
+const uf = (ur: boolean) => (ur ? URDU_FONT : undefined);
 const OWNER_WA = '923406671495';
 const me = () => { try { return JSON.parse(localStorage.getItem('primepipfx_user_profile') || 'null')?.username || ''; } catch { return ''; } };
 
 /** Course / institutional reader: modules → lessons with a summary in plain words and links to read more. */
-const Curriculum: React.FC<{ modules: Module[]; accent: 'cyan' | 'amber' }> = ({ modules, accent }) => {
+const Curriculum: React.FC<{ modules: Module[]; accent: 'cyan' | 'amber'; lang: Lang }> = ({ modules, accent, lang }) => {
+  const ur = lang === 'ur';
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<string | null>(modules[0]?.lessons[0]?.id || null);
   const ql = q.trim().toLowerCase();
-  const list = useMemo(() => modules.map((m) => ({ ...m, lessons: m.lessons.filter((l) => !ql || `${l.title} ${l.summary} ${l.points.join(' ')}`.toLowerCase().includes(ql)) })).filter((m) => m.lessons.length), [modules, ql]);
+  const list = useMemo(() => modules.map((m) => ({ ...m, lessons: m.lessons.filter((l) => !ql || `${l.title} ${l.summary} ${l.points.join(' ')} ${(LESSON_UR[l.id] || []).join(' ')}`.toLowerCase().includes(ql)) })).filter((m) => m.lessons.length), [modules, ql]);
   const a = accent === 'cyan' ? { ring: 'border-cyan-400/50', text: 'text-cyan-300', chip: 'bg-cyan-500/10 border-cyan-400/40 text-cyan-100', link: 'text-cyan-200 hover:text-white' } : { ring: 'border-amber-400/50', text: 'text-amber-300', chip: 'bg-amber-500/10 border-amber-400/40 text-amber-100', link: 'text-amber-200 hover:text-white' };
   const total = modules.reduce((n, m) => n + m.lessons.length, 0);
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir={ur ? 'rtl' : 'ltr'}>
       <label className="relative block max-w-md">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${total} lessons…`} aria-label="Search lessons" className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-700 focus:border-cyan-400 outline-none text-sm text-slate-100 placeholder:text-slate-500" />
+        <Search className={`w-4 h-4 absolute top-1/2 -translate-y-1/2 text-slate-500 ${ur ? 'right-3' : 'left-3'}`} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={ur ? `${total} اسباق میں تلاش کریں…` : `Search ${total} lessons…`} aria-label="Search lessons" style={uf(ur)} className={`w-full ${ur ? 'pr-9 pl-3' : 'pl-9 pr-3'} py-2 rounded-xl bg-slate-950 border border-slate-700 focus:border-cyan-400 outline-none text-sm text-slate-100 placeholder:text-slate-500`} />
       </label>
       {list.map((m) => (
         <section key={m.id} className="space-y-2">
-          <div className="flex items-center gap-2"><h3 className={`text-[13px] font-bold uppercase tracking-[0.14em] ${a.text}`}>{m.title}</h3><span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${a.chip}`}>{m.level}</span></div>
+          <div className="flex items-center gap-2"><h3 className={`text-[13px] font-bold uppercase tracking-[0.14em] ${a.text}`} style={uf(ur)}>{ur ? MODULE_UR[m.id] || m.title : m.title}</h3><span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${a.chip}`} style={uf(ur)}>{ur ? LEVEL_UR[m.level] : m.level}</span></div>
           <div className="grid gap-2">
             {m.lessons.map((l) => {
               const on = open === l.id || !!ql;
               return (
                 <article key={l.id} className={`rounded-2xl border bg-slate-950/70 transition ${on ? a.ring : 'border-slate-800 hover:border-slate-600'}`}>
-                  <button type="button" onClick={() => setOpen(on && !ql ? null : l.id)} aria-expanded={on} className="w-full flex items-center gap-3 px-4 py-3 text-left cursor-pointer">
-                    <span className="flex-1 font-semibold text-slate-100">{l.title}</span>
+                  <button type="button" onClick={() => setOpen(on && !ql ? null : l.id)} aria-expanded={on} className={`w-full flex items-center gap-3 px-4 py-3 cursor-pointer ${ur ? 'text-right' : 'text-left'}`}>
+                    <span className="flex-1 font-semibold text-slate-100" style={uf(ur)}>{ur && LESSON_UR[l.id] ? LESSON_UR[l.id][0] : l.title}</span>
                     <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${on ? 'rotate-180' : ''}`} />
                   </button>
                   {on && (
                     <div className="px-4 pb-4 space-y-3">
-                      <p className="text-[13.5px] leading-relaxed text-slate-300">{l.summary}</p>
-                      <ul className="grid sm:grid-cols-3 gap-1.5">
+                      <p className={`text-[13.5px] text-slate-300 ${ur ? 'leading-[2.3]' : 'leading-relaxed'}`} style={uf(ur)}>{ur && LESSON_UR[l.id] ? LESSON_UR[l.id][1] : l.summary}</p>
+                      {ur && <p className="text-[12px] text-slate-500 leading-relaxed text-left" dir="ltr">{l.summary}</p>}
+                      <ul dir="ltr" className="grid sm:grid-cols-3 gap-1.5">
                         {l.points.map((p) => <li key={p} className="flex gap-1.5 text-[12px] text-slate-300"><CheckCircle2 className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${a.text}`} />{p}</li>)}
                       </ul>
-                      <div className="flex flex-wrap gap-2 pt-1">
+                      <div className="flex flex-wrap gap-2 pt-1" dir="ltr">
                         {l.links.map((k) => (
                           <a key={k.url} href={k.url} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-[12px] font-semibold ${a.link}`}>
                             Read: {k.label} <span className="text-slate-500 font-normal">· {k.site}</span><ExternalLink className="w-3 h-3" />
@@ -61,30 +67,38 @@ const Curriculum: React.FC<{ modules: Module[]; accent: 'cyan' | 'amber' }> = ({
           </div>
         </section>
       ))}
-      {!list.length && <p className="text-sm text-slate-500">No lesson matches “{q}”.</p>}
+      {!list.length && <p className="text-sm text-slate-500" style={uf(ur)}>{ur ? `“${q}” کا کوئی سبق نہیں ملا۔` : `No lesson matches “${q}”.`}</p>}
     </div>
   );
 };
 
-const Countdown: React.FC<{ to: number }> = ({ to }) => {
+const Countdown: React.FC<{ to: number; ur?: boolean }> = ({ to, ur }) => {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   const left = Math.max(0, to - now);
-  const parts = [['Days', Math.floor(left / 86_400_000)], ['Hours', Math.floor(left / 3_600_000) % 24], ['Minutes', Math.floor(left / 60_000) % 60], ['Seconds', Math.floor(left / 1000) % 60]] as const;
+  const parts = (ur ? [['دن', Math.floor(left / 86_400_000)], ['گھنٹے', Math.floor(left / 3_600_000) % 24], ['منٹ', Math.floor(left / 60_000) % 60], ['سیکنڈ', Math.floor(left / 1000) % 60]] : [['Days', Math.floor(left / 86_400_000)], ['Hours', Math.floor(left / 3_600_000) % 24], ['Minutes', Math.floor(left / 60_000) % 60], ['Seconds', Math.floor(left / 1000) % 60]]) as [string, number][];
   if (!left) return <div className="text-2xl font-black text-emerald-300">The SBT bot is live.</div>;
   return (
-    <div className="grid grid-cols-4 gap-2 max-w-md" data-testid="bot-countdown">
+    <div className="grid grid-cols-4 gap-2 max-w-md" data-testid="bot-countdown" dir="ltr">
       {parts.map(([l, v]) => (
         <div key={l} className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 py-2.5 text-center">
           <div className="text-2xl sm:text-4xl font-black tabular-nums text-white">{String(v).padStart(2, '0')}</div>
-          <div className="text-[10px] uppercase tracking-widest text-emerald-200/80">{l}</div>
+          <div className="text-[10px] uppercase tracking-widest text-emerald-200/80" style={uf(!!ur)}>{l}</div>
         </div>
       ))}
     </div>
   );
 };
 
-const BotSection: React.FC = () => {
+const TIER_UR: Record<string, { blurb: string; features: string[] }> = {
+  starter: { blurb: 'ایک اکاؤنٹ، اہم جوڑیوں پر SBT ماڈل۔', features: ['1 ٹریڈنگ اکاؤنٹ', 'اہم فاریکس جوڑیاں + سونا', 'مکمل خودکار داخلہ اور اخراج', 'فی ٹریڈ 1% رسک', 'سیٹ اپ میں مدد'] },
+  pro: { blurb: 'زیادہ جوڑیاں اور ترجیحی سیٹ اپ۔', features: ['3 تک ٹریڈنگ اکاؤنٹس', 'تمام فاریکس جوڑیاں، سونا اور انڈیکس', 'مکمل خودکار داخلہ اور اخراج', 'فی ٹریڈ 1% رسک', 'ترجیحی سیٹ اپ اور مدد'] },
+  institutional: { blurb: 'فنڈز، پراپ ڈیسکس اور بڑے سرمائے کے لیے۔', features: ['لامحدود اکاؤنٹس', 'ہر معاون مارکیٹ', 'اپنی مرضی کی رسک سیٹنگز', 'بانی سے براہِ راست رابطہ', 'خصوصی آن بورڈنگ'] },
+};
+
+const BotSection: React.FC<{ lang: Lang }> = ({ lang }) => {
+  const ur = lang === 'ur';
+  const T = (en: string, u: string) => (ur ? u : en);
   const [tier, setTier] = useState<string>('pro');
   const [form, setForm] = useState({ name: '', contact: '', country: '', capital: '', note: '' });
   const [state, setState] = useState<{ busy?: boolean; error?: string; done?: { id: string; tier: string } }>({});
@@ -103,76 +117,82 @@ const BotSection: React.FC = () => {
   const input = 'w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 focus:border-emerald-400 outline-none text-sm text-slate-100 placeholder:text-slate-500';
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-3xl border border-emerald-400/30 bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.18),transparent_60%),#050b0a] p-5 sm:p-7 space-y-4">
+      <section dir={ur ? 'rtl' : 'ltr'} className="relative overflow-hidden rounded-3xl border border-emerald-400/30 bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.18),transparent_60%),#050b0a] p-5 sm:p-7 space-y-4">
         <div className="text-[11px] font-mono-code uppercase tracking-[0.25em] text-emerald-300">Prime Pip SBT · Trading Bot Automation</div>
-        <h2 className="text-2xl sm:text-4xl font-black text-white">Launching 1 January 2027</h2>
-        <Countdown to={BOT_LAUNCH} />
+        <h2 className="text-2xl sm:text-4xl font-black text-white" style={uf(ur)}>{T('Launching 1 January 2027', 'آغاز: یکم جنوری 2027')}</h2>
+        <Countdown to={BOT_LAUNCH} ur={ur} />
         <div className="grid sm:grid-cols-3 gap-3 pt-2">
-          {[
+          {(ur ? [
+            ['مکمل خودکار', 'خود SBT سیٹ اپ ڈھونڈتا، ٹریڈ کھولتا، سنبھالتا اور بند کرتا ہے — اسکرین دیکھنے کی ضرورت نہیں۔'],
+            ['فی ٹریڈ 1% رسک', 'ہر پوزیشن کا حجم ایسا کہ اسٹاپ لاس پر اکاؤنٹ کا تقریباً 1% جائے۔ پہلے سرمائے کی حفاظت۔'],
+            ['میٹا ٹریڈر 5 پر چلتا ہے', 'آپ کے اپنے بروکر اکاؤنٹ سے جڑتا ہے؛ آپ کا پیسہ آپ کے نام پر آپ کے بروکر کے پاس رہتا ہے۔'],
+          ] : [
             ['Fully automatic', 'Finds SBT setups, enters, manages and exits trades on its own — no screen-watching.'],
             ['1% risk per trade', 'Every position is sized so a stop-loss costs about 1% of the account. Capital protection first.'],
             ['Runs on MetaTrader 5', 'Connects to your own broker account; your money stays with your broker, in your name.'],
-          ].map(([t, d]) => <div key={t} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3.5"><div className="font-bold text-emerald-200">{t}</div><div className="text-[12.5px] text-slate-300 mt-1 leading-relaxed">{d}</div></div>)}
+          ]).map(([t, d]) => <div key={t} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3.5"><div className="font-bold text-emerald-200" style={uf(ur)}>{t}</div><div className={`text-[12.5px] text-slate-300 mt-1 ${ur ? 'leading-[2.2]' : 'leading-relaxed'}`} style={uf(ur)}>{d}</div></div>)}
         </div>
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3.5 text-[12.5px] text-slate-300 leading-relaxed">
-          <b className="text-white">Performance:</b> the bot trades the founder’s SBT model (10 models, Level 1 / Level 2 entries). A verified live track record will be published here before launch so you can judge the results yourself.
+        <div className={`rounded-2xl border border-slate-800 bg-slate-950/70 p-3.5 text-[12.5px] text-slate-300 ${ur ? 'leading-[2.2]' : 'leading-relaxed'}`} style={uf(ur)}>
+          {ur ? <><b className="text-white">کارکردگی:</b> بوٹ بانی کا SBT ماڈل ٹریڈ کرتا ہے (10 ماڈلز، لیول 1 / لیول 2 انٹریز)۔ آغاز سے پہلے یہاں تصدیق شدہ لائیو ریکارڈ شائع کیا جائے گا تاکہ آپ خود نتائج پرکھ سکیں۔</> : <><b className="text-white">Performance:</b> the bot trades the founder’s SBT model (10 models, Level 1 / Level 2 entries). A verified live track record will be published here before launch so you can judge the results yourself.</>}
         </div>
       </section>
 
       <section className="space-y-3">
-        <h3 className="text-[13px] font-bold uppercase tracking-[0.14em] text-emerald-300">Choose your plan</h3>
+        <h3 className="text-[13px] font-bold uppercase tracking-[0.14em] text-emerald-300" style={uf(ur)}>{T('Choose your plan', 'اپنا پلان چنیں')}</h3>
         <div className="grid md:grid-cols-3 gap-3" role="radiogroup" aria-label="Plan">
           {BOT_TIERS.map((t) => (
             <button key={t.id} type="button" role="radio" aria-checked={tier === t.id} onClick={() => setTier(t.id)}
               className={`text-left rounded-3xl border-2 p-4 cursor-pointer transition ${tier === t.id ? 'border-emerald-400 bg-emerald-500/10 shadow-lg shadow-emerald-500/10' : 'border-slate-800 bg-slate-950/70 hover:border-slate-600'}`}>
-              <div className="flex items-baseline justify-between"><span className="text-lg font-black text-white">{t.name}</span>{t.id === 'pro' && <span className="text-[10px] font-bold uppercase text-emerald-300">Most chosen</span>}</div>
+              <div className="flex items-baseline justify-between"><span className="text-lg font-black text-white">{t.name}</span>{t.id === 'pro' && <span className="text-[10px] font-bold uppercase text-emerald-300" style={uf(ur)}>{T('Most chosen', 'سب سے زیادہ منتخب')}</span>}</div>
               <div className="mt-1 text-3xl font-black text-emerald-200">${t.fee.toLocaleString()}</div>
-              <div className="text-[12px] text-slate-400 mt-1">{t.blurb}</div>
-              <ul className="mt-3 space-y-1">{t.features.map((f) => <li key={f} className="flex gap-1.5 text-[12px] text-slate-200"><CheckCircle2 className="w-3.5 h-3.5 mt-0.5 text-emerald-300 shrink-0" />{f}</li>)}</ul>
+              <div className="text-[12px] text-slate-400 mt-1" style={uf(ur)}>{ur ? TIER_UR[t.id]?.blurb : t.blurb}</div>
+              <ul className="mt-3 space-y-1" style={uf(ur)}>{(ur ? TIER_UR[t.id]?.features || t.features : t.features).map((f) => <li key={f} className="flex gap-1.5 text-[12px] text-slate-200"><CheckCircle2 className="w-3.5 h-3.5 mt-0.5 text-emerald-300 shrink-0" />{f}</li>)}</ul>
             </button>
           ))}
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-6" data-testid="bot-reserve">
+      <section dir={ur ? 'rtl' : 'ltr'} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-6" data-testid="bot-reserve">
         {state.done ? (
           <div className="space-y-3 text-center py-4">
             <CheckCircle2 className="w-12 h-12 text-emerald-300 mx-auto" />
-            <div className="text-xl font-black text-white">Your place is reserved</div>
+            <div className="text-xl font-black text-white" style={uf(ur)}>{T('Your place is reserved', 'آپ کی جگہ محفوظ ہو گئی')}</div>
             <div className="text-sm text-slate-300">Reservation ID <b className="font-mono-code text-emerald-200">{state.done.id}</b> · {chosen.name} plan · ${chosen.fee.toLocaleString()}</div>
-            <p className="text-[12.5px] text-slate-400 max-w-md mx-auto">To confirm it, complete the payment. Send your reservation ID on WhatsApp and you will receive the payment details and a receipt.</p>
+            <p className="text-[12.5px] text-slate-400 max-w-md mx-auto" style={uf(ur)}>{T('To confirm it, complete the payment. Send your reservation ID on WhatsApp and you will receive the payment details and a receipt.', 'تصدیق کے لیے ادائیگی مکمل کریں۔ اپنی ریزرویشن ID واٹس ایپ پر بھیجیں، آپ کو ادائیگی کی تفصیل اور رسید ملے گی۔')}</p>
             <a href={`https://wa.me/${OWNER_WA}?text=${encodeURIComponent(payMsg)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-400 text-emerald-950 font-black hover:bg-emerald-300">
-              <MessageCircle className="w-4 h-4" />Complete payment on WhatsApp
+              <MessageCircle className="w-4 h-4" /><span style={uf(ur)}>{T('Complete payment on WhatsApp', 'واٹس ایپ پر ادائیگی مکمل کریں')}</span>
             </a>
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-3">
-            <div className="flex items-center gap-2"><h3 className="text-lg font-black text-white">Reserve your place</h3><span className="text-[12px] text-slate-400">· {chosen.name} · ${chosen.fee.toLocaleString()}</span></div>
+            <div className="flex items-center gap-2"><h3 className="text-lg font-black text-white" style={uf(ur)}>{T('Reserve your place', 'اپنی جگہ محفوظ کریں')}</h3><span className="text-[12px] text-slate-400">· {chosen.name} · ${chosen.fee.toLocaleString()}</span></div>
             <div className="grid sm:grid-cols-2 gap-3">
-              <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" aria-label="Full name" className={input} />
-              <input required value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} placeholder="WhatsApp number or email" aria-label="WhatsApp number or email" className={input} />
-              <input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="Country" aria-label="Country" className={input} />
-              <input value={form.capital} onChange={(e) => setForm({ ...form, capital: e.target.value })} placeholder="Planned trading capital (optional)" aria-label="Planned trading capital" className={input} />
+              <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={T('Full name', 'پورا نام')} aria-label="Full name" className={input} />
+              <input required value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} placeholder={T('WhatsApp number or email', 'واٹس ایپ نمبر یا ای میل')} aria-label="WhatsApp number or email" className={input} />
+              <input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder={T('Country', 'ملک')} aria-label="Country" className={input} />
+              <input value={form.capital} onChange={(e) => setForm({ ...form, capital: e.target.value })} placeholder={T('Planned trading capital (optional)', 'متوقع ٹریڈنگ سرمایہ (اختیاری)')} aria-label="Planned trading capital" className={input} />
             </div>
-            <textarea value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Anything we should know? (broker, questions…)" aria-label="Note" rows={2} className={input} />
+            <textarea value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder={T('Anything we should know? (broker, questions…)', 'کچھ بتانا چاہیں؟ (بروکر، سوالات…)')} aria-label="Note" rows={2} className={input} />
             {state.error && <div className="text-[12.5px] text-rose-300">{state.error}</div>}
             <button type="submit" disabled={state.busy} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-300 to-teal-400 text-emerald-950 font-black disabled:opacity-60 cursor-pointer">
-              {state.busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}Reserve my place
+              {state.busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}<span style={uf(ur)}>{T('Reserve my place', 'میری جگہ محفوظ کریں')}</span>
             </button>
-            <p className="text-[11px] text-slate-500">Reserving is free and does not charge you. Your details are seen only by the Prime Pip FX team.</p>
+            <p className="text-[11px] text-slate-500" style={uf(ur)}>{T('Reserving is free and does not charge you. Your details are seen only by the Prime Pip FX team.', 'جگہ محفوظ کرنا مفت ہے، کوئی رقم نہیں کٹتی۔ آپ کی تفصیل صرف Prime Pip FX ٹیم دیکھتی ہے۔')}</p>
           </form>
         )}
       </section>
 
       <div className="flex gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-3.5 text-[12px] text-rose-100/90 leading-relaxed">
         <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0 text-rose-300" />
-        <span><b>Risk warning:</b> trading forex and CFDs with leverage carries a high risk of losing money. Automated trading does not remove that risk, past or tested results do not guarantee future results, and you should only trade money you can afford to lose.</span>
+        <span style={uf(ur)} className={ur ? 'leading-[2.2]' : ''}>{ur ? <><b>رسک وارننگ:</b> لیوریج کے ساتھ فاریکس اور CFD ٹریڈنگ میں پیسہ کھونے کا بڑا خطرہ ہے۔ خودکار ٹریڈنگ یہ خطرہ ختم نہیں کرتی، ماضی یا ٹیسٹ کے نتائج مستقبل کی ضمانت نہیں، اور صرف وہی پیسہ لگائیں جس کا نقصان برداشت کر سکیں۔</> : <><b>Risk warning:</b> trading forex and CFDs with leverage carries a high risk of losing money. Automated trading does not remove that risk, past or tested results do not guarantee future results, and you should only trade money you can afford to lose.</>}</span>
       </div>
     </div>
   );
 };
 
-const VoiceSection: React.FC = () => {
+const VoiceSection: React.FC<{ lang: Lang }> = ({ lang }) => {
+  const ur = lang === 'ur';
+  const T = (en: string, u: string) => (ur ? u : en);
   const [kind, setKind] = useState('missing');
   const [text, setText] = useState('');
   const [state, setState] = useState<{ busy?: boolean; ok?: boolean; error?: string }>({});
@@ -186,60 +206,82 @@ const VoiceSection: React.FC = () => {
     } catch { setState({ error: 'No connection. Please try again.' }); }
   };
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" dir={ur ? 'rtl' : 'ltr'}>
       <section className="rounded-3xl border border-fuchsia-400/30 bg-[radial-gradient(ellipse_at_top_left,rgba(217,70,239,0.16),transparent_60%),#0a0612] p-5 sm:p-7 space-y-3">
         <div className="text-[11px] font-mono-code uppercase tracking-[0.25em] text-fuchsia-300">Turning feelings into practical solutions</div>
-        <h2 className="text-2xl sm:text-3xl font-black text-white">Tell us what you feel is missing. We turn it into the next update.</h2>
-        <p className="text-[13px] text-slate-300 leading-relaxed max-w-3xl">Every frustration a trader feels is a gap waiting to be filled. Write it in your own words. The app also watches quietly for errors on its own and reports them, and counts which sections are used most (numbers only, nothing personal), so every update fixes what matters most to the people who use it.</p>
+        <h2 className="text-2xl sm:text-3xl font-black text-white" style={uf(ur)}>{T('Tell us what you feel is missing. We turn it into the next update.', 'بتائیں آپ کو کیا کمی محسوس ہوتی ہے۔ ہم اسے اگلی اپ ڈیٹ بنا دیتے ہیں۔')}</h2>
+        {ur ? <p className="text-[13px] text-slate-300 leading-[2.2] max-w-3xl" style={URDU_FONT}>ہر پریشانی جو ٹریڈر محسوس کرتا ہے ایک خلا ہے جسے بھرا جا سکتا ہے۔ اپنے الفاظ میں لکھیں۔ ایپ خود بھی خاموشی سے غلطیوں پر نظر رکھتی اور رپورٹ کرتی ہے، اور گنتی ہے کون سے حصے زیادہ استعمال ہوتے ہیں (صرف نمبر، کچھ ذاتی نہیں)، تاکہ ہر اپ ڈیٹ وہی ٹھیک کرے جو سب سے اہم ہے۔</p> : <p className="text-[13px] text-slate-300 leading-relaxed max-w-3xl">Every frustration a trader feels is a gap waiting to be filled. Write it in your own words. The app also watches quietly for errors on its own and reports them, and counts which sections are used most (numbers only, nothing personal), so every update fixes what matters most to the people who use it.</p>}
         <div className="grid sm:grid-cols-3 gap-2 pt-1">
-          {[['Your words', 'What is missing, confusing or frustrating — in any language.'], ['Automatic error reports', 'If something breaks on your screen, the details reach the team automatically.'], ['What people use', 'Which sections are opened most, so effort goes where traders are.']].map(([t, d]) => (
-            <div key={t} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3"><div className="font-bold text-fuchsia-200 text-[13px]">{t}</div><div className="text-[12px] text-slate-400 mt-0.5">{d}</div></div>
+          {(ur ? [['آپ کے الفاظ', 'کیا کمی ہے، کیا الجھا یا پریشان کرتا ہے — کسی بھی زبان میں۔'], ['خودکار غلطی رپورٹس', 'اگر اسکرین پر کچھ خراب ہو تو تفصیل خود بخود ٹیم تک پہنچتی ہے۔'], ['لوگ کیا استعمال کرتے ہیں', 'کون سے حصے زیادہ کھلتے ہیں، تاکہ محنت وہاں ہو جہاں ٹریڈر ہیں۔']] : [['Your words', 'What is missing, confusing or frustrating — in any language.'], ['Automatic error reports', 'If something breaks on your screen, the details reach the team automatically.'], ['What people use', 'Which sections are opened most, so effort goes where traders are.']]).map(([t, d]) => (
+            <div key={t} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3" style={uf(ur)}><div className="font-bold text-fuchsia-200 text-[13px]">{t}</div><div className="text-[12px] text-slate-400 mt-0.5">{d}</div></div>
           ))}
         </div>
       </section>
       <form onSubmit={send} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-6 space-y-3" data-testid="voice-form">
         <div className="flex flex-wrap gap-1.5">
-          {[['missing', 'Something is missing'], ['feeling', 'How it makes me feel'], ['bug', 'Something is broken'], ['idea', 'An idea']].map(([k, l]) => (
-            <button key={k} type="button" onClick={() => setKind(k)} className={`px-3 py-1.5 rounded-full border text-[12px] font-bold cursor-pointer ${kind === k ? 'border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-100' : 'border-slate-700 text-slate-400 hover:text-white'}`}>{l}</button>
+          {(ur ? [['missing', 'کچھ کمی ہے'], ['feeling', 'مجھے کیسا لگتا ہے'], ['bug', 'کچھ خراب ہے'], ['idea', 'ایک خیال']] : [['missing', 'Something is missing'], ['feeling', 'How it makes me feel'], ['bug', 'Something is broken'], ['idea', 'An idea']]).map(([k, l]) => (
+            <button key={k} type="button" style={uf(ur)} onClick={() => setKind(k)} className={`px-3 py-1.5 rounded-full border text-[12px] font-bold cursor-pointer ${kind === k ? 'border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-100' : 'border-slate-700 text-slate-400 hover:text-white'}`}>{l}</button>
           ))}
         </div>
-        <textarea required minLength={3} value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder="Write freely…" aria-label="Your message" className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 focus:border-fuchsia-400 outline-none text-sm text-slate-100 placeholder:text-slate-500" />
+        <textarea required minLength={3} value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder={T('Write freely…', 'آزادی سے لکھیں…')} style={uf(ur)} aria-label="Your message" className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 focus:border-fuchsia-400 outline-none text-sm text-slate-100 placeholder:text-slate-500" />
         {state.error && <div className="text-[12.5px] text-rose-300">{state.error}</div>}
-        {state.ok && <div className="text-[12.5px] text-emerald-300">Thank you — it has reached the team.</div>}
-        <button type="submit" disabled={state.busy} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-fuchsia-400 to-violet-500 text-white font-black disabled:opacity-60 cursor-pointer">{state.busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}Send</button>
+        {state.ok && <div className="text-[12.5px] text-emerald-300" style={uf(ur)}>{T('Thank you — it has reached the team.', 'شکریہ — یہ ٹیم تک پہنچ گیا۔')}</div>}
+        <button type="submit" disabled={state.busy} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-fuchsia-400 to-violet-500 text-white font-black disabled:opacity-60 cursor-pointer">{state.busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}<span style={uf(ur)}>{T('Send', 'بھیجیں')}</span></button>
       </form>
     </div>
   );
 };
 
-export const LearningHub: React.FC<{ onNavigateTab?: (tab: string) => void }> = ({ onNavigateTab }) => {
-  const [tab, setTab] = useState<Tab>(() => { try { return (localStorage.getItem('ppfx_learning_tab') as Tab) || 'LEARN'; } catch { return 'LEARN'; } });
+export const LearningHub: React.FC<{ onNavigateTab?: (tab: string) => void }> = () => {
+  const [tab, setTab] = useState<Tab>(() => { try { const t = localStorage.getItem('ppfx_learning_tab') as Tab; return TABS.some((x) => x.id === t) ? t : 'LEARN'; } catch { return 'LEARN'; } });
+  const [lang, setLang] = useState<Lang>(() => { try { return localStorage.getItem(LANG_KEY) === 'ur' ? 'ur' : 'en'; } catch { return 'en'; } });
   useEffect(() => { try { localStorage.setItem('ppfx_learning_tab', tab); } catch { /* storage blocked */ } }, [tab]);
+  useEffect(() => { try { localStorage.setItem(LANG_KEY, lang); } catch { /* storage blocked */ } }, [lang]);
+  const ur = lang === 'ur';
+  const T = (en: string, u: string) => (ur ? u : en);
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-5 pb-16 px-2 sm:px-4 text-slate-100" data-testid="learning-hub">
+    <div className="w-full max-w-6xl mx-auto space-y-5 pb-16 px-2 sm:px-4 text-slate-100" data-testid="learning-hub" lang={lang}>
       <header className="rounded-3xl border border-cyan-500/25 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,0.14),transparent_55%),#060a14] p-5 sm:p-7">
-        <div className="flex items-center gap-2 text-[11px] font-mono-code uppercase tracking-[0.25em] text-cyan-300"><Building2 className="w-4 h-4" />Learn · Understand · Automate</div>
-        <h1 className="mt-1 text-2xl sm:text-4xl font-black text-white">Pro Trading Learning</h1>
-        <p className="mt-1 text-[13px] text-slate-400 max-w-2xl">Start from zero and go all the way to how banks and hedge funds really work — every lesson in simple words, with trusted sources to read more.</p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div dir={ur ? 'rtl' : 'ltr'} className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 text-[11px] font-mono-code uppercase tracking-[0.25em] text-cyan-300" dir="ltr"><Building2 className="w-4 h-4" />Learn · Understand · Automate</div>
+            <h1 className="mt-1 text-2xl sm:text-4xl font-black text-white" style={uf(ur)}>{T('Pro Trading Learning', 'پرو ٹریڈنگ لرننگ')}</h1>
+            <p className={`mt-1 text-[13px] text-slate-400 max-w-2xl ${ur ? 'leading-[2.2]' : ''}`} style={uf(ur)}>{T(`Start from zero and go all the way to how banks and hedge funds really work — every lesson in simple words, with trusted sources to read more. Now with a ${TOPIC_COUNT}-topic institutional research library.`, `صفر سے شروع کر کے یہ سیکھیں کہ بینک اور ہیج فنڈز اصل میں کیسے کام کرتے ہیں — ہر سبق آسان الفاظ میں، مزید پڑھنے کے معتبر ذرائع کے ساتھ۔ اب ${TOPIC_COUNT} موضوعات کی ادارہ جاتی ریسرچ لائبریری کے ساتھ۔`)}</p>
+          </div>
+          <div role="group" aria-label="Language / زبان" data-testid="lang-toggle" className="shrink-0 inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-950/80 p-1">
+            <Languages className="w-4 h-4 text-cyan-300 mx-1.5" />
+            <button type="button" onClick={() => setLang('en')} aria-pressed={!ur} className={`px-3 py-1.5 rounded-full text-[12px] font-bold cursor-pointer ${!ur ? 'bg-cyan-400 text-slate-950' : 'text-slate-400 hover:text-white'}`}>English</button>
+            <button type="button" onClick={() => setLang('ur')} aria-pressed={ur} style={URDU_FONT} className={`px-3 py-1 rounded-full text-[13px] font-bold cursor-pointer ${ur ? 'bg-cyan-400 text-slate-950' : 'text-slate-400 hover:text-white'}`}>اردو</button>
+          </div>
+        </div>
+        <button type="button" onClick={() => setTab('BOT')} data-testid="bot-banner" dir={ur ? 'rtl' : 'ltr'}
+          className="mt-4 w-full flex items-center gap-3 rounded-2xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-transparent px-4 py-3 text-start cursor-pointer hover:border-emerald-300 transition">
+          <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-300 to-teal-500 flex items-center justify-center text-emerald-950 shrink-0"><Bot className="w-5 h-5" /></span>
+          <span className="flex-1 min-w-0">
+            <span className="block font-black text-white text-[15px]" style={uf(ur)}>{T('SBT Trading Bot — launching 1 January 2027', 'SBT ٹریڈنگ بوٹ — آغاز یکم جنوری 2027')}</span>
+            <span className="block text-[12px] text-emerald-100/80" style={uf(ur)}>{T('Fully automatic · 1% risk per trade · reserve your place now', 'مکمل خودکار · فی ٹریڈ 1% رسک · ابھی اپنی جگہ محفوظ کریں')}</span>
+          </span>
+          <ArrowRight className={`w-5 h-5 text-emerald-300 shrink-0 ${ur ? 'rotate-180' : ''}`} />
+        </button>
       </header>
-      <nav className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" role="tablist" aria-label="Learning sections">
+      <nav className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" role="tablist" aria-label="Learning sections" dir={ur ? 'rtl' : 'ltr'}>
         {TABS.map((t) => (
-          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
+          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} data-testid={`learn-tab-${t.id}`}
             className={`shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border text-[13px] font-bold cursor-pointer transition ${tab === t.id ? 'border-white/30 bg-white/10 text-white shadow-lg' : 'border-slate-800 bg-slate-950/70 text-slate-400 hover:text-white'}`}>
-            <span className={`w-6 h-6 rounded-lg bg-gradient-to-br ${t.tone} flex items-center justify-center text-slate-950`}><t.icon className="w-3.5 h-3.5" /></span>{t.label}
+            <span className={`w-6 h-6 rounded-lg bg-gradient-to-br ${t.tone} flex items-center justify-center text-slate-950`}><t.icon className="w-3.5 h-3.5" /></span><span style={uf(ur)}>{ur ? t.ur : t.en}</span>
           </button>
         ))}
       </nav>
-      {tab === 'LEARN' && <Curriculum modules={COURSE} accent="cyan" />}
+      {tab === 'LEARN' && <Curriculum modules={COURSE} accent="cyan" lang={lang} />}
       {tab === 'INSTITUTIONAL' && (
         <div className="space-y-4">
-          <p className="text-[13px] text-slate-400 max-w-3xl">What most retail traders never see: how funds and brokers are built, where prices come from, and what institutions watch before they trade.</p>
-          <Curriculum modules={INSTITUTIONAL} accent="amber" />
+          <p className={`text-[13px] text-slate-400 max-w-3xl ${ur ? 'leading-[2.2] text-right' : ''}`} dir={ur ? 'rtl' : 'ltr'} style={uf(ur)}>{T('What most retail traders never see: how funds and brokers are built, where prices come from, and what institutions watch before they trade.', 'جو زیادہ تر ریٹیل ٹریڈر کبھی نہیں دیکھتے: فنڈز اور بروکر کیسے بنتے ہیں، قیمتیں کہاں سے آتی ہیں، اور ادارے ٹریڈ سے پہلے کیا دیکھتے ہیں۔')}</p>
+          <Curriculum modules={INSTITUTIONAL} accent="amber" lang={lang} />
         </div>
       )}
-      {tab === 'BOT' && <BotSection />}
-      {tab === 'VOICE' && <VoiceSection />}
-      {tab === 'ACADEMY' && <ProLearningTrading onNavigateTab={onNavigateTab} />}
+      {tab === 'LIBRARY' && <AdvancedLibrary lang={lang} />}
+      {tab === 'BOT' && <BotSection lang={lang} />}
+      {tab === 'VOICE' && <VoiceSection lang={lang} />}
     </div>
   );
 };

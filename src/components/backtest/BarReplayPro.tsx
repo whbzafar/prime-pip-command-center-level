@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { init, dispose, registerOverlay, type Chart, type KLineData } from 'klinecharts';
+import { init, dispose, registerOverlay, getSupportedIndicators, type Chart, type KLineData } from 'klinecharts';
+import { IND_CATS, indCategory } from '../../utils/indicatorCategories';
 
 // MT5-style SL / TP line: a full-width dashed line whose label is recomputed on every frame, so
 // the money, % of balance and pips follow the line live while it is dragged.
@@ -79,6 +80,56 @@ function calcPnl(e: CatalogEntry, side: Side, entry: number, exit: number, lots:
 const fmt = (v: number, d = 2) => v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 /** Money without pointless trailing zeros: 500 → "500", 512.5 → "512.50". */
 const fmtMoney = (v: number) => (Math.abs(v - Math.round(v)) < 0.005 ? Math.round(v).toLocaleString('en-US') : v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
+
+const FALLBACK_IND = ['MA', 'EMA', 'SMA', 'BBI', 'BOLL', 'SAR', 'VOL', 'MACD', 'KDJ', 'RSI', 'BIAS', 'BRAR', 'CCI', 'DMI', 'CR', 'PSY', 'DMA', 'TRIX', 'OBV', 'VR', 'WR', 'MTM', 'EMV', 'AO', 'ROC', 'PVT', 'AVP'];
+const IND_NAMES: Record<string, string> = {
+  MA: 'Moving Average', EMA: 'Exponential Moving Average', SMA: 'Smoothed Moving Average', BBI: 'Bull and Bear Index', BOLL: 'Bollinger Bands', SAR: 'Parabolic SAR', VOL: 'Volume',
+  MACD: 'MACD', KDJ: 'KDJ / Stochastic', RSI: 'Relative Strength Index', BIAS: 'Bias Ratio', BRAR: 'Sentiment (BR / AR)', CCI: 'Commodity Channel Index', DMI: 'Directional Movement (ADX)',
+  CR: 'Energy Index (CR)', PSY: 'Psychological Line', DMA: 'Different of Moving Average', TRIX: 'Triple Exponential Average', OBV: 'On Balance Volume', VR: 'Volume Ratio',
+  WR: 'Williams %R', MTM: 'Momentum', EMV: 'Ease of Movement', AO: 'Awesome Oscillator', ROC: 'Rate of Change', PVT: 'Price and Volume Trend', AVP: 'Average Price',
+};
+/** Searchable, grouped indicator list (replaces the row of fixed chips). */
+const IndicatorPicker: React.FC<{ list: string[]; active: Record<string, string>; onToggle: (n: string) => void; compact?: boolean }> = ({ list, active, onToggle, compact }) => {
+  const [open, setOpen] = React.useState(false);
+  const [q, setQ] = React.useState('');
+  const [cat, setCat] = React.useState('All');
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => { if (!open) return; const f = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }; document.addEventListener('mousedown', f); return () => document.removeEventListener('mousedown', f); }, [open]);
+  const ql = q.trim().toLowerCase();
+  const rows = list.map((n) => ({ n, name: IND_NAMES[n] || n, cat: indCategory({ type: `${n} ${IND_NAMES[n] || ''}` }) }))
+    .filter((r) => (!ql || `${r.n} ${r.name} ${r.cat}`.toLowerCase().includes(ql)) && (cat === 'All' || r.cat === cat));
+  const on = Object.keys(active);
+  return (
+    <div ref={ref} className="relative inline-flex items-center gap-1 flex-wrap" data-testid="bt-indicator-picker">
+      {on.map((n) => (
+        <button key={n} type="button" onClick={() => onToggle(n)} title={`Remove ${IND_NAMES[n] || n}`} className="px-1.5 py-0.5 rounded-md bg-cyan-500/15 border border-cyan-500/50 text-cyan-200 cursor-pointer">{n} ×</button>
+      ))}
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="bt-indicator-open"
+        className={`${compact ? 'px-1.5 py-0.5' : 'px-2 py-1'} rounded-md border border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-500/50 cursor-pointer`}>+ Add indicator</button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-[10000] w-[min(360px,90vw)] rounded-xl border border-slate-700 bg-[#0d1220] shadow-2xl p-2 space-y-2 font-sans normal-case">
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.stopPropagation()} placeholder="Search — e.g. RSI, Bollinger, volume" aria-label="Search indicators" data-testid="bt-indicator-search"
+            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 focus:border-cyan-400 outline-none text-[12.5px] text-slate-100 placeholder:text-slate-500" />
+          <div className="flex flex-wrap gap-1">
+            {['All', ...IND_CATS].map((c) => <button key={c} type="button" onClick={() => setCat(c)} className={`px-2 py-0.5 rounded-md border text-[11px] font-semibold cursor-pointer ${cat === c ? 'border-cyan-400 bg-cyan-500/15 text-cyan-100' : 'border-slate-700 text-slate-400 hover:text-white'}`}>{c}</button>)}
+          </div>
+          <div className="max-h-72 overflow-y-auto space-y-0.5">
+            {rows.map((r) => (
+              <button key={r.n} type="button" onClick={() => onToggle(r.n)} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-800/70 text-left cursor-pointer">
+                <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[9px] ${active[r.n] ? 'bg-cyan-500 border-cyan-400 text-slate-950' : 'border-slate-600'}`}>{active[r.n] ? '✓' : ''}</span>
+                <b className="font-mono-code text-[12px] text-slate-100 w-12">{r.n}</b>
+                <span className="text-[12px] text-slate-300 flex-1 truncate">{r.name}</span>
+                <span className="text-[10px] text-slate-500">{r.cat}</span>
+              </button>
+            ))}
+            {!rows.length && <div className="px-2 py-2 text-[12px] text-slate-500">No indicator matches “{q}”.</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const BarReplayPro: React.FC = () => {
   const [ticker, setTicker] = useState('XAUUSD');
@@ -441,7 +492,7 @@ export const BarReplayPro: React.FC = () => {
   const clearDrawings = () => { drawingsRef.current.forEach((id) => chartRef.current?.removeOverlay(id)); setDraw([]); setSelectedDrawing(null); };
 
   // ── indicators: toggle on/off (no duplicates)
-  const MAIN_PANE = ['MA', 'EMA', 'BOLL', 'SAR'];
+  const MAIN_PANE = ['MA', 'EMA', 'SMA', 'BOLL', 'SAR', 'BBI'];
   const toggleIndicator = (n: string) => {
     const c = chartRef.current;
     if (!c) return;
@@ -491,7 +542,7 @@ export const BarReplayPro: React.FC = () => {
   };
 
   const drawTools: Array<[string, string]> = [['segment', 'Trend line'], ['rayLine', 'Ray'], ['horizontalStraightLine', 'Horizontal'], ['verticalStraightLine', 'Vertical'], ['parallelStraightLine', 'Channel'], ['fibonacciLine', 'Fibonacci'], ['priceLine', 'Price label'], ['simpleAnnotation', 'Note']];
-  const indicators = ['MA', 'EMA', 'BOLL', 'SAR', 'VOL', 'RSI', 'MACD', 'KDJ', 'CCI'];
+  const indicators = React.useMemo(() => { try { const l = getSupportedIndicators(); return l?.length ? l : FALLBACK_IND; } catch { return FALLBACK_IND; } }, []);
   const progress = bars.length ? Math.round((cursor / Math.max(1, bars.length - 1)) * 100) : 0;
 
   return (
@@ -536,10 +587,7 @@ export const BarReplayPro: React.FC = () => {
         <button type="button" onClick={() => selectedDrawing && removeDrawing(selectedDrawing)} disabled={!selectedDrawing} title="Delete selected drawing (Delete key · or right-click a drawing)" className="px-2 py-1 rounded-md bg-slate-900 border border-slate-800 text-amber-300 hover:border-amber-500/40 disabled:opacity-40 cursor-pointer">Delete selected</button>
         <button type="button" onClick={clearDrawings} disabled={!drawings.length} className="px-2 py-1 rounded-md bg-slate-900 border border-slate-800 text-rose-300 hover:border-rose-500/40 disabled:opacity-40 cursor-pointer flex items-center gap-1"><Trash2 className="w-3 h-3" />Clear all ({drawings.length})</button>
         <span className="text-slate-500 uppercase mx-1">Indicators</span>
-        {indicators.map((n) => (
-          <button key={n} type="button" onClick={() => toggleIndicator(n)} aria-pressed={!!activeInd[n]}
-            className={`px-2 py-1 rounded-md border cursor-pointer ${activeInd[n] ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-200' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:border-cyan-500/40'}`}>{n}</button>
-        ))}
+        <IndicatorPicker list={indicators} active={activeInd} onToggle={toggleIndicator} />
       </div>
 
       <div className="grid xl:grid-cols-[minmax(0,1fr)_320px] gap-3">
@@ -567,7 +615,7 @@ export const BarReplayPro: React.FC = () => {
             <div className="flex items-center gap-1.5 px-2.5 py-1 border-b border-slate-800 text-[10px] font-mono-code overflow-x-auto">
               {drawTools.map(([n, l]) => <button key={n} type="button" onClick={() => startDrawing(n)} className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer whitespace-nowrap">{l}</button>)}
               <span className="text-slate-600 mx-1">|</span>
-              {indicators.map((n) => <button key={n} type="button" onClick={() => toggleIndicator(n)} className={`px-1.5 py-0.5 rounded border cursor-pointer ${activeInd[n] ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-200' : 'bg-slate-900 border-slate-800 text-slate-400'}`}>{n}</button>)}
+              <IndicatorPicker list={indicators} active={activeInd} onToggle={toggleIndicator} compact />
               {positions.length > 0 && <button type="button" onClick={() => { const b = barsRef.current[cursorRef.current]; if (!b) return; for (const p of posRef.current) closePos(p, b.close, 'Manual', b.timestamp); setPos([]); }} className="ml-2 px-1.5 py-0.5 rounded border border-amber-500/50 text-amber-200 cursor-pointer whitespace-nowrap">Close all ({positions.length})</button>}
               <span className="ml-auto text-slate-400 whitespace-nowrap">Equity <b className={stats.net + floating >= 0 ? 'text-emerald-300' : 'text-rose-300'}>{fmtMoney(startBalance + stats.net + floating)} {ccy}</b> · open {positions.length} · trades {stats.trades}</span>
             </div>

@@ -31,12 +31,14 @@ export const MODEL_NAMES = ['SBT 1', 'SBT 2', 'SBT 3', 'SBT 4', 'SBT 5', 'SBT 6'
 const ZONE_SLOTS: Record<number, number[]> = { 1: [1, 2, 4], 2: [0, 3] };
 const LIQ_SLOTS: Record<number, number[]> = { 1: [8, 9, 10, 11], 2: [6, 7, 12, 13] };
 
-export interface SbtSignal { time: number; dir: 1 | -1; level: 1 | 2; price: number; stop: number; target: number; zoneTop: number; zoneBottom: number; bosTime: number; models: string[] }
+export interface SbtSignal { time: number; dir: 1 | -1; level: 1 | 2; price: number; stop: number; target: number; zoneTop: number; zoneBottom: number; bosTime: number; models: string[]; candleHigh?: number; candleLow?: number; /** how far the wick went into the zone, in pips */ depthPips?: number }
 export interface SbtZone { top: number; bottom: number; modelReady: boolean }
 export interface SbtScan {
   ok: true; symbol: string; bar: number; lastCandle: number; bars: number; trend: -1 | 0 | 1;
   armed: boolean; dir: -1 | 0 | 1; level1: SbtZone | null; level2: SbtZone | null; level1Done: boolean; htfWait: boolean; inTrade: boolean;
   signals: SbtSignal[]; ms: number; source: 'library' | 'bundled'; guarded: boolean;
+  /** Close / high / low of the newest closed H1 candle (where price is now). */
+  lastClose?: number; lastHigh?: number; lastLow?: number; pip?: number;
   /** The newest closed candle is older than it should be while the market is open: do not act on this answer. */
   stale: boolean;
 }
@@ -154,6 +156,56 @@ export async function loadBars(e: CatalogEntry, tf: Tf, before: number, count: n
 }
 
 const PINE_TF: Record<string, Tf> = { W: 'w1', '1W': 'w1', D: 'd1', '1D': 'd1', M: 'mn1', '1M': 'mn1', '240': 'h4', '60': 'h1' };
+
+// ───────────────────────────── broker-session candles (FOREX.com / FXCM on TradingView)
+// Forex, metals, energy and index CFDs at FOREX.com / FXCM close the trading day at 17:00 New York
+// (summer and winter time). The daily, weekly and 4-hour candles the strategy's higher-timeframe filter
+// reads must have those boundaries, or they differ from the broker's chart.
+const NY = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+const offCache = new Map<number, number>();
+function nyOffset(t: number): number {            // New York local time minus UTC, in ms
+  const k = Math.floor(t / H1);
+  const hit = offCache.get(k); if (hit !== undefined) return hit;
+  const p = Object.fromEntries(NY.formatToParts(new Date(k * H1)).map((x) => [x.type, x.value]));
+  const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute);
+  const off = asUtc - k * H1;
+  if (offCache.size > 50_000) offCache.clear();
+  offCache.set(k, off); return off;
+}
+const DAY = 24 * H1;
+/** Start (UTC ms) of the broker trading day that contains t: the most recent 17:00 New York. */
+function sessionStart(t: number): number {
+  const local = t + nyOffset(t);
+  const since17 = (((local % DAY) - 17 * H1) % DAY + DAY) % DAY;
+  return t - since17;
+}
+export function sessionAggregate(h1: Bar[], unit: 'h4' | 'd1' | 'w1'): Bar[] {
+  const out: Bar[] = [];
+  for (const b of h1) {
+    const s0 = sessionStart(b.time);
+    let k = s0;
+    if (unit === 'h4') k = s0 + Math.floor((b.time - s0) / (4 * H1)) * 4 * H1;
+    else if (unit === 'w1') {
+      // trading day = calendar date of (New York time + 7h); Monday = first day of the week
+      const tradingDow = new Date(s0 + nyOffset(s0) + 7 * H1).getUTCDay(); // 1 = Mon … 5 = Fri (0 / 6 = weekend)
+      const back = (tradingDow + 6) % 7;                                    // days since Monday
+      k = s0 - back * DAY;
+    }
+    const last = out[out.length - 1];
+    if (last && last.time === k) { last.high = Math.max(last.high, b.high); last.low = Math.min(last.low, b.low); last.close = b.close; last.volume += b.volume; }
+    else out.push({ ...b, time: k });
+  }
+  return out;
+}
+/** Older candles (UTC) up to the start of the session-built ones, then the session-built ones. */
+function joinHistory(older: Bar[], built: Bar[]): Bar[] {
+  if (!built.length) return older;
+  const first = built[0].time;
+  return [...older.filter((b) => b.time < first - 12 * H1), ...built];
+}
+const BROKER_SESSION = new Set(['forex', 'metals', 'energy', 'indices', 'other']);
+const SESSION_H1 = Number(process.env.PPFX_SBT_SESSION_BARS || 8000);
+
 function aggregateH4(h1: Bar[]): Bar[] {
   const out: Bar[] = [];
   for (const b of h1) {
@@ -232,19 +284,29 @@ async function doScan(symbol: string, bar: number): Promise<SbtScan | SbtFail> {
   if (!script) return { ok: false, symbol, error: 'The strategy is not loaded on the server yet.', code: 'not_configured' };
   let h1: Bar[] = [], d1: Bar[] = [], w1: Bar[] = [], mn: Bar[] = [];
   try {
+    const session = BROKER_SESSION.has(String(e.market));
     [h1, d1, w1, mn] = await Promise.all([
-      loadBars(e, 'h1', bar, H1_BARS),
+      loadBars(e, 'h1', bar, session ? Math.max(H1_BARS, SESSION_H1) : H1_BARS),
       loadBars(e, 'd1', bar, 600).catch(() => [] as Bar[]),
       loadBars(e, 'w1', bar, 300).catch(() => [] as Bar[]),
       loadBars(e, 'mn1', bar, 120).catch(() => [] as Bar[]),
     ]);
   } catch (err: any) { return { ok: false, symbol, error: `No price data: ${err?.message || err}`, code: 'no_data' }; }
   h1 = h1.filter((b) => b.time + H1 <= bar);
+  // Higher timeframes on the broker's 17:00 New York day (built from the H1 history; older years from daily data).
+  let h4 = aggregateH4(h1);
+  if (BROKER_SESSION.has(String(e.market)) && h1.length > 500) {
+    h4 = sessionAggregate(h1, 'h4');
+    d1 = joinHistory(d1, sessionAggregate(h1, 'd1'));
+    w1 = joinHistory(w1, sessionAggregate(h1, 'w1'));
+  }
+  const h1All = h1;
+  h1 = h1.slice(-H1_BARS);
   // The newest closed candle must be recent (markets closed over the weekend are fine: up to 4 days).
   if (h1.length < 300 || bar - h1[h1.length - 1].time > 4 * 24 * H1) return { ok: false, symbol, error: 'Not enough recent H1 candles for this pair.', code: 'no_data' };
   const digits = e.pricePrecision ?? 5;
   const market = { symbol, timeframe: '60', symbolInfo: { ticker: symbol, description: e.name || symbol, type: e.market || 'forex', currency: e.market === 'crypto' ? 'USDT' : 'USD', mintick: Number((10 ** -digits).toFixed(digits)), pricescale: 10 ** digits, minmov: 1 } };
-  const byTf: Record<Tf, Bar[]> = { h1, h4: aggregateH4(h1), d1, w1, mn1: mn } as any;
+  const byTf: Record<Tf, Bar[]> = { h1, h4, d1, w1, mn1: mn } as any;
   const series: Record<string, Bar[]> = {};
   for (const [ptf, tf] of Object.entries(PINE_TF)) if (byTf[tf]?.length) series[seriesKey(symbol, ptf)] = byTf[tf];
   const run = async (source: string) => {
@@ -271,5 +333,17 @@ async function doScan(symbol: string, bar: number): Promise<SbtScan | SbtFail> {
   const dt = new Date(bar); const dow = dt.getUTCDay(); const hr = dt.getUTCHours();
   const weekend = e.market !== 'crypto' && (dow === 6 || (dow === 5 && hr >= 21) || (dow === 0) || (dow === 1 && hr < 2));
   const stale = !weekend && gap > 3 * H1;
-  return { ok: true, ...parsed, bar, bars: h1.length, ms: Date.now() - t0, source: script.source, guarded, stale };
+  const lastBar = h1[h1.length - 1];
+  const byTime = new Map(h1.map((b) => [b.time, b]));
+  // pip: 0.0001 for 5-digit pairs, 0.01 for JPY pairs, 0.1 for gold / oil (2 digits), 1 for indices
+  const pip = digits >= 4 ? Math.pow(10, -(digits - 1)) : digits === 3 ? 0.01 : digits === 2 ? 0.1 : 1;
+  for (const sg of parsed.signals) {
+    const c = byTime.get(sg.time);
+    if (!c) continue;
+    sg.candleHigh = c.high; sg.candleLow = c.low;
+    const depth = sg.dir > 0 ? sg.zoneTop - c.low : c.high - sg.zoneBottom;
+    sg.depthPips = Math.round((depth / pip) * 10) / 10;
+  }
+  void h1All;
+  return { ok: true, ...parsed, pip, lastClose: lastBar?.close, lastHigh: lastBar?.high, lastLow: lastBar?.low, bar, bars: h1.length, ms: Date.now() - t0, source: script.source, guarded, stale };
 }

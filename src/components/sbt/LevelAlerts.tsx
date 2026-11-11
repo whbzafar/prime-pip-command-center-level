@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Crosshair, RefreshCw } from 'lucide-react';
-import { enableLevelAlerts, fmtPrice, getLevelSettings, levelTime, pairLevel, setLevelSettings, testLevelAlert, useLevelAlerts, type LevelAlert, type LevelState, type PairScan } from '../../services/sbtSetups';
+import { EDGE_PIPS, enableLevelAlerts, fmtPrice, getLevelSettings, levelTime, pairLevel, setLevelSettings, testLevelAlert, useLevelAlerts, type LevelAlert, type LevelState, type PairScan } from '../../services/sbtSetups';
 import { BellRing, Mic, MicOff, Volume2, VolumeX, X as XIcon } from 'lucide-react';
 import { SOUNDS } from '../../utils/alertSounds';
 
@@ -31,7 +31,7 @@ const HitRow: React.FC<{ p: PairScan; onOpen: (s: string) => void }> = ({ p, onO
           {up ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}{side}
         </span>
         <span className="text-[15px] font-extrabold text-white tracking-wide">{p.display}</span>
-        <span className="text-[11px] font-bold text-amber-200">Level {h.level} reached · H1</span>
+        <span className="text-[11px] font-bold text-amber-200">Level {h.level} reached · H1 candle just closed</span>
         <span className="ml-auto text-[10px] text-slate-400">{ago(h.time + 3_600_000)}</span>
       </div>
       <div className="mt-1.5 grid grid-cols-3 gap-1.5 text-[10.5px]">
@@ -39,6 +39,14 @@ const HitRow: React.FC<{ p: PairScan; onOpen: (s: string) => void }> = ({ p, onO
         <div className="rounded-md bg-slate-950/70 border border-slate-800 px-2 py-1"><div className="text-slate-500 uppercase tracking-wider text-[9px]">{side.toLowerCase()} zone</div><div className="font-mono-code text-slate-200">{fmtPrice(h.zoneBottom)} – {fmtPrice(h.zoneTop)}</div></div>
         <div className="rounded-md bg-slate-950/70 border border-slate-800 px-2 py-1"><div className="text-slate-500 uppercase tracking-wider text-[9px]">Model</div><div className="font-semibold text-cyan-200 truncate">{h.models.length ? h.models.join(' + ') : `Level ${h.level}`}</div></div>
       </div>
+      {typeof h.depthPips === 'number' && (
+        <div className={`mt-1.5 text-[11px] font-semibold ${h.depthPips < EDGE_PIPS ? 'text-amber-200' : 'text-slate-300'}`}>
+          {h.depthPips < EDGE_PIPS
+            ? `⚠ Edge touch: the wick entered the zone by only ${h.depthPips} pip${h.depthPips === 1 ? '' : 's'} — on your broker's chart it may not have touched.`
+            : `Wick reached ${h.depthPips} pips into the ${up ? 'buy' : 'sell'} zone.`}
+          {Number.isFinite(p.lastClose) ? <span className="text-slate-400 font-normal"> · price now {fmtPrice(p.lastClose as number)}</span> : null}
+        </div>
+      )}
       <div className="mt-1.5 text-[11px] leading-snug text-slate-300">
         <b className="text-slate-100">Why:</b> {p.display} is a top long-term <b className={up ? 'text-emerald-300' : 'text-rose-300'}>{up ? 'bullish' : 'bearish'}</b> pair (fundamental score {p.score > 0 ? '+' : ''}{p.score.toFixed(0)}), and on the 1-hour chart price has come back to its {up ? 'buy' : 'sell'} Level {h.level} with the model complete. The candle closed {levelTime(h.time + 3_600_000)} PKT.
       </div>
@@ -102,6 +110,7 @@ export const LevelAlertBanner: React.FC<{ onOpen: (engineSymbol: string) => void
                 <span className="text-[12px] font-bold text-amber-100">Level {a.level}</span>
               </div>
               <div className="mt-1 text-[11.5px] text-slate-200">H1 close {fmtPrice(a.price)} · zone {fmtPrice(a.zoneBottom)} – {fmtPrice(a.zoneTop)}{a.models.length ? ` · ${a.models.join(' + ')}` : ''}</div>
+              {typeof a.depthPips === 'number' && <div className={`text-[11px] font-semibold ${a.depthPips < EDGE_PIPS ? 'text-amber-200' : 'text-slate-300'}`}>{a.depthPips < EDGE_PIPS ? `⚠ Edge touch (${a.depthPips} pips) — check it on your broker's chart` : `Wick ${a.depthPips} pips into the zone`}</div>}
               <div className="text-[11px] text-slate-300">Long-term {up ? 'bullish' : 'bearish'} pair (score {a.score > 0 ? '+' : ''}{a.score.toFixed(0)}) · tap to open the chart</div>
             </button>
           </div>
@@ -128,23 +137,25 @@ export const LevelAlertsPanel: React.FC<{ onOpen: (engineSymbol: string) => void
         <span className="ml-auto text-[10px] text-slate-500 inline-flex items-center gap-1">{(loading || pending > 0) && <RefreshCw className="w-3 h-3 animate-spin" />}{loading ? 'checking the top pairs…' : pending ? `checking ${pending} more…` : `H1 · checked ${levelTime(st.updatedAt)} PKT`}</span>
       </div>
       <AlertControls />
-      {!dense && <div className="text-[11px] text-slate-400">The top long-term bullish pairs are checked for their <b className="text-emerald-300">buy</b> levels and the top bearish pairs for their <b className="text-rose-300">sell</b> levels on the 1-hour chart. A pair appears here only when price has reached Level 1 or Level 2 and the H1 candle has closed.</div>}
+      {!dense && <div className="text-[11px] text-slate-400">The top long-term bullish pairs are checked for their <b className="text-emerald-300">buy</b> levels and the top bearish pairs for their <b className="text-rose-300">sell</b> levels on the 1-hour chart. A pair is shown as “at the level” only on the H1 candle that has just closed with its wick or body inside the Level 1 / Level 2 zone and the model complete — exactly the strategy’s entry rule.</div>}
       {hits.map((p) => <HitRow key={p.symbol} p={p} onOpen={onOpen} />)}
       {!hits.length && !loading && <div className="text-[11.5px] text-slate-400 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2.5">No top pair is at its level right now. You will be notified the moment one gets there.</div>}
       {(() => {
-        const live = new Set(hits.map((p) => `${p.symbol}|${p.hit!.time + 3_600_000}`));
-        const past = st.alerts.filter((a) => !live.has(`${a.symbol}|${a.time}`)).slice(0, 6);
-        return past.length > 0 && (
+        const earlier = st.pairs.filter((p) => p.recent).sort((x, y) => y.recent!.time - x.recent!.time);
+        return earlier.length > 0 && (
           <div className="space-y-1" data-testid="level-history">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">Earlier setups</div>
-            {past.map((a) => (
-              <button key={a.id} type="button" onClick={() => onOpen(a.symbol)} className="w-full flex items-center gap-2 px-2 py-1 rounded-lg border border-slate-800 bg-slate-950/60 hover:border-slate-600 text-[11px] cursor-pointer text-left">
-                <span className={`px-1.5 rounded font-black text-[10px] ${a.side > 0 ? 'bg-emerald-400/90 text-emerald-950' : 'bg-rose-400/90 text-rose-950'}`}>{a.side > 0 ? 'BUY' : 'SELL'}</span>
-                <span className="font-bold text-slate-100">{a.display}</span>
-                <span className="text-slate-400">Level {a.level} · {fmtPrice(a.price)}</span>
-                <span className="ml-auto text-[10px] text-slate-500">{levelTime(a.time)} PKT</span>
-              </button>
-            ))}
+            <div className="text-[10px] uppercase tracking-wider text-slate-500">Earlier touches (last 24 h) — not at the level now unless marked</div>
+            {earlier.map((p) => {
+              const r = p.recent!; const up = p.side > 0;
+              return (
+                <button key={p.symbol} type="button" onClick={() => onOpen(p.symbol)} className="w-full flex flex-wrap items-center gap-x-2 gap-y-0.5 px-2 py-1 rounded-lg border border-slate-800 bg-slate-950/60 hover:border-slate-600 text-[11px] cursor-pointer text-left">
+                  <span className={`px-1.5 rounded font-black text-[10px] ${up ? 'bg-emerald-400/90 text-emerald-950' : 'bg-rose-400/90 text-rose-950'}`}>{up ? 'BUY' : 'SELL'}</span>
+                  <span className="font-bold text-slate-100">{p.display}</span>
+                  <span className="text-slate-400">L{r.level} touched {levelTime(r.time + 3_600_000)} PKT{typeof r.depthPips === 'number' ? ` · ${r.depthPips} pips deep` : ''}</span>
+                  <span className={`ml-auto text-[10px] font-semibold ${p.awayPips === 0 ? 'text-amber-200' : 'text-slate-500'}`}>{p.awayPips === 0 ? 'price still inside the zone' : typeof p.awayPips === 'number' ? `price now ${p.awayPips} pips away` : ''}</span>
+                </button>
+              );
+            })}
           </div>
         );
       })()}

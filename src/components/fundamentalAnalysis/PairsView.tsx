@@ -1,14 +1,59 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, FileDown, LineChart, Search, Users } from 'lucide-react';
-import type { AssetResult, PairResult } from './types';
+import { AlarmClock, ArrowLeft, FileDown, LineChart, Search, Users } from 'lucide-react';
+import type { AssetResult, Overview, PairResult } from './types';
 import { openChart } from './LiveBiasStrip';
 import { SplitBar } from './SentimentBoard';
 import { AssetDetail } from './AssetDetail';
 import { BiasPill, BullBearBar, fetchJsonSafe, fmtScore, scoreColor } from './ui';
 
 type Filter = 'ALL' | 'FOREX' | 'COMMODITIES' | 'CRYPTO';
+type Upcoming = Overview['upcoming'];
 
-export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; initial?: string | null }> = ({ pairs, generatedAt, initial }) => {
+/** Scheduled releases that can move this pair: anything for its base or quote currency, soonest first. */
+export function pairEvents(p: Pick<PairResult, 'base' | 'quote'>, upcoming: Upcoming | undefined, now = Date.now()) {
+  return (upcoming || [])
+    .filter((u) => (u.asset === p.base || u.asset === p.quote) && new Date(u.scheduledAt).getTime() > now - 5 * 60_000)
+    .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+}
+const until = (iso: string, now: number) => {
+  const ms = new Date(iso).getTime() - now;
+  if (ms <= 0) return 'releasing now';
+  const m = Math.round(ms / 60_000);
+  if (m < 60) return `in ${m} min`;
+  const h = Math.floor(m / 60);
+  return h < 48 ? `in ${h} h ${m % 60} min` : `in ${Math.round(h / 24)} days`;
+};
+
+const EventRisk: React.FC<{ pair: PairResult; upcoming?: Upcoming }> = ({ pair, upcoming }) => {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, []);
+  const ev = pairEvents(pair, upcoming, now);
+  const next = ev[0];
+  const soon = next && new Date(next.scheduledAt).getTime() - now < 24 * 3_600_000;
+  return (
+    <div className={`mt-3 rounded-xl border p-3 ${soon ? 'border-amber-400/50 bg-amber-500/10' : 'border-slate-800 bg-slate-900/60'}`} data-testid="pair-event-risk">
+      <div className="flex items-center gap-2 text-[11px] font-mono-code uppercase tracking-wider">
+        <AlarmClock className={`w-3.5 h-3.5 ${soon ? 'text-amber-300' : 'text-cyan-400'}`} />
+        <span className={soon ? 'text-amber-200' : 'text-slate-300'}>Event risk · next 7 days</span>
+      </div>
+      {!ev.length ? <div className="mt-1.5 text-[12px] text-slate-400">No tracked release for {pair.base} or {pair.quote} in the next 7 days.</div> : (
+        <ul className="mt-2 space-y-1">
+          {ev.slice(0, 4).map((u) => (
+            <li key={u.asset + u.scheduledAt + u.title} className="flex items-center gap-2 text-[12px]">
+              <span className="w-10 font-mono-code font-bold text-slate-200">{u.asset}</span>
+              <span className="flex-1 min-w-0 truncate text-slate-300">{u.title}</span>
+              {u.importance === 'HIGH' && <span className="px-1.5 rounded border border-rose-500/40 text-[10px] font-bold text-rose-300">HIGH</span>}
+              <span className="font-mono-code text-[11px] text-slate-400 whitespace-nowrap" title={new Date(u.scheduledAt).toLocaleString()}>{until(u.scheduledAt, now)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {soon && <div className="mt-2 text-[11.5px] text-amber-100/90">A scheduled release within 24 hours can override the fundamental bias for a while. Consider waiting until after it, or reduce size.</div>}
+    </div>
+  );
+};
+
+export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; initial?: string | null; upcoming?: Upcoming }> = ({ pairs, generatedAt, initial, upcoming }) => {
   const [filter, setFilter] = useState<Filter>('ALL');
   const [q, setQ] = useState('');
   const [sel, setSel] = useState<string | null>(initial || null);
@@ -74,6 +119,7 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
                 </div>
               </div>
               <p className="mt-3 text-[12.5px] text-slate-300 leading-relaxed">{p.explanation}</p>
+              <EventRisk pair={p} upcoming={upcoming} />
               {detail?.sentiment?.pair ? (() => {
                 const sp = detail.sentiment.pair;
                 return (
@@ -136,7 +182,7 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
         {rows.map((p) => (
           <button key={p.symbol} type="button" onClick={() => setSel(p.symbol)}
             className="w-full grid grid-cols-[1fr_90px_1.3fr_80px] sm:grid-cols-[1.1fr_80px_80px_90px_1.6fr_90px] gap-2 px-4 py-2.5 items-center border-t border-slate-800/70 bg-slate-950/50 hover:bg-slate-900/70 text-left cursor-pointer">
-            <span className="font-military font-bold text-slate-100">{p.display}</span>
+            <span className="font-military font-bold text-slate-100 inline-flex items-center gap-1.5">{p.display}{(() => { const n = pairEvents(p, upcoming)[0]; return n && new Date(n.scheduledAt).getTime() - Date.now() < 24 * 3_600_000 ? <span title={`${n.asset} ${n.title} — ${new Date(n.scheduledAt).toLocaleString()}`}><AlarmClock className="w-3.5 h-3.5 text-amber-300" aria-label="Scheduled release within 24 hours" /></span> : null; })()}</span>
             <span className={`hidden sm:block text-right font-mono-code text-[12px] ${scoreColor(p.baseScore)}`}>{fmtScore(p.baseScore)}</span>
             <span className={`hidden sm:block text-right font-mono-code text-[12px] ${scoreColor(p.quoteScore)}`}>{fmtScore(p.quoteScore)}</span>
             <span className={`text-right font-mono-code font-bold ${scoreColor(p.score)}`}>{fmtScore(p.score)}</span>

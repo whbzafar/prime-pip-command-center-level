@@ -262,7 +262,7 @@ export const FundamentalAnalysisView: React.FC = () => {
 
       {ov && tab === 'RANKINGS' && <RankingsView pairs={ov.pairs} onPair={openPair} />}
       {tab === 'SENTIMENT' && <SentimentBoard />}
-      {ov && tab === 'PAIRS' && <PairsView pairs={ov.pairs} generatedAt={ov.generatedAt} initial={pairJump} />}
+      {ov && tab === 'PAIRS' && <PairsView pairs={ov.pairs} generatedAt={ov.generatedAt} initial={pairJump} upcoming={ov.upcoming} />}
       {ov && tab === 'CORRELATIONS' && <CorrelationView w30={ov.correlations.w30} w90={ov.correlations.w90} />}
       {ov && tab === 'SOURCES' && <SourcesPanel ov={ov} />}
 
