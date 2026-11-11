@@ -3,25 +3,16 @@ on: { push: { branches: [ci/macro-live-probe] } }
 jobs:
   p:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions: { contents: write }
+    timeout-minutes: 12
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with: { ref: feature/fundamental-analysis-engine, path: app }
-      - uses: actions/setup-node@v4
-        with: { node-version: 22 }
-      - run: cd app && npm ci --no-audit --no-fund >/dev/null 2>&1 && npm run build 2>&1 | tail -3 && ls dist | head -5
-      - run: |
-          mkdir -p /tmp/pw && cd /tmp/pw && npm init -y >/dev/null && npm i playwright@1.48.2 >/dev/null
-          for i in 1 2 3; do npx playwright install --with-deps chromium && break; echo "playwright install retry $i"; sleep 10; done
-      - run: |
-          (node fakekv.mjs > /tmp/kv.log 2>&1 &)
-          (cd app && PORT=3000 PRIMEPIPFX_SESSION_SECRET=ci-only-secret-0123456789 PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD=ci-admin-pass-123456 PPFX_SHARED_KV_URL=http://localhost:8798/b node dist/server.cjs > /tmp/server.log 2>&1 &)
-          sleep 15
-          mkdir -p shots; cp t13.mjs /tmp/pw/ && (cd /tmp/pw && mkdir -p shots && timeout 1500 node t13.mjs) || true; cp -r /tmp/pw/shots/. shots/ || true
-          grep -iE "error|warn" /tmp/server.log | tail -8
-      - if: always()
+      - shell: bash {0}
         run: |
-          git config user.name ci; git config user.email ci@example.com
-          git checkout -B probe-shots && git add -f shots && git commit -qm shots && git push -qf origin probe-shots
+          B=https://prime-pip-command-center-level.vercel.app
+          for t in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+            n=0; for f in $(curl -s $B/ | grep -o 'assets/[^"]*\.js' | sort -u); do c=$(curl -s $B/$f | grep -c 'SBT Indicator'); n=$((n+c)); done
+            echo "try $t: SBT-Indicator-in-bundle=$n"; [ "$n" -gt 0 ] && break; sleep 25
+          done
+          curl -s -o /dev/null -w 'APP %{http_code}\n' $B/
+          echo "REFERRAL: $(curl -s $B/api/referral/check/primepopfx)"
+          curl -s -w ' SBT %{http_code}\n' "$B/api/sbt/scan?symbol=EURUSD" | cut -c1-140
+          echo "OVERVIEW assets: $(curl -s $B/api/macro/overview | python3 -c "import sys,json; d=json.load(sys.stdin); a=d.get('data',{}).get('assets',[]); print(len(a), [x.get('symbol') for x in a[:6]], 'scored=', sum(1 for x in a if x.get('score') is not None))" 2>/dev/null || echo parse-fail)"
