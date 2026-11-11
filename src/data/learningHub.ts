@@ -82,7 +82,7 @@ export const INSTITUTIONAL: Module[] = [
 /** SBT trading bot launch (New Year 2027, Pakistan time). */
 export const BOT_LAUNCH = Date.parse('2027-01-01T00:00:00+05:00');
 export const BOT_TIERS = [
-  { id: 'starter', name: 'Starter', fee: 500, blurb: 'One account, the SBT model on the main pairs.', features: ['1 trading account', 'Main forex pairs + gold', 'Fully automatic entries & exits', '1% risk per trade', 'Setup support'] },
-  { id: 'pro', name: 'Professional', fee: 1000, blurb: 'More pairs and priority setup.', features: ['Up to 3 trading accounts', 'All forex pairs, gold & indices', 'Fully automatic entries & exits', '1% risk per trade', 'Priority setup & support'] },
-  { id: 'institutional', name: 'Institutional', fee: 15000, blurb: 'For funds, prop desks and large capital.', features: ['Unlimited accounts', 'Every supported market', 'Custom risk settings', 'Direct line to the founder', 'Dedicated onboarding'] },
+  { id: 'starter', name: 'Starter', fee: 1000, blurb: 'One account, the SBT model on the main pairs.', features: ['1 trading account', 'Main forex pairs + gold', 'Fully automatic entries & exits', '1% risk per trade', 'Setup support'] },
+  { id: 'pro', name: 'Professional', fee: 2000, blurb: 'More pairs and priority setup.', features: ['Up to 3 trading accounts', 'All forex pairs, gold & indices', 'Fully automatic entries & exits', '1% risk per trade', 'Priority setup & support'] },
+  { id: 'institutional', name: 'Institutional', fee: 3000, blurb: 'For funds, prop desks and large capital.', features: ['Unlimited accounts', 'Every supported market', 'Custom risk settings', 'Direct line to the founder', 'Dedicated onboarding'] },
 ];

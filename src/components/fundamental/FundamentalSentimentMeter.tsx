@@ -968,7 +968,7 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
               Fundamental Intelligence Sentiment Meter Locked
             </h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              The Fundamental Intelligence Sentiment Meter (synthesizing real-time macro sentiment and institutional volume conviction across 8 Currencies, 3 Commodities, and 28 Currency Pairs) is 100% locked for users in demo preview mode. An active subscription ($55) is required to access full telemetry.
+              The Fundamental Intelligence Sentiment Meter (synthesizing real-time macro sentiment and institutional volume conviction across 8 Currencies, 3 Commodities, and 28 Currency Pairs) is 100% locked for users in demo preview mode. An active subscription ($200) is required to access full telemetry.
             </p>
           </div>
           {onOpenSubscription && (
@@ -977,7 +977,7 @@ export const FundamentalSentimentMeter: React.FC<FundamentalSentimentMeterProps>
               onClick={onOpenSubscription}
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-military font-bold text-xs uppercase cursor-pointer hover:from-amber-400 hover:to-yellow-300 shadow-lg shadow-amber-500/20 transition active:scale-95"
             >
-              Unlock Sentiment Meter ($55)
+              Unlock Sentiment Meter ($200)
             </button>
           )}
         </div>

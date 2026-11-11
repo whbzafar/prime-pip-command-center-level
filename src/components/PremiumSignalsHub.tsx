@@ -701,7 +701,7 @@ Issued: ${signal.createdAt}`;
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4 text-amber-400 shrink-0" />
               <span>
-                <strong>DEMO NOTICE:</strong> The Premium Signals category is <strong>locked</strong> for demo accounts. Subscribe for <strong>$55</strong> — or get the course &amp; terminal <strong>100% FREE</strong> by referring <strong>5 students</strong> or when <strong>2 students purchase</strong> it!
+                <strong>DEMO NOTICE:</strong> The Premium Signals category is <strong>locked</strong> for demo accounts. Subscribe for <strong>$200</strong> — or get the course &amp; terminal <strong>100% FREE</strong> by referring <strong>5 students</strong> or when <strong>2 students purchase</strong> it!
               </span>
             </div>
             <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/40 font-bold uppercase shrink-0 w-fit">

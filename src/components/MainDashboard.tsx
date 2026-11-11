@@ -341,7 +341,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                 )}
               </div>
               <span className="text-[9px] text-slate-400 font-sans block leading-none">
-                {isPsychLocked ? 'Subscription Required ($55 or Free via Referrals)' : 'Discipline • Tilt Defense • Focus'}
+                {isPsychLocked ? 'Subscription Required ($200 or Free via Referrals)' : 'Discipline • Tilt Defense • Focus'}
               </span>
             </div>
           </button>
@@ -463,7 +463,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                     <div className="flex items-center gap-2 text-xs font-mono-code mt-1 text-amber-200/90">
                       <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                       <span>
-                        Pair, Entry, Stop Loss &amp; Take Profit targets require an active subscription ($55 or 100% Free via Referrals).
+                        Pair, Entry, Stop Loss &amp; Take Profit targets require an active subscription ($200 or 100% Free via Referrals).
                       </span>
                     </div>
                   ) : (

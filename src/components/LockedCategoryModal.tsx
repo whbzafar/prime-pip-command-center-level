@@ -108,20 +108,20 @@ export const LockedCategoryModal: React.FC<LockedCategoryModalProps> = ({
             </div>
           )}
 
-          {/* Call to Actions & $55 Subscription + Free Referral Incentive */}
+          {/* Call to Actions & $200 Subscription + Free Referral Incentive */}
           <div className="mt-5 space-y-3 pt-3 border-t border-slate-800/80">
             <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-purple-500/15 to-emerald-500/15 border border-amber-500/40 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-military font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>FULL LIFETIME SUBSCRIPTION: $55</span>
+                  <span>FULL LIFETIME SUBSCRIPTION: $200</span>
                 </span>
                 <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                   OR 100% FREE VIA REFERRALS
                 </span>
               </div>
               <p className="text-xs font-mono-code text-slate-200 leading-relaxed">
-                Unlock this module and full lifetime access for <strong className="text-amber-300">$55</strong> — OR get the <strong className="text-emerald-300">Course &amp; Terminal 100% FREE</strong> with our Referral Incentive:
+                Unlock this module and full lifetime access for <strong className="text-amber-300">$200</strong> — OR get the <strong className="text-emerald-300">Course &amp; Terminal 100% FREE</strong> with our Referral Incentive:
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px] font-mono-code">
                 <div className="p-2 rounded-lg bg-slate-950/80 border border-purple-500/30 text-purple-200">
@@ -130,7 +130,7 @@ export const LockedCategoryModal: React.FC<LockedCategoryModalProps> = ({
                 </div>
                 <div className="p-2 rounded-lg bg-slate-950/80 border border-emerald-500/30 text-emerald-200">
                   <strong className="text-emerald-300 block">💻 Option 2 (Terminal Purchase):</strong>
-                  <strong>2 students</strong> purchase it ($55) → <strong>100% FREE Lifetime Access</strong>
+                  <strong>2 students</strong> purchase it ($200) → <strong>100% FREE Lifetime Access</strong>
                 </div>
               </div>
             </div>
@@ -144,7 +144,7 @@ export const LockedCategoryModal: React.FC<LockedCategoryModalProps> = ({
               className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-military font-bold text-xs tracking-wider uppercase transition shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-slate-950" />
-              <span>SUBSCRIBE ($55) OR CLAIM FREE REFERRAL ACCESS</span>
+              <span>SUBSCRIBE ($200) OR CLAIM FREE REFERRAL ACCESS</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 

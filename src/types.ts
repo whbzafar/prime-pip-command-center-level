@@ -920,7 +920,7 @@ export interface UserAccount {
   email?: string;
   role: UserRole;
   subscriptionStatus: SubscriptionStatus;
-  subscriptionPrice: number; // $100 standard, $55 lifetime with 'Primepip' code (45% discount)
+  subscriptionPrice: number; // $200 standard, $100 with the 'PrimePopFX' code (50% discount)
   startDate?: string;
   expiryDate?: string;
   isLifetime: boolean;

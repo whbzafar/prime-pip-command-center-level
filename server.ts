@@ -4524,7 +4524,7 @@ app.get('/api/admin/referrals', requireDeveloper, (req, res) => {
       referredUserId: u.id,
       referredUsername: u.username,
       referrerUsername: u.referredBy,
-      discountApplied: u.subscriptionPrice === 40,
+      discountApplied: u.subscriptionPrice === 100 || u.subscriptionPrice === 55 || u.subscriptionPrice === 40,
       createdAt: u.createdAt,
     }));
   return res.json({ ok: true, referrals });

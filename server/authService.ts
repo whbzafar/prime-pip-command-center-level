@@ -535,13 +535,13 @@ export function createCustomer(data: {
   }
 
   // Check referral validity
-  let effectivePrice = data.subscriptionPrice ?? 55;
+  let effectivePrice = data.subscriptionPrice ?? 200;
   let referrerUser: StoredUser | undefined;
   if (data.referralCode) {
     const cleanRef = data.referralCode.trim().toUpperCase();
     referrerUser = users.find((u) => (u.referralCode || '').toUpperCase() === cleanRef || u.username.toUpperCase() === cleanRef);
     if (referrerUser) {
-      effectivePrice = 55; // $55 with valid referral
+      effectivePrice = 100; // 50% off with a valid referral
     }
   }
 
@@ -749,10 +749,10 @@ export function checkReferralCode(code: string): {
   discountPercent: number;
   discountAmount: number;
 } {
-  const standardPrice = 100;
-  const discountedPrice = 55;
-  const discountPercent = 45;
-  const discountAmount = 45;
+  const standardPrice = 200;
+  const discountedPrice = 100;
+  const discountPercent = 50;
+  const discountAmount = 100;
 
   if (!code || !code.trim()) {
     return {
@@ -766,11 +766,11 @@ export function checkReferralCode(code: string): {
 
   const clean = code.trim().toUpperCase();
 
-  // Official discount code requested by user: 'Primepip' (case-insensitive)
-  if (clean === 'PRIMEPIP' || clean === 'PRIMEPIPFX' || clean === 'PPFX-MASTER') {
+  // Official discount code: 'PrimePopFX' (case-insensitive; the 'PrimePipFX' spelling is accepted too)
+  if (clean === 'PRIMEPOPFX' || clean === 'PRIMEPIPFX') {
     return {
       valid: true,
-      referrerName: 'Primepip Official Discount Code',
+      referrerName: 'PrimePopFX official discount code',
       price: discountedPrice,
       originalPrice: standardPrice,
       discountPercent,

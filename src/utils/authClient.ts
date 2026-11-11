@@ -307,14 +307,14 @@ export async function apiCheckReferral(
   discountAmount?: number;
 }> {
   const clean = (code || '').trim().toUpperCase();
-  if (clean === 'PRIMEPIP' || clean === 'PRIMEPIPFX' || clean === 'PPFX-MASTER') {
+  if (clean === 'PRIMEPOPFX' || clean === 'PRIMEPIPFX') {
     return {
       valid: true,
-      referrerName: 'Primepip Official Discount Code',
-      price: 55,
-      originalPrice: 100,
-      discountPercent: 45,
-      discountAmount: 45,
+      referrerName: 'PrimePopFX official discount code',
+      price: 100,
+      originalPrice: 200,
+      discountPercent: 50,
+      discountAmount: 100,
     };
   }
   try {
@@ -325,8 +325,8 @@ export async function apiCheckReferral(
   }
   return {
     valid: false,
-    price: 100,
-    originalPrice: 100,
+    price: 200,
+    originalPrice: 200,
     discountPercent: 0,
     discountAmount: 0,
   };

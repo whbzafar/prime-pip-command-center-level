@@ -1220,12 +1220,12 @@ export default function App() {
         onOpenAllCategories={() => setIsAllCategoriesOpen(true)}
       />
 
-      {/* Demo Mode Notification HUD with $55 Subscription & Free Referral Incentive */}
+      {/* Demo Mode Notification HUD with $200 Subscription & Free Referral Incentive */}
       {isDemoMode && (
         <div className="bg-gradient-to-r from-blue-500/15 via-slate-900/95 to-emerald-500/15 border-b border-blue-500/35 px-4 py-2.5 text-center text-xs font-mono-code text-amber-300 flex items-center justify-center gap-3 flex-wrap shadow-inner">
           <span className="font-bold flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-            EXPLORING DEMO MODE — FULL ACCESS ($55)
+            EXPLORING DEMO MODE — FULL ACCESS ($200)
           </span>
           <span className="text-slate-600 hidden sm:inline">•</span>
           <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold">
@@ -1246,7 +1246,7 @@ export default function App() {
               onClick={() => setIsSubscriptionModalOpen(true)}
               className="px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-bold font-military rounded-lg text-[10px] tracking-wider uppercase transition cursor-pointer shadow-sm"
             >
-              SUBSCRIBE ($55 OR CLAIM FREE REWARD)
+              SUBSCRIBE ($200 OR CLAIM FREE REWARD)
             </button>
           </div>
         </div>
@@ -1585,7 +1585,7 @@ export default function App() {
                   onClick={() => setIsSubscriptionModalOpen(true)}
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-military font-bold text-xs uppercase cursor-pointer hover:from-amber-400 hover:to-yellow-300 shadow-lg shadow-amber-500/20"
                 >
-                  Unlock Access ($55)
+                  Unlock Access ($200)
                 </button>
                 <button
                   type="button"

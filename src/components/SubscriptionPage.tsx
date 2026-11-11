@@ -55,14 +55,12 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
   onClose,
 }) => {
   const [referralInput, setReferralInput] = useState<string>(
-    appliedReferralCode || getStoredReferral() || 'PRIMEPIP'
+    appliedReferralCode || getStoredReferral() || ''
   );
-  const [discountApplied, setDiscountApplied] = useState<boolean>(true);
-  const [referrerName, setReferrerName] = useState<string>('Primepip Official Discount Code');
+  const [discountApplied, setDiscountApplied] = useState<boolean>(false);
+  const [referrerName, setReferrerName] = useState<string>('');
   const [verifying, setVerifying] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(
-    "Promo code 'PRIMEPIP' applied! Your lifetime subscription fee is $55 (45% discount off $100)."
-  );
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
 
@@ -122,12 +120,12 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
       setReferrerName(res.referrerName || codeToTest);
       setStoredReferral(codeToTest.trim());
       setStatusMessage(
-        `Code verified! You received a 45% discount ($45 off). The lifetime subscription fee drops from $100 to only $55! (${res.referrerName || codeToTest})`
+        `Code verified! You received a 50% discount ($100 off). The lifetime subscription fee drops from $200 to only $100! (${res.referrerName || codeToTest})`
       );
     } else {
       setDiscountApplied(false);
       setStatusMessage(
-        "Invalid code. The standard lifetime fee is $100. Enter 'Primepip' code to get 45% discount ($55 access)."
+        "Invalid code. The standard lifetime fee is $200. Enter 'PrimePopFX' code to get 50% discount ($100 access)."
       );
     }
   };
@@ -161,8 +159,8 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
   };
 
   const whatsappMessage = discountApplied
-    ? `Hello PrimePipFX, I want lifetime access to the PRIMEPIPFX Trading Command Center for $55 (with promo code '${referralInput.trim() || 'Primepip'}').`
-    : `Hello PrimePipFX, I want lifetime access to the PRIMEPIPFX Trading Command Center ($55 Offer / $100 Standard).`;
+    ? `Hello PrimePipFX, I want lifetime access to the PRIMEPIPFX Trading Command Center for $100 (with promo code '${referralInput.trim() || 'PrimePopFX'}').`
+    : `Hello PrimePipFX, I want lifetime access to the PRIMEPIPFX Trading Command Center ($200, or $100 with code PrimePopFX).`;
 
   const whatsappUrl = `https://wa.me/923406671495?text=${encodeURIComponent(whatsappMessage)}`;
 
@@ -210,7 +208,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-cyan-400 text-xs font-mono-code font-bold">
           <Zap className="w-3.5 h-3.5" />
-          PRIMEPIPFX TRADING COMMAND CENTER • $55 LIFETIME ACCESS
+          PRIMEPIPFX TRADING COMMAND CENTER • $200 LIFETIME ACCESS · $100 WITH CODE
         </div>
         <h1 className="text-2xl sm:text-3xl font-military font-bold tracking-wider text-slate-100 uppercase">
           PROFESSIONAL TRADING MANAGEMENT SYSTEM
@@ -230,12 +228,12 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
             </div>
             <div>
               <div className="text-xs font-military font-bold tracking-wider text-slate-200 uppercase">
-                PROMO OR REFERRAL CODE ($55 LIFETIME ACCESS)
+                PROMO CODE — 50% OFF ($100 LIFETIME ACCESS)
               </div>
               <p className="text-[11px] font-mono-code text-slate-400">
-                Use promo code <strong className="text-cyan-300 font-bold">'Primepip'</strong> for a{' '}
-                <strong className="text-emerald-400 font-bold">45% discount ($45 off)</strong> — lifetime subscription is only{' '}
-                <strong className="text-amber-300 font-bold">$55</strong>!
+                Use promo code <strong className="text-cyan-300 font-bold">'PrimePopFX'</strong> for a{' '}
+                <strong className="text-emerald-400 font-bold">50% discount ($100 off)</strong> — lifetime subscription is only{' '}
+                <strong className="text-amber-300 font-bold">$100</strong>!
               </p>
             </div>
           </div>
@@ -245,7 +243,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
               type="text"
               value={referralInput}
               onChange={(e) => setReferralInput(e.target.value.toUpperCase())}
-              placeholder="ENTER 'PRIMEPIP' CODE"
+              placeholder="ENTER 'PRIMEPOPFX' CODE"
               className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl font-mono-code text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-400 uppercase tracking-wider w-full sm:w-56 font-bold"
             />
             <button
@@ -272,7 +270,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
         )}
       </div>
 
-      {/* Pricing Tiers Grid: Free Tier, Standard, Recommended ($55), and Lifetime Reward */}
+      {/* Pricing Tiers Grid: Free Tier, Standard, Recommended ($100), and Lifetime Reward */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Tier 0: Free Tier / Community Access */}
         <div className="bg-slate-950/80 border border-emerald-500/40 rounded-2xl p-6 flex flex-col justify-between shadow-xl">
@@ -349,12 +347,12 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
             </div>
 
             <div className="flex items-baseline gap-1 mb-4">
-              <span className="text-4xl font-mono-code font-black text-slate-100">$100</span>
-              <span className="text-xs font-mono-code text-slate-400">USD ($55 WITH CODE)</span>
+              <span className="text-4xl font-mono-code font-black text-slate-100">$200</span>
+              <span className="text-xs font-mono-code text-slate-400">USD ($100 WITH CODE)</span>
             </div>
 
             <p className="text-xs font-mono-code text-slate-400 mb-6">
-              Full lifetime access to all 22 institutional trading categories. Drops to <strong className="text-amber-300">$55</strong> with promo code.
+              Full lifetime access to all 22 institutional trading categories. Drops to <strong className="text-amber-300">$100</strong> with promo code.
             </p>
 
             <ul className="space-y-2.5 text-xs font-mono-code text-slate-300">
@@ -389,15 +387,15 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
               className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-100 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-colors flex items-center justify-center gap-2 border border-slate-700 cursor-pointer"
             >
               <MessageCircle className="w-4 h-4 text-emerald-400" />
-              SUBSCRIBE ($55 WITH CODE / $100 STD)
+              SUBSCRIBE ($100 WITH CODE / $200 STD)
             </a>
           </div>
         </div>
 
-        {/* Tier 2: Recommended $55 Access */}
+        {/* Tier 2: Recommended $100 Access */}
         <div className="prime-gradient-box p-6 flex flex-col justify-between relative shadow-2xl">
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-military font-bold text-[10px] uppercase tracking-wider shadow-md whitespace-nowrap">
-            RECOMMENDED • $55 LIFETIME
+            WITH CODE PRIMEPOPFX • $100 LIFETIME
           </div>
 
           <div>
@@ -406,25 +404,25 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
                 RECOMMENDED ACCESS
               </span>
               <span className="text-[10px] font-mono-code px-2 py-0.5 rounded-lg bg-blue-500/20 text-amber-300 font-bold border border-blue-500/30">
-                SAVE $45 (45% OFF)
+                SAVE $100 (50% OFF)
               </span>
             </div>
 
             <div className="flex items-baseline gap-2 mb-4">
-              <span className="text-4xl font-mono-code font-black text-amber-300">$55</span>
-              <span className="text-xs font-mono-code text-slate-400 line-through">$100</span>
+              <span className="text-4xl font-mono-code font-black text-amber-300">$100</span>
+              <span className="text-xs font-mono-code text-slate-400 line-through">$200</span>
               <span className="text-xs font-mono-code text-emerald-400 font-bold">LIFETIME</span>
             </div>
 
             <p className="text-xs font-mono-code text-slate-300 mb-6">
-              Official subscription fee is <strong className="text-amber-300">$55 for lifetime access</strong> with promo code{' '}
-              <strong className="text-cyan-300">'Primepip'</strong>.
+              Official subscription fee is <strong className="text-amber-300">$100 for lifetime access</strong> with promo code{' '}
+              <strong className="text-cyan-300">'PrimePopFX'</strong>.
             </p>
 
             <ul className="space-y-2.5 text-xs font-mono-code text-slate-200">
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>Full Lifetime Terminal Access for $55</span>
+                <span>Full Lifetime Terminal Access for $100</span>
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -449,7 +447,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
               className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 cursor-pointer"
             >
               <MessageCircle className="w-4 h-4 text-slate-950" />
-              <span>SUBSCRIBE NOW — $55 LIFETIME ACCESS</span>
+              <span>SUBSCRIBE WITH CODE — $100 LIFETIME ACCESS</span>
             </a>
           </div>
         </div>
@@ -525,7 +523,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
                   </span>
                 </div>
                 <p className="text-[11px] font-mono-code text-slate-200 leading-snug">
-                  When <strong className="text-amber-300">2 referred students purchase the terminal ($55)</strong>, you get{' '}
+                  When <strong className="text-amber-300">2 referred students purchase the terminal</strong>, you get{' '}
                   <strong className="text-emerald-400">Lifetime Access for FREE</strong>.
                 </p>
               </div>
@@ -597,7 +595,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
             </div>
             <p className="text-xs font-mono-code text-slate-400 mt-1">
               Track your referred students below. Reach <strong className="text-purple-300">5 Course Referrals</strong> OR{' '}
-              <strong className="text-cyan-300">2 Terminal Purchases ($55)</strong> to unlock{' '}
+              <strong className="text-cyan-300">2 Terminal Purchases</strong> to unlock{' '}
               <strong className="text-emerald-400">100% Free Lifetime Terminal Access</strong>.
             </p>
           </div>
@@ -647,7 +645,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
             <div className="flex items-center justify-between text-xs font-mono-code">
               <span className="font-bold text-cyan-300 flex items-center gap-1.5">
                 <Terminal className="w-4 h-4 text-cyan-400" />
-                Pathway B: 2 Students Purchase Terminal ($55)
+                Pathway B: 2 Students Purchase Terminal
               </span>
               <span className="font-black text-white">
                 {Math.min(terminalProgressCount, 2)} / 2 Buyers
@@ -685,7 +683,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
             className="px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl font-mono-code text-xs text-slate-200 focus:outline-none focus:border-purple-400 cursor-pointer"
           >
             <option value="COURSE">Enrolled in Course (Counts toward 5)</option>
-            <option value="TERMINAL">Purchased Terminal $55 (Counts toward 2)</option>
+            <option value="TERMINAL">Purchased Terminal (Counts toward 2)</option>
           </select>
           <button
             type="submit"
@@ -746,7 +744,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
             <span>OFFICIAL OWNER WHATSAPP & DIRECT ACTIVATION</span>
           </div>
           <p className="text-xs font-mono-code text-slate-300">
-            For <strong className="text-amber-300">$55 Lifetime Subscription</strong> or{' '}
+            For <strong className="text-amber-300">$200 Lifetime Subscription ($100 with code PrimePopFX)</strong> or{' '}
             <strong className="text-purple-300">Lifetime Reward Referral Verification</strong>, contact via WhatsApp:
           </p>
           <div className="pt-1 flex items-center justify-center sm:justify-start gap-2">

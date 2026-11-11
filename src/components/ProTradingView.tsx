@@ -3887,7 +3887,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                       }}
                       className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-military font-bold text-xs uppercase cursor-pointer shadow-md shadow-amber-500/20"
                     >
-                      Upgrade Access ($55)
+                      Upgrade Access ($200)
                     </button>
                   </div>
                 </div>

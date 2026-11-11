@@ -63,12 +63,12 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
   }
 
   const whatsappMessage = lockedCategory
-    ? `Hello PrimePipFX, I want full access to ${lockedCategory.name} ($55 Lifetime Access Offer) on the PRIMEPIPFX Command Center.`
+    ? `Hello PrimePipFX, I want full access to ${lockedCategory.name} ($200 Lifetime Access Offer) on the PRIMEPIPFX Command Center.`
     : isExpired
     ? `Hello PrimePipFX, my subscription for username (${user?.username || 'trader'}) has expired. I want to renew access to the PRIMEPIPFX Trading Command Center.`
     : isSuspended
     ? `Hello PrimePipFX, my account (${user?.username || 'trader'}) is suspended. Please assist with my access to the PRIMEPIPFX Trading Command Center.`
-    : `Hello PrimePipFX, I want to activate Lifetime Access ($55 Offer) to the PRIMEPIPFX Trading Command Center.`;
+    : `Hello PrimePipFX, I want to activate Lifetime Access ($200 Offer) to the PRIMEPIPFX Trading Command Center.`;
 
   const whatsappUrl = `https://wa.me/923406671495?text=${encodeURIComponent(whatsappMessage)}`;
 
@@ -162,16 +162,16 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
               </div>
             )}
 
-            {/* Special Offer Banner: $55 or 5 Course / 2 Terminal Referrals Free */}
+            {/* Special Offer Banner: $200 or 5 Course / 2 Terminal Referrals Free */}
             <div className="p-3 rounded-lg bg-gradient-to-r from-amber-500/15 via-blue-500/15 to-emerald-500/15 border border-amber-500/40 space-y-1 text-slate-200">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-amber-300 text-xs font-military">LIFETIME ACCESS ($55) & REWARD SYSTEM</span>
+                <span className="font-bold text-amber-300 text-xs font-military">LIFETIME ACCESS ($200) & REWARD SYSTEM</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
-                  $55 LIFETIME
+                  $200 LIFETIME
                 </span>
               </div>
               <p className="text-[11px] text-slate-300">
-                Get full lifetime access for <strong>$55</strong> — OR unlock <strong>100% FREE Lifetime Access</strong> by referring <strong>5 students to the course</strong> OR when <strong>2 referred students purchase the terminal ($55)</strong>!
+                Get full lifetime access for <strong>$200</strong> — OR unlock <strong>100% FREE Lifetime Access</strong> by referring <strong>5 students to the course</strong> OR when <strong>2 referred students purchase the terminal ($200)</strong>!
               </p>
             </div>
           </div>
