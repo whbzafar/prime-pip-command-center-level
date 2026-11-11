@@ -2,6 +2,7 @@ import { chromium, devices } from 'playwright';
 const B = 'http://localhost:3000';
 const log = (...a) => console.log(...a);
 const member = { id: 'ui-test', name: 'UI Test', username: 'uitest', role: 'MEMBER', subscriptionStatus: 'LIFETIME', subscriptionPrice: 0, isLifetime: true, paymentStatus: 'PAID' };
+process.on('uncaughtException', (e) => console.log('UNCAUGHT', String(e).slice(0, 200)));
 process.on('unhandledRejection', (e) => console.log('UNHANDLED', String(e).slice(0, 200)));
 const txt = async (loc) => ((await loc.innerText().catch(() => '')) || '').replace(/\s+/g, ' ');
 const cut = (page, label) => page.evaluate((label) => { const w = innerWidth; const out = []; for (const el of document.querySelectorAll('#root *')) { const r = el.getBoundingClientRect(); if (r.width && r.right > w + 2 && r.left < w - 10 && !['fixed', 'absolute'].includes(getComputedStyle(el).position)) { let p = el.parentElement, sc = false; while (p) { if (/(auto|scroll|hidden)/.test(getComputedStyle(p).overflowX) && p.getBoundingClientRect().right <= w + 2) { sc = true; break; } p = p.parentElement; } if (!sc) out.push((el.tagName.toLowerCase() + '.' + String(el.className).split(' ').slice(0, 3).join('.')).slice(0, 60) + '→' + Math.round(r.right)); } } return label + ': ' + (out.slice(0, 6).join(' | ') || 'none'); }, label);
@@ -26,8 +27,9 @@ const open = async (opts, tab) => {
   await page.goto(B, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.querySelector('#root')?.children.length, null, { timeout: 20000 }).catch(() => {});
   log('FIRST paint ms', Math.round(performance.now() - s));
-  await page.waitForTimeout(6000);
-  for (let k = 0; k < 3; k++) { await page.getByText(/ENTER\s*COMMAND\s*CENTER/i).first().click({ timeout: 2000 }).catch(() => {}); for (const b of ['Maybe later', 'Start exploring', 'Got it']) await page.getByRole('button', { name: b }).first().click({ timeout: 700 }).catch(() => {}); await page.keyboard.press('Escape').catch(() => {}); await page.waitForTimeout(900); }
+  const enter = async () => { await page.getByText('Start Practice').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(800); await page.getByText('Create Demo Account').first().click({ timeout: 4000 }).catch(() => {}); await page.waitForTimeout(3000); for (let k = 0; k < 2; k++) { await page.getByText(/ENTER\s*COMMAND\s*CENTER/i).first().click({ timeout: 2500 }).catch(() => {}); for (const b of ['Maybe later', 'Start exploring', 'Got it']) await page.getByRole('button', { name: b }).first().click({ timeout: 800 }).catch(() => {}); await page.waitForTimeout(1200); } };
+  await page.waitForTimeout(8000); await enter(); await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(8000); await enter();
+  await page.keyboard.press('Escape').catch(() => {});
   if (tab) { await page.evaluate((tab) => window.dispatchEvent(new CustomEvent('primepipfx_navigate_tab', { detail: { tab } })), tab); await page.waitForTimeout(4000); }
   return { ctx, page, errs };
 };
@@ -45,14 +47,14 @@ for (const [name, opts] of [['desk', { viewport: { width: 1500, height: 950 } }]
   log(name, 'LIBRARY head', (await txt(page.locator('[data-testid="advanced-library"]'))).slice(0, 220));
   log(name, 'division chips', await page.locator('[data-testid="library-divisions"] button').count(), '| sections', await page.locator('[data-testid^="division-"]').count());
   await page.screenshot({ path: `shots/${name}-library.png` });
-  await page.locator('[data-testid="library-search"]').fill('gamma'); await page.waitForTimeout(600);
+  await page.locator('[data-testid="library-search"]').fill('gamma').catch(() => log('no library search')); await page.waitForTimeout(600);
   log(name, 'search gamma →', (await page.locator('[data-testid="advanced-library"] article').allInnerTexts()).map((s) => s.split('\n')[1] || s).slice(0, 8).join(' | '));
   await page.locator('[data-testid="advanced-library"] article button').first().click().catch(() => {}); await page.waitForTimeout(500);
   const links = await page.locator('[data-testid="advanced-library"] article a').evaluateAll((as) => as.map((a) => a.href));
   log(name, 'read-more links', links.join(' , '));
   await page.screenshot({ path: `shots/${name}-library-search.png` });
   // Urdu
-  await page.locator('[data-testid="library-search"]').fill(''); await page.getByRole('button', { name: 'اردو' }).click().catch(() => log('no urdu button')); await page.waitForTimeout(1500);
+  await page.locator('[data-testid="library-search"]').fill('').catch(() => {}); await page.getByRole('button', { name: 'اردو' }).click().catch(() => log('no urdu button')); await page.waitForTimeout(1500);
   log(name, 'URDU dir', await page.locator('[data-testid="advanced-library"]').getAttribute('dir'), '| font', await page.evaluate(() => document.fonts.check("16px 'Noto Nastaliq Urdu'", 'ابت')));
   log(name, 'URDU text', (await txt(page.locator('[data-testid="advanced-library"]'))).slice(0, 160));
   await page.locator('[data-testid="advanced-library"] article button').first().click().catch(() => {}); await page.waitForTimeout(700);
@@ -82,7 +84,7 @@ for (const [name, opts] of [['desk', { viewport: { width: 1500, height: 950 } }]
   await page.waitForTimeout(500); await page.screenshot({ path: 'shots/bt-search.png' });
   const items = await page.locator('[data-testid="bt-indicator-search"] >> xpath=ancestor::div[2]//button').allInnerTexts().catch(() => []);
   log('BT results', items.map((s) => s.replace(/\s+/g, ' ')).slice(0, 8).join(' | '));
-  await page.locator('[data-testid="bt-indicator-search"]').fill('boll'); await page.waitForTimeout(400);
+  await page.locator('[data-testid="bt-indicator-search"]').fill('boll').catch(() => {}); await page.waitForTimeout(400);
   await page.locator('[data-testid="bt-indicator-search"] >> xpath=ancestor::div[2]//button').filter({ hasText: /Bollinger|BOLL/ }).first().click().then(() => log('BT applied BOLL')).catch((e) => log('BT apply failed', e.message.slice(0, 100)));
   await page.waitForTimeout(1500); await page.screenshot({ path: 'shots/bt-applied.png' });
   log('BT ERRORS', errs.length, errs.slice(0, 3).join(' || '));
