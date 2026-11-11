@@ -95,6 +95,15 @@ const IndicatorPicker: React.FC<{ list: string[]; active: Record<string, string>
   const [q, setQ] = React.useState('');
   const [cat, setCat] = React.useState('All');
   const ref = React.useRef<HTMLDivElement>(null);
+  const btn = React.useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = React.useState<{ top: number; left: number; width: number } | null>(null);
+  // The panel is fixed to the screen so a scrolling/clipped toolbar can never cut it off.
+  React.useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => { const r = btn.current?.getBoundingClientRect(); if (!r) return; const width = Math.min(360, window.innerWidth - 16); const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8)); const below = window.innerHeight - r.bottom; setPos({ top: below > 260 ? r.bottom + 4 : Math.max(8, r.top - 4 - Math.min(380, window.innerHeight - 16)), left, width }); };
+    place(); window.addEventListener('resize', place); window.addEventListener('scroll', place, true);
+    return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
+  }, [open]);
   React.useEffect(() => { if (!open) return; const f = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }; document.addEventListener('mousedown', f); return () => document.removeEventListener('mousedown', f); }, [open]);
   const ql = q.trim().toLowerCase();
   const rows = list.map((n) => ({ n, name: IND_NAMES[n] || n, cat: indCategory({ type: `${n} ${IND_NAMES[n] || ''}` }) }))
@@ -105,10 +114,10 @@ const IndicatorPicker: React.FC<{ list: string[]; active: Record<string, string>
       {on.map((n) => (
         <button key={n} type="button" onClick={() => onToggle(n)} title={`Remove ${IND_NAMES[n] || n}`} className="px-1.5 py-0.5 rounded-md bg-cyan-500/15 border border-cyan-500/50 text-cyan-200 cursor-pointer">{n} ×</button>
       ))}
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="bt-indicator-open"
+      <button ref={btn} type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="bt-indicator-open"
         className={`${compact ? 'px-1.5 py-0.5' : 'px-2 py-1'} rounded-md border border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-500/50 cursor-pointer`}>+ Add indicator</button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-[10000] w-[min(360px,90vw)] rounded-xl border border-slate-700 bg-[#0d1220] shadow-2xl p-2 space-y-2 font-sans normal-case">
+        <div style={pos ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width } : { position: 'fixed', visibility: 'hidden' }} className="z-[10000] rounded-xl border border-slate-700 bg-[#0d1220] shadow-2xl p-2 space-y-2 font-sans normal-case">
           <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.stopPropagation()} placeholder="Search — e.g. RSI, Bollinger, volume" aria-label="Search indicators" data-testid="bt-indicator-search"
             className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 focus:border-cyan-400 outline-none text-[12.5px] text-slate-100 placeholder:text-slate-500" />
           <div className="flex flex-wrap gap-1">

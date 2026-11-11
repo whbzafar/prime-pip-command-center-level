@@ -3607,15 +3607,19 @@ async function getCommunityUser(req: express.Request): Promise<StoredUser | null
 // Route: Login
 app.post('/api/auth/login', async (req, res) => {
   const { username, password, rememberMe = true } = req.body || {};
-  await syncLegacyStudentsToServer(true);
   if (!username || !password) {
     return res.status(400).json({ ok: false, error: 'Username and password are required' });
   }
 
+  // Fast path: a known account signs in straight away. Only when it is not found here (a brand-new account
+  // saved by another server, or an older student account) do we wait to re-read the stores before refusing.
   let localResult = loginUser(username, password, rememberMe);
-  // A just-created account (or a just-changed password) may have been saved by another server a moment
-  // ago: re-read the account store once before refusing.
-  if (!localResult?.user) { try { await syncUsersFromDurable(0); localResult = loginUser(username, password, rememberMe); } catch { /* keep the first answer */ } }
+  if (!localResult?.user) {
+    await Promise.allSettled([syncLegacyStudentsToServer(true), syncUsersFromDurable(0)]);
+    localResult = loginUser(username, password, rememberMe);
+  } else {
+    void syncLegacyStudentsToServer().catch(() => undefined);
+  }
   if (localResult?.user) {
     try { recordLogin(localResult.user.id, { ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim(), device: String(req.headers['user-agent'] || '').slice(0, 160), kind: 'login' }); } catch { /* tracking is best-effort */ }
   }
