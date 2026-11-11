@@ -86,3 +86,6 @@ export const BOT_TIERS = [
   { id: 'pro', name: 'Professional', fee: 2000, blurb: 'More pairs and priority setup.', features: ['Up to 3 trading accounts', 'All forex pairs, gold & indices', 'Fully automatic entries & exits', '1% risk per trade', 'Priority setup & support'] },
   { id: 'institutional', name: 'Institutional', fee: 3000, blurb: 'For funds, prop desks and large capital.', features: ['Unlimited accounts', 'Every supported market', 'Custom risk settings', 'Direct line to the founder', 'Dedicated onboarding'] },
 ];
+
+/** Prime Pip SBT Indicator — one-time access fee (USD). Orders use the reservation list with tier 'indicator'. */
+export const INDICATOR_FEE = 500;

@@ -52,7 +52,7 @@ export const AdvancedLibrary: React.FC<{ lang: Lang }> = ({ lang }) => {
       </nav>
 
       {shown.map((d) => (
-        <section key={d.id} className="space-y-2" data-testid={`division-${d.id}`}>
+        <section key={d.id} className="space-y-2 ppfx-up" data-testid={`division-${d.id}`}>
           <div className={`flex items-baseline gap-2 flex-wrap ${txt}`}>
             <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-400 to-fuchsia-500 text-slate-950 text-[12px] font-black flex items-center justify-center shrink-0">{d.no}</span>
             <h3 className="text-[15px] sm:text-lg font-black text-white" style={ur ? URDU_FONT : undefined}>{ur ? d.title.ur : d.title.en}</h3>

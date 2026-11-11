@@ -20,8 +20,9 @@ const K_LOG = 'ppfx_level_alerts_log_v1';
 const K_LEVEL_SETTINGS = 'ppfx_level_alert_settings_v1';
 
 /** Sound settings for key-level setups (separate from the news alerts, so muting news never silences a setup). */
-export interface LevelAlertSettings { sound: boolean; voice: boolean; soundId: SoundId }
-export const getLevelSettings = (): LevelAlertSettings => ({ sound: true, voice: true, soundId: 'alarm', ...read<Partial<LevelAlertSettings>>(K_LEVEL_SETTINGS, {}) });
+/** confirmedOnly: an alert rings only when the wick went clearly into the zone (not a hair-line touch that another broker's feed may not show). */
+export interface LevelAlertSettings { sound: boolean; voice: boolean; soundId: SoundId; confirmedOnly: boolean }
+export const getLevelSettings = (): LevelAlertSettings => ({ sound: true, voice: true, soundId: 'alarm', confirmedOnly: true, ...read<Partial<LevelAlertSettings>>(K_LEVEL_SETTINGS, {}) });
 export function setLevelSettings(p: Partial<LevelAlertSettings>) { write(K_LEVEL_SETTINGS, { ...getLevelSettings(), ...p }); subs.forEach((f) => f()); }
 
 /** Sound + spoken pair for one or more setups: "Buy, G B P, C A D. Level 1 reached." */
@@ -161,6 +162,8 @@ async function cycle() {
       if (seen.has(id)) continue;
       seen.add(id);
       if (Date.now() - (h.time + H1) > NOTIFY_MS) continue;
+      // A hair-line touch can differ from one broker's feed to the next: list it, but do not ring for it.
+      if (getLevelSettings().confirmedOnly && typeof h.depthPips === 'number' && h.depthPips < EDGE_PIPS) continue;
       fresh.push({ id, symbol: p.symbol, display: p.display, side: p.side, level: h.level, price: h.price, zoneTop: h.zoneTop, zoneBottom: h.zoneBottom, models: h.models, time: h.time + H1, score: p.score, depthPips: h.depthPips });
     }
     write(K_SEEN, [...seen].slice(-400));

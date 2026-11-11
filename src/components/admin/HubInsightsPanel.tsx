@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bot, Bug, Lightbulb, BarChart3, RefreshCw, MessageCircle } from 'lucide-react';
 import { getStoredToken } from '../../utils/authClient';
-import { BOT_TIERS } from '../../data/learningHub';
+import { BOT_TIERS, INDICATOR_FEE } from '../../data/learningHub';
 
 /** Owner view: SBT bot reservations, what users say is missing, automatic error reports, most-used sections. */
 export const HubInsightsPanel: React.FC = () => {
@@ -19,7 +19,7 @@ export const HubInsightsPanel: React.FC = () => {
     return Object.entries(tot).sort((a, b) => b[1] - a[1]).slice(0, 15);
   }, [d]);
   const max = usage[0]?.[1] || 1;
-  const fee = (id: string) => BOT_TIERS.find((t) => t.id === id);
+  const fee = (id: string) => (id === 'indicator' ? { name: 'SBT Indicator', fee: INDICATOR_FEE } : BOT_TIERS.find((t) => t.id === id));
   const card = 'rounded-2xl border border-slate-800 bg-slate-950/70 p-4';
   return (
     <div className="space-y-4" data-testid="hub-insights">
@@ -31,7 +31,7 @@ export const HubInsightsPanel: React.FC = () => {
       {d && !d.available && <div className="text-xs text-amber-300">Some lists could not be read right now (storage busy). Refresh in a minute.</div>}
       <section className={card}>
         <div className="flex items-center gap-2 mb-2"><Bot className="w-4 h-4 text-emerald-300" /><b className="text-emerald-200">SBT bot reservations ({d?.reservations?.length ?? 0})</b>
-          {d?.reservations?.length > 0 && <span className="text-[11px] text-slate-400">· {BOT_TIERS.map((t) => `${t.name}: ${d.reservations.filter((r: any) => r.tier === t.id).length}`).join(' · ')}</span>}
+          {d?.reservations?.length > 0 && <span className="text-[11px] text-slate-400">· {[...BOT_TIERS, { id: 'indicator', name: 'SBT Indicator' }].map((t) => `${t.name}: ${d.reservations.filter((r: any) => r.tier === t.id).length}`).join(' · ')}</span>}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-[12px]">

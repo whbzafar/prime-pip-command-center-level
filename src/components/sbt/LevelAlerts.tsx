@@ -73,6 +73,10 @@ const AlertControls: React.FC = () => {
       <select value={cfg.soundId} onChange={(e) => setLevelSettings({ soundId: e.target.value as any })} aria-label="Alert sound" className="px-1.5 py-1 rounded-lg border border-slate-700 bg-slate-900 text-[10.5px] text-slate-200 cursor-pointer outline-none">
         {SOUNDS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
       </select>
+      <button type="button" data-testid="level-confirmed-only" onClick={() => setLevelSettings({ confirmedOnly: !cfg.confirmedOnly })} className={`${btn} ${cfg.confirmedOnly ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200' : 'border-slate-600 bg-slate-900 text-slate-300'}`}
+        title={`On: ring only when the candle's wick went at least ${EDGE_PIPS} pips into the zone. Off: ring for every touch, even a hair-line one.`}>
+        {cfg.confirmedOnly ? 'Confirmed touches only' : 'Every touch (incl. edge)'}
+      </button>
       {perm !== 'granted' && perm !== 'unsupported' && (
         <button type="button" data-testid="level-enable-notifications" onClick={async () => setPerm(await enableLevelAlerts())} className={`${btn} border-amber-400/60 bg-amber-500/15 text-amber-100 animate-pulse`}>
           <BellRing className="w-3 h-3" />{perm === 'denied' ? 'Notifications blocked — allow in browser settings' : 'Turn on phone / PC notifications'}
@@ -82,6 +86,48 @@ const AlertControls: React.FC = () => {
       <button type="button" data-testid="level-test-alert" onClick={() => { void enableLevelAlerts().then(setPerm); testLevelAlert(); }} className={`${btn} border-cyan-500/50 bg-cyan-500/10 text-cyan-100`}>Test alert</button>
       {ios && !standalone && <span className="text-[10px] text-slate-400 w-full">iPhone: notifications need the app on your Home Screen (Share → Add to Home Screen), then open it from there and tap “Turn on notifications”.</span>}
       {(perm === 'unsupported' || ios) && standalone === false && null}
+    </div>
+  );
+};
+
+/**
+ * One clear invitation, on every screen size, to switch on setup notifications — shown until the visitor
+ * answers it (allow, or "not now"). The same switches stay available in the Level Alerts panel.
+ */
+export const LevelAlertEnablePrompt: React.FC = () => {
+  const K = 'ppfx_level_alert_prompt_v1';
+  const [perm, setPerm] = useState<string>(() => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission));
+  const [hidden, setHidden] = useState<boolean>(() => { try { return localStorage.getItem(K) === 'later' && Date.now() - Number(localStorage.getItem(K + '_at') || 0) < 3 * 86_400_000; } catch { return false; } });
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 9000); return () => clearTimeout(t); }, []);
+  const ios = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const standalone = typeof window !== 'undefined' && (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone);
+  const needsInstall = ios && !standalone;
+  if (!show || hidden || perm === 'granted' || (perm === 'unsupported' && !needsInstall)) return null;
+  const later = () => { try { localStorage.setItem(K, 'later'); localStorage.setItem(K + '_at', String(Date.now())); } catch { /* storage blocked */ } setHidden(true); };
+  return (
+    <div data-testid="level-enable-prompt" role="dialog" aria-label="Turn on setup alerts"
+      className="fixed z-[90] left-3 right-3 sm:left-auto sm:right-4 sm:w-[380px] bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] sm:bottom-6 rounded-2xl border border-amber-400/50 bg-[#0b1020]/97 backdrop-blur-xl shadow-2xl p-4 space-y-2.5 animate-in slide-in-from-bottom-4 fade-in duration-300">
+      <div className="flex items-start gap-3">
+        <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-300 to-orange-500 flex items-center justify-center text-slate-950 shrink-0"><BellRing className="w-5 h-5" /></span>
+        <div className="min-w-0">
+          <div className="font-black text-white text-[14px]">Get Level 1 / Level 2 alerts</div>
+          <div className="text-[12px] text-slate-300 leading-relaxed">A sound, a spoken pair name and a notification the moment a top pair’s H1 candle reaches its buy or sell level.</div>
+        </div>
+      </div>
+      {needsInstall ? (
+        <div className="text-[12px] text-amber-100 rounded-xl border border-amber-400/30 bg-amber-500/10 p-2.5 leading-relaxed">On iPhone, first add the app to your Home Screen: tap <b>Share</b> → <b>Add to Home Screen</b>, open it from there, then turn alerts on.</div>
+      ) : perm === 'denied' ? (
+        <div className="text-[12px] text-amber-100 rounded-xl border border-amber-400/30 bg-amber-500/10 p-2.5 leading-relaxed">Notifications are blocked for this site. Open your browser’s site settings (the lock icon next to the address) and set Notifications to <b>Allow</b>.</div>
+      ) : null}
+      <div className="flex gap-2">
+        {!needsInstall && perm !== 'denied' && (
+          <button type="button" data-testid="level-prompt-enable" onClick={async () => { const p = await enableLevelAlerts(); setPerm(p); if (p === 'granted') testLevelAlert(); }}
+            className="flex-1 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-300 to-orange-400 text-slate-950 text-[13px] font-black cursor-pointer">Turn on alerts</button>
+        )}
+        <button type="button" onClick={later} className="px-3 py-2 rounded-xl border border-slate-700 text-slate-300 text-[12.5px] font-semibold cursor-pointer">Not now</button>
+      </div>
+      <div className="text-[10.5px] text-slate-500">Alerts arrive while the app is open (a background tab or the installed app is fine).</div>
     </div>
   );
 };

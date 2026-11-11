@@ -24,7 +24,7 @@ function limited(req: Request, bucket: string, max: number, windowMs: number): b
   return list.length > max;
 }
 
-const TIERS = new Set(['starter', 'pro', 'institutional']);
+const TIERS = new Set(['starter', 'pro', 'institutional', 'indicator']);
 
 export function createHubRouter(requireDeveloper: RequestHandler) {
   const r = Router();
