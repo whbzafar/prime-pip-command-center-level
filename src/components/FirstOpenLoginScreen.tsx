@@ -119,6 +119,16 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const [isHovered, setIsHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // When opened as a modal (e.g. the "Login" button from demo mode), bring the sign-in card into
+  // view so the form is visible immediately instead of sitting below the landing hero.
+  useEffect(() => {
+    if (!isModal) return;
+    const scrollToCard = () => document.getElementById('ppfx-login-card')?.scrollIntoView({ block: 'center', behavior: 'auto' });
+    const t1 = setTimeout(scrollToCard, 60);
+    const t2 = setTimeout(scrollToCard, 350); // again after the hero image lays out
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [isModal]);
+
   // Full HD High-Definition Standard Across Application
   const [displayResolution, setDisplayResolution] = useState<'FULL_HD' | 'HD_SHARP'>('FULL_HD');
 
@@ -431,8 +441,8 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       className={`${
         isModal
           ? 'fixed inset-0 z-[100000] overflow-y-auto bg-[#030712]/95 backdrop-blur-2xl'
-          : 'min-h-screen min-h-[100dvh]'
-      } w-full bg-[#030712] text-slate-100 flex flex-col items-center justify-start sm:justify-center p-2.5 sm:p-6 pt-3 sm:pt-6 relative overflow-x-hidden selection:bg-cyan-500/30 selection:text-cyan-200`}
+          : 'min-h-screen min-h-[100dvh] relative'
+      } w-full bg-[#030712] text-slate-100 flex flex-col items-center justify-start sm:justify-center p-2.5 sm:p-6 pt-3 sm:pt-6 overflow-x-hidden selection:bg-cyan-500/30 selection:text-cyan-200`}
       style={{ perspective: '1200px' }}
     >
       {/* Modal Dismiss / Close button if rendered as a modal */}
@@ -702,7 +712,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
           <div className="absolute -inset-6 rounded-[2.5rem] bg-gradient-to-br from-amber-400/25 via-orange-500/10 to-cyan-500/20 blur-2xl pointer-events-none" />
 
           {/* Core card */}
-          <div className="relative rounded-3xl bg-[#070a12]/95 border border-white/10 p-5 sm:p-7 backdrop-blur-2xl shadow-[0_30px_90px_-20px_rgba(251,146,60,0.45)] overflow-hidden ring-1 ring-amber-300/20">
+          <div id={isModal ? 'ppfx-login-card' : undefined} className="relative rounded-3xl bg-[#070a12]/95 border border-white/10 p-5 sm:p-7 backdrop-blur-2xl shadow-[0_30px_90px_-20px_rgba(251,146,60,0.45)] overflow-hidden ring-1 ring-amber-300/20">
             {/* HERO — "You can do it" at golden hour */}
             <div className="relative -mx-5 sm:-mx-7 -mt-5 sm:-mt-7 mb-4 overflow-hidden" data-testid="login-hero">
               <picture>
