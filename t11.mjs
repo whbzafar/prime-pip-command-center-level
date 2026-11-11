@@ -7,6 +7,12 @@ process.on('unhandledRejection', (e) => console.log('UNHANDLED', String(e).slice
 const txt = async (loc) => ((await loc.innerText().catch(() => '')) || '').replace(/\s+/g, ' ');
 const cut = (page, label) => page.evaluate((label) => { const w = innerWidth; const out = []; for (const el of document.querySelectorAll('#root *')) { const r = el.getBoundingClientRect(); if (r.width && r.right > w + 2 && r.left < w - 10 && !['fixed', 'absolute'].includes(getComputedStyle(el).position)) { let p = el.parentElement, sc = false; while (p) { if (/(auto|scroll|hidden)/.test(getComputedStyle(p).overflowX) && p.getBoundingClientRect().right <= w + 2) { sc = true; break; } p = p.parentElement; } if (!sc) out.push((el.tagName.toLowerCase() + '.' + String(el.className).split(' ').slice(0, 3).join('.')).slice(0, 60) + '→' + Math.round(r.right)); } } return label + ': ' + (out.slice(0, 6).join(' | ') || 'none'); }, label);
 
+// 0) Curated library links open
+{
+  const fs = await import('fs');
+  const urls = fs.readFileSync(new URL('./libraryurls.txt', import.meta.url), 'utf8').split('\n').filter(Boolean);
+  for (const u of urls) { const r = await fetch(u, { redirect: 'follow', headers: { 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) Chrome/124 Safari/537.36' } }).catch((e) => ({ status: 'ERR ' + e.message })); log('URL', r.status, u); }
+}
 // 1) Account speed (server side)
 {
   const t = async (label, fn) => { const s = performance.now(); const r = await fn(); log('TIME', label, Math.round(performance.now() - s) + 'ms', r); };
@@ -105,7 +111,7 @@ for (const [name, opts] of [['desk', { viewport: { width: 1500, height: 950 } }]
 {
   const { ctx, page, errs } = await open({ viewport: { width: 1500, height: 950 } }, 'FUNDAMENTAL_INDICATORS');
   await page.waitForTimeout(20000);
-  await page.getByRole('button', { name: /^Pairs$/ }).first().click({ timeout: 8000 }).catch(() => log('no Pairs tab'));
+  await page.getByText('Pairs', { exact: true }).first().click({ timeout: 8000 }).catch(() => log('no Pairs tab'));
   await page.waitForTimeout(2500); await page.getByText('EUR/USD', { exact: true }).first().click({ timeout: 8000 }).catch(() => log('no EUR/USD row'));
   await page.waitForTimeout(5000);
   log('EVENT RISK', (await txt(page.locator('[data-testid="pair-event-risk"]'))).slice(0, 300));
