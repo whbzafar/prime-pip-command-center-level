@@ -62,7 +62,8 @@ for (const [name, opts] of [['desk', { viewport: { width: 1500, height: 950 } }]
   await ctx.route('**/api/auth/me', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, user: member }) }));
   const page = await ctx.newPage(); const errs = []; page.on('pageerror', (e) => errs.push(e.message.slice(0, 160)));
   await page.addInitScript((m) => { try { localStorage.setItem('primepipfx_user_profile', JSON.stringify(m)); localStorage.setItem('primepipfx_session_token', 'ui-test'); localStorage.setItem('ppfx_learning_tab', 'LEARN'); } catch {} }, member);
-  const enter = async () => { await jsClick(page.locator('[data-testid="trial-modal"] button[aria-label="Close"]')); await jsClick(page.getByText('Start Practice').first()); await page.waitForTimeout(800); await jsClick(page.getByText('Create Demo Account').first()); await page.waitForTimeout(3000); for (const b of ['Maybe later', 'Start exploring', 'Got it']) await jsClick(page.getByRole('button', { name: b }).first()); };
+  const dismiss = async () => { await jsClick(page.locator('[data-testid="trial-modal"] button[aria-label="Close"]')); await jsClick(page.locator('#onboarding-welcome-modal button[title="Close Welcome Overview"]')); await jsClick(page.locator('#onboarding-welcome-modal').getByRole('button', { name: /ENTER COMMAND CENTER|Close/i }).first()); for (const b of ['Maybe later', 'Start exploring', 'Got it']) await jsClick(page.getByRole('button', { name: b }).first()); };
+  const enter = async () => { await jsClick(page.locator('[data-testid="trial-modal"] button[aria-label="Close"]')); await jsClick(page.getByText('Start Practice').first()); await page.waitForTimeout(800); await jsClick(page.getByText('Create Demo Account').first()); await page.waitForTimeout(3000); await dismiss(); await page.waitForTimeout(600); await dismiss(); };
   await page.goto(B, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(8000); await enter(); await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(8000); await enter();
   await page.waitForTimeout(5000);
   log(name, 'ALERT PROMPT', (await txt(page.locator('[data-testid="level-enable-prompt"]'))).slice(0, 200) || 'not shown');
@@ -72,7 +73,7 @@ for (const [name, opts] of [['desk', { viewport: { width: 1500, height: 950 } }]
   const overflow = () => page.evaluate(() => ({ doc: document.documentElement.scrollWidth, win: innerWidth }));
   log(name, 'HUB tabs', (await page.getByRole('tab').allInnerTexts()).join(' / '), '| stats', (await txt(page.locator('[data-testid="learning-hub"] header'))).slice(0, 260), '| overflow', JSON.stringify(await overflow()));
   await page.screenshot({ path: `shots/${name}-hub2.png` });
-  await page.locator('[data-testid="curriculum"]').scrollIntoViewIfNeeded().catch(() => {}); await page.waitForTimeout(700); await page.screenshot({ path: `shots/${name}-course2.png` });
+  await dismiss(); await page.locator('[data-testid="curriculum"]').scrollIntoViewIfNeeded().catch(() => {}); await page.waitForTimeout(700); await page.screenshot({ path: `shots/${name}-course2.png`, fullPage: false });
   await jsClick(page.locator('[data-testid^="done-"]').first()); await page.waitForTimeout(500);
   log(name, 'progress after marking one', await txt(page.locator('[data-testid="hub-progress"]')));
   await jsClick(page.locator('[data-testid="chapter-m3"]')); await page.waitForTimeout(600);
