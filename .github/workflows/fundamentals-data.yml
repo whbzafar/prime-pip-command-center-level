@@ -1,0 +1,28 @@
+name: fundamentals-data
+# Collects company fundamentals (Pakistan, Asia, global) from free public sources and publishes one
+# JSON snapshot to the `fundamentals-data` branch, which the app reads. Runs every 6 hours.
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency: { group: fundamentals-data, cancel-in-progress: false }
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Collect
+        run: npx -y tsx@4 scripts/collect-fundamentals.ts out/fundamentals.json
+      - name: Publish snapshot branch
+        run: |
+          cd out
+          git init -q -b fundamentals-data
+          git config user.name "fundamentals-bot"; git config user.email "bot@users.noreply.github.com"
+          git add fundamentals.json
+          git commit -qm "fundamentals snapshot $(date -u +%FT%TZ)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" fundamentals-data
