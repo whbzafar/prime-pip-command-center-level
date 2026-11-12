@@ -10,10 +10,11 @@ import { AssetDetail } from './AssetDetail';
 import { PairsView } from './PairsView';
 import { CorrelationView } from './CorrelationView';
 import { PakistanNewsView } from './PakistanNews';
+import { AuditView } from './AuditView';
 import { PicksView, REGION_LABEL, type PickRow } from './PicksView';
 import { BiasPill, BullBearBar, StatusDot, fetchJsonSafe, fmtNum, fmtPkt, fmtScore, scoreColor, timeAgo } from './ui';
 
-type Tab = AssetClass | 'PKNEWS' | 'PICKS' | 'PAIRS' | 'RANKINGS' | 'SENTIMENT' | 'CORRELATIONS' | 'SOURCES';
+type Tab = AssetClass | 'PKNEWS' | 'PICKS' | 'PAIRS' | 'RANKINGS' | 'SENTIMENT' | 'CORRELATIONS' | 'AUDIT' | 'SOURCES';
 
 const TABS: Array<{ id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'FOREX', label: 'Forex', icon: Coins },
@@ -27,6 +28,7 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ComponentType<{ classNam
   { id: 'PAIRS', label: 'Pairs', icon: GitCompareArrows },
   { id: 'SENTIMENT', label: 'Sentiment', icon: Users },
   { id: 'CORRELATIONS', label: 'Correlations', icon: Grid3x3 },
+  { id: 'AUDIT', label: 'Data Audit', icon: Activity },
   { id: 'SOURCES', label: 'Sources & Method', icon: ShieldCheck },
 ];
 
@@ -308,6 +310,7 @@ export const FundamentalAnalysisView: React.FC = () => {
       )}
 
       {tab === 'PKNEWS' && <PakistanNewsView />}
+      {tab === 'AUDIT' && <AuditView />}
       {tab === 'PICKS' && <PicksView onOpen={(r: PickRow) => {
         const t: Tab = r.assetClass === 'STOCKS' ? 'STOCKS' : r.assetClass === 'INDICES' ? 'INDICES' : r.assetClass === 'COMMODITIES' ? 'COMMODITIES' : r.assetClass === 'FOREX' ? 'FOREX' : 'CRYPTO';
         setQuery(''); setRegion('ALL'); setSelected((x) => ({ ...x, [t]: r.symbol })); setTab(t);

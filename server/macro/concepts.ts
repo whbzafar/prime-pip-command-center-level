@@ -70,7 +70,7 @@ export const CONCEPTS: Record<string, ConceptDef> = {
     name: 'Core CPI (YoY)',
     desc: 'Inflation excluding volatile food & energy — the best gauge of underlying price pressure that drives policy.',
     freq: 'Monthly',
-    patterns: [{ re: /^core inflation rate yoy$/ }, { re: /^core cpi yoy$/ }, { re: /^rba trimmed mean cpi yoy$/ }, { re: /^quarterly rba trimmed mean cpi yoy$/ }, { re: /^cpi trimmed[- ]mean yoy$/ }, { re: /^trimmed mean cpi yoy$/ }],
+    patterns: [{ re: /^core inflation rate yoy$/ }, { re: /^core cpi yoy$/ }, { re: /^rba trimmed mean cpi yoy$/ }, { re: /^quarterly rba trimmed mean cpi yoy$/ }, { re: /^cpi trimmed[- ]mean yoy$/ }, { re: /^trimmed mean cpi yoy$/ }, { re: /^rba trimmed mean cpi yoy$/ }, { re: /^inflation rate ex all food and energy yoy$/ }, { re: /^inflation rate ex-food and energy yoy$/ }],
     exclude: /tokyo|boc|median|common|weighted/i,
     scale: 0.15,
     range: [-15, 60],
@@ -79,7 +79,7 @@ export const CONCEPTS: Record<string, ConceptDef> = {
     name: 'Headline CPI (MoM)',
     desc: 'Month-on-month price change — the freshest read on inflation momentum.',
     freq: 'Monthly',
-    patterns: [{ re: /^inflation rate mom$/ }, { re: /^cpi mom$/ }],
+    patterns: [{ re: /^inflation rate mom$/ }, { re: /^cpi mom$/ }, { re: /^inflation rate qoq$/, scale: 0.25 }, { re: /^quarterly inflation rate qoq$/, scale: 0.25 }],
     exclude: /core|tokyo|harmonised|hicp/i,
     scale: 0.1,
     range: [-5, 15],
@@ -88,7 +88,7 @@ export const CONCEPTS: Record<string, ConceptDef> = {
     name: 'Core CPI (MoM)',
     desc: 'Monthly core inflation momentum. Central banks watch 3- and 6-month annualized trends of this print.',
     freq: 'Monthly',
-    patterns: [{ re: /^core inflation rate mom$/ }, { re: /^core cpi mom$/ }],
+    patterns: [{ re: /^core inflation rate mom$/ }, { re: /^core cpi mom$/ }, { re: /^inflation rate ex all food and energy mom$/ }, { re: /^rba trimmed mean cpi mom$/ }],
     exclude: /tokyo/i,
     scale: 0.1,
     range: [-5, 15],
@@ -97,7 +97,7 @@ export const CONCEPTS: Record<string, ConceptDef> = {
     name: 'Producer Prices',
     desc: 'Pipeline inflation at the factory gate — leads consumer inflation by 1–3 months.',
     freq: 'Monthly',
-    patterns: [{ re: /^ppi mom$/, scale: 0.2 }, { re: /^ppi yoy$/, scale: 0.4 }, { re: /^ppi output yoy$/, scale: 0.4 }, { re: /^producer prices yoy$/, scale: 0.4 }, { re: /^producer & import prices yoy$/, scale: 0.4 }],
+    patterns: [{ re: /^ppi mom$/, scale: 0.2 }, { re: /^ppi yoy$/, scale: 0.4 }, { re: /^ppi output yoy$/, scale: 0.4 }, { re: /^producer prices yoy$/, scale: 0.4 }, { re: /^producer & import prices yoy$/, scale: 0.4 }, { re: /^ppi qoq$/, scale: 0.4 }, { re: /^ppi output qoq$/, scale: 0.4 }],
     exclude: /core|input|ex /i,
     scale: 0.3,
     range: [-40, 80],
@@ -237,7 +237,7 @@ export const CONCEPTS: Record<string, ConceptDef> = {
     name: 'Services PMI',
     desc: 'Services-sector activity survey — services are 70–80% of developed economies.',
     freq: 'Monthly',
-    patterns: [{ re: /^ism services pmi$/ }, { re: /^ism non-manufacturing pmi$/ }, { re: /services pmi$/ }, { re: /^business nz services index$/ }, { re: /^performance of services index$/ }],
+    patterns: [{ re: /^ism services pmi$/ }, { re: /^ism non-manufacturing pmi$/ }, { re: /services pmi$/ }, { re: /^business nz services index$/ }, { re: /^performance of services index$/ }, { re: /^services nz psi$/ }],
     exclude: SVC_EXCLUDE,
     scale: 1.0,
     level: { neutral: 50, scale: 4, label: '50 = expansion/contraction line' },
@@ -337,6 +337,49 @@ export const CONCEPTS: Record<string, ConceptDef> = {
     range: [-25, 25],
   },
 
+  activity_survey: {
+    name: 'Business Activity Survey',
+    desc: 'Domestic business-condition surveys (ESI, Tankan, NAB, CBI, KOF…) — the free, always-published read on activity that stands in for the licensed S&P Global / HCOB PMIs.',
+    freq: 'Monthly',
+    patterns: [],
+    scale: 1.5,
+    range: [-200, 400],
+  },
+  job_ratio: {
+    name: 'Jobs-to-Applicants Ratio',
+    desc: 'Job openings per applicant (Japan) — labour-market tightness that feeds wage growth and BoJ policy.',
+    freq: 'Monthly',
+    patterns: [{ re: /^jobs\/applications ratio$/ }],
+    scale: 0.03,
+    level: { neutral: 1.2, scale: 0.15, label: '1.2 openings per applicant ≈ balanced' },
+    range: [0, 3],
+  },
+  infl_expect: {
+    name: 'Consumer Inflation Expectations',
+    desc: 'University of Michigan 5-year consumer inflation expectations — the Fed watches this for de-anchoring.',
+    freq: 'Monthly',
+    patterns: [{ re: /^michigan 5 year inflation expectations$/ }],
+    scale: 0.1,
+    level: { neutral: 2.5, scale: 0.8, label: '~2.5% = anchored' },
+    range: [0, 15],
+  },
+  durable_goods: {
+    name: 'Durable Goods Orders',
+    desc: 'New orders for long-lasting manufactured goods ex-transport — a capex and demand lead.',
+    freq: 'Monthly',
+    patterns: [{ re: /^durable goods orders ex transp mom$/ }, { re: /^durable goods orders mom$/ }],
+    scale: 0.6,
+    range: [-30, 30],
+  },
+  regional_mfg: {
+    name: 'Regional Fed Manufacturing (Empire / Philly)',
+    desc: 'NY Empire State and Philadelphia Fed manufacturing surveys — the earliest read on the ISM each month.',
+    freq: 'Monthly',
+    patterns: [{ re: /^philadelphia fed manufacturing index$/, scale: 8 }, { re: /^ny empire state manufacturing index$/, scale: 8 }],
+    scale: 8,
+    range: [-100, 100],
+  },
+
   // ─────────────────────────── COMMODITY-SPECIFIC (US EIA / Baker Hughes)
   eia_crude: {
     name: 'EIA Crude Oil Inventories',
@@ -390,6 +433,7 @@ export const COUNTRY_PATTERNS: Record<string, Partial<Record<string, Pattern[]>>
     business_conf: [{ re: /^nfib business optimism index$/ }],
   },
   EU: {
+    activity_survey: [{ re: /^economic sentiment$/, scale: 1.2 }],
     policy_rate: [{ re: /^deposit facility rate$/ }, { re: /^ecb interest rate decision$/ }, { re: /^interest rate decision$/ }],
     mfg_pmi: [{ re: /^hcob manufacturing pmi$/ }, { re: /manufacturing pmi$/ }],
     services_pmi: [{ re: /^hcob services pmi$/ }, { re: /services pmi$/ }],
@@ -398,6 +442,7 @@ export const COUNTRY_PATTERNS: Record<string, Partial<Record<string, Pattern[]>>
     business_conf: [{ re: /^ifo business climate$/ }, { re: /^zew economic sentiment index$/, scale: 6 }],
   },
   GB: {
+    activity_survey: [{ re: /^cbi distributive trades$/, scale: 8 }, { re: /^cbi business optimism index$/, scale: 6 }],
     mfg_pmi: [{ re: /^s&p global manufacturing pmi$/ }, { re: /manufacturing pmi$/ }],
     services_pmi: [{ re: /^s&p global services pmi$/ }, { re: /services pmi$/ }],
     consumer_conf: [{ re: /^consumer confidence index$/ }, { re: /^gfk consumer confidence$/ }],
@@ -405,6 +450,7 @@ export const COUNTRY_PATTERNS: Record<string, Partial<Record<string, Pattern[]>>
     employment_change: [{ re: /^employment change$/, scale: 60 }],
   },
   AU: {
+    activity_survey: [{ re: /^nab business conditions$/, scale: 3 }],
     consumer_conf: [{ re: /^consumer confidence mom$/, scale: 3 }, { re: /^westpac consumer confidence index$/, scale: 3 }],
   },
   CA: {
@@ -412,11 +458,18 @@ export const COUNTRY_PATTERNS: Record<string, Partial<Record<string, Pattern[]>>
     business_conf: [{ re: /^ivey pmi( s\.?a)?$/, scale: 3 }],
   },
   JP: {
+    activity_survey: [{ re: /^tankan large non-manufacturing index$/, scale: 3 }, { re: /^reuters tankan index$/, scale: 4 }],
     business_conf: [{ re: /^tankan large manufacturers index$/, scale: 3 }],
   },
   NZ: {
+    activity_survey: [{ re: /^nzier business confidence$/, scale: 10 }],
     mfg_pmi: [{ re: /^business nz pmi$/ }, { re: /manufacturing pmi$/ }],
-    services_pmi: [{ re: /^business nz services index$/ }, { re: /^performance of services index$/ }, { re: /services pmi$/ }],
+    services_pmi: [{ re: /^services nz psi$/ }, { re: /^business nz services index$/ }, { re: /^performance of services index$/ }, { re: /services pmi$/ }],
+    retail_sales: [{ re: /^electronic retail card spending mom$/, scale: 0.7 }, { re: /^retail sales qoq$/, scale: 0.6 }],
+    industrial_production: [{ re: /^manufacturing sales qoq$/, scale: 1.2 }],
+  },
+  CH: {
+    activity_survey: [{ re: /^economic sentiment index$/, scale: 8 }],
   },
   CN: {
     mfg_pmi: [{ re: /^nbs manufacturing pmi$/ }, { re: /manufacturing pmi$/ }],

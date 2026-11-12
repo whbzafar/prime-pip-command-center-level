@@ -294,3 +294,18 @@ describe('End-to-end: live NFP release flows through USD, pairs and gold', () =>
     expect(diff(chf)).toBeLessThan(0);
   });
 });
+
+describe('asset catalog consistency', () => {
+  it('all eight currencies share the same six pillars and core indicator concepts', async () => {
+    const { CURRENCY_SPECS } = await import('./assets.js');
+    const pillarIds = (s: any) => s.pillars.map((p: any) => p.id).join(',');
+    const ref = pillarIds(CURRENCY_SPECS[0]);
+    for (const s of CURRENCY_SPECS) {
+      expect(pillarIds(s)).toBe(ref);
+      const concepts = new Set(s.pillars.flatMap((p: any) => p.indicators.filter((i: any) => i.kind === 'cal').map((i: any) => i.concept)));
+      for (const c of ['policy_rate', 'cpi_yoy', 'core_cpi_yoy', 'unemployment', 'gdp', 'retail_sales', 'consumer_conf', 'business_conf', 'trade_balance']) {
+        expect(concepts.has(c), `${s.symbol} lacks ${c}`).toBe(true);
+      }
+    }
+  });
+});

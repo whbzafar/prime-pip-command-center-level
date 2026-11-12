@@ -90,7 +90,7 @@ export function parseTvEvent(raw: any): TvEvent | null {
   };
 }
 
-async function fetchRange(from: Date, to: Date): Promise<TvEvent[]> {
+async function fetchRangeOnce(from: Date, to: Date): Promise<TvEvent[]> {
   const url =
     `https://economic-calendar.tradingview.com/events?from=${encodeURIComponent(from.toISOString())}` +
     `&to=${encodeURIComponent(to.toISOString())}&countries=${TV_COUNTRY_CODES.join(',')}`;
@@ -100,6 +100,21 @@ async function fetchRange(from: Date, to: Date): Promise<TvEvent[]> {
   });
   const rows: any[] = Array.isArray(payload?.result) ? payload.result : Array.isArray(payload) ? payload : [];
   return rows.map(parseTvEvent).filter((e): e is TvEvent => e !== null);
+}
+
+/**
+ * The TradingView endpoint returns AT MOST ~2000 rows per call, oldest first, and silently drops the rest.
+ * With 10 countries that is only ~55 days, so a long window loses its NEWEST releases (this once hid the latest
+ * NZ CPI / labour prints and many others). Any response near the cap is therefore split in half and re-fetched.
+ */
+const ROW_CAP = 1800;
+async function fetchRange(from: Date, to: Date, depth = 0): Promise<TvEvent[]> {
+  const rows = await fetchRangeOnce(from, to);
+  const span = to.getTime() - from.getTime();
+  if (rows.length < ROW_CAP || depth >= 5 || span < 2 * 86_400_000) return rows;
+  const mid = new Date(from.getTime() + span / 2);
+  const [a, b] = await Promise.all([fetchRange(from, mid, depth + 1), fetchRange(new Date(mid.getTime() - 1), to, depth + 1)]);
+  return [...a, ...b];
 }
 
 /** In-memory event store keyed by id: history window + live updates merge into it. */
@@ -129,7 +144,7 @@ export async function refreshCalendar(opts: { force?: boolean; minLiveIntervalMs
   if (opts.force || now - lastHistoryLoad > HISTORY_TTL || store.size === 0) {
     tasks.push(
       (async () => {
-        const chunkDays = SERVERLESS ? 80 : 100;
+        const chunkDays = 24; // ≈ 840 rows for 10 countries — safely below the API's 2000-row cap
         const ranges: Array<[Date, Date]> = [];
         for (let back = HISTORY_DAYS; back > 0; back -= chunkDays) {
           ranges.push([new Date(now - back * 86_400_000), new Date(Math.min(now - (back - chunkDays) * 86_400_000, now))]);

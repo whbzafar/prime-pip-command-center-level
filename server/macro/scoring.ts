@@ -251,7 +251,9 @@ export function scoreCalendar(spec: CalSpec, ctx: EngineContext): IndicatorResul
   const raw = comps.reduce((s, c) => s + c.value * c.weight, 0) / wsum;
   const score = round(clamp(raw * spec.polarity) * 100, 1);
 
-  const interval = FREQ_DAYS[def.freq as Freq] ?? 31;
+  // Quarterly releases (NZ/AU CPI, NZ labour, Tankan…) carry a "Q3 2026"-style period: don't treat them as stale after 6 weeks.
+  const quarterly = /^Q[1-4]\b/i.test(e.period || '');
+  const interval = quarterly ? 92 : (FREQ_DAYS[def.freq as Freq] ?? 31);
   const ageDays = (ctx.now - e.timestamp) / 86_400_000;
   // A rate stance persists between meetings; only decay after ~2 missed meetings
   const fresh = isRate ? freshnessFactor(ageDays, 75) : freshnessFactor(ageDays, interval);

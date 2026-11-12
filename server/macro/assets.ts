@@ -199,9 +199,11 @@ function currencySpec(ccy: string): AssetSpec {
   if (ccy === 'USD') {
     inflation.push(cal('pce_core_yoy', c, 1, 2.5, HAWK(ccy), { level: { neutral: 2, scale: 1, label: '2% Fed target' } }));
     inflation.push(cal('pce_core_mom', c, 1, 1.5, HAWK(ccy)));
+    inflation.push(cal('infl_expect', c, 1, 1.5, 'Rising consumer inflation expectations keep the Fed hawkish = bullish USD'));
   }
 
   const labour: IndicatorSpec[] = [cal('unemployment', c, -1, 3, JOBS_INV(ccy))];
+  if (ccy === 'JPY') labour.push(cal('job_ratio', c, 1, 2, 'More openings per applicant = tighter labour market = BoJ hikes = bullish JPY'));
   if (ccy === 'USD') {
     labour.push(cal('nfp', c, 1, 3, 'More jobs than expected = bullish USD'));
     labour.push(cal('claims', c, -1, 1.5, JOBS_INV(ccy)));
@@ -222,6 +224,12 @@ function currencySpec(ccy: string): AssetSpec {
     cal('industrial_production', c, 1, 1, GROW(ccy)),
   ];
   if (ccy === 'GBP' || ccy === 'CAD') growth.push(cal('gdp_mom', c, 1, 1.5, GROW(ccy)));
+  // Free business-survey read: stands in for the licensed S&P Global / HCOB PMIs so every currency has a live activity gauge.
+  if (['EUR', 'GBP', 'JPY', 'AUD', 'NZD', 'CHF'].includes(ccy)) growth.push(cal('activity_survey', c, 1, 2, `Stronger business conditions = stronger growth = bullish ${ccy}`));
+  if (ccy === 'USD') {
+    growth.push(cal('regional_mfg', c, 1, 1.5, 'Strong Empire/Philly manufacturing surveys point to a firm ISM = bullish USD'));
+    growth.push(cal('durable_goods', c, 1, 1, 'Rising durable-goods orders = capex and demand strength = bullish USD'));
+  }
   if (ccy === 'USD') growth.push(cal('housing', c, 1, 0.5, GROW(ccy)));
 
   const external: IndicatorSpec[] = [
@@ -299,13 +307,20 @@ const euPmi = (w: number) => cal('mfg_pmi', 'EU', 1, w, 'Stronger European indus
 
 export const COMMODITY_SPECS: AssetSpec[] = [
   commodity('XAU', 'Gold', [
-    { id: 'rates', name: 'Real Rates & Fed Path', desc: 'Gold pays no yield; falling real rates cut the cost of holding it.', weight: 35,
-      indicators: [realYield(-1, 3), fedPath(-1, 2), breakevens(1.5)] },
-    { id: 'risk', name: 'Safe-Haven Demand', desc: 'Stress in equity and credit markets drives haven buying.', weight: 20,
-      indicators: [vixInd(1, 2, 'Rising fear = safe-haven demand = bullish gold'), hyOas(1, 2), nfci(1, 1)] },
-    { id: 'inflation', name: 'Inflation Hedge', desc: 'Sticky inflation increases demand for real assets.', weight: 15,
+    { id: 'rates', name: 'Real Rates & Fed Path', desc: 'Gold pays no yield; falling real rates cut the cost of holding it. (Breakevens sit in the inflation pillar so inflation expectations are not counted twice.)', weight: 30,
+      indicators: [realYield(-1, 4), fedPath(-1, 2)] },
+    { id: 'dollar', name: 'Dollar Momentum', desc: 'Market-based trend of the broad trade-weighted dollar (FRED, daily) — gold is priced in dollars, so a falling dollar lifts it independent of the fundamental USD score.', weight: 12,
+      indicators: [fredInd({ id: 'gold_broad_usd', name: 'Broad Dollar Index Trend', desc: 'Nominal Broad US Dollar Index (Fed, trade-weighted), 21-day change.',
+        series: 'DTWEXBGS', days: 21, changeScale: 1.2, pct: true, zWeight: 0.5, polarity: -1, weight: 3, polarityNote: 'Falling dollar = bullish gold; rising dollar = bearish gold' })] },
+    { id: 'risk', name: 'Safe-Haven Demand', desc: 'Stress in equity, credit and gold-volatility markets drives haven buying.', weight: 16,
+      indicators: [vixInd(1, 2, 'Rising fear = safe-haven demand = bullish gold'), hyOas(1, 2), nfci(1, 1),
+        fredInd({ id: 'gold_gvz', name: 'Gold Volatility (GVZ)', desc: 'CBOE Gold ETF Volatility Index — the market’s measure of uncertainty specifically in gold.',
+          series: 'GVZCLS', days: 21, changeScale: 3, zWeight: 0.8, polarity: 1, weight: 1, polarityNote: 'Rising gold volatility = rising uncertainty and haven demand = mildly bullish gold' })] },
+    { id: 'inflation', name: 'Inflation Hedge', desc: 'Sticky inflation and rising inflation expectations increase demand for real assets.', weight: 12,
       indicators: [cal('core_cpi_yoy', 'US', 1, 2, 'Hotter US core inflation = inflation-hedge demand = bullish gold', { level: { neutral: 2, scale: 1, label: '2% target' } }),
-        fredInd({ id: 'gold_5y5y', name: '5Y5Y Forward Inflation', desc: 'Long-run inflation expectations.', series: 'T5YIFR', days: 21, changeScale: 0.1, polarity: 1, weight: 1, unit: '%', polarityNote: 'Rising long-run expectations = bullish gold' })] },
+        breakevens(1.5),
+        fredInd({ id: 'gold_5y5y', name: '5Y5Y Forward Inflation', desc: 'Long-run inflation expectations.', series: 'T5YIFR', days: 21, changeScale: 0.1, polarity: 1, weight: 0.75, unit: '%', polarityNote: 'Rising long-run expectations = bullish gold' }),
+        cal('infl_expect', 'US', 1, 1, 'Rising consumer inflation expectations = bullish gold')] },
     { id: 'positioning', name: 'Institutional Positioning', desc: 'Managed-money positioning in COMEX gold futures.', weight: 20, indicators: [cotInd('XAU', 1, 'Gold')] },
   ]),
   commodity('XAG', 'Silver', [

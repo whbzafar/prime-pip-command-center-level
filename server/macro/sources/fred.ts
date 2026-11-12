@@ -22,6 +22,7 @@ export const FRED_SERIES = {
   VIXCLS: 'CBOE VIX close',
   BAMLH0A0HYM2: 'ICE BofA US High Yield OAS (pp)',
   DTWEXBGS: 'Nominal Broad US Dollar Index',
+  GVZCLS: 'CBOE Gold ETF Volatility Index (GVZ)',
   WALCL: 'Fed total assets (USD mn, weekly)',
   NFCI: 'Chicago Fed National Financial Conditions Index',
   DCOILWTICO: 'WTI crude spot (USD/bbl)',

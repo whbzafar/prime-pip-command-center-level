@@ -237,6 +237,37 @@ macroRouter.post('/refresh', async (_req: Request, res: Response) => {
   } catch (err) { fail(res, err); }
 });
 
+/**
+ * GET /api/macro/audit — transparency report: for every asset, how many indicators are live / stale / missing
+ * (and which), per-pillar coverage, and a cross-currency parity matrix so gaps and inconsistencies are visible.
+ */
+macroRouter.get('/audit', async (_req: Request, res: Response) => {
+  try {
+    const s = await getSnapshot();
+    res.setHeader('Cache-Control', 'no-store');
+    const rows = s.assets.filter((a) => ['FOREX', 'COMMODITIES', 'INDICES', 'CRYPTO'].includes(a.assetClass)).map((a) => {
+      const inds = a.pillars.flatMap((p) => (p.indicators || []).map((i) => ({ pillar: p.id, ...i })));
+      const count = (st: string) => inds.filter((i) => i.status === st).length;
+      return {
+        symbol: a.symbol, name: a.name, assetClass: a.assetClass, score: a.score, bias: a.bias, confidence: a.confidence,
+        indicators: inds.length, live: count('live'), stale: count('stale'), missing: count('missing'),
+        gaps: inds.filter((i) => i.status !== 'live').map((i) => ({ pillar: i.pillar, name: i.name, status: i.status })),
+        pillars: a.pillars.map((p) => ({ id: p.id, name: p.name, weight: p.weight, coverage: p.coverage, score: p.score })),
+      };
+    });
+    const ccys = rows.filter((r) => r.assetClass === 'FOREX');
+    const names = Array.from(new Set(s.assets.filter((a) => a.assetClass === 'FOREX').flatMap((a) => a.pillars.flatMap((p) => (p.indicators || []).map((i) => i.name)))));
+    const parity = names.map((n) => ({
+      indicator: n,
+      byCurrency: Object.fromEntries(s.assets.filter((a) => a.assetClass === 'FOREX').map((a) => {
+        const hit = a.pillars.flatMap((p) => p.indicators || []).find((i) => i.name === n);
+        return [a.symbol, hit ? hit.status : 'n/a'];
+      })),
+    }));
+    res.json({ ok: true, generatedAt: s.generatedAt, assets: rows, currencyParity: parity, currencyCount: ccys.length });
+  } catch (err) { fail(res, err); }
+});
+
 /** GET /api/macro/diagnostics — source health + calendar titles not mapped to any indicator. */
 macroRouter.get('/diagnostics', async (_req: Request, res: Response) => {
   try {
