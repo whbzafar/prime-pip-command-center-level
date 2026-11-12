@@ -1,13 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Bot, Building2, CheckCircle2, ChevronDown, ExternalLink, GraduationCap, Crosshair, Landmark, Languages, Layers, Library, Lightbulb, Target, Waypoints, Loader2, MessageCircle, Search, ShieldAlert } from 'lucide-react';
+import { ArrowRight, Bot, Building2, CheckCircle2, ChevronDown, Coins, ExternalLink, GraduationCap, Crosshair, Landmark, Languages, Layers, Library, LineChart, Lightbulb, Target, TrendingUp, Waypoints, Loader2, MessageCircle, Search, ShieldAlert } from 'lucide-react';
 import { BOT_LAUNCH, BOT_TIERS, COURSE, INDICATOR_FEE, INSTITUTIONAL, type Module } from '../../data/learningHub';
+import { INVEST_COURSES } from '../../data/invest';
 import { LESSON_UR, LEVEL_UR, MODULE_UR } from '../../data/learningHubUr';
 import { TOPIC_COUNT } from '../../data/advanced';
 import { AdvancedLibrary, URDU_FONT, type Lang } from './AdvancedLibrary';
+import { MarketsCatalog } from './MarketsCatalog';
+import { PhysicalGold } from './PhysicalGold';
 
-type Tab = 'LEARN' | 'INSTITUTIONAL' | 'LIBRARY' | 'BOT' | 'INDICATOR' | 'VOICE';
+type Tab = 'LEARN' | 'INVEST' | 'MARKETS' | 'GOLD' | 'INSTITUTIONAL' | 'LIBRARY' | 'BOT' | 'INDICATOR' | 'VOICE';
 const TABS: { id: Tab; en: string; ur: string; icon: React.ElementType; tone: string }[] = [
   { id: 'LEARN', en: 'Pro Trading Learning', ur: 'پرو ٹریڈنگ لرننگ', icon: GraduationCap, tone: 'from-cyan-400 to-sky-500' },
+  { id: 'INVEST', en: 'Invest · Funds · Stocks · Bonds', ur: 'سرمایہ کاری · فنڈ · اسٹاک · بانڈ', icon: TrendingUp, tone: 'from-emerald-400 to-green-500' },
+  { id: 'MARKETS', en: 'Markets (PK + World)', ur: 'مارکیٹس (پاکستان + دنیا)', icon: LineChart, tone: 'from-sky-400 to-blue-500' },
+  { id: 'GOLD', en: 'Physical Gold (Pakistan)', ur: 'فزیکل گولڈ (پاکستان)', icon: Coins, tone: 'from-amber-300 to-yellow-500' },
   { id: 'INSTITUTIONAL', en: 'Institutional Trading', ur: 'ادارہ جاتی ٹریڈنگ', icon: Landmark, tone: 'from-amber-300 to-orange-500' },
   { id: 'LIBRARY', en: 'Research Library', ur: 'ریسرچ لائبریری', icon: Library, tone: 'from-violet-400 to-fuchsia-500' },
   { id: 'BOT', en: 'SBT Bot', ur: 'SBT بوٹ', icon: Bot, tone: 'from-emerald-300 to-teal-500' },
@@ -481,6 +487,14 @@ export const LearningHub: React.FC<{ onNavigateTab?: (tab: string) => void }> = 
         ))}
       </nav>
       {tab === 'LEARN' && <Curriculum modules={COURSE} accent="cyan" lang={lang} />}
+      {tab === 'INVEST' && (
+        <div className="space-y-4">
+          <p className={`text-[13px] text-slate-400 max-w-3xl ${ur ? 'leading-[2.2] text-right' : ''}`} dir={ur ? 'rtl' : 'ltr'} style={uf(ur)}>{T('Step-by-step courses for building long-term wealth in Pakistan: mutual funds, stocks on the PSX, and bonds & national savings.', 'پاکستان میں طویل مدتی دولت بنانے کے قدم بہ قدم کورسز: میوچل فنڈز، PSX پر اسٹاکس، اور بانڈز و قومی بچت۔')}</p>
+          <Curriculum modules={INVEST_COURSES} accent="cyan" lang={lang} />
+        </div>
+      )}
+      {tab === 'MARKETS' && <MarketsCatalog lang={lang} />}
+      {tab === 'GOLD' && <PhysicalGold lang={lang} />}
       {tab === 'INSTITUTIONAL' && (
         <div className="space-y-4">
           <p className={`text-[13px] text-slate-400 max-w-3xl ${ur ? 'leading-[2.2] text-right' : ''}`} dir={ur ? 'rtl' : 'ltr'} style={uf(ur)}>{T('What most retail traders never see: how funds and brokers are built, where prices come from, and what institutions watch before they trade.', 'جو زیادہ تر ریٹیل ٹریڈر کبھی نہیں دیکھتے: فنڈز اور بروکر کیسے بنتے ہیں، قیمتیں کہاں سے آتی ہیں، اور ادارے ٹریڈ سے پہلے کیا دیکھتے ہیں۔')}</p>
