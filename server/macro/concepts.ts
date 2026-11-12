@@ -129,8 +129,8 @@ export const CONCEPTS: Record<string, ConceptDef> = {
       { re: /^average cash earnings yoy$/, scale: 0.5 },
       { re: /^wage price index qoq$/, scale: 0.1 },
       { re: /^wage price index yoy$/, scale: 0.2 },
-      { re: /^labour cost index qoq$/, scale: 0.1 },
-      { re: /^labour cost index yoy$/, scale: 0.3 },
+      { re: /^labour costs? index qoq$/, scale: 0.1 },
+      { re: /^labour costs? index yoy$/, scale: 0.3 },
       { re: /^average hourly earnings yoy$/, scale: 0.2 },
       { re: /^wage growth yoy$/, scale: 0.3 },
     ],
@@ -454,7 +454,8 @@ export const COUNTRY_PATTERNS: Record<string, Partial<Record<string, Pattern[]>>
     consumer_conf: [{ re: /^consumer confidence mom$/, scale: 3 }, { re: /^westpac consumer confidence index$/, scale: 3 }],
   },
   CA: {
-    consumer_conf: [],
+    consumer_conf: [{ re: /^consumer confidence index$/, scale: 1.5 }],
+    industrial_production: [{ re: /^manufacturing sales mom$/, scale: 0.8 }],
     business_conf: [{ re: /^ivey pmi( s\.?a)?$/, scale: 3 }],
   },
   JP: {
