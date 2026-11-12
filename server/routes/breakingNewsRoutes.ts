@@ -117,3 +117,81 @@ breakingNewsRouter.get('/breaking', async (_req, res) => {
     res.status(503).json({ ok: false, error: err?.message || 'News feeds unavailable' });
   }
 });
+
+// ───────────────────────────────────────── Pakistan market news
+// Live headlines that move (or explain moves in) the PSX / KSE-100, from Pakistani business desks plus
+// targeted Google News searches. Business feeds are kept whole; general feeds are filtered for relevance.
+
+interface PkFeed { url: string; source: string; kind: Feed['kind']; filter: boolean }
+const PK_FEEDS: PkFeed[] = [
+  { url: 'https://www.dawn.com/feeds/business', source: 'Dawn · Business', kind: 'markets', filter: false },
+  { url: 'https://tribune.com.pk/feed/business', source: 'Express Tribune · Business', kind: 'markets', filter: false },
+  { url: 'https://www.brecorder.com/feeds/markets', source: 'Business Recorder · Markets', kind: 'markets', filter: true },
+  { url: 'https://www.brecorder.com/feeds/latest-news', source: 'Business Recorder', kind: 'markets', filter: true },
+  { url: 'https://www.dawn.com/feeds/home', source: 'Dawn', kind: 'world', filter: true },
+  { url: 'https://tribune.com.pk/feed/home', source: 'Express Tribune', kind: 'world', filter: true },
+  { url: 'https://news.google.com/rss/search?q=(PSX+OR+KSE-100+OR+%22Pakistan+Stock+Exchange%22+OR+%22State+Bank+of+Pakistan%22)+when:2d&hl=en-PK&gl=PK&ceid=PK:en', source: 'Google News · PSX', kind: 'markets', filter: false },
+  { url: 'https://news.google.com/rss/search?q=Pakistan+(IMF+OR+budget+OR+rupee+OR+inflation+OR+FBR+OR+%22petrol+price%22+OR+%22circular+debt%22)+when:2d&hl=en-PK&gl=PK&ceid=PK:en', source: 'Google News · Economy', kind: 'markets', filter: false },
+];
+
+const PK_HIGH = /\b(sbp|state bank|policy rate|monetary policy|interest rate|imf|budget|kse-?100|circuit breaker|psx|rupee|pkr|default|eurobond|rollover|sifc|moody'?s|fitch|credit rating|petrol price|diesel price|circular debt|nepra|ogra|martial law|ceasefire|india|afghanistan|border|attack|martyr|terror|protest|long march|constitutional amendment|election|army chief|floods?)\b/i;
+const PK_MED = /\b(pakistan|karachi|lahore|islamabad|stocks?|shares?|bourse|index|dividend|earnings|profit|fbr|tax|remittances?|exports?|imports?|current account|reserves|inflation|cpi|gdp|cement|fertili[sz]er|urea|textile|cotton|banks?|oil|gas|power|tariff|electricity|ogdc|ppl|hubco|engro|lucky|mari|auto|car sales|it exports|privati[sz]ation|pia|t-?bills?|pibs?|sukuk|china|saudi|uae|loan|aid)\b/i;
+const PK_CONTEXT = /\b(pakistan|pakistani|psx|kse|sbp|state bank|karachi|lahore|islamabad|rupee|fbr|nepra|ogra|imf)\b/i;
+const PK_POS = /\b(rally|surge|gains?|jumps?|record high|upgrade|rate cut|cuts? (the )?(policy )?rate|slash(es)?|approves?|tranche|rollover|inflows?|rises?|up \d|buying|boost|recover|easing|ease|improv)/i;
+const PK_NEG = /\b(crash|plunge|tumbles?|slump|falls?|drops?|downgrade|rate hike|hikes?|default|attack|martyr|terror|tension|protest|loss|selling|decline|decreases?|shortfall|deficit|surge in (inflation|prices)|crisis|flood|shutdown)\b/i;
+const PK_SECTORS: [RegExp, string][] = [
+  [/\b(sbp|state bank|policy rate|interest rate|banks?|t-?bills?|pibs?|sukuk|monetary)\b/i, 'Banks & rates'],
+  [/\b(oil|petrol|diesel|ogra|gas|ogdc|ppl|mari|refiner|opec|lng|crude)\b/i, 'Oil & gas'],
+  [/\b(power|nepra|circular debt|electricity|ipp|hubco|k-electric|tariff|load.?shedding)\b/i, 'Power'],
+  [/\b(cement|construction|housing)\b/i, 'Cement'],
+  [/\b(fertili[sz]er|urea|dap|engro|ffc|fatima)\b/i, 'Fertilizer'],
+  [/\b(car sales|auto|tractor|suzuki|honda|toyota|indus motor)\b/i, 'Autos'],
+  [/\b(textile|cotton|apparel|export(s)? of)\b/i, 'Textile & exports'],
+  [/\b(it exports|software|tech|systems limited|trg)\b/i, 'Technology'],
+  [/\b(imf|budget|fbr|tax|rupee|pkr|inflation|cpi|reserves|remittances?|current account|gdp|rating|eurobond|rollover|debt)\b/i, 'Macro & IMF'],
+  [/\b(election|protest|pti|army|martial|ceasefire|india|afghanistan|border|attack|martyr|terror|amendment|court)\b/i, 'Politics & security'],
+  [/\b(psx|kse-?100|bourse|stocks?|shares?|index|circuit breaker|dividend|earnings)\b/i, 'Stock market'],
+];
+
+export interface PkNewsItem extends Omit<NewsItem, 'tags'> { sectors: string[]; tone: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL' }
+
+let pkCache: { at: number; items: PkNewsItem[]; sources: Record<string, number | string> } | null = null;
+
+export async function getPakistanNews(force = false) {
+  if (!force && pkCache && Date.now() - pkCache.at < 90_000) return pkCache;
+  const sources: Record<string, number | string> = {};
+  const results = await Promise.allSettled(PK_FEEDS.map(async (f) => {
+    const items = await readFeed({ url: f.url, source: f.source, kind: f.kind });
+    sources[f.source] = items.length;
+    return items.filter((x) => !f.filter || PK_CONTEXT.test(`${x.title} ${x.summary}`));
+  }));
+  results.forEach((r, i) => { if (r.status === 'rejected') sources[PK_FEEDS[i].source] = String((r.reason as any)?.message || r.reason).slice(0, 60); });
+  const seen = new Set<string>();
+  const items: PkNewsItem[] = results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
+    .filter((x) => x.publishedAt > Date.now() - 3 * 86400_000 && x.publishedAt < Date.now() + 3600_000)
+    .sort((a, b) => b.publishedAt - a.publishedAt)
+    .filter((x) => { const k = norm(x.title); if (!k || seen.has(k)) return false; seen.add(k); return true; })
+    .map((x) => {
+      const text = `${x.title} ${x.summary}`;
+      const impact: NewsItem['impact'] = PK_HIGH.test(text) ? 'HIGH' : PK_MED.test(text) ? 'MEDIUM' : 'LOW';
+      const pos = PK_POS.test(x.title), neg = PK_NEG.test(x.title);
+      const tone: PkNewsItem['tone'] = pos && !neg ? 'POSITIVE' : neg && !pos ? 'NEGATIVE' : 'NEUTRAL';
+      const sectors = PK_SECTORS.filter(([re]) => re.test(text)).map(([, s]) => s).slice(0, 3);
+      const { tags: _t, ...rest } = x;
+      return { ...rest, impact, tone, sectors, category: sectors[0] || 'Pakistan' };
+    })
+    .filter((x) => x.impact !== 'LOW')
+    .slice(0, 150);
+  if (items.length || !pkCache) pkCache = { at: Date.now(), items, sources };
+  return pkCache;
+}
+
+breakingNewsRouter.get('/pakistan', async (_req, res) => {
+  try {
+    const c = await getPakistanNews();
+    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    res.json({ ok: true, updatedAt: new Date(c.at).toISOString(), count: c.items.length, sources: c.sources, items: c.items });
+  } catch (err: any) {
+    res.status(503).json({ ok: false, error: err?.message || 'Pakistan news feeds unavailable' });
+  }
+});

@@ -15,6 +15,7 @@ import { useRankings, openChart, type RankedPair } from '../fundamentalAnalysis/
 import { LevelAlertsPanel, LevelBadge } from '../sbt/LevelAlerts';
 import { markLevelAlertsSeen, useLevelAlerts } from '../../services/sbtSetups';
 import { fetchAnnouncementsServer, type InAppAnnouncement } from '../../services/signalsService';
+import { PakistanNewsView, PakistanNewsCard, usePkNews } from '../fundamentalAnalysis/PakistanNews';
 import { usePicks, REGION_LABEL, type PickRow } from '../fundamentalAnalysis/PicksView';
 
 interface LtAlert { id: string; at: number; bullish: { symbol: string; display: string; score: number }[]; bearish: { symbol: string; display: string; score: number }[] }
@@ -50,14 +51,17 @@ async function notify(title: string, body: string) {
 
 export const AnnouncementsCenter: React.FC = () => {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<'FUNDAMENTALS' | 'PICKS' | 'ANNOUNCEMENTS' | 'ALERTS'>('FUNDAMENTALS');
+  const [tab, setTab] = useState<'FUNDAMENTALS' | 'PICKS' | 'PAKISTAN' | 'ANNOUNCEMENTS' | 'ALERTS'>('FUNDAMENTALS');
   const { data: rankings } = useRankings(5 * 60_000);
   const levels = useLevelAlerts();
+  const { items: pkItems } = usePkNews();
+  const pkHot = useMemo(() => (pkItems || []).filter((n) => n.impact === 'HIGH' && Date.now() - n.publishedAt < 24 * 3600_000).slice(0, 5), [pkItems]);
   const levelHits = levels.pairs.filter((p) => p.hit).length;
   const [anns, setAnns] = useState<InAppAnnouncement[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [dismissed, setDismissed] = useState<string[]>(() => read(K_DISMISSED, []));
   const known = useRef<Set<string> | null>(null);
+  const pkSeen = useRef<Set<string> | null>(null);
   const [alerts, setAlerts] = useState<LtAlert[]>(() => read(K_ALERTS, []));
   const [settings, setSettings] = useState<{ enabled: boolean; muted: boolean; lastAt: number; everyMin?: number; sound?: boolean; soundId?: SoundId; storiesSound?: boolean }>(() => ({ everyMin: 180, sound: true, ...read(K_SETTINGS, { enabled: true, muted: false, lastAt: 0 }) }));
   const [seenAt, setSeenAt] = useState<number>(() => read(K_SEEN, 0));
@@ -98,6 +102,20 @@ export const AnnouncementsCenter: React.FC = () => {
     const t = window.setInterval(load, 120_000);
     return () => { live = false; window.clearInterval(t); };
   }, []);
+
+  useEffect(() => {
+    if (!pkItems) return;
+    const hot = pkItems.filter((n) => n.impact === 'HIGH' && Date.now() - n.publishedAt < 6 * 3600_000);
+    const seen = pkSeen.current;
+    if (!seen) { pkSeen.current = new Set(hot.map((n) => n.id)); return; }
+    const fresh = hot.filter((n) => !seen.has(n.id));
+    fresh.forEach((n) => seen.add(n.id));
+    if (!fresh.length) return;
+    const st = read<typeof settings>(K_SETTINGS, { enabled: true, muted: false, lastAt: 0 });
+    if (st.muted || st.storiesSound === false) return;
+    if (st.sound !== false) playChime(st.soundId);
+    notify(`Pakistan market news · ${fresh[0].source}`, fresh[0].title);
+  }, [pkItems]);
 
   const dismissedSet = useMemo(() => new Set(dismissed), [dismissed]);
   const highlights = useMemo(() => {
@@ -174,7 +192,7 @@ export const AnnouncementsCenter: React.FC = () => {
             <button type="button" onClick={() => setOpen(false)} className="ml-auto p-1 text-slate-400 hover:text-white cursor-pointer" aria-label="Close"><X className="w-4 h-4" /></button>
           </div>
           <div className="flex gap-1 px-3 pt-2">
-            {([['FUNDAMENTALS', `Long-term${levelHits ? ` · ${levelHits} setup${levelHits > 1 ? 's' : ''}` : ''}`], ['PICKS', 'Stocks & indices'], ['ANNOUNCEMENTS', `Important${visibleAnns.length + highlights.length ? ` (${visibleAnns.length + highlights.length})` : ''}`], ['ALERTS', `Alerts${alerts.length ? ` (${alerts.length})` : ''}`]] as const).map(([k, l]) => (
+            {([['FUNDAMENTALS', `Long-term${levelHits ? ` · ${levelHits} setup${levelHits > 1 ? 's' : ''}` : ''}`], ['PICKS', 'Stocks & indices'], ['PAKISTAN', 'Pakistan'], ['ANNOUNCEMENTS', `Important${visibleAnns.length + highlights.length ? ` (${visibleAnns.length + highlights.length})` : ''}`], ['ALERTS', `Alerts${alerts.length ? ` (${alerts.length})` : ''}`]] as const).map(([k, l]) => (
               <button key={k} type="button" onClick={() => setTab(k)} className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer ${tab === k ? 'bg-violet-500/20 border border-violet-400/50 text-violet-100' : 'text-slate-400 hover:text-white border border-transparent'}`}>{l}</button>
             ))}
           </div>
@@ -202,6 +220,7 @@ export const AnnouncementsCenter: React.FC = () => {
               </>
             )}
 
+            {tab === 'PAKISTAN' && <PakistanNewsView compact />}
             {tab === 'PICKS' && <StockPicksPanel onOpen={() => setOpen(false)} />}
 
             {tab === 'ANNOUNCEMENTS' && (
@@ -226,6 +245,12 @@ export const AnnouncementsCenter: React.FC = () => {
                   );
                 })}
 
+                {pkHot.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-1.5 pt-1 text-[10px] uppercase tracking-[0.16em] font-bold text-emerald-300">Pakistan · market-moving</div>
+                    {pkHot.map((n) => <PakistanNewsCard key={n.id} n={n} compact />)}
+                  </>
+                )}
                 <div className="flex items-center gap-1.5 pt-1 text-[10px] uppercase tracking-[0.16em] font-bold text-orange-300"><Flame className="w-3.5 h-3.5" />Hottest stories
                   <button type="button" data-testid="stories-sound-toggle" onClick={() => saveSettings({ ...settings, storiesSound: settings.storiesSound === false })}
                     title={settings.storiesSound === false ? 'Sound is off for new hottest stories — tap to turn it on' : 'A sound plays when a new hottest story arrives — tap to mute'}

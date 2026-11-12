@@ -7,6 +7,7 @@
 import { jsPDF } from 'jspdf';
 import type { AssetResult, Bias, PairResult } from '../components/fundamentalAnalysis/types';
 import type { RankedPair, Rankings } from '../components/fundamentalAnalysis/LiveBiasStrip';
+import type { PickRow, Picks } from '../components/fundamentalAnalysis/PicksView';
 
 const C = {
   ink: [15, 23, 42] as const, muted: [100, 116, 139] as const, line: [226, 232, 240] as const,
@@ -171,4 +172,45 @@ export function exportPairsListPdf(pairs: PairResult[], generatedAt?: string) {
     { t: sc(p.score), c: tone(p.score), b: true }, p.bullishPct === null ? '—' : `${p.bullishPct.toFixed(0)}%`, p.bullishPct === null ? '—' : `${(100 - p.bullishPct).toFixed(0)}%`, { t: biasLabel(p.bias), c: tone(p.score) }, `${p.confidence}%`,
   ]), [26, 22, 16, 16, 16, 16, 16, 30, 14]);
   doc.save(`PrimePipFX_All_Pairs_${stamp()}.pdf`);
+}
+
+
+const REGION_NAME: Record<string, string> = { PK: 'Pakistan', ASIA: 'Asia-Pacific & Middle East', US: 'United States', EU: 'Europe', GLOBAL: 'Other global' };
+
+/** Everything on the Top Picks (Long-Term) screen as one shareable PDF. */
+export function exportPicksPdf(p: Picks) {
+  const doc = new Doc('Top Picks - Long-Term Fundamentals', `Stocks, indices, commodities, currencies and crypto - generated ${pkt(p.generatedAt || new Date())}`);
+  doc.p(`${p.scoredStocks} of ${p.tracked} tracked stocks currently have enough reported data to score. Company statements as of ${p.dataAsOf ? pkt(p.dataAsOf) : 'n/a'}. Scores run from -100 (strongly bearish) to +100 (strongly bullish); Bull/Bear is the balance of fundamental evidence, not a probability of price movement.`, 9, C.muted);
+  doc.p(`VIP: ${p.criteria.vip}`, 8.5, C.muted);
+  doc.p(`Strong: ${p.criteria.strong}`, 8.5, C.muted);
+  const head = ['#', 'Symbol', 'Name', 'Region / sector', 'Score', 'Bull / Bear', 'Conf.', '1y', 'P/E'];
+  const widths = [8, 24, 42, 38, 17, 22, 14, 15, 13];
+  const rows = (l: PickRow[]) => l.map((r, i) => {
+    const bull = r.bullishPct === null ? null : Math.round(r.bullishPct);
+    return [`${i + 1}`, { t: r.symbol, b: true }, r.name, [r.region ? ({ PK: 'PK', ASIA: 'Asia', US: 'US', EU: 'EU', GLOBAL: 'Global' } as Record<string, string>)[r.region] || r.region : '', r.sector || (r.kind === 'basket' ? 'Basket index' : '')].filter(Boolean).join(' · '),
+      { t: sc(r.score), c: tone(r.score), b: true }, bull === null ? '—' : `${bull}% / ${100 - bull}%`, `${r.confidence}%`,
+      r.change1y === null ? '—' : `${r.change1y > 0 ? '+' : ''}${r.change1y}%`, r.pe === null ? '—' : String(r.pe)];
+  });
+  const section = (title: string, list: PickRow[], color: readonly [number, number, number], empty: string) => {
+    doc.h2(title, color);
+    list.length ? doc.table(head, rows(list), widths) : doc.p(empty, 9, C.muted);
+  };
+  section('VIP long-term picks', p.vip, [180, 120, 0], 'No stock passes every VIP check right now.');
+  section('Strong bullish', p.strongBullish, C.green, 'None right now.');
+  section('Strong bearish', p.strongBearish, C.red, 'None right now.');
+  for (const k of ['PK', 'ASIA', 'US', 'EU', 'GLOBAL']) {
+    const r = p.regions[k];
+    if (!r || (!r.bullish.length && !r.bearish.length)) continue;
+    section(`${REGION_NAME[k]} - best fundamentals`, r.bullish, C.green, 'None right now.');
+    section(`${REGION_NAME[k]} - weakest fundamentals`, r.bearish, C.red, 'None right now.');
+  }
+  section('Indices & sector baskets - most bullish', p.indices.bullish, C.green, 'None right now.');
+  section('Indices & sector baskets - most bearish', p.indices.bearish, C.red, 'None right now.');
+  section('Commodities', p.commodities.all, C.accent, 'Loading.');
+  section('Currencies (strongest to weakest)', p.forex.all, C.accent, 'Loading.');
+  section('Crypto', p.crypto.all, C.accent, 'Loading.');
+  if (p.noFreeData.length) { doc.h2('Tracked but not scored (no free fundamentals feed)'); doc.p(p.noFreeData.map((n) => `${n.symbol} (${n.name})`).join(', '), 8.5, C.muted); }
+  doc.h2('Method and limits');
+  doc.p('Stocks are scored on reported growth, profitability, cash flow and debt (banks exempt from debt tests), analyst outlook where published, and the country macro backdrop where one exists. Statements older than 18 months are excluded; missing inputs are left out, never estimated, and lower the confidence figure. Basket indices are the equal-weighted average of their members, not official index weights. Sources: company statements via Yahoo Finance, SEC EDGAR filings, TradingView calendar, FRED, CFTC. Educational use only - not investment advice.', 8.5, C.muted);
+  doc.save(`PrimePipFX_Top_Picks_LongTerm_${stamp()}.pdf`);
 }

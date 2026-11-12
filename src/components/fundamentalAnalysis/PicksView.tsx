@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, Crown, ExternalLink, Flame, RefreshCw, ShieldAlert } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Crown, FileDown, ExternalLink, Flame, RefreshCw, ShieldAlert } from 'lucide-react';
 import { fetchJsonSafe, fmtScore, scoreColor, timeAgo } from './ui';
 
 export interface PickRow {
@@ -106,7 +106,8 @@ export const PicksView: React.FC<{ onOpen: (r: PickRow) => void }> = ({ onOpen }
         <div className="text-[11px] text-slate-400"><b className="text-emerald-300">Strong</b> — {data.criteria.strong}</div>
         <div className="mt-1 text-[11px] text-slate-500">Fundamentals describe business quality and direction — they are not a price forecast or personal advice. Check price, risk and your own plan before investing.</div>
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button type="button" data-testid="picks-pdf" onClick={() => import('../../utils/macroPdf').then((m) => m.exportPicksPdf(data))} className="order-last ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-400/50 bg-emerald-500/10 text-[11.5px] font-semibold text-emerald-100 hover:bg-emerald-500/20 cursor-pointer"><FileDown className="w-3.5 h-3.5" />Download PDF (everything listed)</button>
         {['ALL', 'PK', 'ASIA', 'US', 'EU', 'GLOBAL'].map((k) => (
           <button key={k} type="button" onClick={() => setRegion(k)} className={`px-3 py-1.5 rounded-xl border text-[11.5px] font-semibold cursor-pointer ${region === k ? 'bg-cyan-500/15 border-cyan-400/50 text-cyan-100' : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:text-slate-200'}`}>{k === 'ALL' ? 'All regions' : REGION_LABEL[k]}</button>
         ))}

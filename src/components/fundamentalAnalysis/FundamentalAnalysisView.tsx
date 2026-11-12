@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity, BarChart3, Bitcoin, Building2, CalendarClock, Coins, Gem, GitCompareArrows, Grid3x3, Info, Radio, RefreshCw,
-  Crown, Search, ShieldCheck, TrendingUp, Trophy, Users, WifiOff, X, Zap,
+  Crown, Newspaper, Search, ShieldCheck, TrendingUp, Trophy, Users, WifiOff, X, Zap,
 } from 'lucide-react';
 import { RankingsView } from './RankingsView';
 import { SentimentBoard } from './SentimentBoard';
@@ -9,10 +9,11 @@ import type { AssetClass, AssetResult, Overview, ReleaseEvent } from './types';
 import { AssetDetail } from './AssetDetail';
 import { PairsView } from './PairsView';
 import { CorrelationView } from './CorrelationView';
+import { PakistanNewsView } from './PakistanNews';
 import { PicksView, REGION_LABEL, type PickRow } from './PicksView';
 import { BiasPill, BullBearBar, StatusDot, fetchJsonSafe, fmtNum, fmtPkt, fmtScore, scoreColor, timeAgo } from './ui';
 
-type Tab = AssetClass | 'PICKS' | 'PAIRS' | 'RANKINGS' | 'SENTIMENT' | 'CORRELATIONS' | 'SOURCES';
+type Tab = AssetClass | 'PKNEWS' | 'PICKS' | 'PAIRS' | 'RANKINGS' | 'SENTIMENT' | 'CORRELATIONS' | 'SOURCES';
 
 const TABS: Array<{ id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'FOREX', label: 'Forex', icon: Coins },
@@ -21,6 +22,7 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ComponentType<{ classNam
   { id: 'STOCKS', label: 'Stocks', icon: Building2 },
   { id: 'CRYPTO', label: 'Crypto', icon: Bitcoin },
   { id: 'PICKS', label: 'Top Picks · Long-Term', icon: Crown },
+  { id: 'PKNEWS', label: 'Pakistan News', icon: Newspaper },
   { id: 'RANKINGS', label: 'Top Bullish / Bearish', icon: Trophy },
   { id: 'PAIRS', label: 'Pairs', icon: GitCompareArrows },
   { id: 'SENTIMENT', label: 'Sentiment', icon: Users },
@@ -305,6 +307,7 @@ export const FundamentalAnalysisView: React.FC = () => {
         </div>
       )}
 
+      {tab === 'PKNEWS' && <PakistanNewsView />}
       {tab === 'PICKS' && <PicksView onOpen={(r: PickRow) => {
         const t: Tab = r.assetClass === 'STOCKS' ? 'STOCKS' : r.assetClass === 'INDICES' ? 'INDICES' : r.assetClass === 'COMMODITIES' ? 'COMMODITIES' : r.assetClass === 'FOREX' ? 'FOREX' : 'CRYPTO';
         setQuery(''); setRegion('ALL'); setSelected((x) => ({ ...x, [t]: r.symbol })); setTab(t);
