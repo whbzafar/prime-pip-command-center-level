@@ -278,7 +278,7 @@ export const FundamentalAnalysisView: React.FC = () => {
                   <div className="mt-2"><BullBearBar bullishPct={a.bullishPct} /></div>
                   <div className="mt-1 flex justify-between text-[10px] font-mono-code">
                     <span className="text-emerald-400">{a.bullishPct === null ? '' : `${a.bullishPct.toFixed(0)}% bull`}</span>
-                    <span className="text-rose-400">{a.bearishPct === null ? '' : `${a.bearishPct.toFixed(0)}% bear`}</span>
+                    <span className="text-rose-400">{a.bullishPct === null ? '' : `${100 - Math.round(a.bullishPct)}% bear`}</span>
                   </div>
                 </button>
               ))}

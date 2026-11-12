@@ -63,7 +63,7 @@ export const PickCard: React.FC<{ r: PickRow; onOpen?: (r: PickRow) => void; vip
         </div>
       </div>
       <div className="mt-2 h-1.5 rounded-full bg-rose-500/40 overflow-hidden"><div className="h-full bg-emerald-400" style={{ width: `${r.bullishPct ?? 50}%` }} /></div>
-      <div className="mt-1 flex justify-between text-[10px] font-mono-code"><span className="text-emerald-400">{r.bullishPct === null ? '' : `${r.bullishPct.toFixed(0)}% bull`}</span><span className="text-rose-400">{r.bearishPct === null ? '' : `${r.bearishPct.toFixed(0)}% bear`}</span></div>
+      <div className="mt-1 flex justify-between text-[10px] font-mono-code"><span className="text-emerald-400">{r.bullishPct === null ? '' : `${Math.round(r.bullishPct)}% bull`}</span><span className="text-rose-400">{r.bullishPct === null ? '' : `${100 - Math.round(r.bullishPct)}% bear`}</span></div>
       <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] font-mono-code text-slate-400">
         {r.sector && <span className="truncate max-w-[10rem]">{r.sector}</span>}
         <PkrNote r={r} />

@@ -313,7 +313,7 @@ const StockPicksPanel: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
   const row = (r: PickRow, up: boolean) => (
     <div key={r.symbol} className="flex items-center justify-between gap-2 px-2 py-1 rounded-lg bg-slate-950/70 border border-slate-800 text-[11.5px]">
       <span className="min-w-0 truncate"><span className="font-semibold text-slate-100">{r.symbol}</span> <span className="text-slate-500">{r.name}</span></span>
-      <span className={`shrink-0 font-mono-code text-[10.5px] ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{fmt(r.score)} · {r.bullishPct?.toFixed(0)}% bull</span>
+      <span className={`shrink-0 font-mono-code text-[10.5px] ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{fmt(r.score)} · {Math.round(r.bullishPct ?? 50)}% bull / {100 - Math.round(r.bullishPct ?? 50)}% bear</span>
     </div>
   );
   const box = (title: string, rows: PickRow[], up: boolean, tone: string) => (
