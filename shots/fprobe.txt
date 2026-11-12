@@ -1,0 +1,22 @@
+fc.yahoo 404
+crumb 200 qkMI1BsK4rZ
+OGDC.KA 404 {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: OGDC.KA
+HBL.KA 404 {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: HBL.KA"
+ENGRO.KA 404 {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: ENGRO.KA"}}}
+7203.T 200 rg=0.086 eg=-0.101 pm=0.08132 roe=0.115839995 de=112.774 rec=1.68421
+0700.HK 200 rg=0.11 eg=0.018 pm=0.29868 roe=0.19906001 de=38.595 rec=1.39535
+RELIANCE.NS 200 rg=0.298 eg=0.407 pm=0.06848 roe=0.08759 de=44.325 rec=1.23077
+TSM 200 rg=0.509 eg=0.687 pm=0.51116 roe=0.41854998 de=11.619 rec=1.33333
+^KSE 404 {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: ^KSE"}}}
+^N225 200 {"quoteSummary":{"result":[{"summaryDetail":{"maxAge":1,"priceHint":{"raw":2,"fmt":"2","longFmt":"2"},"previousClose":{"
+^HSI 200 {"quoteSummary":{"result":[{"summaryDetail":{"maxAge":1,"priceHint":{"raw":2,"fmt":"2","longFmt":"2"},"previousClose":{"
+AAPL 200 rg=0.117 eg=0.141 pm=0.27604 roe=1.42257 de=84.286 rec=2.22222
+chart ^KSE 404  
+chart OGDC.KA 200 131.87 262
+chart ^N225 200 60833.19 243
+timeseries OGDC 200 {"timeseries":{"result":[{"meta":{"symbol":["OGDC.KA"],"type":["trailingNetIncome"]},"timestamp":[1751241600,1790726400],"trailingNetIncome":[{"dataId":20091,"asOfDate":"2025-06-30","periodType":"TTM","currencyCode":"PKR","reportedValue":{"raw":1.69902514E11,"fmt":"169.90B"}},{"dataId":20091,"asOfDa
+timeseries 7203 200 {"timeseries":{"result":[{"meta":{"symbol":["7203.T"],"type":["annualTotalRevenue"]},"timestamp":[1680220800,1711843200,1743379200,1774915200],"annualTotalRevenue":[{"dataId":20100,"asOfDate":"2023-03
+sec tickers 200 796325
+psx company 200 73426 true
+psx kse100 int 404 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="g
+psx market-watch 404 47626
