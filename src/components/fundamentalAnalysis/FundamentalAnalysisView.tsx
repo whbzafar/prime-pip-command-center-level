@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity, BarChart3, Bitcoin, Building2, CalendarClock, Coins, Gem, GitCompareArrows, Grid3x3, Info, Radio, RefreshCw,
-  ShieldCheck, TrendingUp, Trophy, Users, WifiOff, X, Zap,
+  Crown, Search, ShieldCheck, TrendingUp, Trophy, Users, WifiOff, X, Zap,
 } from 'lucide-react';
 import { RankingsView } from './RankingsView';
 import { SentimentBoard } from './SentimentBoard';
@@ -9,9 +9,10 @@ import type { AssetClass, AssetResult, Overview, ReleaseEvent } from './types';
 import { AssetDetail } from './AssetDetail';
 import { PairsView } from './PairsView';
 import { CorrelationView } from './CorrelationView';
+import { PicksView, REGION_LABEL, type PickRow } from './PicksView';
 import { BiasPill, BullBearBar, StatusDot, fetchJsonSafe, fmtNum, fmtPkt, fmtScore, scoreColor, timeAgo } from './ui';
 
-type Tab = AssetClass | 'PAIRS' | 'RANKINGS' | 'SENTIMENT' | 'CORRELATIONS' | 'SOURCES';
+type Tab = AssetClass | 'PICKS' | 'PAIRS' | 'RANKINGS' | 'SENTIMENT' | 'CORRELATIONS' | 'SOURCES';
 
 const TABS: Array<{ id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'FOREX', label: 'Forex', icon: Coins },
@@ -19,6 +20,7 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ComponentType<{ classNam
   { id: 'INDICES', label: 'Indices', icon: BarChart3 },
   { id: 'STOCKS', label: 'Stocks', icon: Building2 },
   { id: 'CRYPTO', label: 'Crypto', icon: Bitcoin },
+  { id: 'PICKS', label: 'Top Picks · Long-Term', icon: Crown },
   { id: 'RANKINGS', label: 'Top Bullish / Bearish', icon: Trophy },
   { id: 'PAIRS', label: 'Pairs', icon: GitCompareArrows },
   { id: 'SENTIMENT', label: 'Sentiment', icon: Users },
@@ -40,6 +42,9 @@ export const FundamentalAnalysisView: React.FC = () => {
   const [detail, setDetail] = useState<{ asset: AssetResult; mirrors: Record<string, AssetResult>; institutional?: any } | null>(null);
   const [alerts, setAlerts] = useState<ReleaseEvent[]>([]);
   const [pairJump, setPairJump] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [region, setRegion] = useState('ALL');
+  const [showAll, setShowAll] = useState(false);
   const seenReleases = useRef<Set<string> | null>(null);
 
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -113,7 +118,24 @@ export const FundamentalAnalysisView: React.FC = () => {
     return () => { alive = false; };
   }, [selSymbol, ov?.generatedAt]);
 
-  const list = useMemo(() => (ov && assetTab ? ov.assets.filter((a) => a.assetClass === tab) : []), [ov, tab, assetTab]);
+  const regionOf = (a: AssetResult) => String((a.meta as any)?.region ?? '');
+  const isBasket = (a: AssetResult) => (a.meta as any)?.kind === 'basket';
+  const filterable = tab === 'STOCKS' || tab === 'INDICES';
+  const fullList = useMemo(() => (ov && assetTab ? ov.assets.filter((a) => a.assetClass === tab) : []), [ov, tab, assetTab]);
+  const filtered = useMemo(() => {
+    if (!filterable) return fullList;
+    const q = query.trim().toLowerCase();
+    let l = fullList.filter((a) => {
+      if (q && !(`${a.symbol} ${a.name} ${(a.meta as any)?.sector ?? ''}`.toLowerCase().includes(q))) return false;
+      if (region === 'ALL') return true;
+      if (tab === 'INDICES' && region === 'MACRO') return !isBasket(a);
+      return regionOf(a) === region;
+    });
+    l = [...l].sort((a, b) => (b.score ?? -9999) - (a.score ?? -9999));
+    return l;
+  }, [fullList, query, region, filterable, tab]);
+  const LIMIT = 40;
+  const list = filterable && !showAll && !query ? filtered.slice(0, LIMIT) : filtered;
   const currencies = useMemo(() => (ov ? ov.assets.filter((a) => a.assetClass === 'FOREX').sort((a, b) => (b.score ?? -999) - (a.score ?? -999)) : []), [ov]);
 
   const openPair = (sym: string) => { setPairJump(sym); setTab('PAIRS'); };
@@ -167,7 +189,7 @@ export const FundamentalAnalysisView: React.FC = () => {
           const Icon = t.icon;
           const active = tab === t.id;
           return (
-            <button key={t.id} type="button" role="tab" aria-selected={active} onClick={() => setTab(t.id)}
+            <button key={t.id} type="button" role="tab" aria-selected={active} onClick={() => { setTab(t.id); setQuery(''); setRegion('ALL'); setShowAll(false); }}
               className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-[12px] font-semibold cursor-pointer transition-colors ${active ? 'bg-cyan-500/15 border-cyan-400/50 text-cyan-100 shadow-lg shadow-cyan-500/10' : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}`}>
               <Icon className="w-4 h-4" /> {t.label}
             </button>
@@ -218,7 +240,25 @@ export const FundamentalAnalysisView: React.FC = () => {
           )}
 
           <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)] gap-4 items-start">
-            <div className="space-y-2 lg:sticky lg:top-4">
+            <div className="space-y-2 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pr-1">
+              {filterable && (
+                <div className="space-y-2 sticky top-0 z-10 bg-[#030712]/95 backdrop-blur pb-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input data-testid="fa-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tab === 'STOCKS' ? 'Search any stock — name, ticker or sector…' : 'Search indices & baskets…'}
+                      className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-[12.5px] text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/60" />
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {(tab === 'STOCKS' ? ['ALL', 'PK', 'ASIA', 'US', 'EU', 'GLOBAL'] : ['ALL', 'MACRO', 'PK', 'ASIA', 'EU', 'US', 'WORLD']).map((k) => (
+                      <button key={k} type="button" onClick={() => { setRegion(k); setShowAll(false); }}
+                        className={`px-2.5 py-1 rounded-lg border text-[10.5px] font-semibold cursor-pointer ${region === k ? 'bg-cyan-500/15 border-cyan-400/50 text-cyan-100' : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:text-slate-200'}`}>
+                        {k === 'ALL' ? 'All' : k === 'MACRO' ? 'Macro indices' : k === 'WORLD' ? 'World' : REGION_LABEL[k]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-[10.5px] font-mono-code text-slate-500">{filtered.length} {tab === 'STOCKS' ? 'stocks' : 'indices'} · {filtered.filter((a) => a.score !== null).length} scored · sorted most bullish first</div>
+                </div>
+              )}
               {list.map((a) => (
                 <button key={a.symbol} type="button" onClick={() => setSelected((s) => ({ ...s, [tab]: a.symbol }))}
                   className={`w-full text-left rounded-2xl border p-3 transition-colors cursor-pointer ${selSymbol === a.symbol ? 'border-cyan-400/60 bg-cyan-500/10 shadow-lg shadow-cyan-500/5' : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'}`}>
@@ -242,6 +282,10 @@ export const FundamentalAnalysisView: React.FC = () => {
                   </div>
                 </button>
               ))}
+              {filterable && !showAll && !query && filtered.length > LIMIT && (
+                <button type="button" onClick={() => setShowAll(true)} className="w-full py-2 rounded-xl border border-slate-700 text-[11.5px] text-slate-300 hover:text-white hover:border-cyan-500/50 cursor-pointer">Show all {filtered.length}</button>
+              )}
+              {filterable && list.length === 0 && <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-[12px] text-slate-500">Nothing matches “{query}”.</div>}
             </div>
             <div className="min-w-0 space-y-3">
               {detail && detail.asset.symbol === selSymbol ? (
@@ -250,6 +294,7 @@ export const FundamentalAnalysisView: React.FC = () => {
                     <button type="button" onClick={() => openPair(ov.pairs.find((p) => p.base === selSymbol)!.symbol)}
                       className="text-[12px] text-cyan-400 hover:text-cyan-300 cursor-pointer">Open {selSymbol}/USD side-by-side analysis →</button>
                   )}
+                  {(tab === 'FOREX' || tab === 'COMMODITIES' || tab === 'INDICES') && <CoverageNotice asset={detail.asset} />}
                   <AssetDetail asset={detail.asset} mirrors={detail.mirrors} institutional={detail.institutional} />
                 </>
               ) : (
@@ -260,6 +305,10 @@ export const FundamentalAnalysisView: React.FC = () => {
         </div>
       )}
 
+      {tab === 'PICKS' && <PicksView onOpen={(r: PickRow) => {
+        const t: Tab = r.assetClass === 'STOCKS' ? 'STOCKS' : r.assetClass === 'INDICES' ? 'INDICES' : r.assetClass === 'COMMODITIES' ? 'COMMODITIES' : r.assetClass === 'FOREX' ? 'FOREX' : 'CRYPTO';
+        setQuery(''); setRegion('ALL'); setSelected((x) => ({ ...x, [t]: r.symbol })); setTab(t);
+      }} />}
       {ov && tab === 'RANKINGS' && <RankingsView pairs={ov.pairs} onPair={openPair} />}
       {tab === 'SENTIMENT' && <SentimentBoard />}
       {ov && tab === 'PAIRS' && <PairsView pairs={ov.pairs} generatedAt={ov.generatedAt} initial={pairJump} upcoming={ov.upcoming} />}
@@ -338,3 +387,22 @@ const SourcesPanel: React.FC<{ ov: Overview }> = ({ ov }) => (
     </div>
   </div>
 );
+
+/** Tells the reader exactly which inputs are not in this score and why (never filled with guesses). */
+const CoverageNotice: React.FC<{ asset: AssetResult }> = ({ asset }) => {
+  const inds = asset.pillars.flatMap((p) => (p.indicators || []).map((i) => ({ ...i, pillar: p.name })));
+  if (!inds.length) return null;
+  const missing = inds.filter((i) => i.status === 'missing');
+  const stale = inds.filter((i) => i.status === 'stale');
+  const pmi = missing.filter((i) => /pmi/i.test(i.name));
+  const other = missing.filter((i) => !/pmi/i.test(i.name));
+  const live = inds.length - missing.length - stale.length;
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2.5 text-[11.5px] text-slate-400 leading-relaxed" data-testid="coverage-notice">
+      <b className="text-slate-200">Data coverage · {live} of {inds.length} indicators live</b>
+      {stale.length > 0 && <> · {stale.length} waiting for their next release ({stale.slice(0, 4).map((i) => i.name).join(', ')}{stale.length > 4 ? '…' : ''})</>}
+      {pmi.length > 0 && <div className="mt-1"><b className="text-amber-300">PMI surveys not included:</b> the S&amp;P Global / HCOB / au Jibun PMI numbers are licensed — every free calendar publishes the release date but withholds the figure ({pmi.map((i) => i.name).join(', ')}). The model leaves them out instead of guessing; their weight moves to the live indicators.</div>}
+      {other.length > 0 && <div className="mt-1"><b className="text-slate-300">Not published for this economy / no live reading:</b> {other.map((i) => i.name).join(', ')}.</div>}
+    </div>
+  );
+};

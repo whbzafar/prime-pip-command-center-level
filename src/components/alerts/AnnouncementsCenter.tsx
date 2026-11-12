@@ -15,6 +15,7 @@ import { useRankings, openChart, type RankedPair } from '../fundamentalAnalysis/
 import { LevelAlertsPanel, LevelBadge } from '../sbt/LevelAlerts';
 import { markLevelAlertsSeen, useLevelAlerts } from '../../services/sbtSetups';
 import { fetchAnnouncementsServer, type InAppAnnouncement } from '../../services/signalsService';
+import { usePicks, REGION_LABEL, type PickRow } from '../fundamentalAnalysis/PicksView';
 
 interface LtAlert { id: string; at: number; bullish: { symbol: string; display: string; score: number }[]; bearish: { symbol: string; display: string; score: number }[] }
 
@@ -49,7 +50,7 @@ async function notify(title: string, body: string) {
 
 export const AnnouncementsCenter: React.FC = () => {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<'FUNDAMENTALS' | 'ANNOUNCEMENTS' | 'ALERTS'>('FUNDAMENTALS');
+  const [tab, setTab] = useState<'FUNDAMENTALS' | 'PICKS' | 'ANNOUNCEMENTS' | 'ALERTS'>('FUNDAMENTALS');
   const { data: rankings } = useRankings(5 * 60_000);
   const levels = useLevelAlerts();
   const levelHits = levels.pairs.filter((p) => p.hit).length;
@@ -173,7 +174,7 @@ export const AnnouncementsCenter: React.FC = () => {
             <button type="button" onClick={() => setOpen(false)} className="ml-auto p-1 text-slate-400 hover:text-white cursor-pointer" aria-label="Close"><X className="w-4 h-4" /></button>
           </div>
           <div className="flex gap-1 px-3 pt-2">
-            {([['FUNDAMENTALS', `Long-term${levelHits ? ` · ${levelHits} setup${levelHits > 1 ? 's' : ''}` : ''}`], ['ANNOUNCEMENTS', `Important${visibleAnns.length + highlights.length ? ` (${visibleAnns.length + highlights.length})` : ''}`], ['ALERTS', `Alerts${alerts.length ? ` (${alerts.length})` : ''}`]] as const).map(([k, l]) => (
+            {([['FUNDAMENTALS', `Long-term${levelHits ? ` · ${levelHits} setup${levelHits > 1 ? 's' : ''}` : ''}`], ['PICKS', 'Stocks & indices'], ['ANNOUNCEMENTS', `Important${visibleAnns.length + highlights.length ? ` (${visibleAnns.length + highlights.length})` : ''}`], ['ALERTS', `Alerts${alerts.length ? ` (${alerts.length})` : ''}`]] as const).map(([k, l]) => (
               <button key={k} type="button" onClick={() => setTab(k)} className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer ${tab === k ? 'bg-violet-500/20 border border-violet-400/50 text-violet-100' : 'text-slate-400 hover:text-white border border-transparent'}`}>{l}</button>
             ))}
           </div>
@@ -200,6 +201,8 @@ export const AnnouncementsCenter: React.FC = () => {
                 ))}
               </>
             )}
+
+            {tab === 'PICKS' && <StockPicksPanel onOpen={() => setOpen(false)} />}
 
             {tab === 'ANNOUNCEMENTS' && (
               <>
@@ -301,3 +304,39 @@ export const AnnouncementsCenter: React.FC = () => {
 };
 
 export default AnnouncementsCenter;
+
+
+/** Fundamental stock / index / commodity picks for the announcements panel. */
+const StockPicksPanel: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
+  const { data, error } = usePicks(5 * 60_000);
+  if (!data) return <div className="text-[12px] text-slate-500 py-6 text-center">{error || 'Ranking stocks, indices and commodities…'}</div>;
+  const row = (r: PickRow, up: boolean) => (
+    <div key={r.symbol} className="flex items-center justify-between gap-2 px-2 py-1 rounded-lg bg-slate-950/70 border border-slate-800 text-[11.5px]">
+      <span className="min-w-0 truncate"><span className="font-semibold text-slate-100">{r.symbol}</span> <span className="text-slate-500">{r.name}</span></span>
+      <span className={`shrink-0 font-mono-code text-[10.5px] ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{fmt(r.score)} · {r.bullishPct?.toFixed(0)}% bull</span>
+    </div>
+  );
+  const box = (title: string, rows: PickRow[], up: boolean, tone: string) => (
+    <div className={`rounded-xl border p-2.5 ${tone}`}>
+      <div className={`text-[10px] uppercase tracking-widest font-bold ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{title}</div>
+      <div className="mt-1.5 space-y-1">{rows.length ? rows.map((r) => row(r, up)) : <span className="text-[11px] text-slate-500">None right now.</span>}</div>
+    </div>
+  );
+  const pkBull = data.regions.PK?.bullish.slice(0, 5) || [];
+  const pkBear = data.regions.PK?.bearish.slice(0, 5) || [];
+  return (
+    <>
+      <div className="text-[10.5px] text-slate-500">Live fundamental picks across stocks, indices and commodities · updated {when(Date.parse(data.generatedAt))} PKT · {data.scoredStocks} stocks scored. Full lists: Fundamentals → Top Picks.</div>
+      {box('VIP long-term picks', data.vip.slice(0, 6), true, 'border-amber-400/30 bg-amber-500/[0.05]')}
+      {box('Strong bullish', data.strongBullish.slice(0, 6), true, 'border-emerald-500/25 bg-emerald-500/[0.04]')}
+      {box('Strong bearish', data.strongBearish.slice(0, 5), false, 'border-rose-500/25 bg-rose-500/[0.04]')}
+      {box(`${REGION_LABEL.PK} · most bullish`, pkBull, true, 'border-emerald-500/25 bg-emerald-500/[0.04]')}
+      {box(`${REGION_LABEL.PK} · most bearish`, pkBear, false, 'border-rose-500/25 bg-rose-500/[0.04]')}
+      {box('Indices · most bullish', data.indices.bullish.slice(0, 5), true, 'border-emerald-500/25 bg-emerald-500/[0.04]')}
+      {box('Indices · most bearish', data.indices.bearish.slice(0, 5), false, 'border-rose-500/25 bg-rose-500/[0.04]')}
+      {box('Commodities · bullish', data.commodities.bullish.slice(0, 5), true, 'border-emerald-500/25 bg-emerald-500/[0.04]')}
+      {box('Commodities · bearish', data.commodities.bearish.slice(0, 5), false, 'border-rose-500/25 bg-rose-500/[0.04]')}
+      <div className="text-[10px] text-slate-500">Not financial advice. Scores come from reported company figures and live macro data; unscored names are never guessed.</div>
+    </>
+  );
+};

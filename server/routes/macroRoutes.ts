@@ -3,6 +3,9 @@ import { SERVERLESS, ensureStockLoaded, getSnapshot, refreshAndCompute, unmatche
 import type { AssetResult, MacroSnapshot } from '../macro/types.js';
 import { COT_CODES, getInstitutional } from '../macro/sources/cot.js';
 import { getSentiment, sentimentFor } from '../macro/sources/sentiment.js';
+import { STOCKS } from '../macro/sources/edgar.js';
+import { snapshotMeta } from '../macro/sources/snapshot.js';
+import { UNIVERSE } from '../macro/universe.js';
 
 export const macroRouter = Router();
 
@@ -75,19 +78,81 @@ macroRouter.get('/asset/:symbol', async (req: Request, res: Response) => {
     const sym = String(req.params.symbol).toUpperCase();
     let s = await getSnapshot();
     let a = s.assets.find((x) => x.symbol === sym);
-    if (a && a.assetClass === 'STOCKS' && a.pillars.some((p) => p.id !== 'macro' && p.score === null)) {
+    if (a && a.assetClass === 'STOCKS' && STOCKS.some((t) => t.ticker === sym) && a.pillars.some((p) => p.id !== 'macro' && p.score === null)) {
       s = await ensureStockLoaded(sym);
       a = s.assets.find((x) => x.symbol === sym) || a;
     }
     if (!a) return res.status(404).json({ ok: false, error: `Unknown asset ${sym}` });
     const mirrors: Record<string, AssetResult> = {};
     for (const p of a.pillars) {
-      const ref = p.id === 'usd' ? 'USD' : p.id === 'yen' ? 'JPY' : p.id === 'macro' ? 'US500' : null;
+      const ref = p.id === 'usd' ? 'USD' : p.id === 'yen' ? 'JPY' : p.id === 'macro' ? String(a.meta?.macroAsset || 'US500') : null;
       const m = ref ? s.assets.find((x) => x.symbol === ref) : null;
       if (ref && m) mirrors[ref] = m;
     }
     cacheHeaders(res, s);
     res.json({ ok: true, data: a, mirrors, institutional: institutionalFor(sym), generatedAt: s.generatedAt });
+  } catch (err) { fail(res, err); }
+});
+
+/** A compact row for the picks lists. */
+function pickRow(a: AssetResult) {
+  const m = (a.meta || {}) as Record<string, string | number | null>;
+  return {
+    symbol: a.symbol, name: a.name, assetClass: a.assetClass, region: m.region ?? null, sector: m.sector ?? null, kind: m.kind ?? null,
+    score: a.score, bullishPct: a.bullishPct, bearishPct: a.bearishPct, confidence: a.confidence, bias: a.bias,
+    price: m.price ?? null, currency: m.currency ?? null, change1y: m.change1y ?? null, pe: m.pe ?? null, divYield: m.divYield ?? null, members: m.members ?? null, covered: m.covered ?? null,
+    pillars: a.pillars.map((p) => ({ id: p.id, name: p.name, score: p.score })),
+    drivers: a.topDrivers.slice(0, 3).map((d) => ({ name: d.name, impact: d.impact })),
+  };
+}
+
+/** Quality gate for a long-term "VIP" pick: strong score, solid data, no weak pillar, strong growth AND profitability. */
+export function isVip(a: AssetResult): boolean {
+  if (a.assetClass !== 'STOCKS' || a.score === null || a.score < 55 || a.confidence < 70) return false;
+  const scored = a.pillars.filter((p) => p.score !== null && p.id !== 'macro');
+  if (scored.some((p) => (p.score as number) <= -15)) return false;
+  const g = a.pillars.find((p) => p.id === 'growth')?.score ?? null;
+  const q = a.pillars.find((p) => p.id === 'profitability')?.score ?? null;
+  return g !== null && q !== null && g >= 20 && q >= 20;
+}
+
+/** GET /api/macro/picks — long-term bullish / bearish stocks, indices, commodities and currencies (all from the live scores). */
+macroRouter.get('/picks', async (_req: Request, res: Response) => {
+  try {
+    const s = await getSnapshot();
+    const scored = s.assets.filter((a) => a.score !== null);
+    const stocks = scored.filter((a) => a.assetClass === 'STOCKS');
+    const byScore = (x: AssetResult, y: AssetResult) => (y.score as number) - (x.score as number);
+    const regions = ['PK', 'ASIA', 'US', 'EU', 'GLOBAL'];
+    const perRegion: Record<string, { bullish: ReturnType<typeof pickRow>[]; bearish: ReturnType<typeof pickRow>[] }> = {};
+    for (const r of regions) {
+      const list = stocks.filter((a) => a.meta?.region === r && a.confidence >= 40).sort(byScore);
+      perRegion[r] = { bullish: list.filter((a) => (a.score as number) >= 10).slice(0, 12).map(pickRow), bearish: list.filter((a) => (a.score as number) <= -10).reverse().slice(0, 12).map(pickRow) };
+    }
+    const solid = stocks.filter((a) => a.confidence >= 50).sort(byScore);
+    const idx = scored.filter((a) => a.assetClass === 'INDICES').sort(byScore);
+    const com = scored.filter((a) => a.assetClass === 'COMMODITIES').sort(byScore);
+    const fx = scored.filter((a) => a.assetClass === 'FOREX').sort(byScore);
+    const cry = scored.filter((a) => a.assetClass === 'CRYPTO').sort(byScore);
+    const meta = snapshotMeta();
+    const have = new Set(s.assets.filter((a) => a.score !== null).map((a) => a.symbol));
+    cacheHeaders(res, s);
+    res.json({ ok: true, data: {
+      generatedAt: s.generatedAt, dataAsOf: meta?.generatedAt ?? null, tracked: UNIVERSE.length + STOCKS.length, scoredStocks: stocks.length,
+      criteria: {
+        vip: 'Stocks only: score ≥ +55, confidence ≥ 70%, Growth and Profitability pillars both ≥ +20, and no scored pillar at or below −15.',
+        strong: 'Score ≥ +60 (Strong Bullish) or ≤ −60 (Strong Bearish) with confidence ≥ 50%.',
+      },
+      vip: solid.filter(isVip).slice(0, 15).map(pickRow),
+      strongBullish: solid.filter((a) => (a.score as number) >= 60).slice(0, 25).map(pickRow),
+      strongBearish: [...solid].reverse().filter((a) => (a.score as number) <= -60).slice(0, 25).map(pickRow),
+      regions: perRegion,
+      indices: { bullish: idx.filter((a) => (a.score as number) >= 10).slice(0, 10).map(pickRow), bearish: [...idx].reverse().filter((a) => (a.score as number) <= -10).slice(0, 10).map(pickRow) },
+      commodities: { bullish: com.filter((a) => (a.score as number) >= 10).map(pickRow), bearish: [...com].reverse().filter((a) => (a.score as number) <= -10).map(pickRow), all: com.map(pickRow) },
+      forex: { all: fx.map(pickRow) },
+      crypto: { all: cry.map(pickRow) },
+      noFreeData: UNIVERSE.filter((u) => !have.has(u.s)).map((u) => ({ symbol: u.s, name: u.name, region: u.region, url: u.region === 'PK' ? `https://dps.psx.com.pk/company/${u.s}` : `https://finance.yahoo.com/quote/${encodeURIComponent(u.y)}` })),
+    } });
   } catch (err) { fail(res, err); }
 });
 

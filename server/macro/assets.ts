@@ -16,6 +16,7 @@ import { getPrices, getPriceVia } from './sources/prices.js';
 import { getCotSignal } from './sources/cot.js';
 import { getDeriv, getFng, getHashrate, getStables } from './sources/crypto.js';
 import { STOCKS, getStockFundamentals } from './sources/edgar.js';
+import { coreStockMeta, valuationPillarFor } from './globalStocks.js';
 import { sentimentStorage } from '../sentiment/storage.js';
 
 const DAY = 86_400_000;
@@ -555,7 +556,7 @@ function filingInd(ticker: string, id: string, name: string, desc: string, weigh
 function stockSpec(s: (typeof STOCKS)[number]): AssetSpec {
   const t = s.ticker;
   return {
-    symbol: t, name: s.name, assetClass: 'STOCKS', meta: { sector: s.sector },
+    symbol: t, name: s.name, assetClass: 'STOCKS', meta: coreStockMeta(s),
     pillars: [
       { id: 'growth', name: 'Revenue & Earnings Growth', desc: 'Year-over-year growth in the latest reported quarter.', weight: 35, indicators: [
         filingInd(t, 'rev', 'Revenue Growth (YoY)', 'Latest quarter revenue vs the same quarter a year earlier.', 3, 'Faster growth = bullish', (f) => {
@@ -606,7 +607,8 @@ function stockSpec(s: (typeof STOCKS)[number]): AssetSpec {
             actual: r2(de), previous: null, unit: '×', asOf: f.equity.filed, form: f.equity.form };
         }),
       ] },
-      { id: 'macro', name: 'US Macro Backdrop', desc: 'The S&P 500 fundamental score (growth, Fed, credit, liquidity).', weight: 20, indicators: [], mirror: { asset: 'US500', sign: 1 } },
+      valuationPillarFor(t, s.sector),
+      { id: 'macro', name: 'US Macro Backdrop', desc: 'The S&P 500 fundamental score (growth, Fed, credit, liquidity).', weight: 15, indicators: [], mirror: { asset: 'US500', sign: 1 } },
     ],
   };
 }

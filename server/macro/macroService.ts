@@ -10,6 +10,8 @@
  */
 import { safeReadJsonFile, safeWriteJsonFile } from '../dataPath.js';
 import { CURRENCY_SPECS, COMMODITY_SPECS, CRYPTO_SPECS, INDEX_SPECS, STOCK_SPECS, buildPolicyMap } from './assets.js';
+import { GLOBAL_STOCK_SPECS, BASKET_SPECS, applyBasketConfidence } from './globalStocks.js';
+import { refreshSnapshot } from './sources/snapshot.js';
 import { CONCEPTS, CURRENCY_COUNTRY } from './concepts.js';
 import { buildCorrelation, buildPairs } from './pairs.js';
 import { METHODOLOGY_VERSION, eventMatches, patternsFor, scoreAsset, type EngineContext } from './scoring.js';
@@ -104,6 +106,7 @@ function refreshSources(force: boolean): { calendar: Promise<void>; all: Promise
   if (isDue('prices', force)) { due.prices = Date.now() + 120_000; jobs.push(runJob('prices', () => refreshPrices(force), 'prices', EVERY.prices)); }
   const cotEvery = cotReleaseWindow() ? 10 * 60_000 : EVERY.cot;
   if (isDue('cot', force)) { due.cot = Date.now() + 120_000; jobs.push(runJob('cot', () => refreshCot(true), 'cftc_cot', cotEvery)); }
+  if (isDue('fundsnap', force)) { due.fundsnap = Date.now() + 120_000; jobs.push(runJob('fundsnap', () => refreshSnapshot(force), 'fund_snapshot', 30 * 60_000)); }
   if (isDue('crypto', force)) { due.crypto = Date.now() + 120_000; jobs.push(runJob('crypto', () => refreshCrypto(true), 'crypto_fng', EVERY.crypto)); }
   if (SERVERLESS) {
     // Company filings are large; on serverless load four companies per refresh.
@@ -122,7 +125,10 @@ export function computeSnapshot(now = Date.now()): MacroSnapshot {
   // then indices (US500 is mirrored by stocks), then the rest.
   for (const s of CURRENCY_SPECS) results.set(s.symbol, scoreAsset(s, ctx));
   for (const s of INDEX_SPECS) results.set(s.symbol, scoreAsset(s, ctx));
-  for (const s of [...COMMODITY_SPECS, ...CRYPTO_SPECS, ...STOCK_SPECS]) results.set(s.symbol, scoreAsset(s, ctx));
+  for (const s of [...COMMODITY_SPECS, ...CRYPTO_SPECS, ...STOCK_SPECS, ...GLOBAL_STOCK_SPECS]) results.set(s.symbol, scoreAsset(s, ctx));
+  // Basket indices aggregate the stock scores above, so they are scored last.
+  for (const s of BASKET_SPECS) results.set(s.symbol, scoreAsset(s, ctx));
+  applyBasketConfidence(results as any);
 
   const w30 = buildCorrelation(30);
   const w90 = buildCorrelation(90);

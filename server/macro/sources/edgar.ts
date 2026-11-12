@@ -4,6 +4,7 @@
  * address: set SEC_USER_AGENT="YourApp your-email@domain.com" in .env.
  */
 import { fetchJson, mapLimit, markFailure, markNotConfigured, markSuccess, registerSource } from './http.js';
+import { getSnapshotEdgar } from './snapshot.js';
 
 export const EDGAR_ID = 'sec_edgar';
 registerSource(EDGAR_ID, 'SEC EDGAR company filings (XBRL)', 'https://www.sec.gov/edgar/search/',
@@ -162,5 +163,6 @@ export function missingTickers(n: number): string[] {
   return STOCKS.filter((s) => !data.has(s.ticker) && !inflight.has(s.ticker)).slice(0, n).map((s) => s.ticker);
 }
 
-export const getStockFundamentals = (ticker: string) => data.get(ticker) || null;
+/** Live SEC download when loaded, otherwise the latest scheduled snapshot of the same SEC filings. */
+export const getStockFundamentals = (ticker: string) => data.get(ticker) || getSnapshotEdgar(ticker) || null;
 export function __setEdgarForTest(f: StockFundamentals) { data.set(f.ticker, f); }
