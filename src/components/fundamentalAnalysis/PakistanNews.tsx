@@ -34,7 +34,7 @@ export function usePkNews(pollMs = 90_000) {
 export const ago = (t: number) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.floor(m / 60)}h ago` : `${Math.floor(m / 1440)}d ago`; };
 const clean = (s: string) => String(s || '').replace(/<[^>]*>?/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
 
-const FILTERS = ['All', 'High impact', 'Stock market', 'Banks & rates', 'Macro & IMF', 'Oil & gas', 'Power', 'Politics & security', 'Cement', 'Fertilizer', 'Autos', 'Textile & exports', 'Technology'];
+const FILTERS = ['All', 'High impact', 'Stock market', 'IPO & listings', 'Banks & rates', 'Macro & IMF', 'Oil & gas', 'Power', 'Politics & security', 'Cement', 'Fertilizer', 'Autos', 'Textile & exports', 'Technology'];
 
 export const PakistanNewsCard: React.FC<{ n: PkNews; compact?: boolean }> = ({ n, compact }) => {
   const sm = clean(n.summary);

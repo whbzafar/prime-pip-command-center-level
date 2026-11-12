@@ -150,6 +150,7 @@ const PK_SECTORS: [RegExp, string][] = [
   [/\b(it exports|software|tech|systems limited|trg)\b/i, 'Technology'],
   [/\b(imf|budget|fbr|tax|rupee|pkr|inflation|cpi|reserves|remittances?|current account|gdp|rating|eurobond|rollover|debt)\b/i, 'Macro & IMF'],
   [/\b(election|protest|pti|army|martial|ceasefire|india|afghanistan|border|attack|martyr|terror|amendment|court)\b/i, 'Politics & security'],
+  [/\b(ipo|initial public offering|book.?building|rights issue|listing|delist)/i, 'IPO & listings'],
   [/\b(psx|kse-?100|bourse|stocks?|shares?|index|circuit breaker|dividend|earnings)\b/i, 'Stock market'],
 ];
 
