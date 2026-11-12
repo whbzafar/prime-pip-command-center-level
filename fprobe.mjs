@@ -1,14 +1,12 @@
 const H={headers:{Origin:'https://www.tradingview.com',Referer:'https://www.tradingview.com/','User-Agent':'Mozilla/5.0'}};
 const cs=['US','EU','DE','GB','JP','CA','AU','NZ','CH','CN'];
-const from=new Date(Date.now()-420*864e5).toISOString(), to=new Date(Date.now()+3*864e5).toISOString();
-const r=await fetch(`https://economic-calendar.tradingview.com/events?from=${from}&to=${to}&countries=${cs.join(',')}`,H);
-const j=await r.json(); const rows=j.result||j; console.log('TV rows',rows.length, 'status',r.status);
+let rows=[];
+for(let d=420; d>0; d-=20){ const f=new Date(Date.now()-d*864e5).toISOString(), t=new Date(Date.now()-(d-20)*864e5+36e5).toISOString();
+ try{ const r=await fetch(`https://economic-calendar.tradingview.com/events?from=${f}&to=${t}&countries=${cs.join(',')}`,H); const j=await r.json(); rows.push(...(j.result||j)); }catch(e){console.log('chunk err',e.message)} }
+console.log('TV rows',rows.length,'now',new Date().toISOString());
 const by={};
 for(const e of rows){ if(e.actual==null) continue; (by[e.country]??={}); const k=e.title; (by[e.country][k]??=[]).push(e); }
 const want=/cpi|inflation|unemploy|employ|wage|labour|labor|earnings|pmi|retail|industrial|manufactur|services|ppi|producer|gdp|confidence|sentiment|tankan|ifo|zew|sentix|cbi|trade|tourism|dairy|cash rate|interest|rate decision|business|jobs|payroll|participation/i;
 for(const c of cs){ console.log('=== '+c);
  for(const [t,a] of Object.entries(by[c]||{})){ if(!want.test(t)) continue; a.sort((x,y)=>new Date(y.date)-new Date(x.date)); const e=a[0];
   console.log(`${t} | ${e.date.slice(0,10)} | per ${e.period} | a=${e.actual} f=${e.forecast} p=${e.previous} | n=${a.length}`);}}
-// market data probes
-const urls=['https://query1.finance.yahoo.com/v8/finance/chart/GC=F?range=3mo&interval=1d','https://query1.finance.yahoo.com/v8/finance/chart/DX-Y.NYB?range=3mo&interval=1d','https://query1.finance.yahoo.com/v8/finance/chart/GLD?range=3mo&interval=1d','https://query1.finance.yahoo.com/v8/finance/chart/IAU?range=1mo&interval=1d','https://query1.finance.yahoo.com/v8/finance/chart/GDX?range=1mo&interval=1d','https://query1.finance.yahoo.com/v8/finance/chart/HG=F?range=1mo&interval=1d','https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=1mo&interval=1d','https://www.spdrgoldshares.com/assets/dynamic/GLD/GLD_US_archive_EN.csv','https://fred.stlouisfed.org/graph/fredgraph.csv?id=DTWEXBGS','https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFII5','https://fred.stlouisfed.org/graph/fredgraph.csv?id=T10Y2Y','https://fred.stlouisfed.org/graph/fredgraph.csv?id=WM2NS','https://fred.stlouisfed.org/graph/fredgraph.csv?id=GVZCLS','https://fred.stlouisfed.org/graph/fredgraph.csv?id=OVXCLS','https://fred.stlouisfed.org/graph/fredgraph.csv?id=DTWEXEMEGS','https://fred.stlouisfed.org/graph/fredgraph.csv?id=STLFSI4','https://fred.stlouisfed.org/graph/fredgraph.csv?id=USEPUINDXD','https://fred.stlouisfed.org/graph/fredgraph.csv?id=GEPUCURRENT','https://fred.stlouisfed.org/graph/fredgraph.csv?id=RRPONTSYD','https://fred.stlouisfed.org/graph/fredgraph.csv?id=WTREGEN','https://fred.stlouisfed.org/graph/fredgraph.csv?id=IR14260','https://fred.stlouisfed.org/graph/fredgraph.csv?id=DEXJPUS'];
-for(const u of urls){ try{ const x=await fetch(u,{headers:{'User-Agent':'Mozilla/5.0'}}); const t=await x.text(); console.log('PROBE',x.status,u.slice(0,90),'|',t.slice(0,140).replace(/\s+/g,' '),'| len',t.length);}catch(e){console.log('PROBE ERR',u.slice(0,80),e.message)} }
