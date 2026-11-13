@@ -1,3 +1,4 @@
+import { PRICE_STANDARD, PRICE_WITH_CODE, OWNER_WHATSAPP_DISPLAY } from '../config/pricing';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -108,34 +109,26 @@ export const LockedCategoryModal: React.FC<LockedCategoryModalProps> = ({
             </div>
           )}
 
-          {/* Call to Actions & $200 Subscription + Free Referral Incentive */}
+          {/* Call to action — one plan: $200, or $100 with a code. Owner-only / coming-soon modules never pitch a subscription. */}
           <div className="mt-5 space-y-3 pt-3 border-t border-slate-800/80">
-            <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-purple-500/15 to-emerald-500/15 border border-amber-500/40 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-military font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>FULL LIFETIME SUBSCRIPTION: $200</span>
-                </span>
-                <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                  OR 100% FREE VIA REFERRALS
-                </span>
-              </div>
-              <p className="text-xs font-mono-code text-slate-200 leading-relaxed">
-                Unlock this module and full lifetime access for <strong className="text-amber-300">$200</strong> — OR get the <strong className="text-emerald-300">Course &amp; Terminal 100% FREE</strong> with our Referral Incentive:
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px] font-mono-code">
-                <div className="p-2 rounded-lg bg-slate-950/80 border border-purple-500/30 text-purple-200">
-                  <strong className="text-purple-300 block">🎓 Option 1 (Course Referral):</strong>
-                  Refer <strong>5 students</strong> to the course → <strong>100% FREE Access</strong>
+            {summary.id !== 'ADMIN' && summary.id !== 'COMMUNITY' && (
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-purple-500/15 to-emerald-500/15 border border-amber-500/40 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-military font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>FULL SUBSCRIPTION: ${PRICE_STANDARD}</span>
+                  </span>
+                  <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    ${PRICE_WITH_CODE} WITH A CODE
+                  </span>
                 </div>
-                <div className="p-2 rounded-lg bg-slate-950/80 border border-emerald-500/30 text-emerald-200">
-                  <strong className="text-emerald-300 block">💻 Option 2 (Terminal Purchase):</strong>
-                  <strong>2 students</strong> purchase it ($200) → <strong>100% FREE Lifetime Access</strong>
-                </div>
+                <p className="text-xs font-mono-code text-slate-200 leading-relaxed">
+                  Subscribe to unlock this module and every other category in the Command Center.
+                </p>
               </div>
-            </div>
+            )}
 
-            <button
+            {summary.id !== 'ADMIN' && summary.id !== 'COMMUNITY' && <button
               type="button"
               onClick={() => {
                 onClose();
@@ -144,11 +137,12 @@ export const LockedCategoryModal: React.FC<LockedCategoryModalProps> = ({
               className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-military font-bold text-xs tracking-wider uppercase transition shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-slate-950" />
-              <span>SUBSCRIBE ($200) OR CLAIM FREE REFERRAL ACCESS</span>
+              <span>SUBSCRIBE — ${PRICE_STANDARD} (${PRICE_WITH_CODE} WITH CODE)</span>
               <ArrowRight className="w-4 h-4" />
-            </button>
+            </button>}
 
             <div className="flex flex-col sm:flex-row items-center gap-2">
+              {summary.id !== 'ADMIN' && summary.id !== 'COMMUNITY' && (
               <a
                 href={whatsappLink}
                 target="_blank"
@@ -156,15 +150,16 @@ export const LockedCategoryModal: React.FC<LockedCategoryModalProps> = ({
                 className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-mono-code font-bold text-center flex items-center justify-center gap-2 transition"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
-                <span>WhatsApp: 03406671495</span>
+                <span>WhatsApp: {OWNER_WHATSAPP_DISPLAY}</span>
               </a>
+              )}
 
               <button
                 type="button"
                 onClick={onClose}
                 className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-mono-code transition border border-slate-700/60 cursor-pointer"
               >
-                Continue Demo Exploration
+                Close
               </button>
             </div>
           </div>

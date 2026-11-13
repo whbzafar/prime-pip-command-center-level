@@ -397,7 +397,7 @@ export const FundamentalNotificationBanner: React.FC<FundamentalNotificationBann
               <div className="flex items-center gap-2 text-xs font-mono-code">
                 <span className="px-2.5 py-1 rounded-xl bg-slate-900/90 border border-amber-500/30 text-amber-300/90 text-[11px] flex items-center gap-1.5">
                   <Lock className="w-3 h-3 text-amber-400" />
-                  <span>Subscription Required ($200 or Free via Referrals)</span>
+                  <span>Subscription Required ($200 · $100 with a code)</span>
                 </span>
               </div>
             ) : (

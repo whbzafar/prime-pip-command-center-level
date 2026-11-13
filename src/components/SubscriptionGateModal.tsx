@@ -10,6 +10,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { UserAccount } from '../types';
+import { PRICE_STANDARD, PRICE_WITH_CODE, OWNER_WHATSAPP_DISPLAY, waLink } from '../config/pricing';
 import { CategorySummary } from '../data/categorySummaries';
 
 interface SubscriptionGateModalProps {
@@ -20,6 +21,7 @@ interface SubscriptionGateModalProps {
   user?: UserAccount | null;
   onUpgradeSuccess?: (upgradedUser: UserAccount) => void;
   onContinueDemo?: () => void;
+  onSwitchAccount?: () => void;
   lockedCategory?: CategorySummary | null;
 }
 
@@ -30,13 +32,12 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
   onOpenSubscription,
   user,
   onContinueDemo,
+  onSwitchAccount,
   lockedCategory,
 }) => {
-  if (!isOpen) return null;
 
   const isExpired = user?.subscriptionStatus === 'EXPIRED';
   const isSuspended = user?.subscriptionStatus === 'SUSPENDED';
-  const isPaymentRequired = user?.subscriptionStatus === 'PAYMENT_REQUIRED';
 
   let title = lockedCategory ? `${lockedCategory.name} IS LOCKED` : 'FULL TRADING ACCESS REQUIRED';
   let subtitle = lockedCategory
@@ -55,22 +56,22 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
     subtitle = `Your trader account is temporarily suspended. Please contact the administrator directly on WhatsApp (03406671495) for immediate verification.`;
     icon = <ShieldAlert className="w-8 h-8 text-rose-400" />;
     badgeColor = 'bg-rose-500/10 border-rose-500/30 text-rose-400';
-  } else if (isPaymentRequired) {
+  } else {
     title = 'PAYMENT VERIFICATION REQUIRED';
-    subtitle = `Your membership is pending subscription payment confirmation. Contact developer on WhatsApp to complete activation.`;
+    subtitle = `Your membership is pending subscription payment confirmation. Subscribe for $${PRICE_STANDARD} ($${PRICE_WITH_CODE} with a code) and message us on WhatsApp so we can verify your payment and activate full access.`;
     icon = <AlertTriangle className="w-8 h-8 text-cyan-400" />;
     badgeColor = 'bg-blue-500/10 border-blue-500/30 text-cyan-400';
   }
 
   const whatsappMessage = lockedCategory
-    ? `Hello PrimePipFX, I want full access to ${lockedCategory.name} ($200 Lifetime Access Offer) on the PRIMEPIPFX Command Center.`
+    ? `Hello PrimePipFX, I want full access to ${lockedCategory.name} ($${PRICE_STANDARD}, or $${PRICE_WITH_CODE} with a code) on the PRIMEPIPFX Command Center.`
     : isExpired
     ? `Hello PrimePipFX, my subscription for username (${user?.username || 'trader'}) has expired. I want to renew access to the PRIMEPIPFX Trading Command Center.`
     : isSuspended
     ? `Hello PrimePipFX, my account (${user?.username || 'trader'}) is suspended. Please assist with my access to the PRIMEPIPFX Trading Command Center.`
-    : `Hello PrimePipFX, I want to activate Lifetime Access ($200 Offer) to the PRIMEPIPFX Trading Command Center.`;
+    : `Hello PrimePipFX, I created the account (${user?.username || 'trader'}) and want to subscribe to the PRIMEPIPFX Trading Command Center ($${PRICE_STANDARD}, or $${PRICE_WITH_CODE} with a code).`;
 
-  const whatsappUrl = `https://wa.me/923406671495?text=${encodeURIComponent(whatsappMessage)}`;
+  const whatsappUrl = waLink(whatsappMessage);
 
   // Body scroll lock while modal is open
   useEffect(() => {
@@ -93,10 +94,8 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
         {/* Close button (allowed if not strict lock) */}
         <button
           onClick={() => {
-            if (isExpired || isSuspended) {
-              if (onContinueDemo) onContinueDemo();
-            }
-            onClose();
+            if (onContinueDemo) onContinueDemo();
+            else onClose();
           }}
           className="absolute top-3.5 right-3.5 p-1.5 text-slate-400 hover:text-slate-100 transition rounded-xl bg-slate-950/60 hover:bg-slate-800 border border-slate-700/60 cursor-pointer z-10"
         >
@@ -162,17 +161,11 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
               </div>
             )}
 
-            {/* Special Offer Banner: $200 or 5 Course / 2 Terminal Referrals Free */}
-            <div className="p-3 rounded-lg bg-gradient-to-r from-amber-500/15 via-blue-500/15 to-emerald-500/15 border border-amber-500/40 space-y-1 text-slate-200">
+            <div className="p-3 rounded-lg bg-gradient-to-r from-amber-500/15 via-blue-500/15 to-emerald-500/15 border border-amber-500/40 text-slate-200">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-amber-300 text-xs font-military">LIFETIME ACCESS ($200) & REWARD SYSTEM</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
-                  $200 LIFETIME
-                </span>
+                <span className="font-bold text-amber-300 text-xs font-military">FULL ACCESS SUBSCRIPTION</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">${PRICE_STANDARD} · ${PRICE_WITH_CODE} WITH CODE</span>
               </div>
-              <p className="text-[11px] text-slate-300">
-                Get full lifetime access for <strong>$200</strong> — OR unlock <strong>100% FREE Lifetime Access</strong> by referring <strong>5 students to the course</strong> OR when <strong>2 referred students purchase the terminal ($200)</strong>!
-              </p>
             </div>
           </div>
         ) : (
@@ -209,14 +202,14 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
             className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-military font-bold text-xs tracking-wider uppercase rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 active:scale-95"
           >
             <MessageCircle className="w-4 h-4" />
-            <span>CONTACT DEVELOPER ON WHATSAPP (03406671495)</span>
+            <span>SUBSCRIBE VIA WHATSAPP ({OWNER_WHATSAPP_DISPLAY})</span>
           </a>
 
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => {
-                onClose();
-                if (onOpenLogin) onOpenLogin();
+                if (onSwitchAccount) onSwitchAccount();
+                else if (onOpenLogin) onOpenLogin();
               }}
               className="prime-btn-primary text-xs py-2 uppercase"
             >
@@ -224,24 +217,23 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
             </button>
             <button
               onClick={() => {
-                onClose();
                 if (onOpenSubscription) onOpenSubscription();
               }}
               className="prime-btn-secondary text-xs py-2 uppercase"
             >
-              PRICING & PLANS
+              PRICING
             </button>
           </div>
 
           <button
             onClick={() => {
               if (onContinueDemo) onContinueDemo();
-              onClose();
+              else onClose();
             }}
             className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 text-xs font-mono-code font-bold transition text-center cursor-pointer active:scale-95 flex items-center justify-center gap-1.5"
           >
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            <span>CONTINUE WITH FREE TIER / DEMO ACCESS</span>
+            <span>CONTINUE WITH DEMO</span>
           </button>
         </div>
       </div>

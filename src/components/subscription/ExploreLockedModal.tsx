@@ -35,7 +35,7 @@ export const ExploreLockedModal: React.FC<ExploreLockedModalProps> = ({
   if (!isOpen || !mounted) return null;
 
   const whatsappLink = `https://wa.me/923406671495?text=${encodeURIComponent(
-    'Hello PrimePipFX Developer / Mentor, I clicked Explore but do not have an active subscription yet. I would like to activate my subscription to unlock full Command Center, SBT Bots, and Pine Script access.'
+    'Hello PrimePipFX Developer / Mentor, I clicked Explore but do not have an active subscription yet. I would like to activate my subscription to unlock full Command Center access.'
   )}`;
 
   return createPortal(
@@ -99,10 +99,6 @@ export const ExploreLockedModal: React.FC<ExploreLockedModalProps> = ({
           <div className="flex items-start gap-2 text-slate-300">
             <Bot className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <span><strong>SBT Automated Trading Bot:</strong> Institutional 85% accuracy bot suite.</span>
-          </div>
-          <div className="flex items-start gap-2 text-slate-300">
-            <Code2 className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-            <span><strong>Pine Script Indicators:</strong> Quantitative custom indicator compiler &amp; execution.</span>
           </div>
           <div className="flex items-start gap-2 text-slate-300">
             <Lock className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />

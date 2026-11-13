@@ -9,7 +9,6 @@ const PineMainChartLazy = React.lazy(() => import('./pine/PineMainChart'));
 import { pineLib, loadLibrary as loadPineLibrary, hideAll as hideAllPine } from './pine/pineLibrary';
 import { catalogFor } from './pine/pineData';
 import { TvChartTools } from './pine/TvChartTools';
-import { isTrialActive } from '../utils/trial';
 import { PineIndicatorChips } from './pine/PineIndicatorChips';
 import {
   CandlestickChart,
@@ -1425,7 +1424,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const effectiveUser = currentUser || getStoredUser();
   const isAdmin = useMemo(() => isUserAdmin(effectiveUser), [effectiveUser]);
   const isSubscriber = useMemo(() => {
-    if (isTrialActive()) return true;
     if (isDemoMode) return false;
     return hasFullAccess(effectiveUser);
   }, [isDemoMode, effectiveUser]);
@@ -3523,7 +3521,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 font-mono-code hidden sm:block truncate">
-                Live TradingView charts · Fundamentals bias · Private Pine indicators
+                Live TradingView charts · Fundamentals bias · Private indicators
               </p>
             </div>
           </div>
@@ -4223,10 +4221,10 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 type="button"
                 onClick={() => setIsPineEditorOpen((o) => !o)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${isPineEditorOpen ? 'bg-violet-500/25 border-violet-400/60 text-violet-100' : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-violet-400/50'}`}
-                title={pineIsAdmin || isAdminUser ? "Pine Editor — add, publish and apply indicator scripts on the main chart" : "Indicators — Show or Hide indicators on the main chart"}
+                title={pineIsAdmin || isAdminUser ? "Indicator Editor (owner only)" : "Indicators — Show or Hide indicators on the main chart"}
               >
                 <Code className="w-4 h-4 text-violet-300" />
-                <span>{pineIsAdmin || isAdminUser ? 'Pine Editor' : 'Indicators'}</span>
+                <span>{pineIsAdmin || isAdminUser ? 'Indicator Editor' : 'Indicators'}</span>
               </button>
 
               {/* FULL-SCREEN BUTTON (Directly next to Indicators) */}

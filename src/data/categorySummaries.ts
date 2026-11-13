@@ -1,4 +1,4 @@
-import { hasFullAccess, getStoredUser } from '../utils/authClient';
+import { hasFullAccess, getStoredUser, isUserAdmin } from '../utils/authClient';
 
 export interface CategorySummary {
   id: string;
@@ -9,66 +9,44 @@ export interface CategorySummary {
   roleRequired?: string;
 }
 
+/**
+ * What the DEMO (no subscription) can open. Everything else needs a paid subscription.
+ * Locked in demo on purpose: Fundamentals (calendar + indicators/engine), Announcements (except Pakistan market news),
+ * Premium TradingView, Psychological Center, Trading Tool Suite, Meta 5, Backtesting, Chart Analysis, Premium Signals.
+ */
 export const ALLOWED_DEMO_CATEGORIES: string[] = [
-  'DASHBOARD',            // 01. Dashboard
-  'JOURNAL',              // 02. Trade Journal (Trading Tool Suite)
-  'SBT_MODELS',           // 03. SBT Models (Trading Tool Suite)
-  'LOT_SIZE',             // 04. Lot Size Calculator (Trading Tool Suite)
-  'RISK',                 // 05. Risk Management Engine (Trading Tool Suite)
-  'PRE_TRADE_PLAN',       // 06. Pre-Trade Plan Gatekeeper (Pre-made trade plans)
-  'FUNDAMENTAL_CALENDAR', // 07. Live News Calendar (TradingView × Forex Factory — Unlocked per user request)
-  'FUNDAMENTAL_INDICATORS', // 08. Fundamental Indicators Engine (Free COT & Sentiment in Demo)
-  'PRO_TRADING',          // 10. Premium TradingView
-  'COMPOUNDING',          // 12. Compounding Engine (Trading Tool Suite)
-  'PERFORMANCE',          // 11. Performance Report (Performance reports)
-  'REPORTS',              // Performance reports
-  'CALMING_TOOLS',        // 14. Trading Tool Suite (Unlocked per user request: "keep it unlocked")
-  'RESEARCH',             // 15. Academic Research (Unlocked per user request: 'Academy Research')
-  'FREEHAND_WORKSPACE',   // 16. Freehand Canvas (Unlocked per user request: 'Free-hand Canvas')
-  'SITUATION_SAVER',      // 17. Situation Saver (Unlocked per user request: 'Situation Saver')
-  'PAIR_SAVER',           // 18. Pair Saver (Unlocked per user request: 'Peer Saver')
-  'PRO_LEARNING',         // 19. Pro Learning / Academy (Unlocked per user request: 'Pro Learning Trading')
-  'BOOK_SESSION',         // 21. Book a Session (Unlocked per user request: 'the book section')
-  'SETTINGS',             // 22. Data Export & Backup (Unlocked per user request: 'Data Export/Backup')
+  'DASHBOARD',
+  'JOURNAL',
+  'SBT_MODELS',
+  'LOT_SIZE',
+  'RISK',
+  'PRE_TRADE_PLAN',
+  'COMPOUNDING',
+  'PERFORMANCE',
+  'REPORTS',
+  'DAILY_DEV',
+  'EVOLUTION',
+  'ACCOUNTS',
+  'RESEARCH',
+  'FREEHAND_WORKSPACE',
+  'SITUATION_SAVER',
+  'PAIR_SAVER',
+  'PRO_LEARNING',
+  'BOOK_SESSION',
+  'SETTINGS',
 ];
 
+/** Categories that are locked for everybody who is not a subscriber (the demo, or a signed-in account that has not paid). */
 export const isCategoryLockedInDemo = (
   categoryId: string,
-  isDemoMode: boolean = false,
+  _isDemoMode: boolean = false,
   user?: any
 ): boolean => {
-  if (categoryId === 'META5_PREMIUM') return true; // MetaTrader terminal requires broker subscription
-  
   const effectiveUser = user !== undefined ? user : getStoredUser();
-  const hasSub = hasFullAccess(effectiveUser);
-
-  // Active subscribers have full unrestricted access to all features
-  if (hasSub) return false;
-
-  // Features strictly locked for non-subscribed users (Backtesting, Chart Analysis, Psychology, Signals, Meta5)
-  const LOCKED_FOR_NON_SUBSCRIBERS = [
-    'BACKTESTING',
-    'BACKTEST_REPLAY',
-    'CHART_ANALYSIS',
-    'PSYCHOLOGY',
-    'SIGNALS',
-    'META5_PREMIUM',
-  ];
-
-  if (LOCKED_FOR_NON_SUBSCRIBERS.includes(categoryId)) {
-    return true;
-  }
-
-  // Fundamental section is marked free to allow exploring COT reports and sentiment
-  if (categoryId === 'FUNDAMENTAL_INDICATORS' || categoryId === 'FUNDAMENTAL_CALENDAR') {
-    return false;
-  }
-
-  if (isDemoMode) {
-    return !ALLOWED_DEMO_CATEGORIES.includes(categoryId);
-  }
-
-  return false;
+  if (categoryId === 'ADMIN') return !isUserAdmin(effectiveUser); // Admin Panel: owner only, never for subscribers
+  if (categoryId === 'COMMUNITY') return true; // Trader Community Feed: coming soon for everyone
+  if (hasFullAccess(effectiveUser)) return false; // paid subscribers (and the owner) get everything else, Meta 5 included
+  return !ALLOWED_DEMO_CATEGORIES.includes(categoryId);
 };
 
 export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {

@@ -7,7 +7,8 @@ export const TRIAL_START = Date.parse('2026-11-09T00:00:00+05:00');
 export const TRIAL_END = Date.parse('2026-11-12T23:59:59+05:00');
 export const TRIAL_ID = 'open-trial-2026-11';
 
-export const isTrialActive = (now = Date.now()) => now >= TRIAL_START && now <= TRIAL_END;
+/** The free open-access trial is permanently over: there is no free tier any more. */
+export const isTrialActive = (_now = Date.now()) => false;
 
 export function trialRemaining(now = Date.now()) {
   const ms = Math.max(0, TRIAL_END - now);

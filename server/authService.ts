@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
-import { isTrialActive } from './trial.js';
 import { durableEnabled, getShared, hydrateUsers, logLogin, persistUsers, updateShared } from './durableStore.js';
 const durableEnabledFlag = () => durableEnabled;
 
@@ -892,7 +891,6 @@ export function updatePresencePrivacy(userId: string, showActiveStatus: boolean)
 }
 
 export function isActiveCommunityMember(user: StoredUser | null | undefined): boolean {
-  if (user && isTrialActive() && user.subscriptionStatus !== 'SUSPENDED') return true;
   if (!user) return false;
   if (user.isDeveloper || user.role === 'ADMIN' || user.role === 'DEVELOPER' || user.isLifetime) return true;
   if (user.subscriptionStatus !== 'ACTIVE' && user.subscriptionStatus !== 'LIFETIME') return false;

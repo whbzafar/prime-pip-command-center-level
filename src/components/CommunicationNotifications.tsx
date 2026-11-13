@@ -4,6 +4,8 @@ import { openChart } from './fundamentalAnalysis/LiveBiasStrip';
 import { AnnouncementsCenter } from './alerts/AnnouncementsCenter';
 import { Bell, BellOff, MessageSquare, Phone, Users, Volume2, VolumeX, X } from 'lucide-react';
 import { UserAccount } from '../types';
+import { DemoAnnouncements } from './alerts/DemoAnnouncements';
+import { hasFullAccess } from '../utils/authClient';
 
 type AppNotification = {
   id: string;
@@ -18,9 +20,11 @@ type AppNotification = {
 interface CommunicationNotificationsProps {
   currentUser?: UserAccount | null;
   onOpenCommunication?: () => void;
+  onOpenSubscription?: () => void;
 }
 
-export const CommunicationNotifications: React.FC<CommunicationNotificationsProps> = ({ currentUser, onOpenCommunication }) => {
+export const CommunicationNotifications: React.FC<CommunicationNotificationsProps> = ({ currentUser, onOpenCommunication, onOpenSubscription }) => {
+  const isSubscriber = hasFullAccess(currentUser || null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [muted, setMuted] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -143,10 +147,10 @@ export const CommunicationNotifications: React.FC<CommunicationNotificationsProp
 
   return (
     <>
-      <LevelAlertBanner onOpen={openChart} />
-      <LevelAlertEnablePrompt />
+      {isSubscriber && <LevelAlertBanner onOpen={openChart} />}
+      {isSubscriber && <LevelAlertEnablePrompt />}
       <div className="ppfx-global-float fixed top-[calc(env(safe-area-inset-top,0px)+0.75rem)] right-[calc(env(safe-area-inset-right,0px)+0.75rem)] z-[80] flex items-center gap-1.5">
-        <AnnouncementsCenter />
+        {isSubscriber ? <AnnouncementsCenter /> : <DemoAnnouncements onOpenSubscription={onOpenSubscription} />}
         <button type="button" onClick={() => updateSettings(!muted, soundEnabled)} title={muted ? 'Unmute notifications' : 'Mute notifications'} className="relative p-2 rounded-xl bg-slate-950/95 border border-slate-700 text-slate-300 shadow-xl">
           {muted ? <BellOff className="w-4 h-4 text-rose-300" /> : <Bell className="w-4 h-4 text-cyan-300" />}
           {unread > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">{unread > 99 ? '99+' : unread}</span>}

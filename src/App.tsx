@@ -30,6 +30,8 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { AppPerimeterGlow } from './components/AppPerimeterGlow';
 import { SubscriptionPage } from './components/SubscriptionPage';
 import { SubscriptionGateModal } from './components/SubscriptionGateModal';
+import { SbtIndicatorBanner } from './components/subscription/SbtIndicatorBanner';
+import { PRICE_STANDARD, PRICE_WITH_CODE } from './config/pricing';
 import { DeveloperAdminPanel } from './components/DeveloperAdminPanel';
 import { PreTradePlan } from './components/PreTradePlan';
 import { SbtModelsHub } from './components/sbt/SbtModelsHub';
@@ -44,7 +46,7 @@ import { PremiumSignalsHub } from './components/PremiumSignalsHub';
 import { UserProfileModal } from './components/UserProfileModal';
 import { TraderExperienceProfileModal } from './components/evolution/TraderExperienceProfileModal';
 import { CalmingSuiteMaster } from './components/calming/CalmingSuiteMaster';
-import { CATEGORY_SUMMARIES, CategorySummary, ALLOWED_DEMO_CATEGORIES, isCategoryLockedInDemo } from './data/categorySummaries';
+import { CATEGORY_SUMMARIES, CategorySummary, isCategoryLockedInDemo } from './data/categorySummaries';
 import { LockedCategoryModal } from './components/LockedCategoryModal';
 import { Meta5PremiumTerminal } from './components/meta5/Meta5PremiumTerminal';
 import { PostTradeGuidanceModal } from './components/account/PostTradeGuidanceModal';
@@ -57,7 +59,6 @@ import { BacktestingSuite } from './components/backtest/BacktestingSuite';
 import { UnlimitedChartAnalysis } from './components/chartAnalysis/UnlimitedChartAnalysis';
 import { apiRecordTelemetrySignal } from './utils/evolutionClient';
 import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin, hasFullAccess } from './utils/authClient';
-import { isTrialActive } from './utils/trial';
 import {
   getAllAccounts,
   saveAccount,
@@ -107,6 +108,8 @@ export default function App() {
     }
   });
   const [demoToast, setDemoToast] = useState<string | null>(null);
+  // The "Payment Verification Required" prompt: closing it, or choosing Continue with Demo, dismisses it for this session.
+  const [gateDismissed, setGateDismissed] = useState<boolean>(false);
 
   // Modal States
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
@@ -163,7 +166,7 @@ export default function App() {
     verifyCurrentSession().then((user) => {
       if (user) {
         setCurrentUser(user);
-        setIsDemoMode(false);
+        setIsDemoMode(!hasFullAccess(user));
         try {
           localStorage.removeItem('primepipfx_demo_mode');
         } catch {}
@@ -251,131 +254,92 @@ export default function App() {
     }
   }, []);
 
-  // Enter Demo Mode Helper
+  // Enter Demo Mode Helper — always lands on a working, restricted demo workspace (never back on a sign-in / account-creation screen).
   const handleEnterDemoMode = useCallback(
     async (options?: { isCentAccount?: boolean; quickStart?: boolean }) => {
       setIsDemoMode(true);
+      setGateDismissed(true);
       try {
         localStorage.setItem('primepipfx_demo_mode', 'true');
       } catch {}
       setIsLoginModalOpen(false);
       setIsSubscriptionModalOpen(false);
+      setIsCreateAccountWizardOpen(false);
       setLockedCategoryModal(null);
       setActiveTab('DASHBOARD');
 
+      // Keep whatever account the user already has; only create a demo account when there is none.
+      if (activeAccount) return;
       const isCent = options?.isCentAccount || false;
-      const quickStart = options?.quickStart || false;
-
-      // If user specifically requested quickStart (e.g. skip link) or cent account requested directly
-      if (quickStart || (isCent && (!activeAccount || !activeAccount.isCentAccount))) {
-        const demoAccount: AccountSettings = {
-          id: isCent ? 'acc-demo-cent' : 'acc-demo-preview',
-          traderName: 'DEMO TRADER',
-          accountName: isCent ? 'Demo Cent Account (USC)' : 'Demo Preview Account',
-          accountType: isCent ? 'CENT_ACCOUNT' : 'DEMO',
-          accountKind: isCent ? 'CENT' : 'DEMO',
-          accountCategory: 'PERSONAL',
-          isCentAccount: isCent,
-          initialBalance: isCent ? 10000 : 5000,
-          currentBalance: isCent ? 10000 : 5000,
-          currentEquity: isCent ? 10000 : 5000,
-          broker: isCent ? 'Exness Cent / MT5' : 'PrimePipFX Simulation',
-          currency: isCent ? 'USC' : 'USD',
-          maxDailyLossPercent: 4.0,
-          maxDrawdownPercent: 5.0,
-          maxDailyTrades: 2,
-          maxRiskPerTradePercent: 1.0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        setAccounts((prev) => [demoAccount, ...prev.filter((a) => a.id !== demoAccount.id)]);
-        setActiveAccount(demoAccount);
-        await saveAccount(demoAccount);
-        await loadAccountData(demoAccount);
-        setIsCreateAccountWizardOpen(false);
-        return;
-      }
-
-      // Standard user flow: Present an option to create an account
-      // Similar to standard flow after entering login credentials, user is prompted to set up an account
-      // (e.g. 'Fund Account', 'Personal Account', etc.)
-      if (!activeAccount || accounts.length === 0) {
-        // App will display AccountOnboardingModal which embeds CreateAccountWizard
-        setIsCreateAccountWizardOpen(false);
-      } else {
-        // User already has an existing account in storage; open the CreateAccountWizard modal so they can create a new one
-        setIsCreateAccountWizardOpen(true);
-      }
+      const demoAccount: AccountSettings = {
+        id: isCent ? 'acc-demo-cent' : 'acc-demo-preview',
+        traderName: 'DEMO TRADER',
+        accountName: isCent ? 'Demo Cent Account (USC)' : 'Demo Preview Account',
+        accountType: isCent ? 'CENT_ACCOUNT' : 'DEMO',
+        accountKind: isCent ? 'CENT' : 'DEMO',
+        accountCategory: 'PERSONAL',
+        isCentAccount: isCent,
+        initialBalance: isCent ? 10000 : 5000,
+        currentBalance: isCent ? 10000 : 5000,
+        currentEquity: isCent ? 10000 : 5000,
+        broker: isCent ? 'Exness Cent / MT5' : 'PrimePipFX Simulation',
+        currency: isCent ? 'USC' : 'USD',
+        maxDailyLossPercent: 4.0,
+        maxDrawdownPercent: 5.0,
+        maxDailyTrades: 2,
+        maxRiskPerTradePercent: 1.0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setAccounts((prev) => [demoAccount, ...prev.filter((a) => a.id !== demoAccount.id)]);
+      setActiveAccount(demoAccount);
+      try { await saveAccount(demoAccount); await loadAccountData(demoAccount); } catch (e) { console.warn('Demo account setup:', e); }
     },
-    [activeAccount, accounts, loadAccountData]
+    [activeAccount, loadAccountData]
   );
 
-  // Tab Selection with Strict Demo Guard
+  // Demo visitors always land in a working workspace (also after a reload): create the demo account if there is none.
+  useEffect(() => {
+    if (isDemoMode && !isLoading && !activeAccount && (!currentUser || gateDismissed)) void handleEnterDemoMode();
+  }, [isDemoMode, isLoading, activeAccount, currentUser, gateDismissed, handleEnterDemoMode]);
+
+  // Tab Selection with strict subscription guard
   const handleSelectTab = useCallback(
     (tab: MainNavTab | string) => {
-      if (tab === 'META5_PREMIUM') {
-        const summary = CATEGORY_SUMMARIES['META5_PREMIUM'] || {
-          id: 'META5_PREMIUM',
-          name: '11. Meta 5 Terminal',
-          shortDesc: '🔒 Category Locked',
-          overview: 'The Meta 5 Mobile Terminal category is currently locked. Subscribe to unlock full broker connectivity and live MT5 bridge capabilities.',
-          keyFeatures: ['Authentic mobile MT5 interface', 'Prop firm & broker bridge', 'One-click journal auto-log'],
-        };
-        setLockedCategoryModal({
-          ...summary,
-          name: '11. Meta 5 Terminal',
-          shortDesc: '🔒 Category Locked',
-        });
-        return;
-      }
-      // Psychological Center is strictly locked for any user without an active subscription
-      if (tab === 'PSYCHOLOGY' && !hasFullAccess(currentUser) && !isTrialActive()) {
-        const summary = CATEGORY_SUMMARIES['PSYCHOLOGY'] || {
-          id: 'PSYCHOLOGY',
-          name: '13. Psychological Center (Pro)',
-          shortDesc: '🔒 Subscription Required',
-          overview: 'The Psychological Center is locked for users without an active subscription. Upgrade to access real-time tilt monitoring, cognitive bias audits, and CBT discipline reframing tools.',
-          keyFeatures: [
-            'Pre-trade emotional state check and tilt radar',
-            'Cognitive bias identification and CBT thought reframing',
-            'Revenge trading lockout circuit breaker',
-            'Psychological timeline tracking your emotional evolution over time',
-          ],
-        };
-        setLockedCategoryModal({
-          ...summary,
-          name: '13. Psychological Center (Pro)',
-          shortDesc: '🔒 Subscription Required',
-        });
-        return;
-      }
-      if (isDemoMode && !isTrialActive() && !ALLOWED_DEMO_CATEGORIES.includes(tab)) {
+      if (isCategoryLockedInDemo(tab, isDemoMode, currentUser)) {
+        const isAdminTab = tab === 'ADMIN';
         const summary = CATEGORY_SUMMARIES[tab] || {
           id: tab,
-          name: tab,
-          shortDesc: 'Institutional Trading Category',
-          overview: 'This professional module is locked in Demo Mode. Subscribe to unlock full execution capabilities.',
-          keyFeatures: ['Full institutional execution access', 'Cloud backup and offline sync'],
+          name: String(tab),
+          shortDesc: 'Subscription required',
+          overview: 'This module is part of the full subscription.',
+          keyFeatures: ['Full institutional access'],
         };
-        setLockedCategoryModal(summary);
+        setLockedCategoryModal({
+          ...summary,
+          shortDesc: isAdminTab ? '🔒 Owner access only' : tab === 'COMMUNITY' ? '🔒 Coming soon' : '🔒 Subscription required',
+        });
         return;
       }
       if (tab === 'ACCOUNTS') {
         setIsAccountManagerOpen(true);
       } else if (tab === 'SETTINGS') {
         setIsBackupModalOpen(true);
-      } else if (tab === 'ADMIN') {
-        if (isUserAdmin(currentUser)) {
-          setActiveTab('ADMIN');
-        } else {
-          setIsLoginModalOpen(true);
-        }
       } else {
         setActiveTab(tab as any);
       }
     },
     [isDemoMode, currentUser]
   );
+
+  // Safety net: whatever code path switched tab (deep link, banner button, restored state), a locked module never renders.
+  useEffect(() => {
+    if (activeTab !== 'DASHBOARD' && isCategoryLockedInDemo(String(activeTab), isDemoMode, currentUser)) {
+      const summary = CATEGORY_SUMMARIES[String(activeTab)];
+      setActiveTab('DASHBOARD');
+      if (summary) setLockedCategoryModal(summary);
+    }
+  }, [activeTab, isDemoMode, currentUser]);
 
   // "Open chart" links from Fundamentals / Sentiment / rankings → Premium TradingView with that pair.
   useEffect(() => {
@@ -538,7 +502,8 @@ export default function App() {
       // Immediately scroll to the very top so the account setup screen is visibly framed
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       setCurrentUser(user);
-      setIsDemoMode(false);
+      setIsDemoMode(!hasFullAccess(user));
+      setGateDismissed(false);
       try {
         localStorage.removeItem('primepipfx_demo_mode');
       } catch {}
@@ -1128,6 +1093,56 @@ export default function App() {
     );
   }
 
+  const handleLogout = () => {
+          logoutUser();
+          try {
+            localStorage.removeItem('primepipfx_demo_mode');
+            localStorage.removeItem('primepipfx_session_token');
+            localStorage.removeItem('primepipfx_user_profile');
+          } catch {}
+          setCurrentUser(null);
+          setIsDemoMode(false);
+          setGateDismissed(false);
+          setIsLoginModalOpen(false);
+          setActiveAccount(null);
+          setAccounts([]);
+          setTrades([]);
+          setRules([]);
+          setGoals([]);
+        };
+
+  const subscriptionEl = isSubscriptionModalOpen
+    ? createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto p-4 animate-in fade-in duration-150">
+        <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl overflow-y-auto p-4 sm:p-6 animate-in zoom-in-95 duration-150">
+          <SubscriptionPage
+            currentUser={currentUser}
+            onClose={() => setIsSubscriptionModalOpen(false)}
+            onOpenLogin={() => {
+              setIsSubscriptionModalOpen(false);
+              setIsLoginModalOpen(true);
+            }}
+            onContinueDemo={handleEnterDemoMode}
+          />
+        </div>
+      </div>,
+      document.body
+        )
+    : null;
+
+  // ── Access model: only a paid subscription gives full access. Everyone else is limited to the demo. ──
+  const isUnpaidUser = !!currentUser && !hasFullAccess(currentUser);
+  const gateEl = isUnpaidUser && !gateDismissed ? (
+    <SubscriptionGateModal
+      user={currentUser}
+      isOpen={true}
+      onClose={() => { void handleEnterDemoMode(); }}
+      onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
+      onSwitchAccount={handleLogout}
+      onContinueDemo={() => { void handleEnterDemoMode(); }}
+    />
+  ) : null;
+
   // Section 1: FIRST-OPEN LOGIN SCREEN
   // When the application is opened for the first time, immediately display the Login screen.
   // Do not open the Dashboard before authentication.
@@ -1141,8 +1156,26 @@ export default function App() {
     );
   }
 
-  // If no account exists yet, force Onboarding Screen unless in demo mode
+  // Signed in but not paid: "Payment Verification Required" first. Continue-with-Demo / close opens a restricted demo workspace.
+  if (isUnpaidUser && !gateDismissed) {
+    return (
+      <div className="prime-command-shell w-full min-h-screen text-slate-100 flex items-center justify-center">
+        {gateEl}
+        {subscriptionEl}
+      </div>
+    );
+  }
+
+  // If no account exists yet, force Onboarding for paid users; unpaid users get the demo workspace instead.
   if (!activeAccount || accounts.length === 0) {
+    if (isUnpaidUser || isDemoMode) {
+      return (
+        <div className="prime-command-shell w-full min-h-screen text-slate-100 flex items-center justify-center text-xs font-mono-code text-slate-400">
+          Opening your demo workspace…
+          {subscriptionEl}
+        </div>
+      );
+    }
     return (
       <AccountOnboardingModal
         onAccountCreated={handleAccountCreated}
@@ -1156,25 +1189,10 @@ export default function App() {
     );
   }
 
-  const handleLogout = () => {
-          logoutUser();
-          try {
-            localStorage.removeItem('primepipfx_demo_mode');
-            localStorage.removeItem('primepipfx_session_token');
-            localStorage.removeItem('primepipfx_user_profile');
-          } catch {}
-          setCurrentUser(null);
-          setIsDemoMode(false);
-          setActiveAccount(null);
-          setAccounts([]);
-          setTrades([]);
-          setRules([]);
-          setGoals([]);
-        };
 
   return (
     <div className="prime-command-shell w-full max-w-full min-h-screen text-slate-100 flex flex-col selection:bg-blue-500/30 selection:text-cyan-200 relative overflow-x-clip">
-      <CommunicationNotifications currentUser={currentUser} onOpenCommunication={() => setActiveTab('COMMUNITY')} />
+      <CommunicationNotifications currentUser={currentUser} onOpenCommunication={() => setActiveTab('COMMUNITY')} onOpenSubscription={() => setIsSubscriptionModalOpen(true)} />
 
       {/* 4-Side Animated Laser Perimeter Frame */}
       <AppPerimeterGlow />
@@ -1220,33 +1238,25 @@ export default function App() {
         onOpenAllCategories={() => setIsAllCategoriesOpen(true)}
       />
 
-      {/* Demo Mode Notification HUD with $200 Subscription & Free Referral Incentive */}
+      {/* SBT Indicator announcement — top of the app for everyone (logged in or demo) */}
+      <SbtIndicatorBanner />
+
+      {/* Demo notice: the demo is limited; the only way to unlock everything is the subscription */}
       {isDemoMode && (
-        <div className="bg-gradient-to-r from-blue-500/15 via-slate-900/95 to-emerald-500/15 border-b border-blue-500/35 px-4 py-2.5 text-center text-xs font-mono-code text-amber-300 flex items-center justify-center gap-3 flex-wrap shadow-inner">
-          <span className="font-bold flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-            EXPLORING DEMO MODE — FULL ACCESS ($200)
+        <div data-testid="demo-banner" className="relative z-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 border-b border-cyan-500/25 bg-slate-950/90 px-3 py-2 text-center text-[11px] font-mono-code text-slate-300">
+          <span className="inline-flex items-center gap-2 font-bold text-cyan-300">
+            <span className="h-1.5 w-1.5 animate-ping rounded-full bg-cyan-400" /> DEMO — limited access
           </span>
-          <span className="text-slate-600 hidden sm:inline">•</span>
-          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold">
-            🎁 FREE ACCESS INCENTIVE: Get the Course &amp; Terminal 100% FREE if you refer 5 students to the course OR if 2 students purchase it!
-          </span>
-          <span className="text-slate-600 hidden lg:inline">•</span>
-          <span className="text-slate-300 text-[11px]">
-            WhatsApp: <strong className="text-amber-300">03406671495</strong>
-          </span>
+          <span className="hidden text-slate-400 sm:inline">Unlock every category with the subscription:</span>
+          <span className="font-bold text-amber-300">${PRICE_STANDARD} <span className="font-normal text-slate-400">· ${PRICE_WITH_CODE} with a code</span></span>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsLoginModalOpen(true)}
-              className="px-3 py-1 bg-blue-500 hover:bg-cyan-400 text-slate-950 font-bold font-military rounded-lg text-[10px] tracking-wider uppercase transition cursor-pointer"
-            >
-              LOGIN
-            </button>
-            <button
-              onClick={() => setIsSubscriptionModalOpen(true)}
-              className="px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-bold font-military rounded-lg text-[10px] tracking-wider uppercase transition cursor-pointer shadow-sm"
-            >
-              SUBSCRIBE ($200 OR CLAIM FREE REWARD)
+            {!currentUser && (
+              <button type="button" onClick={() => setIsLoginModalOpen(true)} className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-200 hover:bg-slate-800">
+                Sign in
+              </button>
+            )}
+            <button type="button" onClick={() => setIsSubscriptionModalOpen(true)} className="rounded-lg bg-gradient-to-r from-amber-500 to-yellow-400 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-950 hover:from-amber-400 hover:to-yellow-300">
+              Subscribe
             </button>
           </div>
         </div>
@@ -1557,7 +1567,7 @@ export default function App() {
         )}
 
         {activeTab === 'PSYCHOLOGY' && (
-          hasFullAccess(currentUser) || isTrialActive() ? (
+          hasFullAccess(currentUser) ? (
             <PsychologyCenter
               trades={trades}
               account={activeAccount}
@@ -1794,42 +1804,7 @@ export default function App() {
         document.body
       )}
 
-      {/* Subscription Pricing & Referral Modal */}
-      {isSubscriptionModalOpen &&
-        createPortal(
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto p-4 animate-in fade-in duration-150">
-            <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl overflow-y-auto p-4 sm:p-6 animate-in zoom-in-95 duration-150">
-              <SubscriptionPage
-                currentUser={currentUser}
-                onClose={() => setIsSubscriptionModalOpen(false)}
-                onOpenLogin={() => {
-                  setIsSubscriptionModalOpen(false);
-                  setIsLoginModalOpen(true);
-                }}
-                onContinueDemo={handleEnterDemoMode}
-              />
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {/* Subscription Gate Guard: Blocks expired, suspended, or unpaid non-developer accounts */}
-      {currentUser &&
-        currentUser.role !== 'DEVELOPER' &&
-        (currentUser.subscriptionStatus === 'SUSPENDED' ||
-          (!isTrialActive() && (currentUser.subscriptionStatus === 'EXPIRED' || currentUser.subscriptionStatus === 'PAYMENT_REQUIRED'))) && (
-          <SubscriptionGateModal
-            user={currentUser}
-            isOpen={true}
-            onClose={() => handleEnterDemoMode()}
-            onOpenLogin={() => setIsLoginModalOpen(true)}
-            onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
-            onContinueDemo={handleEnterDemoMode}
-            onUpgradeSuccess={(upgradedUser) => {
-              setCurrentUser(upgradedUser);
-            }}
-          />
-        )}
+      {subscriptionEl}
 
       {/* Automated Trade Limit & Loss Alert System */}
       <TradeLimitAlertSystem

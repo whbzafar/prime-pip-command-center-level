@@ -22,7 +22,7 @@ import {
 import { apiLogin, apiChangePassword, setStoredUser } from '../utils/authClient';
 import { UserAccount } from '../types';
 import { googleDriveService } from '../services/googleDriveService';
-import { SbtBotShowcaseModal } from './sbt/SbtBotShowcaseModal';
+import { SbtIndicatorBanner } from './subscription/SbtIndicatorBanner';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -50,7 +50,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [linkingDrive, setLinkingDrive] = useState(false);
   const [driveLinkSuccess, setDriveLinkSuccess] = useState(false);
-  const [isSbtBotModalOpen, setIsSbtBotModalOpen] = useState(false);
 
   // First-time password change state
   const [pendingUser, setPendingUser] = useState<UserAccount | null>(null);
@@ -260,43 +259,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </p>
           </div>
 
-          {/* Announcement Banner above Username & Password Fields — SBT Bot New Year 2027 Launch */}
-          {step === 'LOGIN' && (
-            <div
-              onClick={() => setIsSbtBotModalOpen(true)}
-              className="mb-4 p-[1.5px] rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-300 to-cyan-400 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/35 transition-all duration-300 cursor-pointer group"
-              title="Click to explore the World's #1 SBT Bot New Year 2027 Launch Showcase"
-            >
-              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-slate-950/95 border border-amber-500/30 text-xs backdrop-blur-md group-hover:bg-slate-900/95 transition">
-                <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400/25 to-yellow-500/15 border border-amber-400/60 flex items-center justify-center shrink-0 text-amber-300 shadow-sm shadow-amber-500/30 group-hover:scale-105 transition">
-                    <Bot className="w-3.5 h-3.5 animate-pulse" />
-                  </div>
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="text-[9px] font-mono-code font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shrink-0 shadow-xs shadow-amber-500/30">
-                      SBT BOT COMING SOON
-                    </span>
-                    <span className="text-[11px] font-military tracking-wide text-white truncate font-bold group-hover:text-amber-200 transition">
-                      Launching for New Year 2027 — The World's #1 Institutional Trading Bot
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsSbtBotModalOpen(true);
-                    }}
-                    className="text-[9px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 flex items-center gap-1 shadow-xs hover:bg-amber-400 hover:text-slate-950 transition cursor-pointer"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                    <span>SHOWCASE ❯</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {step === 'LOGIN' && <SbtIndicatorBanner dismissible={false} className="mb-4 rounded-2xl border border-amber-400/30" />}
 
           {/* Error Alert */}
           {error && (
@@ -561,11 +524,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </div>
       </motion.div>
 
-      {/* SBT Bot New Year 2027 Worldwide Launch Showcase Modal */}
-      <SbtBotShowcaseModal
-        isOpen={isSbtBotModalOpen}
-        onClose={() => setIsSbtBotModalOpen(false)}
-      />
     </div>,
     document.body
   );

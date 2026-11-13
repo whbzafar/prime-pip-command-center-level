@@ -1,4 +1,3 @@
-import { isTrialActive } from '../utils/trial';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
@@ -29,7 +28,7 @@ import {
   X,
   Bot,
 } from 'lucide-react';
-import { SbtBotShowcaseModal } from './sbt/SbtBotShowcaseModal';
+import { SbtIndicatorBanner } from './subscription/SbtIndicatorBanner';
 import { ExploreLockedModal } from './subscription/ExploreLockedModal';
 import { FounderExperienceModal } from './FounderExperienceModal';
 import { HeroMotion } from './login/HeroMotion';
@@ -49,7 +48,7 @@ import { googleDriveService } from '../services/googleDriveService';
 import { fetchLiveGoldQuote } from '../services/liveChartDataService';
 
 const TICKER_ANNOUNCEMENTS = [
-  { tag: 'SBT BOT COMING SOON', text: 'SBT Bot Launching for New Year 2027 — The World\'s #1 Institutional Trading Bot', color: 'from-amber-400 via-yellow-300 to-amber-500' },
+  { tag: 'SBT INDICATOR', text: 'Prime Pip SBT Indicator now available — $500', color: 'from-amber-400 via-yellow-300 to-amber-500' },
   { tag: 'NEW RELEASE', text: 'SBT Model Pro Available — All 10 Institutional Models Active', color: 'from-amber-400 to-yellow-500' },
   { tag: 'PREMIUM TRADING', text: 'Live Multi-Asset Charts & Spot Gold Live Order Flow', color: 'from-cyan-400 to-blue-500' },
   { tag: 'SBT STRATEGIES', text: '10 Systematic Institutional Setups with Exact Rules', color: 'from-emerald-400 to-teal-500' },
@@ -101,7 +100,6 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   const [isSuccessBurst, setIsSuccessBurst] = useState(false);
   const [showCongratulations, setShowCongratulations] = useState(false);
   const [congratsUser, setCongratsUser] = useState<UserAccount | null>(null);
-  const [isSbtBotModalOpen, setIsSbtBotModalOpen] = useState<boolean>(false);
   const [isExploreLockedModalOpen, setIsExploreLockedModalOpen] = useState<boolean>(false);
   const [isFounderModalOpen, setIsFounderModalOpen] = useState<boolean>(false);
   const [isFounderModalMinimized, setIsFounderModalMinimized] = useState<boolean>(false);
@@ -415,13 +413,6 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   };
 
   const handleDemoClick = () => {
-    const user = getStoredUser();
-    const hasSubscription = hasFullAccess(user) || isTrialActive();
-    if (!hasSubscription) {
-      // Non-subscribed users encounter a lock modal when clicking Explore
-      setIsExploreLockedModalOpen(true);
-      return;
-    }
     triggerBurst();
     setTimeout(() => {
       onExploreDemo();
@@ -511,9 +502,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       >
         <div className="relative group p-[1px] rounded-full bg-gradient-to-r from-cyan-500/50 via-amber-500/40 to-blue-500/50 shadow-md shadow-cyan-950/30 backdrop-blur-xl">
           <div
-            onClick={() => setIsSbtBotModalOpen(true)}
-            className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 border border-white/5 text-xs overflow-hidden cursor-pointer hover:bg-slate-900/90 transition"
-            title="Click to view SBT Bot New Year 2027 Launch Showcase"
+            className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 border border-white/5 text-xs overflow-hidden"
           >
             <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
               <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-300">
@@ -791,41 +780,8 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
               </div>
             </div>
 
-            {/* Announcement Section Above Username & Password Fields — SBT Bot New Year 2027 Launch */}
-            <div
-              onClick={() => setIsSbtBotModalOpen(true)}
-              className="mb-4 p-[1.5px] rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-300 to-cyan-400 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/35 transition-all duration-300 cursor-pointer group"
-              title="Click to explore the World's #1 SBT Bot New Year 2027 Launch Showcase"
-            >
-              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-slate-950/95 border border-amber-500/30 text-xs backdrop-blur-md group-hover:bg-slate-900/95 transition">
-                <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400/25 to-yellow-500/15 border border-amber-400/60 flex items-center justify-center shrink-0 text-amber-300 shadow-sm shadow-amber-500/30 group-hover:scale-105 transition">
-                    <Bot className="w-3.5 h-3.5 animate-pulse" />
-                  </div>
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="text-[9px] font-mono-code font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shrink-0 shadow-xs shadow-amber-500/30">
-                      SBT BOT COMING SOON
-                    </span>
-                    <span className="text-[11px] font-military tracking-wide text-white truncate font-bold group-hover:text-amber-200 transition">
-                      Launching for New Year 2027 — The World's #1 Institutional Trading Bot
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsSbtBotModalOpen(true);
-                    }}
-                    className="text-[9px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 flex items-center gap-1 shadow-xs hover:bg-amber-400 hover:text-slate-950 transition cursor-pointer"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                    <span>SHOWCASE ❯</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+            {/* SBT Indicator announcement */}
+            <SbtIndicatorBanner dismissible={false} className="mb-4 rounded-2xl border border-amber-400/30" />
 
             {/* Error Alert Banner */}
             {error && (
@@ -851,7 +807,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   ))}
                 </div>
                 {mode === 'signup' && (
-                  <p className="text-[11px] text-slate-300 font-mono-code leading-relaxed -mt-1">Pick any username and password — that's all. Your journals and settings stay private to your account.{isTrialActive() ? ' Everything is unlocked free for 3 days.' : ''}</p>
+                  <p className="text-[11px] text-slate-300 font-mono-code leading-relaxed -mt-1">Pick any username and password — that's all. Your journals and settings stay private to your account.Demo has limited features. A subscription ($200, or $100 with a code) unlocks everything.</p>
                 )}
                 <div>
                   <label className="text-xs font-mono-code text-slate-300 font-bold block mb-1.5 uppercase">
@@ -953,13 +909,11 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   title="Explore / Demo Preview (Active Subscription Required)"
                 >
                   <Lock className="w-4 h-4 text-amber-400 group-hover:scale-110 transition" />
-                  <span className="tracking-wider uppercase">{isTrialActive() ? 'CONTINUE EXPLORING WITHOUT AN ACCOUNT / DEMO' : 'CONTINUE EXPLORING WITHOUT AN ACCOUNT / DEMO (SUBSCRIPTION REQUIRED)'}</span>
-                  {!isTrialActive() && <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold">
-                    🔒 LOCKED
-                  </span>}
+                  <span className="tracking-wider uppercase">CONTINUE WITH DEMO</span>
+                  
                 </button>
                 <p className="text-[10px] text-center text-slate-400 font-mono-code mt-1.5">
-                  {isTrialActive() ? 'Free 3-day open access — create an account so your work is saved.' : 'Subscription required for full institutional suite. Click to unlock or preview demo features.'}
+                  Demo has limited features. A subscription ($200, or $100 with a code) unlocks everything.
                 </p>
               </form>
             ) : step === 'LINK_STORAGE' ? (
@@ -1154,15 +1108,6 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         )}
       </AnimatePresence>
 
-      {/* SBT Bot New Year 2027 Worldwide Launch Showcase Modal */}
-      <SbtBotShowcaseModal
-        isOpen={isSbtBotModalOpen}
-        onClose={() => setIsSbtBotModalOpen(false)}
-        onExploreModels={() => {
-          setIsSbtBotModalOpen(false);
-          handleDemoClick();
-        }}
-      />
 
       {/* Subscription Lock Modal encountered by non-subscribed users clicking Explore */}
       <ExploreLockedModal

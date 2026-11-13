@@ -27,7 +27,7 @@ export const PineWorkspace: React.FC<{ storageKey: string; defaultSymbol?: strin
     <div data-testid={`pine-workspace-${storageKey}`} className="rounded-2xl border border-violet-500/30 bg-gradient-to-r from-[#0d0f1c] via-[#0b1120] to-[#0d0f1c] overflow-hidden">
       <button type="button" onClick={toggle} className="w-full flex items-center gap-2 px-3 sm:px-4 py-2.5 text-left cursor-pointer">
         <span className="w-7 h-7 rounded-lg bg-violet-500/15 border border-violet-400/40 flex items-center justify-center"><Code2 className="w-4 h-4 text-violet-300" /></span>
-        <span className="text-[13px] font-bold text-slate-50">{admin ? 'Pine Editor' : 'Indicators'}</span>
+        <span className="text-[13px] font-bold text-slate-50">{admin ? 'Indicator Editor' : 'Indicators'}</span>
         <span className="text-[11px] text-slate-400 hidden sm:inline truncate">{note || (admin ? 'write, load and apply scripts on the chart below' : 'show or hide the Prime Pip indicators on the chart below')}</span>
         <span className="ml-auto text-[11px] font-semibold text-violet-200">{open ? 'Hide' : 'Open'}</span>
         <ChevronDown className={`w-4 h-4 text-violet-300 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -47,7 +47,7 @@ export const PineWorkspace: React.FC<{ storageKey: string; defaultSymbol?: strin
               <PinePanelLazy isAdminHint={admin} symbol={symbol} interval={interval} onClose={() => setPanel(false)} />
             </React.Suspense>
           ) : (
-            <button type="button" onClick={() => setPanel(true)} className="px-3 py-1.5 rounded-lg border border-violet-400/50 bg-violet-500/10 text-[12px] font-semibold text-violet-100 hover:bg-violet-500/20 cursor-pointer">{admin ? 'Open the Pine Editor' : 'Open the indicator list'}</button>
+            <button type="button" onClick={() => setPanel(true)} className="px-3 py-1.5 rounded-lg border border-violet-400/50 bg-violet-500/10 text-[12px] font-semibold text-violet-100 hover:bg-violet-500/20 cursor-pointer">{admin ? 'Open the Indicator Editor' : 'Open the indicator list'}</button>
           )}
         </div>
       )}

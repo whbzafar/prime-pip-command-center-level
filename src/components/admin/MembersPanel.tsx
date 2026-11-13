@@ -21,7 +21,7 @@ const status = (m: Member): [string, string] => {
     return [Number.isFinite(exp) ? `Active · to ${new Date(exp).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : 'Active', 'bg-emerald-500/15 text-emerald-200'];
   }
   if (m.subscriptionStatus === 'EXPIRED') return ['Expired', 'bg-rose-500/15 text-rose-200'];
-  return ['Free trial / unpaid', 'bg-slate-700/60 text-slate-200'];
+  return ['Unpaid / demo', 'bg-slate-700/60 text-slate-200'];
 };
 const device = (ua = '') => {
   if (!ua) return '';

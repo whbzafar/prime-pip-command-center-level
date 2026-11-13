@@ -179,7 +179,6 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
     section: 'Intelligence & Setups',
     icon: Smartphone,
     highlight: false,
-    locked: true,
     comingSoon: false,
   },
   {
@@ -503,6 +502,7 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
               {filteredCategories.map((cat) => {
                 const Icon = cat.icon;
                 const isCurrent = activeTab === cat.id;
+                const isLocked = isCategoryLockedInDemo(cat.id, isDemoMode, currentUser);
                 return (
                   <button
                     key={cat.id}
@@ -514,7 +514,9 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
                     className={`group text-left p-3 sm:p-3.5 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col justify-between relative overflow-hidden active:scale-[0.98] ${
                       isCurrent
                         ? 'bg-blue-950/40 border-cyan-400/80 shadow-md shadow-blue-500/10'
-                        : 'bg-slate-950/60 hover:bg-slate-900/80 border-slate-800/80 hover:border-blue-500/40'
+                        : isLocked
+                          ? 'bg-slate-950/40 hover:bg-slate-900/60 border-amber-500/20 hover:border-amber-400/40'
+                          : 'bg-slate-950/60 hover:bg-slate-900/80 border-slate-800/80 hover:border-blue-500/40'
                     }`}
                   >
                     <div>
@@ -548,11 +550,6 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
                             </span>
                           ) : (
                             <>
-                              {cat.id === 'FUNDAMENTAL_INDICATORS' && (
-                                <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase shadow-xs">
-                                  <span>FREE</span>
-                                </span>
-                              )}
                               {cat.comingSoon && cat.id !== 'META5_PREMIUM' && (
                                 <span className="flex items-center gap-1 text-[8px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/40 uppercase">
                                   COMING SOON
@@ -589,8 +586,8 @@ export const AllCategoriesModal: React.FC<AllCategoriesModalProps> = ({
                     <div className="mt-3 pt-2 border-t border-slate-900 flex items-center justify-between text-[10px] font-mono-code text-slate-400 group-hover:text-cyan-400 transition">
                       <span className="text-[9px] text-slate-400">{cat.section}</span>
                       <div className="flex items-center gap-1 font-bold">
-                        <span>OPEN</span>
-                        <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                        {isLocked ? <><Lock className="w-3 h-3 text-amber-400" /><span className="text-amber-300">SUBSCRIBE</span></> : <><span>OPEN</span>
+                        <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" /></>}
                       </div>
                     </div>
                   </button>

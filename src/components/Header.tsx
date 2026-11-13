@@ -1,4 +1,5 @@
-import { isTrialActive } from '../utils/trial';
+import { RotatingFeatureLabels } from './subscription/RotatingFeatureLabels';
+import { DEMO_LOCKED_LABELS } from '../config/pricing';
 import React, { useState, useEffect } from 'react';
 import {
   Activity,
@@ -174,7 +175,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const switchTab = onSelectTab || setActiveTab || (() => {});
   const displayScore = overallScore ?? scores?.overallTradingScore ?? 76;
-  const isSubscriber = hasFullAccess(currentUser) || isTrialActive();
+  const isSubscriber = hasFullAccess(currentUser);
   const isPsychLocked = !isSubscriber;
   const [isTimeModalOpen, setIsTimeModalOpen] = React.useState<boolean>(false);
   // Phones: the status / tool rows fold behind one "Tools" button so the page content is visible first.
@@ -454,12 +455,6 @@ export const Header: React.FC<HeaderProps> = ({
       } else {
         switchTab(id);
       }
-    } else if (id === 'ADMIN') {
-      if (currentUser?.role === 'ADMIN' || currentUser?.role === 'DEVELOPER' || currentUser?.isDeveloper || currentUser?.username === 'primepipfx-admin') {
-        switchTab('ADMIN');
-      } else if (onOpenLogin) {
-        onOpenLogin();
-      }
     } else {
       switchTab(id);
     }
@@ -554,6 +549,12 @@ export const Header: React.FC<HeaderProps> = ({
                 <PenTool className="w-2.5 h-2.5 text-cyan-400" /> CANVAS
               </span>
             </button>
+          )}
+          {isDemoMode && (
+            <RotatingFeatureLabels
+              className="max-w-[46vw] sm:max-w-[260px]"
+              labels={DEMO_LOCKED_LABELS.map((l) => `${l} — with subscription`)}
+            />
           )}
 
           <span className="text-slate-700 hidden sm:inline">|</span>
@@ -1180,11 +1181,6 @@ export const Header: React.FC<HeaderProps> = ({
                     </span>
                   ) : (
                     <>
-                      {item.id === 'FUNDAMENTAL_INDICATORS' && (
-                        <span className="flex items-center gap-1 text-[8px] bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
-                          FREE
-                        </span>
-                      )}
                       {isComingSoon && (
                         <span className="text-[8px] bg-blue-500/20 text-cyan-300 border border-blue-500/40 px-1 rounded uppercase">
                           SOON

@@ -1,4 +1,3 @@
-import { isTrialActive } from './trial';
 import { UserAccount } from '../types';
 import { authenticateLocalAsync } from './localAuthStore';
 
@@ -81,8 +80,6 @@ export function detectUrlReferral(): string | null {
 export function hasFullAccess(user: UserAccount | null): boolean {
   if (!user) return false;
   if (user.isDeveloper || user.role === 'ADMIN' || user.role === 'DEVELOPER') return true;
-  // Free open-access trial: every account gets everything (Admin Panel and Meta 5 stay locked elsewhere).
-  if (isTrialActive() && user.subscriptionStatus !== 'SUSPENDED') return true;
   if (user.subscriptionStatus === 'LIFETIME' || user.isLifetime) return true;
   if (user.subscriptionStatus === 'ACTIVE') {
     if (!user.expiryDate) return true;
@@ -108,7 +105,6 @@ export function isFundamentalSurpriseLocked(
     } catch {}
     return false;
   }
-  if (isTrialActive()) return false;
   if (isDemoFlag) return true;
   try {
     if (typeof window !== 'undefined' && localStorage.getItem('primepipfx_demo_mode') === 'true') {
