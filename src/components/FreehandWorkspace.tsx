@@ -6026,28 +6026,28 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
             href="https://www.tradingview.com/pricing/"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/25 text-sky-300 font-bold text-xs transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-300/60 bg-gradient-to-r from-sky-600 to-blue-500 hover:brightness-110 text-white shadow-md shadow-sky-500/30 font-bold text-xs transition cursor-pointer"
             title="Open TradingView Pro / Premium"
           >
-            <TrendingUp className="w-3.5 h-3.5 text-sky-400" />
+            <TrendingUp className="w-3.5 h-3.5 text-white" />
             <span>TradingView Pro</span>
             <ExternalLink className="w-3 h-3 ml-0.5" />
           </a>
           <button
             type="button"
             onClick={() => handleNavigate('SBT_MODELS')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-300 font-bold text-xs transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-300/60 bg-gradient-to-r from-emerald-500 to-teal-400 hover:brightness-110 text-slate-950 shadow-md shadow-emerald-500/30 font-bold text-xs transition cursor-pointer"
           >
-            <Layers className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Supply &amp; Demand</span>
+            <Layers className="w-3.5 h-3.5 text-slate-950" />
+            <span>SBT</span>
             <ExternalLink className="w-3 h-3 ml-0.5" />
           </button>
           <button
             type="button"
             onClick={() => handleNavigate('PRO_LEARNING')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/25 text-indigo-300 font-bold text-xs transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-300/60 bg-gradient-to-r from-amber-500 to-orange-400 hover:brightness-110 text-slate-950 shadow-md shadow-amber-500/30 font-bold text-xs transition cursor-pointer"
           >
-            <GraduationCap className="w-3.5 h-3.5 text-indigo-400" />
+            <GraduationCap className="w-3.5 h-3.5 text-slate-950" />
             <span>Pro Learning</span>
             <ExternalLink className="w-3 h-3 ml-0.5" />
           </button>

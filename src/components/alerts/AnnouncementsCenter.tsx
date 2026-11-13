@@ -179,8 +179,8 @@ export const AnnouncementsCenter: React.FC = () => {
 
   return (
     <>
-      <button type="button" onClick={toggle} title="Announcements & long-term alerts" aria-label="Announcements" className="relative p-2 rounded-xl bg-slate-950/95 border border-slate-700 text-slate-300 shadow-xl cursor-pointer">
-        <Megaphone className={`w-4 h-4 ${unread + levels.unseen ? 'text-amber-300' : 'text-violet-300'}`} />
+      <button type="button" onClick={toggle} title="Announcements & long-term alerts" aria-label="Announcements" className="relative flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 border border-fuchsia-300/60 text-white font-bold text-xs shadow-lg shadow-fuchsia-500/30 hover:brightness-110 cursor-pointer">
+        <Megaphone className={`w-4 h-4 ${unread + levels.unseen ? 'text-amber-200' : 'text-white'}`} /><span className="hidden sm:inline">Announcements</span>
         {unread + levels.unseen > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center animate-pulse">{unread + levels.unseen > 99 ? '99+' : unread + levels.unseen}</span>}
         {unread + levels.unseen === 0 && levelHits > 0 && <span title={`${levelHits} fundamental setup${levelHits > 1 ? "s" : ""} at key level — open to see which pair and Buy / Sell`} className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-slate-950" />}
       </button>

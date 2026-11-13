@@ -12,8 +12,8 @@ export const DemoAnnouncements: React.FC<{ onOpenSubscription?: () => void }> = 
   return (
     <>
       <button type="button" onClick={() => setOpen((o) => !o)} title="Announcements (demo: live news)" aria-label="Announcements"
-        className="relative p-2 rounded-xl bg-slate-950/90 border border-slate-700 hover:border-violet-400 cursor-pointer">
-        <Megaphone className="w-4 h-4 text-violet-300" />
+        className="relative flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 border border-fuchsia-300/60 text-white font-bold text-xs shadow-lg shadow-fuchsia-500/30 hover:brightness-110 cursor-pointer">
+        <Megaphone className="w-4 h-4 text-white" /><span className="hidden sm:inline">Announcements</span>
       </button>
       {open && (
         <div className="fixed top-[calc(env(safe-area-inset-top,0px)+3.5rem)] right-3 z-[85] w-[min(420px,calc(100vw-1.5rem))] max-h-[min(calc(100dvh-env(safe-area-inset-top,0px)-9rem),680px)] flex flex-col rounded-2xl border border-slate-700 bg-[#0b0f17] shadow-2xl">

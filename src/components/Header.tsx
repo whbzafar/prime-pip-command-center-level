@@ -1151,8 +1151,18 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar whitespace-nowrap cursor-grab active:cursor-grabbing touch-pan-x scroll-smooth py-0.5 px-0.5"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
           >
-            {allNavCategories.map((item) => {
+            {allNavCategories.map((item, navIdx) => {
               const Icon = item.icon;
+              const NAV_TONES = [
+                'border-cyan-400/60 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/30',
+                'border-fuchsia-400/60 bg-fuchsia-500/15 text-fuchsia-100 hover:bg-fuchsia-500/30',
+                'border-emerald-400/60 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/30',
+                'border-amber-400/60 bg-amber-500/15 text-amber-100 hover:bg-amber-500/30',
+                'border-violet-400/60 bg-violet-500/15 text-violet-100 hover:bg-violet-500/30',
+                'border-rose-400/60 bg-rose-500/15 text-rose-100 hover:bg-rose-500/30',
+                'border-sky-400/60 bg-sky-500/15 text-sky-100 hover:bg-sky-500/30',
+              ];
+              const navTone = NAV_TONES[navIdx % NAV_TONES.length];
               const isActive = activeTab === item.id;
               const isComingSoon = (item as any).comingSoon;
               return (
@@ -1167,15 +1177,15 @@ export const Header: React.FC<HeaderProps> = ({
                     }
                     handleNavClick(item.id);
                   }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all cursor-pointer shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all cursor-pointer shrink-0 ${
                     isActive
                       ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-slate-950 border-cyan-300 font-bold shadow-md shadow-cyan-500/30'
-                      : 'bg-[#131f38] hover:bg-[#1a2b4c] text-slate-200 hover:text-cyan-300 border-slate-700/80 hover:border-cyan-500/50'
+                      : navTone + ' shadow-sm'
                   }`}
                   title={item.label}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : item.highlight ? 'text-cyan-400' : 'text-slate-300'}`} />
-                  <span className="text-[11px] font-mono-code font-bold tracking-tight uppercase">{item.label}</span>
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : 'text-current'}`} />
+                  <span className="text-[11.5px] font-mono-code font-bold tracking-tight uppercase">{item.label}</span>
                   {isCategoryLockedInDemo(item.id, isDemoMode, currentUser) ? (
                     <span className="flex items-center gap-1 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1.5 py-0.5 rounded uppercase font-bold shadow-xs">
                       <Lock className="w-2.5 h-2.5 text-amber-400" />
