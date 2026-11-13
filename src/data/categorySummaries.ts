@@ -138,7 +138,7 @@ export const CATEGORY_SUMMARIES: Record<string, CategorySummary> = {
       'Institutional COT Positioning Severity Report',
       'Contrarian Retail Sentiment & Crowded Market Gauges',
       'Multi-Asset Positioning Telemetry (Currencies, Commodities, Indices, Crypto)',
-      '100% Free and unthrottled live feeds',
+      'Live, unthrottled data feeds',
     ],
   },
   SIGNALS: {
