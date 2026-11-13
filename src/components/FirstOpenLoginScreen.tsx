@@ -79,11 +79,12 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
 }) => {
   const [step, setStep] = useState<'LOGIN' | 'CHANGE_PASSWORD' | 'LINK_STORAGE'>('LOGIN');
   // Live Gold Quote directly connected to Premium Trading category feed
-  const [goldQuote, setGoldQuote] = useState<{ price: number; change24h: number; isLive: boolean }>({
-    price: 4173.30,
-    change24h: 0.32,
+  const [goldQuote, setGoldQuote] = useState<{ price: number | null; change24h: number; isLive: boolean }>({
+    price: null, // never show an invented price: "connecting" until the first real quote arrives
+    change24h: 0,
     isLive: false,
   });
+  const fmtGold = (p: number | null) => (p == null ? '— — — —' : p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
   // Category & Announcements Scrolling Ticker Index
   const [tickerIndex, setTickerIndex] = useState(0);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -211,7 +212,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       } catch {}
     };
     syncGoldPrice();
-    const goldInterval = setInterval(syncGoldPrice, 10000);
+    const goldInterval = setInterval(syncGoldPrice, 5000);
     return () => {
       isMounted = false;
       clearInterval(goldInterval);
@@ -474,11 +475,13 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
             <span className="text-cyan-400 font-bold">XAUUSD</span>
             <span className="text-white font-mono-code font-bold tracking-tight">
-              {goldQuote.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {fmtGold(goldQuote.price)}
             </span>
-            <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${goldQuote.change24h >= 0 ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'}`}>
-              {goldQuote.change24h >= 0 ? `+${goldQuote.change24h.toFixed(2)}%` : `${goldQuote.change24h.toFixed(2)}%`}
-            </span>
+            {goldQuote.isLive && (
+              <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${goldQuote.change24h >= 0 ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'}`}>
+                {goldQuote.change24h >= 0 ? `+${goldQuote.change24h.toFixed(2)}%` : `${goldQuote.change24h.toFixed(2)}%`}
+              </span>
+            )}
           </div>
           <div className="text-slate-600">|</div>
           <div className="flex items-center gap-1 text-cyan-400 shrink-0">
@@ -487,8 +490,12 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
           </div>
           <div className="text-slate-600">|</div>
           <div className="flex items-center gap-1 text-amber-400 shrink-0">
-            <Users className="w-3 h-3" />
-            <span>{studentCount} TRADERS</span>
+            <span className="inline-flex items-center gap-[1px]" aria-hidden="true">
+              {[0, 1, 2, 3, 4].map((k) => (
+                <Star key={k} className="w-3 h-3 fill-amber-300 text-amber-300 drop-shadow-[0_0_4px_rgba(252,211,77,0.8)] ppfx-star" style={{ animationDelay: `${k * 140}ms` }} />
+              ))}
+            </span>
+            <span className="font-bold tracking-wide"><span className="sr-only">Rated </span>5.0<span className="hidden min-[400px]:inline"> · TRUSTED</span></span>
           </div>
         </div>
       </div>
@@ -622,10 +629,10 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
           </div>
           <div className="text-xl font-military font-bold text-white tracking-wider">
-            XAUUSD <span className="text-xs font-mono-code text-amber-300 font-normal">{goldQuote.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            XAUUSD <span className="text-xs font-mono-code text-amber-300 font-normal">{fmtGold(goldQuote.price)}</span>
           </div>
           <div className="text-[11px] font-mono-code text-emerald-400 flex items-center gap-1">
-            <span>{goldQuote.change24h >= 0 ? `+${goldQuote.change24h.toFixed(2)}%` : `${goldQuote.change24h.toFixed(2)}%`} Live Momentum</span>
+            <span>{goldQuote.isLive ? `${goldQuote.change24h >= 0 ? '+' : ''}${goldQuote.change24h.toFixed(2)}% Live Momentum` : 'Connecting to live feed…'}</span>
           </div>
           <div className="text-[10px] font-mono-code text-slate-500 border-t border-slate-800 pt-1 mt-0.5">
             Institutional Liquidity Sweep Verified

@@ -384,7 +384,7 @@ export async function fetchLiveGoldQuote(): Promise<{ price: number; change24h: 
       if (data.ok && typeof data.price === 'number' && data.price > 0) {
         return {
           price: data.price,
-          change24h: typeof data.change24h === 'number' ? data.change24h : 0.32,
+          change24h: typeof data.change24h === 'number' ? data.change24h : 0,
           timestamp: data.timestamp || Date.now(),
         };
       }
@@ -406,6 +406,7 @@ export async function fetchLiveGoldQuote(): Promise<{ price: number; change24h: 
     }
   } catch {}
 
-  return { price: 4173.30, change24h: 0.32, timestamp: Date.now() };
+  // Never show an invented price: callers keep their last real quote (or "connecting…") when no live source answers.
+  throw new Error('No live gold quote available');
 }
 

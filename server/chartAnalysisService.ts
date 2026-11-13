@@ -680,48 +680,49 @@ chartAnalysisRouter.get('/price', async (req, res) => {
       });
     }
 
-    let binanceTickerSym = cleanSym;
-    if (cleanSym === 'XAUUSD' || cleanSym === 'GOLD') binanceTickerSym = 'PAXGUSDT';
-    else if (cleanSym === 'EURUSD') binanceTickerSym = 'EURUSDT';
-    else if (cleanSym === 'GBPUSD') binanceTickerSym = 'GBPUSDT';
-    else if (!binanceTickerSym.endsWith('USDT') && !binanceTickerSym.endsWith('USD') && !binanceTickerSym.endsWith('BTC')) {
-      binanceTickerSym = `${binanceTickerSym}USDT`;
-    }
+    const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+    const isGold = cleanSym === 'XAUUSD' || cleanSym === 'GOLD';
+    const yahooSyms = isGold ? ['XAUUSD=X', 'GC=F'] : [mapYahooSymbol(cleanSym)].filter(Boolean) as string[];
+    let found: { price: number; change24h: number; source: string } | null = null;
 
-    try {
-      const bRes = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceTickerSym}`, {
-        headers: { Accept: 'application/json', 'User-Agent': 'PrimePipFX-Ticker/1.0' },
-      });
-      if (bRes.ok) {
-        const bData = await bRes.json();
-        const price = parseFloat(bData.lastPrice);
-        const change24h = parseFloat(bData.priceChangePercent || '0');
-        if (!isNaN(price) && price > 0) {
-          priceCache.set(cleanSym, { price, change24h, timestamp: now, source: 'binance' });
-          return res.json({
-            ok: true,
-            symbol: rawSymbol,
-            price,
-            change24h,
-            source: 'binance',
-            timestamp: now,
-          });
-        }
+    for (const ys of yahooSyms) {
+      if (found) break;
+      for (const host of ['query1', 'query2']) {
+        try {
+          const yRes = await fetch(`https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ys)}?range=1d&interval=1m`, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(4500) });
+          if (!yRes.ok) continue;
+          const meta = (await yRes.json())?.chart?.result?.[0]?.meta;
+          const price = Number(meta?.regularMarketPrice);
+          const prev = Number(meta?.chartPreviousClose ?? meta?.previousClose);
+          if (price > 0) { found = { price, change24h: prev > 0 ? ((price - prev) / prev) * 100 : 0, source: `yahoo:${ys}` }; break; }
+        } catch { /* try the next source */ }
       }
-    } catch (binErr: any) {
-      console.warn(`[CHART PRICE] Binance ticker note for ${binanceTickerSym}:`, binErr?.message);
     }
 
-    // Fallback baseline for gold if external API is unreachable
-    const fallbackPrice = cleanSym === 'XAUUSD' || cleanSym === 'GOLD' ? 4173.30 : 1.0845;
-    return res.json({
-      ok: true,
-      symbol: rawSymbol,
-      price: cached ? cached.price : fallbackPrice,
-      change24h: cached ? cached.change24h : 0.32,
-      source: 'baseline_fallback',
-      timestamp: now,
-    });
+    if (!found) {
+      let tk = cleanSym;
+      if (isGold) tk = 'PAXGUSDT';
+      else if (cleanSym === 'EURUSD') tk = 'EURUSDT';
+      else if (cleanSym === 'GBPUSD') tk = 'GBPUSDT';
+      else if (!tk.endsWith('USDT') && !tk.endsWith('USD') && !tk.endsWith('BTC')) tk = `${tk}USDT`;
+      for (const host of ['data-api.binance.vision', 'api.binance.com']) {
+        try {
+          const bRes = await fetch(`https://${host}/api/v3/ticker/24hr?symbol=${tk}`, { headers: { Accept: 'application/json', 'User-Agent': 'PrimePipFX-Ticker/1.0' }, signal: AbortSignal.timeout(4000) });
+          if (!bRes.ok) continue;
+          const bData = await bRes.json();
+          const price = parseFloat(bData.lastPrice);
+          if (price > 0) { found = { price, change24h: parseFloat(bData.priceChangePercent || '0') || 0, source: 'binance' }; break; }
+        } catch { /* next */ }
+      }
+    }
+
+    if (found) {
+      priceCache.set(cleanSym, { ...found, timestamp: now });
+      return res.json({ ok: true, symbol: rawSymbol, price: found.price, change24h: found.change24h, source: found.source, timestamp: now });
+    }
+    // No live source reachable: never invent a price. Return the last real quote (marked stale) or an error.
+    if (cached) return res.json({ ok: true, stale: true, symbol: rawSymbol, price: cached.price, change24h: cached.change24h, source: cached.source, timestamp: cached.timestamp });
+    return res.status(503).json({ ok: false, error: 'No live price source reachable' });
   } catch (error: any) {
     return res.status(500).json({ ok: false, error: error?.message || 'Failed to fetch price.' });
   }

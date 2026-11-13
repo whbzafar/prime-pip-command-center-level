@@ -1133,9 +1133,9 @@ export default function App() {
             onClose={() => setIsSubscriptionModalOpen(false)}
             onOpenLogin={() => {
               setIsSubscriptionModalOpen(false);
-              setIsLoginModalOpen(true);
+              if (currentUser || isDemoMode) setIsLoginModalOpen(true); // on the login screen, closing the plan reveals the sign-in form
             }}
-            onContinueDemo={handleEnterDemoMode}
+            onContinueDemo={() => { setIsSubscriptionModalOpen(false); void handleEnterDemoMode(); }}
           />
         </div>
       </div>,
@@ -1161,11 +1161,14 @@ export default function App() {
   // Do not open the Dashboard before authentication.
   if (!currentUser && !isDemoMode) {
     return (
-      <FirstOpenLoginScreen
-        onLoginSuccess={handleAuthenticatedUser}
-        onExploreDemo={handleEnterDemoMode}
-        onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
-      />
+      <>
+        <FirstOpenLoginScreen
+          onLoginSuccess={handleAuthenticatedUser}
+          onExploreDemo={handleEnterDemoMode}
+          onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
+        />
+        {subscriptionEl}
+      </>
     );
   }
 
