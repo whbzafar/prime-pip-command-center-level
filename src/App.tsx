@@ -1568,7 +1568,10 @@ export default function App() {
         )}
 
         {mt5Visited && (
-          <div className={activeTab === 'META5_PREMIUM' ? '' : 'hidden'}>
+          /* Keep the MT5 terminal mounted AND rendering while other tabs are open: display:none
+             froze its charts (feed kept running but the canvas stopped), so instead it is parked
+             invisible and inert at full size, and snaps back live when the tab returns. */
+          <div className={activeTab === 'META5_PREMIUM' ? '' : 'fixed top-0 left-0 w-screen h-[100dvh] overflow-hidden invisible pointer-events-none -z-50'} aria-hidden={activeTab !== 'META5_PREMIUM'}>
             <MetaTrader5Terminal />
           </div>
         )}
