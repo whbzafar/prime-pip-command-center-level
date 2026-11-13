@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Bot, Building2, CheckCircle2, ChevronDown, Coins, ExternalLink, GraduationCap, Crosshair, Landmark, Languages, Layers, Library, LineChart, Lightbulb, Target, TrendingUp, Waypoints, Loader2, MessageCircle, Search, ShieldAlert } from 'lucide-react';
+import { Play as PlayIcon, ArrowRight, Bot, Building2, CheckCircle2, ChevronDown, Coins, ExternalLink, GraduationCap, Crosshair, Landmark, Languages, Layers, Library, LineChart, Lightbulb, Target, TrendingUp, Waypoints, Loader2, MessageCircle, Search, ShieldAlert } from 'lucide-react';
+import { SBT_INDICATOR_VIDEO } from '../../config/pricing';
 import { BOT_LAUNCH, BOT_TIERS, COURSE, INDICATOR_FEE, INSTITUTIONAL, type Module } from '../../data/learningHub';
 import { INVEST_COURSES } from '../../data/invest';
 import { LESSON_UR, LEVEL_UR, MODULE_UR } from '../../data/learningHubUr';
@@ -314,6 +315,9 @@ const IndicatorSection: React.FC<{ lang: Lang }> = ({ lang }) => {
               <div className="text-4xl font-black font-mono-code text-white" dir="ltr">${INDICATOR_FEE}</div>
             </div>
             <a href="#indicator-order" className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-sky-400 to-indigo-500 text-slate-950 font-black relative overflow-hidden"><span className="ppfx-shine absolute inset-0" aria-hidden /><span className="relative" style={uf(ur)}>{T('Get access', 'رسائی حاصل کریں')}</span><ArrowRight className={`w-4 h-4 relative ${ur ? 'rotate-180' : ''}`} /></a>
+            <a href={SBT_INDICATOR_VIDEO} target="_blank" rel="noopener noreferrer" data-testid="indicator-youtube" className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl border border-rose-400/60 bg-rose-500/15 text-rose-100 font-bold hover:bg-rose-500/30">
+              <PlayIcon className="w-4 h-4 fill-current" /> {T('Watch the indicator on YouTube', 'یوٹیوب پر انڈیکیٹر دیکھیں')}
+            </a>
           </div>
         </div>
       </section>

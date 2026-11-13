@@ -14,16 +14,14 @@ export const SUBSCRIPTION_INCLUDES = [
   'Premium TradingView terminal',
   'Backtesting suite & bar replay',
   'Unlimited chart analysis',
-  'Premium signals hub',
   'Psychological Center',
   'Trading Tool Suite',
-  'MetaTrader 5 (Meta 5) terminal',
   'Trade journal, risk engine, lot-size calculator, compounding & performance lab',
 ];
 
 /** Rotating, unobtrusive labels shown in the top bar. */
 export const DEMO_LOCKED_LABELS = [
-  'Fundamentals', 'Announcements', 'Premium TradingView',   'Premium Signals', 'Psychological Center', 'Trading Tool Suite', 'MetaTrader 5',
+  'Fundamentals', 'Announcements', 'Premium TradingView', 'Psychological Center', 'Trading Tool Suite',
 ];
 
 /** Demo video of the SBT Indicator on the owner's YouTube channel. */

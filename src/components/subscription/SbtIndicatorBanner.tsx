@@ -8,18 +8,21 @@ interface Props {
   /** 'card' = highlighted announcement on the login screen; 'ticker' = scrolling banner inside the app. */
   variant?: 'card' | 'ticker';
   dismissible?: boolean;
+  /** Remember the close across visits (subscribers). Otherwise it returns next session. */
+  persistClose?: boolean;
   className?: string;
 }
 
 /** Announcement: the Prime Pip SBT Indicator is available ($500) with a link to the demo video. */
-export const SbtIndicatorBanner: React.FC<Props> = ({ variant = 'ticker', dismissible = variant === 'ticker', className = '' }) => {
+export const SbtIndicatorBanner: React.FC<Props> = ({ variant = 'ticker', dismissible = variant === 'ticker', persistClose = false, className = '' }) => {
+  const store = (): Storage => (persistClose ? localStorage : sessionStorage);
   const [closed, setClosed] = useState<boolean>(() => {
     if (!dismissible) return false;
-    try { return sessionStorage.getItem(KEY) === '1'; } catch { return false; }
+    try { return store().getItem(KEY) === '1'; } catch { return false; }
   });
   if (closed) return null;
   const buy = waLink(`Hello PrimePipFX, I want the Prime Pip SBT Indicator ($${SBT_INDICATOR_PRICE}).`);
-  const close = () => { setClosed(true); try { sessionStorage.setItem(KEY, '1'); } catch { /* storage blocked */ } };
+  const close = () => { setClosed(true); try { store().setItem(KEY, '1'); } catch { /* storage blocked */ } };
 
   if (variant === 'card') {
     return (

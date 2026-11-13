@@ -47,7 +47,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onOpenLogin,
   );
 
   return (
-    <div className="relative mx-auto w-full max-w-xl font-mono-code" data-testid="subscription-page">
+    <div className="relative mx-auto w-full max-w-2xl font-mono-code" data-testid="subscription-page">
       {onClose && (
         <button type="button" onClick={onClose} aria-label="Close" className="absolute right-0 top-0 z-10 rounded-xl border border-slate-700 bg-slate-900/80 p-2 text-slate-400 hover:text-white">
           <X className="h-4 w-4" />
@@ -102,13 +102,23 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onOpenLogin,
           )}
         </div>
 
-        <ul className="mt-5 space-y-2 border-t border-slate-800 pt-4">
-          {SUBSCRIPTION_INCLUDES.map((f) => (
-            <li key={f} className="flex items-start gap-2 text-xs text-slate-200">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" /> <span>{f}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-5 border-t border-slate-800 pt-4">
+          <div className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Everything included</div>
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {SUBSCRIPTION_INCLUDES.map((f) => {
+              const [title, ...rest] = f.split(' — ');
+              return (
+                <li key={f} className="flex items-start gap-2.5 rounded-xl border border-emerald-400/15 bg-gradient-to-br from-emerald-400/[0.07] to-cyan-400/[0.03] px-3 py-2.5">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300"><Check className="h-3 w-3" /></span>
+                  <span className="min-w-0">
+                    <span className="block text-[12px] font-bold leading-snug text-white">{title}</span>
+                    {rest.length > 0 && <span className="mt-0.5 block text-[10.5px] leading-snug text-slate-400">{rest.join(' — ')}</span>}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
 
         <a
           href={wa}

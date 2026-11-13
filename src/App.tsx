@@ -1239,7 +1239,7 @@ export default function App() {
       />
 
       {/* SBT Indicator announcement — top of the app for everyone (logged in or demo) */}
-      <SbtIndicatorBanner />
+      <SbtIndicatorBanner persistClose={hasFullAccess(currentUser)} />
 
       {/* Demo notice: the demo is limited; the only way to unlock everything is the subscription */}
       {isDemoMode && (
