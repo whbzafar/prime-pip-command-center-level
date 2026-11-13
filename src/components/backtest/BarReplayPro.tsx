@@ -600,13 +600,13 @@ export const BarReplayPro: React.FC = () => {
       </div>
 
       <div className="grid xl:grid-cols-[minmax(0,1fr)_320px] gap-3">
-        <div ref={cardRef} className={`border border-slate-800 bg-[#151517] overflow-hidden flex flex-col ${fsFallback ? 'fixed inset-0 z-[9999] rounded-none' : isFs ? 'rounded-none' : 'rounded-2xl'}`}>
+        <div ref={cardRef} className={`border border-slate-800 bg-[#151517] overflow-hidden flex flex-col ${fsFallback ? 'fixed inset-x-0 top-0 h-[100dvh] z-[9999] rounded-none' : isFs ? 'rounded-none' : 'rounded-2xl'}`}>
           <div className="flex items-center gap-2 px-2.5 py-1.5 border-b border-slate-800 text-[10.5px] font-mono-code text-slate-400 flex-wrap">
             <span className="text-slate-100 font-bold">{ticker}</span><span>{periodText}</span>
             {lastBar && <span className="hidden md:inline">Bar {new Date(lastBar.timestamp).toISOString().replace('T', ' ').slice(0, 16)} UTC · O {lastBar.open.toFixed(entry.pricePrecision ?? 2)} H {lastBar.high.toFixed(entry.pricePrecision ?? 2)} L {lastBar.low.toFixed(entry.pricePrecision ?? 2)} C <b className="text-slate-100">{lastBar.close.toFixed(entry.pricePrecision ?? 2)}</b></span>}
             <span className="hidden lg:inline text-slate-500">{source}</span>
             {/* Replay & trading controls — always here, so they work in full screen too */}
-            <div className="ml-auto flex items-center gap-1">
+            <div className="ml-auto flex items-center gap-1 max-md:w-full max-md:overflow-x-auto max-md:[&>*]:shrink-0">
               <button type="button" onClick={() => setPlaying((p) => !p)} disabled={!bars.length} title="Play / pause (Space)" className="p-1.5 rounded-md bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 disabled:opacity-40 cursor-pointer">{playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}</button>
               <button type="button" onClick={step} disabled={!bars.length} title="Next bar (→)" className="p-1.5 rounded-md bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 disabled:opacity-40 cursor-pointer"><StepForward className="w-3.5 h-3.5" /></button>
               <button type="button" onClick={() => { for (let i = 0; i < 10; i++) step(); }} disabled={!bars.length} title="Forward 10 bars" className="p-1.5 rounded-md bg-slate-900 border border-slate-700 text-slate-100 hover:border-cyan-500/50 disabled:opacity-40 cursor-pointer"><ChevronsRight className="w-3.5 h-3.5" /></button>
@@ -631,7 +631,7 @@ export const BarReplayPro: React.FC = () => {
           )}
           {error && <div className="px-3 py-2 text-[12px] text-rose-200 bg-rose-500/10 border-b border-rose-500/20 flex items-start gap-2"><span className="flex-1">{error}</span><button type="button" aria-label="Dismiss" onClick={() => setError(null)} className="text-rose-300 hover:text-white cursor-pointer"><X className="w-3.5 h-3.5" /></button></div>}
           {notice && !error && <div className="px-3 py-1.5 text-[11.5px] text-amber-200 bg-amber-500/10 border-b border-amber-500/20">{notice}</div>}
-          <div className={`relative ${fullscreen ? 'flex-1 min-h-0' : 'h-[560px]'}`}>
+          <div className={`relative ${fullscreen ? 'flex-1 min-h-0' : 'h-[420px] md:h-[560px]'}`}>
             <div ref={chartHost} className="absolute inset-0" />
             <button type="button" onClick={() => { try { chartRef.current?.scrollToRealTime(250); } catch { /* ignore */ } }}
               title="Back to the latest bar" aria-label="Back to the latest bar"

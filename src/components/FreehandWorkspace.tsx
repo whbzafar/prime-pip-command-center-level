@@ -3820,7 +3820,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
                 right: 0,
                 bottom: 0,
                 width: '100vw',
-                height: '100vh',
+                height: '100dvh',
+                backgroundColor: '#0b1220',
                 zIndex: 2147483647,
                 margin: 0,
                 padding: 0,
@@ -3838,7 +3839,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         {/* DEDICATED FULLSCREEN CONTROLS: DELETE ALL & MINIMIZE BUTTONS   */}
         {/* ============================================================== */}
         {isFullscreen && (
-          <div className="fixed top-3 right-3 z-[2147483647] pointer-events-auto flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="max-md:hidden fixed top-3 right-3 z-[2147483647] pointer-events-auto flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-150">
             {/* Dedicated Fullscreen Delete All Button (Prominent & Clear) */}
             <button
               type="button"
@@ -3874,8 +3875,8 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
         {/* ============================================================== */}
         <div
           className={`absolute top-2 left-2 ${
-            isFullscreen ? 'right-72' : 'right-2'
-          } z-50 flex items-center justify-between gap-2 pointer-events-none transition-all duration-150`}
+            isFullscreen ? 'right-2 md:right-72' : 'right-2'
+          } z-50 flex flex-wrap md:flex-nowrap items-center justify-between gap-1.5 md:gap-2 pointer-events-none transition-all duration-150 pt-[env(safe-area-inset-top,0px)]`}
         >
           {/* Top-Left: Menu, Dedicated Upload Image (Visible in Fullscreen), & Show Tools Toggle */}
           <div className="flex items-center gap-1.5 pointer-events-auto shrink-0">
@@ -3896,7 +3897,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
               className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 shadow-md shadow-indigo-600/25 flex items-center gap-1.5 transition active:scale-95 cursor-pointer backdrop-blur-md text-xs font-bold shrink-0"
             >
               <Upload className="w-4 h-4 text-white" />
-              <span className="whitespace-nowrap">Upload</span>
+              <span className="whitespace-nowrap hidden sm:inline">Upload</span>
             </button>
 
             {/* Quick Show Tools Button when toolbar is hidden */}
@@ -4101,7 +4102,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
 
           {/* Top-Center Floating Pill Toolbar (Exact Order: Pencil, Eraser, Text, Rectangle, Candles [Green & Red], Select, Hand, Delete All) */}
           {isToolbarVisible && (
-            <div className={`pointer-events-auto bg-white/95 dark:bg-slate-900/95 text-slate-700 dark:text-slate-200 border border-slate-200/90 dark:border-slate-800 shadow-xl shadow-black/10 rounded-2xl p-1 flex items-center gap-0.5 backdrop-blur-md shrink-0 max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden transition-transform duration-150 ${
+            <div className={`max-md:order-last max-md:basis-full max-md:w-full pointer-events-auto bg-white/95 dark:bg-slate-900/95 text-slate-700 dark:text-slate-200 border border-slate-200/90 dark:border-slate-800 shadow-xl shadow-black/10 rounded-2xl p-1 flex items-center gap-0.5 backdrop-blur-md shrink-0 max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden transition-transform duration-150 ${
               isFullscreen ? 'scale-[0.92] sm:scale-95 origin-top' : ''
             }`}>
               {/* 1. Pencil (F3) */}
@@ -4493,7 +4494,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
           )}
 
           {/* Top-Right: Show/Hide Tools Toggle, Prominent Download, TradingView Pro, Studio Panel, Fullscreen Toggle */}
-          <div className="pointer-events-auto flex items-center gap-2 shrink-0">
+          <div className="pointer-events-auto flex items-center gap-1 md:gap-2 shrink-0">
             {/* Auto-Save Status Badge */}
             <div
               title={`Continuous Auto-Save: ${
@@ -4538,10 +4539,10 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
               type="button"
               onClick={handleExportPNG}
               title="Download Canvas Image (PNG)"
-              className="px-4 py-2 min-w-[110px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition active:scale-95 cursor-pointer shrink-0"
+              className="px-3 sm:px-4 py-2 sm:min-w-[110px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition active:scale-95 cursor-pointer shrink-0"
             >
               <Download className="w-4 h-4 text-white" />
-              <span>Download</span>
+              <span className="hidden sm:inline">Download</span>
             </button>
 
             {/* TradingView Pro / Premium Direct Link */}
@@ -4550,7 +4551,7 @@ export const FreehandWorkspace: React.FC<FreehandWorkspaceProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               title="Open TradingView Pro / Premium Platform"
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/25 transition active:scale-95 cursor-pointer shrink-0"
+              className="max-sm:hidden px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/25 transition active:scale-95 cursor-pointer shrink-0"
             >
               <TrendingUp className="w-4 h-4 text-sky-200" />
               <span className="hidden md:inline">TradingView Pro</span>

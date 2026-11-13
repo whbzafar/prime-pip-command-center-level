@@ -192,7 +192,7 @@ const ClassicBacktestingSuite: React.FC<BacktestingSuiteProps> = ({
 
   // Chart Data State
   const [allCandles, setAllCandles] = useState<CandlestickPoint[]>([]);
-  const [isLoadingCandles, setIsLoadingCandles] = useState<boolean>(true);
+  const [isLoadingCandles, setIsLoadingCandles] = useState<boolean>(typeof window === 'undefined' || window.innerWidth >= 768);
   const [dataSourceName, setDataSourceName] = useState<string>('Twelve Data API');
   const [dataErrorMessage, setDataErrorMessage] = useState<string | null>(null);
 
@@ -229,7 +229,7 @@ const ClassicBacktestingSuite: React.FC<BacktestingSuiteProps> = ({
   const [orderLotSize, setOrderLotSize] = useState<number>(1.0);
   const [orderStopLossPips, setOrderStopLossPips] = useState<number>(25);
   const [orderTakeProfitPips, setOrderTakeProfitPips] = useState<number>(50);
-  const [isTradePanelOpen, setIsTradePanelOpen] = useState<boolean>(true);
+  const [isTradePanelOpen, setIsTradePanelOpen] = useState<boolean>(typeof window === 'undefined' || window.innerWidth >= 768);
   const [tradeToast, setTradeToast] = useState<string | null>(null);
 
   // Providers & API Keys Modal
@@ -808,7 +808,7 @@ const ClassicBacktestingSuite: React.FC<BacktestingSuiteProps> = ({
   }, [symbolCategoryFilter, symbolSearchQuery]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] min-h-[720px] bg-[#070b14] text-slate-100 overflow-hidden font-sans border border-slate-800/80 rounded-xl shadow-2xl relative">
+    <div className="flex flex-col h-[calc(100dvh-120px)] md:h-[calc(100vh-140px)] min-h-[480px] md:min-h-[720px] bg-[#070b14] text-slate-100 overflow-hidden font-sans border border-slate-800/80 rounded-xl shadow-2xl relative">
       {/* ───────────────────────────────────────────────────────────
           TOP TRADINGVIEW-STYLE HEADER TOOLBAR
           ─────────────────────────────────────────────────────────── */}
@@ -1026,7 +1026,7 @@ const ClassicBacktestingSuite: React.FC<BacktestingSuiteProps> = ({
           ─────────────────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* LEFT TOOLBAR: TRADINGVIEW DRAWING SUITE */}
-        <div className="w-11 bg-[#0a0f1c] border-r border-slate-800/80 flex flex-col items-center py-2.5 gap-2 select-none z-10 shrink-0">
+        <div className="w-11 bg-[#0a0f1c] border-r border-slate-800/80 flex flex-col items-center py-2.5 gap-2 select-none z-10 shrink-0 overflow-y-auto">
           {[
             { id: 'CURSOR' as DrawingToolType, icon: Navigation, label: 'Crosshair / Pointer' },
             { id: 'TRENDLINE' as DrawingToolType, icon: TrendingUp, label: 'Trendline' },
@@ -1164,7 +1164,7 @@ const ClassicBacktestingSuite: React.FC<BacktestingSuiteProps> = ({
 
         {/* RIGHT PANEL: SIMULATED BACKTEST EXECUTION & PERFORMANCE LEDGER */}
         {isTradePanelOpen && (
-          <div className="w-80 bg-[#0a0f1c] border-l border-slate-800/80 flex flex-col shrink-0 text-xs">
+          <div className="max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:z-30 max-md:w-[88vw] max-md:max-w-sm max-md:shadow-2xl md:w-80 bg-[#0a0f1c] border-l border-slate-800/80 flex flex-col shrink-0 text-xs overflow-y-auto">
             {/* Simulator Header */}
             <div className="px-3 py-2.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
               <div className="flex items-center gap-1.5 font-semibold text-slate-100">

@@ -174,12 +174,14 @@ export const TradingViewWorkspace: React.FC = () => {
     setState((s) => ({ ...s, layout: '4', syncSymbol: true, syncInterval: false, panes: s.panes.map((p, i) => (i < 4 ? { ticker: t, period: tfs[i] } : p)) }));
   };
 
-  const height = fullscreenActive ? 'calc(100vh - 118px)' : state.height;
+  const height = fullscreenActive ? undefined : state.height;
   const gridClass = maxIndex !== null ? 'grid-cols-1 grid-rows-1' : layout.grid;
 
   return (
-    <div ref={rootRef} className={`space-y-3 ${fullscreenActive ? 'bg-slate-950 p-3 overflow-auto' : ''} ${overlay ? 'fixed inset-0 z-[2147483000]' : ''}`}>
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/80 px-3 py-2.5 flex flex-wrap items-center gap-2">
+    <div ref={rootRef}
+      style={fullscreenActive ? { height: '100dvh', backgroundColor: '#020617' } : undefined}
+      className={`${fullscreenActive ? 'flex flex-col gap-2 p-2 md:p-3 overflow-hidden pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]' : 'space-y-3'} ${overlay ? 'fixed inset-0 z-[2147483000]' : ''}`}>
+      <div className={`rounded-2xl border border-slate-800 bg-slate-950/80 px-3 py-2.5 flex items-center gap-2 ${fullscreenActive ? 'flex-nowrap overflow-x-auto shrink-0 [&>*]:shrink-0' : 'flex-wrap'}`}>
         <span className="text-[10px] font-mono-code uppercase tracking-widest text-cyan-400 mr-1">Layout</span>
         <div className="flex gap-1">
           {LAYOUTS.map((l) => {
@@ -217,14 +219,14 @@ export const TradingViewWorkspace: React.FC = () => {
         </div>
       </div>
 
-      <InstrumentPicker active={state.panes[active].ticker} paneNo={active + 1} onPick={(t) => updatePane(active, { ...state.panes[active], ticker: t })} />
+      <div className={fullscreenActive ? 'max-md:hidden shrink-0' : ''}><InstrumentPicker active={state.panes[active].ticker} paneNo={active + 1} onPick={(t) => updatePane(active, { ...state.panes[active], ticker: t })} /></div>
 
-      <div className={`grid gap-2 ${gridClass}`} style={{ height }}>
+      <div className={`grid gap-2 ${gridClass} ${fullscreenActive ? 'flex-1 min-h-0' : ''}`} style={height ? { height } : undefined}>
         {visible.map((i) => {
           const p = state.panes[i];
           return (
             <div key={i} ref={(el) => { paneRefs.current[i] = el; }} onMouseDown={() => setActive(i)}
-              className={`flex flex-col min-h-[340px] min-w-0 overflow-hidden bg-[#151517] ${fsPane === i ? 'fixed inset-0 z-[2147483000] rounded-none border-0' : 'rounded-xl border'} ${active === i && layout.panes > 1 && maxIndex === null ? 'border-cyan-500/60' : 'border-slate-800'}`}>
+              className={`flex flex-col min-h-[220px] md:min-h-[340px] min-w-0 overflow-hidden bg-[#151517] ${fsPane === i ? 'fixed inset-x-0 top-0 h-[100dvh] z-[2147483000] rounded-none border-0' : 'rounded-xl border'} ${active === i && layout.panes > 1 && maxIndex === null ? 'border-cyan-500/60' : 'border-slate-800'}`}>
               <div className="flex items-center gap-2 px-2 py-1 border-b border-slate-800 bg-slate-950 text-[10.5px] font-mono-code">
                 <span className="text-slate-500">#{i + 1}</span>
                 <span className="text-slate-200 font-bold">{p.ticker}</span>
@@ -247,7 +249,7 @@ export const TradingViewWorkspace: React.FC = () => {
         })}
       </div>
 
-      <p className="text-[10.5px] font-mono-code text-slate-500 leading-relaxed">
+      <p className={`text-[10.5px] font-mono-code text-slate-500 leading-relaxed ${fullscreenActive ? 'hidden' : ''}`}>
         Scroll or drag the chart to the left and older bars load automatically until the first recorded data: forex & gold minute bars from 2003 and EUR/USD daily from 1973 (Dukascopy Bank SA),
         crypto from its Binance listing at every timeframe, and index/stock daily, weekly & monthly bars from their first trade (Yahoo Finance — e.g. S&P 500 from 1927; intraday from Dukascopy CFDs).
         Search any of 1,500+ instruments with the symbol button; drawing tools are on the left, indicators and screenshot in the top bar. Crypto streams live; other markets refresh every 15 s.
