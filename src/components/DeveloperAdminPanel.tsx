@@ -24,10 +24,12 @@ import {
   Trash2,
   X,
   Cpu,
+  Globe2,
 } from 'lucide-react';
 import { UserAccount, ReferralRecord, AppointmentRecord, ModerationWarning } from '../types';
 import { getStoredToken, apiChangePassword, isUserAdmin } from '../utils/authClient';
 import { MembersPanel } from './admin/MembersPanel';
+import { LiveAnalyticsPanel } from './admin/LiveAnalyticsPanel';
 import {
   saveLocalStudent,
   getLocalStudents,
@@ -47,7 +49,7 @@ interface DeveloperAdminPanelProps {
 export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ currentUser, onClose, onUserUpdated }) => {
   const isAuthorized = isUserAdmin(currentUser);
 
-  const [activeTab, setActiveTab] = useState<'MEMBERS' | 'HUB' | 'CUSTOMERS' | 'CREATE' | 'APPOINTMENTS' | 'MODERATION' | 'REFERRALS' | 'DEVELOPER_SECURITY' | 'EVOLUTION'>('MEMBERS');
+  const [activeTab, setActiveTab] = useState<'MEMBERS' | 'HUB' | 'CUSTOMERS' | 'CREATE' | 'APPOINTMENTS' | 'MODERATION' | 'REFERRALS' | 'ANALYTICS' | 'DEVELOPER_SECURITY' | 'EVOLUTION'>('MEMBERS');
   const [customers, setCustomers] = useState<UserAccount[]>([]);
   const [referrals, setReferrals] = useState<ReferralRecord[]>([]);
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
@@ -687,6 +689,18 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
         >
           <AlertTriangle className="w-4 h-4" />
           MODERATION LOGS ({moderationWarnings.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('ANALYTICS')}
+          className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
+            activeTab === 'ANALYTICS'
+              ? 'border-cyan-400 text-cyan-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Globe2 className="w-4 h-4" />
+          LIVE VISITORS
         </button>
 
         <button
@@ -1387,6 +1401,8 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       )}
 
       {/* TAB 3: REFERRALS */}
+      {activeTab === 'ANALYTICS' && <LiveAnalyticsPanel />}
+
       {activeTab === 'REFERRALS' && (
         <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
           <div className="border-b border-slate-800 pb-3">

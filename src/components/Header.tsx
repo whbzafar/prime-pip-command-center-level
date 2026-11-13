@@ -1,5 +1,3 @@
-import { RotatingFeatureLabels } from './subscription/RotatingFeatureLabels';
-import { DEMO_LOCKED_LABELS } from '../config/pricing';
 import React, { useState, useEffect } from 'react';
 import {
   Activity,
@@ -70,7 +68,8 @@ import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
 import { GlobalTimeSessionModal } from './GlobalTimeSessionModal';
 import { GlobalSearch } from './GlobalSearch';
 import { isCategoryLockedInDemo } from '../data/categorySummaries';
-import { hasFullAccess } from '../utils/authClient';
+import { CategoryShowcase } from './CategoryShowcase';
+import { hasFullAccess, isUserAdmin } from '../utils/authClient';
 
 export type MainNavTab =
   | 'DASHBOARD'
@@ -527,6 +526,15 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
+      {/* Always-visible rotating category strip (all devices, subscribed or not) */}
+      <CategoryShowcase
+        items={allNavCategories
+          .filter((c) => c.id !== 'ADMIN' || isUserAdmin(currentUser))
+          .map((c) => ({ id: c.id, name: c.label.replace(/^\d+\.\s*/, '').toLowerCase().replace(/\b\w/g, (m) => m.toUpperCase()), icon: c.icon as any, locked: isCategoryLockedInDemo(c.id, isDemoMode, currentUser) }))}
+        onSelect={(id) => switchTab(id as MainNavTab)}
+        onOpenAll={onOpenAllCategories}
+      />
+
       {/* Top Tactical Status Bar */}
       <div className={`${toolsOpen ? 'flex' : 'hidden'} md:flex px-2.5 sm:px-4 py-1 border-b border-slate-800/60 bg-[#020617] flex-wrap items-center justify-between gap-y-1 gap-x-1.5 text-[10px] font-mono-code text-slate-400`}>
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 flex-wrap">
@@ -549,12 +557,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <PenTool className="w-2.5 h-2.5 text-cyan-400" /> CANVAS
               </span>
             </button>
-          )}
-          {isDemoMode && (
-            <RotatingFeatureLabels
-              className="max-w-[46vw] sm:max-w-[260px]"
-              labels={DEMO_LOCKED_LABELS.map((l) => `${l} — with subscription`)}
-            />
           )}
 
           <span className="text-slate-700 hidden sm:inline">|</span>

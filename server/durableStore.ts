@@ -285,3 +285,6 @@ export function privateListUpdate(name: string, fn: (list: any[]) => any[]): Pro
   listQueue = p.catch(() => undefined);
   return p;
 }
+
+/** Raw Redis command (null when Redis is not connected). Used by the visitor analytics. */
+export const redisCmd = (args: (string | number)[]): Promise<any> => (durableEnabled ? cmd(args) : Promise.resolve(null));

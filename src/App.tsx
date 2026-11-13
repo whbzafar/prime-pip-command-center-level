@@ -1,6 +1,7 @@
 // Force HMR refresh
 import { LearningHub } from './components/learning/LearningHub';
 import { startInsights, trackSection } from './utils/insights';
+import { trackState, type AnalyticsState } from './services/analyticsClient';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Header } from './components/Header';
@@ -111,6 +112,7 @@ export default function App() {
   // The "Payment Verification Required" prompt: closing it, or choosing Continue with Demo, dismisses it for this session.
   const [gateDismissed, setGateDismissed] = useState<boolean>(false);
 
+
   // Modal States
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [isScreenshotImportModalOpen, setIsScreenshotImportModalOpen] = useState(false);
@@ -133,6 +135,17 @@ export default function App() {
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
+
+  // Owner analytics: which screen is open, and what kind of visitor (guest / demo / subscriber). Declared before any early return.
+  const analyticsRef = useRef<AnalyticsState>({ tab: 'LOGIN', cls: 'guest' });
+  useEffect(() => {
+    const cls: AnalyticsState['cls'] = currentUser && isUserAdmin(currentUser) ? 'admin'
+      : currentUser && hasFullAccess(currentUser) ? 'subscriber'
+      : (currentUser || isDemoMode) ? 'demo' : 'guest';
+    const next: AnalyticsState = { tab: !currentUser && !isDemoMode ? 'LOGIN' : String(activeTab), cls, user: currentUser?.username };
+    analyticsRef.current = next;
+    trackState(next, () => analyticsRef.current);
+  }, [activeTab, currentUser, isDemoMode]);
   const [lockedCategoryModal, setLockedCategoryModal] = useState<CategorySummary | null>(null);
 
   // Active Category / Tab State & Main Container Reference

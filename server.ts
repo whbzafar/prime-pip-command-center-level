@@ -43,6 +43,7 @@ import {
   localLoginLog,
   refreshRemovedMembers,
 } from "./server/authService.js";
+import { geoFromHeaders, recordPing, summary as analyticsSummary } from "./server/analytics.js";
 import { durableStatus, flushDurable, getShared, hasPendingWrites, recentLogins } from "./server/durableStore.js";
 import { waitUntil as vercelWaitUntil } from "@vercel/functions";
 import { getCustomerData, saveCustomerData } from "./server/customerDataService.js";
@@ -3799,6 +3800,24 @@ app.post('/api/auth/register', (req, res) => {
 });
 
 // Route: members & login activity for the administrator
+
+// ── Visitor analytics: public heartbeat (no IPs stored) + admin-only live summary ──
+app.post('/api/analytics/ping', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const kind = ['start', 'view', 'beat'].includes(b.kind) ? b.kind : 'beat';
+    const cls = ['guest', 'demo', 'subscriber', 'admin'].includes(b.cls) ? b.cls : 'guest';
+    const device = ['mobile', 'tablet', 'desktop'].includes(b.device) ? b.device : 'desktop';
+    await recordPing({ vid: String(b.vid || ''), sid: String(b.sid || ''), tab: String(b.tab || ''), kind, cls, user: String(b.user || ''), device }, geoFromHeaders(req.headers as any));
+  } catch { /* analytics must never break the app */ }
+  res.status(204).end();
+});
+app.get('/api/admin/analytics', requireDeveloper, async (req, res) => {
+  const days = Math.min(30, Math.max(1, Number(req.query.days) || 1));
+  res.set('Cache-Control', 'no-store');
+  res.json({ ok: true, ...(await analyticsSummary(days)) });
+});
+
 app.get('/api/admin/members', requireDeveloper, async (_req, res) => {
   const last = await getShared<Record<string, any>>('last_logins', {}, 0);
   const users = getAllCustomers().map((u) => {
