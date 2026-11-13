@@ -530,7 +530,7 @@ export const Header: React.FC<HeaderProps> = ({
       <CategoryShowcase
         items={allNavCategories
           .filter((c) => c.id !== 'ADMIN' || isUserAdmin(currentUser))
-          .map((c) => ({ id: c.id, name: c.label.replace(/^\d+\.\s*/, '').toLowerCase().replace(/\b\w/g, (m) => m.toUpperCase()), icon: c.icon as any, locked: isCategoryLockedInDemo(c.id, isDemoMode, currentUser) }))}
+          .map((c) => ({ id: c.id, name: c.label.replace(/^\d+\.\s*/, '').toLowerCase().replace(/\b\w/g, (m) => m.toUpperCase()).replace(/\bSbt\b/, 'SBT').replace(/\bTradingview\b/, 'TradingView').replace(/\bMeta 5\b/, 'Meta 5'), icon: c.icon as any, locked: isCategoryLockedInDemo(c.id, isDemoMode, currentUser) }))}
         onSelect={(id) => switchTab(id as MainNavTab)}
         onOpenAll={onOpenAllCategories}
       />
