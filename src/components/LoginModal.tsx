@@ -259,7 +259,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </p>
           </div>
 
-          {step === 'LOGIN' && <SbtIndicatorBanner dismissible={false} className="mb-4 rounded-2xl border border-amber-400/30" />}
+          {step === 'LOGIN' && <SbtIndicatorBanner variant="card" className="mb-4" />}
 
           {/* Error Alert */}
           {error && (

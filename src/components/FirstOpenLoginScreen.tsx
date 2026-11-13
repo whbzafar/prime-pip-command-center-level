@@ -433,7 +433,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         isModal
           ? 'fixed inset-0 z-[100000] overflow-y-auto bg-[#030712]/95 backdrop-blur-2xl'
           : 'min-h-screen min-h-[100dvh] relative'
-      } w-full bg-[#030712] text-slate-100 flex flex-col items-center justify-start sm:justify-center p-2.5 sm:p-6 pt-3 sm:pt-6 overflow-x-hidden selection:bg-cyan-500/30 selection:text-cyan-200`}
+      } w-full bg-[#030712] text-slate-100 flex flex-col items-center justify-start sm:[justify-content:safe_center] p-2.5 sm:p-6 pt-3 sm:pt-6 overflow-x-hidden selection:bg-cyan-500/30 selection:text-cyan-200`}
       style={{ perspective: '1200px' }}
     >
       {/* Modal Dismiss / Close button if rendered as a modal */}
@@ -707,7 +707,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
               <picture>
                 <source type="image/webp" srcSet="/assets/you-can-do-it-720.webp 720w, /assets/you-can-do-it-1280.webp 1280w" sizes="(min-width: 640px) 448px, 100vw" />
                 <img src="/assets/you-can-do-it-1280.jpg" alt="You can do it" width={1280} height={716} decoding="async" fetchPriority="high"
-                  className="block w-full aspect-[16/9] object-cover ppfx-hero-drift" />
+                  className="block w-full aspect-[16/9] max-h-[34vh] sm:max-h-[38vh] object-cover object-top ppfx-hero-drift" />
               </picture>
               {/* motion: sun rays, flare, the rising soul, golden motes */}
               <HeroMotion src="/assets/you-can-do-it-1280.jpg" />
@@ -781,7 +781,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
             </div>
 
             {/* SBT Indicator announcement */}
-            <SbtIndicatorBanner dismissible={false} className="mb-4 rounded-2xl border border-amber-400/30" />
+            <SbtIndicatorBanner variant="card" className="mb-4" />
 
             {/* Error Alert Banner */}
             {error && (

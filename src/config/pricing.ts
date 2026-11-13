@@ -23,6 +23,9 @@ export const SUBSCRIPTION_INCLUDES = [
 
 /** Rotating, unobtrusive labels shown in the top bar. */
 export const DEMO_LOCKED_LABELS = [
-  'Fundamentals', 'Announcements', 'Premium TradingView', 'Backtesting', 'Chart Analysis',
-  'Premium Signals', 'Psychological Center', 'Trading Tool Suite', 'MetaTrader 5',
+  'Fundamentals', 'Announcements', 'Premium TradingView',   'Premium Signals', 'Psychological Center', 'Trading Tool Suite', 'MetaTrader 5',
 ];
+
+/** Demo video of the SBT Indicator on the owner's YouTube channel. */
+export const SBT_INDICATOR_VIDEO = 'https://www.youtube.com/live/lHpO4tQorW0?si=UkT9gBSAXRXcuriL';
+export const SBT_INDICATOR_VIDEO_LABEL = 'Watch the SBT Indicator in action (YouTube)';

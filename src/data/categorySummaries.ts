@@ -34,6 +34,9 @@ export const ALLOWED_DEMO_CATEGORIES: string[] = [
   'PRO_LEARNING',
   'BOOK_SESSION',
   'SETTINGS',
+  'BACKTESTING',
+  'BACKTEST_REPLAY',
+  'CHART_ANALYSIS',
 ];
 
 /** Categories that are locked for everybody who is not a subscriber (the demo, or a signed-in account that has not paid). */
