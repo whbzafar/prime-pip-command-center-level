@@ -13,7 +13,7 @@ import { ExternalLink, Maximize2, Minimize2, RefreshCw, Link2, Building2, X } fr
 // The modern terminal (web.metatrader.app) hangs on login when embedded in another site, so the
 // embedded default is MetaQuotes' classic shared terminal, which works in a frame. The modern one
 // is offered as a new-tab link.
-const DEFAULT_URL = 'https://metatraderweb.app/trade?demo_all_servers=1&startup_version=5&lang=en&save_password=off';
+const DEFAULT_URL = 'https://metatraderweb.app/trade?demo_all_servers=1&startup_version=5&lang=en&save_password=on';
 const MODERN_URL = 'https://web.metatrader.app/terminal';
 const LS_KEY = 'ppfx_mt5_broker_link_v2';
 

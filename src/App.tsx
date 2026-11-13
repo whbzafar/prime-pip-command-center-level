@@ -99,6 +99,10 @@ const TabFallback = () => (
 export default function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<MainNavTab>('DASHBOARD');
+  // Once the MT5 terminal has been opened, keep it mounted (hidden) across tab switches so the
+  // user's MT5 session survives navigating the app instead of asking for login again.
+  const [mt5Visited, setMt5Visited] = useState(false);
+  useEffect(() => { if (activeTab === 'META5_PREMIUM') setMt5Visited(true); }, [activeTab]);
   // Health + usage signals (errors on screen, which sections are opened). Declared up here: hooks must run before any early return.
   useEffect(() => { startInsights(); }, []);
   useEffect(() => { trackSection(String(activeTab)); }, [activeTab]);
@@ -1563,8 +1567,10 @@ export default function App() {
           </TabErrorBoundary>
         )}
 
-        {activeTab === 'META5_PREMIUM' && (
-          <MetaTrader5Terminal />
+        {mt5Visited && (
+          <div className={activeTab === 'META5_PREMIUM' ? '' : 'hidden'}>
+            <MetaTrader5Terminal />
+          </div>
         )}
 
         {(activeTab === 'DAILY_DEV' || activeTab === 'IMPROVEMENT') && (
