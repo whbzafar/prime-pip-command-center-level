@@ -3,7 +3,7 @@ import { Check, CheckCircle2, Crown, Loader2, MessageCircle, Tag, X } from 'luci
 import { apiCheckReferral, getStoredReferral, setStoredReferral } from '../utils/authClient';
 import { UserAccount } from '../types';
 import {
-  DISCOUNT_PERCENT, OWNER_WHATSAPP_DISPLAY, PRICE_STANDARD, PRICE_WITH_CODE, SUBSCRIPTION_INCLUDES, waLink,
+  BUNDLE_OFFER_END_LABEL, SBT_INDICATOR_PRICE, bundleOfferDaysLeft, bundleOfferWaLink, isBundleOfferActive, DISCOUNT_PERCENT, OWNER_WHATSAPP_DISPLAY, PRICE_STANDARD, PRICE_WITH_CODE, SUBSCRIPTION_INCLUDES, waLink,
 } from '../config/pricing';
 
 interface SubscriptionPageProps {
@@ -59,6 +59,22 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onOpenLogin,
         <h2 className="font-military text-lg font-bold uppercase tracking-wider text-white sm:text-xl">PrimePipFX Subscription</h2>
         <p className="mt-1 text-xs text-slate-400">One plan. Full access to the Command Center.</p>
       </div>
+
+      {isBundleOfferActive() && (
+        <div data-testid="bundle-offer" className="ppfx-sbt-glow mb-4 overflow-hidden rounded-3xl border border-emerald-300/60 bg-gradient-to-br from-emerald-500/20 via-slate-950 to-amber-400/15 p-4 text-center sm:p-5">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400 px-3 py-0.5 text-[10px] font-extrabold uppercase tracking-widest text-slate-950">🎁 Launch offer · ends {BUNDLE_OFFER_END_LABEL}</div>
+          <h3 className="mt-2 font-military text-base font-bold leading-snug text-white sm:text-lg">Buy the Prime Pip SBT Indicator<br className="sm:hidden" /> — get the full terminal <span className="text-emerald-300">FREE</span></h3>
+          <div className="mt-2 flex items-end justify-center gap-2">
+            <span className="text-4xl font-black text-white">${SBT_INDICATOR_PRICE}</span>
+            <span className="pb-1 text-xs text-slate-400">one-time · Command Center included</span>
+          </div>
+          <p className="mt-1 text-[11px] text-emerald-100/80">You save the ${PRICE_STANDARD} subscription{bundleOfferDaysLeft() <= 30 ? ` · only ${bundleOfferDaysLeft()} day${bundleOfferDaysLeft() === 1 ? '' : 's'} left` : ''}.</p>
+          <a href={bundleOfferWaLink()} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-emerald-400 py-3 text-sm font-extrabold uppercase tracking-wider text-slate-950 hover:brightness-110 sm:w-auto sm:px-8">
+            <MessageCircle className="h-4 w-4" /> Claim the offer on WhatsApp
+          </a>
+          <p className="mt-2 text-[10px] text-slate-500">Prefer just the terminal? The standard plan is below.</p>
+        </div>
+      )}
 
       <div className="rounded-3xl border border-amber-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-5 shadow-2xl sm:p-6">
         <div className="flex items-end justify-center gap-3">

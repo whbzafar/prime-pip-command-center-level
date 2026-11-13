@@ -27,3 +27,14 @@ export const DEMO_LOCKED_LABELS = [
 /** Demo video of the SBT Indicator on the owner's YouTube channel. */
 export const SBT_INDICATOR_VIDEO = 'https://www.youtube.com/live/lHpO4tQorW0?si=UkT9gBSAXRXcuriL';
 export const SBT_INDICATOR_VIDEO_LABEL = 'Watch the SBT Indicator in action (YouTube)';
+
+/**
+ * LAUNCH OFFER — buy the SBT Indicator ($500) and the full Command Center is included at no extra cost.
+ * Valid until 1 January 2027 (00:00, Pakistan time); it disappears everywhere on its own after that.
+ */
+export const BUNDLE_OFFER_ENDS_AT = Date.parse('2027-01-01T00:00:00+05:00');
+export const BUNDLE_OFFER_END_LABEL = '1 January 2027';
+export const isBundleOfferActive = (now = Date.now()) => now < BUNDLE_OFFER_ENDS_AT;
+export const bundleOfferDaysLeft = (now = Date.now()) => Math.max(0, Math.ceil((BUNDLE_OFFER_ENDS_AT - now) / 86400000));
+export const BUNDLE_OFFER_HEADLINE = `Buy the SBT Indicator for $${SBT_INDICATOR_PRICE} and get the full Command Center FREE`;
+export const bundleOfferWaLink = () => waLink(`Hello PrimePipFX, I want the launch offer: SBT Indicator ($${SBT_INDICATOR_PRICE}) with the Command Center included free.`);
