@@ -46,8 +46,9 @@ export const MetaTrader5Terminal: React.FC = () => {
     try { localStorage.setItem(LS_KEY, JSON.stringify({ server: s, login: login.trim() })); } catch { /* ignore */ }
     setUrl(brokerUrl(s, login));
     setNonce((n) => n + 1);
+    setFull(true);
   };
-  const openDemo = () => { setUrl(GENERIC_URL); setNonce((n) => n + 1); };
+  const openDemo = () => { setUrl(GENERIC_URL); setNonce((n) => n + 1); setFull(true); };
   const activeUrl = url || '';
 
   return (
@@ -57,15 +58,16 @@ export const MetaTrader5Terminal: React.FC = () => {
     >
       <div className={`flex flex-wrap items-center gap-2 px-3 py-2 border-b border-slate-800 bg-slate-950 ${full ? 'pt-[max(0.5rem,env(safe-area-inset-top))]' : ''}`}>
         {/* The app's fixed Announcements / bell / sound buttons sit top-right: keep the title row clear of them */}
-        <div className="w-full flex items-center gap-2 pr-36 sm:pr-64">
+        <div className={`w-full flex items-center gap-2 ${full ? 'hidden' : 'pr-36 sm:pr-64'}`}>
           <span className="text-sm font-bold text-white">MetaTrader 5</span>
           <span className="text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">OFFICIAL · LIVE</span>
           <span className="hidden md:flex items-center gap-1 text-[11px] text-slate-400"><ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Password is typed only inside MT5, never sent to us</span>
         </div>
-        <div className="flex items-center gap-1.5 w-full flex-wrap">
+        <div className={`flex items-center gap-1.5 w-full flex-wrap ${full ? "pr-36 sm:pr-64" : ""}`}>
+          {full && <span className="text-xs font-bold text-white mr-1">MT5</span>}
           <div className="flex rounded-lg overflow-hidden border border-slate-700 text-xs font-bold">
-            <button type="button" onClick={() => setMode('broker')} className={`px-3 py-1.5 cursor-pointer ${mode === 'broker' ? 'bg-cyan-500 text-slate-950' : 'bg-slate-900 text-slate-300'}`}>My broker</button>
-            <button type="button" onClick={() => setMode('demo')} className={`px-3 py-1.5 cursor-pointer ${mode === 'demo' ? 'bg-cyan-500 text-slate-950' : 'bg-slate-900 text-slate-300'}`}>MetaQuotes demo</button>
+            <button type="button" onClick={() => { setMode('broker'); setFull(false); }} className={`px-3 py-1.5 cursor-pointer ${mode === 'broker' ? 'bg-cyan-500 text-slate-950' : 'bg-slate-900 text-slate-300'}`}>My broker</button>
+            <button type="button" onClick={() => { setMode('demo'); if (url !== GENERIC_URL) { setUrl(null); setFull(false); } }} className={`px-3 py-1.5 cursor-pointer ${mode === 'demo' ? 'bg-cyan-500 text-slate-950' : 'bg-slate-900 text-slate-300'}`}>MetaQuotes demo</button>
           </div>
           {url && <>
             <button type="button" onClick={() => setNonce((n) => n + 1)} title="Reload terminal" className="p-1.5 rounded-lg border border-slate-700 text-slate-300 hover:text-white cursor-pointer"><RefreshCw className="w-4 h-4" /></button>
@@ -77,7 +79,7 @@ export const MetaTrader5Terminal: React.FC = () => {
         </div>
       </div>
 
-      {mode === 'broker' && (
+      {mode === 'broker' && !full && (
         <form onSubmit={connect} className="px-3 py-3 border-b border-slate-800 bg-slate-900/60 grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] items-end">
           <label className="text-[11px] text-slate-400">Broker MT5 server name (exact, from your broker's email or website)
             <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 focus-within:border-cyan-400">
@@ -97,7 +99,7 @@ export const MetaTrader5Terminal: React.FC = () => {
           </p>
         </form>
       )}
-      {mode === 'demo' && !url && (
+      {mode === 'demo' && !url && !full && (
         <div className="px-3 py-3 border-b border-slate-800 bg-slate-900/60 flex items-center gap-3 flex-wrap">
           <span className="text-[12px] text-slate-300">Practice with a free MetaQuotes demo account (the generic terminal only supports MetaQuotes-Demo).</span>
           <button type="button" onClick={openDemo} className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 font-bold text-sm cursor-pointer">Open demo terminal</button>
@@ -111,12 +113,12 @@ export const MetaTrader5Terminal: React.FC = () => {
           src={url}
           allow="clipboard-read; clipboard-write; fullscreen; autoplay"
           allowFullScreen
-          className={`w-full border-0 bg-white ${full ? 'flex-1 min-h-0' : 'h-[78dvh] min-h-[560px]'}`}
+          className={`w-full border-0 bg-white ${full ? 'flex-1 min-h-0' : 'h-[calc(100dvh-220px)] min-h-[560px]'}`}
         />
       ) : (
         <div className="flex-1 px-4 py-10 text-center text-sm text-slate-400">Enter your broker's MT5 server above and press <b className="text-slate-200">Connect</b>.</div>
       )}
-      <div className="px-3 py-2 border-t border-slate-800 bg-slate-950 text-[11px] text-slate-400 leading-relaxed">
+      <div className={`px-3 py-2 border-t border-slate-800 bg-slate-950 text-[11px] text-slate-400 leading-relaxed ${full ? 'hidden' : ''}`}>
         If the embedded terminal keeps loading (some browsers block third-party sessions), press <b className="text-slate-200">Open in new tab</b>: the same MT5 terminal runs there on phone and PC. Trading involves risk of loss; PrimePipFX does not hold your funds or credentials.
       </div>
     </div>
