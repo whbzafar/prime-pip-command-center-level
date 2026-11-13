@@ -135,7 +135,14 @@ export const CommunicationNotifications: React.FC<CommunicationNotificationsProp
     return () => { window.removeEventListener('scroll', onScroll); document.documentElement.classList.remove('ppfx-float-away'); };
   }, []);
 
-  if (!currentUser) return null;
+  if (!currentUser) {
+    // Guest / demo: only the Pakistan-news announcements are available.
+    return (
+      <div className="ppfx-global-float fixed top-[calc(env(safe-area-inset-top,0px)+0.75rem)] right-[calc(env(safe-area-inset-right,0px)+0.75rem)] z-[80] flex items-center gap-1.5">
+        <DemoAnnouncements onOpenSubscription={onOpenSubscription} />
+      </div>
+    );
+  }
 
   const unread = notifications.filter((item) => !item.read_at).length;
 
