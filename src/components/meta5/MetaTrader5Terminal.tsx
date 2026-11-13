@@ -38,6 +38,7 @@ export const MetaTrader5Terminal: React.FC = () => {
   const [url, setUrl] = useState<string | null>(null);
   const [full, setFull] = useState(false);
   const [nonce, setNonce] = useState(0);
+  const [help, setHelp] = useState(false);
 
   const connect = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -69,6 +70,7 @@ export const MetaTrader5Terminal: React.FC = () => {
             <button type="button" onClick={() => { setMode('broker'); setFull(false); }} className={`px-3 py-1.5 cursor-pointer ${mode === 'broker' ? 'bg-cyan-500 text-slate-950' : 'bg-slate-900 text-slate-300'}`}>My broker</button>
             <button type="button" onClick={() => { setMode('demo'); if (url !== GENERIC_URL) { setUrl(null); setFull(false); } }} className={`px-3 py-1.5 cursor-pointer ${mode === 'demo' ? 'bg-cyan-500 text-slate-950' : 'bg-slate-900 text-slate-300'}`}>MetaQuotes demo</button>
           </div>
+          <button type="button" onClick={() => setHelp((h) => !h)} className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold cursor-pointer ${help ? 'border-amber-300 bg-amber-400 text-slate-950' : 'border-amber-400/60 bg-amber-500/15 text-amber-100'}`}>How to use</button>
           {url && <>
             <button type="button" onClick={() => setNonce((n) => n + 1)} title="Reload terminal" className="p-1.5 rounded-lg border border-slate-700 text-slate-300 hover:text-white cursor-pointer"><RefreshCw className="w-4 h-4" /></button>
             <a href={activeUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-sky-400/60 bg-sky-500/15 text-sky-100 text-xs font-bold"><ExternalLink className="w-3.5 h-3.5" /> Open in new tab</a>
@@ -79,6 +81,12 @@ export const MetaTrader5Terminal: React.FC = () => {
         </div>
       </div>
 
+      {help && (
+        <div className="px-3 py-2.5 border-b border-amber-500/30 bg-amber-500/10 text-[12px] text-amber-50 leading-relaxed grid gap-1 sm:grid-cols-2">
+          <p><b>Add gold, indices, forex, oil:</b> open the Market Watch (symbol list) inside MT5, use its search / "+" box, type the symbol (e.g. XAUUSD, US30, EURUSD, USOIL) and add it. The list shows only what your broker's server offers; names can differ by broker (e.g. GOLD, XAUUSDm).</p>
+          <p><b>Resize the chart:</b> drag up/down on the price scale (right edge) to stretch vertically; drag left/right on the time scale (bottom) or use the mouse wheel / + − to widen candles; on a phone, pinch with two fingers. Drag the chart itself to move it.</p>
+        </div>
+      )}
       {mode === 'broker' && !full && (
         <form onSubmit={connect} className="px-3 py-3 border-b border-slate-800 bg-slate-900/60 grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] items-end">
           <label className="text-[11px] text-slate-400">Broker MT5 server name (exact, from your broker's email or website)
