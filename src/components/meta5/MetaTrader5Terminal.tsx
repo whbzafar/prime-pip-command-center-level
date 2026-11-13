@@ -10,7 +10,11 @@ import { ExternalLink, Maximize2, Minimize2, RefreshCw, Link2, Building2, X } fr
  * MetaQuotes-Demo accounts, and each broker hands out its own terminal link. The "Broker" button
  * lets a user switch this screen to their broker's link (remembered on the device).
  */
-const DEFAULT_URL = 'https://web.metatrader.app/terminal';
+// The modern terminal (web.metatrader.app) hangs on login when embedded in another site, so the
+// embedded default is MetaQuotes' classic shared terminal, which works in a frame. The modern one
+// is offered as a new-tab link.
+const DEFAULT_URL = 'https://metatraderweb.app/trade?demo_all_servers=1&startup_version=5&lang=en&save_password=off';
+const MODERN_URL = 'https://web.metatrader.app/terminal';
 const LS_KEY = 'ppfx_mt5_broker_link_v2';
 
 const cleanLink = (raw: string): string | null => {
@@ -59,6 +63,7 @@ export const MetaTrader5Terminal: React.FC = () => {
         <div className="ml-auto flex items-center gap-1.5">
           <button type="button" onClick={() => setShowBroker((v) => !v)} title="Use your broker's MT5 web terminal" className={`${btn} ${showBroker ? 'border-amber-300 bg-amber-400 text-slate-950' : 'border-amber-400/60 bg-amber-500/15 text-amber-100'}`}><Building2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Broker</span></button>
           <button type="button" onClick={() => setNonce((n) => n + 1)} title="Reload terminal" aria-label="Reload terminal" className={`${btn} border-slate-700 text-slate-300 hover:text-white`}><RefreshCw className="w-3.5 h-3.5" /></button>
+          <a href={MODERN_URL} target="_blank" rel="noopener noreferrer" title="Open the newest MT5 web terminal in a new tab" className={`${btn} border-emerald-400/60 bg-emerald-500/15 text-emerald-100`}><ExternalLink className="w-3.5 h-3.5" /> <span className="hidden sm:inline">New MT5</span></a>
           <a href={url} target="_blank" rel="noopener noreferrer" title="Open in a new tab" className={`${btn} border-sky-400/60 bg-sky-500/15 text-sky-100`}><ExternalLink className="w-3.5 h-3.5" /> <span className="hidden sm:inline">New tab</span></a>
           <button type="button" onClick={() => setFull((f) => !f)} className={`${btn} border-cyan-400/60 bg-cyan-500/15 text-cyan-100`}>
             {full ? <><Minimize2 className="w-3.5 h-3.5" /> Exit</> : <><Maximize2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Full screen</span></>}
@@ -74,7 +79,7 @@ export const MetaTrader5Terminal: React.FC = () => {
               className="flex-1 min-w-0 bg-transparent text-sm text-white outline-none" />
           </div>
           <button type="submit" disabled={!valid} className="px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-400 text-slate-950 font-bold text-xs disabled:opacity-40 cursor-pointer">Use this broker</button>
-          {brokerUrl && <button type="button" onClick={useDefault} className="px-3 py-2 rounded-lg border border-slate-700 text-slate-200 font-bold text-xs cursor-pointer">Back to MetaQuotes demo</button>}
+          {brokerUrl && <button type="button" onClick={useDefault} className="px-3 py-2 rounded-lg border border-slate-700 text-slate-200 font-bold text-xs cursor-pointer">Back to default terminal</button>}
           <button type="button" onClick={() => setShowBroker(false)} aria-label="Close" className="p-2 rounded-lg text-slate-400 hover:text-white cursor-pointer"><X className="w-4 h-4" /></button>
           <p className="w-full text-[11px] text-slate-400 leading-relaxed">Every broker has its own MT5 web-terminal link for its demo and real accounts (find it on the broker's website or client area). It is remembered on this device. If the window stays blank the broker blocks embedding: use New tab.</p>
         </form>
