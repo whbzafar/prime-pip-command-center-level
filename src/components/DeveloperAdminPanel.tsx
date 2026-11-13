@@ -55,7 +55,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedText, setCopiedText] = useState<string | null>(null);
-  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(true);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<string | null>(null);
 
   // Reschedule state modal
@@ -76,10 +76,10 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
   const [newPassword, setNewPassword] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newReferralCode, setNewReferralCode] = useState('');
-  const [newPrice, setNewPrice] = useState<number>(55);
-  const [newIsLifetime, setNewIsLifetime] = useState<boolean>(false);
+  const [newPrice, setNewPrice] = useState<number>(200);
+  const [newIsLifetime, setNewIsLifetime] = useState<boolean>(true);
   const [newPaymentStatus, setNewPaymentStatus] = useState<'UNPAID' | 'PENDING' | 'VERIFIED'>('VERIFIED');
-  const [newStatus, setNewStatus] = useState<'ACTIVE' | 'PAYMENT_REQUIRED' | 'LIFETIME'>('ACTIVE');
+  const [newStatus, setNewStatus] = useState<'ACTIVE' | 'PAYMENT_REQUIRED' | 'LIFETIME'>('LIFETIME');
   const [newNotes, setNewNotes] = useState('');
   const [createdCredentialMessage, setCreatedCredentialMessage] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -327,18 +327,16 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       console.warn('Backend server unavailable, student registered locally for Vercel:', err);
     }
 
-    const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://primepipfx.vercel.app';
+    const originUrl = 'https://primepipfx.site';
     const directLoginLink = `${originUrl}/?activate=${encodeURIComponent(newUsername.trim().toLowerCase())}&key=${encodeURIComponent(assignedPassword)}`;
 
     const msg = `*PrimePipFX Trading Command Center Login Credentials*\n\n` +
       `Assalam o Alaikum ${newName.trim()}! Your account has been activated.\n\n` +
       `• *Username:* ${newUsername.trim()}\n` +
       `• *Password:* ${assignedPassword}\n` +
-      `• *Status:* ${newStatus}\n` +
-      `• *Access Type:* ${newIsLifetime ? 'LIFETIME ACCESS' : 'Standard 30-Day Active'}\n` +
-      `• *Your Personal Referral Code:* ${assignedRefCode}\n\n` +
+      `• *Status:* ${newStatus === 'LIFETIME' ? 'ACTIVE' : newStatus}\n` +
+      `• *Access Type:* ${newIsLifetime ? 'Lifetime Active' : 'Active (30 days)'}\n\n` +
       `🚀 *1-Click Instant Login Link (No typing required):*\n${directLoginLink}\n\n` +
-      `_Rule: If you refer another trader who joins, you get Lifetime Free Access!_\n\n` +
       `WhatsApp Support: 03406671495`;
 
     setCreatedCredentialMessage(msg);
@@ -1324,30 +1322,11 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-slate-300 font-bold block mb-1">Referral Code Used</label>
-                <input
-                  type="text"
-                  value={newReferralCode}
-                  onChange={(e) => {
-                    const code = e.target.value.toUpperCase();
-                    setNewReferralCode(code);
-                    if (code.trim()) {
-                      setNewPrice(40); // Auto $40 with referral
-                    } else {
-                      setNewPrice(50);
-                    }
-                  }}
-                  placeholder="e.g. PPFX-TARIQ-123"
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none uppercase font-bold"
-                />
-              </div>
-
-              <div>
                 <label className="text-slate-300 font-bold block mb-1">Subscription Price ($)</label>
                 <input
                   type="number"
                   value={newPrice}
-                  onChange={(e) => setNewPrice(parseFloat(e.target.value) || 50)}
+                  onChange={(e) => setNewPrice(parseFloat(e.target.value) || 200)}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none font-bold"
                 />
               </div>
@@ -1378,8 +1357,8 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                   }}
                   className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:border-cyan-400 focus:outline-none"
                 >
+                  <option value="LIFETIME">LIFETIME ACTIVE (Never Expires)</option>
                   <option value="ACTIVE">ACTIVE (Standard 30-Day Period)</option>
-                  <option value="LIFETIME">LIFETIME ACCESS (Never Expires)</option>
                   <option value="PAYMENT_REQUIRED">PAYMENT REQUIRED</option>
                 </select>
               </div>
@@ -1416,7 +1395,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
               REFERRALS & LIFETIME ACCESS AUDITOR
             </h2>
             <p className="text-xs text-slate-400 font-mono-code mt-0.5">
-              Rule: When a referred customer pays and is activated by the Developer, the referrer automatically receives <span className="text-cyan-400 font-bold">LIFETIME FREE ACCESS</span>.
+              Log of referral codes used at sign-up.
             </p>
           </div>
 
