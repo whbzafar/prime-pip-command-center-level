@@ -2748,3 +2748,9 @@ html[data-theme] :is([class*="bg-slate-9"], .prime-card, .prime-card-elevated).s
 @keyframes ppfx-star { 0%,100% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.18); filter: brightness(1.35); } }
 .ppfx-star { animation: ppfx-star 2.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .ppfx-star { animation: none; } }
+
+/* Phone performance: no GPU-heavy blur, no endless decorative animations */
+@media (max-width: 768px) {
+  .backdrop-blur-sm, .backdrop-blur, .backdrop-blur-md, .backdrop-blur-lg, .backdrop-blur-xl { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  .ppfx-sbt-glow, .ppfx-star { animation: none !important; }
+}

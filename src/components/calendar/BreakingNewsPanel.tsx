@@ -18,13 +18,13 @@ const ago = (t: number) => {
 const pkt = (t: number) => new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Karachi', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(t));
 const CATS = ['All', 'Geopolitics', 'Central banks', 'Economic data', 'Trade & sanctions', 'Politics', 'Commodities', 'Crypto', 'Markets', 'World'];
 
-export const BreakingNewsPanel: React.FC = () => {
+export const BreakingNewsPanel: React.FC<{ initialCat?: string }> = ({ initialCat = 'All' }) => {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [updatedAt, setUpdatedAt] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [impact, setImpact] = useState<'ALL' | 'HIGH' | 'MEDIUM'>('ALL');
-  const [cat, setCat] = useState('All');
+  const [cat, setCat] = useState(initialCat);
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<NewsItem | null>(null);
   const [, tick] = useState(0);

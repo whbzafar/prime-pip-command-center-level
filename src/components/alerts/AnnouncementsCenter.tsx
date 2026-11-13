@@ -8,6 +8,7 @@
  *    (works while the app is open in a tab or installed as an app). Mute / unmute any time.
  * A red badge shows how many new items arrived since the panel was last opened.
  */
+import { NewsHub } from './NewsHub';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, BellRing, BellOff, ExternalLink, FileDown, Flame, Megaphone, RefreshCw, Trash2, Volume2, X } from 'lucide-react';
 import { SOUNDS, playSound, type SoundId } from '../../utils/alertSounds';
@@ -192,7 +193,7 @@ export const AnnouncementsCenter: React.FC = () => {
             <button type="button" onClick={() => setOpen(false)} className="ml-auto p-1 text-slate-400 hover:text-white cursor-pointer" aria-label="Close"><X className="w-4 h-4" /></button>
           </div>
           <div className="flex gap-1 px-3 pt-2">
-            {([['FUNDAMENTALS', `Long-term${levelHits ? ` · ${levelHits} setup${levelHits > 1 ? 's' : ''}` : ''}`], ['PICKS', 'Stocks & indices'], ['PAKISTAN', 'Pakistan'], ['ANNOUNCEMENTS', `Important${visibleAnns.length + highlights.length ? ` (${visibleAnns.length + highlights.length})` : ''}`], ['ALERTS', `Alerts${alerts.length ? ` (${alerts.length})` : ''}`]] as const).map(([k, l]) => (
+            {([['FUNDAMENTALS', `Long-term${levelHits ? ` · ${levelHits} setup${levelHits > 1 ? 's' : ''}` : ''}`], ['PICKS', 'Stocks & indices'], ['PAKISTAN', 'News'], ['ANNOUNCEMENTS', `Important${visibleAnns.length + highlights.length ? ` (${visibleAnns.length + highlights.length})` : ''}`], ['ALERTS', `Alerts${alerts.length ? ` (${alerts.length})` : ''}`]] as const).map(([k, l]) => (
               <button key={k} type="button" onClick={() => setTab(k)} className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer ${tab === k ? 'bg-violet-500/20 border border-violet-400/50 text-violet-100' : 'text-slate-400 hover:text-white border border-transparent'}`}>{l}</button>
             ))}
           </div>
@@ -220,7 +221,7 @@ export const AnnouncementsCenter: React.FC = () => {
               </>
             )}
 
-            {tab === 'PAKISTAN' && <PakistanNewsView compact />}
+            {tab === 'PAKISTAN' && <NewsHub />}
             {tab === 'PICKS' && <StockPicksPanel onOpen={() => setOpen(false)} />}
 
             {tab === 'ANNOUNCEMENTS' && (

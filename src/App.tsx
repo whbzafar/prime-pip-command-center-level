@@ -1,5 +1,4 @@
 // Force HMR refresh
-import { LearningHub } from './components/learning/LearningHub';
 import { startInsights, trackSection } from './utils/insights';
 import { trackState, type AnalyticsState } from './services/analyticsClient';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -7,13 +6,7 @@ import { createPortal } from 'react-dom';
 import { Header } from './components/Header';
 import { MainDashboard } from './components/MainDashboard';
 import { TradeJournal } from './components/TradeJournal';
-import { PerformanceLab } from './components/PerformanceLab';
-import { PsychologyCenter } from './components/PsychologyCenter';
 import { RiskCenter, TradeLimitAlertSystem } from './components/RiskCenter';
-import { AiTradingCoach } from './components/AiTradingCoach';
-import { GoalsProgress } from './components/GoalsProgress';
-import { CompoundingEngine } from './components/CompoundingEngine';
-import { PersonalImprovementHub } from './components/PersonalImprovementHub';
 import { MainNavTab } from './components/Header';
 import { TradeEntryModal } from './components/TradeEntryModal';
 import { TradingViewScreenshotImportModal } from './components/TradingViewScreenshotImportModal';
@@ -24,7 +17,6 @@ import { DataBackupModal } from './components/DataBackupModal';
 import { initialRules, initialGoals } from './data/initialTrades';
 import { Trade, TradingRule, TradingGoal, AccountSettings, UserAccount } from './types';
 import { calculateDashboardMetrics } from './utils/tradeAnalytics';
-import { LotSizeCalculator } from './components/LotSizeCalculator';
 import { LoginModal } from './components/LoginModal';
 import { FirstOpenLoginScreen } from './components/FirstOpenLoginScreen';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -33,31 +25,16 @@ import { SubscriptionPage } from './components/SubscriptionPage';
 import { SubscriptionGateModal } from './components/SubscriptionGateModal';
 import { SbtIndicatorBanner } from './components/subscription/SbtIndicatorBanner';
 import { PRICE_STANDARD, PRICE_WITH_CODE } from './config/pricing';
-import { DeveloperAdminPanel } from './components/DeveloperAdminPanel';
-import { PreTradePlan } from './components/PreTradePlan';
-import { SbtModelsHub } from './components/sbt/SbtModelsHub';
-import { FundamentalCalendar } from './components/FundamentalCalendar';
-import { FundamentalIndicators } from './components/FundamentalIndicators';
 import { NotificationsPanel } from './components/NotificationsPanel';
-import { FreehandWorkspace } from './components/FreehandWorkspace';
-import { CommunityChat } from './components/CommunityChat';
-import { BookSessionView } from './components/BookSessionView';
-import { TradingResearchCenter } from './components/TradingResearchCenter';
-import { PremiumSignalsHub } from './components/PremiumSignalsHub';
 import { UserProfileModal } from './components/UserProfileModal';
 import { TraderExperienceProfileModal } from './components/evolution/TraderExperienceProfileModal';
-import { CalmingSuiteMaster } from './components/calming/CalmingSuiteMaster';
 import { CATEGORY_SUMMARIES, CategorySummary, isCategoryLockedInDemo } from './data/categorySummaries';
 import { LockedCategoryModal } from './components/LockedCategoryModal';
-import { Meta5PremiumTerminal } from './components/meta5/Meta5PremiumTerminal';
 import { PostTradeGuidanceModal } from './components/account/PostTradeGuidanceModal';
 import { CreateAccountWizard } from './components/account/CreateAccountWizard';
 import { CommunityReviewsModal } from './components/CommunityReviewsModal';
 import { PostTradeImpactSummary } from './types';
 import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
-import { BacktestingReplayPro } from './components/backtest/BacktestingReplayPro';
-import { BacktestingSuite } from './components/backtest/BacktestingSuite';
-import { UnlimitedChartAnalysis } from './components/chartAnalysis/UnlimitedChartAnalysis';
 import { apiRecordTelemetrySignal } from './utils/evolutionClient';
 import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin, hasFullAccess } from './utils/authClient';
 import {
@@ -86,10 +63,38 @@ import { AppFooter } from './components/AppFooter';
 import { CommandCenterAtmosphere } from './components/CommandCenterAtmosphere';
 import { AllCategoriesModal } from './components/AllCategoriesModal';
 import { CommunicationNotifications } from './components/CommunicationNotifications';
-import { SituationSaver } from './components/situationSaver/SituationSaver';
-import { PairSaver } from './components/pairSaver/PairSaver';
-import { ProTradingView } from './components/ProTradingView';
 import { TabErrorBoundary } from './components/common/TabErrorBoundary';
+
+// Heavy category screens load on demand so the first screen opens fast (big win on phones).
+const LearningHub = React.lazy(() => import('./components/learning/LearningHub').then((m) => ({ default: m.LearningHub })));
+const PerformanceLab = React.lazy(() => import('./components/PerformanceLab').then((m) => ({ default: m.PerformanceLab })));
+const PsychologyCenter = React.lazy(() => import('./components/PsychologyCenter').then((m) => ({ default: m.PsychologyCenter })));
+const AiTradingCoach = React.lazy(() => import('./components/AiTradingCoach').then((m) => ({ default: m.AiTradingCoach })));
+const GoalsProgress = React.lazy(() => import('./components/GoalsProgress').then((m) => ({ default: m.GoalsProgress })));
+const CompoundingEngine = React.lazy(() => import('./components/CompoundingEngine').then((m) => ({ default: m.CompoundingEngine })));
+const PersonalImprovementHub = React.lazy(() => import('./components/PersonalImprovementHub').then((m) => ({ default: m.PersonalImprovementHub })));
+const LotSizeCalculator = React.lazy(() => import('./components/LotSizeCalculator').then((m) => ({ default: m.LotSizeCalculator })));
+const DeveloperAdminPanel = React.lazy(() => import('./components/DeveloperAdminPanel').then((m) => ({ default: m.DeveloperAdminPanel })));
+const PreTradePlan = React.lazy(() => import('./components/PreTradePlan').then((m) => ({ default: m.PreTradePlan })));
+const SbtModelsHub = React.lazy(() => import('./components/sbt/SbtModelsHub').then((m) => ({ default: m.SbtModelsHub })));
+const FundamentalCalendar = React.lazy(() => import('./components/FundamentalCalendar').then((m) => ({ default: m.FundamentalCalendar })));
+const FundamentalIndicators = React.lazy(() => import('./components/FundamentalIndicators').then((m) => ({ default: m.FundamentalIndicators })));
+const FreehandWorkspace = React.lazy(() => import('./components/FreehandWorkspace').then((m) => ({ default: m.FreehandWorkspace })));
+const CommunityChat = React.lazy(() => import('./components/CommunityChat').then((m) => ({ default: m.CommunityChat })));
+const BookSessionView = React.lazy(() => import('./components/BookSessionView').then((m) => ({ default: m.BookSessionView })));
+const TradingResearchCenter = React.lazy(() => import('./components/TradingResearchCenter').then((m) => ({ default: m.TradingResearchCenter })));
+const PremiumSignalsHub = React.lazy(() => import('./components/PremiumSignalsHub').then((m) => ({ default: m.PremiumSignalsHub })));
+const CalmingSuiteMaster = React.lazy(() => import('./components/calming/CalmingSuiteMaster').then((m) => ({ default: m.CalmingSuiteMaster })));
+const Meta5PremiumTerminal = React.lazy(() => import('./components/meta5/Meta5PremiumTerminal').then((m) => ({ default: m.Meta5PremiumTerminal })));
+const BacktestingReplayPro = React.lazy(() => import('./components/backtest/BacktestingReplayPro').then((m) => ({ default: m.BacktestingReplayPro })));
+const BacktestingSuite = React.lazy(() => import('./components/backtest/BacktestingSuite').then((m) => ({ default: m.BacktestingSuite })));
+const UnlimitedChartAnalysis = React.lazy(() => import('./components/chartAnalysis/UnlimitedChartAnalysis').then((m) => ({ default: m.UnlimitedChartAnalysis })));
+const SituationSaver = React.lazy(() => import('./components/situationSaver/SituationSaver').then((m) => ({ default: m.SituationSaver })));
+const PairSaver = React.lazy(() => import('./components/pairSaver/PairSaver').then((m) => ({ default: m.PairSaver })));
+const ProTradingView = React.lazy(() => import('./components/ProTradingView').then((m) => ({ default: m.ProTradingView })));
+const TabFallback = () => (
+  <div className="flex items-center justify-center gap-2 py-24 text-xs font-mono-code text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+);
 
 export default function App() {
   // Navigation State
@@ -137,6 +142,14 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
 
   // Owner analytics: which screen is open, and what kind of visitor (guest / demo / subscriber). Declared before any early return.
+  // Phones and "reduce motion" users skip the decorative always-on animations (glow, ribbon, atmosphere) — much faster scrolling and taps.
+  const [isLightweight, setIsLightweight] = useState<boolean>(() => typeof window !== 'undefined' && (window.matchMedia('(max-width: 768px)').matches || window.matchMedia('(prefers-reduced-motion: reduce)').matches));
+  useEffect(() => {
+    const a = window.matchMedia('(max-width: 768px)'), b = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const f = () => setIsLightweight(a.matches || b.matches);
+    a.addEventListener?.('change', f); b.addEventListener?.('change', f);
+    return () => { a.removeEventListener?.('change', f); b.removeEventListener?.('change', f); };
+  }, []);
   const analyticsRef = useRef<AnalyticsState>({ tab: 'LOGIN', cls: 'guest' });
   useEffect(() => {
     const cls: AnalyticsState['cls'] = currentUser && isUserAdmin(currentUser) ? 'admin'
@@ -1211,10 +1224,10 @@ export default function App() {
       <CommunicationNotifications currentUser={currentUser} onOpenCommunication={() => setActiveTab('COMMUNITY')} onOpenSubscription={() => setIsSubscriptionModalOpen(true)} />
 
       {/* 4-Side Animated Laser Perimeter Frame */}
-      <AppPerimeterGlow />
+      {!isLightweight && <AppPerimeterGlow />}
 
       {/* Top Prismatic Ambient Theme Optical Ribbon */}
-      <AmbientThemeRibbon />
+      {!isLightweight && <AmbientThemeRibbon />}
 
       {/* Global Animated Background Elements with Calibrated Clean Cyber Atmosphere */}
       <div className="fixed inset-0 pointer-events-none z-0" style={{ background: 'radial-gradient(circle at 18% 30%, rgba(14, 165, 233, 0.05), transparent 45%), radial-gradient(circle at 82% 25%, rgba(168, 85, 247, 0.04), transparent 45%), radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.03), transparent 55%)' }}></div>
@@ -1312,7 +1325,7 @@ export default function App() {
       )}
 
       {/* Cinematic pro-level command atmosphere inspired by the supplied interface references */}
-      <CommandCenterAtmosphere account={activeAccount} metrics={metrics} currentUser={currentUser} activeTab={activeTab} />
+      {!isLightweight && <CommandCenterAtmosphere account={activeAccount} metrics={metrics} currentUser={currentUser} activeTab={activeTab} />}
 
       {/* Main Content Area */}
       <main
@@ -1325,6 +1338,7 @@ export default function App() {
             : 'max-w-7xl'
         }`}
       >
+        <React.Suspense fallback={<TabFallback />}>
         {activeTab === 'DASHBOARD' && (
           <MainDashboard
             metrics={metrics}
@@ -1678,6 +1692,8 @@ export default function App() {
             onContinueDemo={handleEnterDemoMode}
           />
         )}
+
+        </React.Suspense>
 
         {/* Secondary Bottom Process Goal Link */}
         {activeTab !== 'GOALS' && activeTab !== 'FREEHAND_WORKSPACE' && (
