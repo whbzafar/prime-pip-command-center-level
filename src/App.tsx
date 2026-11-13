@@ -85,7 +85,7 @@ const BookSessionView = React.lazy(() => import('./components/BookSessionView').
 const TradingResearchCenter = React.lazy(() => import('./components/TradingResearchCenter').then((m) => ({ default: m.TradingResearchCenter })));
 const PremiumSignalsHub = React.lazy(() => import('./components/PremiumSignalsHub').then((m) => ({ default: m.PremiumSignalsHub })));
 const CalmingSuiteMaster = React.lazy(() => import('./components/calming/CalmingSuiteMaster').then((m) => ({ default: m.CalmingSuiteMaster })));
-const Meta5PremiumTerminal = React.lazy(() => import('./components/meta5/Meta5PremiumTerminal').then((m) => ({ default: m.Meta5PremiumTerminal })));
+const MetaTrader5Terminal = React.lazy(() => import('./components/meta5/MetaTrader5Terminal').then((m) => ({ default: m.MetaTrader5Terminal })));
 const BacktestingReplayPro = React.lazy(() => import('./components/backtest/BacktestingReplayPro').then((m) => ({ default: m.BacktestingReplayPro })));
 const BacktestingSuite = React.lazy(() => import('./components/backtest/BacktestingSuite').then((m) => ({ default: m.BacktestingSuite })));
 const UnlimitedChartAnalysis = React.lazy(() => import('./components/chartAnalysis/UnlimitedChartAnalysis').then((m) => ({ default: m.UnlimitedChartAnalysis })));
@@ -1564,11 +1564,7 @@ export default function App() {
         )}
 
         {activeTab === 'META5_PREMIUM' && (
-          <Meta5PremiumTerminal
-            activeAccount={activeAccount}
-            onAutoLogTradeToJournal={handleAutoLogMeta5Trade}
-            onOpenJournal={() => handleSelectTab('JOURNAL')}
-          />
+          <MetaTrader5Terminal />
         )}
 
         {(activeTab === 'DAILY_DEV' || activeTab === 'IMPROVEMENT') && (

@@ -424,7 +424,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'PRO_TRADING' as MainNavTab, label: '10. PREMIUM TRADINGVIEW', icon: CandlestickChart, highlight: true },
     { id: 'BACKTESTING' as MainNavTab, label: '11. BACKTESTING', icon: PlayCircle, highlight: true },
     { id: 'CHART_ANALYSIS' as MainNavTab, label: '12. UNLIMITED CHART ANALYSIS', icon: Activity, highlight: true },
-    { id: 'META5_PREMIUM' as MainNavTab, label: '13. META 5', icon: Smartphone, highlight: false, locked: true, comingSoon: false },
+    { id: 'META5_PREMIUM' as MainNavTab, label: '13. MT5', icon: Smartphone, highlight: false, locked: true, comingSoon: false },
     { id: 'COMPOUNDING' as MainNavTab, label: '12. COMPOUNDING TOOLS', icon: Calculator },
     { id: 'PERFORMANCE' as MainNavTab, label: '11. PERFORMANCE REPORT', icon: BarChart3 },
     { id: 'DAILY_DEV' as MainNavTab, label: '12. DAILY DEVELOPMENT', icon: Award },

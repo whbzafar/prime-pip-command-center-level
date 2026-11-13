@@ -173,9 +173,9 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
   {
     id: 'META5_PREMIUM',
     num: '11',
-    label: 'Meta 5',
-    name: '11. Meta 5 Mobile Terminal',
-    desc: 'Full-featured authentic MetaTrader 5 mobile trading terminal. Connect any broker or prop firm account, execute live & demo orders, quotes, depth of market, chart trading, and instant auto-logging to Trade Journal.',
+    label: 'MT5',
+    name: '11. MetaTrader 5 (Live Trading)',
+    desc: 'The official MetaTrader 5 platform, live inside the app. Search your broker, log in with your own MT5 account and trade for real: charts, order ticket, positions, history, indicators. Works on phone and PC.',
     section: 'Intelligence & Setups',
     icon: Smartphone,
     highlight: false,
