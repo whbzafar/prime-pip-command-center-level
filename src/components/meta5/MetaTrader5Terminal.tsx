@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ExternalLink, Maximize2, Minimize2, RefreshCw, Link2, Building2, X } from 'lucide-react';
+import { ExternalLink, Maximize2, Minimize2, RefreshCw, Link2, Building2, X, Monitor, Smartphone } from 'lucide-react';
 
 /**
  * MetaTrader 5 — MetaQuotes' modern MT5 web terminal, embedded and opened straight away.
@@ -68,7 +68,12 @@ export const MetaTrader5Terminal: React.FC = () => {
         <div className="ml-auto flex items-center gap-1.5">
           <button type="button" onClick={() => setShowBroker((v) => !v)} title="Use your broker's MT5 web terminal" className={`${btn} ${showBroker ? 'border-amber-300 bg-amber-400 text-slate-950' : 'border-amber-400/60 bg-amber-500/15 text-amber-100'}`}><Building2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Broker</span></button>
           <button type="button" onClick={() => setNonce((n) => n + 1)} title="Reload terminal" aria-label="Reload terminal" className={`${btn} border-slate-700 text-slate-300 hover:text-white`}><RefreshCw className="w-3.5 h-3.5" /></button>
-          <a href={MODERN_URL} target="_blank" rel="noopener noreferrer" title="Open the newest MT5 web terminal in a new tab" className={`${btn} border-emerald-400/60 bg-emerald-500/15 text-emerald-100`}><ExternalLink className="w-3.5 h-3.5" /> <span className="hidden sm:inline">New MT5</span></a>
+          {/* Device-aware views: PC version = the terminal embedded here; Mobile version = MetaQuotes'
+              phone-friendly MT5 terminal, which must run in its own tab. Phones default to Mobile. */}
+          <div className="flex rounded-lg overflow-hidden border border-slate-700 text-xs font-bold">
+            <button type="button" onClick={() => setEmbedOnPhone(true)} className={`px-2.5 py-1.5 cursor-pointer ${showEmbed ? 'bg-cyan-500 text-slate-950' : 'bg-slate-900 text-slate-300'}`}><Monitor className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />PC version</button>
+            <a href={MODERN_URL} target="_blank" rel="noopener noreferrer" title="Open the phone-friendly MT5 terminal (own tab)" className={`px-2.5 py-1.5 cursor-pointer ${!showEmbed ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900 text-emerald-200'}`}><Smartphone className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Mobile version</a>
+          </div>
           <a href={url} target="_blank" rel="noopener noreferrer" title="Open in a new tab" className={`${btn} border-sky-400/60 bg-sky-500/15 text-sky-100`}><ExternalLink className="w-3.5 h-3.5" /> <span className="hidden sm:inline">New tab</span></a>
           <button type="button" onClick={() => setFull((f) => !f)} className={`${btn} border-cyan-400/60 bg-cyan-500/15 text-cyan-100`}>
             {full ? <><Minimize2 className="w-3.5 h-3.5" /> Exit</> : <><Maximize2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Full screen</span></>}
@@ -92,11 +97,11 @@ export const MetaTrader5Terminal: React.FC = () => {
 
       {!showEmbed && (
         <div className="px-4 py-6 flex flex-col gap-3 text-sm text-slate-200">
-          <p className="text-[13px] text-slate-300">On a phone, MetaTrader runs best in its own full-screen tab. Your login is kept by MetaTrader, so it stays signed in.</p>
-          <a href={MODERN_URL} target="_blank" rel="noopener noreferrer" className="w-full text-center px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-400 text-slate-950 font-bold">Open MetaTrader 5 (full version)</a>
+          <p className="text-[13px] text-slate-300">Phone detected — the Mobile version of MetaTrader 5 opens in its own full-screen tab (built for phones; stays signed in).</p>
+          <a href={MODERN_URL} target="_blank" rel="noopener noreferrer" className="w-full text-center px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-400 text-slate-950 font-bold"><Smartphone className="w-4 h-4 inline -mt-0.5 mr-1" />Open Mobile version</a>
           {brokerUrl && <a href={brokerUrl} target="_blank" rel="noopener noreferrer" className="w-full text-center px-4 py-3 rounded-xl border border-amber-400/60 bg-amber-500/15 text-amber-100 font-bold">Open my broker's terminal</a>}
-          <button type="button" onClick={() => setEmbedOnPhone(true)} className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-900 text-slate-200 font-bold cursor-pointer">Load terminal inside the app (classic, forex demo)</button>
-          <p className="text-[11px] text-slate-500">The in-app classic terminal can take up to a minute to appear on mobile data and only offers MetaQuotes' forex demo. Use the Broker button above to set your own broker's link.</p>
+          <button type="button" onClick={() => setEmbedOnPhone(true)} className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-900 text-slate-200 font-bold cursor-pointer"><Monitor className="w-4 h-4 inline -mt-0.5 mr-1" />Use PC version here instead</button>
+          <p className="text-[11px] text-slate-500">The PC version inside the app can take up to a minute to appear on mobile data and only offers MetaQuotes' forex demo. Use the Broker button above to set your own broker's link.</p>
         </div>
       )}
       {showEmbed && <iframe
