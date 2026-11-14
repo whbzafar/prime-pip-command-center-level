@@ -33,6 +33,11 @@ export const MetaTrader5Terminal: React.FC = () => {
   const [showBroker, setShowBroker] = useState(false);
   const [full, setFull] = useState(false);
   const [nonce, setNonce] = useState(0);
+  // Phones: the embedded (classic) terminal is heavy and often stalls on mobile browsers, so show a
+  // launcher first; the modern MT5 terminal in its own tab is the reliable phone experience.
+  const isPhone = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+  const [embedOnPhone, setEmbedOnPhone] = useState(false);
+  const showEmbed = !isPhone || embedOnPhone;
   const url = brokerUrl || DEFAULT_URL;
   const valid = cleanLink(link);
 
@@ -85,14 +90,23 @@ export const MetaTrader5Terminal: React.FC = () => {
         </form>
       )}
 
-      <iframe
+      {!showEmbed && (
+        <div className="px-4 py-6 flex flex-col gap-3 text-sm text-slate-200">
+          <p className="text-[13px] text-slate-300">On a phone, MetaTrader runs best in its own full-screen tab. Your login is kept by MetaTrader, so it stays signed in.</p>
+          <a href={MODERN_URL} target="_blank" rel="noopener noreferrer" className="w-full text-center px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-400 text-slate-950 font-bold">Open MetaTrader 5 (full version)</a>
+          {brokerUrl && <a href={brokerUrl} target="_blank" rel="noopener noreferrer" className="w-full text-center px-4 py-3 rounded-xl border border-amber-400/60 bg-amber-500/15 text-amber-100 font-bold">Open my broker's terminal</a>}
+          <button type="button" onClick={() => setEmbedOnPhone(true)} className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-900 text-slate-200 font-bold cursor-pointer">Load terminal inside the app (classic, forex demo)</button>
+          <p className="text-[11px] text-slate-500">The in-app classic terminal can take up to a minute to appear on mobile data and only offers MetaQuotes' forex demo. Use the Broker button above to set your own broker's link.</p>
+        </div>
+      )}
+      {showEmbed && <iframe
         key={`${nonce}:${url}`}
         title="MetaTrader 5 Web Terminal"
         src={url}
         allow="clipboard-read; clipboard-write; fullscreen; autoplay"
         allowFullScreen
         className={`w-full border-0 bg-white ${full ? 'flex-1 min-h-0' : 'h-[calc(100dvh-150px)] min-h-[560px]'}`}
-      />
+      />}
     </div>
   );
 };

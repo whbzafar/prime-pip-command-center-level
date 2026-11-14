@@ -92,6 +92,59 @@ const UnlimitedChartAnalysis = React.lazy(() => import('./components/chartAnalys
 const SituationSaver = React.lazy(() => import('./components/situationSaver/SituationSaver').then((m) => ({ default: m.SituationSaver })));
 const PairSaver = React.lazy(() => import('./components/pairSaver/PairSaver').then((m) => ({ default: m.PairSaver })));
 const ProTradingView = React.lazy(() => import('./components/ProTradingView').then((m) => ({ default: m.ProTradingView })));
+// Background prefetch of the lazy tab bundles once the app is idle, so opening a category does not
+// wait on the network. Light bundles first; the chart engine (several MB) only on desktop / unmetered.
+const PREFETCH_LIGHT: Array<() => Promise<unknown>> = [
+  () => import('./components/AiTradingCoach'),
+  () => import('./components/BookSessionView'),
+  () => import('./components/CommunityChat'),
+  () => import('./components/CompoundingEngine'),
+  () => import('./components/DeveloperAdminPanel'),
+  () => import('./components/FreehandWorkspace'),
+  () => import('./components/FundamentalCalendar'),
+  () => import('./components/FundamentalIndicators'),
+  () => import('./components/GoalsProgress'),
+  () => import('./components/LotSizeCalculator'),
+  () => import('./components/PerformanceLab'),
+  () => import('./components/PersonalImprovementHub'),
+  () => import('./components/PreTradePlan'),
+  () => import('./components/PremiumSignalsHub'),
+  () => import('./components/ProTradingView'),
+  () => import('./components/PsychologyCenter'),
+  () => import('./components/TradingResearchCenter'),
+  () => import('./components/calming/CalmingSuiteMaster'),
+  () => import('./components/learning/LearningHub'),
+  () => import('./components/meta5/MetaTrader5Terminal'),
+  () => import('./components/pairSaver/PairSaver'),
+  () => import('./components/sbt/SbtModelsHub'),
+  () => import('./components/situationSaver/SituationSaver'),
+];
+const PREFETCH_HEAVY: Array<() => Promise<unknown>> = [
+  () => import('./components/chartAnalysis/UnlimitedChartAnalysis'),
+  () => import('./components/backtest/BacktestingSuite'),
+  () => import('./components/backtest/BacktestingReplayPro'),
+];
+let prefetchStarted = false;
+const prefetchTabBundles = (includeHeavy: boolean) => {
+  if (prefetchStarted || typeof window === 'undefined') return;
+  prefetchStarted = true;
+  const conn = (navigator as any).connection;
+  if (conn?.saveData) return;
+  const slow = /2g/.test(conn?.effectiveType || '');
+  if (slow) return;
+  const queue = includeHeavy ? [...PREFETCH_LIGHT, ...PREFETCH_HEAVY] : PREFETCH_LIGHT;
+  let i = 0;
+  const next = () => {
+    if (i >= queue.length) return;
+    const load = queue[i++];
+    load().catch(() => {}).finally(() => {
+      const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, o?: { timeout: number }) => number);
+      if (ric) ric(next, { timeout: 1500 }); else setTimeout(next, 250);
+    });
+  };
+  setTimeout(next, 2500);
+};
+
 const TabFallback = () => (
   <div className="flex items-center justify-center gap-2 py-24 text-xs font-mono-code text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
 );
@@ -103,6 +156,8 @@ export default function App() {
   // user's MT5 session survives navigating the app instead of asking for login again.
   const [mt5Visited, setMt5Visited] = useState(false);
   useEffect(() => { if (activeTab === 'META5_PREMIUM') setMt5Visited(true); }, [activeTab]);
+  useEffect(() => { prefetchTabBundles(!isLightweight); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
   // Health + usage signals (errors on screen, which sections are opened). Declared up here: hooks must run before any early return.
   useEffect(() => { startInsights(); }, []);
   useEffect(() => { trackSection(String(activeTab)); }, [activeTab]);
@@ -1567,7 +1622,7 @@ export default function App() {
           </TabErrorBoundary>
         )}
 
-        {mt5Visited && (
+        {mt5Visited && (!isLightweight || activeTab === 'META5_PREMIUM') && (
           /* Keep the MT5 terminal mounted AND rendering while other tabs are open: display:none
              froze its charts (feed kept running but the canvas stopped), so instead it is parked
              invisible and inert at full size, and snaps back live when the tab returns. */
