@@ -120,6 +120,7 @@ import { syncFundamentalMarketData } from '../services/fundamentalMarketSyncServ
 import { fetchUpcomingEvents, CalendarEvent } from '../services/economicCalendarService';
 import { fetchLiveGoldQuote } from '../services/liveChartDataService';
 import { PairDeepDiveModal } from './fundamental/PairDeepDiveModal';
+import { TradeCopilot } from './copilot/TradeCopilot';
 
 // ============================================================================
 // TIMEFRAMES & INTERVALS
@@ -1458,6 +1459,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     return 0; // Forex default
   });
 
+  const [copilotOpen, setCopilotOpen] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState<string>(() => {
     if (savedFullState?.symbol) return savedFullState.symbol;
     return defaultSymbol;
@@ -4228,6 +4230,19 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   {chartEngine === 'tv' && !FX_BROKER_PREFIXES.has(selectedBroker) && <option value={selectedBroker} className="bg-slate-900">{selectedBroker}</option>}
                 </select>
               </label>
+
+              {/* TRADE COPILOT — live plan for the selected pair */}
+              <button
+                type="button"
+                onClick={() => setCopilotOpen(true)}
+                data-testid="open-trade-copilot"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer bg-gradient-to-r from-cyan-500/20 to-violet-500/20 border-cyan-400/50 text-cyan-100 hover:from-cyan-500/30 hover:to-violet-500/30"
+                title="Trade Copilot — a live trade plan for this pair (trend, fundamentals, crowd, news, lot size)"
+              >
+                <Sparkles className="w-4 h-4 text-cyan-300" />
+                <span>Copilot</span>
+              </button>
+              <TradeCopilot open={copilotOpen} symbol={selectedSymbol} onClose={() => setCopilotOpen(false)} />
 
               {/* PINE EDITOR — real Pine Script v5/v6 on the Pine chart (Vela + PineTS) */}
               <button

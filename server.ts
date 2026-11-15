@@ -203,6 +203,7 @@ import { cotRouter, verifyCftcDatasetAtBoot } from "./server/cotService.js";
 import newsCalendarRouter from "./server/routes/newsCalendarRoutes.js";
 import { sentimentRouter } from "./server/routes/sentimentRoutes.js";
 import { macroRouter } from "./server/routes/macroRoutes.js";
+import { copilotRouter } from "./server/routes/copilotRoutes.js";
 import { historyRouter } from "./server/routes/historyRoutes.js";
 import { createPineRouter } from "./server/routes/pineRoutes.js";
 import { sbtRouter } from "./server/routes/sbtRoutes.js";
@@ -7191,6 +7192,7 @@ app.use('/api/dukascopy', dukascopyRouter);
 
 // Fundamental Analysis engine (macro scorecards, pairs, correlations, live release scoring)
 app.use('/api/macro', macroRouter);
+app.use('/api/copilot', copilotRouter);
 // Full-history candles (Dukascopy since 2003/1973, Yahoo daily since first trade)
 app.use('/api/history', historyRouter);
 app.use('/api/news', breakingNewsRouter);
