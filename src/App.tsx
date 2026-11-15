@@ -1367,6 +1367,12 @@ export default function App() {
       {trialActive && (
         <TrialBanner user={currentUser} onExpire={handleTrialExpired} onSubscribe={() => setIsSubscriptionModalOpen(true)} />
       )}
+      {currentUser?.trialDenied && !currentUser?.trialEndsAt && !hasFullAccess(currentUser) && (
+        <div data-testid="trial-denied" className="relative z-10 border-b border-amber-400/30 bg-amber-950/60 px-3 py-2 text-center text-[12px] text-amber-100">
+          The free 30-minute trial has already been used on this network or device, so this account starts in demo mode.{' '}
+          <button type="button" onClick={() => setIsSubscriptionModalOpen(true)} className="font-bold underline cursor-pointer">Subscribe to unlock everything</button>
+        </div>
+      )}
       {showTrialReview && (
         <TrialReviewModal user={currentUser} onClose={closeTrialReview} onSubscribe={() => { closeTrialReview(); setIsSubscriptionModalOpen(true); }} />
       )}

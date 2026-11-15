@@ -916,6 +916,8 @@ export interface AdminDataWorkspace {
 export interface UserAccount {
   /** End of the one-time 30-minute full-access trial given to self sign-ups (ISO). */
   trialEndsAt?: string;
+  /** Set when this sign-up got no trial because its network or device already used one. */
+  trialDenied?: string;
   id: string;
   name: string;
   username: string;

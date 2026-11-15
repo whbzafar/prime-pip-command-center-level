@@ -15,7 +15,7 @@ async function getPDFParse(): Promise<any> {
   return pdfParseCtor;
 }
 import dotenv from "dotenv";
-import { randomUUID } from "crypto";
+import crypto, { randomUUID } from "crypto";
 import {
   initAuthStore,
   loginUser,
@@ -45,7 +45,7 @@ import {
   bootstrapAdminPassword,
 } from "./server/authService.js";
 import { geoFromHeaders, recordPing, summary as analyticsSummary } from "./server/analytics.js";
-import { durableStatus, flushDurable, getShared, hasPendingWrites, recentLogins } from "./server/durableStore.js";
+import { durableStatus, flushDurable, getShared, hasPendingWrites, recentLogins, redisCmd } from "./server/durableStore.js";
 import { waitUntil as vercelWaitUntil } from "@vercel/functions";
 import { getCustomerData, saveCustomerData } from "./server/customerDataService.js";
 import { safeReadJsonFile, safeWriteJsonFile } from "./server/dataPath.js";
@@ -3796,13 +3796,16 @@ app.get('/api/fundamental-indicators/dashboard', async (_req, res) => {
 
 // Route: anyone can create their own account (username + password)
 const signupHits = new Map<string, number[]>();
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
   const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
   const now = Date.now();
   const hits = (signupHits.get(ip) || []).filter((t) => now - t < 3600_000);
   if (hits.length >= 8) return res.status(429).json({ ok: false, error: 'Too many new accounts from this network — please try again in an hour.' });
   const { username, password, name } = req.body || {};
-  const r = registerSelf({ username, password, name });
+  // One free trial per network (IP) and per browser/device. Shared networks (mobile carriers, offices)
+  // can still create accounts — a second account from the same network simply starts without a trial.
+  const trial = await claimTrialSlot(ip, String(req.body?.device || ''));
+  const r = registerSelf({ username, password, name, trial });
   if (!r.ok || !r.user) return res.status(400).json({ ok: false, error: r.error });
   hits.push(now); signupHits.set(ip, hits);
   const login = loginUser(r.user.username, String(password), true);
@@ -3811,6 +3814,32 @@ app.post('/api/auth/register', (req, res) => {
   res.cookie('primepipfx_session', login.token, { httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL), sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000, path: '/' });
   return res.json({ ok: true, user: sanitizeUser(login.user), token: login.token });
 });
+
+
+const TRIAL_KEY_TTL_S = 90 * 24 * 3600; // a network/device keeps its "trial used" mark for 90 days
+const trialMemory = new Map<string, number>();
+function trialKey(kind: 'ip' | 'dev', value: string) {
+  const secret = process.env.PRIMEPIPFX_SESSION_SECRET || process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || 'ppfx';
+  // Only a keyed hash is stored — never the raw IP address.
+  return `trial:${kind}:${crypto.createHmac('sha256', secret).update(value).digest('hex').slice(0, 32)}`;
+}
+/** true = this sign-up gets the 30-minute trial; false = its network or device already had one. */
+async function claimTrialSlot(ip: string, device: string): Promise<boolean> {
+  const keys = [ip && trialKey('ip', ip), /^[a-z0-9]{8,64}$/i.test(device) && trialKey('dev', device)].filter(Boolean) as string[];
+  if (!keys.length) return true;
+  try {
+    if (durableStatus().mode === 'redis') {
+      const used = await Promise.all(keys.map((k) => redisCmd(['EXISTS', `ppfx:${k}`])));
+      if (used.some((x) => Number(x) > 0)) return false;
+      await Promise.all(keys.map((k) => redisCmd(['SET', `ppfx:${k}`, String(Date.now()), 'EX', TRIAL_KEY_TTL_S])));
+      return true;
+    }
+  } catch { /* fall through to in-memory */ }
+  const now = Date.now();
+  if (keys.some((k) => (trialMemory.get(k) || 0) > now)) return false;
+  for (const k of keys) trialMemory.set(k, now + TRIAL_KEY_TTL_S * 1000);
+  return true;
+}
 
 // Route: members & login activity for the administrator
 

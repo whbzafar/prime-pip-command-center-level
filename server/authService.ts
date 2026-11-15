@@ -21,6 +21,8 @@ export type PaymentStatus = 'UNPAID' | 'PENDING' | 'VERIFIED' | 'REJECTED';
 export interface StoredUser {
   /** Self sign-ups get one 30-minute full-access trial; set once at registration, never renewed. */
   trialEndsAt?: string;
+  /** Set when a sign-up got no trial because its network or device already had one. */
+  trialDenied?: string;
   id: string;
   name: string;
   username: string;
@@ -934,7 +936,7 @@ export function recordLogin(userId: string, meta: { ip?: string; device?: string
 
 export const TRIAL_MINUTES = 30;
 /** Anyone can create their own account with a username and password. */
-export function registerSelf(input: { username: string; password: string; name?: string }): { ok: boolean; user?: StoredUser; error?: string } {
+export function registerSelf(input: { username: string; password: string; name?: string; trial?: boolean }): { ok: boolean; user?: StoredUser; error?: string } {
   const username = String(input.username || '').trim().toLowerCase();
   const password = String(input.password || '');
   if (!/^[a-z0-9][a-z0-9._-]{2,23}$/.test(username)) return { ok: false, error: 'Username: 3–24 characters — letters, numbers, dot, dash or underscore.' };
@@ -955,7 +957,8 @@ export function registerSelf(input: { username: string; password: string; name?:
   if (!res.success || !res.user) return { ok: false, error: res.error === 'Username already exists' ? 'That username is taken — please choose another.' : res.error || 'Could not create the account.' };
   const users = readUsers();
   const i = users.findIndex((u) => u.id === res.user!.id);
-  const trialEndsAt = new Date(Date.now() + TRIAL_MINUTES * 60_000).toISOString();
-  if (i >= 0) { users[i] = { ...users[i], signupSource: 'self', mustChangePassword: false, trialEndsAt, updatedAt: new Date().toISOString() } as StoredUser; writeUsers(users); return { ok: true, user: users[i] }; }
+  // trial=false: this network/device already used its free trial — the account is created without one.
+  const trialEndsAt = input.trial === false ? undefined : new Date(Date.now() + TRIAL_MINUTES * 60_000).toISOString();
+  if (i >= 0) { users[i] = { ...users[i], signupSource: 'self', mustChangePassword: false, ...(trialEndsAt ? { trialEndsAt } : {}), trialDenied: input.trial === false ? 'already-used-on-this-network-or-device' : undefined, updatedAt: new Date().toISOString() } as StoredUser; writeUsers(users); return { ok: true, user: users[i] }; }
   return { ok: true, user: res.user };
 }

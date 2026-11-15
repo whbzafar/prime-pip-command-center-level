@@ -182,7 +182,7 @@ export async function apiRegister(username: string, password: string): Promise<{
   try {
     const res = await fetch('/api/auth/register', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-      body: JSON.stringify({ username: username.trim(), password }),
+      body: JSON.stringify({ username: username.trim(), password, device: (() => { try { let v = localStorage.getItem('ppfx_vid'); if (!v) { v = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('ppfx_vid', v); } return v; } catch { return ''; } })() }),
     });
     const data = await res.json().catch(() => null);
     if (res.ok && data?.ok && data.user) {
