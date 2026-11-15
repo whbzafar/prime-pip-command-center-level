@@ -15,6 +15,7 @@ import { getCachedFred, latest, valueDaysAgo, zScore, type FredId } from './sour
 import { getPrices, getPriceVia } from './sources/prices.js';
 import { getCotSignal } from './sources/cot.js';
 import { getDeriv, getFng, getHashrate, getStables } from './sources/crypto.js';
+import { getCachedSentiment } from './sources/sentiment.js';
 import { STOCKS, getStockFundamentals } from './sources/edgar.js';
 import { coreStockMeta, valuationPillarFor } from './globalStocks.js';
 import { sentimentStorage } from '../sentiment/storage.js';
@@ -434,7 +435,13 @@ function retailContrarian(symbol: string, weight: number): CustomSpec {
     desc: 'Share of retail futures accounts long vs short. Crowds are usually wrong at extremes, so this is read contrarian.',
     polarityNote: 'Crowd heavily long = bearish (contrarian); crowd short = bullish',
     compute: (ctx) => {
-      const item = sentimentStorage.getAllItems().items.find((i) => i.symbol === symbol && !i.isUnavailable);
+      // Prefer the live exchange read (OKX / Gate.io / Bitget account ratios); fall back to the older store.
+      const live = getCachedSentiment()?.rows.find((r) => r.symbol === symbol && r.method === 'measured');
+      const item = live
+        ? { longPct: live.longPct, shortPct: live.shortPct, timestamp: Date.parse(live.updatedAt) || ctx.now,
+            traderGroup: 'futures accounts', source: (live.sources || []).map((x) => x.name).join(' / ') || 'Exchanges',
+            sourceUrl: 'https://www.okx.com/trade-market/data' }
+        : sentimentStorage.getAllItems().items.find((i) => i.symbol === symbol && !i.isUnavailable);
       if (!item) return null;
       const v = (item.shortPct - item.longPct) / 100; // −1..1
       return {

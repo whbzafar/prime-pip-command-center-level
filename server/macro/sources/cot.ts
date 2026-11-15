@@ -209,13 +209,20 @@ const SELECT = [...new Set([...Object.values(COT_COLUMN_MAPPINGS), 'nonrept_posi
 export async function refreshCot(force = false): Promise<void> {
   if (!force && signals.size && Date.now() - lastLoad < TTL) return;
   try {
-    const codes = Object.values(COT_CODES).map((c) => `'${c.code}'`).join(',');
     const since = new Date(Date.now() - 3.3 * 365 * 86_400_000).toISOString().slice(0, 10); // 3+ years for the 3-year COT index
-    const where = `${COT_COLUMN_MAPPINGS.contractMarketCode} in (${codes}) AND ${COT_COLUMN_MAPPINGS.reportDate} >= '${since}'`;
-    const url = `${CFTC_API_CONFIG.baseUrl}/${CFTC_API_CONFIG.datasetId}.json?$select=${encodeURIComponent(SELECT)}&$where=${encodeURIComponent(where)}&$order=${COT_COLUMN_MAPPINGS.reportDate}%20DESC&$limit=8000`;
     const token = process.env.CFTC_APP_TOKEN || process.env.SOCRATA_APP_TOKEN;
-    const rows = await fetchJson<RawCotRow[]>(url, { timeoutMs: 25_000, headers: token ? { 'X-App-Token': token } : {} });
-    if (!Array.isArray(rows)) throw new Error('CFTC returned a non-array payload');
+    // Several small parallel queries (4 markets each) instead of one 8,000-row query: the big query
+    // regularly took longer than a serverless request allows on a cold start.
+    const all = [...new Set(Object.values(COT_CODES).map((c) => c.code))];
+    const groups: string[][] = [];
+    for (let i = 0; i < all.length; i += 4) groups.push(all.slice(i, i + 4));
+    const parts = await Promise.allSettled(groups.map((g) => {
+      const where = `${COT_COLUMN_MAPPINGS.contractMarketCode} in (${g.map((c) => `'${c}'`).join(',')}) AND ${COT_COLUMN_MAPPINGS.reportDate} >= '${since}'`;
+      const url = `${CFTC_API_CONFIG.baseUrl}/${CFTC_API_CONFIG.datasetId}.json?$select=${encodeURIComponent(SELECT)}&$where=${encodeURIComponent(where)}&$order=${COT_COLUMN_MAPPINGS.reportDate}%20DESC&$limit=2000`;
+      return fetchJson<RawCotRow[]>(url, { timeoutMs: 15_000, retries: 1, headers: token ? { 'X-App-Token': token } : {} });
+    }));
+    const rows: RawCotRow[] = parts.flatMap((p) => (p.status === 'fulfilled' && Array.isArray(p.value) ? p.value : []));
+    if (!rows.length) throw (parts.find((p) => p.status === 'rejected') as PromiseRejectedResult | undefined)?.reason || new Error('CFTC returned no rows');
     const byCode = new Map<string, RawCotRow[]>();
     for (const r of rows) {
       const c = String(r.cftc_contract_market_code || '').trim();

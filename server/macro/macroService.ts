@@ -20,6 +20,7 @@ import { refreshFred } from './sources/fred.js';
 import { refreshPrices } from './sources/prices.js';
 import { refreshCot } from './sources/cot.js';
 import { refreshCrypto } from './sources/crypto.js';
+import { getSentiment } from './sources/sentiment.js';
 import { refreshEdgar, loadEdgarTicker, missingTickers } from './sources/edgar.js';
 import { getSourceHealth } from './sources/http.js';
 import type { AssetResult, MacroSnapshot, ReleaseEvent } from './types.js';
@@ -108,6 +109,8 @@ function refreshSources(force: boolean): { calendar: Promise<void>; all: Promise
   if (isDue('cot', force)) { due.cot = Date.now() + 120_000; jobs.push(runJob('cot', () => refreshCot(true), 'cftc_cot', cotEvery)); }
   if (isDue('fundsnap', force)) { due.fundsnap = Date.now() + 120_000; jobs.push(runJob('fundsnap', () => refreshSnapshot(force), 'fund_snapshot', 30 * 60_000)); }
   if (isDue('crypto', force)) { due.crypto = Date.now() + 120_000; jobs.push(runJob('crypto', () => refreshCrypto(true), 'crypto_fng', EVERY.crypto)); }
+  // Retail positioning (FXSSI + OKX/Gate.io/Bitget) feeds the contrarian indicators; refresh it with the rest.
+  if (isDue('sentiment', force)) { due.sentiment = Date.now() + 5 * 60_000; jobs.push(runJob('sentiment', () => getSentiment(force ? 0 : 60_000).then(() => undefined))); }
   if (SERVERLESS) {
     // Company filings are large; on serverless load four companies per refresh.
     for (const t of missingTickers(4)) jobs.push(runJob(`edgar_${t}`, () => loadEdgarTicker(t)));

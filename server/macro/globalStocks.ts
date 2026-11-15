@@ -224,7 +224,9 @@ function members(b: (typeof BASKETS)[number]): string[] {
 function basketSpec(b: (typeof BASKETS)[number]): AssetSpec {
   const mem = members(b);
   const scored = (ctx: EngineContext) => mem.map((s) => ({ s, r: ctx.results.get(s) })).filter((x) => x.r && x.r.score !== null && x.r.confidence >= 40) as Array<{ s: string; r: NonNullable<ReturnType<EngineContext['results']['get']>> }>;
-  const need = Math.max(2, Math.min(3, mem.length), Math.ceil(mem.length * 0.4));
+  // At least two companies (or 40% of the basket) must have a confident score; small sector baskets
+  // with one delisted/unavailable member still show instead of going blank.
+  const need = Math.max(2, Math.ceil(mem.length * 0.4));
   const mk = (id: string, name: string, desc: string, weight: number, note: string, fn: (rows: ReturnType<typeof scored>, ctx: EngineContext) => { value: number; detail: string; reasoning: string; actual: number } | null): CustomSpec => ({
     kind: 'custom', id: `${b.symbol}_${id}`, name, desc, freq: 'Quarterly', polarity: 1, weight, polarityNote: note,
     compute: (ctx) => {

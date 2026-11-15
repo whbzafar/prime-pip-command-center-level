@@ -170,6 +170,8 @@ function derivedCrosses(measured: Set<string>, currencies: CurrencySentiment[], 
 }
 
 let cache: { at: number; data: SentimentSnapshot } | null = null;
+/** Last good snapshot (synchronous, for the scoring engine). */
+export const getCachedSentiment = (): SentimentSnapshot | null => cache?.data ?? null;
 let inflight: Promise<SentimentSnapshot> | null = null;
 
 export async function getSentiment(maxAgeMs = 60_000): Promise<SentimentSnapshot> {

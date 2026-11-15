@@ -43,7 +43,7 @@ export const PK_STOCKS: MktEntry[] = [
   { sym: 'AKBL', name: 'Askari Bank Ltd', kind: 'stock', market: 'PSX', sector: 'Banks', url: psx('AKBL') },
   { sym: 'FABL', name: 'Faysal Bank Ltd', kind: 'stock', market: 'PSX', sector: 'Banks', url: psx('FABL') },
   // Fertilizer / Chemicals
-  { sym: 'ENGRO', name: 'Engro Corporation Ltd', kind: 'stock', market: 'PSX', sector: 'Conglomerate / Fertilizer', url: psx('ENGRO') },
+  { sym: 'ENGROH', name: 'Engro Holdings Ltd', kind: 'stock', market: 'PSX', sector: 'Conglomerate / Fertilizer', url: psx('ENGROH') },
   { sym: 'FFC', name: 'Fauji Fertilizer Co.', kind: 'stock', market: 'PSX', sector: 'Fertilizer', url: psx('FFC') },
   { sym: 'EFERT', name: 'Engro Fertilizers Ltd', kind: 'stock', market: 'PSX', sector: 'Fertilizer', url: psx('EFERT') },
   { sym: 'FATIMA', name: 'Fatima Fertilizer Co.', kind: 'stock', market: 'PSX', sector: 'Fertilizer', url: psx('FATIMA') },
