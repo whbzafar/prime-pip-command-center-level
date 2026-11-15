@@ -5,7 +5,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Database, LogIn, RefreshCw, Search, Trash2, UserPlus, Users } from 'lucide-react';
-import { getStoredToken } from '../../utils/authClient';
+import { getStoredToken, handleDeadAdminSession } from '../../utils/authClient';
 
 interface Member { id: string; name: string; username: string; email: string; role: string; subscriptionStatus: string; expiryDate?: string; isLifetime?: boolean; signupSource: string; createdAt: string; lastLoginAt: string | null; loginCount: number; lastLoginIp: string; lastLoginDevice: string }
 interface LoginRow { at: string; userId: string; username: string; name?: string; kind: 'login' | 'signup'; ip?: string; device?: string }
@@ -44,6 +44,7 @@ export const MembersPanel: React.FC = () => {
     setLoading(true); setErr('');
     try {
       const r = await fetch('/api/admin/members', { credentials: 'include', headers });
+      if (r.status === 401) { void handleDeadAdminSession(); throw new Error('Session expired — taking you to the login screen…'); }
       const j = await r.json();
       if (!j.ok) throw new Error(j.error || `HTTP ${r.status}`);
       setMembers(j.members || []); setLogins(j.logins || []); setStorage(j.storage || null);

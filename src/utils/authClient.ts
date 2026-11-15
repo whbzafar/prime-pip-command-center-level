@@ -359,3 +359,20 @@ export async function apiCompleteOnboarding(): Promise<{
     return { ok: false, error: 'Authentication service unavailable. Please try again.' };
   }
 }
+
+
+/**
+ * Called when an admin request is refused with 401: the stored session is dead (issued by an older
+ * deployment or expired). Sign out once and reload so the owner lands on the login screen instead of
+ * seeing "401" inside the panel. Guarded so it can never loop.
+ */
+export async function handleDeadAdminSession(): Promise<void> {
+  try {
+    const k = 'ppfx_dead_session_reload_at';
+    const last = Number(sessionStorage.getItem(k) || 0);
+    if (Date.now() - last < 60_000) return;
+    sessionStorage.setItem(k, String(Date.now()));
+  } catch { /* ignore */ }
+  await apiLogout();
+  window.location.reload();
+}
