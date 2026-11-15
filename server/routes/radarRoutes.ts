@@ -88,16 +88,17 @@ async function build() {
         const regimeQ = { TRENDING: 1, BREAKOUT: 1.1, COILING: 0.6, RANGING: 0.35 }[r.regime];
         const techDir = r.regime === 'BREAKOUT' ? r.broke * 100 : r.direction;
         const fAlign = f === null ? 0 : Math.sign(f) === Math.sign(techDir) ? Math.min(1, Math.abs(f) / 50) * (fConf / 100) : -Math.min(1, Math.abs(f) / 50) * (fConf / 100);
-        let score = Math.abs(techDir) * regimeQ * (1 + 0.6 * fAlign);
+        let score = (Math.abs(techDir) * regimeQ * (1 + 0.6 * fAlign)) / 1.76; // 100 = perfect breakout fully backed by confident fundamentals
         if (ev.some((e: any) => e.inHours <= 6)) score *= 0.6;
         score = Math.round(clamp(score, 0, 100));
+        const agrees = fAlign > 0.05, disagrees = fAlign < -0.05;
         const side = Math.abs(techDir) < 25 ? 'NEUTRAL' : techDir > 0 ? 'LONG' : 'SHORT';
         const setup = r.regime === 'COILING'
           ? `Volatility squeeze (width in the lowest ${Math.max(1, r.widthPct)}% of recent history) — watch for a break of ${r.lo20.toPrecision(6)}–${r.hi20.toPrecision(6)}${f !== null && Math.abs(f) >= 15 ? `; fundamentals favour the ${f > 0 ? 'upside' : 'downside'}` : ''}.`
-          : r.regime === 'BREAKOUT' ? `Closed ${r.broke > 0 ? 'above the 20-day high' : 'below the 20-day low'}${fAlign > 0 ? ' with fundamentals behind it' : fAlign < 0 ? ' against the fundamentals — be careful of a false break' : ''}.`
-          : r.regime === 'TRENDING' ? `Clean ${techDir > 0 ? 'up' : 'down'}trend (efficiency ${r.er})${fAlign > 0 ? ', fundamentals agree' : fAlign < 0 ? ', fundamentals disagree' : ''} — trade pullbacks in the trend direction.`
+          : r.regime === 'BREAKOUT' ? `Closed ${r.broke > 0 ? 'above the 20-day high' : 'below the 20-day low'}${agrees ? ' with fundamentals behind it' : disagrees ? ' against the fundamentals — be careful of a false break' : ''}.`
+          : r.regime === 'TRENDING' ? `Clean ${techDir > 0 ? 'up' : 'down'}trend (efficiency ${r.er})${agrees ? ', fundamentals agree' : disagrees ? ', fundamentals disagree' : ''} — trade pullbacks in the trend direction.`
           : `Choppy range (efficiency ${r.er}) — trend trades tend to fail; fade the edges or stand aside.`;
-        out.push({ symbol: sym, ...r, fundamentals: f === null ? null : Math.round(f), fConfidence: Math.round(fConf), side, score, events: ev, setup, alignment: fAlign > 0.05 ? 'aligned' : fAlign < -0.05 ? 'conflict' : 'neutral' });
+        out.push({ symbol: sym, ...r, fundamentals: f === null ? null : Math.round(f), fConfidence: Math.round(fConf), side, score, events: ev, setup, alignment: agrees ? 'aligned' : disagrees ? 'conflict' : 'neutral' });
       } catch { failed.push(sym); }
     }
   };
@@ -107,7 +108,7 @@ async function build() {
     ok: true, generatedAt: new Date().toISOString(), count: out.length, failed,
     summary: { trending: out.filter((x) => x.regime === 'TRENDING').length, ranging: out.filter((x) => x.regime === 'RANGING').length, coiling: out.filter((x) => x.regime === 'COILING').length, breakout: out.filter((x) => x.regime === 'BREAKOUT').length },
     rows: out,
-    method: 'Daily candles (Dukascopy, Yahoo fallback). Regime: BREAKOUT = close beyond the prior 20-day high/low; COILING = Bollinger(20,2) width in the lowest 20% of ~100 days; TRENDING = 20-day efficiency ratio ≥ 0.35; else RANGING. Opportunity = technical direction × regime quality, ±60% for fundamental agreement (scaled by confidence), −40% if high-impact news is within 6h.',
+    method: 'Daily candles (Dukascopy, Yahoo fallback). Regime: BREAKOUT = close beyond the prior 20-day high/low; COILING = Bollinger(20,2) width in the lowest 20% of ~100 days; TRENDING = 20-day efficiency ratio ≥ 0.35; else RANGING. Opportunity (0–100) = technical direction × regime quality, ±60% for fundamental agreement (scaled by confidence), −40% if high-impact news is within 6h; 100 = a breakout fully backed by confident fundamentals.',
     disclaimer: 'Educational analysis from live data. Not financial advice.',
   };
 }
