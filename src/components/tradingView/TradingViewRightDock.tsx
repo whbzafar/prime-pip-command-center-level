@@ -88,7 +88,9 @@ const WatchlistBody: React.FC<{ mine: string[]; selectedSymbol: string; livePric
   const Head: React.FC<{ title: string; cls: string; right?: React.ReactNode }> = ({ title, cls, right }) => (
     <div className={`flex items-center justify-between text-[10px] uppercase tracking-widest font-bold pt-2 pb-1 border-b border-slate-800 ${cls}`}><span>{title}</span>{right}</div>
   );
-  const scoreOf = (sym: string) => [...bull, ...bear].find((p) => chartSymbolFor(p.symbol) === sym)?.longTerm ?? null;
+  // Every pair the engine scores (not just the top lists), so each pair you add shows its fundamentals at once.
+  const allRanked = [...((data as any)?.all || []), ...(data?.longTerm.bullish || []), ...(data?.longTerm.bearish || [])];
+  const scoreOf = (sym: string) => allRanked.find((p: any) => chartSymbolFor(p.symbol) === sym || p.symbol === sym)?.longTerm ?? null;
   return (
     <div className="space-y-1" data-testid="watchlist-body">
       <Head title="Top bullish pairs" cls="text-emerald-300" right={<span className="normal-case tracking-normal font-normal text-slate-500">live · fundamentals</span>} />

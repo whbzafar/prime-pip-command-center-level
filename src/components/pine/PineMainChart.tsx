@@ -38,6 +38,9 @@ const REVERSE_ALIAS: Record<string, string> = { US500: 'SPX500', US100: 'NAS100'
 interface Mapping { canvas: HTMLCanvasElement; width: number; paneTop: number; paneHeight: number; priceToY: (p: number) => number; yToPrice: (y: number) => number }
 interface Binding { mapping: Mapping | null; lines: () => { price: number; color: string; dashed: boolean }[]; onFrame: () => void }
 const bindings = new Map<HTMLElement, Binding>();
+const LOOK_KEY = 'ppfx_pro_chart_look_v1';
+const THEME_KEY = 'ppfx_pro_chart_theme_v1';
+const savedTheme = (): string => { try { const t = localStorage.getItem(THEME_KEY); return t === 'light' || t === 'dark' ? t : 'dark'; } catch { return 'dark'; } };
 let registered = false;
 function registerPlugins() {
   if (registered) return;
@@ -150,7 +153,7 @@ export const PineMainChart: React.FC<{
     if (!host.current || !entry) return;
     registerPlugins();
     const w = new VelaWorkspace(host.current, {
-      layout: false, symbol: venueSymbol(entry.ticker), timeframe: tf, bars: HISTORY_BARS, theme: 'dark', live: true, persist: false,
+      layout: false, symbol: venueSymbol(entry.ticker), timeframe: tf, bars: HISTORY_BARS, theme: savedTheme(), live: true, persist: false,
       timezone: 'Asia/Karachi',
       providers: { dukascopy: () => makeProvider('dukascopy'), binance: () => makeProvider('binance') },
       engines: { pine: () => new PineWorkerEngine(), [REMOTE_LANG]: () => new RemotePineEngine() },
@@ -159,12 +162,17 @@ export const PineMainChart: React.FC<{
     tickerRef.current = entry.ticker;
     markOnScreen(entry.ticker, true);
     let alive = true;
+    let offLook: any = null;
     const slowT = window.setTimeout(() => { if (alive) setSlow(true); }, 20_000);
     const chart: any = w.chart;
+    const offTheme = chart.on?.('theme:changed', (t: any) => { try { const id = t?.id || t?.name || (t?.isDark === false || t?.mode === 'light' ? 'light' : 'dark'); localStorage.setItem(THEME_KEY, String(id)); } catch { /* ignore */ } });
     chart.ready().then(() => {
       if (!alive) return;
       setReady(true); setSlow(false);
       try { const tools = JSON.parse(localStorage.getItem(TOOLS_KEY) || 'null'); if (tools) chart.drawings?.setToolDefaults?.(tools); } catch { /* ignore */ }
+      // Chart look (background colour, grid, candle colours, …) from Settings → Canvas, kept across pairs and visits.
+      try { const cfg = JSON.parse(localStorage.getItem(LOOK_KEY) || 'null'); if (cfg) chart.renderer?.applyConfig?.(cfg); } catch { /* ignore */ }
+      try { offLook = chart.renderer?.onConfigChanged?.(() => { try { localStorage.setItem(LOOK_KEY, JSON.stringify(chart.renderer.getConfig())); } catch { /* ignore */ } }); } catch { /* ignore */ }
       loadDrawings(entry.ticker);
     }).catch(() => {});
     // Follow changes made from the chart's own symbol search / timeframe menu back to the terminal.
@@ -191,7 +199,7 @@ export const PineMainChart: React.FC<{
       window.clearInterval(autosave);
       window.removeEventListener('beforeunload', flush);
       saveDrawings();
-      try { offMarket?.(); offs.forEach((o: any) => o?.()); } catch { /* ignore */ }
+      try { offMarket?.(); offs.forEach((o: any) => o?.()); offLook?.(); offTheme?.(); } catch { /* ignore */ }
       markOnScreen(tickerRef.current, false);
       running.current.clear();
       try { w.destroy(); } catch { /* ignore */ }

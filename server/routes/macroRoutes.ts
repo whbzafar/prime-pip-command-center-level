@@ -215,6 +215,8 @@ macroRouter.get('/rankings', async (_req: Request, res: Response) => {
     res.json({ ok: true, data: {
       longTerm: { bullish: top('longTerm', 1), bearish: top('longTerm', -1) },
       shortTerm: { bullish: top('shortTerm', 1), bearish: top('shortTerm', -1) },
+      // Every scored pair (for watchlists: any pair the user adds shows its fundamentals).
+      all: rows.filter((r) => r.longTerm !== null || r.shortTerm !== null).map((r) => ({ symbol: r.symbol, display: r.display, longTerm: r.longTerm, shortTerm: r.shortTerm, confidence: r.confidence })),
       method: 'Long-term = weighted structural pillars only (monetary policy, inflation, labour, growth, real rates, supply/demand, institutional COT positioning); risk mood, crowd sentiment and derivatives excluded. Pair = (base − quote) / 2. Short-term = full live score.',
       generatedAt: s.generatedAt,
     } });
