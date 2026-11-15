@@ -36,7 +36,8 @@ import { CommunityReviewsModal } from './components/CommunityReviewsModal';
 import { PostTradeImpactSummary } from './types';
 import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
 import { apiRecordTelemetrySignal } from './utils/evolutionClient';
-import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin, hasFullAccess } from './utils/authClient';
+import { getCurrentUser, logoutUser, verifyCurrentSession, getStoredToken, isUserAdmin, hasFullAccess, isTrialActive } from './utils/authClient';
+import { TrialBanner, TrialReviewModal } from './components/subscription/TrialExperience';
 import {
   getAllAccounts,
   saveAccount,
@@ -341,12 +342,15 @@ export default function App() {
 
   // Enter Demo Mode Helper — always lands on a working, restricted demo workspace (never back on a sign-in / account-creation screen).
   const handleEnterDemoMode = useCallback(
-    async (options?: { isCentAccount?: boolean; quickStart?: boolean }) => {
-      setIsDemoMode(true);
+    async (options?: { isCentAccount?: boolean; quickStart?: boolean; keepFullAccess?: boolean }) => {
+      // keepFullAccess: a 30-minute trial user gets the ready-made workspace without demo restrictions.
+      if (!options?.keepFullAccess) {
+        setIsDemoMode(true);
+        try {
+          localStorage.setItem('primepipfx_demo_mode', 'true');
+        } catch {}
+      }
       setGateDismissed(true);
-      try {
-        localStorage.setItem('primepipfx_demo_mode', 'true');
-      } catch {}
       setIsLoginModalOpen(false);
       setIsSubscriptionModalOpen(false);
       setIsCreateAccountWizardOpen(false);
@@ -387,6 +391,36 @@ export default function App() {
   useEffect(() => {
     if (isDemoMode && !isLoading && !activeAccount && (!currentUser || gateDismissed)) void handleEnterDemoMode();
   }, [isDemoMode, isLoading, activeAccount, currentUser, gateDismissed, handleEnterDemoMode]);
+
+  // ── 30-minute free trial (self sign-ups) ──
+  const [trialTick, setTrialTick] = useState(0);
+  const [showTrialReview, setShowTrialReview] = useState(false);
+  const trialActive = isTrialActive(currentUser); // eslint-disable-line @typescript-eslint/no-unused-vars
+  void trialTick;
+  useEffect(() => {
+    if (!trialActive) return;
+    if (isDemoMode) setIsDemoMode(false);
+    if (!isLoading && !activeAccount) void handleEnterDemoMode({ keepFullAccess: true });
+  }, [trialActive, isDemoMode, isLoading, activeAccount, handleEnterDemoMode]);
+  const handleTrialExpired = useCallback(() => {
+    setTrialTick((n) => n + 1);
+    setIsDemoMode(true);
+    setGateDismissed(true);
+    try { localStorage.setItem('primepipfx_demo_mode', 'true'); } catch {}
+    setActiveTab('DASHBOARD');
+    const key = `ppfx_trial_review_${currentUser?.id || 'anon'}`;
+    try { if (!localStorage.getItem(key)) setShowTrialReview(true); } catch { setShowTrialReview(true); }
+  }, [currentUser?.id]);
+  // Someone returning after their trial ended (e.g. closed the tab) also gets the review prompt once.
+  useEffect(() => {
+    if (!currentUser?.trialEndsAt || trialActive || hasFullAccess(currentUser)) return;
+    const key = `ppfx_trial_review_${currentUser.id}`;
+    try { if (!localStorage.getItem(key)) setShowTrialReview(true); } catch { /* ignore */ }
+  }, [currentUser, trialActive]);
+  const closeTrialReview = useCallback(() => {
+    try { localStorage.setItem(`ppfx_trial_review_${currentUser?.id || 'anon'}`, '1'); } catch {}
+    setShowTrialReview(false);
+  }, [currentUser?.id]);
 
   // Tab Selection with strict subscription guard
   const handleSelectTab = useCallback(
@@ -1256,7 +1290,7 @@ export default function App() {
 
   // If no account exists yet, force Onboarding for paid users; unpaid users get the demo workspace instead.
   if (!activeAccount || accounts.length === 0) {
-    if (isUnpaidUser || isDemoMode) {
+    if (isUnpaidUser || isDemoMode || trialActive) {
       return (
         <div className="prime-command-shell w-full min-h-screen text-slate-100 flex items-center justify-center text-xs font-mono-code text-slate-400">
           Opening your demo workspace…
@@ -1328,6 +1362,14 @@ export default function App() {
 
       {/* SBT Indicator announcement — top of the app for everyone (logged in or demo) */}
       <SbtIndicatorBanner persistClose={hasFullAccess(currentUser)} />
+
+      {/* 30-minute free trial countdown, then a one-time review prompt */}
+      {trialActive && (
+        <TrialBanner user={currentUser} onExpire={handleTrialExpired} onSubscribe={() => setIsSubscriptionModalOpen(true)} />
+      )}
+      {showTrialReview && (
+        <TrialReviewModal user={currentUser} onClose={closeTrialReview} onSubscribe={() => { closeTrialReview(); setIsSubscriptionModalOpen(true); }} />
+      )}
 
       {/* Demo notice: the demo is limited; the only way to unlock everything is the subscription */}
       {isDemoMode && (

@@ -56,8 +56,10 @@ export function createHubRouter(requireDeveloper: RequestHandler) {
     if (limited(req, 'fb', 10, 3_600_000)) return res.status(429).json({ ok: false, error: 'Thank you — you have sent a lot already. Please try again later.' });
     const b = req.body || {};
     const text = clip(b.text, 2000);
-    if (text.length < 3) return res.status(400).json({ ok: false, error: 'Please write a few words.' });
-    const rec = { id: crypto.randomBytes(4).toString('hex'), at: new Date().toISOString(), kind: clip(b.kind, 20) || 'idea', section: clip(b.section, 60), text, username: clip(b.username, 60), status: 'new' };
+    const rating = Math.round(Number(b.rating));
+    const hasRating = Number.isFinite(rating) && rating >= 1 && rating <= 5;
+    if (text.length < 3 && !hasRating) return res.status(400).json({ ok: false, error: 'Please write a few words.' });
+    const rec = { id: crypto.randomBytes(4).toString('hex'), at: new Date().toISOString(), kind: clip(b.kind, 20) || 'idea', section: clip(b.section, 60), text, username: clip(b.username, 60), status: 'new', ...(hasRating ? { rating } : {}) };
     try { await privateListUpdate('hub_feedback', (l) => [rec, ...l].slice(0, 1000)); return res.json({ ok: true }); }
     catch { return res.status(503).json({ ok: false, error: 'Could not save right now. Please try again.' }); }
   });

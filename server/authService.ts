@@ -19,6 +19,8 @@ export type SubscriptionStatus =
 export type PaymentStatus = 'UNPAID' | 'PENDING' | 'VERIFIED' | 'REJECTED';
 
 export interface StoredUser {
+  /** Self sign-ups get one 30-minute full-access trial; set once at registration, never renewed. */
+  trialEndsAt?: string;
   id: string;
   name: string;
   username: string;
@@ -930,6 +932,7 @@ export function recordLogin(userId: string, meta: { ip?: string; device?: string
   logLogin(entry);
 }
 
+export const TRIAL_MINUTES = 30;
 /** Anyone can create their own account with a username and password. */
 export function registerSelf(input: { username: string; password: string; name?: string }): { ok: boolean; user?: StoredUser; error?: string } {
   const username = String(input.username || '').trim().toLowerCase();
@@ -952,6 +955,7 @@ export function registerSelf(input: { username: string; password: string; name?:
   if (!res.success || !res.user) return { ok: false, error: res.error === 'Username already exists' ? 'That username is taken — please choose another.' : res.error || 'Could not create the account.' };
   const users = readUsers();
   const i = users.findIndex((u) => u.id === res.user!.id);
-  if (i >= 0) { users[i] = { ...users[i], signupSource: 'self', mustChangePassword: false }; writeUsers(users); return { ok: true, user: users[i] }; }
+  const trialEndsAt = new Date(Date.now() + TRIAL_MINUTES * 60_000).toISOString();
+  if (i >= 0) { users[i] = { ...users[i], signupSource: 'self', mustChangePassword: false, trialEndsAt, updatedAt: new Date().toISOString() } as StoredUser; writeUsers(users); return { ok: true, user: users[i] }; }
   return { ok: true, user: res.user };
 }

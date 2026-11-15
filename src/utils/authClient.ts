@@ -1,5 +1,4 @@
 import { UserAccount } from '../types';
-import { authenticateLocalAsync } from './localAuthStore';
 
 const USER_KEY = 'primepipfx_user_profile';
 const REFERRAL_KEY = 'primepipfx_applied_referral';
@@ -77,8 +76,25 @@ export function detectUrlReferral(): string | null {
   return getStoredReferral();
 }
 
+/** Paid / owner access only (no trial). */
+export function hasPaidAccess(user: UserAccount | null): boolean {
+  if (!user) return false;
+  if (user.isDeveloper || user.role === 'ADMIN' || user.role === 'DEVELOPER') return true;
+  if (user.subscriptionStatus === 'LIFETIME' || user.isLifetime) return true;
+  if (user.subscriptionStatus === 'ACTIVE') return !user.expiryDate || new Date(user.expiryDate).getTime() >= Date.now();
+  return false;
+}
+/** Milliseconds left in the one-time 30-minute trial (0 when none / over / already paid). */
+export function trialMsLeft(user: UserAccount | null): number {
+  if (!user || hasPaidAccess(user)) return 0;
+  const end = Date.parse(user.trialEndsAt || '');
+  return Number.isFinite(end) ? Math.max(0, end - Date.now()) : 0;
+}
+export const isTrialActive = (user: UserAccount | null) => trialMsLeft(user) > 0;
+
 export function hasFullAccess(user: UserAccount | null): boolean {
   if (!user) return false;
+  if (isTrialActive(user)) return true; // 30-minute trial: everything except owner/community areas
   if (user.isDeveloper || user.role === 'ADMIN' || user.role === 'DEVELOPER') return true;
   if (user.subscriptionStatus === 'LIFETIME' || user.isLifetime) return true;
   if (user.subscriptionStatus === 'ACTIVE') {
@@ -151,25 +167,13 @@ export async function apiLogin(
       return { ok: true, user: data.user, token: data.token };
     }
 
-    // If server rejects or doesn't have the user (e.g. serverless Vercel instance),
-    // fall back to local store & cloud KV sync
-    const localResult = await authenticateLocalAsync(cleanUsername, cleanPassword);
-    if (localResult.ok && localResult.user) {
-      setStoredUser(localResult.user);
-      if (localResult.token) setStoredToken(localResult.token);
-      return { ok: true, user: localResult.user, token: localResult.token };
-    }
-
-    return { ok: false, error: data?.error || localResult.error || 'Invalid username or password.' };
+    // The server (with its permanent account database) is the only authority. The old in-browser
+    // fallback accepted passwords written in the public code and produced sessions the server
+    // rejected ("401 UNAUTHORIZED" everywhere), so it is gone.
+    return { ok: false, error: data?.error || 'Invalid username or password.' };
   } catch (err) {
-    console.warn('[AUTH CLIENT] Server login request failed, checking local and cloud registry:', err);
-    const localResult = await authenticateLocalAsync(cleanUsername, cleanPassword);
-    if (localResult.ok && localResult.user) {
-      setStoredUser(localResult.user);
-      if (localResult.token) setStoredToken(localResult.token);
-      return { ok: true, user: localResult.user, token: localResult.token };
-    }
-    return { ok: false, error: localResult.error || 'Authentication service unavailable. Please check your connection or credentials.' };
+    console.warn('[AUTH CLIENT] Server login request failed:', err);
+    return { ok: false, error: 'Could not reach the server. Please check your internet connection and try again.' };
   }
 }
 

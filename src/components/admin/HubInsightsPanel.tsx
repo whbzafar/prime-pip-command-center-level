@@ -54,12 +54,13 @@ export const HubInsightsPanel: React.FC = () => {
       </section>
       <div className="grid lg:grid-cols-2 gap-4">
         <section className={card}>
-          <div className="flex items-center gap-2 mb-2"><Lightbulb className="w-4 h-4 text-fuchsia-300" /><b className="text-fuchsia-200">What users say ({d?.feedback?.length ?? 0})</b></div>
+          <div className="flex items-center gap-2 mb-2"><Lightbulb className="w-4 h-4 text-fuchsia-300" /><b className="text-fuchsia-200">What users say · reviews ({d?.feedback?.length ?? 0})</b></div>
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {(d?.feedback || []).map((f: any) => (
               <div key={f.id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-2.5">
-                <div className="text-[10.5px] text-slate-500">{new Date(f.at).toLocaleString()} · <b className="text-fuchsia-200">{f.kind}</b>{f.username ? ` · @${f.username}` : ''}</div>
-                <div className="text-[12.5px] text-slate-200 whitespace-pre-wrap">{f.text}</div>
+                <div className="text-[10.5px] text-slate-500">{new Date(f.at).toLocaleString()} · <b className={f.kind === 'review' ? 'text-amber-200' : 'text-fuchsia-200'}>{f.kind === 'review' ? 'trial review' : f.kind}</b>{f.username ? ` · @${f.username}` : ''}</div>
+                {f.rating ? <div className="text-amber-300 text-sm tracking-wide" aria-label={`${f.rating} of 5 stars`}>{'★'.repeat(f.rating)}<span className="text-slate-600">{'★'.repeat(5 - f.rating)}</span></div> : null}
+                {f.text ? <div className="text-[12.5px] text-slate-200 whitespace-pre-wrap">{f.text}</div> : null}
               </div>
             ))}
             {!d?.feedback?.length && <div className="text-[12px] text-slate-500">Nothing yet.</div>}
