@@ -1549,6 +1549,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   useEffect(() => { if (pineShownCount > prevShown.current) setChartEngine('pro'); prevShown.current = pineShownCount; }, [pineShownCount]);
   void preferTvChart; void setPreferTvChart;
   const pineOnChart = chartEngine === 'pro' && Boolean(catalogFor(selectedSymbol));
+  // TradingView feed: volume on/off is remembered for every pair (TradingView itself forgets it on each load).
+  const [tvVolume, setTvVolume] = useState<boolean>(() => { try { return localStorage.getItem('ppfx_tv_volume') !== 'off'; } catch { return true; } });
+  useEffect(() => { try { localStorage.setItem('ppfx_tv_volume', tvVolume ? 'on' : 'off'); } catch {} }, [tvVolume]);
   const [tvHintHidden, setTvHintHidden] = useState<boolean>(() => { try { return localStorage.getItem('ppfx_tv_hint_hidden') === '1'; } catch { return false; } });
 
   // Active terminal sub-tab below chart
@@ -2963,7 +2966,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         // the embedded chart never tells the page when its timeframe changes, so a change made there left
         // the candle countdown on the old timeframe. The app's timeframe buttons (on the chart) are the
         // only control now, so the chart and the countdown always show the same timeframe.
-        disabled_features: JSON.stringify(['header_resolutions', 'show_interval_dialog_on_key_press', 'timeframes_toolbar']),
+        disabled_features: JSON.stringify(['header_resolutions', 'show_interval_dialog_on_key_press', 'timeframes_toolbar', ...(tvVolume ? [] : ['create_volume_indicator_by_default'])]),
+        ...(tvVolume ? {} : { hidevolume: '1', hide_volume: 'true' }),
       });
 
       const src = `https://s.tradingview.com/widgetembed/?${params.toString()}`;
@@ -2987,7 +2991,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       if (timeoutId) clearTimeout(timeoutId);
     };
   // Full-screen / minimise only resize the same container, so they must NOT rebuild the chart (that reloaded it).
-  }, [containerId, tradingViewSymbol, selectedInterval, chartSettings.backgroundColor, chartSettings.timezone, isLightBg, selectedSymbol, pineOnChart]);
+  }, [containerId, tradingViewSymbol, selectedInterval, chartSettings.backgroundColor, chartSettings.timezone, isLightBg, selectedSymbol, pineOnChart, tvVolume]);
 
   // --------------------------------------------------------------------------
   // CATEGORY & SYMBOL SELECTOR (Immediately opens pair + syncs broker settings!)
@@ -4208,6 +4212,12 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   className={`px-2.5 py-1 rounded-[10px] cursor-pointer transition ${chartEngine === 'tv' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>TradingView</button>
               </div>
 
+              {chartEngine === 'tv' && (
+                <button type="button" onClick={() => setTvVolume((v) => !v)} title="Show or hide volume on the TradingView chart — remembered for every pair"
+                  className={`rounded-xl border px-2.5 py-1 text-[11px] font-bold cursor-pointer ${tvVolume ? 'border-cyan-400/60 bg-cyan-500/15 text-cyan-100' : 'border-slate-700 bg-slate-950 text-slate-400'}`}>
+                  Volume {tvVolume ? 'ON' : 'OFF'}
+                </button>
+              )}
               {/* BROKER — which broker's prices the TradingView chart shows (the Pro chart has its own feed) */}
               <label className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950 pl-2 pr-1 py-1 text-[11px] font-bold text-slate-300" title="Open this pair with another broker's prices. Broker feeds are shown on the TradingView chart; the Pro chart uses its own institutional feed.">
                 <Building2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />

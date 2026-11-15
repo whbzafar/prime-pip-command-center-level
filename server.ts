@@ -291,6 +291,20 @@ app.use(cookieParser());
 // Accounts live in the durable store. Account pages read fresh accounts first (removed list + accounts
 // in parallel); data feeds never wait on it. Changes are saved after the reply is sent: on Vercel the
 // function is kept alive for that with waitUntil, so signing in / creating an account answers at once.
+// Speed: public market/fundamental data is the same for every visitor, so Vercel's edge may serve it
+// from cache (instant) and refresh it in the background. Handlers that set their own header win.
+const EDGE_CACHE: Array<[RegExp, string]> = [
+  [/^\/api\/charts\/price/, 'public, s-maxage=5, stale-while-revalidate=30'],
+  [/^\/api\/(calendar|cot|fundamental|news|sentiment|pine-scripts)(\/|$)/, 'public, s-maxage=60, stale-while-revalidate=1800'],
+];
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.headers.authorization) {
+    const hit = EDGE_CACHE.find(([re]) => re.test(req.path));
+    if (hit) res.setHeader('Cache-Control', hit[1]);
+  }
+  next();
+});
+
 const ACCOUNT_PATH = /^\/api\/(auth|admin|members|trial|account|profile|appointments|community|pine|bot|insights)/;
 app.use(async (req, res, next) => {
   if (!req.path.startsWith('/api/')) return next();

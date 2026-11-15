@@ -54,7 +54,7 @@ function overview(s: MacroSnapshot) {
  * background, so visitors almost never wait for a cold function. Long-running servers: no cache.
  */
 function cacheHeaders(res: Response, s?: MacroSnapshot) {
-  if (SERVERLESS && s && !warming(s)) res.setHeader('Cache-Control', 'public, s-maxage=20, stale-while-revalidate=120');
+  if (SERVERLESS && s && !warming(s)) res.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=1800');
   else res.setHeader('Cache-Control', 'no-store');
 }
 
@@ -179,7 +179,7 @@ macroRouter.get('/pair/:symbol', async (req: Request, res: Response) => {
 macroRouter.get('/sentiment', async (_req: Request, res: Response) => {
   try {
     const data = await getSentiment();
-    res.setHeader('Cache-Control', SERVERLESS ? 'public, s-maxage=30, stale-while-revalidate=90' : 'no-store');
+    res.setHeader('Cache-Control', SERVERLESS ? 'public, s-maxage=60, stale-while-revalidate=1800' : 'no-store');
     res.json({ ok: true, data });
   } catch (err) { fail(res, err); }
 });
