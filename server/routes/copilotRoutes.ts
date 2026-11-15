@@ -98,7 +98,13 @@ export function buildCopilot(sym: string, candles: Candle[], source: string, sna
 
     let action: 'BUY' | 'SELL' | 'WAIT' = Math.abs(combined) >= 20 && agree >= 2 ? (combined > 0 ? 'BUY' : 'SELL') : 'WAIT';
     const reasons: string[] = [];
-    if (action === 'WAIT') reasons.push(Math.abs(combined) < 20 ? 'The inputs are mixed — no clear edge right now.' : 'Only one input supports the direction; the others disagree or are flat.');
+    // Never trade against confident fundamentals on a weak technical/crowd edge.
+    const fAgainst = fScore !== null && fConf >= 50 && Math.abs(fScore) >= 10 && Math.sign(fScore) !== Math.sign(combined);
+    if (action !== 'WAIT' && fAgainst && Math.abs(combined) < 35) {
+      action = 'WAIT';
+      reasons.push(`Price action and the crowd lean ${combined > 0 ? 'bullish' : 'bearish'}, but the fundamentals point the other way (${fScore! > 0 ? '+' : ''}${Math.round(fScore!)}). Wait for them to line up.`);
+    }
+    if (action === 'WAIT' && !reasons.length) reasons.push(Math.abs(combined) < 20 ? 'The inputs are mixed — no clear edge right now.' : 'Only one input supports the direction; the others disagree or are flat.');
     if (eventSoon) reasons.push(`High-impact ${eventSoon.asset} release "${eventSoon.title}" in ${eventSoon.inH < 1 ? 'under 1 hour' : `${Math.round(eventSoon.inH)}h`} — expect a volatility spike.`);
 
     const dp = price >= 1000 ? 2 : price >= 20 ? 3 : 5;
