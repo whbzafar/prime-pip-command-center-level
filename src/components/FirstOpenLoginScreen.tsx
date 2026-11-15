@@ -88,8 +88,6 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   // Category & Announcements Scrolling Ticker Index
   const [tickerIndex, setTickerIndex] = useState(0);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  // Sign-up: which workspace to open first (both get the same 30-minute full-access trial).
-  const [accountKind, setAccountKind] = useState<'demo' | 'personal'>('demo');
   const [isTrialOfferOpen, setIsTrialOfferOpen] = useState(false);
   const [confirmNew, setConfirmNew] = useState('');
   useEffect(() => { const f = () => { setMode('signup'); setError(null); }; window.addEventListener('ppfx:open-signup', f); return () => window.removeEventListener('ppfx:open-signup', f); }, []);
@@ -287,7 +285,6 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       if (!username.trim() || !password) { setError('Choose a username and a password.'); return; }
       if (password !== confirmNew) { setError('The two passwords do not match.'); return; }
       setLoading(true); setError(null);
-      try { localStorage.setItem('ppfx_signup_account_kind', accountKind); } catch { /* ignore */ }
       const r = await apiRegister(username.trim(), password);
       setLoading(false);
       if (!r.ok || !r.user) { setError(r.error || 'Could not create the account.'); return; }
@@ -823,18 +820,6 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                 {mode === 'signup' && (
                   <>
                     <p className="text-[11px] text-emerald-200 font-mono-code leading-relaxed -mt-1">New account = <b>30 minutes of FULL access free</b> (one trial per person). Pick any username and password — that's all.</p>
-                    <div>
-                      <span className="text-xs font-mono-code text-slate-300 font-bold block mb-1.5 uppercase">Account type</span>
-                      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Account type">
-                        {([['demo', 'Demo account', 'Practice balance, ready instantly'], ['personal', 'Personal account', 'Set up your own broker account']] as const).map(([k, t, d]) => (
-                          <button key={k} type="button" role="radio" aria-checked={accountKind === k} data-testid={`signup-kind-${k}`} onClick={() => setAccountKind(k)}
-                            className={`text-left rounded-xl border px-3 py-2 cursor-pointer transition ${accountKind === k ? 'border-amber-300 bg-amber-400/15' : 'border-slate-700 bg-slate-900/80 hover:border-slate-500'}`}>
-                            <span className={`block text-[12px] font-bold ${accountKind === k ? 'text-amber-200' : 'text-slate-200'}`}>{t}</span>
-                            <span className="block text-[10.5px] text-slate-400 leading-snug">{d}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
                   </>
                 )}
                 <div>

@@ -35,7 +35,7 @@ export const LockedCategoryModal: React.FC<LockedCategoryModalProps> = ({
 
   return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -44,8 +44,6 @@ export const LockedCategoryModal: React.FC<LockedCategoryModalProps> = ({
           className="relative w-full max-w-lg bg-gradient-to-b from-slate-900 to-slate-950 border border-amber-500/30 rounded-2xl shadow-2xl shadow-amber-950/40 p-5 sm:p-6 overflow-hidden my-auto"
         >
           {/* Subtle Cyber Grid & Ambient Glow */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
           {/* Close Button */}
           <button
