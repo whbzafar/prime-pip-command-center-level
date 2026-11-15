@@ -1,0 +1,27 @@
+# Render Blueprint — free long-running Node host for PrimePipFX Command Center.
+# One service runs the Express server (dist/server.cjs), which serves the built front end from
+# dist/ and every /api/* route. On a long-running host the fundamentals/news refreshers run on a
+# background schedule instead of per request, which is far cheaper than serverless.
+#
+# Deploy: Render dashboard → New → Blueprint → pick this repo → Apply.
+# Then copy the environment variables from the old Vercel project into this service's
+# Environment tab (names listed in docs/HOSTING.md). The free plan sleeps after 15 min idle and
+# wakes on the next visit (first load ~30–60 s).
+services:
+  - type: web
+    name: primepipfx-command-center
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/__health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.12.0
+      - key: NODE_ENV
+        value: production
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=400
