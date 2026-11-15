@@ -919,7 +919,7 @@ const DeepHistoryChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = ({
 
               <iframe
                 title="TradingView Embedded Chart"
-                src={`https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(
+                src={`https://www.tradingview-widget.com/widgetembed/?symbol=${encodeURIComponent(
                   tradingViewWidgetSymbol
                 )}&interval=${tradingViewInterval}&theme=dark&style=1&timezone=Etc%2FUTC&hide_top_toolbar=false&hide_side_toolbar=false&allow_symbol_change=true&save_image=true`}
                 className="w-full h-full border-0"
@@ -1170,7 +1170,7 @@ const DeepHistoryChartAnalysis: React.FC<UnlimitedChartAnalysisProps> = ({
             {chartEngine === 'TRADINGVIEW' ? (
               <iframe
                 title="TradingView Embedded Chart Fullscreen"
-                src={`https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(
+                src={`https://www.tradingview-widget.com/widgetembed/?symbol=${encodeURIComponent(
                   tradingViewWidgetSymbol
                 )}&interval=${tradingViewInterval}&theme=dark&style=1&timezone=Etc%2FUTC&hide_top_toolbar=false&hide_side_toolbar=false&allow_symbol_change=true&save_image=true`}
                 className="w-full h-full border-0"

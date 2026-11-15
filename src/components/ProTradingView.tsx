@@ -2967,10 +2967,10 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         // the candle countdown on the old timeframe. The app's timeframe buttons (on the chart) are the
         // only control now, so the chart and the countdown always show the same timeframe.
         disabled_features: JSON.stringify(['header_resolutions', 'show_interval_dialog_on_key_press', 'timeframes_toolbar', ...(tvVolume ? [] : ['create_volume_indicator_by_default'])]),
-        ...(tvVolume ? {} : { hidevolume: '1', hide_volume: 'true' }),
+        ...(tvVolume ? {} : { hidevolume: '1' }),
       });
 
-      const src = `https://s.tradingview.com/widgetembed/?${params.toString()}`;
+      const src = `https://www.tradingview-widget.com/widgetembed/?${params.toString()}`;
       const existing = container.querySelector('iframe');
       if (existing && existing.getAttribute('src') === src) return; // same chart already loaded
       container.innerHTML = '';

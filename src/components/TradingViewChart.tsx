@@ -94,7 +94,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
     });
 
     const iframe = document.createElement('iframe');
-    iframe.src = `https://s.tradingview.com/widgetembed/?${params.toString()}`;
+    iframe.src = `https://www.tradingview-widget.com/widgetembed/?${params.toString()}`;
     iframe.style.width = '100%';
     iframe.style.height = '100%';
     iframe.style.border = '0';
