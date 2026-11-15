@@ -14,6 +14,7 @@ import { getSentiment } from '../macro/sources/sentiment.js';
 import { dukaBefore, yahooAny, type Candle } from '../history/historyService.js';
 
 export const copilotRouter = Router();
+export { feedFor };
 
 // Dukascopy instrument id + Yahoo fallback per tradable ticker (the Pro chart's own feed).
 const FEED: Record<string, { duka?: string; yahoo: string }> = {
@@ -42,13 +43,13 @@ function atr(c: Candle[], n = 14) {
 }
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 
-async function dailyCandles(sym: string): Promise<{ candles: Candle[]; source: string }> {
+export async function dailyCandles(sym: string, count = 80): Promise<{ candles: Candle[]; source: string }> {
   const f = feedFor(sym);
   if (!f) throw new Error('This instrument is not covered by the copilot yet.');
   if (f.duka) {
-    try { const r = await dukaBefore(f.duka, 'd1', Date.now() + 86_400_000, 80, 8_000); if (r.candles.length >= 30) return { candles: r.candles, source: 'Dukascopy (daily)' }; } catch { /* fall back */ }
+    try { const r = await dukaBefore(f.duka, 'd1', Date.now() + 86_400_000, count, 8_000); if (r.candles.length >= 30) return { candles: r.candles, source: 'Dukascopy (daily)' }; } catch { /* fall back */ }
   }
-  const r = await yahooAny(f.yahoo, 'd1', Date.now() + 86_400_000, 80);
+  const r = await yahooAny(f.yahoo, 'd1', Date.now() + 86_400_000, count);
   return { candles: r.candles, source: `Yahoo Finance ${f.yahoo} (daily)` };
 }
 

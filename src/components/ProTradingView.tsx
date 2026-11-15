@@ -47,6 +47,7 @@ import {
   Compass,
   Filter,
   Sparkles,
+  Radar,
   Camera,
   Check,
   Copy,
@@ -121,6 +122,7 @@ import { fetchUpcomingEvents, CalendarEvent } from '../services/economicCalendar
 import { fetchLiveGoldQuote } from '../services/liveChartDataService';
 import { PairDeepDiveModal } from './fundamental/PairDeepDiveModal';
 import { TradeCopilot } from './copilot/TradeCopilot';
+import { MarketRadar } from './copilot/MarketRadar';
 
 // ============================================================================
 // TIMEFRAMES & INTERVALS
@@ -1460,6 +1462,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   });
 
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [radarOpen, setRadarOpen] = useState(false);
+  const [copilotSymbol, setCopilotSymbol] = useState<string | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string>(() => {
     if (savedFullState?.symbol) return savedFullState.symbol;
     return defaultSymbol;
@@ -4242,7 +4246,18 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 <Sparkles className="w-4 h-4 text-cyan-300" />
                 <span>Copilot</span>
               </button>
-              <TradeCopilot open={copilotOpen} symbol={selectedSymbol} onClose={() => setCopilotOpen(false)} />
+              <TradeCopilot open={copilotOpen} symbol={copilotSymbol || selectedSymbol} onClose={() => { setCopilotOpen(false); setCopilotSymbol(null); }} />
+              <button
+                type="button"
+                onClick={() => setRadarOpen(true)}
+                data-testid="open-market-radar"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer bg-gradient-to-r from-fuchsia-500/20 to-cyan-500/20 border-fuchsia-400/50 text-fuchsia-100 hover:from-fuchsia-500/30 hover:to-cyan-500/30"
+                title="Market Regime Radar — every pair ranked: trending, ranging, coiling or breaking out"
+              >
+                <Radar className="w-4 h-4 text-fuchsia-300" />
+                <span>Radar</span>
+              </button>
+              <MarketRadar open={radarOpen} onClose={() => setRadarOpen(false)} onOpenSymbol={(sym) => handleSelectSymbol(sym)} onCopilot={(sym) => { setCopilotSymbol(sym); setRadarOpen(false); setCopilotOpen(true); }} />
 
               {/* PINE EDITOR — real Pine Script v5/v6 on the Pine chart (Vela + PineTS) */}
               <button
