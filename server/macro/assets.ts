@@ -11,7 +11,7 @@ import { CENTRAL_BANK, CURRENCY_COUNTRY, GDP_ANCHOR, INFLATION_TARGET, EMPLOYMEN
 import type { AssetSpec, CalSpec, CustomOut, CustomSpec, EngineContext, IndicatorSpec, PillarSpec } from './scoring.js';
 import type { ScoreComponent } from './types.js';
 import { squash, clamp, findLatest } from './scoring.js';
-import { getCachedFred, latest, valueDaysAgo, zScore, type FredId } from './sources/fred.js';
+import { getCachedFred, fredSourceOf, latest, valueDaysAgo, zScore, type FredId } from './sources/fred.js';
 import { getPrices, getPriceVia } from './sources/prices.js';
 import { getCotSignal } from './sources/cot.js';
 import { getDeriv, getFng, getHashrate, getStables } from './sources/crypto.js';
@@ -55,8 +55,8 @@ function fredInd(o: {
       return {
         observation: {
           actual: last.value, forecast: null, previous: prev.value, releasedAt: new Date(last.date).toISOString(),
-          period: last.date, unit: o.unit, sourceTitle: `FRED ${o.series}`, sourceName: 'FRED — Federal Reserve Bank of St. Louis',
-          sourceUrl: `https://fred.stlouisfed.org/series/${o.series}`, extra: { change: r2(chg), zScore: z === null ? null : r2(z) },
+          period: last.date, unit: o.unit, sourceTitle: fredSourceOf(o.series).title, sourceName: fredSourceOf(o.series).name,
+          sourceUrl: fredSourceOf(o.series).url, extra: { change: r2(chg), zScore: z === null ? null : r2(z) },
         },
         components: comps,
         reasoning: `${o.name} moved from ${r2(prev.value)} to ${r2(last.value)} over ~${o.days} days (${chg >= 0 ? '+' : ''}${r2(chg)}${o.pct ? '%' : ''})${z !== null && o.zWeight ? `; 1-year z-score ${r2(z)}` : ''}.`,

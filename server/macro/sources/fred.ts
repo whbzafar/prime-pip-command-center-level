@@ -85,6 +85,16 @@ const YAHOO_TWIN: Partial<Record<FredId, { sym: string; scale?: number }>> = {
 };
 export const fredFallbackUsed = new Set<string>();
 
+/** Where the cached points for a series actually came from (shown on every indicator). */
+export function fredSourceOf(id: FredId): { title: string; name: string; url: string } {
+  if (!fredFallbackUsed.has(id)) return { title: `FRED ${id}`, name: 'FRED — Federal Reserve Bank of St. Louis', url: `https://fred.stlouisfed.org/series/${id}` };
+  if (id === 'DFII10' || id === 'T10YIE' || id === 'T5YIFR') return { title: id === 'DFII10' ? 'US Treasury 10Y real (TIPS) par yield' : id === 'T10YIE' ? 'US Treasury 10Y nominal − 10Y real yield' : 'US Treasury 5Y5Y forward breakeven (from 5Y/10Y nominal & real par yields)', name: 'U.S. Department of the Treasury', url: 'https://home.treasury.gov/resource-center/data-chart-center/interest-rates' };
+  if (id === 'NFCI') return { title: 'Chicago Fed NFCI', name: 'Federal Reserve Bank of Chicago', url: 'https://www.chicagofed.org/research/data/nfci/current-data' };
+  if (id === 'T10Y2Y') return { title: '10Y − 2Y Treasury yield (market)', name: 'Yahoo Finance (^TNX, 2YY=F)', url: 'https://finance.yahoo.com/quote/%5ETNX/' };
+  const sym = YAHOO_TWIN[id]?.sym || '';
+  return { title: `${sym} daily close`, name: 'Yahoo Finance', url: `https://finance.yahoo.com/quote/${encodeURIComponent(sym)}/` };
+}
+
 // ── Official-publisher fallbacks (same numbers FRED republishes) ─────────────────────────────────
 // US Treasury daily par yield curves: FRED's DFII10 is the Treasury 10Y real (TIPS) CMT, and FRED
 // defines T10YIE = DGS10 − DFII10 and T5YIFR from the 5Y and 10Y nominal/real CMT rates.
