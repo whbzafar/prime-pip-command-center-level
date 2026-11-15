@@ -2754,3 +2754,22 @@ html[data-theme] :is([class*="bg-slate-9"], .prime-card, .prime-card-elevated).s
   .backdrop-blur-sm, .backdrop-blur, .backdrop-blur-md, .backdrop-blur-lg, .backdrop-blur-xl { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
   .ppfx-sbt-glow, .ppfx-star { animation: none !important; }
 }
+
+
+/* Premium TradingView full screen without moving the chart in the page (moving it reloaded the charts):
+   while it is open, every ancestor drops the CSS properties that would trap a fixed element. */
+html.tv-fullscreen *:has(> * .ppfx-tv-workspace-fs),
+html.tv-fullscreen *:has(> .ppfx-tv-workspace-fs) {
+  transform: none !important;
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  perspective: none !important;
+  contain: none !important;
+  will-change: auto !important;
+  isolation: auto !important;
+  z-index: auto !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+  animation: none !important;
+}

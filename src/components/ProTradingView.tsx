@@ -3,7 +3,6 @@ import { serverNow } from '../utils/serverClock';
 import { barCloseIn, fmtCountdown, fmtDuration, marketStatus, sessionKind } from '../utils/marketSession';
 import { LiveBiasStrip, chartSymbolFor } from './fundamentalAnalysis/LiveBiasStrip';
 import { CATALOG } from './chartAnalysis/fullHistoryDatafeed';
-import { createPortal } from 'react-dom';
 const PinePanelLazy = React.lazy(() => import('./pine/PinePanel'));
 const PineMainChartLazy = React.lazy(() => import('./pine/PineMainChart'));
 import { pineLib, loadLibrary as loadPineLibrary, hideAll as hideAllPine } from './pine/pineLibrary';
@@ -2967,9 +2966,12 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         disabled_features: JSON.stringify(['header_resolutions', 'show_interval_dialog_on_key_press', 'timeframes_toolbar']),
       });
 
+      const src = `https://s.tradingview.com/widgetembed/?${params.toString()}`;
+      const existing = container.querySelector('iframe');
+      if (existing && existing.getAttribute('src') === src) return; // same chart already loaded
       container.innerHTML = '';
       const iframe = document.createElement('iframe');
-      iframe.src = `https://s.tradingview.com/widgetembed/?${params.toString()}`;
+      iframe.src = src;
       iframe.style.width = '100%';
       iframe.style.height = '100%';
       iframe.style.border = '0';
@@ -2984,7 +2986,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [containerId, tradingViewSymbol, selectedInterval, chartSettings.backgroundColor, chartSettings.timezone, chartSettings.showCountdown, isLightBg, selectedSymbol, isFullscreen, pineOnChart]);
+  // Full-screen / minimise only resize the same container, so they must NOT rebuild the chart (that reloaded it).
+  }, [containerId, tradingViewSymbol, selectedInterval, chartSettings.backgroundColor, chartSettings.timezone, isLightBg, selectedSymbol, pineOnChart]);
 
   // --------------------------------------------------------------------------
   // CATEGORY & SYMBOL SELECTOR (Immediately opens pair + syncs broker settings!)
@@ -3389,7 +3392,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       ref={chartWrapperRef}
       className={
         isFullscreen
-          ? 'fixed inset-0 z-[99999999] w-screen h-screen h-[100dvh] bg-[#070A11] flex flex-col overflow-hidden m-0 p-0 font-sans'
+          ? 'ppfx-tv-workspace-fs fixed inset-0 z-[99999999] w-screen h-screen h-[100dvh] bg-[#070A11] flex flex-col overflow-hidden m-0 p-0 font-sans'
           : 'space-y-3 font-sans relative'
       }
       style={
@@ -5251,10 +5254,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     </div>
   );
 
-  if (isFullscreen) {
-    return createPortal(workspaceElement, document.body);
-  }
-
+  // Full screen keeps the chart in the same place in the page (CSS fixed positioning) instead of moving
+  // it into <body>: moving it remounted everything and reloaded both charts on every full-screen toggle.
   selectRef.current = (sym: string) => handleSelectSymbol(sym);
   return workspaceElement;
 };
