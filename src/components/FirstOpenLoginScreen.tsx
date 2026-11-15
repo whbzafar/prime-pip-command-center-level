@@ -88,6 +88,9 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
   // Category & Announcements Scrolling Ticker Index
   const [tickerIndex, setTickerIndex] = useState(0);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  // Sign-up: which workspace to open first (both get the same 30-minute full-access trial).
+  const [accountKind, setAccountKind] = useState<'demo' | 'personal'>('demo');
+  const [isTrialOfferOpen, setIsTrialOfferOpen] = useState(false);
   const [confirmNew, setConfirmNew] = useState('');
   useEffect(() => { const f = () => { setMode('signup'); setError(null); }; window.addEventListener('ppfx:open-signup', f); return () => window.removeEventListener('ppfx:open-signup', f); }, []);
   const [username, setUsername] = useState('');
@@ -284,6 +287,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       if (!username.trim() || !password) { setError('Choose a username and a password.'); return; }
       if (password !== confirmNew) { setError('The two passwords do not match.'); return; }
       setLoading(true); setError(null);
+      try { localStorage.setItem('ppfx_signup_account_kind', accountKind); } catch { /* ignore */ }
       const r = await apiRegister(username.trim(), password);
       setLoading(false);
       if (!r.ok || !r.user) { setError(r.error || 'Could not create the account.'); return; }
@@ -413,12 +417,15 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
     }
   };
 
-  const handleDemoClick = () => {
+  const startLimitedDemo = () => {
+    setIsTrialOfferOpen(false);
     triggerBurst();
     setTimeout(() => {
       onExploreDemo();
     }, 300);
   };
+  // "Continue with Demo" first offers the free 30-minute full-access trial (needs an account).
+  const handleDemoClick = () => setIsTrialOfferOpen(true);
 
   const whatsappLink = `https://wa.me/923406671495?text=${encodeURIComponent(
     'Hello PrimePipFX Developer / Owner, I want authorized access to the PRIMEPIPFX Trading Command Center.'
@@ -814,7 +821,21 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   ))}
                 </div>
                 {mode === 'signup' && (
-                  <p className="text-[11px] text-slate-300 font-mono-code leading-relaxed -mt-1">Pick any username and password — that's all. Your journals and settings stay private to your account.Demo has limited features. A subscription ($200, or $100 with a code) unlocks everything.</p>
+                  <>
+                    <p className="text-[11px] text-emerald-200 font-mono-code leading-relaxed -mt-1">New account = <b>30 minutes of FULL access free</b> (one trial per person). Pick any username and password — that's all.</p>
+                    <div>
+                      <span className="text-xs font-mono-code text-slate-300 font-bold block mb-1.5 uppercase">Account type</span>
+                      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Account type">
+                        {([['demo', 'Demo account', 'Practice balance, ready instantly'], ['personal', 'Personal account', 'Set up your own broker account']] as const).map(([k, t, d]) => (
+                          <button key={k} type="button" role="radio" aria-checked={accountKind === k} data-testid={`signup-kind-${k}`} onClick={() => setAccountKind(k)}
+                            className={`text-left rounded-xl border px-3 py-2 cursor-pointer transition ${accountKind === k ? 'border-amber-300 bg-amber-400/15' : 'border-slate-700 bg-slate-900/80 hover:border-slate-500'}`}>
+                            <span className={`block text-[12px] font-bold ${accountKind === k ? 'text-amber-200' : 'text-slate-200'}`}>{t}</span>
+                            <span className="block text-[10.5px] text-slate-400 leading-snug">{d}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
                 )}
                 <div>
                   <label className="text-xs font-mono-code text-slate-300 font-bold block mb-1.5 uppercase">
@@ -920,7 +941,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   
                 </button>
                 <p className="text-[10px] text-center text-slate-400 font-mono-code mt-1.5">
-                  Demo has limited features. A subscription ($200, or $100 with a code) unlocks everything.
+                  Create a free account for 30 minutes of full access. A subscription ($200, or $100 with a code) unlocks everything permanently.
                 </p>
               </form>
             ) : step === 'LINK_STORAGE' ? (
@@ -1115,6 +1136,23 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
         )}
       </AnimatePresence>
 
+
+      {/* Demo click: offer the 30-minute full-access trial */}
+      {isTrialOfferOpen && (
+        <div className="fixed inset-0 z-[9995] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label="Free 30-minute trial">
+          <div className="relative w-full max-w-sm rounded-2xl border border-emerald-400/40 bg-[#0b1220] p-5 shadow-2xl text-center">
+            <button type="button" aria-label="Close" onClick={() => setIsTrialOfferOpen(false)} className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 hover:text-white cursor-pointer">✕</button>
+            <div className="text-[11px] font-mono-code font-bold tracking-widest text-emerald-300">FREE TRIAL</div>
+            <div className="mt-1 text-xl font-bold text-white">Get 30 minutes of FULL access</div>
+            <p className="mt-2 text-sm text-slate-300">Create a free account (username + password) and every category opens for 30 minutes — fundamentals, premium charts, tools and more. One trial per person.</p>
+            <button type="button" data-testid="trial-offer-create" onClick={() => { setIsTrialOfferOpen(false); setMode('signup'); setError(null); setStep('LOGIN'); }}
+              className="mt-4 w-full rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 py-3 text-sm font-bold text-slate-950 cursor-pointer">Create free account — 30 min full access</button>
+            <button type="button" data-testid="trial-offer-limited" onClick={startLimitedDemo}
+              className="mt-2 w-full rounded-xl border border-slate-700 py-2.5 text-xs font-bold text-slate-300 hover:text-white cursor-pointer">No thanks — continue with the limited demo</button>
+            <p className="mt-2 text-[10.5px] text-slate-500">Already subscribed? Just sign in — your full access is unchanged.</p>
+          </div>
+        </div>
+      )}
 
       {/* Subscription Lock Modal encountered by non-subscribed users clicking Explore */}
       <ExploreLockedModal

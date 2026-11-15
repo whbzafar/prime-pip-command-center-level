@@ -397,11 +397,14 @@ export default function App() {
   const [showTrialReview, setShowTrialReview] = useState(false);
   const trialActive = isTrialActive(currentUser); // eslint-disable-line @typescript-eslint/no-unused-vars
   void trialTick;
+  // Sign-up choice: "demo" opens a ready practice workspace; "personal" goes to the personal-account setup.
+  const signupKind = (() => { try { return localStorage.getItem('ppfx_signup_account_kind'); } catch { return null; } })();
+  const trialWantsPersonal = trialActive && signupKind === 'personal';
   useEffect(() => {
     if (!trialActive) return;
     if (isDemoMode) setIsDemoMode(false);
-    if (!isLoading && !activeAccount) void handleEnterDemoMode({ keepFullAccess: true });
-  }, [trialActive, isDemoMode, isLoading, activeAccount, handleEnterDemoMode]);
+    if (!isLoading && !activeAccount && !trialWantsPersonal) void handleEnterDemoMode({ keepFullAccess: true });
+  }, [trialActive, trialWantsPersonal, isDemoMode, isLoading, activeAccount, handleEnterDemoMode]);
   const handleTrialExpired = useCallback(() => {
     setTrialTick((n) => n + 1);
     setIsDemoMode(true);
@@ -1290,7 +1293,7 @@ export default function App() {
 
   // If no account exists yet, force Onboarding for paid users; unpaid users get the demo workspace instead.
   if (!activeAccount || accounts.length === 0) {
-    if (isUnpaidUser || isDemoMode || trialActive) {
+    if (isUnpaidUser || isDemoMode || (trialActive && !trialWantsPersonal)) {
       return (
         <div className="prime-command-shell w-full min-h-screen text-slate-100 flex items-center justify-center text-xs font-mono-code text-slate-400">
           Opening your demo workspace…
