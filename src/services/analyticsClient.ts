@@ -21,6 +21,6 @@ export function trackState(state: AnalyticsState, getLatest: () => AnalyticsStat
   trackPing(state, started ? 'view' : 'start');
   if (!started) {
     started = true;
-    window.setInterval(() => { if (document.visibilityState === 'visible') trackPing(getLatest(), 'beat'); }, 30_000);
+    window.setInterval(() => { if (document.visibilityState === 'visible') trackPing(getLatest(), 'beat'); }, 120_000);
   }
 }

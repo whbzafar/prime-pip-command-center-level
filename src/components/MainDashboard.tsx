@@ -117,7 +117,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
     };
 
     loadSignalsAndAnnouncements();
-    const interval = setInterval(loadSignalsAndAnnouncements, 2500);
+    const interval = setInterval(() => { if (document.visibilityState === "visible") loadSignalsAndAnnouncements(); }, 60_000);
     const unsubSync = subscribeToSignalsSync(() => loadSignalsAndAnnouncements());
 
     const onSigCreated = (e: any) => {

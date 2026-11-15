@@ -120,7 +120,7 @@ export const DailyPrayerBar: React.FC = () => {
     };
 
     fetchSchedule();
-    const interval = setInterval(fetchSchedule, 30000); // refresh every 30s
+    const interval = setInterval(fetchSchedule, 10 * 60_000); // prayer times change once a day
 
     const handleSettingsChanged = () => {
       setSettings(getPrayerSettings());

@@ -148,7 +148,7 @@ export const PremiumSignalsHub: React.FC<PremiumSignalsHubProps> = ({
 
     loadData();
     // Fast polling ensures continuous synchronization across tabs/devices
-    const interval = setInterval(loadData, 3000);
+    const interval = setInterval(() => { if (document.visibilityState === "visible") loadData(); }, 60_000);
     const unsubSync = subscribeToSignalsSync(() => loadData());
     const onSignalCreated = () => loadData();
     const onAnnouncementCreated = () => loadData();

@@ -209,7 +209,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       } catch {}
     };
     loadRelationshipState();
-    const interval = window.setInterval(loadRelationshipState, 8000);
+    const interval = window.setInterval(loadRelationshipState, 30_000);
     return () => { active = false; window.clearInterval(interval); };
   }, [currentUser?.id]);
 
@@ -309,7 +309,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       setAllTraders((prev) => (prev.length > 0 ? prev : DEFAULT_TRADERS));
     };
     fetchTraders();
-    const intv = setInterval(fetchTraders, 20000);
+    const intv = setInterval(fetchTraders, 60_000);
     return () => clearInterval(intv);
   }, [currentUser?.id]);
 
@@ -559,7 +559,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       setIsOffline(false);
     };
     checkBackend();
-    const backendInterval = window.setInterval(checkBackend, 30000);
+    const backendInterval = window.setInterval(checkBackend, 120_000);
     return () => {
       window.removeEventListener('online', goOnline);
       window.removeEventListener('offline', goOffline);
@@ -842,7 +842,7 @@ export const CommunityChat: React.FC<CommunityChatProps> = ({ currentUser, onOpe
       }
     };
     checkIncomingCall();
-    const timer = window.setInterval(checkIncomingCall, 1000);
+    const timer = window.setInterval(checkIncomingCall, 4000);
     return () => {
       active = false;
       window.clearInterval(timer);

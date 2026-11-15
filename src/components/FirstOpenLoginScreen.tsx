@@ -212,7 +212,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       } catch {}
     };
     syncGoldPrice();
-    const goldInterval = setInterval(syncGoldPrice, 5000);
+    const goldInterval = setInterval(() => { if (document.visibilityState === "visible") syncGoldPrice(); }, 30_000);
     return () => {
       isMounted = false;
       clearInterval(goldInterval);

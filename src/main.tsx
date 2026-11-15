@@ -104,6 +104,6 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
     } catch { /* offline */ }
   };
   setTimeout(check, 15_000);
-  setInterval(check, 120_000);
+  setInterval(check, 10 * 60_000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
 }

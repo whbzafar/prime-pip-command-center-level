@@ -247,7 +247,7 @@ export async function refreshAndCompute(force = false): Promise<MacroSnapshot> {
  * at most for the economic calendar (the core feed) within `budgetMs` — every other source lands
  * on the following request as soon as it completes.
  */
-export async function getSnapshot(maxAgeMs = 60_000, budgetMs = SERVERLESS ? 10_000 : 25_000): Promise<MacroSnapshot> {
+export async function getSnapshot(maxAgeMs = SERVERLESS ? 5 * 60_000 : 60_000, budgetMs = SERVERLESS ? 6_000 : 25_000): Promise<MacroSnapshot> {
   const age = snapshot ? Date.now() - new Date(snapshot.generatedAt).getTime() : Infinity;
   if (snapshot && age < maxAgeMs) {
     // Still fresh, but keep due sources moving in the background (cheap: runJob de-duplicates).
