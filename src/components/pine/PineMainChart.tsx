@@ -108,7 +108,9 @@ async function loadEdgeMarks(chart: any, ticker: string) {
   try {
     if (!chart?.marks) return;
     chart.marks.defineGroup?.({ id: 'quantedge', label: 'Quant Edge signals' });
-    const j = await fetch(`/api/quant-edge/trades/${encodeURIComponent(ticker)}`).then((r) => r.json()).catch(() => null);
+    const get = () => fetch(`/api/quant-edge/trades/${encodeURIComponent(ticker)}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    let j = await get();
+    if (!j) { await new Promise((r) => setTimeout(r, 3000)); j = await get(); } // one retry (cold start)
     const old = (chart.marks.all?.() || []).filter((m: any) => m.group === 'quantedge');
     old.forEach((m: any) => chart.marks.remove(m.id));
     if (!j?.ok || !j.covered) return;
