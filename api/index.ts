@@ -76,6 +76,12 @@ export default async function handler(req: Request, res: Response) {
         fundamentals: macroError ? { loaded: false, error: macroError } : { loaded: !!macroApp },
         node: process.version,
         region: process.env.VERCEL_REGION || null,
+        // Configuration presence only (never values): lets the owner see storage/login wiring at a glance.
+        config: {
+          sessionSigning: Boolean(process.env.PRIMEPIPFX_SESSION_SECRET || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN),
+          accountStore: (process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL) && (process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN) ? 'redis' : 'temporary',
+          adminPasswordSet: Boolean(process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD),
+        },
         time: new Date().toISOString(),
       });
     }
