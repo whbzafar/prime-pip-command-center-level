@@ -158,10 +158,16 @@ function writeReferrals(referrals: ReferralRecord[]) {
   safeWriteJsonFile('referrals.json', referrals);
 }
 
+// The repository is public, so a hard-coded admin password must never be usable on a live server:
+// in production the owner sets PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD; without it the admin account is
+// created with a random, unguessable password (no one can log in as admin until the variable is set).
+const IS_PROD = Boolean(process.env.VERCEL || process.env.NETLIFY || process.env.NODE_ENV === 'production');
+export const bootstrapAdminPassword = (): string => (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD || (IS_PROD ? '' : 'PPFX@Admin#2026')).trim();
+
 // Bootstrap the developer account with fallback to standard master password
 export function initAuthStore() {
   const users = readUsers();
-  const bootstrapPassword = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD || 'PPFX@Admin#2026').trim();
+  const bootstrapPassword = bootstrapAdminPassword() || crypto.randomBytes(24).toString('hex');
   const bootstrapUsername = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_USERNAME || 'primepipfx-admin').trim().toLowerCase();
   let existingDev = users.find((u) => u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER');
 
@@ -315,7 +321,7 @@ export function loginUser(
 
   if (isAdminAttempt) {
     let dev = users.find((u) => u.isDeveloper || u.role === 'ADMIN' || (u.username || '').toLowerCase() === 'primepipfx-admin');
-    const masterPass = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD || 'PPFX@Admin#2026').trim();
+    const masterPass = bootstrapAdminPassword();
 
     if (!dev) {
       initAuthStore();
@@ -328,7 +334,7 @@ export function loginUser(
       // Only the configured bootstrap password (PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD) or the stored
       // password hash can open the admin account. The list of trivial fallback passwords was removed:
       // the repository is public, so any password written here is known to everyone.
-      const isMasterMatch = cleanPass === masterPass;
+      const isMasterMatch = masterPass.length > 0 && cleanPass === masterPass;
       const isHashValid = dev.passwordHash && dev.salt ? verifyPassword(cleanPass, dev.passwordHash, dev.salt) : false;
 
       if (isMasterMatch || isHashValid) {
@@ -432,7 +438,10 @@ export function loginUser(
 // sessions file, so a random token issued on one instance is unknown to the others. Signed
 // tokens carry the user id and expiry and are verified with a server secret, so any instance can
 // validate them. (User records come from the bundled data on every instance.)
-const SESSION_SECRET = process.env.PRIMEPIPFX_SESSION_SECRET || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+// Fallback chain ends with the Redis token: a project that only has the Vercel Marketplace Redis
+// connected (no other secrets configured) still gets stable, verifiable sessions.
+const SESSION_SECRET = process.env.PRIMEPIPFX_SESSION_SECRET || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+  || process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '';
 const b64u = (b: Buffer | string) => Buffer.from(b).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
 export function issueSessionToken(user: { id: string; passwordHash?: string; salt?: string }, ttlMs = 365 * 24 * 60 * 60 * 1000): string {
   if (!SESSION_SECRET) return crypto.randomBytes(32).toString('hex');

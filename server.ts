@@ -42,6 +42,7 @@ import {
   syncUsersFromDurable,
   localLoginLog,
   refreshRemovedMembers,
+  bootstrapAdminPassword,
 } from "./server/authService.js";
 import { geoFromHeaders, recordPing, summary as analyticsSummary } from "./server/analytics.js";
 import { durableStatus, flushDurable, getShared, hasPendingWrites, recentLogins } from "./server/durableStore.js";
@@ -218,7 +219,7 @@ dotenv.config();
 // Initialize permanent developer account on server boot
 initAuthStore();
 if (isSupabaseAuthEnabled) {
-  const bootstrapPassword = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_PASSWORD || 'PPFX@Admin#2026').trim();
+  const bootstrapPassword = bootstrapAdminPassword();
   const bootstrapUsername = (process.env.PRIMEPIPFX_BOOTSTRAP_ADMIN_USERNAME || 'primepipfx-admin').trim().toLowerCase();
   if (bootstrapPassword && bootstrapPassword.length >= 12) {
     void provisionBootstrapAdmin(bootstrapUsername, bootstrapPassword).catch((error) => {

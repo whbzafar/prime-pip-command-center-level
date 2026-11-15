@@ -21,7 +21,7 @@ export const durableEnabled = Boolean(URL_ && TOKEN);
 // ignored. Redis, when connected, is still preferred.
 import crypto from 'crypto';
 import zlib from 'zlib';
-const SEAL_SECRET = process.env.PRIMEPIPFX_SESSION_SECRET || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.PPFX_STRATEGY_KEY || '';
+const SEAL_SECRET = process.env.PRIMEPIPFX_SESSION_SECRET || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.PPFX_STRATEGY_KEY || process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '';
 const SEAL_PREFIX = (process.env.PPFX_SEALED_PREFIX || 'ppfx_sealed_users').replace(/[^a-z0-9_]/gi, '');
 export const sealedEnabled = !durableEnabled && SEAL_SECRET.length >= 16;
 const sealKey = () => crypto.createHash('sha256').update(`ppfx-users-v1:${SEAL_SECRET}`).digest();
