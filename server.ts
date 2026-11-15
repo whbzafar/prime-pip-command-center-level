@@ -3834,13 +3834,18 @@ app.get('/api/admin/members', requireDeveloper, async (_req, res) => {
 });
 
 // Route: Get current user
-app.get('/api/auth/me', (req, res) => {
+app.get('/api/auth/me', async (req, res) => {
   const token = getAuthToken(req);
   if (!token) {
     return res.status(401).json({ ok: false, error: 'No active session token provided' });
   }
 
-  const user = getUserByToken(token);
+  let user = getUserByToken(token);
+  if (!user) {
+    // A fresh server instance may not have loaded an account created elsewhere yet: re-read once.
+    await Promise.allSettled([syncUsersFromDurable(0)]);
+    user = getUserByToken(token);
+  }
   if (!user) {
     return res.status(401).json({ ok: false, error: 'Invalid or expired session' });
   }
@@ -4195,8 +4200,12 @@ function requireDeveloper(req: express.Request, res: express.Response, next: exp
   };
   const local = getUserByToken(token);
   if (local) return check(local);
-  // Durable (Supabase) sessions on Vercel.
-  getCommunityUser(req).then(check).catch(() => check(null));
+  // Re-read the durable account store once (fresh instance), then Supabase sessions if configured.
+  Promise.allSettled([syncUsersFromDurable(0)]).then(() => {
+    const again = getUserByToken(token);
+    if (again) return check(again);
+    getCommunityUser(req).then(check).catch(() => check(null));
+  });
 }
 
 // ----------------------------------------------------

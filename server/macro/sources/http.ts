@@ -19,6 +19,11 @@ export function registerSource(id: string, name: string, url: string, note?: str
   }
 }
 
+export function setSourceNote(id: string, note: string): void {
+  const h: any = health.get(id);
+  if (h) h.note = note;
+}
+
 export function markSuccess(id: string, itemCount: number): void {
   const h = health.get(id);
   if (!h) return;

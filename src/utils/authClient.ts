@@ -242,6 +242,15 @@ export async function apiGetCurrentUser(): Promise<UserAccount | null> {
         setStoredUser(data.user);
         return data.user;
       }
+    } else if (res.status === 401 && currentStored?.id && token) {
+      // The server definitively rejected this session (e.g. it was issued by an older deployment):
+      // sign out cleanly so the user logs in again instead of seeing "401 UNAUTHORIZED" everywhere.
+      const data = await res.json().catch(() => null);
+      if (/invalid or expired session/i.test(String(data?.error || ''))) {
+        setStoredToken(null);
+        setStoredUser(null);
+        return null;
+      }
     }
   } catch (err) {
     console.warn('[AUTH CLIENT] Session verification failed:', err);

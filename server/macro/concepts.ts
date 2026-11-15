@@ -227,7 +227,7 @@ export const CONCEPTS: Record<string, ConceptDef> = {
     name: 'Manufacturing PMI',
     desc: 'Survey of purchasing managers; above 50 = expansion. Leads industrial output by months.',
     freq: 'Monthly',
-    patterns: [{ re: /manufacturing pmi$/ }, { re: /^business nz pmi$/ }],
+    patterns: [{ re: /manufacturing pmi$/ }, { re: /^business nz pmi$/ }, { re: /^ai group manufacturing index$/ }],
     exclude: PMI_EXCLUDE,
     scale: 1.0,
     level: { neutral: 50, scale: 4, label: '50 = expansion/contraction line' },

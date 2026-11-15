@@ -3,7 +3,7 @@
  * Works with NO key via the public fredgraph.csv download. If FRED_API_KEY is set
  * (free at fredaccount.stlouisfed.org) the official JSON API is used instead.
  */
-import { fetchJson, fetchText, mapLimit, markFailure, markSuccess, registerSource, toNum } from './http.js';
+import { fetchJson, fetchText, mapLimit, markFailure, markSuccess, registerSource, setSourceNote, toNum } from './http.js';
 
 export const FRED_SOURCE_ID = 'fred';
 registerSource(FRED_SOURCE_ID, 'FRED — Federal Reserve Bank of St. Louis', 'https://fred.stlouisfed.org/',
@@ -70,11 +70,55 @@ async function fetchSeries(id: string, startIso: string): Promise<SeriesPoint[]>
   return parseFredCsv(await fetchText(url, { timeoutMs: 12_000, retries: 1 }));
 }
 
+/**
+ * Same-instrument market fallback (Yahoo Finance daily closes) for the series that have an exact
+ * market equivalent. FRED's keyless CSV download refuses some cloud servers (Vercel/AWS), so without a
+ * FRED_API_KEY these keep yields, VIX, oil, indices and FX live. Values are the same instrument
+ * (e.g. ^TNX = CBOE 10Y Treasury yield, ^VIX = CBOE VIX), never an estimate. Series with no exact
+ * market twin (TIPS, breakevens, HY OAS, Fed balance sheet, NFCI) are NOT substituted.
+ */
+const YAHOO_TWIN: Partial<Record<FredId, { sym: string; scale?: number }>> = {
+  DGS10: { sym: '^TNX' }, DGS2: { sym: '2YY=F' }, VIXCLS: { sym: '^VIX' }, GVZCLS: { sym: '^GVZ' },
+  DCOILWTICO: { sym: 'CL=F' }, DHHNGSP: { sym: 'NG=F' }, SP500: { sym: '^GSPC' }, NASDAQ100: { sym: '^NDX' }, DJIA: { sym: '^DJI' },
+  DEXUSEU: { sym: 'EURUSD=X' }, DEXUSUK: { sym: 'GBPUSD=X' }, DEXJPUS: { sym: 'JPY=X' }, DEXCAUS: { sym: 'CAD=X' },
+  DEXSZUS: { sym: 'CHF=X' }, DEXUSAL: { sym: 'AUDUSD=X' }, DEXUSNZ: { sym: 'NZDUSD=X' }, CBBTCUSD: { sym: 'BTC-USD' }, CBETHUSD: { sym: 'ETH-USD' },
+};
+export const fredFallbackUsed = new Set<string>();
+
+async function fetchYahooDaily(sym: string, years: number): Promise<SeriesPoint[]> {
+  const range = years > 1.2 ? '2y' : '1y';
+  const json = await fetchJson<any>(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=${range}&interval=1d`, { timeoutMs: 12_000, retries: 1 });
+  const r = json?.chart?.result?.[0];
+  const ts: number[] = r?.timestamp || [];
+  const closes: Array<number | null> = r?.indicators?.quote?.[0]?.close || [];
+  const out: SeriesPoint[] = [];
+  for (let i = 0; i < ts.length; i++) {
+    const v = closes[i];
+    if (typeof v === 'number' && Number.isFinite(v)) out.push({ date: new Date(ts[i] * 1000).toISOString().slice(0, 10), value: v });
+  }
+  return out;
+}
+
 export async function getFredSeries(id: FredId, years = 1.6): Promise<SeriesPoint[]> {
   const hit = cache.get(id);
   if (hit && Date.now() - hit.at < TTL) return hit.points;
   const start = new Date(Date.now() - years * 365.25 * 86_400_000).toISOString().slice(0, 10);
-  const points = await fetchSeries(id, start);
+  let points: SeriesPoint[] = [];
+  let err: unknown = null;
+  try { points = await fetchSeries(id, start); } catch (e) { err = e; }
+  if (!points.length && id === 'T10Y2Y') {
+    // 10Y-2Y spread from the two market yields when FRED is unreachable.
+    const [a, b] = await Promise.all([getFredSeries('DGS10', years), getFredSeries('DGS2', years)]);
+    const two = new Map(b.map((p) => [p.date, p.value]));
+    points = a.filter((p) => two.has(p.date)).map((p) => ({ date: p.date, value: +(p.value - (two.get(p.date) as number)).toFixed(3) }));
+    if (points.length) fredFallbackUsed.add(id);
+  }
+  const twin = YAHOO_TWIN[id];
+  if (!points.length && twin) {
+    points = await fetchYahooDaily(twin.sym, years);
+    if (points.length) fredFallbackUsed.add(id);
+  }
+  if (!points.length && err) throw err;
   cache.set(id, { at: Date.now(), points });
   return points;
 }
@@ -95,7 +139,14 @@ export async function refreshFred(force = false): Promise<Record<string, SeriesP
       out[id] = cache.get(id)?.points || [];
     }
   });
-  if (ok > 0) markSuccess(FRED_SOURCE_ID, ok);
+  if (ok > 0) {
+    markSuccess(FRED_SOURCE_ID, ok);
+    // Be explicit in the Data Audit when some series came from the same-instrument market fallback.
+    const missing = ids.filter((id) => !(out[id] || []).length);
+    const fb = [...fredFallbackUsed];
+    if (fb.length || missing.length) setSourceNote(FRED_SOURCE_ID,
+      `US yields, VIX, oil, indices & FX closes.${fb.length ? ` FRED download blocked from this server: ${fb.length} series served from the same instrument on Yahoo Finance (e.g. ^TNX, ^VIX).` : ''}${missing.length ? ` Unavailable without a free FRED_API_KEY: ${missing.join(', ')}.` : ''}`);
+  }
   else markFailure(FRED_SOURCE_ID, lastErr || new Error('No FRED series loaded'));
   return out;
 }

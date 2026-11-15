@@ -66,7 +66,10 @@ function fail(res: Response, err: any) {
 /** GET /api/macro/overview — all assets (pillar level), pairs, correlations, releases, sources. */
 macroRouter.get('/overview', async (_req: Request, res: Response) => {
   try {
-    const s = await getSnapshot();
+    // On serverless each instance keeps its own source-health list; make sure the retail-sentiment
+    // sources have been checked on THIS instance so the Data Audit never shows them as un-checked.
+    const sentimentReady = Promise.race([getSentiment().catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 4000))]);
+    const [s] = await Promise.all([getSnapshot(), sentimentReady]);
     cacheHeaders(res, s);
     res.json({ ok: true, data: overview(s) });
   } catch (err) { fail(res, err); }
