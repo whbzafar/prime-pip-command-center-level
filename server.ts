@@ -3574,6 +3574,18 @@ function getAuthToken(req: express.Request): string {
   }
   return '';
 }
+/**
+ * Every session token the request carries (cookie and bearer). A browser can hold an old cookie from a
+ * previous deployment next to a fresh bearer token (or the reverse); the first one that resolves wins.
+ */
+function resolveRequestUser(req: express.Request): StoredUser | null {
+  const raw = req.headers?.cookie || '';
+  const fromHeader = raw.split(';').map((p) => p.trim()).filter((p) => p.startsWith('primepipfx_session=')).map((p) => decodeURIComponent(p.slice('primepipfx_session='.length)));
+  const bearer = (req.headers.authorization || '').startsWith('Bearer ') ? String(req.headers.authorization).slice(7).trim() : '';
+  const tokens = [...new Set([req.cookies?.primepipfx_session, ...fromHeader, bearer].filter((t): t is string => Boolean(t)))];
+  for (const t of tokens) { const u = getUserByToken(t); if (u) return u; }
+  return null;
+}
 async function getCommunityUser(req: express.Request): Promise<StoredUser | null> {
   const candidates = [
     req.cookies?.primepipfx_session,
@@ -3840,11 +3852,11 @@ app.get('/api/auth/me', async (req, res) => {
     return res.status(401).json({ ok: false, error: 'No active session token provided' });
   }
 
-  let user = getUserByToken(token);
+  let user = resolveRequestUser(req);
   if (!user) {
     // A fresh server instance may not have loaded an account created elsewhere yet: re-read once.
     await Promise.allSettled([syncUsersFromDurable(0)]);
-    user = getUserByToken(token);
+    user = resolveRequestUser(req);
   }
   if (!user) {
     return res.status(401).json({ ok: false, error: 'Invalid or expired session' });
@@ -4198,11 +4210,11 @@ function requireDeveloper(req: express.Request, res: express.Response, next: exp
     (req as any).currentUser = user;
     next();
   };
-  const local = getUserByToken(token);
+  const local = resolveRequestUser(req);
   if (local) return check(local);
   // Re-read the durable account store once (fresh instance), then Supabase sessions if configured.
   Promise.allSettled([syncUsersFromDurable(0)]).then(() => {
-    const again = getUserByToken(token);
+    const again = resolveRequestUser(req);
     if (again) return check(again);
     getCommunityUser(req).then(check).catch(() => check(null));
   });

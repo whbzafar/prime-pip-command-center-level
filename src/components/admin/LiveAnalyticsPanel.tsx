@@ -53,6 +53,7 @@ export const LiveAnalyticsPanel: React.FC = () => {
     try {
       const token = getStoredToken();
       const r = await fetch(`/api/admin/analytics?days=${days}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, credentials: 'include' });
+      if (r.status === 401) { throw new Error('Your admin session has expired. Please log out and log in again.'); }
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       setData(await r.json()); setErr('');
     } catch (e: any) { setErr(e?.message || 'Could not load analytics'); }

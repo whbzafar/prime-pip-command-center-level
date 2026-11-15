@@ -3,8 +3,8 @@
     "id": "dev-owner-master",
     "name": "PrimePipFX Developer / Owner",
     "username": "primepipfx-admin",
-    "passwordHash": "c4b5627009ae5084834d43cc9bbc5fda87073b6fd4c645f1a523ca156f6443ccd2205e4b9bb2fc9b0c6f9d152ec2045f20300c5b4ebe036c02b75e587e32931f",
-    "salt": "9552eac8bce5b3eb86cc834188b97538",
+    "passwordHash": "f7ac6a239a7e864e6e76930e4a9670ea3f462a3e891bef05fef7e45db962866034af478439d61f8bd4b7f3a44d53fc766e528fa777627eb3bd8ba1c7b0cb8b3d",
+    "salt": "2b639fc641c0f938d01f4cab2fcbc0a0",
     "role": "ADMIN",
     "subscriptionStatus": "LIFETIME",
     "subscriptionPrice": 0,
@@ -16,9 +16,13 @@
     "referralCode": "PPFX-MASTER",
     "adminNotes": "Permanent Developer Master Account.",
     "createdAt": "2026-09-10T08:58:20.711Z",
-    "updatedAt": "2026-09-22T07:17:26.420Z",
+    "updatedAt": "2026-11-15T12:10:01.874Z",
     "mustChangePassword": false,
-    "email": "admin@primepipfx.com"
+    "email": "admin@primepipfx.com",
+    "lastLoginAt": "2026-11-15T12:10:16.178Z",
+    "loginCount": 1,
+    "lastLoginIp": "127.0.0.1",
+    "lastLoginDevice": "curl/8.5.0"
   },
   {
     "id": "student_1789485011620_61j5n",

@@ -242,7 +242,7 @@ export async function apiGetCurrentUser(): Promise<UserAccount | null> {
         setStoredUser(data.user);
         return data.user;
       }
-    } else if (res.status === 401 && currentStored?.id && token) {
+    } else if (res.status === 401 && currentStored?.id) {
       // The server definitively rejected this session (e.g. it was issued by an older deployment):
       // sign out cleanly so the user logs in again instead of seeing "401 UNAUTHORIZED" everywhere.
       const data = await res.json().catch(() => null);
