@@ -85,6 +85,78 @@ const YAHOO_TWIN: Partial<Record<FredId, { sym: string; scale?: number }>> = {
 };
 export const fredFallbackUsed = new Set<string>();
 
+// ── Official-publisher fallbacks (same numbers FRED republishes) ─────────────────────────────────
+// US Treasury daily par yield curves: FRED's DFII10 is the Treasury 10Y real (TIPS) CMT, and FRED
+// defines T10YIE = DGS10 − DFII10 and T5YIFR from the 5Y and 10Y nominal/real CMT rates.
+type Curve = Map<string, Record<string, number>>;
+const curveCache = new Map<string, { at: number; c: Curve }>();
+function parseTreasuryCsv(csv: string): Curve {
+  const lines = csv.trim().split(/\r?\n/);
+  const head = lines[0].split(',').map((h) => h.replace(/"/g, '').trim().toUpperCase());
+  const out: Curve = new Map();
+  for (const line of lines.slice(1)) {
+    const cells = line.split(',').map((c) => c.replace(/"/g, '').trim());
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(cells[0] || '');
+    if (!m) continue;
+    const row: Record<string, number> = {};
+    head.forEach((h, i) => { const v = toNum(cells[i]); if (i && v !== null) row[h.replace(/\s+/g, '')] = v; });
+    out.set(`${m[3]}-${m[1]}-${m[2]}`, row);
+  }
+  return out;
+}
+async function treasuryCurve(kind: 'daily_treasury_yield_curve' | 'daily_treasury_real_yield_curve'): Promise<Curve> {
+  const hit = curveCache.get(kind);
+  if (hit && Date.now() - hit.at < TTL) return hit.c;
+  const y = new Date().getUTCFullYear();
+  const merged: Curve = new Map();
+  for (const year of [y - 1, y]) {
+    const url = `https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/${year}/all?type=${kind}&field_tdr_date_value=${year}&page&_format=csv`;
+    try { for (const [d, r] of parseTreasuryCsv(await fetchText(url, { timeoutMs: 12_000, retries: 1 }))) merged.set(d, r); } catch { /* keep what loaded */ }
+  }
+  if (merged.size) curveCache.set(kind, { at: Date.now(), c: merged });
+  return merged;
+}
+const sortPts = (m: Map<string, number>): SeriesPoint[] => [...m].map(([date, value]) => ({ date, value })).sort((a, b) => a.date.localeCompare(b.date));
+async function treasuryFallback(id: FredId): Promise<SeriesPoint[]> {
+  if (!['DFII10', 'T10YIE', 'T5YIFR'].includes(id)) return [];
+  const [nom, real] = await Promise.all([treasuryCurve('daily_treasury_yield_curve'), treasuryCurve('daily_treasury_real_yield_curve')]);
+  const out = new Map<string, number>();
+  for (const [d, r] of real) {
+    const n = nom.get(d);
+    const r10 = r['10YR'], r5 = r['5YR'];
+    if (id === 'DFII10' && r10 !== undefined) out.set(d, r10);
+    if (!n) continue;
+    const n10 = n['10YR'], n5 = n['5YR'];
+    if (id === 'T10YIE' && n10 !== undefined && r10 !== undefined) out.set(d, +(n10 - r10).toFixed(2));
+    if (id === 'T5YIFR' && [n10, n5, r10, r5].every((v) => v !== undefined)) {
+      // 5-year, 5-year forward breakeven: the inflation compensation for years 6–10.
+      const be10 = (n10 - r10) / 100, be5 = (n5 - r5) / 100;
+      out.set(d, +((Math.pow(Math.pow(1 + be10, 10) / Math.pow(1 + be5, 5), 1 / 5) - 1) * 100).toFixed(2));
+    }
+  }
+  return sortPts(out);
+}
+// Chicago Fed publishes NFCI itself (weekly CSV); FRED's NFCI is a copy of it.
+async function nfciFallback(): Promise<SeriesPoint[]> {
+  const csv = await fetchText('https://www.chicagofed.org/-/media/publications/nfci/nfci-data-series-csv.csv', { timeoutMs: 12_000, retries: 1 });
+  const lines = csv.trim().split(/\r?\n/);
+  const head = lines[0].split(',').map((h) => h.trim().toUpperCase());
+  const iN = head.indexOf('NFCI');
+  const out = new Map<string, number>();
+  for (const line of lines.slice(1)) {
+    const c = line.split(',');
+    const v = toNum(c[iN]);
+    const raw = (c[0] || '').trim();
+    let d = '';
+    const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(raw);
+    if (us) d = `${us[3]}-${us[1].padStart(2, '0')}-${us[2].padStart(2, '0')}`;
+    else if (/^\d{4}-\d{2}-\d{2}/.test(raw)) d = raw.slice(0, 10);
+    if (d && v !== null) out.set(d, v);
+  }
+  const cutoff = new Date(Date.now() - 2 * 365 * 86_400_000).toISOString().slice(0, 10);
+  return sortPts(out).filter((p) => p.date >= cutoff);
+}
+
 async function fetchYahooDaily(sym: string, years: number): Promise<SeriesPoint[]> {
   const range = years > 1.2 ? '2y' : '1y';
   const json = await fetchJson<any>(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=${range}&interval=1d`, { timeoutMs: 12_000, retries: 1 });
@@ -112,6 +184,12 @@ export async function getFredSeries(id: FredId, years = 1.6): Promise<SeriesPoin
     const two = new Map(b.map((p) => [p.date, p.value]));
     points = a.filter((p) => two.has(p.date)).map((p) => ({ date: p.date, value: +(p.value - (two.get(p.date) as number)).toFixed(3) }));
     if (points.length) fredFallbackUsed.add(id);
+  }
+  if (!points.length && (id === 'DFII10' || id === 'T10YIE' || id === 'T5YIFR')) {
+    try { points = await treasuryFallback(id); if (points.length) fredFallbackUsed.add(id); } catch { /* next fallback */ }
+  }
+  if (!points.length && id === 'NFCI') {
+    try { points = await nfciFallback(); if (points.length) fredFallbackUsed.add(id); } catch { /* unavailable */ }
   }
   const twin = YAHOO_TWIN[id];
   if (!points.length && twin) {
@@ -145,7 +223,7 @@ export async function refreshFred(force = false): Promise<Record<string, SeriesP
     const missing = ids.filter((id) => !(out[id] || []).length);
     const fb = [...fredFallbackUsed];
     if (fb.length || missing.length) setSourceNote(FRED_SOURCE_ID,
-      `US yields, VIX, oil, indices & FX closes.${fb.length ? ` FRED download blocked from this server: ${fb.length} series served from the same instrument on Yahoo Finance (e.g. ^TNX, ^VIX).` : ''}${missing.length ? ` Unavailable without a free FRED_API_KEY: ${missing.join(', ')}.` : ''}`);
+      `US yields, VIX, oil, indices & FX closes.${fb.length ? ` FRED download blocked from this server: ${fb.length} series served from the original publisher or the same instrument (US Treasury yield curves, Chicago Fed NFCI, Yahoo ^TNX/^VIX).` : ''}${missing.length ? ` Unavailable without a free FRED_API_KEY: ${missing.join(', ')}.` : ''}`);
   }
   else markFailure(FRED_SOURCE_ID, lastErr || new Error('No FRED series loaded'));
   return out;
