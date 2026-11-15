@@ -38,6 +38,8 @@ export const MembersPanel: React.FC = () => {
   const [onlyLogged, setOnlyLogged] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
 
   const headers = useMemo(() => { const t = getStoredToken(); return t ? { Authorization: `Bearer ${t}` } : {}; }, []);
   const load = useCallback(async () => {
@@ -60,6 +62,24 @@ export const MembersPanel: React.FC = () => {
     if (!j.ok) { window.alert(j.error || 'Could not remove the member.'); return; }
     setMembers((x) => x.filter((y) => y.id !== m.id));
     window.setTimeout(load, 1500); // confirm it stays gone
+  };
+
+  const isOwner = (m: Member) => m.role === 'ADMIN' || m.role === 'DEVELOPER';
+  const toggle = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const removeSelected = async () => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    if (!window.confirm(`Delete ${ids.length} selected member${ids.length > 1 ? 's' : ''}? Their accounts are deleted and they can no longer sign in. This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      const r = await fetch('/api/admin/customers/bulk-delete', { method: 'POST', credentials: 'include', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
+      if (r.status === 401) { void handleDeadAdminSession(); return; }
+      const j = await r.json().catch(() => ({}));
+      const gone = new Set<string>(j.removed || []);
+      setMembers((x) => x.filter((y) => !gone.has(y.id)));
+      setSelected(new Set());
+      if (j.failed?.length) window.alert(`${gone.size} removed, ${j.failed.length} could not be removed.`);
+    } finally { setBusy(false); window.setTimeout(load, 1500); }
   };
 
   const list = members.filter((m) => (!q || `${m.username} ${m.name} ${m.email}`.toLowerCase().includes(q.toLowerCase())) && (!onlyLogged || m.lastLoginAt));
@@ -88,15 +108,26 @@ export const MembersPanel: React.FC = () => {
         <button type="button" onClick={load} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 text-[12px] text-slate-200 hover:text-white cursor-pointer"><RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
       </div>
       {err && <div className="text-[12px] text-rose-300">{err}</div>}
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[12.5px]">
+          <b className="text-rose-100">{selected.size} selected</b>
+          <button type="button" disabled={busy} onClick={() => void removeSelected()} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500 text-white font-bold text-[12px] disabled:opacity-50 cursor-pointer"><Trash2 className="w-3.5 h-3.5" />{busy ? 'Deleting…' : 'Delete selected'}</button>
+          <button type="button" onClick={() => setSelected(new Set())} className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-200 text-[12px] cursor-pointer">Clear</button>
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-xl border border-slate-800">
         <table className="w-full min-w-[860px] text-[12.5px]">
           <thead className="bg-slate-900/80 text-[10.5px] uppercase tracking-wider text-slate-400"><tr>
+            <th className="px-3 py-2 w-8"><input type="checkbox" aria-label="Select all members" className="accent-rose-400 w-4 h-4 cursor-pointer"
+              checked={list.filter((m) => !isOwner(m)).length > 0 && list.filter((m) => !isOwner(m)).every((m) => selected.has(m.id))}
+              onChange={(e) => setSelected(e.target.checked ? new Set(list.filter((m) => !isOwner(m)).map((m) => m.id)) : new Set())} /></th>
             <th className="text-left px-3 py-2">Member</th><th className="text-left px-3 py-2">Subscription</th><th className="text-left px-3 py-2">Signed up</th><th className="text-left px-3 py-2">Last login</th><th className="text-right px-3 py-2">Logins</th><th className="text-left px-3 py-2">Last device</th><th className="text-left px-3 py-2">How</th><th className="px-3 py-2" />
           </tr></thead>
           <tbody>
             {list.map((m) => (
-              <tr key={m.id} className="border-t border-slate-800/80 hover:bg-slate-900/40">
+              <tr key={m.id} className={`border-t border-slate-800/80 hover:bg-slate-900/40 ${selected.has(m.id) ? 'bg-rose-500/5' : ''}`}>
+                <td className="px-3 py-2">{!isOwner(m) && <input type="checkbox" aria-label={`Select ${m.username}`} checked={selected.has(m.id)} onChange={() => toggle(m.id)} className="accent-rose-400 w-4 h-4 cursor-pointer" />}</td>
                 <td className="px-3 py-2"><div className="font-semibold text-slate-100">{m.username}</div>{m.name && m.name !== m.username && <div className="text-[11px] text-slate-500">{m.name}</div>}</td>
                 <td className="px-3 py-2"><span className={`px-1.5 py-0.5 rounded text-[10.5px] font-bold whitespace-nowrap ${status(m)[1]}`}>{status(m)[0]}</span></td>
                 <td className="px-3 py-2 text-slate-300">{fmt(m.createdAt)}</td>
@@ -107,7 +138,7 @@ export const MembersPanel: React.FC = () => {
                 <td className="px-3 py-2 text-right"><button type="button" onClick={() => remove(m)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-rose-500/40 text-rose-200 hover:bg-rose-500/10 cursor-pointer text-[11.5px]"><Trash2 className="w-3.5 h-3.5" />Remove</button></td>
               </tr>
             ))}
-            {!list.length && <tr><td colSpan={8} className="px-3 py-6 text-center text-slate-500">{loading ? 'Loading…' : 'No members yet.'}</td></tr>}
+            {!list.length && <tr><td colSpan={9} className="px-3 py-6 text-center text-slate-500">{loading ? 'Loading…' : 'No members yet.'}</td></tr>}
           </tbody>
         </table>
       </div>

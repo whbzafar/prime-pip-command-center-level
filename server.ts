@@ -4601,6 +4601,19 @@ app.get('/api/admin/referrals', requireDeveloper, (req, res) => {
 });
 
 // Route: Delete customer (Developer/Admin only)
+// Remove several members at once (admin ticks rows, then "Delete selected"). Owner accounts are never removed.
+app.post('/api/admin/customers/bulk-delete', requireDeveloper, (req, res) => {
+  const ids: string[] = Array.isArray(req.body?.ids) ? req.body.ids.map(String).filter(Boolean).slice(0, 500) : [];
+  if (!ids.length) return res.status(400).json({ ok: false, error: 'No members selected.' });
+  const removed: string[] = [];
+  const failed: Array<{ id: string; error: string }> = [];
+  for (const id of [...new Set(ids)]) {
+    const r = deleteCustomer(id);
+    if (r.success || r.error === 'Customer not found') removed.push(id); else failed.push({ id, error: r.error || 'Could not remove' });
+  }
+  return res.json({ ok: failed.length === 0, removed, failed });
+});
+
 app.delete('/api/admin/customers/:id', requireDeveloper, (req, res) => {
   const id = req.params.id;
   const result = deleteCustomer(id);

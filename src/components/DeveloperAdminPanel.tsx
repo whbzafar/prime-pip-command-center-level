@@ -90,6 +90,9 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
   // Edit modal
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<{ id: string; username: string } | null>(null);
+  // Multi-select delete in the Customers Directory
+  const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [adminDataExpanded, setAdminDataExpanded] = useState(false);
 
   const fetchAdminData = async () => {
@@ -456,6 +459,34 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
     fetchAdminData();
   };
 
+  const isOwnerAccount = (c: UserAccount) => Boolean(c.isDeveloper || c.role === 'DEVELOPER' || c.role === 'ADMIN');
+  const toggleCustomer = (id: string) => setSelectedCustomers((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const deleteSelectedCustomers = async () => {
+    const chosen = customers.filter((c) => selectedCustomers.has(c.id) && !isOwnerAccount(c));
+    if (!chosen.length) return;
+    if (!window.confirm(`Delete ${chosen.length} selected customer${chosen.length > 1 ? 's' : ''}? Their accounts are deleted and they can no longer sign in. This cannot be undone.`)) return;
+    setBulkDeleting(true);
+    const token = getStoredToken();
+    try {
+      const res = await fetch('/api/admin/customers/bulk-delete', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ ids: chosen.map((c) => c.id) }),
+      });
+      const data = await res.json().catch(() => null);
+      const gone = new Set<string>(data?.removed || []);
+      chosen.filter((c) => gone.has(c.id)).forEach((c) => { deleteLocalStudent(c.id); deleteLocalStudent(c.username); });
+      setCustomers((list) => list.filter((c) => !gone.has(c.id)));
+      setSelectedCustomers(new Set());
+      setActionSuccess(data?.failed?.length ? `${gone.size} removed, ${data.failed.length} could not be removed.` : `${gone.size} customer${gone.size === 1 ? '' : 's'} removed permanently.`);
+    } catch {
+      setActionSuccess('Could not reach the server. Please try again.');
+    } finally {
+      setBulkDeleting(false);
+      fetchAdminData();
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedText(text);
@@ -779,6 +810,15 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
               <div className="text-xs font-mono-code text-slate-400">
                 Showing {filteredCustomers.length} accounts
               </div>
+              {selectedCustomers.size > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-rose-200">{selectedCustomers.size} selected</span>
+                  <button type="button" disabled={bulkDeleting} onClick={() => void deleteSelectedCustomers()} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500 text-white text-xs font-bold disabled:opacity-50 cursor-pointer">
+                    <Trash2 className="w-3.5 h-3.5" />{bulkDeleting ? 'Deleting…' : 'Delete selected'}
+                  </button>
+                  <button type="button" onClick={() => setSelectedCustomers(new Set())} className="px-2.5 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-300 cursor-pointer">Clear</button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -786,6 +826,11 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
             <table className="w-full text-left font-mono-code text-xs">
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400 uppercase text-[11px] tracking-wider">
+                  <th className="pb-3 pr-2 w-8">
+                    <input type="checkbox" aria-label="Select all customers" className="accent-rose-400 w-4 h-4 cursor-pointer"
+                      checked={filteredCustomers.filter((c) => !isOwnerAccount(c)).length > 0 && filteredCustomers.filter((c) => !isOwnerAccount(c)).every((c) => selectedCustomers.has(c.id))}
+                      onChange={(e) => setSelectedCustomers(e.target.checked ? new Set(filteredCustomers.filter((c) => !isOwnerAccount(c)).map((c) => c.id)) : new Set())} />
+                  </th>
                   <th className="pb-3">Customer</th>
                   <th className="pb-3">Role / Status</th>
                   <th className="pb-3">Price</th>
@@ -799,7 +844,10 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
                 {filteredCustomers.map((cust) => {
                   const isDev = cust.isDeveloper || cust.role === 'DEVELOPER';
                   return (
-                    <tr key={cust.id} className="hover:bg-slate-800/30 transition-colors">
+                    <tr key={cust.id} className={`hover:bg-slate-800/30 transition-colors ${selectedCustomers.has(cust.id) ? 'bg-rose-500/5' : ''}`}>
+                      <td className="py-3 pr-2">
+                        {!isOwnerAccount(cust) && <input type="checkbox" aria-label={`Select ${cust.username}`} checked={selectedCustomers.has(cust.id)} onChange={() => toggleCustomer(cust.id)} className="accent-rose-400 w-4 h-4 cursor-pointer" />}
+                      </td>
                       <td className="py-3">
                         <div className="font-bold text-slate-200">{cust.name}</div>
                         <div className="text-slate-500 text-[11px]">@{cust.username}</div>
@@ -949,7 +997,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
 
                 {filteredCustomers.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-14 text-center">
+                    <td colSpan={8} className="py-14 text-center">
                       <div className="flex flex-col items-center justify-center space-y-3">
                         <div className="w-14 h-14 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center text-cyan-400/80">
                           <Users className="w-7 h-7" />
