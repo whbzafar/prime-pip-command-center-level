@@ -78,7 +78,7 @@ export const EventShockSimulator: React.FC<{ open: boolean; onClose: () => void 
 
   return createPortal(
     <div className="fixed inset-0 z-[2147483100] flex items-center justify-center p-2 sm:p-4 bg-black/70" onClick={onClose} data-testid="event-shock">
-      <div className="w-full max-w-6xl h-[94vh] flex flex-col rounded-2xl border border-amber-500/30 bg-slate-950 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-6xl h-[94vh] flex flex-col rounded-2xl border border-amber-500/30 bg-slate-950 shadow-2xl" onClick={(e) => e.stopPropagation()}  style={{ backgroundColor: "#020617" }}>
         <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-800">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-rose-500 flex items-center justify-center shrink-0"><Zap className="w-4 h-4 text-white" /></div>

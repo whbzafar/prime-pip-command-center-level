@@ -110,7 +110,7 @@ export const TradeCopilot: React.FC<{ open: boolean; symbol: string; onClose: ()
 
   return createPortal(
     <div className="fixed inset-0 z-[2147483200] flex items-center justify-center p-2 sm:p-4 bg-black/70" onClick={onClose} data-testid="trade-copilot">
-      <div className="w-full max-w-2xl max-h-[94vh] overflow-y-auto rounded-2xl border border-cyan-500/30 bg-slate-950 shadow-2xl shadow-cyan-500/10" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-2xl max-h-[94vh] overflow-y-auto rounded-2xl border border-cyan-500/30 bg-slate-950 shadow-2xl shadow-cyan-500/10" onClick={(e) => e.stopPropagation()}  style={{ backgroundColor: "#020617" }}>
         <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-800 bg-slate-950/95">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500 to-violet-600 flex items-center justify-center shrink-0"><Sparkles className="w-4 h-4 text-white" /></div>
