@@ -70,7 +70,7 @@ export const MarketRadar: React.FC<{ open: boolean; onClose: () => void; onOpenS
           ))}
           <span className="w-px h-5 bg-slate-800 mx-1" />
           {(Object.keys(GROUPS) as Array<keyof typeof GROUPS>).map((g) => (
-            <button key={g} type="button" onClick={() => setGroup(g)} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer ${group === g ? 'bg-cyan-500/20 border-cyan-400/60 text-white' : 'border-slate-800 text-slate-400 hover:text-white'}`}>{g === 'ALL' ? 'Every market' : g[0] + g.slice(1).toLowerCase()}</button>
+            <button key={g} type="button" onClick={() => setGroup(g)} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer ${group === g ? 'bg-cyan-500/20 border-cyan-400/60 text-white' : 'border-slate-800 text-slate-400 hover:text-white'}`}>{({ ALL: 'Every market', FX: 'Forex', METALS: 'Metals & oil', INDICES: 'Indices', CRYPTO: 'Crypto' } as const)[g]}</button>
           ))}
         </div>
 
