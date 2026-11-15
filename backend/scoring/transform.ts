@@ -190,7 +190,7 @@ export function applyTransform(
         const curr = series[i].value;
         const strictlyLess = windowVals.filter((v) => v < curr).length;
         const equals = windowVals.filter((v) => v === curr).length;
-        const rank = ((strictlyLess + 0.5 * equals) / windowVals.length);
+        const rank = ((strictlyLess + 0.5 * equals) / windowVals.length) * 100; // percent 0–100
         result.push({
           periodDate: series[i].periodDate,
           value: rank,

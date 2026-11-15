@@ -6,6 +6,9 @@
  * Formats a Date or timestamp as YYYY-MM-DD in UTC.
  */
 export function formatUtcDate(date: Date | string | number): string {
+  // A plain calendar date / timestamp without a zone (e.g. CFTC '2026-10-06T00:00:00.000') is already the
+  // intended day — never let the machine's local time zone shift it.
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}(?:[T ][\d:.]+)?$/.test(date.trim())) return date.trim().slice(0, 10);
   const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
   if (isNaN(d.getTime())) {
     throw new Error(`Invalid date provided: ${date}`);

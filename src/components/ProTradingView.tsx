@@ -124,6 +124,7 @@ import { PairDeepDiveModal } from './fundamental/PairDeepDiveModal';
 import { TradeCopilot } from './copilot/TradeCopilot';
 import { MarketRadar } from './copilot/MarketRadar';
 import { EventShockSimulator } from './copilot/EventShockSimulator';
+import { ExposureGuard } from './copilot/ExposureGuard';
 
 // ============================================================================
 // TIMEFRAMES & INTERVALS
@@ -1465,6 +1466,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [radarOpen, setRadarOpen] = useState(false);
   const [shockOpen, setShockOpen] = useState(false);
+  const [exposureOpen, setExposureOpen] = useState(false);
   const [copilotSymbol, setCopilotSymbol] = useState<string | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string>(() => {
     if (savedFullState?.symbol) return savedFullState.symbol;
@@ -4270,6 +4272,17 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 <span>News shock</span>
               </button>
               <EventShockSimulator open={shockOpen} onClose={() => setShockOpen(false)} />
+              <button
+                type="button"
+                onClick={() => setExposureOpen(true)}
+                data-testid="open-exposure-guard"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-emerald-400/50 text-emerald-100 hover:from-emerald-500/30 hover:to-cyan-500/30"
+                title="Exposure Guard — currency strength, correlations and what your open trades really bet on"
+              >
+                <Scale className="w-4 h-4 text-emerald-300" />
+                <span>Exposure</span>
+              </button>
+              <ExposureGuard open={exposureOpen} onClose={() => setExposureOpen(false)} trades={trades || []} />
               <MarketRadar open={radarOpen} onClose={() => setRadarOpen(false)} onOpenSymbol={(sym) => handleSelectSymbol(sym)} onCopilot={(sym) => { setCopilotSymbol(sym); setRadarOpen(false); setCopilotOpen(true); }} />
 
               {/* PINE EDITOR — real Pine Script v5/v6 on the Pine chart (Vela + PineTS) */}
