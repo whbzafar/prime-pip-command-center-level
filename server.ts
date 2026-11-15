@@ -205,6 +205,7 @@ import { sentimentRouter } from "./server/routes/sentimentRoutes.js";
 import { macroRouter } from "./server/routes/macroRoutes.js";
 import { copilotRouter } from "./server/routes/copilotRoutes.js";
 import { radarRouter } from "./server/routes/radarRoutes.js";
+import { shockRouter } from "./server/routes/shockRoutes.js";
 import { historyRouter } from "./server/routes/historyRoutes.js";
 import { createPineRouter } from "./server/routes/pineRoutes.js";
 import { sbtRouter } from "./server/routes/sbtRoutes.js";
@@ -7195,6 +7196,7 @@ app.use('/api/dukascopy', dukascopyRouter);
 app.use('/api/macro', macroRouter);
 app.use('/api/copilot', copilotRouter);
 app.use('/api/radar', radarRouter);
+app.use('/api/shock', shockRouter);
 // Full-history candles (Dukascopy since 2003/1973, Yahoo daily since first trade)
 app.use('/api/history', historyRouter);
 app.use('/api/news', breakingNewsRouter);

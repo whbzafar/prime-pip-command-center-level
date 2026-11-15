@@ -123,6 +123,7 @@ import { fetchLiveGoldQuote } from '../services/liveChartDataService';
 import { PairDeepDiveModal } from './fundamental/PairDeepDiveModal';
 import { TradeCopilot } from './copilot/TradeCopilot';
 import { MarketRadar } from './copilot/MarketRadar';
+import { EventShockSimulator } from './copilot/EventShockSimulator';
 
 // ============================================================================
 // TIMEFRAMES & INTERVALS
@@ -1463,6 +1464,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [radarOpen, setRadarOpen] = useState(false);
+  const [shockOpen, setShockOpen] = useState(false);
   const [copilotSymbol, setCopilotSymbol] = useState<string | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string>(() => {
     if (savedFullState?.symbol) return savedFullState.symbol;
@@ -4257,6 +4259,17 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 <Radar className="w-4 h-4 text-fuchsia-300" />
                 <span>Radar</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setShockOpen(true)}
+                data-testid="open-event-shock"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer bg-gradient-to-r from-amber-500/20 to-rose-500/20 border-amber-400/50 text-amber-100 hover:from-amber-500/30 hover:to-rose-500/30"
+                title="Event Shock Simulator — how price moved after past releases of an upcoming event"
+              >
+                <Zap className="w-4 h-4 text-amber-300" />
+                <span>News shock</span>
+              </button>
+              <EventShockSimulator open={shockOpen} onClose={() => setShockOpen(false)} />
               <MarketRadar open={radarOpen} onClose={() => setRadarOpen(false)} onOpenSymbol={(sym) => handleSelectSymbol(sym)} onCopilot={(sym) => { setCopilotSymbol(sym); setRadarOpen(false); setCopilotOpen(true); }} />
 
               {/* PINE EDITOR — real Pine Script v5/v6 on the Pine chart (Vela + PineTS) */}

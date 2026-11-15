@@ -93,7 +93,7 @@ export function aggregate(daily: Candle[], tf: 'w1' | 'mn1'): Candle[] {
 
 // ───────────────────────────────────────── Dukascopy
 
-async function dukaRange(id: string, tf: Tf, from: number, to: number): Promise<Candle[]> {
+export async function dukaRange(id: string, tf: Tf, from: number, to: number): Promise<Candle[]> {
   const native: Tf = tf === 'w1' || tf === 'mn1' ? 'd1' : tf;
   const historic = to < Date.now() - 2 * DAY;
   const key = `duka|${id}|${native}|${from}|${to}`;
