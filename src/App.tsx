@@ -1,5 +1,6 @@
 // Force HMR refresh
 import { DisciplineGuard, DisciplineToast, TraderDnaPanel } from './components/dna/TraderDnaPanel';
+import { QuantEdgeWatcher } from './components/copilot/QuantEdgeWatcher';
 import { startInsights, trackSection } from './utils/insights';
 import { trackState, type AnalyticsState } from './services/analyticsClient';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -1871,6 +1872,7 @@ export default function App() {
       <AppearanceControls isOpen={isAppearanceOpen} onClose={() => setIsAppearanceOpen(false)} />
 
       {/* Unified Trade Entry & TradingView Screenshot Import Modal */}
+      {currentUser && hasFullAccess(currentUser) && <QuantEdgeWatcher onOpen={() => handleSelectTab('PRO_TRADING' as any)} />}
       {isEntryModalOpen && <DisciplineToast trades={trades} />}
       {isEntryModalOpen && (
         <TradeEntryModal

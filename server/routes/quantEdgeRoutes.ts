@@ -17,6 +17,7 @@ async function h1History(sym: string): Promise<{ bars: Bar[]; live: number }> {
   return { bars: r.candles.filter((c: any) => c.timestamp >= START && c.high >= c.low && c.close > 0).map((c: any) => ({ timestamp: c.timestamp, open: c.open, high: c.high, low: c.low, close: c.close })), live: r.live };
 }
 
+const fullTrades = new Map<string, any[]>();
 async function analyse(cfg: EdgeConfig) {
   const { bars: h1, live } = await h1History(cfg.symbol);
   let bars = aggregate(h1, cfg.tf);
@@ -25,6 +26,7 @@ async function analyse(cfg: EdgeConfig) {
   const s = signals(bars, cfg);
   const { trades, open } = simulate(bars, cfg, s);
   const rs = trades.map((t) => t.r as number);
+  fullTrades.set(cfg.symbol, [...trades.slice(-400).map((t) => ({ ...t, r: Number((t.r as number).toFixed(2)) })), ...(open ? [{ ...open, open: true }] : [])]);
   const yrs: Record<string, number> = {};
   for (const t of trades) { const y = new Date(t.entryTime).getUTCFullYear(); yrs[y] = Number(((yrs[y] || 0) + (t.r as number)).toFixed(1)); }
   let eq = 0; const curve = trades.map((t) => { eq += t.r as number; return [t.exitTime, Number(eq.toFixed(2))]; });
@@ -76,6 +78,18 @@ async function build() {
     disclaimer: 'Backtested results are not a promise of future returns. Live trading has extra costs (swaps, commissions, slippage). Educational — not financial advice.',
   };
 }
+
+/** GET /api/quant-edge/trades/:symbol — every signal of the setup on one market (for chart markers). */
+quantEdgeRouter.get('/trades/:symbol', async (req: Request, res: Response) => {
+  const sym = String(req.params.symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const cfg = EDGE_UNIVERSE.find((c) => c.symbol === sym);
+  if (!cfg) return res.json({ ok: true, symbol: sym, covered: false, trades: [] });
+  try {
+    if (!fullTrades.has(sym)) await analyse(cfg);
+    res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1800');
+    res.json({ ok: true, symbol: sym, covered: true, engine: cfg.engine, tf: cfg.tf, trades: fullTrades.get(sym) || [] });
+  } catch (e: any) { res.status(503).json({ ok: false, error: String(e?.message || 'Unavailable') }); }
+});
 
 quantEdgeRouter.get('/', async (_req: Request, res: Response) => {
   try {

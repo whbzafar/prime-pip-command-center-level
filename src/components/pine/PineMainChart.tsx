@@ -102,6 +102,41 @@ function registerPlugins() {
   } as any);
 }
 
+
+/** Quant Edge signals as timeline marks (B / S at entries, ✓ / ✗ at exits) for the chart's market. */
+async function loadEdgeMarks(chart: any, ticker: string) {
+  try {
+    if (!chart?.marks) return;
+    chart.marks.defineGroup?.({ id: 'quantedge', label: 'Quant Edge signals' });
+    const j = await fetch(`/api/quant-edge/trades/${encodeURIComponent(ticker)}`).then((r) => r.json()).catch(() => null);
+    const old = (chart.marks.all?.() || []).filter((m: any) => m.group === 'quantedge');
+    old.forEach((m: any) => chart.marks.remove(m.id));
+    if (!j?.ok || !j.covered) return;
+    const dp = (x: number) => (x >= 1000 ? x.toFixed(2) : x >= 20 ? x.toFixed(3) : x.toFixed(5));
+    const when = (t: number) => new Date(t).toLocaleString([], { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+    for (const t of j.trades as any[]) {
+      const buy = t.dir === 1;
+      chart.marks.add({
+        id: `qe-in-${t.entryTime}`, time: t.entryTime, group: 'quantedge',
+        title: `Quant Edge ${buy ? 'BUY' : 'SELL'}${t.open ? ' (open)' : ''}`,
+        tooltip: `${buy ? 'BUY' : 'SELL'} ${dp(t.entry)}${t.open ? ' · open' : ` · ${t.r > 0 ? '+' : ''}${t.r}R`}`,
+        glyph: { shape: 'pin', color: buy ? '#10b981' : '#f43f5e', letter: buy ? 'B' : 'S' },
+        content: { panel: { items: [
+          { type: 'field', label: 'Setup', value: j.engine === 'TREND' ? `Trend breakout · ${j.tf}` : `Pullback · ${j.tf}` },
+          { type: 'field', label: 'Entry', value: `${dp(t.entry)} · ${when(t.entryTime)}` },
+          { type: 'field', label: t.open ? 'Stop now' : 'Initial stop', value: dp(t.open ? t.stop : t.stop0) },
+          ...(t.open ? [] : [{ type: 'field', label: 'Exit', value: `${dp(t.exit)} · ${t.reason}` }, { type: 'field', label: 'Result', value: `${t.r > 0 ? '+' : ''}${t.r}R` }]),
+        ] } },
+      });
+      if (!t.open && t.exitTime) chart.marks.add({
+        id: `qe-out-${t.entryTime}`, time: t.exitTime, group: 'quantedge', title: 'Quant Edge exit',
+        tooltip: `Exit ${dp(t.exit)} · ${t.r > 0 ? '+' : ''}${t.r}R (${t.reason})`,
+        glyph: { shape: 'circle', color: t.r >= 0 ? '#22d3ee' : '#64748b', letter: t.r >= 0 ? '✓' : '×' },
+      });
+    }
+  } catch { /* markers are optional */ }
+}
+
 const fmtPrice = (p: number, digits: number) => (Number.isFinite(p) ? p.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }) : '—');
 
 export const PineMainChart: React.FC<{
@@ -174,6 +209,7 @@ export const PineMainChart: React.FC<{
       try { const cfg = JSON.parse(localStorage.getItem(LOOK_KEY) || 'null'); if (cfg) chart.renderer?.applyConfig?.(cfg); } catch { /* ignore */ }
       try { offLook = chart.renderer?.onConfigChanged?.(() => { try { localStorage.setItem(LOOK_KEY, JSON.stringify(chart.renderer.getConfig())); } catch { /* ignore */ } }); } catch { /* ignore */ }
       loadDrawings(entry.ticker);
+      void loadEdgeMarks(chart, entry.ticker);
     }).catch(() => {});
     // Follow changes made from the chart's own symbol search / timeframe menu back to the terminal.
     const offMarket = chart.on?.('market:changed', () => {
@@ -185,6 +221,7 @@ export const PineMainChart: React.FC<{
         tickerRef.current = t;
         markOnScreen(t, true);
         loadDrawings(t);
+        void loadEdgeMarks(chart, t);
         cbs.current.onSymbolChange?.(REVERSE_ALIAS[t] || t);
       }
       if (m.timeframe) cbs.current.onIntervalChange?.(String(m.timeframe));
@@ -220,6 +257,7 @@ export const PineMainChart: React.FC<{
       markOnScreen(entry.ticker, true);
       chart.setMarket({ symbol: venueSymbol(entry.ticker), bars: HISTORY_BARS }).catch?.(() => {});
       loadDrawings(entry.ticker);
+      void loadEdgeMarks(chart, entry.ticker);
     }
   }, [entry, ready, saveDrawings, loadDrawings]);
   useEffect(() => {
