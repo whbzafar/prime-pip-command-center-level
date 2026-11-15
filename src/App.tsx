@@ -1,4 +1,5 @@
 // Force HMR refresh
+import { DisciplineGuard, DisciplineToast, TraderDnaPanel } from './components/dna/TraderDnaPanel';
 import { startInsights, trackSection } from './utils/insights';
 import { trackState, type AnalyticsState } from './services/analyticsClient';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -1446,6 +1447,7 @@ export default function App() {
         }`}
       >
         <React.Suspense fallback={<TabFallback />}>
+        {activeTab === 'DASHBOARD' && <div className="mb-4 empty:hidden"><DisciplineGuard trades={trades} /></div>}
         {activeTab === 'DASHBOARD' && (
           <MainDashboard
             metrics={metrics}
@@ -1596,6 +1598,7 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'PERFORMANCE' && <div className="mb-6"><TraderDnaPanel trades={trades} /></div>}
         {activeTab === 'PERFORMANCE' && (
           <PerformanceLab
             trades={trades}
@@ -1706,6 +1709,8 @@ export default function App() {
 
         {activeTab === 'PSYCHOLOGY' && (
           hasFullAccess(currentUser) ? (
+            <div className="space-y-6">
+            <TraderDnaPanel trades={trades} />
             <PsychologyCenter
               trades={trades}
               account={activeAccount}
@@ -1714,6 +1719,7 @@ export default function App() {
               onOpenNewTrade={() => setIsEntryModalOpen(true)}
               onClose={() => setActiveTab('DASHBOARD')}
             />
+            </div>
           ) : (
             <div className="max-w-2xl mx-auto my-12 p-8 rounded-3xl bg-slate-950/90 border border-amber-500/40 shadow-2xl space-y-6 text-center font-mono-code backdrop-blur-xl animate-in fade-in">
               <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
@@ -1865,6 +1871,7 @@ export default function App() {
       <AppearanceControls isOpen={isAppearanceOpen} onClose={() => setIsAppearanceOpen(false)} />
 
       {/* Unified Trade Entry & TradingView Screenshot Import Modal */}
+      {isEntryModalOpen && <DisciplineToast trades={trades} />}
       {isEntryModalOpen && (
         <TradeEntryModal
           isOpen={isEntryModalOpen}

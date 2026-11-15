@@ -18,6 +18,8 @@ import { Trade, AccountSettings } from '../types';
 import { calculateDashboardMetrics, calculateStrategyMetrics, calculateMistakeMetrics } from '../utils/tradeAnalytics';
 import { useOnlineStatus } from '../utils/useOnlineStatus';
 import { getKarachiTime } from '../utils/time';
+import { TraderDnaPanel } from './dna/TraderDnaPanel';
+import { analyseDna } from '../utils/traderDna';
 
 interface AiTradingCoachProps {
   trades: Trade[];
@@ -31,23 +33,25 @@ const PREMADE_PROMPTS = [
   'Analyze my London vs New York session performance and give me a tactical execution schedule.',
 ];
 
+/** Opening message built from the trader's real journal (never sample numbers). */
+function openingBriefing(trades: Trade[]): string {
+  const d = analyseDna(trades);
+  if (!d.enoughData) return `### AI TRADING COACH\nYou have **${d.closed}** closed trade${d.closed === 1 ? '' : 's'} in this account. Log at least 10 closed trades and I will show your real edge and habits here.\n\nYou can still ask me anything about trading below.`;
+  const lines = [`### YOUR TRADING BRIEFING`, `Based on your **${d.closed}** closed trades: win rate **${d.winRate}%**, expectancy **${d.expR >= 0 ? '+' : ''}${d.expR}R** per trade.`];
+  if (d.edges[0]) lines.push(`- **Best edge:** ${d.edges[0].dim.toLowerCase()} **${d.edges[0].key}** — ${d.edges[0].n} trades averaging **+${d.edges[0].expR}R**.`);
+  if (d.leaks[0]) lines.push(`- **Biggest leak:** ${d.leaks[0].dim.toLowerCase()} **${d.leaks[0].key}** — ${d.leaks[0].n} trades averaging **${d.leaks[0].expR}R**.`);
+  if (d.habits[0]) lines.push(`- **Costliest habit:** ${d.habits[0].title.toLowerCase()} — ${d.habits[0].detail}`);
+  lines.push('', 'Ask me anything below.');
+  return lines.join('\n');
+}
+
 export const AiTradingCoach: React.FC<AiTradingCoachProps> = ({ trades, account }) => {
   const [messages, setMessages] = useState<
     { role: 'user' | 'assistant'; text: string; timestamp: string }[]
   >([
     {
       role: 'assistant',
-      text: `### PRIMEPIPFX AI COMBAT BRIEFING INITIATED
-Welcome to the Tactical Command Center, Operator. 
-
-I have analyzed your entire trade vault (${trades.length} logged missions). 
-
-**Preliminary Diagnostic:**
-- **Capital Core:** Your **SBT Model** setup yields an **80% win rate** with **+2.9R** average expectancy.
-- **Critical Leakage:** 62% of your total drawdowns stem from **FOMO entries** and **moving stop losses**.
-- **Time Anomaly:** Your win rate plummets from 73% during London Open down to 48% in New York afternoon chop.
-
-Select an analysis directive below or ask me directly: *"What is stopping me from becoming a consistently profitable trader?"*`,
+      text: openingBriefing(trades),
       timestamp: 'SYSTEM ONLINE',
     },
   ]);
@@ -100,6 +104,7 @@ Select an analysis directive below or ask me directly: *"What is stopping me fro
             metrics,
             topStrategies: strategyMetrics.slice(0, 4),
             topMistakes: mistakeMetrics.slice(0, 4),
+            traderDna: analyseDna(trades),
             recentTrades: trades.slice(0, 8),
             account,
           },
@@ -129,7 +134,7 @@ Select an analysis directive below or ask me directly: *"What is stopping me fro
         ...prev,
         {
           role: 'assistant',
-          text: 'AI Coach unavailable. Core Trading Journal remains fully operational.',
+          text: `${openingBriefing(trades)}\n\n_The AI chat service is not reachable right now, so this answer comes from your measured Trader DNA above._`,
           timestamp: `${getKarachiTime()} PKT`,
         },
       ]);
@@ -140,6 +145,7 @@ Select an analysis directive below or ask me directly: *"What is stopping me fro
 
   return (
     <div className="space-y-6">
+      <TraderDnaPanel trades={trades} />
       {!isOnline && (
         <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/40 text-amber-300 text-xs font-mono-code flex items-center gap-3">
           <WifiOff className="w-5 h-5 text-cyan-400 shrink-0" />
