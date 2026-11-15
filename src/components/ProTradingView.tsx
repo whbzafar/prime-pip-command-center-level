@@ -47,6 +47,7 @@ import {
   Compass,
   Filter,
   Sparkles,
+  Cpu,
   Radar,
   Camera,
   Check,
@@ -125,6 +126,8 @@ import { TradeCopilot } from './copilot/TradeCopilot';
 import { MarketRadar } from './copilot/MarketRadar';
 import { EventShockSimulator } from './copilot/EventShockSimulator';
 import { ExposureGuard } from './copilot/ExposureGuard';
+import { QuantEdge } from './copilot/QuantEdge';
+import { ProToolsMenu } from './copilot/ProToolsMenu';
 
 // ============================================================================
 // TIMEFRAMES & INTERVALS
@@ -1467,6 +1470,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const [radarOpen, setRadarOpen] = useState(false);
   const [shockOpen, setShockOpen] = useState(false);
   const [exposureOpen, setExposureOpen] = useState(false);
+  const [edgeOpen, setEdgeOpen] = useState(false);
   const [copilotSymbol, setCopilotSymbol] = useState<string | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string>(() => {
     if (savedFullState?.symbol) return savedFullState.symbol;
@@ -4239,49 +4243,19 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 </select>
               </label>
 
-              {/* TRADE COPILOT — live plan for the selected pair */}
-              <button
-                type="button"
-                onClick={() => setCopilotOpen(true)}
-                data-testid="open-trade-copilot"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer bg-gradient-to-r from-cyan-500/20 to-violet-500/20 border-cyan-400/50 text-cyan-100 hover:from-cyan-500/30 hover:to-violet-500/30"
-                title="Trade Copilot — a live trade plan for this pair (trend, fundamentals, crowd, news, lot size)"
-              >
-                <Sparkles className="w-4 h-4 text-cyan-300" />
-                <span>Copilot</span>
-              </button>
+              {/* PRO TOOLS — Quant Edge, Copilot, Radar, News shock, Exposure (one menu keeps the bar on one line) */}
+              <ProToolsMenu
+                items={[
+                  { id: 'edge', label: 'Quant Edge signals', desc: 'Research-backed buy/sell setup with its 10-year record', Icon: Cpu, cls: 'text-cyan-300', onClick: () => setEdgeOpen(true) },
+                  { id: 'copilot', label: 'Trade Copilot', desc: 'Live plan for this pair: bias, entry, stop, targets, lots', Icon: Sparkles, cls: 'text-violet-300', onClick: () => setCopilotOpen(true) },
+                  { id: 'radar', label: 'Market Regime Radar', desc: 'Every market: trending, ranging, coiling or breaking out', Icon: Radar, cls: 'text-fuchsia-300', onClick: () => setRadarOpen(true) },
+                  { id: 'shock', label: 'News Shock Simulator', desc: 'How price moved after past releases of upcoming news', Icon: Zap, cls: 'text-amber-300', onClick: () => setShockOpen(true) },
+                  { id: 'exposure', label: 'Exposure Guard', desc: 'Currency strength, correlations, your real exposure', Icon: Scale, cls: 'text-emerald-300', onClick: () => setExposureOpen(true) },
+                ]}
+              />
+              <QuantEdge open={edgeOpen} onClose={() => setEdgeOpen(false)} onOpenSymbol={(sym) => handleSelectSymbol(sym)} />
               <TradeCopilot open={copilotOpen} symbol={copilotSymbol || selectedSymbol} onClose={() => { setCopilotOpen(false); setCopilotSymbol(null); }} />
-              <button
-                type="button"
-                onClick={() => setRadarOpen(true)}
-                data-testid="open-market-radar"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer bg-gradient-to-r from-fuchsia-500/20 to-cyan-500/20 border-fuchsia-400/50 text-fuchsia-100 hover:from-fuchsia-500/30 hover:to-cyan-500/30"
-                title="Market Regime Radar — every pair ranked: trending, ranging, coiling or breaking out"
-              >
-                <Radar className="w-4 h-4 text-fuchsia-300" />
-                <span>Radar</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShockOpen(true)}
-                data-testid="open-event-shock"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer bg-gradient-to-r from-amber-500/20 to-rose-500/20 border-amber-400/50 text-amber-100 hover:from-amber-500/30 hover:to-rose-500/30"
-                title="Event Shock Simulator — how price moved after past releases of an upcoming event"
-              >
-                <Zap className="w-4 h-4 text-amber-300" />
-                <span>News shock</span>
-              </button>
               <EventShockSimulator open={shockOpen} onClose={() => setShockOpen(false)} />
-              <button
-                type="button"
-                onClick={() => setExposureOpen(true)}
-                data-testid="open-exposure-guard"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-emerald-400/50 text-emerald-100 hover:from-emerald-500/30 hover:to-cyan-500/30"
-                title="Exposure Guard — currency strength, correlations and what your open trades really bet on"
-              >
-                <Scale className="w-4 h-4 text-emerald-300" />
-                <span>Exposure</span>
-              </button>
               <ExposureGuard open={exposureOpen} onClose={() => setExposureOpen(false)} trades={trades || []} />
               <MarketRadar open={radarOpen} onClose={() => setRadarOpen(false)} onOpenSymbol={(sym) => handleSelectSymbol(sym)} onCopilot={(sym) => { setCopilotSymbol(sym); setRadarOpen(false); setCopilotOpen(true); }} />
 
