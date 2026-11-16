@@ -2773,3 +2773,36 @@ html.tv-fullscreen *:has(> .ppfx-tv-workspace-fs) {
   overflow: visible !important;
   animation: none !important;
 }
+
+/* ───────────── SMOOTH MODE (default) ─────────────
+   Decorative, never-ending animations repainted large parts of the screen every frame (a full-screen
+   blurred glow, drifting sparkles, perimeter light beams, scanning cards) and made the app lag on
+   ordinary laptops and phones. They are frozen into their still look; functional motion (loading
+   spinners, alert pulses, live dots) is untouched. Add class "ppfx-fx" on <html> to bring them back. */
+html:not(.ppfx-fx) .prime-command-shell::before,
+html:not(.ppfx-fx) .prime-command-shell::after,
+html:not(.ppfx-fx) .prime-premium-card::after,
+html:not(.ppfx-fx) .prime-gradient-box::before,
+html:not(.ppfx-fx) .prime-light-sweep::after,
+html:not(.ppfx-fx) .animate-perimeter-top,
+html:not(.ppfx-fx) .animate-perimeter-right,
+html:not(.ppfx-fx) .animate-perimeter-bottom,
+html:not(.ppfx-fx) .animate-perimeter-left,
+html:not(.ppfx-fx) .animate-category-beam-top,
+html:not(.ppfx-fx) .animate-category-beam-right,
+html:not(.ppfx-fx) .animate-category-beam-bottom,
+html:not(.ppfx-fx) .animate-category-beam-left,
+html:not(.ppfx-fx) .animate-reticle-spin {
+  animation: none !important;
+}
+/* Static backgrounds stay on their own GPU layer, painted once (so small pulses elsewhere never repaint them). */
+html:not(.ppfx-fx) .prime-command-shell::before,
+html:not(.ppfx-fx) .prime-command-shell::after { will-change: transform; transform: translateZ(0); }
+html:not(.ppfx-fx) .animate-perimeter-top,
+html:not(.ppfx-fx) .animate-perimeter-right,
+html:not(.ppfx-fx) .animate-perimeter-bottom,
+html:not(.ppfx-fx) .animate-perimeter-left,
+html:not(.ppfx-fx) .animate-category-beam-top,
+html:not(.ppfx-fx) .animate-category-beam-right,
+html:not(.ppfx-fx) .animate-category-beam-bottom,
+html:not(.ppfx-fx) .animate-category-beam-left { opacity: 0 !important; }

@@ -142,6 +142,18 @@ interface NavItem {
   highlight?: boolean;
 }
 
+/** The only part of the header that changes every second. */
+const LiveClockText: React.FC<{ fallback?: string }> = ({ fallback = '' }) => {
+  const [t, setT] = React.useState<string>(() => { try { return getAppLiveClock(new Date()).full; } catch { return ''; } });
+  React.useEffect(() => {
+    const tick = () => { try { setT(getAppLiveClock(new Date()).full); } catch { /* ignore */ } };
+    const id = setInterval(tick, 1000);
+    window.addEventListener('primepipfx_timezone_changed', tick);
+    return () => { clearInterval(id); window.removeEventListener('primepipfx_timezone_changed', tick); };
+  }, []);
+  return <>{t || fallback}</>;
+};
+
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
@@ -179,7 +191,6 @@ export const Header: React.FC<HeaderProps> = ({
   const [isTimeModalOpen, setIsTimeModalOpen] = React.useState<boolean>(false);
   // Phones: the status / tool rows fold behind one "Tools" button so the page content is visible first.
   const [toolsOpen, setToolsOpen] = React.useState<boolean>(false);
-  const [liveClockStr, setLiveClockStr] = React.useState<string>('');
   const [activeSessionSummary, setActiveSessionSummary] = React.useState<string>('');
   const [isPeakLiquidity, setIsPeakLiquidity] = React.useState<boolean>(false);
   const [marketSessions, setMarketSessions] = React.useState<MarketSession[]>([]);
@@ -271,15 +282,14 @@ export const Header: React.FC<HeaderProps> = ({
   React.useEffect(() => {
     const update = () => {
       const now = new Date();
-      const clock = getAppLiveClock(now);
-      setLiveClockStr(clock.full);
       const sessionData = getMarketSessions(now);
       setActiveSessionSummary(sessionData.activeSessionSummary);
       setIsPeakLiquidity(sessionData.isPeakLiquidityActive);
-      setMarketSessions(sessionData.sessions);
+      // Same content → keep the old array, so the header does not rebuild every second for nothing.
+      setMarketSessions((prev: any) => { try { return JSON.stringify(prev) === JSON.stringify(sessionData.sessions) ? prev : sessionData.sessions; } catch { return sessionData.sessions; } });
     };
     update();
-    const interval = setInterval(update, 1000);
+    const interval = setInterval(update, 15_000); // the seconds clock ticks inside <LiveClockText> only
 
     const handleTzChange = () => update();
     window.addEventListener('primepipfx_timezone_changed', handleTzChange);
@@ -519,7 +529,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Phones: one compact row instead of three rows of status pills and tools */}
       <div className="md:hidden px-2.5 py-1 border-b border-slate-800/60 bg-[#020617] flex items-center gap-2 text-[10px] font-mono-code text-slate-400">
-        <span className="truncate min-w-0">{liveClockStr || ''}</span>
+        <span className="truncate min-w-0"><LiveClockText /></span>
         <button type="button" onClick={() => setToolsOpen((v) => !v)} aria-expanded={toolsOpen} data-testid="header-tools-toggle"
           className="ml-auto shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-slate-200 text-[10.5px] font-bold cursor-pointer">
           {toolsOpen ? 'Hide tools ▲' : 'Tools ▼'}
@@ -590,7 +600,7 @@ export const Header: React.FC<HeaderProps> = ({
             title="Click to change timezone, switch 12h/24h format, and view global market sessions"
           >
             <Clock className="w-3 h-3 text-sky-400 group-hover:rotate-12 transition-transform shrink-0" />
-            <span className="font-bold truncate min-w-0">{liveClockStr || 'WORLD CLOCK'}</span>
+            <span className="font-bold truncate min-w-0"><LiveClockText fallback="WORLD CLOCK" /></span>
             {activeSessionSummary && (
               <span
                   className={`hidden min-[460px]:inline-block max-w-[42vw] truncate px-1 py-0.2 rounded text-[9px] font-bold tracking-tight ${

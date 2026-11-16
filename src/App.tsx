@@ -1,6 +1,5 @@
 // Force HMR refresh
 import { DisciplineGuard, DisciplineToast, TraderDnaPanel } from './components/dna/TraderDnaPanel';
-import { QuantEdgeWatcher } from './components/copilot/QuantEdgeWatcher';
 import { startInsights, trackSection } from './utils/insights';
 import { trackState, type AnalyticsState } from './services/analyticsClient';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -1319,7 +1318,7 @@ export default function App() {
       <CommunicationNotifications currentUser={currentUser} onOpenCommunication={() => setActiveTab('COMMUNITY')} onOpenSubscription={() => setIsSubscriptionModalOpen(true)} />
 
       {/* 4-Side Animated Laser Perimeter Frame */}
-      {!isLightweight && <AppPerimeterGlow />}
+      {!isLightweight && typeof document !== 'undefined' && document.documentElement.classList.contains('ppfx-fx') && <AppPerimeterGlow />}
 
       {/* Top Prismatic Ambient Theme Optical Ribbon */}
       {!isLightweight && <AmbientThemeRibbon />}
@@ -1872,7 +1871,6 @@ export default function App() {
       <AppearanceControls isOpen={isAppearanceOpen} onClose={() => setIsAppearanceOpen(false)} />
 
       {/* Unified Trade Entry & TradingView Screenshot Import Modal */}
-      {currentUser && hasFullAccess(currentUser) && <QuantEdgeWatcher onOpen={() => handleSelectTab('PRO_TRADING' as any)} />}
       {isEntryModalOpen && <DisciplineToast trades={trades} />}
       {isEntryModalOpen && (
         <TradeEntryModal

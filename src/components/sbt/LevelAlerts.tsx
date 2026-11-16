@@ -205,7 +205,6 @@ export const LevelAlertsPanel: React.FC<{ onOpen: (engineSymbol: string) => void
   const st = useLevelAlerts();
   if (st.status === 'not_configured') return <StrategyMissing dense={dense} />;
   const hits = st.pairs.filter((p) => p.hit).sort((a, b) => (b.hit!.time - a.hit!.time));
-  const watching = st.pairs.filter((p) => !p.hit && p.state === 'ok' && p.watching);
   const loading = st.status !== 'ready';
   const pending = st.pairs.filter((p) => p.state === 'loading').length;
   return (
@@ -239,18 +238,39 @@ export const LevelAlertsPanel: React.FC<{ onOpen: (engineSymbol: string) => void
           </div>
         );
       })()}
-      {watching.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500">Waiting for price at</span>
-          {watching.map((p) => {
-            const z = p.level1 || p.level2;
+      {st.pairs.length > 0 && (
+        <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden" data-testid="level-board">
+          <div className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-800 flex justify-between"><span>H1 level board · every tracked pair</span><span>side = fundamentals</span></div>
+          {st.pairs.map((p) => {
+            const up = p.side > 0;
+            const sameSide = p.state === 'ok' && p.dir === p.side;
+            const z1 = sameSide ? p.level1 : null, z2 = sameSide ? p.level2 : null;
+            const c = p.lastClose;
+            const dist = (z: any) => {
+              if (!z || !Number.isFinite(c as number) || !p.pip) return null;
+              const v = c as number;
+              if (v >= z.bottom && v <= z.top) return 0;
+              return Math.round((up ? v - z.top : z.bottom - v) / p.pip * 10) / 10;
+            };
+            const d1 = dist(z1), d2 = dist(z2);
+            let status: string; let cls = 'text-slate-400';
+            if (p.state === 'loading') status = 'checking…';
+            else if (p.state !== 'ok') { status = 'no data'; cls = 'text-slate-600'; }
+            else if (p.hit) { status = `LEVEL ${p.hit.level} REACHED`; cls = up ? 'text-emerald-300 font-black' : 'text-rose-300 font-black'; }
+            else if (p.inTrade && p.recent && p.recent.dir === p.side) { status = `in a trade from Level ${p.recent.level} (entered ${levelTime(p.recent.time + 3_600_000)})`; cls = 'text-cyan-200'; }
+            else if (!sameSide) { status = p.dir ? `structure is ${p.dir > 0 ? 'bullish' : 'bearish'} — no ${up ? 'buy' : 'sell'} levels` : 'no active structure'; cls = 'text-slate-500'; }
+            else if (d1 === 0 || d2 === 0) { status = `inside Level ${d1 === 0 ? 1 : 2} — waiting for the test candle close`; cls = 'text-amber-200'; }
+            else status = 'waiting for price';
             return (
-              <button key={p.symbol} type="button" onClick={() => onOpen(p.symbol)} title={z ? `${p.side > 0 ? 'Buy' : 'Sell'} level ${fmtPrice(z.bottom)} – ${fmtPrice(z.top)}` : ''}
-                className={`px-2 py-0.5 rounded-lg border text-[10.5px] font-semibold cursor-pointer ${p.side > 0 ? 'border-emerald-500/30 text-emerald-200 hover:border-emerald-400/70' : 'border-rose-500/30 text-rose-200 hover:border-rose-400/70'}`}>
-                {p.side > 0 ? 'Buy' : 'Sell'} {p.display}{z ? <span className="ml-1 font-mono-code text-[9.5px] text-slate-400">@ {fmtPrice(p.side > 0 ? z.top : z.bottom)}</span> : null}
+              <button key={p.symbol} type="button" onClick={() => onOpen(p.symbol)} className="w-full grid grid-cols-[4.5rem_1fr] sm:grid-cols-[5.5rem_9rem_1fr_1fr] gap-x-2 gap-y-0.5 items-center px-2.5 py-1.5 border-t border-slate-800/70 first:border-t-0 hover:bg-slate-900 text-left text-[11px] cursor-pointer">
+                <span className="font-bold text-slate-100"><span className={`mr-1 text-[9px] px-1 rounded ${up ? 'bg-emerald-400/80 text-emerald-950' : 'bg-rose-400/80 text-rose-950'}`}>{up ? 'BUY' : 'SELL'}</span>{p.display}</span>
+                <span className={`${cls} truncate`}>{status}</span>
+                <span className="col-start-2 sm:col-start-auto font-mono text-[10.5px] text-slate-300">{z1 ? <>L1 {fmtPrice(z1.bottom)}–{fmtPrice(z1.top)}{d1 ? <span className="text-slate-500"> · {d1}p</span> : null}{z1.modelReady ? <span className="text-emerald-400"> ✓</span> : null}</> : <span className="text-slate-600">L1 —</span>}</span>
+                <span className="col-start-2 sm:col-start-auto font-mono text-[10.5px] text-slate-300">{z2 ? <>L2 {fmtPrice(z2.bottom)}–{fmtPrice(z2.top)}{d2 ? <span className="text-slate-500"> · {d2}p</span> : null}{z2.modelReady ? <span className="text-emerald-400"> ✓</span> : null}</> : <span className="text-slate-600">L2 —</span>}</span>
               </button>
             );
           })}
+          <div className="px-2.5 py-1 text-[9.5px] text-slate-500 border-t border-slate-800">✓ = model (liquidity) complete at that level. "Level reached" appears only when your strategy's own entry fires on the H1 candle that has just closed. p = pips away.</div>
         </div>
       )}
     </div>

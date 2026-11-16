@@ -1415,6 +1415,15 @@ interface ProTradingViewProps {
   onNavigateToJournal?: () => void;
 }
 
+/** Re-renders only its own children once a second (keeps the big view from rebuilding every tick). */
+const Ticking: React.FC<{ compute: () => any; children: (v: any) => React.ReactNode }> = ({ compute, children }) => {
+  const [v, setV] = useState(() => compute());
+  const fn = useRef(compute); fn.current = compute;
+  useEffect(() => { setV(fn.current()); const t = setInterval(() => setV(fn.current()), 1000); return () => clearInterval(t); }, []);
+  useEffect(() => { setV(compute()); }, [compute]);
+  return <>{children(v)}</>;
+};
+
 export const ProTradingView: React.FC<ProTradingViewProps> = ({
   onOpenNewTrade,
   defaultSymbol = 'EURUSD',
@@ -2423,9 +2432,12 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
   useEffect(() => {
     setCandleCountdown(sessionCountdown(selectedInterval));
+    // The parent only re-renders when the label / open-closed state changes (seconds tick inside <Ticking>),
+    // so this 4000-line view is not rebuilt every second.
     const intervalTimer = setInterval(() => {
-      setCandleCountdown(sessionCountdown(selectedInterval));
-    }, 1000);
+      const n = sessionCountdown(selectedInterval);
+      setCandleCountdown((prev: any) => (prev && prev.label === n.label && prev.closed === n.closed && prev.session === n.session ? prev : n));
+    }, 15_000);
     return () => clearInterval(intervalTimer);
   }, [selectedInterval, sessionCountdown]);
 
@@ -4377,7 +4389,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           <div id={containerId} className={`w-full relative z-10 ${pineOnChart ? 'hidden' : 'flex-1 min-h-0'}`} />
 
           {/* LIVE BAR-CLOSE COUNTDOWN — on the right price scale, like TradingView. Drag it up/down to sit beside the price. */}
-          {!pineOnChart && <TvChartTools symbol={selectedSymbol} interval={selectedInterval} onInterval={(iv) => handleIntervalChange(iv)} countdown={candleCountdown} />}
+          {!pineOnChart && <Ticking compute={() => sessionCountdown(selectedInterval)}>{(cd) => <TvChartTools symbol={selectedSymbol} interval={selectedInterval} onInterval={(iv) => handleIntervalChange(iv)} countdown={cd} />}</Ticking>}
           {false && !pineOnChart && !tvHintHidden && (
             <div data-testid="tv-countdown-hint" className="absolute top-12 left-1/2 -translate-x-1/2 z-30 max-w-[92%] flex items-center gap-2 rounded-lg border border-[#2962FF]/50 bg-[#131722]/95 px-3 py-2 text-[11.5px] text-slate-200 shadow-xl">
               <span><b className="text-white">Bar-close countdown:</b> right-click the price scale → <b className="text-white">Labels</b> → <b className="text-white">Countdown to bar close</b> (TradingView's embedded chart resets it on reload). The countdown, price alerts (+) and your indicators are always on in the <button type="button" onClick={() => setChartEngine('pro')} className="underline text-cyan-300 cursor-pointer">Pro chart</button>.</span>
@@ -4406,15 +4418,16 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 window.addEventListener('pointerup', up);
               }}
             >
-              <div className={`rounded-md shadow-lg ring-1 px-2 py-1 text-center font-mono leading-tight min-w-[64px] ${candleCountdown.closed ? 'bg-slate-700/95 ring-slate-500/60 text-slate-200' : 'bg-[#2962FF] ring-blue-300/40 text-white'}`}>
-                <div className="text-[9px] font-sans font-bold uppercase tracking-wider opacity-80">{candleCountdown.label} close</div>
-                <div className="text-[13px] font-black tabular-nums">{candleCountdown.text}</div>
-                {candleCountdown.closed ? (
-                  <div className="text-[9px] font-sans opacity-80">{candleCountdown.session}</div>
+              <Ticking compute={() => sessionCountdown(selectedInterval)}>{(cd) => (
+              <div className={`rounded-md shadow-lg ring-1 px-2 py-1 text-center font-mono leading-tight min-w-[64px] ${cd.closed ? 'bg-slate-700/95 ring-slate-500/60 text-slate-200' : 'bg-[#2962FF] ring-blue-300/40 text-white'}`}>
+                <div className="text-[9px] font-sans font-bold uppercase tracking-wider opacity-80">{cd.label} close</div>
+                <div className="text-[13px] font-black tabular-nums">{cd.text}</div>
+                {cd.closed ? (
+                  <div className="text-[9px] font-sans opacity-80">{cd.session}</div>
                 ) : (
-                  <div className="mt-0.5 h-[3px] w-full rounded bg-white/25 overflow-hidden"><div className="h-full bg-white" style={{ width: `${candleCountdown.progressPercent}%` }} /></div>
+                  <div className="mt-0.5 h-[3px] w-full rounded bg-white/25 overflow-hidden"><div className="h-full bg-white" style={{ width: `${cd.progressPercent}%` }} /></div>
                 )}
-              </div>
+              </div>)}</Ticking>
             </div>
           )}
 

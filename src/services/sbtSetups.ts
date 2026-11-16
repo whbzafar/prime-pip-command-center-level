@@ -15,6 +15,8 @@ const H1 = 3_600_000;
 export const TOP_N = 6;
 /** Always scanned, whatever the rankings say. */
 export const ALWAYS = ['XAUUSD'];
+const FX8 = ['EUR', 'GBP', 'USD', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
+export const scannable = (s: string) => s === 'XAUUSD' || s === 'XAGUSD' || (/^[A-Z]{6}$/.test(s) && FX8.includes(s.slice(0, 3)) && FX8.includes(s.slice(3)));
 const FRESH_MS = 24 * H1;        // how long an earlier touch stays listed (as "earlier", with where price is now)
 const NOTIFY_MS = 75 * 60_000; // only the candle that has just closed rings (no old alerts after re-opening the app)
 const K_SEEN = 'ppfx_level_alerts_seen_v1';
@@ -76,6 +78,8 @@ export interface PairScan {
   awayPips?: number | null;
   /** The strategy is currently tracking levels on the fundamental side. */
   watching?: boolean;
+  /** The strategy is in a trade on this pair right now. */
+  inTrade?: boolean;
 }
 export interface LevelAlert { id: string; symbol: string; display: string; side: 1 | -1; level: 1 | 2; price: number; zoneTop: number; zoneBottom: number; models: string[]; time: number; score: number; depthPips?: number; stop?: number; target?: number; crowd?: string; news?: string; checked?: string[] }
 export interface LevelState { status: 'idle' | 'loading' | 'ready' | 'not_configured'; pairs: PairScan[]; alerts: LevelAlert[]; updatedAt: number; unseen: number }
@@ -151,8 +155,13 @@ async function fetchRankings(): Promise<{ symbol: string; display: string; side:
   const j = await r.json();
   const lt = j?.data?.longTerm;
   if (!lt) throw new Error('rankings unavailable');
-  const pick = (l: any[], side: 1 | -1) => (l || []).slice(0, TOP_N).map((p) => ({ symbol: String(p.symbol), display: String(p.display || p.symbol), side, score: Number(p.longTerm ?? 0) }));
-  const list = [...pick(lt.bullish, 1), ...pick(lt.bearish, -1)];
+  // Only markets the H1 level scanner can read (the 28 forex pairs, gold, silver); crypto / platinum are skipped,
+  // so a top list full of crypto never leaves the bearish side empty.
+  const all: any[] = (j?.data?.all?.length ? j.data.all : [...(lt.bullish || []), ...(lt.bearish || [])]).filter((p: any) => scannable(String(p.symbol)) && Number.isFinite(Number(p.longTerm)));
+  const row = (p: any, side: 1 | -1) => ({ symbol: String(p.symbol), display: String(p.display || p.symbol), side, score: Number(p.longTerm) });
+  const bulls = all.filter((p) => Number(p.longTerm) >= 10).sort((a, b) => b.longTerm - a.longTerm).slice(0, TOP_N).map((p) => row(p, 1));
+  const bears = all.filter((p) => Number(p.longTerm) <= -10).sort((a, b) => a.longTerm - b.longTerm).slice(0, TOP_N).map((p) => row(p, -1));
+  const list = [...bulls, ...bears];
   // Gold is always watched (the owner's main market), on the side its own long-term fundamentals point to.
   for (const sym of ALWAYS) {
     if (list.some((p) => p.symbol === sym)) continue;
@@ -185,7 +194,7 @@ function toPair(p: { symbol: string; display: string; side: 1 | -1; score: numbe
     const c = j.lastClose as number;
     awayPips = c >= recent.zoneBottom && c <= recent.zoneTop ? 0 : Math.round((Math.min(Math.abs(c - recent.zoneTop), Math.abs(c - recent.zoneBottom)) / j.pip) * 10) / 10;
   }
-  return { ...p, state: 'ok', lastCandle: j.lastCandle, dir: j.dir, level1: j.level1, level2: j.level2, hit, recent, awayPips, lastClose: j.lastClose, pip: j.pip, watching: j.dir === p.side && Boolean(j.level1 || j.level2) };
+  return { ...p, state: 'ok', lastCandle: j.lastCandle, dir: j.dir, level1: j.level1, level2: j.level2, hit, recent, awayPips, lastClose: j.lastClose, pip: j.pip, watching: j.dir === p.side && Boolean(j.level1 || j.level2), inTrade: Boolean(j.inTrade) };
 }
 
 async function cycle() {
