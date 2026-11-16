@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Crosshair, RefreshCw } from 'lucide-react';
-import { EDGE_PIPS, enableLevelAlerts, fmtPrice, getLevelSettings, levelTime, pairLevel, setLevelSettings, testLevelAlert, useLevelAlerts, type LevelAlert, type LevelState, type PairScan } from '../../services/sbtSetups';
+import { uploadSbtStrategy, EDGE_PIPS, enableLevelAlerts, fmtPrice, getLevelSettings, levelTime, pairLevel, setLevelSettings, testLevelAlert, useLevelAlerts, type LevelAlert, type LevelState, type PairScan } from '../../services/sbtSetups';
 import { BellRing, Mic, MicOff, Volume2, VolumeX, X as XIcon } from 'lucide-react';
 import { SOUNDS } from '../../utils/alertSounds';
+import { getStoredToken, getStoredUser, isUserAdmin } from '../../utils/authClient';
 
 const ago = (t: number) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : `${Math.floor(m / 60)}h ${m % 60}m ago`; };
 
@@ -157,7 +158,11 @@ export const LevelAlertBanner: React.FC<{ onOpen: (engineSymbol: string) => void
               </div>
               <div className="mt-1 text-[11.5px] text-slate-200">H1 close {fmtPrice(a.price)} · zone {fmtPrice(a.zoneBottom)} – {fmtPrice(a.zoneTop)}{a.models.length ? ` · ${a.models.join(' + ')}` : ''}</div>
               {typeof a.depthPips === 'number' && <div className={`text-[11px] font-semibold ${a.depthPips < EDGE_PIPS ? 'text-amber-200' : 'text-slate-300'}`}>{a.depthPips < EDGE_PIPS ? `⚠ Edge touch (${a.depthPips} pips) — check it on your broker's chart` : `Wick ${a.depthPips} pips into the zone`}</div>}
-              <div className="text-[11px] text-slate-300">Long-term {up ? 'bullish' : 'bearish'} pair (score {a.score > 0 ? '+' : ''}{a.score.toFixed(0)}) · tap to open the chart</div>
+              {Number.isFinite(a.stop) && Number.isFinite(a.target) && <div className="text-[11.5px] text-slate-100 font-semibold">Entry next H1 open · stop {fmtPrice(a.stop as number)} · take profit 1:2 {fmtPrice(a.target as number)}</div>}
+              <div className="text-[11px] text-slate-300">Fundamental: long-term {up ? 'bullish' : 'bearish'} pair (score {a.score > 0 ? '+' : ''}{a.score.toFixed(0)}){a.crowd ? ` · ${a.crowd}` : ''}</div>
+              {a.news && <div className="text-[11px] font-bold text-amber-200">⚠ {a.news}</div>}
+              {a.checked?.length ? <div className="text-[10px] text-emerald-300/80">Verified: level on the candle that just closed · {a.checked.join(' · ')}</div> : null}
+              <div className="text-[10.5px] text-cyan-300 font-semibold">Tap to open the chart →</div>
             </button>
           </div>
         );
@@ -166,10 +171,39 @@ export const LevelAlertBanner: React.FC<{ onOpen: (engineSymbol: string) => void
   );
 };
 
+/** Shown instead of the setups when the server has no strategy loaded: never fail silently. */
+const StrategyMissing: React.FC<{ dense?: boolean }> = ({ dense }) => {
+  const admin = isUserAdmin(getStoredUser());
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const onFile = async (f: File | undefined) => {
+    if (!f) return;
+    setBusy(true); setMsg(null);
+    try {
+      const r = await uploadSbtStrategy(await f.text(), getStoredToken());
+      setMsg(r.ok ? { ok: true, text: `${r.version} loaded. Test on ${r.test?.symbol}: ${r.test?.ok ? `ran fine (${r.test.dir === 1 ? 'buy' : r.test.dir === -1 ? 'sell' : 'no'} structure, ${r.test.signals} recent entries)` : r.test?.error}. Level alerts are now on.` } : { ok: false, text: r.error || 'Upload failed.' });
+    } catch (e: any) { setMsg({ ok: false, text: String(e?.message || e) }); }
+    setBusy(false);
+  };
+  return (
+    <div data-testid="level-alerts-off" className={`rounded-2xl border border-rose-500/40 bg-rose-500/[0.07] ${dense ? 'p-2.5' : 'p-4'} space-y-2`}>
+      <div className="flex items-center gap-2 text-[11px] font-mono-code uppercase tracking-[0.16em] text-rose-200 font-bold"><Crosshair className="w-4 h-4" />Level 1 / Level 2 alerts are OFF</div>
+      <div className="text-[11.5px] text-slate-300">The Prime Pip SBT strategy is not loaded on the server, so no H1 level can be detected and no alert will ring.{admin ? ' Load your strategy file (.pine) below — it is stored privately on the server and never shown to students.' : ' The administrator has been asked to load it.'}</div>
+      {admin && (
+        <label className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[11.5px] font-bold cursor-pointer ${busy ? 'opacity-60' : ''} border-amber-400/60 bg-amber-500/15 text-amber-100`}>
+          <input type="file" accept=".pine,.txt" className="hidden" disabled={busy} data-testid="sbt-upload" onChange={(e) => void onFile(e.target.files?.[0])} />
+          {busy ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Crosshair className="w-3.5 h-3.5" />}{busy ? 'Loading and test-running…' : 'Load SBT strategy file'}
+        </label>
+      )}
+      {msg && <div className={`text-[11px] ${msg.ok ? 'text-emerald-200' : 'text-rose-200'}`}>{msg.text}</div>}
+    </div>
+  );
+};
+
 /** "Market at key levels" — which top fundamental pairs have reached their buy / sell level. */
 export const LevelAlertsPanel: React.FC<{ onOpen: (engineSymbol: string) => void; dense?: boolean }> = ({ onOpen, dense }) => {
   const st = useLevelAlerts();
-  if (st.status === 'not_configured') return null;
+  if (st.status === 'not_configured') return <StrategyMissing dense={dense} />;
   const hits = st.pairs.filter((p) => p.hit).sort((a, b) => (b.hit!.time - a.hit!.time));
   const watching = st.pairs.filter((p) => !p.hit && p.state === 'ok' && p.watching);
   const loading = st.status !== 'ready';

@@ -18,8 +18,12 @@ interface CopilotData {
   };
   weights: Array<{ input: string; score: number; weight: number }>;
   events: Array<{ currency: string; title: string; at: string; inHours: number; forecast: number | null; previous: number | null }>;
-  plan: null | { direction: 'BUY' | 'SELL'; entryZone: [number, number]; entry: number; stop: number; targets: [number, number]; swingTarget: number | null; riskPerUnit: number; invalidation: string; note?: string };
+  plan: null | { direction: 'BUY' | 'SELL'; entryZone: [number, number]; entry: number; stop: number; targets: [number, number]; swingTarget: number | null; riskPerUnit: number; invalidation: string; note?: string; source?: string; level?: number; models?: string[] };
   reasons: string[]; sources: string[]; disclaimer: string;
+  sbt?: { status: 'AT_LEVEL' | 'WATCHING' | 'NO_STRUCTURE' | 'NOT_LOADED' | 'UNAVAILABLE' | 'STALE'; note?: string; valid?: boolean; dir?: number; trend?: number;
+    level1?: { top: number; bottom: number; modelReady: boolean } | null; level2?: { top: number; bottom: number; modelReady: boolean } | null; level1Done?: boolean; inTrade?: boolean; lastCandle?: number;
+    hit?: { level: number; dir: number; price: number; stop: number; target: number; zoneTop: number; zoneBottom: number; models: string[]; depthPips?: number } | null;
+    recent?: { time: number; dir: number; level: number; price: number } | null };
 }
 
 const ACC_KEY = 'ppfx_copilot_account_v1';
@@ -136,7 +140,7 @@ export const TradeCopilot: React.FC<{ open: boolean; symbol: string; onClose: ()
                 <div className="flex items-center gap-3">
                   <ActIcon className={`w-8 h-8 ${tone.icon}`} />
                   <div>
-                    <div className={`text-2xl font-black ${tone.txt}`} data-testid="copilot-action">{d.action === 'WAIT' ? 'WAIT — no clear edge' : d.action}</div>
+                    <div className={`text-2xl font-black ${tone.txt}`} data-testid="copilot-action">{d.action === 'WAIT' ? 'NO VALID SETUP' : `${d.action} — VALID SETUP`}</div>
                     <div className="text-xs text-slate-400">Price {fmt(d.price)} · conviction {d.conviction}/100</div>
                   </div>
                 </div>
@@ -145,6 +149,34 @@ export const TradeCopilot: React.FC<{ open: boolean; symbol: string; onClose: ()
               {d.reasons.length > 0 && <ul className="mt-3 space-y-1 text-xs text-slate-300 list-disc pl-5">{d.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>}
             </div>
 
+            {/* Prime Pip SBT (H1) — decides whether there is a trade */}
+            {d.sbt && (
+              <div className="rounded-2xl border border-amber-400/40 bg-amber-500/5 p-4 space-y-2" data-testid="copilot-sbt">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="text-xs font-black uppercase tracking-widest text-amber-200">Prime Pip SBT · H1 levels</div>
+                  <span className={`px-2 py-0.5 rounded-md border text-[11px] font-black ${d.sbt.status === 'AT_LEVEL' && d.sbt.valid ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-100 animate-pulse' : d.sbt.status === 'AT_LEVEL' ? 'bg-amber-500/20 border-amber-400/60 text-amber-100' : d.sbt.status === 'WATCHING' ? 'bg-cyan-500/15 border-cyan-400/40 text-cyan-100' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
+                    {d.sbt.status === 'AT_LEVEL' ? (d.sbt.valid ? `LEVEL ${d.sbt.hit?.level} REACHED — VALID` : `LEVEL ${d.sbt.hit?.level} REACHED — AGAINST FUNDAMENTALS`) : d.sbt.status === 'WATCHING' ? 'WAITING FOR PRICE AT A LEVEL' : d.sbt.status === 'NO_STRUCTURE' ? 'NO ACTIVE STRUCTURE' : d.sbt.status === 'NOT_LOADED' ? 'STRATEGY NOT LOADED' : d.sbt.status === 'STALE' ? 'DATA DELAYED' : 'SCAN UNAVAILABLE'}
+                  </span>
+                </div>
+                {d.sbt.note && <div className="text-xs text-slate-300">{d.sbt.note}</div>}
+                {(d.sbt.level1 || d.sbt.level2) && (
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    {[1, 2].map((n) => { const z = n === 1 ? d.sbt!.level1 : d.sbt!.level2; return (
+                      <div key={n} className={`rounded-lg border p-2 ${d.sbt!.hit?.level === n ? 'border-amber-400/60 bg-amber-500/10' : 'border-slate-800 bg-slate-950'}`}>
+                        <div className="text-slate-500 uppercase text-[10px]">Level {n} · {d.sbt!.dir === 1 ? 'buy' : 'sell'} zone{n === 1 && d.sbt!.level1Done ? ' (finished)' : ''}</div>
+                        {z ? <div className="font-mono text-white">{fmt(z.bottom)} – {fmt(z.top)}</div> : <div className="text-slate-500">not formed</div>}
+                        {z && <div className={`text-[10px] ${z.modelReady ? 'text-emerald-300' : 'text-slate-500'}`}>{z.modelReady ? 'model complete — entry on a test of the zone' : 'waiting for a model (liquidity) to complete'}</div>}
+                      </div>
+                    ); })}
+                  </div>
+                )}
+                {d.sbt.hit && <div className="text-[11px] text-slate-300">Test candle closed at <b className="font-mono text-white">{fmt(d.sbt.hit.price)}</b>{d.sbt.hit.models?.length ? <> · model <b className="text-cyan-200">{d.sbt.hit.models.join(' + ')}</b></> : null} · stop <b className="font-mono text-rose-300">{fmt(d.sbt.hit.stop)}</b> · target 1:2 <b className="font-mono text-emerald-300">{fmt(d.sbt.hit.target)}</b>. Entry: next H1 open.</div>}
+                {d.sbt.inTrade && !d.sbt.hit && <div className="text-[11px] text-cyan-200">The strategy is in a trade on this pair from an earlier level.</div>}
+                {d.sbt.recent && <div className="text-[10.5px] text-slate-500">Last level touch: {d.sbt.recent.dir > 0 ? 'buy' : 'sell'} Level {d.sbt.recent.level} at {fmt(d.sbt.recent.price)}, {new Date(d.sbt.recent.time + 3_600_000).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}.</div>}
+                <div className="text-[10px] text-slate-500">Only your strategy's own Level 1 / Level 2 entry on the H1 candle that has just closed counts as a setup, and only when the fundamentals do not point the other way.</div>
+              </div>
+            )}
+
             {/* Plan */}
             {d.plan && (
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
@@ -152,8 +184,10 @@ export const TradeCopilot: React.FC<{ open: boolean; symbol: string; onClose: ()
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                   <div className="rounded-xl bg-slate-950 border border-slate-800 p-2"><div className="text-[10px] text-slate-500 uppercase">Entry zone</div><div className="font-mono text-sm text-white">{fmt(d.plan.entryZone[0])}–{fmt(d.plan.entryZone[1])}</div></div>
                   <div className="rounded-xl bg-slate-950 border border-rose-500/30 p-2"><div className="text-[10px] text-slate-500 uppercase">Stop loss</div><div className="font-mono text-sm text-rose-300">{fmt(d.plan.stop)}</div></div>
-                  <div className="rounded-xl bg-slate-950 border border-emerald-500/30 p-2"><div className="text-[10px] text-slate-500 uppercase">Target 1 (1R)</div><div className="font-mono text-sm text-emerald-300">{fmt(d.plan.targets[0])}</div></div>
-                  <div className="rounded-xl bg-slate-950 border border-emerald-500/30 p-2"><div className="text-[10px] text-slate-500 uppercase">Target 2 (2R)</div><div className="font-mono text-sm text-emerald-300">{fmt(d.plan.targets[1])}</div></div>
+                  {d.plan.source === 'SBT'
+                    ? <div className="rounded-xl bg-slate-950 border border-amber-500/30 p-2"><div className="text-[10px] text-slate-500 uppercase">Setup</div><div className="font-mono text-sm text-amber-200">SBT L{d.plan.level}</div></div>
+                    : <div className="rounded-xl bg-slate-950 border border-emerald-500/30 p-2"><div className="text-[10px] text-slate-500 uppercase">Target 1 (1R)</div><div className="font-mono text-sm text-emerald-300">{fmt(d.plan.targets[0])}</div></div>}
+                  <div className="rounded-xl bg-slate-950 border border-emerald-500/30 p-2"><div className="text-[10px] text-slate-500 uppercase">{d.plan.source === 'SBT' ? 'Take profit (1:2)' : 'Target 2 (2R)'}</div><div className="font-mono text-sm text-emerald-300">{fmt(d.plan.targets[1])}</div></div>
                 </div>
                 {d.plan.swingTarget != null && <div className="text-xs text-slate-400">Structure target (20-day {d.plan.direction === 'BUY' ? 'high' : 'low'}): <span className="font-mono text-slate-200">{fmt(d.plan.swingTarget)}</span></div>}
                 <div className="text-xs text-amber-200/90 flex gap-2"><ShieldAlert className="w-4 h-4 shrink-0" />{d.plan.invalidation}{d.plan.note ? ` ${d.plan.note}` : ''}</div>
@@ -174,7 +208,7 @@ export const TradeCopilot: React.FC<{ open: boolean; symbol: string; onClose: ()
                       {sizing.tooSmall
                         ? <div className="text-amber-300">This stop is too wide for a {acc.riskPct}% risk on ${acc.balance} — even 0.01 lot risks ${(sizing.lossPerLotUsd / 100).toFixed(2)}. Skip it or use a cent account.</div>
                         : <div><span className="text-lg font-black text-white font-mono">{sizing.lots.toFixed(2)} lots</span> <span className="text-slate-500">risks ${sizing.riskUsd.toFixed(2)}</span></div>}
-                      {!sizing.tooSmall && <div className="text-slate-400">Target 1 ≈ +${sizing.reward1.toFixed(2)} · Target 2 ≈ +${sizing.reward2.toFixed(2)}</div>}
+                      {!sizing.tooSmall && <div className="text-slate-400">{d.plan.source === 'SBT' ? <>Take profit (1:2) ≈ +${sizing.reward2.toFixed(2)}</> : <>Target 1 ≈ +${sizing.reward1.toFixed(2)} · Target 2 ≈ +${sizing.reward2.toFixed(2)}</>}</div>}
                       <div className="text-[10px] text-slate-600">Standard contract: 1 lot = {contract(sym).size.toLocaleString()} {contract(sym).unit}. Check your broker's contract size{/^(US|GER|UK|JP)/.test(sym) ? ' — index contracts differ a lot between brokers' : ''}.</div>
                     </div>
                   ) : <div className="text-[11px] text-slate-500">Working out the lot size…</div>}

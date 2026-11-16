@@ -12,6 +12,7 @@ import { Router, type Request, type Response } from 'express';
 import { getSnapshot } from '../macro/macroService.js';
 import { getSentiment } from '../macro/sources/sentiment.js';
 import { dukaBefore, yahooAny, type Candle } from '../history/historyService.js';
+import { scanSymbol, H1 } from '../sbt/sbtScanner.js';
 
 export const copilotRouter = Router();
 export { feedFor };
@@ -150,6 +151,64 @@ export function buildCopilot(sym: string, candles: Candle[], source: string, sna
     return body;
 }
 
+/**
+ * The owner's Prime Pip SBT strategy (H1) decides whether there is a trade: a VALID setup exists only
+ * when the strategy's own entry fired on the H1 candle that has just closed (Level 1 or Level 2) AND
+ * the fundamentals do not point the other way. Everything else in the copilot is context.
+ */
+export function applySbt(body: any, scan: any, now = Date.now()): any {
+  const out = { ...body };
+  const f = body?.inputs?.fundamentals?.score as number | undefined;
+  const fmt = (x: number) => (Number.isFinite(x) ? Number(x.toFixed(body.digits ?? 5)) : null);
+  if (!scan || !scan.ok) {
+    out.sbt = { status: scan?.code === 'not_configured' ? 'NOT_LOADED' : 'UNAVAILABLE', note: scan?.error || 'The SBT scan is not available right now.' };
+    out.action = 'WAIT'; out.plan = null;
+    out.reasons = [scan?.code === 'not_configured' ? 'The Prime Pip SBT strategy is not loaded on the server, so no H1 Level 1 / Level 2 setup can be confirmed.' : 'The H1 SBT scan could not run right now — no setup is confirmed.', ...(body.reasons || [])];
+    return out;
+  }
+  if (scan.stale) {
+    out.sbt = { status: 'STALE', note: 'The newest H1 candle is late — not acting on old data.' };
+    out.action = 'WAIT'; out.plan = null; out.reasons = ['H1 data is delayed — wait for fresh candles before trusting any level.', ...(body.reasons || [])];
+    return out;
+  }
+  const hit = (scan.signals || []).find((x: any) => x.time === scan.lastCandle) || null;
+  const recent = [...(scan.signals || [])].reverse().find((x: any) => now - (x.time + H1) < 24 * H1 && x !== hit) || null;
+  const zone = (z: any) => (z ? { top: fmt(z.top), bottom: fmt(z.bottom), modelReady: Boolean(z.modelReady) } : null);
+  out.sbt = {
+    status: hit ? 'AT_LEVEL' : scan.armed ? 'WATCHING' : 'NO_STRUCTURE',
+    dir: scan.dir, trend: scan.trend, level1: zone(scan.level1), level2: zone(scan.level2), level1Done: scan.level1Done, inTrade: scan.inTrade,
+    lastCandle: scan.lastCandle, hit: hit ? { ...hit, price: fmt(hit.price), stop: fmt(hit.stop), target: fmt(hit.target), zoneTop: fmt(hit.zoneTop), zoneBottom: fmt(hit.zoneBottom) } : null,
+    recent: recent ? { time: recent.time, dir: recent.dir, level: recent.level, price: fmt(recent.price) } : null,
+  };
+  const side = (d: number) => (d > 0 ? 'buy' : 'sell');
+  if (hit) {
+    const against = typeof f === 'number' && Math.abs(f) >= 10 && Math.sign(f) !== hit.dir;
+    if (against) {
+      out.action = 'WAIT'; out.plan = null; out.conviction = 0;
+      out.reasons = [`SBT ${side(hit.dir)} Level ${hit.level} was reached on the H1 candle that just closed, but the fundamentals point the other way (${f > 0 ? '+' : ''}${Math.round(f)}). Not a valid setup for this terminal.`];
+      out.sbt.valid = false;
+    } else {
+      const risk = Math.abs(hit.price - hit.stop);
+      out.action = hit.dir > 0 ? 'BUY' : 'SELL'; out.sbt.valid = true;
+      out.plan = {
+        direction: out.action, source: 'SBT', level: hit.level, models: hit.models,
+        entryZone: [fmt(Math.min(hit.zoneTop, hit.zoneBottom)), fmt(Math.max(hit.zoneTop, hit.zoneBottom))], entry: fmt(hit.price),
+        stop: fmt(hit.stop), targets: [fmt(hit.price + hit.dir * risk), fmt(hit.target)], swingTarget: null, riskPerUnit: risk, rr: [1, 2],
+        invalidation: `Entry at the next H1 open (around ${fmt(hit.price)}). A close beyond the Level ${hit.level} zone, or the stop at ${fmt(hit.stop)}, ends the trade (strategy rules).`,
+      };
+      out.reasons = [`VALID SETUP: SBT ${side(hit.dir)} Level ${hit.level}${hit.models?.length ? ` (${hit.models.join(' + ')})` : ''} on the H1 candle that just closed${typeof f === 'number' ? `, fundamentals ${f > 0 ? 'bullish' : f < 0 ? 'bearish' : 'neutral'} (${f > 0 ? '+' : ''}${Math.round(f)})` : ''}.`, ...(body.reasons || []).filter((r: string) => /release|news/i.test(r))];
+    }
+    return out;
+  }
+  out.action = 'WAIT'; out.plan = null;
+  const zl = (z: any, n: number) => (z ? `Level ${n} ${fmt(z.bottom)}–${fmt(z.top)}${z.modelReady ? ' (model ready)' : ''}` : null);
+  const where = [zl(scan.level1, 1), zl(scan.level2, 2)].filter(Boolean).join(' · ');
+  out.reasons = [scan.armed ? `No valid setup on H1 right now. The strategy is watching ${side(scan.dir)} levels: ${where || 'zones not formed yet'}.` : 'No valid setup on H1 right now — the strategy has no active structure on this pair.',
+    ...(scan.armed && typeof f === 'number' && Math.abs(f) >= 10 && Math.sign(f) !== scan.dir ? [`Note: these ${side(scan.dir)} levels are against the fundamentals (${f > 0 ? '+' : ''}${Math.round(f)}).`] : []),
+    ...(body.reasons || []).filter((r: string) => /release|news/i.test(r))];
+  return out;
+}
+
 const cache = new Map<string, { at: number; body: any }>();
 
 copilotRouter.get('/:symbol', async (req: Request, res: Response) => {
@@ -157,13 +216,16 @@ copilotRouter.get('/:symbol', async (req: Request, res: Response) => {
   const hit = cache.get(sym);
   if (hit && Date.now() - hit.at < 60_000) { res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300'); return res.json(hit.body); }
   try {
-    const [{ candles, source }, snap, sent] = await Promise.all([
+    const chartSym = ({ BTCUSD: 'BTCUSDT', ETHUSD: 'ETHUSDT' } as Record<string, string>)[sym] || sym;
+    const [{ candles, source }, snap, sent, scan] = await Promise.all([
       dailyCandles(sym),
       getSnapshot().catch(() => null),
       getSentiment(120_000).catch(() => null),
+      Promise.race([scanSymbol(chartSym), new Promise((r) => setTimeout(() => r({ ok: false, code: 'timeout', error: 'The H1 SBT scan is taking longer than usual.' }), 45_000))]).catch((e) => ({ ok: false, error: String(e?.message || e) })),
     ]);
-    const body = buildCopilot(sym, candles, source, snap, sent);
-    if (!body) return res.status(503).json({ ok: false, error: 'Not enough price history right now — try again in a minute.' });
+    const base = buildCopilot(sym, candles, source, snap, sent);
+    if (!base) return res.status(503).json({ ok: false, error: 'Not enough price history right now — try again in a minute.' });
+    const body = applySbt(base, scan);
     cache.set(sym, { at: Date.now(), body });
     res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
     return res.json(body);

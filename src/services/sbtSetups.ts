@@ -13,6 +13,8 @@ import { playSound, speak, spokenPair, unlockAudio, type SoundId } from '../util
 
 const H1 = 3_600_000;
 export const TOP_N = 6;
+/** Always scanned, whatever the rankings say. */
+export const ALWAYS = ['XAUUSD'];
 const FRESH_MS = 24 * H1;        // how long an earlier touch stays listed (as "earlier", with where price is now)
 const NOTIFY_MS = 75 * 60_000; // only the candle that has just closed rings (no old alerts after re-opening the app)
 const K_SEEN = 'ppfx_level_alerts_seen_v1';
@@ -26,13 +28,19 @@ export const getLevelSettings = (): LevelAlertSettings => ({ sound: true, voice:
 export function setLevelSettings(p: Partial<LevelAlertSettings>) { write(K_LEVEL_SETTINGS, { ...getLevelSettings(), ...p }); subs.forEach((f) => f()); }
 
 /** Sound + female voice for one or more setups: "G B P C A D. This pair has arrived — Level 1, buy." */
-export function announceSetups(list: { display: string; side: 1 | -1; level: 1 | 2 }[]) {
+export function announceSetups(list: Array<{ display: string; side: 1 | -1; level: 1 | 2 } & Partial<LevelAlert>>) {
   const cfg = getLevelSettings();
   if (cfg.sound) { playSound(cfg.soundId); setTimeout(() => playSound(cfg.soundId), 900); }
   if (cfg.voice && list.length) {
-    const text = list.slice(0, 4).map((a) =>
-      `${spokenPair(a.display)}. This pair has arrived! Level ${a.level}, ${a.side > 0 ? 'buy' : 'sell'} setup.`
-    ).join(' ');
+    const text = list.slice(0, 4).map((a) => {
+      const anyA = a as Partial<LevelAlert> & { display: string; side: 1 | -1; level: 1 | 2 };
+      const tech = `${spokenPair(a.display)} has reached the Level ${a.level} ${a.side > 0 ? 'buy' : 'sell'} zone on the one-hour chart.`;
+      const mdl = anyA.models?.length ? ` Model ${anyA.models.join(' and ')} complete.` : '';
+      const fund = typeof anyA.score === 'number' ? ` Fundamentals are ${a.side > 0 ? 'bullish' : 'bearish'}, score ${anyA.score > 0 ? 'plus' : 'minus'} ${Math.abs(Math.round(anyA.score))}.` : '';
+      const lv = Number.isFinite(anyA.stop) && Number.isFinite(anyA.target) ? ` Stop ${fmtPrice(anyA.stop as number)}, target ${fmtPrice(anyA.target as number)}.` : '';
+      const news = anyA.news ? ` Caution: ${anyA.news}` : '';
+      return tech + mdl + fund + lv + news;
+    }).join(' ');
     setTimeout(() => speak(text), cfg.sound ? 1800 : 0);
   }
 }
@@ -69,7 +77,7 @@ export interface PairScan {
   /** The strategy is currently tracking levels on the fundamental side. */
   watching?: boolean;
 }
-export interface LevelAlert { id: string; symbol: string; display: string; side: 1 | -1; level: 1 | 2; price: number; zoneTop: number; zoneBottom: number; models: string[]; time: number; score: number; depthPips?: number }
+export interface LevelAlert { id: string; symbol: string; display: string; side: 1 | -1; level: 1 | 2; price: number; zoneTop: number; zoneBottom: number; models: string[]; time: number; score: number; depthPips?: number; stop?: number; target?: number; crowd?: string; news?: string; checked?: string[] }
 export interface LevelState { status: 'idle' | 'loading' | 'ready' | 'not_configured'; pairs: PairScan[]; alerts: LevelAlert[]; updatedAt: number; unseen: number }
 
 const read = <T,>(k: string, d: T): T => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v ?? d; } catch { return d; } };
@@ -94,13 +102,65 @@ async function notify(title: string, body: string) {
   try { new Notification(title, { body, icon: '/favicon.ico' }); } catch { /* not allowed */ }
 }
 
+/** Plain-language summary covering the technical and the fundamental side (used for the notification). */
+export function alertSummary(a: LevelAlert): string {
+  const parts = [
+    `Technical: H1 candle closed at ${fmtPrice(a.price)} in the Level ${a.level} ${a.side > 0 ? 'buy' : 'sell'} zone ${fmtPrice(a.zoneBottom)} – ${fmtPrice(a.zoneTop)}${a.models.length ? ` (${a.models.join(' + ')} complete)` : ''}.`,
+    Number.isFinite(a.stop) && Number.isFinite(a.target) ? `Entry next H1 open · stop ${fmtPrice(a.stop as number)} · take profit 1:2 ${fmtPrice(a.target as number)}.` : '',
+    `Fundamental: long-term ${a.side > 0 ? 'bullish' : 'bearish'} (score ${a.score > 0 ? '+' : ''}${a.score.toFixed(0)}).`,
+    a.crowd || '', a.news ? `⚠ ${a.news}` : '',
+  ];
+  return parts.filter(Boolean).join(' ');
+}
+
+/**
+ * Verification before an alert is announced: the signal must be on the candle that has just closed, the
+ * fundamentals must still point the same way right now, and the crowd / news context is attached.
+ * Returns null when the alert does not hold up (it is then not announced).
+ */
+async function verifyAlert(a: LevelAlert, sig: LevelSignal | null): Promise<LevelAlert | null> {
+  const checked: string[] = [];
+  const out: LevelAlert = { ...a, stop: sig?.stop, target: sig?.target };
+  try {
+    const sym = a.symbol.replace(/USDT$/, 'USD');
+    const j = await fetch(`/api/copilot/${encodeURIComponent(sym)}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    if (j?.ok) {
+      const f = j.inputs?.fundamentals?.score;
+      if (typeof f === 'number') {
+        if (Math.abs(f) >= 10 && Math.sign(f) !== a.side) return null; // fundamentals have flipped since the ranking — not announced
+        checked.push('fundamentals re-checked');
+      }
+      const c = j.inputs?.crowd;
+      if (c && typeof c.longPct === 'number') {
+        const agrees = a.side > 0 ? c.longPct < 45 : c.longPct > 55;
+        out.crowd = `Retail crowd ${Math.round(c.longPct)}% long — ${agrees ? `supports the ${a.side > 0 ? 'buy' : 'sell'} (contrarian)` : c.longPct >= 45 && c.longPct <= 55 ? 'balanced' : `leans the same way as this ${a.side > 0 ? 'buy' : 'sell'} (contrarian caution)`}.`;
+        checked.push('crowd');
+      }
+      const ev = (j.events || []).find((e: any) => e.inHours <= 2);
+      if (ev) out.news = `High-impact ${ev.currency} "${ev.title}" ${ev.inHours < 0 ? 'is out now' : ev.inHours < 1 ? 'in under an hour' : `in ${Math.round(ev.inHours)}h`}.`;
+      checked.push('news');
+      if (j.sbt && j.sbt.status === 'STALE') return null;
+    }
+  } catch { /* context is optional; the level itself was already confirmed by the scan */ }
+  out.checked = checked;
+  return out;
+}
+
 async function fetchRankings(): Promise<{ symbol: string; display: string; side: 1 | -1; score: number }[]> {
   const r = await fetch('/api/macro/rankings');
   const j = await r.json();
   const lt = j?.data?.longTerm;
   if (!lt) throw new Error('rankings unavailable');
   const pick = (l: any[], side: 1 | -1) => (l || []).slice(0, TOP_N).map((p) => ({ symbol: String(p.symbol), display: String(p.display || p.symbol), side, score: Number(p.longTerm ?? 0) }));
-  return [...pick(lt.bullish, 1), ...pick(lt.bearish, -1)];
+  const list = [...pick(lt.bullish, 1), ...pick(lt.bearish, -1)];
+  // Gold is always watched (the owner's main market), on the side its own long-term fundamentals point to.
+  for (const sym of ALWAYS) {
+    if (list.some((p) => p.symbol === sym)) continue;
+    const row = [...(j?.data?.all || []), ...(lt.bullish || []), ...(lt.bearish || [])].find((p: any) => p.symbol === sym);
+    const sc = Number(row?.longTerm ?? NaN);
+    if (Number.isFinite(sc) && Math.abs(sc) >= 5) list.push({ symbol: sym, display: String(row.display || 'XAU/USD'), side: sc > 0 ? 1 : -1, score: sc });
+  }
+  return list;
 }
 
 async function scanOne(symbol: string, bar: number): Promise<any> {
@@ -169,12 +229,16 @@ async function cycle() {
       fresh.push({ id, symbol: p.symbol, display: p.display, side: p.side, level: h.level, price: h.price, zoneTop: h.zoneTop, zoneBottom: h.zoneBottom, models: h.models, time: h.time + H1, score: p.score, depthPips: h.depthPips });
     }
     write(K_SEEN, [...seen].slice(-400));
+    // Double-check every alert before it is announced (fundamentals live now, crowd, news) — never announce on stale or contradicting data.
+    const verified: LevelAlert[] = [];
+    for (const a of fresh) { const v = await verifyAlert(a, pairs.find((p) => p.symbol === a.symbol)?.hit || null); if (v) verified.push(v); }
+    fresh.length = 0; fresh.push(...verified);
     let alerts = state.alerts;
     if (fresh.length) {
       alerts = [...fresh, ...alerts].slice(0, 40);
       write(K_LOG, alerts);
       announceSetups(fresh);
-      for (const a of fresh) notify(`${a.side > 0 ? 'BUY' : 'SELL'} ${a.display} — Level ${a.level} reached (H1)`, `Why: long-term ${a.side > 0 ? 'bullish' : 'bearish'} pair (score ${a.score > 0 ? '+' : ''}${a.score.toFixed(0)}) and price is at its ${a.side > 0 ? 'buy' : 'sell'} level${a.models.length ? ` with ${a.models.join(' + ')} complete` : ''}. H1 close ${fmtPrice(a.price)} · zone ${fmtPrice(a.zoneBottom)} – ${fmtPrice(a.zoneTop)}.`);
+      for (const a of fresh) notify(`${a.side > 0 ? 'BUY' : 'SELL'} ${a.display} — Level ${a.level} reached (H1)`, alertSummary(a));
       try { window.dispatchEvent(new CustomEvent('ppfx:level-alert', { detail: fresh })); } catch { /* ignore */ }
     }
     set({ status: 'ready', pairs, alerts, updatedAt: Date.now(), unseen: state.unseen + fresh.length });
@@ -218,4 +282,12 @@ export function useLevelAlerts(): LevelState {
 export function pairLevel(st: LevelState, symbol: string): PairScan | undefined {
   const s = symbol.replace(/[^A-Z0-9]/gi, '').toUpperCase();
   return st.pairs.find((p) => p.symbol === s || chartSym(p.symbol) === s);
+}
+
+/** ADMIN: load the SBT strategy file into the server (private store). The source never reaches students. */
+export async function uploadSbtStrategy(source: string, token: string | null): Promise<{ ok: boolean; error?: string; version?: string; test?: any }> {
+  const r = await fetch('/api/sbt/strategy', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ source }) });
+  const j = await r.json().catch(() => ({ ok: false, error: `HTTP ${r.status}` }));
+  if (j.ok) { scans.clear(); set({ status: 'loading' }); void cycle(); }
+  return j;
 }

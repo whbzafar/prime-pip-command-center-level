@@ -32,3 +32,25 @@ describe('trade copilot', () => {
     expect(buildCopilot('GBPJPY', mk(10, 200, -0.3), 'test', snap, null, now)).toBeNull();
   });
 });
+
+import { applySbt } from './copilotRoutes';
+describe('copilot × SBT', () => {
+  const base = { digits: 2, action: 'BUY', plan: { x: 1 }, reasons: ['High-impact USD release "CPI" in 2h — expect a volatility spike.'], inputs: { fundamentals: { score: -40 } } };
+  const H = 3_600_000, last = Date.UTC(2026, 10, 16, 8);
+  const sig = { time: last, dir: -1, level: 1, price: 3925, stop: 3950, target: 3875, zoneTop: 3928, zoneBottom: 3924, models: ['SBT 5'] };
+  it('valid sell when the strategy fired on the last closed H1 candle and fundamentals agree', () => {
+    const r = applySbt(base, { ok: true, stale: false, lastCandle: last, signals: [sig], armed: true, dir: -1, level1: { top: 3928, bottom: 3924, modelReady: true } }, last + H + 60_000);
+    expect(r.action).toBe('SELL'); expect(r.sbt.valid).toBe(true); expect(r.plan.stop).toBe(3950); expect(r.plan.targets[1]).toBe(3875);
+    expect(r.reasons.join(' ')).toMatch(/VALID SETUP/); expect(r.reasons.join(' ')).toMatch(/CPI/);
+  });
+  it('no trade when fundamentals point the other way', () => {
+    const r = applySbt(base, { ok: true, stale: false, lastCandle: last, signals: [{ ...sig, dir: 1 }], armed: true, dir: 1 }, last + H);
+    expect(r.action).toBe('WAIT'); expect(r.sbt.valid).toBe(false);
+  });
+  it('waits (with the zones) when price is not at a level, and when data is stale or the strategy is not loaded', () => {
+    const w = applySbt(base, { ok: true, stale: false, lastCandle: last, signals: [{ ...sig, time: last - 5 * H }], armed: true, dir: -1, level1: { top: 3928, bottom: 3924, modelReady: true } }, last + H);
+    expect(w.action).toBe('WAIT'); expect(w.reasons[0]).toMatch(/Level 1 3924–3928 \(model ready\)/);
+    expect(applySbt(base, { ok: true, stale: true }).action).toBe('WAIT');
+    expect(applySbt(base, { ok: false, code: 'not_configured' }).sbt.status).toBe('NOT_LOADED');
+  });
+});

@@ -83,10 +83,13 @@ export function instrument(src: string): string | null {
     out.push(line);
   }
   if (!cnt || !sig) return null;
+  // Older versions kept a higher-timeframe wait flag (hb) on the trade state; v5.98 does not. Read it only when it exists.
+  const trBlock = (src.match(/^type Tr\b[^\n]*\n((?:[ \t]+[^\n]*\n|[ \t]*\n)*)/m)?.[1]) || '';
+  const hasHb = /^\s+bool hb\b/m.test(trBlock);
   out.push(
     '',
     'if barstate.islast or barstate.islastconfirmedhistory',
-    '    label.new(bar_index, high, "PPFXOUT#" + str.tostring(time) + "#" + str.tostring(trend) + "#" + (trd.arm ? "1" : "0") + "," + str.tostring(trd.dir) + "," + (trd.z1 ? str.tostring(trd.dir * trd.z1Top) + "," + str.tostring(trd.dir * trd.z1Bot) : ",") + "," + (trd.z2 ? str.tostring(trd.dir * trd.z2Top) + "," + str.tostring(trd.dir * trd.z2Bot) : ",") + "," + (trd.pd1 ? "1" : "0") + (trd.pd2 ? "1" : "0") + (trd.m1 ? "1" : "0") + (trd.m2 ? "1" : "0") + (trd.l1Dead ? "1" : "0") + (trd.dead ? "1" : "0") + (trd.hb ? "1" : "0") + (trd.live ? "1" : "0") + "#" + array.join(ppfxSig, "#"))',
+    '    label.new(bar_index, high, "PPFXOUT#" + str.tostring(time) + "#" + str.tostring(trend) + "#" + (trd.arm ? "1" : "0") + "," + str.tostring(trd.dir) + "," + (trd.z1 ? str.tostring(trd.dir * trd.z1Top) + "," + str.tostring(trd.dir * trd.z1Bot) : ",") + "," + (trd.z2 ? str.tostring(trd.dir * trd.z2Top) + "," + str.tostring(trd.dir * trd.z2Bot) : ",") + "," + (trd.pd1 ? "1" : "0") + (trd.pd2 ? "1" : "0") + (trd.m1 ? "1" : "0") + (trd.m2 ? "1" : "0") + (trd.l1Dead ? "1" : "0") + (trd.dead ? "1" : "0") + ' + (hasHb ? '(trd.hb ? "1" : "0")' : '"0"') + ' + (trd.live ? "1" : "0") + "#" + array.join(ppfxSig, "#"))',
     '',
   );
   return out.join('\n');
@@ -112,6 +115,13 @@ async function loadScript() {
   return v;
 }
 export const sbtConfigured = async () => Boolean(await loadScript());
+/** Which strategy the scanner runs right now (name only — never the source). */
+export async function sbtStatus() {
+  const v = await loadScript();
+  return { configured: Boolean(v), source: v?.source || null, version: v ? (v.src.match(/strategy\s*\(\s*"([^"]+)"/)?.[1] || null) : null };
+}
+/** Forget the loaded script and all cached results (after the administrator uploads a new version). */
+export function resetSbtCache() { scriptCache = null; results.clear(); }
 
 // ───────────────────────────── market data (closed candles only)
 const BINANCE_TF: Partial<Record<Tf, string>> = { h1: '1h', h4: '4h', d1: '1d', w1: '1w', mn1: '1M' };
