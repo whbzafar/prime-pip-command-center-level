@@ -70,8 +70,23 @@ const inflight: Record<string, Promise<void> | undefined> = {};
 /** Next time each source is due. Set from the OUTCOME: success → normal interval, failure → 60 s retry. */
 const due: Record<string, number> = {};
 
+let lastCompute = 0;
+let rcTimer: NodeJS.Timeout | null = null;
+let rcDirty = false;
+function computeNow(): void {
+  try { snapshot = computeSnapshot(); lastCompute = Date.now(); } catch (e: any) { console.warn('[Fundamentals] compute failed:', e?.message || e); }
+}
+/**
+ * Re-score everything. A full scoring pass blocks the server for seconds on the free host's slow CPU, and
+ * every source that finished used to trigger one — so pages froze while data was arriving. Now bursts are
+ * merged into one pass, at most once every 12 s (immediately when nothing has been computed yet).
+ */
 function recompute(): void {
-  try { snapshot = computeSnapshot(); } catch (e: any) { console.warn('[Fundamentals] compute failed:', e?.message || e); }
+  if (SERVERLESS || !snapshot) { computeNow(); return; }
+  rcDirty = true;
+  if (rcTimer) return;
+  const wait = Math.max(1_500, 12_000 - (Date.now() - lastCompute));
+  rcTimer = setTimeout(() => { rcTimer = null; if (rcDirty) { rcDirty = false; computeNow(); } }, wait);
 }
 
 function sourceSucceededSince(sourceId: string, since: number): boolean {
@@ -241,7 +256,7 @@ function persist(): void {
 
 export async function refreshAndCompute(force = false): Promise<MacroSnapshot> {
   await refreshSources(force).all;
-  recompute();
+  if (force) computeNow(); else recompute();
   return snapshot ?? emptySnapshot();
 }
 
