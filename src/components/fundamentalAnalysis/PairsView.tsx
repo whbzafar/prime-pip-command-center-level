@@ -7,6 +7,9 @@ import { AssetDetail } from './AssetDetail';
 import { BiasPill, BullBearBar, fetchJsonSafe, fmtScore, scoreColor } from './ui';
 
 type Filter = 'ALL' | 'FOREX' | 'COMMODITIES' | 'CRYPTO';
+type Dir = 'ALL' | 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+/** Same thresholds as the bias pill: ≥ +10 is bullish (mild or strong), ≤ −10 bearish, in between neutral. */
+const dirOf = (score: number | null): Dir | null => (score === null ? null : score >= 10 ? 'BULLISH' : score <= -10 ? 'BEARISH' : 'NEUTRAL');
 type Upcoming = Overview['upcoming'];
 
 /** Scheduled releases that can move this pair: anything for its base or quote currency, soonest first. */
@@ -56,6 +59,8 @@ const EventRisk: React.FC<{ pair: PairResult; upcoming?: Upcoming }> = ({ pair, 
 export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; initial?: string | null; upcoming?: Upcoming }> = ({ pairs, generatedAt, initial, upcoming }) => {
   const [filter, setFilter] = useState<Filter>('ALL');
   const [q, setQ] = useState('');
+  const [dir, setDirState] = useState<Dir>(() => { try { const v = localStorage.getItem('ppfx_pairs_dir'); return v === 'BULLISH' || v === 'BEARISH' || v === 'NEUTRAL' ? v : 'ALL'; } catch { return 'ALL'; } });
+  const setDir = (d: Dir) => { setDirState(d); try { localStorage.setItem('ppfx_pairs_dir', d); } catch { /* storage blocked */ } };
   const [sel, setSel] = useState<string | null>(initial || null);
   const [detail, setDetail] = useState<{ data: PairResult; base: AssetResult | null; quote: AssetResult | null; institutional?: any; sentiment?: any } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -73,10 +78,22 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
     return () => { alive = false; };
   }, [sel, generatedAt]);
 
-  const rows = useMemo(() => pairs
+  const byClass = useMemo(() => pairs
     .filter((p) => filter === 'ALL' || p.assetClass === filter)
     .filter((p) => !q || p.display.toLowerCase().includes(q.toLowerCase().replace(/\s/g, '')) || p.symbol.toLowerCase().includes(q.toLowerCase())),
   [pairs, filter, q]);
+  const counts = useMemo(() => ({
+    ALL: byClass.length,
+    BULLISH: byClass.filter((p) => dirOf(p.score) === 'BULLISH').length,
+    BEARISH: byClass.filter((p) => dirOf(p.score) === 'BEARISH').length,
+    NEUTRAL: byClass.filter((p) => dirOf(p.score) === 'NEUTRAL').length,
+  }), [byClass]);
+  // Bullish / bearish views list the strongest conviction first.
+  const rows = useMemo(() => {
+    if (dir === 'ALL') return byClass;
+    const list = byClass.filter((p) => dirOf(p.score) === dir);
+    return [...list].sort((a, b) => dir === 'BEARISH' ? (a.score ?? 0) - (b.score ?? 0) : dir === 'BULLISH' ? (b.score ?? 0) - (a.score ?? 0) : Math.abs(a.score ?? 0) - Math.abs(b.score ?? 0));
+  }, [byClass, dir]);
 
   if (sel && detail) {
     const p = detail.data;
@@ -174,6 +191,16 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
             className="pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[12px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50" />
         </div>
       </div>
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter pairs by fundamental direction" data-testid="pairs-direction-filter">
+        <span className="text-[10px] font-mono-code uppercase tracking-wider text-slate-500">Direction</span>
+        {([['ALL', 'All', 'text-cyan-200 border-cyan-400/50 bg-cyan-500/15'], ['BULLISH', 'Bullish', 'text-emerald-200 border-emerald-400/50 bg-emerald-500/15'], ['BEARISH', 'Bearish', 'text-rose-200 border-rose-400/50 bg-rose-500/15'], ['NEUTRAL', 'Neutral', 'text-slate-200 border-slate-500/60 bg-slate-600/20']] as Array<[Dir, string, string]>).map(([d, label, on]) => (
+          <button key={d} type="button" onClick={() => setDir(d)} aria-pressed={dir === d} data-testid={`pairs-dir-${d.toLowerCase()}`}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-mono-code border cursor-pointer ${dir === d ? on : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'}`}>
+            {label} <span className="opacity-70">{counts[d]}</span>
+          </button>
+        ))}
+        {dir !== 'ALL' && <span className="text-[10.5px] text-slate-500">sorted by {dir === 'NEUTRAL' ? 'closest to zero' : 'strongest first'}</span>}
+      </div>
       {loading && sel && <div className="text-[11px] font-mono-code text-slate-500">Loading {sel}…</div>}
       <div className="rounded-2xl border border-slate-800 overflow-hidden">
         <div className="grid grid-cols-[1fr_90px_1.3fr_80px] sm:grid-cols-[1.1fr_80px_80px_90px_1.6fr_90px] gap-2 px-4 py-2 bg-slate-900/80 text-[10px] font-mono-code uppercase text-slate-500">
@@ -193,7 +220,7 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
             <span className="text-right"><BiasPill bias={p.bias} score={p.score} /></span>
           </button>
         ))}
-        {rows.length === 0 && <div className="p-6 text-center text-sm text-slate-500">No pairs match.</div>}
+        {rows.length === 0 && <div className="p-6 text-center text-sm text-slate-500">{dir === 'ALL' ? 'No pairs match.' : `No ${dir.toLowerCase()} pairs match right now.`}</div>}
       </div>
     </div>
   );

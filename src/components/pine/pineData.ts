@@ -11,7 +11,7 @@ export const catalogFor = (sym: string) => { const c = sym.replace(/^[A-Z_]+:/, 
 /** TradingView interval (1, 5, 60, 240, D, W, M) → Vela timeframe (same notation). */
 export const velaTf = (iv: string) => ({ '1': '1', '3': '3', '5': '5', '15': '15', '30': '30', '60': '60', '120': '120', '180': '180', '240': '240', D: 'D', '1D': 'D', W: 'W', '1W': 'W', M: 'M', '1M': 'M' } as Record<string, string>)[iv] || '60';
 export const PERIOD_TEXT: Record<string, string> = { '1': '1m', '3': '3m', '5': '5m', '15': '15m', '30': '30m', '60': '1H', '120': '2H', '240': '4H', D: 'D', W: 'W', M: 'M' };
-const normTf = (tf: string) => {
+export const normTf = (tf: string) => {
   const t = String(tf).trim();
   const m = t.match(/^(\d+)\s*([mhdwM]?)$/);
   if (m) { const n = Number(m[1]); const u = m[2]; if (u === 'h') return String(n * 60); if (u === 'd') return 'D'; if (u === 'w') return 'W'; if (u === 'M') return 'M'; return String(n); }

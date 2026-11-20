@@ -21,7 +21,7 @@ import { Bell, BellOff, Check, Loader2, Minus, Plus, RotateCcw, Search, Trash2, 
 import { VelaWorkspace } from '@luxalgo/vela/workspace';
 import { registerIcon, registerRendererLayer, registerWidgetAction } from '@luxalgo/vela/plugin';
 import { PineWorkerEngine } from '@luxalgo/vela-pinets';
-import { catalogFor, makeProvider, velaTf, venueSymbol } from './pineData';
+import { catalogFor, makeProvider, normTf, velaTf, venueSymbol } from './pineData';
 import { DRAFT_ID, hideIndicator, indicatorStatus, loadLibrary, pineLib, setIndicatorStatus, showIndicator, type LibraryScript } from './pineLibrary';
 import { RemotePineEngine, REMOTE_LANG, remoteRef } from './remoteEngine';
 import { markOnScreen, priceAlerts, type AlertCondition, type PriceAlert } from './priceAlerts';
@@ -39,6 +39,7 @@ interface Mapping { canvas: HTMLCanvasElement; width: number; paneTop: number; p
 interface Binding { mapping: Mapping | null; lines: () => { price: number; color: string; dashed: boolean }[]; onFrame: () => void }
 const bindings = new Map<HTMLElement, Binding>();
 const LOOK_KEY = 'ppfx_pro_chart_look_v1';
+const GRID_KEY = 'ppfx_pro_chart_grid_v1'; // '0' = grid lines hidden
 const THEME_KEY = 'ppfx_pro_chart_theme_v1';
 const savedTheme = (): string => { try { const t = localStorage.getItem(THEME_KEY); return t === 'light' || t === 'dark' ? t : 'dark'; } catch { return 'dark'; } };
 let registered = false;
@@ -208,10 +209,28 @@ export const PineMainChart: React.FC<{
     const t = tickerRef.current;
     if (!chart?.drawings || loadedFor.current !== t || lastGood.current.t !== t || !lastGood.current.json) return;
     try {
-      const have = (chart.drawings.all?.() || []).length;
-      if (have < lastGood.current.n) chart.drawings.fromJSON(JSON.parse(lastGood.current.json));
+      const doc = JSON.parse(lastGood.current.json);
+      const want: string[] = (Array.isArray(doc?.drawings) ? doc.drawings : []).map((d: any) => String(d?.id ?? '')).filter(Boolean);
+      const have = new Set<string>((chart.drawings.all?.() || []).map((d: any) => String(d?.id ?? '')));
+      const lost = want.length ? want.some((id) => !have.has(id)) : have.size < lastGood.current.n;
+      if (lost) chart.drawings.fromJSON(doc);
     } catch { /* ignore */ }
   }, []);
+
+  // ── grid lines (hide them for a clean chart, like TradingView; the choice is kept across pairs and visits)
+  const [gridOn, setGridOn] = useState<boolean>(() => { try { return localStorage.getItem(GRID_KEY) !== '0'; } catch { return true; } });
+  const gridOnRef = useRef(gridOn);
+  gridOnRef.current = gridOn;
+  const applyGrid = useCallback((chart: any) => {
+    const on = gridOnRef.current;
+    try {
+      const g = chart?.renderer?.getConfig?.()?.grid;
+      const isOn = !!(g?.vertLines?.visible || g?.horzLines?.visible);
+      if (isOn !== on || (g && (g.vertLines?.visible !== on || g.horzLines?.visible !== on))) chart.renderer.applyConfig({ grid: { vertLines: { visible: on }, horzLines: { visible: on } } });
+      chart.renderer?.set?.({ gridlines: on });
+    } catch { /* renderer not ready */ }
+  }, []);
+  useEffect(() => { try { localStorage.setItem(GRID_KEY, gridOn ? '1' : '0'); } catch { /* ignore */ } if (ready) applyGrid(ws.current?.chart); }, [gridOn, ready, applyGrid]);
 
   // ── build the chart
   useEffect(() => {
@@ -237,7 +256,8 @@ export const PineMainChart: React.FC<{
       try { const tools = JSON.parse(localStorage.getItem(TOOLS_KEY) || 'null'); if (tools) chart.drawings?.setToolDefaults?.(tools); } catch { /* ignore */ }
       // Chart look (background colour, grid, candle colours, …) from Settings → Canvas, kept across pairs and visits.
       try { const cfg = JSON.parse(localStorage.getItem(LOOK_KEY) || 'null'); if (cfg) chart.renderer?.applyConfig?.(cfg); } catch { /* ignore */ }
-      try { offLook = chart.renderer?.onConfigChanged?.(() => { try { localStorage.setItem(LOOK_KEY, JSON.stringify(chart.renderer.getConfig())); } catch { /* ignore */ } }); } catch { /* ignore */ }
+      applyGrid(chart);
+      try { offLook = chart.renderer?.onConfigChanged?.(() => { try { localStorage.setItem(LOOK_KEY, JSON.stringify(chart.renderer.getConfig())); } catch { /* ignore */ } if (!gridOnRef.current) window.setTimeout(() => applyGrid(chart), 0); }); } catch { /* ignore */ }
       loadDrawings(entry.ticker);
       void loadEdgeMarks(chart, entry.ticker);
     }).catch(() => {});
@@ -254,8 +274,10 @@ export const PineMainChart: React.FC<{
         void loadEdgeMarks(chart, t);
         cbs.current.onSymbolChange?.(REVERSE_ALIAS[t] || t);
       }
-      else window.setTimeout(ensureDrawings, 0); // timeframe-only switch: drawings must still be there (visibility is per timeframe)
-      if (m.timeframe) cbs.current.onIntervalChange?.(String(m.timeframe));
+      else { // timeframe-only switch: drawings must still be there (visibility is per timeframe)
+        window.setTimeout(ensureDrawings, 0); window.setTimeout(ensureDrawings, 600); window.setTimeout(ensureDrawings, 2500);
+      }
+      if (m.timeframe) cbs.current.onIntervalChange?.(normTf(String(m.timeframe)));
     });
     const offs = ['drawing:created', 'drawing:edited', 'drawing:removed', 'drawing:defaults'].map((e) => chart.on?.(e, () => { if (e === 'drawing:removed') allowEmpty.current = true; window.setTimeout(saveDrawings, 30); }));
     const autosave = window.setInterval(saveDrawings, 2000); // also catches Undo / Redo
@@ -295,7 +317,7 @@ export const PineMainChart: React.FC<{
   useEffect(() => {
     const chart: any = ws.current?.chart;
     if (!chart || !ready) return;
-    if (String(chart.market?.timeframe || '') !== tf) {
+    if (normTf(String(chart.market?.timeframe || '')) !== tf) {
       saveDrawings();
       Promise.resolve(chart.setMarket({ timeframe: tf, bars: HISTORY_BARS })).catch?.(() => {}).finally?.(() => window.setTimeout(ensureDrawings, 0));
     }
@@ -427,6 +449,10 @@ export const PineMainChart: React.FC<{
   return (
     <div ref={wrap} className="relative w-full overflow-hidden" style={{ height }}>
       <div ref={host} className="absolute inset-0" />
+      {ready && (
+        <button type="button" onClick={() => setGridOn((v) => !v)} data-testid="pro-grid-toggle" aria-pressed={!gridOn} title={gridOn ? 'Hide the grid lines' : 'Show the grid lines'}
+          className="absolute left-2 bottom-9 z-20 h-6 px-2 rounded-md border border-slate-600/70 bg-[#1e222d]/90 text-[10.5px] font-semibold text-slate-200 hover:text-white hover:border-cyan-400 cursor-pointer">{gridOn ? 'Grid: on' : 'Grid: off'}</button>
+      )}
       {ready && <AlertOverlay wrap={wrap} host={host} chartRef={ws} ticker={tickerRef.current || entry.ticker} digits={digits} panel={panel} setPanel={setPanel} />}
       {indMenu && <IndicatorMenu lib={lib} natives={indMenu.natives} addNative={indMenu.addNative} onClose={() => setIndMenu(null)} />}
       {!ready && (
