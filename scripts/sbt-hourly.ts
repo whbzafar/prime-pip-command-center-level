@@ -20,11 +20,19 @@ const MIN_SCORE = 10;
 const TICKER: Record<string, string> = { XCUUSD: 'COPPER', BTCUSD: 'BTCUSDT', ETHUSD: 'ETHUSDT', SOLUSD: 'SOLUSDT', XRPUSD: 'XRPUSDT', BNBUSD: 'BNBUSDT', DOGEUSD: 'DOGEUSDT', ADAUSD: 'ADAUSDT' };
 const marketOf = (s: string) => (/USDT$/.test(s) ? 'crypto' : /^X(AU|AG|PT|PD)/.test(s) ? 'metals' : /OIL|GAS|COPPER/.test(s) ? 'energy' : /^(US|GER|UK|JP)\d/.test(s) ? 'indices' : 'forex');
 
-async function loadStrategy() {
+async function loadStrategy(attempt = 1): Promise<void> {
+  try { await loadStrategyOnce(); } catch (e) {
+    if (attempt >= 5) throw e;
+    console.warn(`strategy fetch failed (${(e as Error).message}) — the site may be waking or redeploying; retrying in 45 s`);
+    await new Promise((r) => setTimeout(r, 45_000));
+    return loadStrategy(attempt + 1);
+  }
+}
+async function loadStrategyOnce() {
   const url = process.env.ACTIONS_ID_TOKEN_REQUEST_URL, tok = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
   if (!url || !tok) throw new Error('No GitHub OIDC token available (id-token: write permission missing?)');
-  const oidc = await fetch(`${url}&audience=primepipfx-sbt`, { headers: { Authorization: `Bearer ${tok}` } }).then((r) => r.json());
-  const r = await fetch(`${SITE}/api/sbt/source`, { method: 'POST', headers: { Authorization: `Bearer ${oidc.value}` } }).then((x) => x.json());
+  const oidc = await fetch(`${url}&audience=primepipfx-sbt`, { headers: { Authorization: `Bearer ${tok}` }, signal: AbortSignal.timeout(30_000) }).then((r) => r.json());
+  const r = await fetch(`${SITE}/api/sbt/source`, { method: 'POST', headers: { Authorization: `Bearer ${oidc.value}` }, signal: AbortSignal.timeout(90_000) }).then((x) => x.json());
   if (!r?.ok || !r.source) throw new Error(`Strategy not available: ${r?.error || 'unknown'}`);
   // The scanner reads its script from the local private-script store when no cloud store is configured.
   fs.mkdirSync('data', { recursive: true });
