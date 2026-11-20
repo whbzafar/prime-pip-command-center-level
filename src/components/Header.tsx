@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Activity,
   BookOpen,
@@ -193,9 +194,10 @@ export const Header: React.FC<HeaderProps> = ({
   const setNavMode = (m: 'menu' | 'tabs') => { setNavModeState(m); try { localStorage.setItem('ppfx_nav_mode', m); } catch { /* storage blocked */ } };
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuQuery, setMenuQuery] = useState('');
+  const [menuPos, setMenuPos] = useState<{ left: number; top: number }>({ left: 8, top: 96 });
   useEffect(() => {
     if (!menuOpen) return;
-    const onDown = (e: MouseEvent | TouchEvent) => { const el = document.getElementById('ppfx-nav-menu'); if (el && !el.contains(e.target as Node)) setMenuOpen(false); };
+    const onDown = (e: MouseEvent | TouchEvent) => { const t = e.target as Node; const a = document.getElementById('ppfx-nav-menu'); const b = document.getElementById('ppfx-nav-menu-panel'); if (a && !a.contains(t) && !(b && b.contains(t))) setMenuOpen(false); };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
     document.addEventListener('mousedown', onDown); document.addEventListener('touchstart', onDown); document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('touchstart', onDown); document.removeEventListener('keydown', onKey); };
@@ -1140,15 +1142,15 @@ export const Header: React.FC<HeaderProps> = ({
 
         {navMode === 'menu' && (
           <div id="ppfx-nav-menu" className="relative flex-1 min-w-0 z-40 flex items-center gap-2">
-            <button type="button" data-testid="nav-menu-button" aria-expanded={menuOpen} aria-haspopup="menu" onClick={() => { setMenuOpen((v) => !v); setMenuQuery(''); }}
+            <button type="button" data-testid="nav-menu-button" aria-expanded={menuOpen} aria-haspopup="menu" onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setMenuPos({ left: Math.max(8, Math.min(r.left, window.innerWidth - 348)), top: r.bottom + 6 }); setMenuOpen((v) => !v); setMenuQuery(''); }}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border font-mono-code text-[12px] font-bold uppercase tracking-tight cursor-pointer transition ${menuOpen ? 'border-cyan-300 bg-cyan-500/25 text-cyan-50' : 'border-cyan-400/60 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25'}`}>
               <Layers className="w-4 h-4" />
               <span>Menu</span>
               <span className="hidden sm:inline text-slate-300 normal-case font-semibold">· {allNavCategories.find((c) => c.id === activeTab)?.label.replace(/^\d+\.\s*/, '') || 'Categories'}</span>
               <ChevronDown className={`w-4 h-4 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
             </button>
-            {menuOpen && (
-              <div role="menu" data-testid="nav-menu-panel" className="absolute left-0 top-full mt-1.5 w-[min(340px,calc(100vw-1rem))] max-h-[min(78vh,calc(100dvh-7rem))] flex flex-col rounded-2xl border border-cyan-400/40 bg-[#0b1122]/98 backdrop-blur-xl shadow-[0_25px_80px_-20px_rgba(34,211,238,0.35)]">
+            {menuOpen && createPortal(
+              <div id="ppfx-nav-menu-panel" role="menu" data-testid="nav-menu-panel" style={{ left: menuPos.left, top: menuPos.top, maxHeight: `calc(100dvh - ${menuPos.top + 12}px)` }} className="fixed z-[120] w-[min(340px,calc(100vw-1rem))] flex flex-col rounded-2xl border border-cyan-400/40 bg-[#0b1122]/98 backdrop-blur-xl shadow-[0_25px_80px_-20px_rgba(34,211,238,0.35)]">
                 <div className="p-2 border-b border-slate-800">
                   <input value={menuQuery} onChange={(e) => setMenuQuery(e.target.value)} placeholder="Find a category…" aria-label="Find a category" autoFocus
                     className="w-full rounded-lg bg-slate-950 border border-slate-700 px-2.5 py-1.5 text-[12px] text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-400" />
@@ -1181,7 +1183,8 @@ export const Header: React.FC<HeaderProps> = ({
                   {onOpenAllCategories && <button type="button" onClick={() => { setMenuOpen(false); onOpenAllCategories(); }} className="flex-1 px-2 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-200 text-[11px] font-bold cursor-pointer">Explore all (descriptions)</button>}
                   <button type="button" data-testid="nav-mode-tabs" onClick={() => { setMenuOpen(false); setNavMode('tabs'); }} className="px-2 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:text-white text-[11px] cursor-pointer">Horizontal tabs</button>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         )}
