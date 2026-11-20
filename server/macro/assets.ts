@@ -262,9 +262,11 @@ function currencySpec(ccy: string): AssetSpec {
   const growth: IndicatorSpec[] = [
     cal('gdp', c, 1, 3, GROW(ccy), { scale: gdp.surprise, level: { neutral: gdp.neutral, scale: gdp.scale, label: `trend growth ≈ ${gdp.neutral}%${c === 'US' ? ' annualized' : ' q/q'}` } }),
     cal('mfg_pmi', c, 1, 2, GROW(ccy)),
-    cal('services_pmi', c, 1, 2.5, GROW(ccy)),
+    // No free source publishes a Swiss services PMI, and Australia's statistics office publishes no monthly industrial production —
+    // those two are left out rather than shown as permanently empty (the business-survey indicator covers activity for both).
+    ...(ccy === 'CHF' ? [] : [cal('services_pmi', c, 1, 2.5, GROW(ccy))]),
     cal('retail_sales', c, 1, 2, GROW(ccy)),
-    cal('industrial_production', c, 1, 1, GROW(ccy)),
+    ...(ccy === 'AUD' ? [] : [cal('industrial_production', c, 1, 1, GROW(ccy))]),
   ];
   if (ccy === 'GBP' || ccy === 'CAD') growth.push(cal('gdp_mom', c, 1, 1.5, GROW(ccy)));
   // Free business-survey read: stands in for the licensed S&P Global / HCOB PMIs so every currency has a live activity gauge.
@@ -280,6 +282,24 @@ function currencySpec(ccy: string): AssetSpec {
     cal('business_conf', ccy === 'EUR' ? 'DE' : c, 1, 2, `Stronger business sentiment = bullish ${ccy}`),
     cal('trade_balance', c, 1, 1, `Improving trade balance = structural demand for ${ccy}`),
   ];
+
+  // ── Extra institutional factors, all from live published releases (titles verified in the calendar feed) ──
+  if (ccy === 'CAD') { inflation.push(cal('cpi_median', c, 1, 2, 'Bank of Canada CPI-median: hotter underlying inflation keeps the BoC hawkish = bullish CAD', { level: inflLevel })); inflation.push(cal('cpi_common', c, 1, 2, 'Bank of Canada CPI-common: hotter broad price pressure = bullish CAD', { level: inflLevel })); }
+  if (ccy === 'AUD') inflation.push(cal('cpi_median', c, 1, 2, 'RBA weighted-median CPI: hotter underlying inflation keeps the RBA hawkish = bullish AUD', { level: inflLevel }));
+  if (ccy === 'GBP') inflation.push(cal('services_infl', c, 1, 2.5, 'Sticky services inflation keeps the BoE hawkish = bullish GBP', { level: { neutral: 3, scale: 1.5, label: 'services inflation consistent with the 2% target ≈ 3%' } }));
+  if (ccy === 'NZD') inflation.push(cal('infl_expect_ctry', c, 1, 2, 'Higher RBNZ survey inflation expectations keep the RBNZ hawkish = bullish NZD', { level: inflLevel }));
+  if (ccy === 'EUR') inflation.push(cal('infl_expect_ctry', c, 1, 1.5, 'Rising euro-area consumer inflation expectations keep the ECB hawkish = bullish EUR', { use: ['surprise', 'momentum'] }));
+  if (['USD', 'GBP', 'CAD'].includes(ccy)) labour.push(cal('productivity', c, 1, 1, `Stronger productivity lifts growth without raising unit labour costs = bullish ${ccy}`, { use: ['surprise', 'momentum'] }));
+  if (['USD', 'CAD'].includes(ccy)) growth.push(cal('capacity_util', c, 1, 1, `Higher capacity utilization = tighter supply and firmer growth = bullish ${ccy}`, { use: ['surprise', 'momentum'] }));
+  if (['USD', 'GBP', 'CAD'].includes(ccy)) growth.push(cal('house_prices', c, 1, 1, `Rising house prices lift household wealth and spending = bullish ${ccy}`));
+  if (['CAD', 'NZD', 'AUD'].includes(ccy)) growth.push(cal('permits_chg', c, 1, 0.75, `More building approvals = stronger construction demand = bullish ${ccy}`));
+  if (ccy === 'AUD') growth.push(cal('credit_growth', c, 1, 1, 'Faster private-sector credit growth = stronger spending = bullish AUD'));
+  if (ccy === 'EUR') {
+    growth.push(cal('ec_industry', c, 1, 1.5, 'Stronger European Commission industry sentiment (free counterpart of the manufacturing PMI) = bullish EUR', { use: ['surprise', 'momentum'] }));
+    growth.push(cal('ec_services', c, 1, 1.5, 'Stronger European Commission services sentiment (free counterpart of the services PMI) = bullish EUR', { use: ['surprise', 'momentum'] }));
+    external.push(cal('investor_conf', c, 1, 1.25, 'Higher Sentix investor confidence = firmer euro-area growth expectations = bullish EUR', { use: ['surprise', 'momentum'] }));
+  }
+  if (ccy !== 'CHF') external.push(cal('current_account', c, 1, 1, `A stronger current-account position means structural demand for ${ccy}`));
   if (['USD', 'JPY', 'CHF'].includes(ccy)) external.push(vixInd(1, ccy === 'USD' ? 1 : 2.5, `Rising fear drives safe-haven demand = bullish ${ccy}`));
   if (['AUD', 'NZD', 'CAD'].includes(ccy)) external.push(vixInd(-1, 2, `Rising fear hurts risk-sensitive ${ccy}`));
   if (ccy === 'AUD' || ccy === 'NZD') external.push(cal('mfg_pmi', 'CN', 1, 2.5, `China is the largest export market — stronger Chinese factories = bullish ${ccy}`, { name: 'China Manufacturing PMI (terms of trade)' }));
