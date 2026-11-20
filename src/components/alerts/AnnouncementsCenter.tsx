@@ -14,7 +14,7 @@ import { ArrowDownRight, ArrowUpRight, BellRing, BellOff, ExternalLink, FileDown
 import { SOUNDS, playSound, type SoundId } from '../../utils/alertSounds';
 import { useRankings, openChart, type RankedPair } from '../fundamentalAnalysis/LiveBiasStrip';
 import { LevelAlertsPanel, LevelBadge } from '../sbt/LevelAlerts';
-import { markLevelAlertsSeen, useLevelAlerts } from '../../services/sbtSetups';
+import { markLevelAlertsSeen, useLevelAlerts, pairLevel, fmtPrice, getLevelSettings, setLevelSettings, levelTime, type LevelState } from '../../services/sbtSetups';
 import { fetchAnnouncementsServer, type InAppAnnouncement } from '../../services/signalsService';
 import { PakistanNewsView, PakistanNewsCard, usePkNews } from '../fundamentalAnalysis/PakistanNews';
 import { usePicks, REGION_LABEL, type PickRow } from '../fundamentalAnalysis/PicksView';
@@ -52,6 +52,7 @@ async function notify(title: string, body: string) {
 
 export const AnnouncementsCenter: React.FC = () => {
   const [open, setOpen] = useState(false);
+  const [sel, setSel] = useState<Sel | null>(null);
   const [tab, setTab] = useState<'FUNDAMENTALS' | 'PICKS' | 'PAKISTAN' | 'ANNOUNCEMENTS' | 'ALERTS'>('FUNDAMENTALS');
   const { data: rankings } = useRankings(5 * 60_000);
   const levels = useLevelAlerts();
@@ -64,7 +65,7 @@ export const AnnouncementsCenter: React.FC = () => {
   const known = useRef<Set<string> | null>(null);
   const pkSeen = useRef<Set<string> | null>(null);
   const [alerts, setAlerts] = useState<LtAlert[]>(() => read(K_ALERTS, []));
-  const [settings, setSettings] = useState<{ enabled: boolean; muted: boolean; lastAt: number; everyMin?: number; sound?: boolean; soundId?: SoundId; storiesSound?: boolean }>(() => ({ everyMin: 180, sound: true, ...read(K_SETTINGS, { enabled: true, muted: false, lastAt: 0 }) }));
+  const [settings, setSettings] = useState<{ enabled: boolean; muted: boolean; lastAt: number; everyMin?: number; sound?: boolean; soundId?: SoundId; storiesSound?: boolean; newsOn?: boolean; mutedCats?: string[] }>(() => ({ everyMin: 180, sound: true, ...read(K_SETTINGS, { enabled: true, muted: false, lastAt: 0 }) }));
   const [seenAt, setSeenAt] = useState<number>(() => read(K_SEEN, 0));
   const [perm, setPerm] = useState<string>(() => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission));
   const rankRef = useRef(rankings);
@@ -74,10 +75,12 @@ export const AnnouncementsCenter: React.FC = () => {
 
   useEffect(() => {
     let live = true;
-    const arrived = (ids: string[], title: string, body: string) => {
+    const arrived = (ids: string[], title: string, body: string, newsAllowed?: (id: string) => boolean) => {
       if (!known.current) { known.current = new Set(ids); return; }
-      const fresh = ids.filter((id) => !known.current!.has(id));
-      fresh.forEach((id) => known.current!.add(id));
+      const freshAll = ids.filter((id) => !known.current!.has(id));
+      freshAll.forEach((id) => known.current!.add(id));
+      // News the user muted (whole news alerts off, or this category / source muted) is remembered as seen but never rings.
+      const fresh = freshAll.filter((id) => !id.startsWith('n:') || !newsAllowed || newsAllowed(id));
       if (!fresh.length) return;
       const st = read<typeof settings>(K_SETTINGS, { enabled: true, muted: false, lastAt: 0 });
       if (st.muted) return;
@@ -97,7 +100,11 @@ export const AnnouncementsCenter: React.FC = () => {
       if (n) setNews(n);
       const hot = (n || []).filter((x) => x.impact === 'HIGH');
       const latest = hot[0];
-      arrived([...al.map((x) => `a:${x.id}`), ...hot.map((x) => `n:${x.id}`)], latest ? `Market news · ${latest.source}` : 'PrimePipFX announcement', latest ? latest.title : String(al[0]?.title || ''));
+      const cfg = read<typeof settings>(K_SETTINGS, { enabled: true, muted: false, lastAt: 0 });
+      const byId = new Map<string, NewsItem>(hot.map((x) => [`n:${x.id}`, x] as [string, NewsItem]));
+      const newsAllowed = (id: string) => { const x = byId.get(id); return cfg.newsOn !== false && !!x && !(cfg.mutedCats || []).includes(x.category) && !(cfg.mutedCats || []).includes(x.source); };
+      const shown = hot.find((x) => newsAllowed(`n:${x.id}`)) || null;
+      arrived([...al.map((x) => `a:${x.id}`), ...hot.map((x) => `n:${x.id}`)], shown ? `Market news · ${shown.source}` : 'PrimePipFX announcement', shown ? shown.title : String(al[0]?.title || ''), newsAllowed);
     };
     load();
     const t = window.setInterval(load, 120_000);
@@ -199,17 +206,18 @@ export const AnnouncementsCenter: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-            {(tab === 'FUNDAMENTALS' || levelHits > 0) && <LevelAlertsPanel dense onOpen={(sym) => { openChart(sym); setOpen(false); }} />}
-            {tab === 'FUNDAMENTALS' && (
+            {!sel && (tab === 'FUNDAMENTALS' || levelHits > 0) && <LevelAlertsPanel dense onOpen={(sym) => { openChart(sym); setOpen(false); }} />}
+            {sel && (tab === 'FUNDAMENTALS' || tab === 'PICKS') && <AssetDetail sel={sel} levels={levels} news={news} pk={pkItems || []} onBack={() => setSel(null)} onOpen={(sym) => { openChart(sym); setOpen(false); }} />}
+            {!sel && tab === 'FUNDAMENTALS' && (
               <>
                 <button type="button" disabled={!rankings} onClick={() => rankings && import('../../utils/macroPdf').then((m) => m.exportRankingsPdf(rankings as any, 'longTerm'))} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-400/50 bg-emerald-500/10 text-[11.5px] font-semibold text-emerald-100 hover:bg-emerald-500/20 cursor-pointer disabled:opacity-40"><FileDown className="w-3.5 h-3.5" />Export top long-term picks (PDF)</button>
-                <div className="text-[10.5px] text-slate-500">Live long-term fundamental ranking · {rankings?.generatedAt ? `updated ${when(Date.parse(rankings.generatedAt))} PKT` : 'loading…'} · tap a pair to open its chart</div>
+                <div className="text-[10.5px] text-slate-500">Live long-term fundamental ranking · {rankings?.generatedAt ? `updated ${when(Date.parse(rankings.generatedAt))} PKT` : 'loading…'} · tap a pair for its key levels, news and alerts</div>
                 {[['Long-term bullish', bull, true], ['Long-term bearish', bear, false]].map(([title, list, up]) => (
                   <div key={title as string} className={`rounded-xl border p-2.5 ${up ? 'border-emerald-500/25 bg-emerald-500/[0.04]' : 'border-rose-500/25 bg-rose-500/[0.04]'}`}>
                     <div className={`text-[10px] uppercase tracking-widest font-bold ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{title as string}</div>
                     <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                       {(list as RankedPair[]).map((p) => (
-                        <button key={p.symbol} type="button" onClick={() => { openChart(p.symbol); setOpen(false); }} className="flex items-center justify-between gap-1 px-2 py-1 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-slate-600 text-[11.5px] cursor-pointer">
+                        <button key={p.symbol} type="button" data-testid="lt-row" onClick={() => setSel({ symbol: p.symbol, name: p.display, side: up ? 1 : -1, score: Number(p.longTerm ?? 0), fx: true })} className="flex items-center justify-between gap-1 px-2 py-1 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-slate-600 text-[11.5px] cursor-pointer">
                           <span className="flex items-center gap-1 text-slate-100 font-semibold">{up ? <ArrowUpRight className="w-3 h-3 text-emerald-400" /> : <ArrowDownRight className="w-3 h-3 text-rose-400" />}{p.display}</span>
                           <span className="flex items-center gap-1"><LevelBadge symbol={p.symbol} state={levels} compact /><span className={`font-mono-code text-[10.5px] ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{fmt(p.longTerm)}</span></span>
                         </button>
@@ -222,7 +230,7 @@ export const AnnouncementsCenter: React.FC = () => {
             )}
 
             {tab === 'PAKISTAN' && <NewsHub />}
-            {tab === 'PICKS' && <StockPicksPanel onOpen={() => setOpen(false)} />}
+            {!sel && tab === 'PICKS' && <StockPicksPanel onSelect={(r, up) => setSel({ symbol: r.symbol, name: r.name, side: up ? 1 : -1, score: Number(r.score ?? 0), fx: false, region: r.region || undefined })} />}
 
             {tab === 'ANNOUNCEMENTS' && (
               <>
@@ -281,6 +289,24 @@ export const AnnouncementsCenter: React.FC = () => {
 
             {tab === 'ALERTS' && (
               <>
+                <div className="rounded-xl border border-orange-500/30 bg-orange-500/[0.04] p-3 space-y-2" data-testid="alerts-news">
+                  <div className="flex items-center gap-2"><Flame className="w-4 h-4 text-orange-300" /><span className="text-[12px] font-bold text-slate-100">News alerts · stocks, indices &amp; markets</span>
+                    <button type="button" data-testid="news-alerts-toggle" onClick={() => saveSettings({ ...settings, newsOn: settings.newsOn === false })} className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10.5px] font-semibold cursor-pointer ${settings.newsOn === false ? 'border-rose-500/50 text-rose-200 bg-rose-500/10' : 'border-emerald-500/40 text-emerald-200 bg-emerald-500/10'}`}>{settings.newsOn === false ? <><BellOff className="w-3 h-3" />News muted</> : <><BellRing className="w-3 h-3" />News on</>}</button></div>
+                  <div className="text-[10.5px] text-slate-400">A sound and notification for each new high-impact story. Mute a whole topic or source below — or clear a single story from the Important tab.</div>
+                  <div className="flex flex-wrap gap-1.5" data-testid="news-topic-mutes">
+                    {[...new Set([...news.filter((x) => x.impact !== 'LOW').flatMap((x) => [x.category, x.source]), ...(settings.mutedCats || [])].filter(Boolean))].slice(0, 24).map((c) => {
+                      const m = (settings.mutedCats || []).includes(c);
+                      return <button key={c} type="button" onClick={() => saveSettings({ ...settings, mutedCats: m ? (settings.mutedCats || []).filter((x) => x !== c) : [...(settings.mutedCats || []), c] })} title={m ? 'Muted — tap to unmute' : 'Tap to mute this topic / source'} className={`px-2 py-0.5 rounded-md border text-[10.5px] cursor-pointer ${m ? 'border-rose-500/50 text-rose-200 bg-rose-500/10 line-through' : 'border-slate-700 text-slate-200 hover:border-slate-500'}`}>{m ? '🔇 ' : ''}{c}</button>;
+                    })}
+                    {!news.length && !(settings.mutedCats || []).length && <span className="text-[11px] text-slate-500">Topics appear when news loads…</span>}
+                  </div>
+                </div>
+                <div className={`rounded-xl border p-3 space-y-2 ${getLevelSettings().muted ? 'border-rose-500/40 bg-rose-500/[0.05]' : 'border-emerald-500/30 bg-emerald-500/[0.04]'}`} data-testid="alerts-levels">
+                  <div className="flex items-center gap-2"><span className="text-[12px] font-bold text-slate-100">Long-term key levels · bullish &amp; bearish setups</span>
+                    <button type="button" data-testid="level-alerts-mute" onClick={() => setLevelSettings({ muted: !getLevelSettings().muted })} className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10.5px] font-semibold cursor-pointer ${getLevelSettings().muted ? 'border-rose-500/50 text-rose-200 bg-rose-500/10' : 'border-emerald-500/40 text-emerald-200 bg-emerald-500/10'}`}>{getLevelSettings().muted ? <><BellOff className="w-3 h-3" />Muted</> : <><BellRing className="w-3 h-3" />On</>}</button></div>
+                  <div className="text-[10.5px] text-slate-400">Rings when a long-term bullish pair reaches its buy level or a bearish pair reaches its sell level. Muting silences sound, voice, notifications and background pushes for these setups only — news alerts are separate.</div>
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.16em] font-bold text-violet-300 pt-1">Long-term summary</div>
                 <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 space-y-2">
                   <div className="text-[12px] font-bold text-slate-100">Long-term alerts</div>
                   <div className="flex items-center gap-2 flex-wrap text-[11.5px] text-slate-300">
@@ -333,14 +359,14 @@ export default AnnouncementsCenter;
 
 
 /** Fundamental stock / index / commodity picks for the announcements panel. */
-const StockPicksPanel: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
+const StockPicksPanel: React.FC<{ onSelect: (r: PickRow, up: boolean) => void }> = ({ onSelect }) => {
   const { data, error } = usePicks(5 * 60_000);
   if (!data) return <div className="text-[12px] text-slate-500 py-6 text-center">{error || 'Ranking stocks, indices and commodities…'}</div>;
   const row = (r: PickRow, up: boolean) => (
-    <div key={r.symbol} className="flex items-center justify-between gap-2 px-2 py-1 rounded-lg bg-slate-950/70 border border-slate-800 text-[11.5px]">
+    <button key={r.symbol} type="button" data-testid="pick-row" onClick={() => onSelect(r, up)} className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-slate-600 text-[11.5px] text-left cursor-pointer">
       <span className="min-w-0 truncate"><span className="font-semibold text-slate-100">{r.symbol}</span> <span className="text-slate-500">{r.name}</span></span>
       <span className={`shrink-0 font-mono-code text-[10.5px] ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{fmt(r.score)} · {Math.round(r.bullishPct ?? 50)}% bull / {100 - Math.round(r.bullishPct ?? 50)}% bear</span>
-    </div>
+    </button>
   );
   const box = (title: string, rows: PickRow[], up: boolean, tone: string) => (
     <div className={`rounded-xl border p-2.5 ${tone}`}>
@@ -352,7 +378,7 @@ const StockPicksPanel: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
   const pkBear = data.regions.PK?.bearish.slice(0, 5) || [];
   return (
     <>
-      <div className="text-[10.5px] text-slate-500">Live fundamental picks across stocks, indices and commodities · updated {when(Date.parse(data.generatedAt))} PKT · {data.scoredStocks} stocks scored. Full lists: Fundamentals → Top Picks.</div>
+      <div className="text-[10.5px] text-slate-500">Live fundamental picks across stocks, indices and commodities · updated {when(Date.parse(data.generatedAt))} PKT · {data.scoredStocks} stocks scored. Tap any name for its news, key levels and alerts. Full lists: Fundamentals → Top Picks.</div>
       {box('VIP long-term picks', data.vip.slice(0, 6), true, 'border-amber-400/30 bg-amber-500/[0.05]')}
       {box('Strong bullish', data.strongBullish.slice(0, 6), true, 'border-emerald-500/25 bg-emerald-500/[0.04]')}
       {box('Strong bearish', data.strongBearish.slice(0, 5), false, 'border-rose-500/25 bg-rose-500/[0.04]')}
@@ -364,5 +390,78 @@ const StockPicksPanel: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
       {box('Commodities · bearish', data.commodities.bearish.slice(0, 5), false, 'border-rose-500/25 bg-rose-500/[0.04]')}
       <div className="text-[10px] text-slate-500">Not financial advice. Scores come from reported company figures and live macro data; unscored names are never guessed.</div>
     </>
+  );
+};
+
+
+interface Sel { symbol: string; name: string; side: 1 | -1; score: number; fx: boolean; region?: string }
+const CCY_WORDS: Record<string, string[]> = {
+  USD: ['USD', 'dollar', 'Fed', 'Federal Reserve', 'Powell', 'Treasury', 'U.S.'], EUR: ['EUR', 'euro', 'ECB', 'Lagarde', 'Eurozone'], GBP: ['GBP', 'pound', 'sterling', 'Bank of England', 'BoE'],
+  JPY: ['JPY', 'yen', 'BoJ', 'Bank of Japan'], CHF: ['CHF', 'franc', 'SNB', 'Swiss'], CAD: ['CAD', 'loonie', 'Bank of Canada', 'BoC', 'Canada'], AUD: ['AUD', 'Aussie', 'RBA', 'Australia'], NZD: ['NZD', 'kiwi', 'RBNZ', 'New Zealand'],
+  XAU: ['gold', 'XAU', 'bullion'], XAG: ['silver', 'XAG'],
+};
+function keywordsFor(sel: Sel): string[] {
+  const s = sel.symbol.toUpperCase();
+  if (/^[A-Z]{6}$/.test(s)) return [...(CCY_WORDS[s.slice(0, 3)] || [s.slice(0, 3)]), ...(CCY_WORDS[s.slice(3)] || [s.slice(3)])];
+  const words = sel.name.split(/[\s,.&()-]+/).filter((w) => w.length >= 4 && !/^(corp|inc|ltd|limited|company|holdings|group|index|futures|the)$/i.test(w));
+  return [sel.symbol, ...words.slice(0, 2)];
+}
+const hasWord = (text: string, k: string) => (k.length <= 3 ? new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(text) : text.toLowerCase().includes(k.toLowerCase()));
+
+/** One asset opened from the Long-term / Stocks list: its key levels, matching news and the alerts about it. */
+const AssetDetail: React.FC<{ sel: Sel; levels: LevelState; news: NewsItem[]; pk: { id: string; title: string; link: string; source: string; publishedAt: number; impact: string }[]; onBack: () => void; onOpen: (s: string) => void }> = ({ sel, levels, news, pk, onBack, onOpen }) => {
+  const up = sel.side > 0;
+  const lv = sel.fx ? pairLevel(levels, sel.symbol) : undefined;
+  const keys = useMemo(() => keywordsFor(sel), [sel]);
+  const related = useMemo(() => {
+    const all = [...news.map((n) => ({ id: `n${n.id}`, title: n.title, summary: n.summary || '', link: n.link, source: n.source, at: n.publishedAt, impact: n.impact })), ...pk.map((n) => ({ id: `p${n.id}`, title: n.title, summary: '', link: n.link, source: n.source, at: n.publishedAt, impact: n.impact }))];
+    return all.filter((n) => keys.some((k) => hasWord(`${n.title} ${n.summary}`, k))).sort((a, b) => b.at - a.at).slice(0, 8);
+  }, [news, pk, keys]);
+  const events = (levels.events || []).filter((e) => e.symbol === sel.symbol).slice(0, 5);
+  const zone = (z?: { top: number; bottom: number; modelReady: boolean } | null, n?: number) => z ? (
+    <div className="rounded-md bg-slate-950/70 border border-slate-800 px-2 py-1"><div className="text-slate-500 uppercase tracking-wider text-[9px]">Level {n} {up ? 'buy' : 'sell'} zone{z.modelReady ? ' · model ready' : ''}</div><div className="font-mono-code text-slate-100">{fmtPrice(z.bottom)} – {fmtPrice(z.top)}</div></div>
+  ) : null;
+  return (
+    <div className="space-y-2.5" data-testid="asset-detail">
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={onBack} className="px-2 py-1 rounded-md border border-slate-700 text-[11px] text-slate-300 hover:text-white cursor-pointer">← Back</button>
+        <span className="text-[14px] font-extrabold text-white">{sel.name}</span>
+        <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${up ? 'bg-emerald-400 text-emerald-950' : 'bg-rose-400 text-rose-950'}`}>{up ? 'LONG-TERM BULLISH' : 'LONG-TERM BEARISH'}</span>
+        <span className="ml-auto font-mono-code text-[11px] text-slate-300">{fmt(sel.score)}</span>
+      </div>
+      {sel.fx && <button type="button" onClick={() => onOpen(sel.symbol)} className="w-full px-3 py-1.5 rounded-lg border border-cyan-400/50 bg-cyan-500/10 text-cyan-100 text-[11.5px] font-semibold cursor-pointer">Open {sel.name} chart →</button>}
+
+      <div className={`rounded-xl border p-2.5 ${up ? 'border-emerald-500/25 bg-emerald-500/[0.04]' : 'border-rose-500/25 bg-rose-500/[0.04]'}`}>
+        <div className={`text-[10px] uppercase tracking-widest font-bold ${up ? 'text-emerald-300' : 'text-rose-300'}`}>Key levels · long-term {up ? 'bullish (buy)' : 'bearish (sell)'} setup</div>
+        {!sel.fx && <div className="mt-1 text-[11.5px] text-slate-400">Key-level zones are calculated for forex pairs and gold only. For this {sel.region ? 'stock' : 'market'} the long-term view is its fundamental score above; no level is invented.</div>}
+        {sel.fx && !lv && <div className="mt-1 text-[11.5px] text-slate-400">{levels.status === 'loading' ? 'Scanning levels…' : 'This pair is not in the current top long-term list being scanned, so it has no live key level right now.'}</div>}
+        {sel.fx && lv && lv.state !== 'ok' && <div className="mt-1 text-[11.5px] text-slate-400">Level data for this pair is temporarily unavailable.</div>}
+        {sel.fx && lv && lv.state === 'ok' && (
+          <div className="mt-1.5 space-y-1.5 text-[10.5px]">
+            <div className="grid grid-cols-2 gap-1.5">{zone(lv.level1, 1)}{zone(lv.level2, 2)}</div>
+            {!lv.level1 && !lv.level2 && <div className="text-[11.5px] text-slate-400">No active {up ? 'buy' : 'sell'} level at the moment — the strategy is waiting.</div>}
+            {lv.hit && <div className="text-[11.5px] font-bold text-amber-200">Level {lv.hit.level} reached on the last closed H1 candle at {fmtPrice(lv.hit.price)}{Number.isFinite(lv.hit.stop) ? ` · stop ${fmtPrice(lv.hit.stop)} · target ${fmtPrice(lv.hit.target)}` : ''}</div>}
+            {lv.inTrade && <div className="text-[11.5px] text-cyan-200">The strategy is in a trade on this pair now.</div>}
+            {Number.isFinite(lv.lastClose) && <div className="text-slate-500">Last H1 close {fmtPrice(lv.lastClose as number)}</div>}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2.5">
+        <div className="text-[10px] uppercase tracking-widest font-bold text-orange-300">Alerts &amp; updates</div>
+        {!events.length && <div className="mt-1 text-[11.5px] text-slate-500">No level alerts for {sel.name} recently.</div>}
+        {events.map((e) => <div key={e.id} className="mt-1 text-[11.5px] text-slate-200"><span className="text-slate-500">{levelTime(e.time)} · </span><b>{e.title}</b>{e.text ? ` — ${e.text}` : ''}</div>)}
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2.5">
+        <div className="text-[10px] uppercase tracking-widest font-bold text-cyan-300">Related news</div>
+        {!related.length && <div className="mt-1 text-[11.5px] text-slate-500">No headline mentioning {sel.name} in the latest market news right now.</div>}
+        {related.map((n) => (
+          <a key={n.id} href={n.link} target="_blank" rel="noopener noreferrer" className="mt-1.5 block text-[12px] text-slate-100 hover:text-cyan-200 leading-snug">
+            <span className={`mr-1.5 px-1 rounded text-[9px] font-bold ${n.impact === 'HIGH' ? 'bg-rose-500/20 text-rose-200' : 'bg-slate-700/60 text-slate-300'}`}>{n.impact}</span>{n.title} <ExternalLink className="inline w-3 h-3 opacity-60" /> <span className="text-[10px] text-slate-500">{n.source} · {ago(n.at)}</span>
+          </a>
+        ))}
+      </div>
+    </div>
   );
 };

@@ -172,6 +172,17 @@ export const PineMainChart: React.FC<{
   // 5,000-bar history was still loading, which wiped every drawing (and its timeframe-visibility settings).
   const loadedFor = useRef<string>('');
   const allowEmpty = useRef(false);
+  const [clearAsk, setClearAsk] = useState(false);
+  const clearAllObjects = () => {
+    const chart = ws.current?.chart ?? ws.current;
+    try {
+      const ids = (chart?.drawings?.all?.() || []).map((d: any) => String(d?.id ?? '')).filter(Boolean);
+      allowEmpty.current = true;
+      if (ids.length) chart.drawings.removeMany ? chart.drawings.removeMany(ids) : ids.forEach((id: string) => chart.drawings.remove(id));
+      window.setTimeout(saveDrawings, 60);
+    } catch { /* nothing to delete */ }
+    setClearAsk(false);
+  };
   const lastGood = useRef<{ t: string; json: string; n: number }>({ t: '', json: '', n: 0 });
   const countOf = (doc: any) => { try { return Array.isArray(doc?.drawings) ? doc.drawings.length : Array.isArray(doc) ? doc.length : (doc?.items?.length ?? 0); } catch { return 0; } };
   const saveDrawings = useCallback(() => {
@@ -450,9 +461,15 @@ export const PineMainChart: React.FC<{
     <div ref={wrap} className="relative w-full overflow-hidden" style={{ height }}>
       <div ref={host} className="absolute inset-0" />
       {ready && (
+        <div className="absolute left-2 bottom-9 z-20 flex items-center gap-1.5">
+          <button type="button" onClick={() => { if (!clearAsk) { setClearAsk(true); window.setTimeout(() => setClearAsk(false), 4000); return; } clearAllObjects(); }} data-testid="pro-delete-all" title="Delete every object drawn on this chart"
+            className={`h-6 px-2 rounded-md border text-[10.5px] font-semibold cursor-pointer ${clearAsk ? 'border-rose-400 bg-rose-600 text-white' : 'border-slate-600/70 bg-[#1e222d]/90 text-slate-200 hover:text-white hover:border-rose-400'}`}>{clearAsk ? 'Click again: delete all' : '🗑 Delete all'}</button>
+      {ready && (
         <button type="button" onClick={() => setGridOn((v) => !v)} data-testid="pro-grid-toggle" aria-pressed={!gridOn} title={gridOn ? 'Hide the grid lines' : 'Show the grid lines'}
-          className="absolute left-2 bottom-9 z-20 h-6 px-2 rounded-md border border-slate-600/70 bg-[#1e222d]/90 text-[10.5px] font-semibold text-slate-200 hover:text-white hover:border-cyan-400 cursor-pointer">{gridOn ? 'Grid: on' : 'Grid: off'}</button>
+          className="h-6 px-2 rounded-md border border-slate-600/70 bg-[#1e222d]/90 text-[10.5px] font-semibold text-slate-200 hover:text-white hover:border-cyan-400 cursor-pointer">{gridOn ? 'Grid: on' : 'Grid: off'}</button>
+      )}        </div>
       )}
+
       {ready && <AlertOverlay wrap={wrap} host={host} chartRef={ws} ticker={tickerRef.current || entry.ticker} digits={digits} panel={panel} setPanel={setPanel} />}
       {indMenu && <IndicatorMenu lib={lib} natives={indMenu.natives} addNative={indMenu.addNative} onClose={() => setIndMenu(null)} />}
       {!ready && (

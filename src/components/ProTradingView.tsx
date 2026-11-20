@@ -1578,6 +1578,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const [tvKeep, setTvKeep] = useState<boolean>(() => { try { return localStorage.getItem('ppfx_tv_keep_drawings') !== 'off'; } catch { return true; } });
   useEffect(() => { try { localStorage.setItem('ppfx_tv_keep_drawings', tvKeep ? 'on' : 'off'); } catch {} }, [tvKeep]);
   const tvInitialInterval = useRef<string>('');
+  const [tvReload, setTvReload] = useState(0);
+  const tvReloadSeen = useRef(0);
   const [tvVolume, setTvVolume] = useState<boolean>(() => { try { return localStorage.getItem('ppfx_tv_volume') !== 'off'; } catch { return true; } });
   useEffect(() => { try { localStorage.setItem('ppfx_tv_volume', tvVolume ? 'on' : 'off'); } catch {} }, [tvVolume]);
   const [tvHintHidden, setTvHintHidden] = useState<boolean>(() => { try { return localStorage.getItem('ppfx_tv_hint_hidden') === '1'; } catch { return false; } });
@@ -3003,7 +3005,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
       const src = `https://www.tradingview-widget.com/widgetembed/?${params.toString()}`;
       const existing = container.querySelector('iframe');
-      if (existing && existing.getAttribute('src') === src) return; // same chart already loaded
+      const forced = tvReloadSeen.current !== tvReload; tvReloadSeen.current = tvReload;
+      if (existing && !forced && existing.getAttribute('src') === src) return; // same chart already loaded
       container.innerHTML = '';
       const iframe = document.createElement('iframe');
       iframe.src = src;
@@ -3022,7 +3025,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       if (timeoutId) clearTimeout(timeoutId);
     };
   // Full-screen / minimise only resize the same container, so they must NOT rebuild the chart (that reloaded it).
-  }, [containerId, tradingViewSymbol, selectedInterval, chartSettings.backgroundColor, chartSettings.timezone, isLightBg, selectedSymbol, pineOnChart, tvVolume, tvKeep, tvKeep ? 0 : selectedInterval]);
+  }, [containerId, tradingViewSymbol, selectedInterval, chartSettings.backgroundColor, chartSettings.timezone, isLightBg, selectedSymbol, pineOnChart, tvVolume, tvKeep, tvReload, tvKeep ? 0 : selectedInterval]);
 
   // --------------------------------------------------------------------------
   // CATEGORY & SYMBOL SELECTOR (Immediately opens pair + syncs broker settings!)
@@ -4400,7 +4403,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           <div id={containerId} className={`w-full relative z-10 ${pineOnChart ? 'hidden' : 'flex-1 min-h-0'}`} />
 
           {/* LIVE BAR-CLOSE COUNTDOWN — on the right price scale, like TradingView. Drag it up/down to sit beside the price. */}
-          {!pineOnChart && <Ticking compute={() => sessionCountdown(selectedInterval)}>{(cd) => <TvChartTools symbol={selectedSymbol} interval={selectedInterval} onInterval={tvKeep ? undefined : (iv) => handleIntervalChange(iv)} countdown={cd} />}</Ticking>}
+          {!pineOnChart && <Ticking compute={() => sessionCountdown(selectedInterval)}>{(cd) => <TvChartTools symbol={selectedSymbol} interval={selectedInterval} onInterval={tvKeep ? undefined : (iv) => handleIntervalChange(iv)} onClearAll={() => setTvReload((n) => n + 1)} countdown={cd} />}</Ticking>}
           {false && !pineOnChart && !tvHintHidden && (
             <div data-testid="tv-countdown-hint" className="absolute top-12 left-1/2 -translate-x-1/2 z-30 max-w-[92%] flex items-center gap-2 rounded-lg border border-[#2962FF]/50 bg-[#131722]/95 px-3 py-2 text-[11.5px] text-slate-200 shadow-xl">
               <span><b className="text-white">Bar-close countdown:</b> right-click the price scale → <b className="text-white">Labels</b> → <b className="text-white">Countdown to bar close</b> (TradingView's embedded chart resets it on reload). The countdown, price alerts (+) and your indicators are always on in the <button type="button" onClick={() => setChartEngine('pro')} className="underline text-cyan-300 cursor-pointer">Pro chart</button>.</span>

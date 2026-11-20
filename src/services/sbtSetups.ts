@@ -25,13 +25,24 @@ const K_LEVEL_SETTINGS = 'ppfx_level_alert_settings_v1';
 
 /** Sound settings for key-level setups (separate from the news alerts, so muting news never silences a setup). */
 /** confirmedOnly: an alert rings only when the wick went clearly into the zone (not a hair-line touch that another broker's feed may not show). */
-export interface LevelAlertSettings { sound: boolean; voice: boolean; soundId: SoundId; confirmedOnly: boolean }
-export const getLevelSettings = (): LevelAlertSettings => ({ sound: true, voice: true, soundId: 'alarm', confirmedOnly: true, ...read<Partial<LevelAlertSettings>>(K_LEVEL_SETTINGS, {}) });
-export function setLevelSettings(p: Partial<LevelAlertSettings>) { write(K_LEVEL_SETTINGS, { ...getLevelSettings(), ...p }); subs.forEach((f) => f()); }
+export interface LevelAlertSettings { sound: boolean; voice: boolean; soundId: SoundId; confirmedOnly: boolean; /** Long-term key-level setups muted: no sound, voice, notification or background push. */ muted: boolean }
+export const getLevelSettings = (): LevelAlertSettings => ({ sound: true, voice: true, soundId: 'alarm', confirmedOnly: true, muted: false, ...read<Partial<LevelAlertSettings>>(K_LEVEL_SETTINGS, {}) });
+export function setLevelSettings(p: Partial<LevelAlertSettings>) {
+  write(K_LEVEL_SETTINGS, { ...getLevelSettings(), ...p }); subs.forEach((f) => f());
+  if (typeof p.muted === 'boolean') void syncPushWithMute(p.muted);
+}
+/** Muted → this device stops receiving background pushes for setups; unmuted → it registers again (if notifications are allowed). */
+async function syncPushWithMute(muted: boolean) {
+  try {
+    if (muted) { const reg = await navigator.serviceWorker?.getRegistration?.(); const sub = await reg?.pushManager?.getSubscription(); if (sub) { const ep = sub.endpoint; await sub.unsubscribe(); await fetch('/api/push/unsubscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: ep }) }).catch(() => {}); } }
+    else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') await subscribePush();
+  } catch { /* best effort */ }
+}
 
 /** Sound + female voice for one or more setups: "G B P C A D. This pair has arrived — Level 1, buy." */
 export function announceSetups(list: Array<{ display: string; side: 1 | -1; level: 1 | 2 } & Partial<LevelAlert>>) {
   const cfg = getLevelSettings();
+  if (cfg.muted) return;
   if (cfg.sound) { playSound(cfg.soundId); setTimeout(() => playSound(cfg.soundId), 900); }
   if (cfg.voice && list.length) {
     const text = list.slice(0, 4).map((a) => {
@@ -76,6 +87,7 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (m: MessageEvent) => {
     if (m.data?.type !== 'ppfx-level-push' || !m.data.speech) return;
     const cfg = getLevelSettings();
+    if (cfg.muted) return;
     if (cfg.sound) playSound(cfg.soundId);
     if (cfg.voice) setTimeout(() => speak(String(m.data.speech)), cfg.sound ? 1500 : 0);
   });
@@ -123,6 +135,7 @@ export const fmtPrice = (v: number) => (!Number.isFinite(v) ? '—' : v >= 1000 
 export const levelTime = (t: number) => new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Karachi', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(t));
 
 async function notify(title: string, body: string) {
+  if (getLevelSettings().muted) return;
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   try {
     const reg = await navigator.serviceWorker?.getRegistration?.();
@@ -196,6 +209,7 @@ const EVENT_RING_MS = 90 * 60_000; // only an event that has just happened is sp
 
 function speakEvents(list: LevelEvent[]) {
   const cfg = getLevelSettings();
+  if (cfg.muted) return;
   if (cfg.sound) { playSound(cfg.soundId); setTimeout(() => playSound(cfg.soundId), 900); }
   if (cfg.voice && list.length) setTimeout(() => speak(list.slice(0, 4).map((e) => e.speech).join(' ')), cfg.sound ? 1800 : 0);
 }

@@ -13,8 +13,9 @@ import { CATALOG, FullHistoryDatafeed, PRO_PERIODS } from '../chartAnalysis/full
 
 const TFS: [string, string][] = [['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'], ['60', '1h'], ['240', '4h'], ['D', '1D'], ['W', '1W']];
 
-export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInterval?: (iv: string) => void; countdown: { label: string; text: string; closed?: boolean; progressPercent?: number; session?: string } }> = ({ symbol, interval, onInterval, countdown }) => {
+export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInterval?: (iv: string) => void; onClearAll?: () => void; countdown: { label: string; text: string; closed?: boolean; progressPercent?: number; session?: string } }> = ({ symbol, interval, onInterval, onClearAll, countdown }) => {
   const [tfOpen, setTfOpen] = useState(false);
+  const [clearAsk, setClearAsk] = useState(false);
   const entry = catalogFor(symbol);
   const ticker = entry?.ticker || '';
   const digits = entry?.pricePrecision ?? 2;
@@ -94,6 +95,14 @@ export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInter
           </div>
         )}
       </div>
+
+      {onClearAll && (
+        <button type="button" data-testid="tv-delete-all" title="Delete every object drawn on this chart (reloads the chart)"
+          onClick={() => { if (!clearAsk) { setClearAsk(true); window.setTimeout(() => setClearAsk(false), 4000); return; } setClearAsk(false); onClearAll(); }}
+          className={`absolute left-[54px] bottom-[34px] z-30 flex items-center gap-1 h-7 px-2 rounded-md border text-[11px] font-semibold cursor-pointer ${clearAsk ? 'border-rose-400 bg-rose-600 text-white' : 'border-slate-600 bg-[#1e222d]/95 text-slate-200 hover:text-white hover:border-rose-400'}`}>
+          <Trash2 className="w-3.5 h-3.5" />{clearAsk ? 'Click again: delete all' : 'Delete all'}
+        </button>
+      )}
 
       <div className="absolute top-[5px] right-[46px] md:right-[92px] z-30 flex items-center gap-1.5" data-testid="tv-chart-tools">
         {onInterval && (
