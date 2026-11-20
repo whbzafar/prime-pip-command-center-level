@@ -1,4 +1,3 @@
-import { DEFAULT_CALENDAR_EVENTS, DEFAULT_CALENDAR_META } from '../data/calendarEventsDatabase';
 
 export interface CalendarEvent {
   id: string;
@@ -63,7 +62,7 @@ export function getCachedCalendar(): CalendarEvent[] {
   } catch {
     // fallback
   }
-  return DEFAULT_CALENDAR_EVENTS;
+  return [];
 }
 
 export function setCachedCalendar(events: CalendarEvent[]) {
@@ -82,7 +81,7 @@ export function getCachedMeta(): CalendarMeta {
   } catch {
     // fallback
   }
-  return DEFAULT_CALENDAR_META;
+  return { lastSynced: '', isOnline: false, eventCount: 0, yearRange: [new Date().getFullYear(), new Date().getFullYear()], primaryTimezone: 'Asia/Karachi', source: 'TradingView economic calendar (live)', error: 'No live calendar received yet' };
 }
 
 export function setCachedMeta(meta: CalendarMeta) {
@@ -105,7 +104,21 @@ async function syncLiveCalendar(): Promise<boolean> {
   }
 }
 
-async function getLiveEvents(endpoint: string): Promise<{ events: CalendarEvent[]; meta?: CalendarMeta } | null> {
+type Live = { events: CalendarEvent[]; meta?: CalendarMeta };
+const liveMemo = new Map<string, { at: number; v: Live }>();
+const LCK = 'ppfx_cal_peek_v1:';
+/** Last live answer for an endpoint (memory, then storage) — lets the calendar paint at once while the fresh copy loads. */
+export function peekCalendar(endpoint: string, maxAgeMs = 6 * 3600_000): Live | null {
+  const m = liveMemo.get(endpoint);
+  if (m && Date.now() - m.at < maxAgeMs) return m.v;
+  try { const raw = localStorage.getItem(LCK + endpoint); if (raw) { const o = JSON.parse(raw); if (o && Date.now() - o.at < maxAgeMs) { liveMemo.set(endpoint, o); return o.v; } } } catch { /* ignore */ }
+  return null;
+}
+export const weekEndpoint = (start: string, end: string) => `/api/calendar/week?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+export const monthEndpoint = (y: number, m: number) => `/api/calendar/month/${y}/${m}`;
+export const warmCalendar = (endpoint: string) => getLiveEvents(endpoint).catch(() => null);
+
+async function getLiveEvents(endpoint: string): Promise<Live | null> {
   try {
     const res = await fetch(endpoint, { cache: 'no-store' });
     if (!res.ok) return null;
@@ -115,7 +128,11 @@ async function getLiveEvents(endpoint: string): Promise<{ events: CalendarEvent[
     if (!Array.isArray(data.events) || data.events.length === 0) return null;
     if (data.meta) setCachedMeta(data.meta);
     setCachedCalendar(data.events);
-    return { events: data.events, meta: data.meta };
+    const v: Live = { events: data.events, meta: data.meta };
+    const o = { at: Date.now(), v };
+    liveMemo.set(endpoint, o);
+    try { const str = JSON.stringify(o); if (str.length < 900_000) localStorage.setItem(LCK + endpoint, str); } catch { /* quota */ }
+    return v;
   } catch {
     return null;
   }
@@ -131,7 +148,7 @@ export async function fetchYearEvents(year: number) {
   const events = getCachedCalendar().filter((e) => e.year === year);
   const meta = getCachedMeta();
   return {
-    events: events.length > 0 ? events : DEFAULT_CALENDAR_EVENTS.filter((e) => e.year === year),
+    events,
     isOnline: true,
     lastSynced: meta?.lastSynced || new Date().toISOString(),
   };
@@ -143,7 +160,7 @@ export async function fetchMonthEvents(year: number, month: number): Promise<Cal
     if (live && live.events.length > 0) return live.events;
   } catch {}
   const events = getCachedCalendar().filter((e) => e.year === year && e.month === month);
-  return events.length > 0 ? events : DEFAULT_CALENDAR_EVENTS.filter((e) => e.year === year && e.month === month);
+  return events;
 }
 
 export async function fetchWeekEvents(start: string, end: string): Promise<CalendarEvent[]> {
@@ -154,7 +171,7 @@ export async function fetchWeekEvents(start: string, end: string): Promise<Calen
   const s = new Date(start).getTime();
   const e = new Date(end).getTime();
   const events = getCachedCalendar().filter((event) => event.utcTimestamp >= s && event.utcTimestamp <= e);
-  return events.length > 0 ? events : DEFAULT_CALENDAR_EVENTS.filter((event) => event.utcTimestamp >= s && event.utcTimestamp <= e);
+  return events;
 }
 
 export async function fetchUpcomingEvents(limit = 150): Promise<CalendarEvent[]> {

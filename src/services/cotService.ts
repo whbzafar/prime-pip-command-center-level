@@ -17,6 +17,12 @@ export interface CotFetchResult<T> {
  * Fetch latest COT market summaries for all markets
  * Stale-while-revalidate pattern using localStorage
  */
+/** The last COT summaries received (from this device's cache) — shown at once while the fresh copy loads. */
+export function peekCotSummaries(): CotMarketSummary[] | null {
+  try { const raw = localStorage.getItem(CACHE_KEY_LATEST); if (raw) { const p = JSON.parse(raw); if (Array.isArray(p?.data) && p.data.length) return p.data; } } catch { /* ignore */ }
+  return null;
+}
+
 export async function fetchCotMarketSummaries(force = false): Promise<CotFetchResult<CotMarketSummary[]>> {
   // 1. Check local cache first
   let cachedData: CotMarketSummary[] | null = null;

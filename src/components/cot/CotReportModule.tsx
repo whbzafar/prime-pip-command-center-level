@@ -6,7 +6,7 @@ import { CotDetailView } from './CotDetailView';
 import { CotPairScreener } from './CotPairScreener';
 import { MarketCategory } from '../../config/cotConfig';
 import { CotMarketSummary, CotReleaseStatus } from '../../types/cotTypes';
-import { fetchCotMarketSummaries, checkCotReleaseStatus } from '../../services/cotService';
+import { fetchCotMarketSummaries, checkCotReleaseStatus, peekCotSummaries } from '../../services/cotService';
 import { CheckCircle2, X, Scale, BarChart3 } from 'lucide-react';
 
 export const CotReportModule: React.FC = () => {
@@ -14,11 +14,11 @@ export const CotReportModule: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<MarketCategory>('Currencies');
   const [selectedMarket, setSelectedMarket] = useState<CotMarketSummary | null>(null);
 
-  const [summaries, setSummaries] = useState<CotMarketSummary[]>([]);
+  const [summaries, setSummaries] = useState<CotMarketSummary[]>(() => peekCotSummaries() || []);
   const [latestDate, setLatestDate] = useState<string | null>(null);
   const [releaseStatus, setReleaseStatus] = useState<CotReleaseStatus | null>(null);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !peekCotSummaries());
   const [isSyncing, setIsSyncing] = useState(false);
   const [isStale, setIsStale] = useState(false);
   const [staleDate, setStaleDate] = useState<string | undefined>();

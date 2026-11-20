@@ -4,7 +4,7 @@ import type { AssetResult, Overview, PairResult } from './types';
 import { openChart } from './LiveBiasStrip';
 import { SplitBar } from './SentimentBoard';
 import { AssetDetail } from './AssetDetail';
-import { BiasPill, BullBearBar, fetchJsonSafe, fmtScore, scoreColor } from './ui';
+import { BiasPill, BullBearBar, fetchJsonSafe, peekJson, fmtScore, scoreColor } from './ui';
 
 type Filter = 'ALL' | 'FOREX' | 'COMMODITIES' | 'CRYPTO';
 type Dir = 'ALL' | 'BULLISH' | 'BEARISH' | 'NEUTRAL';
@@ -70,7 +70,8 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
   useEffect(() => {
     if (!sel) { setDetail(null); return; }
     let alive = true;
-    setLoading(true);
+    const pk = peekJson<any>(`/api/macro/pair/${encodeURIComponent(sel)}`, 10 * 60_000);
+    if (pk?.ok) { setDetail({ data: pk.data, base: pk.base, quote: pk.quote, institutional: pk.institutional, sentiment: pk.sentiment }); setLoading(false); } else setLoading(true);
     fetchJsonSafe<any>(`/api/macro/pair/${encodeURIComponent(sel)}`)
       .then((j) => { if (alive && j?.ok) setDetail({ data: j.data, base: j.base, quote: j.quote, institutional: j.institutional, sentiment: j.sentiment }); })
       .catch(() => undefined)

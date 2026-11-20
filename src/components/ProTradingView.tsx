@@ -2989,7 +2989,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         enable_publishing: 'false',
         hide_top_toolbar: 'false',
         hide_side_toolbar: 'false',
-        allow_symbol_change: 'true',
+        // The chart's own symbol box changes the symbol inside the sealed frame without telling the app, so the Pair Widget,
+        // fundamentals and alerts stayed on the old pair. Symbols are chosen with the app's search (it drives chart AND widget).
+        allow_symbol_change: 'false',
         save_image: 'true',
         hideideas: 'false',
         show_popup_button: 'true',
@@ -3135,7 +3137,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    handleSelectSymbol(searchQuery.trim());
+    const q = searchQuery.trim();
+    const alias: Record<string, string> = { GOLD: 'XAUUSD', SILVER: 'XAGUSD', OIL: 'USOIL', WTI: 'USOIL', BRENT: 'UKOIL', BITCOIN: 'BTCUSD', BTC: 'BTCUSD', ETHEREUM: 'ETHUSD', ETH: 'ETHUSD', DOW: 'US30', NASDAQ: 'NAS100', SP500: 'SPX500', DAX: 'GER40', FTSE: 'UK100', NIKKEI: 'JP225' };
+    handleSelectSymbol(alias[q.toUpperCase()] || q);
     setSearchQuery('');
   };
 
@@ -3733,8 +3737,12 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search pair..."
+                  list="ppfx-symbol-list" autoComplete="off" data-testid="pair-search"
                   className="w-full pl-7 pr-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono-code text-slate-100 placeholder:text-slate-500 uppercase outline-none focus:border-cyan-400"
                 />
+                <datalist id="ppfx-symbol-list">
+                  {[...new Set(WATCHLIST_CATEGORIES.flatMap((c) => c.symbols.map((x) => x.symbol)))].map((sym) => <option key={sym} value={sym} />)}
+                </datalist>
               </form>
 
               {/* Broker Selector (Includes FXCM) */}

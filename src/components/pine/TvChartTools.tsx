@@ -97,12 +97,14 @@ export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInter
       </div>
 
       {onClearAll && (
-        <button type="button" data-testid="tv-delete-all" title="Delete every object drawn on this chart (reloads the chart)"
-          onClick={() => { if (!clearAsk) { setClearAsk(true); window.setTimeout(() => setClearAsk(false), 4000); return; } setClearAsk(false); onClearAll(); }}
-          className={`absolute left-[54px] bottom-[34px] z-30 flex items-center gap-1 h-7 px-2 rounded-md border text-[11px] font-semibold cursor-pointer ${clearAsk ? 'border-rose-400 bg-rose-600 text-white' : 'border-slate-600 bg-[#1e222d]/95 text-slate-200 hover:text-white hover:border-rose-400'}`}>
-          <Trash2 className="w-3.5 h-3.5" />{clearAsk ? 'Click again: delete all' : 'Delete all'}
+        <button type="button" data-testid="tv-delete-all" aria-label="Remove objects" title={clearAsk ? 'Click again to remove every drawing' : 'Remove objects (all drawings)'}
+          onClick={() => { if (!clearAsk) { setClearAsk(true); window.setTimeout(() => setClearAsk(false), 3500); return; } setClearAsk(false); onClearAll(); }}
+          style={{ top: 'min(486px, calc(100% - 100px))' }}
+          className={`absolute left-[7px] z-30 flex items-center justify-center w-[38px] h-[38px] rounded-md cursor-pointer ${clearAsk ? 'bg-rose-600 text-white' : 'bg-transparent text-[#d1d4dc] hover:bg-[#2a2e39]'}`}>
+          <Trash2 className="w-[20px] h-[20px]" strokeWidth={1.6} />
         </button>
       )}
+
 
       <div className="absolute top-[5px] right-[46px] md:right-[92px] z-30 flex items-center gap-1.5" data-testid="tv-chart-tools">
         {onInterval && (

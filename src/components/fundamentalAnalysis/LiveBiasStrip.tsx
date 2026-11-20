@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, LineChart, RefreshCw } from 'lucide-react';
-import { fetchJsonSafe, fmtScore } from './ui';
+import { fetchJsonSafe, peekJson, fmtScore } from './ui';
 import { LevelBadge } from '../sbt/LevelAlerts';
 
 export interface RankedPair { symbol: string; display: string; assetClass: string; shortTerm: number | null; longTerm: number | null; confidence: number; basis?: string[] }
@@ -21,7 +21,7 @@ export function openChart(engineSymbol: string) {
 
 let cache: { at: number; data: Rankings } | null = null;
 export function useRankings(pollMs = 60_000) {
-  const [data, setData] = useState<Rankings | null>(cache?.data || null);
+  const [data, setData] = useState<Rankings | null>(cache?.data || peekJson<{ data: Rankings }>('/api/macro/rankings')?.data || null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let live = true;

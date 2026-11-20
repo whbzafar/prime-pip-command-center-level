@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2, CircleDashed, RefreshCw, TriangleAlert } from 'lucide-react';
-import { fetchJsonSafe, scoreColor } from './ui';
+import { fetchJsonSafe, peekJson, scoreColor } from './ui';
 
 interface Row {
   symbol: string; name: string; assetClass: string; score: number | null; bias: string; confidence: number;
@@ -20,7 +20,7 @@ const cell = (st: string) =>
 
 /** Transparency: what every score is built from, what is live, and what is not available for free. */
 export const AuditView: React.FC = () => {
-  const [a, setA] = useState<Audit | null>(null);
+  const [a, setA] = useState<Audit | null>(() => peekJson<Audit>('/api/macro/audit'));
   const [err, setErr] = useState<string | null>(null);
   const load = () => fetchJsonSafe<Audit>('/api/macro/audit').then(setA).catch((e) => setErr(e?.message || 'Audit unavailable'));
   useEffect(() => { load(); const id = setInterval(load, 120_000); return () => clearInterval(id); }, []);

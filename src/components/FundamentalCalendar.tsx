@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { peekCalendar, weekEndpoint, monthEndpoint, warmCalendar } from '../services/economicCalendarService';
 import {
   Calendar,
   Clock,
@@ -385,7 +386,10 @@ export const FundamentalCalendar: React.FC = () => {
   }, [periodPreset, weekOffset]);
 
   const loadCalendarData = useCallback(async () => {
-    setIsLoading(true);
+    // Paint the last live answer for this period at once; the fresh copy replaces it a moment later.
+    const ep = periodPreset === 'THIS_MONTH' ? monthEndpoint(selectedYear, selectedMonth) : weekEndpoint(activeWeekBounds.start.toISOString(), activeWeekBounds.end.toISOString());
+    const seen = peekCalendar(ep);
+    if (seen?.events.length) { setEvents(seen.events); setIsLoading(false); } else setIsLoading(true);
     try {
       let fetched: CalendarEvent[] = [];
       if (periodPreset === 'THIS_MONTH') {
@@ -1550,3 +1554,11 @@ export const FundamentalCalendar: React.FC = () => {
   );
 };
 export default FundamentalCalendar;
+
+
+// Warm this week's live calendar as soon as the chunk is prefetched, so opening the calendar is instant.
+if (typeof window !== 'undefined') {
+  window.setTimeout(() => {
+    try { const b = getWeekBoundsInPkt(0); warmCalendar(weekEndpoint(b.start.toISOString(), b.end.toISOString())); } catch { /* ignore */ }
+  }, 1500);
+}

@@ -41,6 +41,9 @@ export function usePairIntel(symbol: string, pollMs = 60_000) {
   const [loading, setLoading] = useState(!hit);
   useEffect(() => {
     let live = true;
+    // Another pair was chosen: drop the previous pair's numbers at once (cached ones show instantly) instead of leaving them on screen.
+    const c0 = intelCache.get(eng);
+    setData(c0?.data || null); setError(c0?.err || null); setLoading(!c0);
     const load = async () => {
       try {
         let intel: PairIntel | null = null;

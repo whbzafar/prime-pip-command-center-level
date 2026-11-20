@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Info, LineChart, RefreshCw, Search, Users } from 'lucide-react';
-import { fetchJsonSafe, timeAgo } from './ui';
+import { fetchJsonSafe, peekJson, timeAgo } from './ui';
 import { openChart } from './LiveBiasStrip';
 
 export interface SentRow {
@@ -15,9 +15,9 @@ export interface SentSnapshot {
 
 let cache: SentSnapshot | null = null;
 export function useSentiment(pollMs = 60_000) {
-  const [data, setData] = useState<SentSnapshot | null>(cache);
+  const [data, setData] = useState<SentSnapshot | null>(cache || peekJson<{ data: SentSnapshot }>('/api/macro/sentiment')?.data || null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(!cache);
+  const [loading, setLoading] = useState(!cache && !peekJson('/api/macro/sentiment'));
   useEffect(() => {
     let live = true;
     const load = async () => {

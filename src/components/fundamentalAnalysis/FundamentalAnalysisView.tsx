@@ -12,7 +12,7 @@ import { CorrelationView } from './CorrelationView';
 import { PakistanNewsView } from './PakistanNews';
 import { AuditView } from './AuditView';
 import { PicksView, REGION_LABEL, type PickRow } from './PicksView';
-import { BiasPill, BullBearBar, StatusDot, fetchJsonSafe, fmtNum, fmtPkt, fmtScore, scoreColor, timeAgo } from './ui';
+import { BiasPill, BullBearBar, StatusDot, fetchJsonSafe, peekJson, prefetchFundamentals, fmtNum, fmtPkt, fmtScore, scoreColor, timeAgo } from './ui';
 
 type Tab = AssetClass | 'PKNEWS' | 'PICKS' | 'PAIRS' | 'RANKINGS' | 'SENTIMENT' | 'CORRELATIONS' | 'AUDIT' | 'SOURCES';
 
@@ -36,9 +36,9 @@ const POLL_NORMAL = 60_000;
 const POLL_HOT = 20_000;
 
 export const FundamentalAnalysisView: React.FC = () => {
-  const [ov, setOv] = useState<Overview | null>(null);
+  const [ov, setOv] = useState<Overview | null>(() => { const c = peekJson<{ ok: boolean; data: Overview }>('/api/macro/overview'); return c?.data && c.data.assets?.length ? c.data : null; });
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !peekJson('/api/macro/overview'));
   const [refreshing, setRefreshing] = useState(false);
   const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
   const [tab, setTab] = useState<Tab>('FOREX');
@@ -53,7 +53,7 @@ export const FundamentalAnalysisView: React.FC = () => {
 
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retries = useRef(0);
-  const ovRef = useRef<Overview | null>(null);
+  const ovRef = useRef<Overview | null>(ov);
 
   const load = useCallback(async (force = false) => {
     if (retryTimer.current) { clearTimeout(retryTimer.current); retryTimer.current = null; }
@@ -116,6 +116,8 @@ export const FundamentalAnalysisView: React.FC = () => {
   useEffect(() => {
     if (!selSymbol || !ov) return;
     let alive = true;
+    const pk = peekJson<any>(`/api/macro/asset/${encodeURIComponent(selSymbol)}`, 10 * 60_000);
+    if (pk?.ok) setDetail({ asset: pk.data, mirrors: pk.mirrors || {}, institutional: pk.institutional });
     fetchJsonSafe<any>(`/api/macro/asset/${encodeURIComponent(selSymbol)}`)
       .then((j) => { if (alive && j?.ok) setDetail({ asset: j.data, mirrors: j.mirrors || {}, institutional: j.institutional }); })
       .catch(() => undefined);
@@ -412,3 +414,6 @@ const CoverageNotice: React.FC<{ asset: AssetResult }> = ({ asset }) => {
     </div>
   );
 };
+
+// Warm every Fundamentals screen shortly after the app's idle prefetch pulls this module in, so categories open instantly.
+if (typeof window !== 'undefined') window.setTimeout(() => { try { prefetchFundamentals(); } catch { /* ignore */ } }, 2500);

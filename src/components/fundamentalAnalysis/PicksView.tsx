@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Crown, FileDown, ExternalLink, Flame, RefreshCw, ShieldAlert } from 'lucide-react';
-import { fetchJsonSafe, fmtScore, scoreColor, timeAgo } from './ui';
+import { fetchJsonSafe, peekJson, fmtScore, scoreColor, timeAgo } from './ui';
 
 export interface PickRow {
   symbol: string; name: string; assetClass: string; region: string | null; sector: string | null; kind: string | null;
@@ -23,7 +23,7 @@ export const REGION_LABEL: Record<string, string> = { PK: 'Pakistan', ASIA: 'Asi
 
 let cache: { at: number; data: Picks } | null = null;
 export function usePicks(pollMs = 5 * 60_000) {
-  const [data, setData] = useState<Picks | null>(cache?.data || null);
+  const [data, setData] = useState<Picks | null>(cache?.data || peekJson<{ data: Picks }>('/api/macro/picks')?.data || null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let live = true;

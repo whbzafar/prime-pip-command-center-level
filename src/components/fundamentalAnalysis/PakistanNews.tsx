@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, ExternalLink, Minus, Radio, RefreshCw } from 'lucide-react';
-import { fetchJsonSafe } from './ui';
+import { fetchJsonSafe, peekJson } from './ui';
 
 export interface PkNews {
   id: string; title: string; summary: string; link: string; source: string; publishedAt: number;
@@ -11,7 +11,7 @@ let cache: { at: number; items: PkNews[]; updatedAt: string; sources: Record<str
 
 /** Live Pakistan market news; refreshes itself (default every 90 s) and when the tab becomes visible. */
 export function usePkNews(pollMs = 90_000) {
-  const [state, setState] = useState(cache);
+  const [state, setState] = useState(cache || (() => { const j = peekJson<any>('/api/news/pakistan'); return j?.items ? { at: 0, items: j.items as PkNews[], updatedAt: j.updatedAt as string, sources: j.sources || {} } : null; })());
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let live = true;

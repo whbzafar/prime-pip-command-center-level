@@ -5,7 +5,40 @@ import type { Bias } from './types';
  * fetch + JSON with human-readable errors. Hosting platforms return HTML/text error pages
  * (e.g. "A server error has occurred") on crashes or timeouts — never surface those raw.
  */
-export async function fetchJsonSafe<T = any>(url: string, init?: RequestInit): Promise<T> {
+// Last good answer per GET url: screens paint it at once while the fresh copy loads (no spinner when you re-open a category).
+const memo = new Map<string, { at: number; json: any }>();
+const inflight = new Map<string, Promise<any>>();
+const LS = 'ppfx_fj_v1:';
+export function peekJson<T = any>(url: string, maxAgeMs = 30 * 60_000): T | null {
+  const m = memo.get(url);
+  if (m && Date.now() - m.at < maxAgeMs) return m.json as T;
+  try {
+    const raw = localStorage.getItem(LS + url);
+    if (raw) { const o = JSON.parse(raw); if (o && Date.now() - o.at < maxAgeMs) { memo.set(url, o); return o.json as T; } }
+  } catch { /* storage blocked */ }
+  return null;
+}
+function remember(url: string, json: any) {
+  const o = { at: Date.now(), json };
+  memo.set(url, o);
+  try { const s = JSON.stringify(o); if (s.length < 600_000) localStorage.setItem(LS + url, s); } catch { /* quota */ }
+}
+/** Warm every Fundamentals screen in the background so each category opens instantly. */
+export function prefetchFundamentals() {
+  const first = ['/api/macro/overview', '/api/macro/rankings'];
+  const rest = ['/api/macro/picks', '/api/macro/sentiment', '/api/news/pakistan', '/api/macro/audit'];
+  Promise.all(first.map((u) => fetchJsonSafe(u).catch(() => null))).then(() => rest.forEach((u, i) => window.setTimeout(() => fetchJsonSafe(u).catch(() => null), 400 * i)));
+}
+export function fetchJsonSafe<T = any>(url: string, init?: RequestInit): Promise<T> {
+  const get = !init?.method || init.method === 'GET';
+  if (!get) return fetchJsonRaw<T>(url, init);
+  const f = inflight.get(url);
+  if (f) return f as Promise<T>;
+  const p = fetchJsonRaw<T>(url, init).then((j) => { remember(url, j); return j; }).finally(() => inflight.delete(url));
+  inflight.set(url, p);
+  return p;
+}
+async function fetchJsonRaw<T = any>(url: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(url, { cache: 'no-store', ...init });
