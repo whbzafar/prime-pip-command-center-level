@@ -102,8 +102,21 @@ export function parseMof(csv: string): { two: Map<string, number>; ten: Map<stri
   }
   return { two, ten };
 }
+/** First URL that answers (publishers move files around: try each known address). */
+async function firstText(urls: string[], headers?: Record<string, string>): Promise<string> {
+  let err: unknown = null;
+  for (const u of urls) { try { return await fetchText(u, { timeoutMs: 20_000, retries: 1, headers }); } catch (e) { err = e; } }
+  throw err instanceof Error ? err : new Error(String(err));
+}
+const BROWSER_HEADERS = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', Accept: 'text/csv,text/plain,*/*;q=0.8', 'Accept-Language': 'en-US,en;q=0.9' };
 async function loadJpy(): Promise<void> {
-  const csv = await fetchText('https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcm.csv', { timeoutMs: 20_000, retries: 1 });
+  const csv = await firstText([
+    'https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcm.csv',
+    'https://www.mof.go.jp/english/jgbs/reference/interest_rate/jgbcm.csv',
+    'https://www.mof.go.jp/jgbs/reference/interest_rate/jgbcm.csv',
+    'https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/historical/jgbcm_all.csv',
+    'https://www.mof.go.jp/english/jgbs/reference/interest_rate/historical/jgbcm_all.csv',
+  ], BROWSER_HEADERS);
   const { two, ten } = parseMof(csv);
   const cut = sinceIso();
   const trim = (m: Map<string, number>) => new Map([...m].filter(([d]) => d >= cut));
@@ -135,7 +148,7 @@ export function parseRba(csv: string): { two: Map<string, number>; ten: Map<stri
   return { two, ten };
 }
 async function loadAud(): Promise<void> {
-  const csv = await fetchText('https://www.rba.gov.au/statistics/tables/csv/f2-data.csv', { timeoutMs: 20_000, retries: 1 });
+  const csv = await firstText(['https://www.rba.gov.au/statistics/tables/csv/f2-data.csv', 'https://www.rba.gov.au/statistics/tables/csv/f2.1-data.csv'], { ...BROWSER_HEADERS, Referer: 'https://www.rba.gov.au/statistics/tables/' });
   const { two, ten } = parseRba(csv);
   const cut = sinceIso();
   const trim = (m: Map<string, number>) => new Map([...m].filter(([d]) => d >= cut));
@@ -162,6 +175,7 @@ async function loadChf(): Promise<void> {
   const { two, ten } = parseSnb(csv);
   if (!two.size && !ten.size) throw new Error(`SNB CSV parsed 0 rows (len ${csv.length}, head: ${JSON.stringify(csv.slice(0, 120))})`);
   put('CHF', '2Y', two, 'Swiss National Bank data portal'); put('CHF', '10Y', ten, 'Swiss National Bank data portal');
+  if (!store.has('CHF_10Y') && !store.has('CHF_2Y')) throw new Error(`SNB returned too few daily points (2Y ${two.size}, 10Y ${ten.size}; sample ${JSON.stringify(csv.split(/\r?\n/).filter((l) => /^"?\d{4}-/.test(l)).slice(0, 2))})`);
 }
 
 // ───────────────────────────────────────── United Kingdom
