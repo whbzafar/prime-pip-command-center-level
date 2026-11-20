@@ -107,6 +107,7 @@ async function loadJpy(): Promise<void> {
   const { two, ten } = parseMof(csv);
   const cut = sinceIso();
   const trim = (m: Map<string, number>) => new Map([...m].filter(([d]) => d >= cut));
+  if (!two.size && !ten.size) throw new Error(`MoF CSV parsed 0 rows (len ${csv.length}, head: ${JSON.stringify(csv.slice(0, 80))})`);
   put('JPY', '2Y', trim(two), 'Japan Ministry of Finance JGB curve'); put('JPY', '10Y', trim(ten), 'Japan Ministry of Finance JGB curve');
 }
 
@@ -138,6 +139,7 @@ async function loadAud(): Promise<void> {
   const { two, ten } = parseRba(csv);
   const cut = sinceIso();
   const trim = (m: Map<string, number>) => new Map([...m].filter(([d]) => d >= cut));
+  if (!two.size && !ten.size) throw new Error(`RBA CSV parsed 0 rows (len ${csv.length}, head: ${JSON.stringify(csv.slice(0, 80))})`);
   put('AUD', '2Y', trim(two), 'Reserve Bank of Australia table F2'); put('AUD', '10Y', trim(ten), 'Reserve Bank of Australia table F2');
 }
 
@@ -158,6 +160,7 @@ export function parseSnb(csv: string): { two: Map<string, number>; ten: Map<stri
 async function loadChf(): Promise<void> {
   const csv = await fetchText(`https://data.snb.ch/api/cube/rendoblid/data/csv/en?fromDate=${sinceIso().slice(0, 7)}`, { timeoutMs: 20_000, retries: 1 });
   const { two, ten } = parseSnb(csv);
+  if (!two.size && !ten.size) throw new Error(`SNB CSV parsed 0 rows (len ${csv.length}, head: ${JSON.stringify(csv.slice(0, 120))})`);
   put('CHF', '2Y', two, 'Swiss National Bank data portal'); put('CHF', '10Y', ten, 'Swiss National Bank data portal');
 }
 
@@ -189,7 +192,7 @@ export async function refreshYields(force = false): Promise<void> {
   await Promise.all(LOADERS.map(async ([ccy, fn]) => { try { await fn(); } catch (e: any) { failed.push(`${ccy}: ${e?.message || e}`); } }));
   const have = new Set([...store.keys()].map((k) => k.split('_')[0]));
   const missing = LOADERS.map(([c]) => c).filter((c) => !have.has(c));
-  setSourceNote(YIELDS_SOURCE_ID, `Live for ${[...have].sort().join(', ') || 'none'}${missing.length ? `; unavailable right now: ${missing.join(', ')}` : ''}. NZD: no free daily feed.`);
+  setSourceNote(YIELDS_SOURCE_ID, `Live for ${[...have].sort().join(', ') || 'none'}${missing.length ? `; unavailable right now: ${missing.join(', ')}` : ''}${failed.length ? ` [${failed.map((f) => f.slice(0, 90)).join(' | ')}]` : ''}. NZD: no free daily feed.`);
   if (have.size) markSuccess(YIELDS_SOURCE_ID, store.size);
   else markFailure(YIELDS_SOURCE_ID, failed.join(' | ') || 'no data');
 }
