@@ -18,6 +18,12 @@ sbtRouter.get('/scan', async (req: Request, res: Response) => {
   const asked = Number(req.query.bar);
   const bar = asked === now - H1 ? asked : now;
   if (!symbol) return res.status(400).json({ ok: false, error: 'symbol is required' });
+  // On Render's free CPU one strategy scan takes ~2 minutes and blocks the whole server, so live
+  // scanning is switched off there (set PPFX_SBT_LIVE_SCAN=1 on a bigger instance to turn it on).
+  if (process.env.RENDER && process.env.PPFX_SBT_LIVE_SCAN !== '1') {
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(503).json({ ok: false, symbol, error: 'Level scanning is not running on this host yet.', code: 'not_configured' });
+  }
   try {
     const r = await scanSymbol(symbol, bar);
     if (r.ok) {
