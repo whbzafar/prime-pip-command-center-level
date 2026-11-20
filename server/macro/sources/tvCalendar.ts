@@ -108,7 +108,7 @@ async function fetchRangeOnce(from: Date, to: Date): Promise<TvEvent[]> {
  * NZ CPI / labour prints and many others). Any response near the cap is therefore split in half and re-fetched.
  */
 const ROW_CAP = 1800;
-async function fetchRange(from: Date, to: Date, depth = 0): Promise<TvEvent[]> {
+export async function fetchRange(from: Date, to: Date, depth = 0): Promise<TvEvent[]> {
   const rows = await fetchRangeOnce(from, to);
   const span = to.getTime() - from.getTime();
   if (rows.length < ROW_CAP || depth >= 5 || span < 2 * 86_400_000) return rows;
@@ -137,6 +137,30 @@ function merge(events: TvEvent[]): void {
  * - full history (400 days, chunked) every 6 hours
  * - "live" window (−3d … +10d) on every call that is allowed by `minLiveIntervalMs`
  */
+/** Never let one stuck download hold the calendar job (and with it every fundamentals score) forever. */
+function withDeadline<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+  return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error(`${what} timed out after ${Math.round(ms / 1000)}s`)), ms))]);
+}
+
+const CAL_SNAPSHOT_URL = process.env.PPFX_CAL_SNAPSHOT_URL
+  || 'https://raw.githubusercontent.com/whbzafar/prime-pip-command-center-level/calendar-data/calendar.json';
+let lastSnapshotLoad = 0;
+
+/**
+ * One small download of the release history that a scheduled GitHub Action collected (see
+ * .github/workflows/calendar-data.yml). It makes a restart on a small free server instant instead of
+ * re-downloading ~17 big windows from TradingView.
+ */
+export async function loadCalendarSnapshot(): Promise<number> {
+  const j = await fetchJson<any>(CAL_SNAPSHOT_URL, { timeoutMs: 40_000, retries: 1 });
+  const rows: any[] = Array.isArray(j?.events) ? j.events : [];
+  const evs = rows.filter((e) => e && typeof e.id === 'string' && Number.isFinite(e.timestamp) && typeof e.key === 'string') as TvEvent[];
+  if (evs.length < 500) throw new Error('Calendar snapshot is empty or malformed');
+  merge(evs);
+  lastSnapshotLoad = Date.now();
+  return evs.length;
+}
+
 export async function refreshCalendar(opts: { force?: boolean; minLiveIntervalMs?: number } = {}): Promise<void> {
   const now = Date.now();
   const tasks: Promise<void>[] = [];
@@ -144,13 +168,19 @@ export async function refreshCalendar(opts: { force?: boolean; minLiveIntervalMs
   if (opts.force || now - lastHistoryLoad > HISTORY_TTL || store.size === 0) {
     tasks.push(
       (async () => {
+        // 1) the pre-collected history (fast, one request). Refreshed hourly so new prints land quickly.
+        if (store.size === 0 || now - lastSnapshotLoad > 60 * 60_000) {
+          try { await loadCalendarSnapshot(); lastHistoryLoad = Date.now(); if (store.size > 0 && !opts.force) return; }
+          catch (e: any) { console.warn('[Calendar] snapshot unavailable:', e?.message || e); }
+        }
+        if (store.size > 0 && !opts.force && now - lastHistoryLoad <= HISTORY_TTL) return;
+        // 2) otherwise download the history window by window from TradingView.
         const chunkDays = 24; // ≈ 840 rows for 10 countries — safely below the API's 2000-row cap
         const ranges: Array<[Date, Date]> = [];
         for (let back = HISTORY_DAYS; back > 0; back -= chunkDays) {
           ranges.push([new Date(now - back * 86_400_000), new Date(Math.min(now - (back - chunkDays) * 86_400_000, now))]);
         }
-        // Parallel chunks; a failed chunk does not discard the others.
-        const results = await Promise.allSettled(ranges.map(([f, t]) => fetchRange(f, t)));
+        const results = await Promise.allSettled(ranges.map(([f, t]) => withDeadline(fetchRange(f, t), 60_000, 'calendar window')));
         let okChunks = 0;
         for (const r of results) if (r.status === 'fulfilled') { merge(r.value); okChunks++; }
         if (okChunks === 0) throw (results[0] as PromiseRejectedResult).reason;
@@ -163,20 +193,19 @@ export async function refreshCalendar(opts: { force?: boolean; minLiveIntervalMs
   if (opts.force || now - lastLiveLoad > minLive) {
     tasks.push(
       (async () => {
-        merge(await fetchRange(new Date(now - 3 * 86_400_000), new Date(now + 10 * 86_400_000)));
+        merge(await withDeadline(fetchRange(new Date(now - 3 * 86_400_000), new Date(now + 10 * 86_400_000)), 60_000, 'live calendar'));
         lastLiveLoad = Date.now();
       })()
     );
   }
 
   if (tasks.length === 0) return;
-  try {
-    await Promise.all(tasks);
-    markSuccess(TV_SOURCE_ID, store.size);
-  } catch (err) {
-    markFailure(TV_SOURCE_ID, err);
-    if (store.size === 0) throw err;
-  }
+  // Each part reports on its own, so a failing live window cannot hide a good history (and vice versa).
+  const settled = await Promise.allSettled(tasks);
+  const failed = settled.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
+  if (failed) markFailure(TV_SOURCE_ID, failed.reason);
+  if (store.size > 0) markSuccess(TV_SOURCE_ID, store.size);
+  else if (failed) throw failed.reason;
 }
 
 export function getAllEvents(): TvEvent[] {
