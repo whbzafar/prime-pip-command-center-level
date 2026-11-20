@@ -14,6 +14,10 @@ describe('government yield parsers', () => {
     const r = parseMof('Interest Rate (%)\nDate,1Y,2Y,3Y,10Y\n2026/11/18,0.7,0.95,1.0,1.9\n');
     expect(r.two.get('2026-11-18')).toBe(0.95); expect(r.ten.get('2026-11-18')).toBe(1.9);
   });
+  it('Japan MoF Japanese file with Reiwa dates', () => {
+    const r = parseMof('国債金利情報(令和8年11月)\n基準日,1年,2年,10年\nR8.11.18,0.7,0.95,1.9\n');
+    expect(r.two.get('2026-11-18')).toBe(0.95); expect(r.ten.get('2026-11-18')).toBe(1.9);
+  });
   it('RBA F2', () => {
     const r = parseRba('F2 CAPITAL MARKET YIELDS\nTitle,Australian Government 2 year bond,Australian Government 10 year bond\nSeries ID,FCMYGBAG2D,FCMYGBAG10D\n18-Nov-2026,3.80,4.40\n');
     expect(r.two.get('2026-11-18')).toBe(3.8); expect(r.ten.get('2026-11-18')).toBe(4.4);

@@ -11,7 +11,7 @@
  * NZD has no free machine-readable daily yield feed, so it is reported as unavailable instead of guessed.
  * Each country is fetched on its own: one publisher being down never affects the others.
  */
-import { fetchText, fetchJson, markFailure, markSuccess, registerSource, setSourceNote, toNum } from './http.js';
+import { fetchText, fetchJson, fetchWithRetry, markFailure, markSuccess, registerSource, setSourceNote, toNum } from './http.js';
 import type { SeriesPoint } from './fred.js';
 
 export const YIELDS_SOURCE_ID = 'gov_yields';
@@ -86,42 +86,55 @@ async function loadEur(): Promise<void> {
 // ───────────────────────────────────────── Japan
 export function parseMof(csv: string): { two: Map<string, number>; ten: Map<string, number> } {
   const lines = csv.split(/\r?\n/);
-  const hi = lines.findIndex((l) => /^"?date"?\s*,/i.test(l.trim()));
+  const hi = lines.findIndex((l) => /^"?(date|基準日)"?\s*,/i.test(l.trim()));
   const two = new Map<string, number>(); const ten = new Map<string, number>();
   if (hi < 0) return { two, ten };
-  const head = cells(lines[hi]).map((h) => h.toUpperCase());
+  const head = cells(lines[hi]).map((h) => h.toUpperCase().replace('年', 'Y'));
   const i2 = head.indexOf('2Y'); const i10 = head.indexOf('10Y');
   for (const l of lines.slice(hi + 1)) {
     const c = cells(l);
+    let d = '';
     const m = /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/.exec(c[0] || '');
-    if (!m) continue;
-    const d = `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+    const r = /^R(\d{1,2})\.(\d{1,2})\.(\d{1,2})$/i.exec(c[0] || ''); // Reiwa era, e.g. R8.11.18
+    if (m) d = `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+    else if (r) d = `${2018 + Number(r[1])}-${r[2].padStart(2, '0')}-${r[3].padStart(2, '0')}`;
+    if (!d) continue;
     const a = toNum(c[i2]); const b = toNum(c[i10]);
     if (i2 >= 0 && plausible(a)) two.set(d, a);
     if (i10 >= 0 && plausible(b)) ten.set(d, b);
   }
   return { two, ten };
 }
-/** First URL that answers (publishers move files around: try each known address). */
-async function firstText(urls: string[], headers?: Record<string, string>): Promise<string> {
-  let err: unknown = null;
-  for (const u of urls) { try { return await fetchText(u, { timeoutMs: 20_000, retries: 1, headers }); } catch (e) { err = e; } }
-  throw err instanceof Error ? err : new Error(String(err));
+/** MoF publishes Shift-JIS files: decode the bytes properly (UTF-8 turns them into garbage). */
+async function bytesText(url: string, headers?: Record<string, string>): Promise<string> {
+  const res = await fetchWithRetry(url, { timeoutMs: 25_000, retries: 1, headers });
+  const buf = await res.arrayBuffer();
+  try { return new TextDecoder('shift_jis').decode(buf); } catch { return new TextDecoder().decode(buf); }
 }
 const BROWSER_HEADERS = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', Accept: 'text/csv,text/plain,*/*;q=0.8', 'Accept-Language': 'en-US,en;q=0.9' };
 async function loadJpy(): Promise<void> {
-  const csv = await firstText([
-    'https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcm.csv',
-    'https://www.mof.go.jp/english/jgbs/reference/interest_rate/jgbcm.csv',
-    'https://www.mof.go.jp/jgbs/reference/interest_rate/jgbcm.csv',
+  // Full history first (needed for the 21-day comparison), then the current-month file for the latest days.
+  const urls = [
     'https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/historical/jgbcm_all.csv',
+    'https://www.mof.go.jp/jgbs/reference/interest_rate/historical/jgbcm_all.csv',
     'https://www.mof.go.jp/english/jgbs/reference/interest_rate/historical/jgbcm_all.csv',
-  ], BROWSER_HEADERS);
-  const { two, ten } = parseMof(csv);
+    'https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcm.csv',
+    'https://www.mof.go.jp/jgbs/reference/interest_rate/jgbcm.csv',
+    'https://www.mof.go.jp/english/jgbs/reference/interest_rate/jgbcm.csv',
+  ];
+  const two = new Map<string, number>(); const ten = new Map<string, number>();
+  const errs: string[] = []; let got = 0;
+  for (const u of urls) {
+    try {
+      const r = parseMof(await bytesText(u, BROWSER_HEADERS));
+      if (r.two.size || r.ten.size) { got++; r.two.forEach((v, k) => two.set(k, v)); r.ten.forEach((v, k) => ten.set(k, v)); }
+      else errs.push(`${u.slice(-28)}: 0 rows`);
+    } catch (e: any) { errs.push(`${u.slice(-28)}: ${String(e?.message || e).slice(0, 30)}`); }
+  }
   const cut = sinceIso();
   const trim = (m: Map<string, number>) => new Map([...m].filter(([d]) => d >= cut));
-  if (!two.size && !ten.size) throw new Error(`MoF CSV parsed 0 rows (len ${csv.length}, head: ${JSON.stringify(csv.slice(0, 80))})`);
   put('JPY', '2Y', trim(two), 'Japan Ministry of Finance JGB curve'); put('JPY', '10Y', trim(ten), 'Japan Ministry of Finance JGB curve');
+  if (!store.has('JPY_10Y') && !store.has('JPY_2Y')) throw new Error(`MoF: ${got} files parsed, ${two.size}/${ten.size} rows; ${errs.join('; ')}`);
 }
 
 // ───────────────────────────────────────── Australia
@@ -147,8 +160,8 @@ export function parseRba(csv: string): { two: Map<string, number>; ten: Map<stri
   }
   return { two, ten };
 }
-async function loadAud(): Promise<void> {
-  const csv = await firstText(['https://www.rba.gov.au/statistics/tables/csv/f2-data.csv', 'https://www.rba.gov.au/statistics/tables/csv/f2.1-data.csv'], { ...BROWSER_HEADERS, Referer: 'https://www.rba.gov.au/statistics/tables/' });
+export async function loadAud(): Promise<void> {
+  const csv = await fetchText('https://www.rba.gov.au/statistics/tables/csv/f2-data.csv', { timeoutMs: 20_000, retries: 1, headers: BROWSER_HEADERS });
   const { two, ten } = parseRba(csv);
   const cut = sinceIso();
   const trim = (m: Map<string, number>) => new Map([...m].filter(([d]) => d >= cut));
@@ -170,7 +183,7 @@ export function parseSnb(csv: string): { two: Map<string, number>; ten: Map<stri
   }
   return { two, ten };
 }
-async function loadChf(): Promise<void> {
+export async function loadChf(): Promise<void> {
   const csv = await fetchText(`https://data.snb.ch/api/cube/rendoblid/data/csv/en?fromDate=${sinceIso().slice(0, 7)}`, { timeoutMs: 20_000, retries: 1 });
   const { two, ten } = parseSnb(csv);
   if (!two.size && !ten.size) throw new Error(`SNB CSV parsed 0 rows (len ${csv.length}, head: ${JSON.stringify(csv.slice(0, 120))})`);
@@ -197,7 +210,7 @@ async function loadGbp(): Promise<void> {
   put('GBP', '10Y', parseBoe(csv), 'Bank of England nominal par yield (10Y)');
 }
 
-const LOADERS: Array<[string, () => Promise<void>]> = [['CAD', loadCad], ['EUR', loadEur], ['JPY', loadJpy], ['AUD', loadAud], ['CHF', loadChf], ['GBP', loadGbp]];
+const LOADERS: Array<[string, () => Promise<void>]> = [['CAD', loadCad], ['EUR', loadEur], ['JPY', loadJpy], ['GBP', loadGbp]];
 
 export async function refreshYields(force = false): Promise<void> {
   if (!force && Date.now() - lastRun < TTL && store.size) return;
@@ -206,7 +219,7 @@ export async function refreshYields(force = false): Promise<void> {
   await Promise.all(LOADERS.map(async ([ccy, fn]) => { try { await fn(); } catch (e: any) { failed.push(`${ccy}: ${e?.message || e}`); } }));
   const have = new Set([...store.keys()].map((k) => k.split('_')[0]));
   const missing = LOADERS.map(([c]) => c).filter((c) => !have.has(c));
-  setSourceNote(YIELDS_SOURCE_ID, `Live for ${[...have].sort().join(', ') || 'none'}${missing.length ? `; unavailable right now: ${missing.join(', ')}` : ''}${failed.length ? ` [${failed.map((f) => f.slice(0, 90)).join(' | ')}]` : ''}. NZD: no free daily feed.`);
+  setSourceNote(YIELDS_SOURCE_ID, `Live for ${[...have].sort().join(', ') || 'none'}${missing.length ? `; unavailable right now: ${missing.join(', ')}` : ''}${failed.length ? ` [${failed.map((f) => f.slice(0, 90)).join(' | ')}]` : ''}. AUD/CHF/NZD: no free daily feed reachable (RBA blocks cloud servers, SNB is monthly).`);
   if (have.size) markSuccess(YIELDS_SOURCE_ID, store.size);
   else markFailure(YIELDS_SOURCE_ID, failed.join(' | ') || 'no data');
 }

@@ -216,10 +216,10 @@ function currencySpec(ccy: string): AssetSpec {
     policyDiffInd(c, ccy, false),
     policyDiffInd(c, ccy, true),
   ];
-  if (ccy !== 'USD' && ccy !== 'NZD') {
-    // Official 2Y/10Y government yields vs the US (NZD has no free daily feed; JPY/CHF keep their US-10Y driver, so only the 2Y/domestic spread is added once).
-    if (['EUR', 'CAD', 'AUD', 'JPY', 'CHF'].includes(ccy)) monetary.push(yieldSpreadInd(ccy, '2Y', 2.5));
-    monetary.push(yieldSpreadInd(ccy, '10Y', ccy === 'JPY' || ccy === 'CHF' ? 1 : 1.5));
+  {
+    // Official 2Y/10Y government yields vs the US, only where a free daily official feed is reachable (EUR, GBP, CAD, JPY).
+    if (['EUR', 'CAD', 'JPY'].includes(ccy)) monetary.push(yieldSpreadInd(ccy, '2Y', 2.5));
+    if (['EUR', 'CAD', 'JPY', 'GBP'].includes(ccy)) monetary.push(yieldSpreadInd(ccy, '10Y', ccy === 'JPY' ? 1 : 1.5));
   }
   if (ccy === 'USD') {
     monetary.push(fredInd({ id: 'us2y', name: '2-Year Treasury Yield', desc: 'The market’s pricing of the Fed path over the next two years.',
