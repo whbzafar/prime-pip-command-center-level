@@ -188,6 +188,18 @@ export const Header: React.FC<HeaderProps> = ({
   const displayScore = overallScore ?? scores?.overallTradingScore ?? 76;
   const isSubscriber = hasFullAccess(currentUser);
   const isPsychLocked = !isSubscriber;
+  // Vertical category menu (default) or the old horizontal tab strip — remembered per device.
+  const [navMode, setNavModeState] = useState<'menu' | 'tabs'>(() => { try { return localStorage.getItem('ppfx_nav_mode') === 'tabs' ? 'tabs' : 'menu'; } catch { return 'menu'; } });
+  const setNavMode = (m: 'menu' | 'tabs') => { setNavModeState(m); try { localStorage.setItem('ppfx_nav_mode', m); } catch { /* storage blocked */ } };
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuQuery, setMenuQuery] = useState('');
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent | TouchEvent) => { const el = document.getElementById('ppfx-nav-menu'); if (el && !el.contains(e.target as Node)) setMenuOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+    document.addEventListener('mousedown', onDown); document.addEventListener('touchstart', onDown); document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('touchstart', onDown); document.removeEventListener('keydown', onKey); };
+  }, [menuOpen]);
   const [isTimeModalOpen, setIsTimeModalOpen] = React.useState<boolean>(false);
   // Phones: the status / tool rows fold behind one "Tools" button so the page content is visible first.
   const [toolsOpen, setToolsOpen] = React.useState<boolean>(false);
@@ -1126,6 +1138,60 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
+        {navMode === 'menu' && (
+          <div id="ppfx-nav-menu" className="relative flex-1 min-w-0 z-40 flex items-center gap-2">
+            <button type="button" data-testid="nav-menu-button" aria-expanded={menuOpen} aria-haspopup="menu" onClick={() => { setMenuOpen((v) => !v); setMenuQuery(''); }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border font-mono-code text-[12px] font-bold uppercase tracking-tight cursor-pointer transition ${menuOpen ? 'border-cyan-300 bg-cyan-500/25 text-cyan-50' : 'border-cyan-400/60 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25'}`}>
+              <Layers className="w-4 h-4" />
+              <span>Menu</span>
+              <span className="hidden sm:inline text-slate-300 normal-case font-semibold">· {allNavCategories.find((c) => c.id === activeTab)?.label.replace(/^\d+\.\s*/, '') || 'Categories'}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {menuOpen && (
+              <div role="menu" data-testid="nav-menu-panel" className="absolute left-0 top-full mt-1.5 w-[min(340px,calc(100vw-1rem))] max-h-[min(78vh,calc(100dvh-7rem))] flex flex-col rounded-2xl border border-cyan-400/40 bg-[#0b1122]/98 backdrop-blur-xl shadow-[0_25px_80px_-20px_rgba(34,211,238,0.35)]">
+                <div className="p-2 border-b border-slate-800">
+                  <input value={menuQuery} onChange={(e) => setMenuQuery(e.target.value)} placeholder="Find a category…" aria-label="Find a category" autoFocus
+                    className="w-full rounded-lg bg-slate-950 border border-slate-700 px-2.5 py-1.5 text-[12px] text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-400" />
+                </div>
+                <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
+                  {allNavCategories.filter((c) => !menuQuery.trim() || c.label.toLowerCase().includes(menuQuery.trim().toLowerCase())).map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id;
+                    const locked = isCategoryLockedInDemo(item.id, isDemoMode, currentUser);
+                    return (
+                      <button key={item.id} type="button" role="menuitem" id={`nav-tab-${item.id.toLowerCase()}`} data-active-nav={isActive ? 'true' : 'false'}
+                        onClick={() => { setMenuOpen(false); handleNavClick(item.id); }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border text-left cursor-pointer transition ${isActive ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-slate-950 border-cyan-300 font-bold' : 'border-transparent text-slate-200 hover:bg-slate-800/80 hover:border-slate-700'}`}>
+                        <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-slate-950' : 'text-cyan-300'}`} />
+                        <span className="flex-1 min-w-0 truncate text-[12px] font-mono-code font-bold uppercase tracking-tight">{item.label}</span>
+                        {locked ? (
+                          <span className="flex items-center gap-1 text-[8px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-1.5 py-0.5 rounded uppercase font-bold"><Lock className="w-2.5 h-2.5" />LOCKED</span>
+                        ) : (
+                          <>
+                            {(item as any).comingSoon && <span className="text-[8px] bg-blue-500/20 text-cyan-300 border border-blue-500/40 px-1 rounded uppercase">SOON</span>}
+                            {(item as any).isLive && <span className="flex items-center gap-1 text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-1.5 py-0.5 rounded font-bold uppercase"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />LIVE</span>}
+                          </>
+                        )}
+                      </button>
+                    );
+                  })}
+                  {!allNavCategories.some((c) => !menuQuery.trim() || c.label.toLowerCase().includes(menuQuery.trim().toLowerCase())) && <div className="px-3 py-4 text-center text-[12px] text-slate-500">No category matches “{menuQuery}”.</div>}
+                </div>
+                <div className="flex items-center gap-2 p-2 border-t border-slate-800">
+                  {onOpenAllCategories && <button type="button" onClick={() => { setMenuOpen(false); onOpenAllCategories(); }} className="flex-1 px-2 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-200 text-[11px] font-bold cursor-pointer">Explore all (descriptions)</button>}
+                  <button type="button" data-testid="nav-mode-tabs" onClick={() => { setMenuOpen(false); setNavMode('tabs'); }} className="px-2 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:text-white text-[11px] cursor-pointer">Horizontal tabs</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {navMode === 'tabs' && (
+          <button type="button" data-testid="nav-mode-menu" onClick={() => setNavMode('menu')} title="Show categories as a vertical menu" aria-label="Vertical menu"
+            className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center border border-cyan-400/60 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/30 cursor-pointer relative z-30"><Layers className="w-4 h-4" /></button>
+        )}
+
+        {navMode === 'tabs' && (<>
         {/* Left Scroll Marker Button — Prominent, bidirectional indicator */}
         <button
           type="button"
@@ -1251,6 +1317,7 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
         </button>
+        </>)}
       </div>
       </div>
 
