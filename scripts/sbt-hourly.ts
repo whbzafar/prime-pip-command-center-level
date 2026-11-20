@@ -12,7 +12,7 @@ import { execFileSync } from 'node:child_process';
 import { scanSymbol, currentBar } from '../server/sbt/sbtScanner';
 import { diffEvents, marketEvents, toState, type LevelEvent, type PairState } from '../server/sbt/levelEvents';
 
-const SITE = process.env.PPFX_SITE || 'https://www.primepipfx.site';
+const SITE = process.env.PPFX_SITE || 'https://primepipfx.site';
 const REPO = process.env.GITHUB_REPOSITORY || 'whbzafar/prime-pip-command-center-level';
 const TAG = 'sbt-levels';
 const MIN_SCORE = 10;
