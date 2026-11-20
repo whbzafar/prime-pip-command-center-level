@@ -17,6 +17,7 @@ import { buildCorrelation, buildPairs } from './pairs.js';
 import { METHODOLOGY_VERSION, eventMatches, patternsFor, scoreAsset, type EngineContext } from './scoring.js';
 import { refreshCalendar, getAllEvents, isHotWindow, calendarLoaded } from './sources/tvCalendar.js';
 import { refreshFred } from './sources/fred.js';
+import { refreshYields } from './sources/yields.js';
 import { refreshPrices } from './sources/prices.js';
 import { refreshCot } from './sources/cot.js';
 import { refreshCrypto } from './sources/crypto.js';
@@ -122,6 +123,7 @@ function refreshSources(force: boolean): { calendar: Promise<void>; all: Promise
   if (isDue('prices', force)) { due.prices = Date.now() + 120_000; jobs.push(runJob('prices', () => refreshPrices(force), 'prices', EVERY.prices)); }
   const cotEvery = cotReleaseWindow() ? 10 * 60_000 : EVERY.cot;
   if (isDue('cot', force)) { due.cot = Date.now() + 120_000; jobs.push(runJob('cot', () => refreshCot(true), 'cftc_cot', cotEvery)); }
+  if (isDue('yields', force)) { due.yields = Date.now() + 120_000; jobs.push(runJob('yields', () => refreshYields(force), 'gov_yields', 3 * 3600_000)); }
   if (isDue('fundsnap', force)) { due.fundsnap = Date.now() + 120_000; jobs.push(runJob('fundsnap', () => refreshSnapshot(force), 'fund_snapshot', 30 * 60_000)); }
   if (isDue('crypto', force)) { due.crypto = Date.now() + 120_000; jobs.push(runJob('crypto', () => refreshCrypto(true), 'crypto_fng', EVERY.crypto)); }
   // Retail positioning (FXSSI + OKX/Gate.io/Bitget) feeds the contrarian indicators; refresh it with the rest.

@@ -13,6 +13,7 @@ import type { ScoreComponent } from './types.js';
 import { squash, clamp, findLatest } from './scoring.js';
 import { getCachedFred, fredSourceOf, latest, valueDaysAgo, zScore, type FredId } from './sources/fred.js';
 import { getPrices, getPriceVia } from './sources/prices.js';
+import { getYield, yieldSourceOf, type Tenor } from './sources/yields.js';
 import { getCotSignal } from './sources/cot.js';
 import { getDeriv, getFng, getHashrate, getStables } from './sources/crypto.js';
 import { getCachedSentiment } from './sources/sentiment.js';
@@ -162,6 +163,42 @@ function policyDiffInd(country: string, ccy: string, real: boolean): CustomSpec 
   };
 }
 
+/** Government-bond yield spread vs US Treasuries (official central-bank / treasury data): one of the strongest FX drivers. */
+function yieldSpreadInd(ccy: string, tenor: Tenor, weight: number): CustomSpec {
+  const usId: FredId = tenor === '2Y' ? 'DGS2' : 'DGS10';
+  return {
+    kind: 'custom', id: `${ccy.toLowerCase()}_spread_${tenor.toLowerCase()}`, name: `${tenor} Yield Spread vs US`, freq: 'Daily', weight, polarity: 1,
+    desc: `${ccy} ${tenor} government bond yield minus the US Treasury ${tenor} yield. A widening spread in ${ccy}'s favour pulls in carry and capital flows.`,
+    polarityNote: `Spread moving in ${ccy}'s favour (local yield rising vs US) = bullish ${ccy}`,
+    compute: (ctx) => {
+      const local = getYield(ccy, tenor); const us = getCachedFred(usId);
+      if (local.length < 10 || us.length < 10) return null;
+      const usAt = (d: string): number | null => { for (let i = us.length - 1; i >= 0; i--) if (us[i].date <= d) return us[i].value; return null; };
+      const spreads = local.map((p) => { const u = usAt(p.date); return u === null ? null : { date: p.date, local: p.value, us: u, v: p.value - u }; }).filter((x): x is { date: string; local: number; us: number; v: number } => x !== null);
+      if (spreads.length < 10) return null;
+      const last = spreads[spreads.length - 1];
+      const target = new Date(last.date).getTime() - 21 * DAY;
+      const prev = [...spreads].reverse().find((x) => new Date(x.date).getTime() <= target);
+      if (!prev) return null;
+      const recent = spreads.slice(-125);
+      const avg = recent.reduce((a, x) => a + x.v, 0) / recent.length;
+      const chg = last.v - prev.v;
+      const lvl = last.v - avg;
+      return {
+        observation: { actual: r2(last.v), forecast: null, previous: r2(prev.v), releasedAt: new Date(last.date).toISOString(), period: last.date, unit: 'pp',
+          sourceTitle: `${ccy} ${tenor} ${r2(last.local)}% − US ${tenor} ${r2(last.us)}%`, sourceName: yieldSourceOf(ccy) || 'Official government bond yields', sourceUrl: 'https://home.treasury.gov/resource-center/data-chart-center/interest-rates',
+          extra: { change21d: r2(chg), vs6mAverage: r2(lvl), local: r2(last.local), us: r2(last.us) } },
+        components: [
+          { key: 'trend', label: '21-day change in spread', value: squash(chg / 0.25), weight: 1, detail: `${r2(prev.v)} → ${r2(last.v)}pp (${chg >= 0 ? '+' : ''}${r2(chg)}pp)` },
+          { key: 'level', label: 'Spread vs 6-month average', value: squash(lvl / 0.35), weight: 0.5, detail: `${r2(last.v)}pp vs ${r2(avg)}pp average` },
+        ],
+        reasoning: `${ccy} ${tenor} yield ${r2(last.local)}% vs US ${r2(last.us)}% → spread ${r2(last.v)}pp, ${chg >= 0 ? 'widening' : 'narrowing'} ${r2(Math.abs(chg))}pp over ~21 days.`,
+        ageDays: ageOf(last.date, ctx.now) - 1, intervalDays: 4,
+      } satisfies CustomOut;
+    },
+  };
+}
+
 // ───────────────────────────────────────── currencies
 
 const HAWK = (ccy: string) => `Higher reading pushes the ${CENTRAL_BANK[ccy]} hawkish = bullish ${ccy}`;
@@ -179,6 +216,11 @@ function currencySpec(ccy: string): AssetSpec {
     policyDiffInd(c, ccy, false),
     policyDiffInd(c, ccy, true),
   ];
+  if (ccy !== 'USD' && ccy !== 'NZD') {
+    // Official 2Y/10Y government yields vs the US (NZD has no free daily feed; JPY/CHF keep their US-10Y driver, so only the 2Y/domestic spread is added once).
+    if (['EUR', 'CAD', 'AUD', 'JPY', 'CHF'].includes(ccy)) monetary.push(yieldSpreadInd(ccy, '2Y', 2.5));
+    monetary.push(yieldSpreadInd(ccy, '10Y', ccy === 'JPY' || ccy === 'CHF' ? 1 : 1.5));
+  }
   if (ccy === 'USD') {
     monetary.push(fredInd({ id: 'us2y', name: '2-Year Treasury Yield', desc: 'The market’s pricing of the Fed path over the next two years.',
       series: 'DGS2', days: 21, changeScale: 0.2, polarity: 1, weight: 2.5, unit: '%', polarityNote: 'Rising 2Y yield (fewer cuts priced) = bullish USD' }));
