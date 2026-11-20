@@ -19,6 +19,7 @@ registerSource(YIELDS_SOURCE_ID, 'Government bond yields (central banks / treasu
   'Official daily 2Y / 10Y yields: Bank of Canada, ECB, Japan MoF, RBA, SNB, Bank of England.');
 
 export type Tenor = '2Y' | '10Y';
+let jpyInfo = '';
 const store = new Map<string, SeriesPoint[]>(); // `${CCY}_${tenor}`
 const origin = new Map<string, string>();
 let lastRun = 0;
@@ -124,15 +125,25 @@ async function loadJpy(): Promise<void> {
   ];
   const two = new Map<string, number>(); const ten = new Map<string, number>();
   const errs: string[] = []; let got = 0;
+  // The ministry moves its files around: also read the links straight from its publication page.
+  for (const page of ['https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/index.htm', 'https://www.mof.go.jp/english/jgbs/reference/interest_rate/index.htm']) {
+    try {
+      const html = await bytesText(page, BROWSER_HEADERS);
+      const found = [...html.matchAll(/href="([^"]*jgbcm[^"]*\.csv)"/gi)].map((m) => new URL(m[1], page).toString());
+      for (const f of found) if (!urls.includes(f)) urls.unshift(f);
+      if (found.length) break;
+    } catch (e: any) { errs.push(`page: ${String(e?.message || e).slice(0, 30)}`); }
+  }
   for (const u of urls) {
     try {
       const r = parseMof(await bytesText(u, BROWSER_HEADERS));
       if (r.two.size || r.ten.size) { got++; r.two.forEach((v, k) => two.set(k, v)); r.ten.forEach((v, k) => ten.set(k, v)); }
-      else errs.push(`${u.slice(-28)}: 0 rows`);
+      else errs.push(`${u.slice(-34)}: 0 rows`);
     } catch (e: any) { errs.push(`${u.slice(-28)}: ${String(e?.message || e).slice(0, 30)}`); }
   }
   const cut = sinceIso();
   const trim = (m: Map<string, number>) => new Map([...m].filter(([d]) => d >= cut));
+  jpyInfo = `JPY: ${got} files, ${ten.size} daily rows, ${errs.length} issues (${errs.join('; ').slice(0, 160)})`;
   put('JPY', '2Y', trim(two), 'Japan Ministry of Finance JGB curve'); put('JPY', '10Y', trim(ten), 'Japan Ministry of Finance JGB curve');
   if (!store.has('JPY_10Y') && !store.has('JPY_2Y')) throw new Error(`MoF: ${got} files parsed, ${two.size}/${ten.size} rows; ${errs.join('; ')}`);
 }
@@ -219,7 +230,7 @@ export async function refreshYields(force = false): Promise<void> {
   await Promise.all(LOADERS.map(async ([ccy, fn]) => { try { await fn(); } catch (e: any) { failed.push(`${ccy}: ${e?.message || e}`); } }));
   const have = new Set([...store.keys()].map((k) => k.split('_')[0]));
   const missing = LOADERS.map(([c]) => c).filter((c) => !have.has(c));
-  setSourceNote(YIELDS_SOURCE_ID, `Live for ${[...have].sort().join(', ') || 'none'}${missing.length ? `; unavailable right now: ${missing.join(', ')}` : ''}${failed.length ? ` [${failed.map((f) => f.slice(0, 90)).join(' | ')}]` : ''}. AUD/CHF/NZD: no free daily feed reachable (RBA blocks cloud servers, SNB is monthly).`);
+  setSourceNote(YIELDS_SOURCE_ID, `Live for ${[...have].sort().join(', ') || 'none'}${missing.length ? `; unavailable right now: ${missing.join(', ')}` : ''}${failed.length ? ` [${failed.map((f) => f.slice(0, 90)).join(' | ')}]` : ''}. AUD/CHF/NZD: no free daily feed reachable (RBA blocks cloud servers, SNB is monthly). ${jpyInfo}`);
   if (have.size) markSuccess(YIELDS_SOURCE_ID, store.size);
   else markFailure(YIELDS_SOURCE_ID, failed.join(' | ') || 'no data');
 }
