@@ -3,6 +3,9 @@
 # dist/ and every /api/* route. On a long-running host the fundamentals/news refreshers run on a
 # background schedule instead of per request, which is far cheaper than serverless.
 #
+# The free plan has only 512 MB RAM, which is not enough to run the Vite build, so the app is built
+# elsewhere and the output is published on the `render-deploy` branch; Render only installs the
+# production dependencies and starts the server.
 # Deploy: Render dashboard → New → Blueprint → pick this repo → Apply.
 # Then copy the environment variables from the old Vercel project into this service's
 # Environment tab (names listed in docs/HOSTING.md). The free plan sleeps after 15 min idle and
@@ -13,9 +16,9 @@ services:
     runtime: node
     plan: free
     region: singapore
-    branch: main
-    buildCommand: npm ci --include=dev && npm run build
-    startCommand: npm start
+    branch: render-deploy
+    buildCommand: npm ci --omit=dev --no-audit --no-fund
+    startCommand: node dist/server.cjs
     healthCheckPath: /api/__health
     autoDeploy: true
     envVars:
