@@ -115,6 +115,14 @@ async function loadScript() {
   return v;
 }
 export const sbtConfigured = async () => Boolean(await loadScript());
+/** The administrator's original strategy source (for the verified hourly job only — never a browser). */
+export async function rawStrategySource(): Promise<string | null> {
+  try {
+    const lib = (await readScripts()).filter((s) => /sbt/i.test(s.name)).sort((a, b) => b.updatedAt - a.updatedAt);
+    for (const s of lib) if (instrument(s.source.replace(/\r\n/g, '\n'))) return s.source;
+  } catch { /* fall through */ }
+  return bundled();
+}
 /** Which strategy the scanner runs right now (name only — never the source). */
 export async function sbtStatus() {
   const v = await loadScript();

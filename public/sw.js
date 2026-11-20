@@ -55,11 +55,26 @@ self.addEventListener('fetch', (event) => {
 });
 
 // Tapping a PrimePipFX notification focuses (or opens) the app.
+// Phone / PC notifications for H1 Level 1 / Level 2 events, delivered even when the app is closed.
+self.addEventListener('push', (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch { d = { title: 'Prime Pip', body: event.data ? event.data.text() : '' }; }
+  event.waitUntil((async () => {
+    await self.registration.showNotification(d.title || 'Prime Pip level alert', {
+      body: d.body || '', icon: '/pwa-192x192.png', badge: '/pwa-192x192.png', tag: d.tag || 'ppfx-level',
+      renotify: d.renotify !== false, requireInteraction: true, data: { url: d.url || '/?tab=FUNDAMENTALS' },
+    });
+    // If the app is open somewhere, let it speak the announcement too.
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of all) c.postMessage({ type: 'ppfx-level-push', speech: d.speech || '', title: d.title || '', kind: d.kind || '' });
+  })());
+});
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const c of all) { if ('focus' in c) return c.focus(); }
-    if (self.clients.openWindow) return self.clients.openWindow('/');
+    if (self.clients.openWindow) return self.clients.openWindow((event.notification.data && event.notification.data.url) || '/');
   })());
 });

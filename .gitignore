@@ -7,3 +7,4 @@ coverage/
 .env*
 !.env.example
 data/macro_fundamentals_store.json
+data/pine_private_scripts.json

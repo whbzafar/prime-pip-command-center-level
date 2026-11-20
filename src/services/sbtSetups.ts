@@ -51,8 +51,34 @@ export function announceSetups(list: Array<{ display: string; side: 1 | -1; leve
 export async function enableLevelAlerts(): Promise<NotificationPermission | 'unsupported'> {
   unlockAudio();
   if (typeof Notification === 'undefined') return 'unsupported';
-  if (Notification.permission === 'default') { try { return await Notification.requestPermission(); } catch { return Notification.permission; } }
-  return Notification.permission;
+  let perm = Notification.permission;
+  if (perm === 'default') { try { perm = await Notification.requestPermission(); } catch { perm = Notification.permission; } }
+  if (perm === 'granted') void subscribePush();
+  return perm;
+}
+
+const b64ToU8 = (b: string) => { const p = '='.repeat((4 - (b.length % 4)) % 4); const r = atob((b + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...r].map((c) => c.charCodeAt(0))); };
+/** Register this phone / PC for background notifications (works with the app closed). */
+export async function subscribePush(): Promise<boolean> {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+    const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.register('/sw.js'));
+    await navigator.serviceWorker.ready;
+    const k = await fetch('/api/push/key').then((r) => r.json());
+    if (!k?.ok) return false;
+    const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(k.key) }));
+    const r = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+    return r.ok;
+  } catch { return false; }
+}
+// A push that arrives while the app is open is spoken (the notification itself is shown by the service worker).
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (m: MessageEvent) => {
+    if (m.data?.type !== 'ppfx-level-push' || !m.data.speech) return;
+    const cfg = getLevelSettings();
+    if (cfg.sound) playSound(cfg.soundId);
+    if (cfg.voice) setTimeout(() => speak(String(m.data.speech)), cfg.sound ? 1500 : 0);
+  });
 }
 
 export function testLevelAlert() {
@@ -82,16 +108,15 @@ export interface PairScan {
   inTrade?: boolean;
 }
 export interface LevelAlert { id: string; symbol: string; display: string; side: 1 | -1; level: 1 | 2; price: number; zoneTop: number; zoneBottom: number; models: string[]; time: number; score: number; depthPips?: number; stop?: number; target?: number; crowd?: string; news?: string; checked?: string[] }
-export interface LevelState { status: 'idle' | 'loading' | 'ready' | 'not_configured'; pairs: PairScan[]; alerts: LevelAlert[]; updatedAt: number; unseen: number }
+export interface LevelState { status: 'idle' | 'loading' | 'ready' | 'not_configured' | 'waiting'; pairs: PairScan[]; alerts: LevelAlert[]; events: LevelEvent[]; marketOpen: boolean; updatedAt: number; unseen: number }
 
 const read = <T,>(k: string, d: T): T => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v ?? d; } catch { return d; } };
 const write = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage blocked */ } };
 const chartSym = (s: string) => ({ BTCUSD: 'BTCUSDT', ETHUSD: 'ETHUSDT', XRPUSD: 'XRPUSDT', SOLUSD: 'SOLUSDT' } as Record<string, string>)[s] || s;
 
-let state: LevelState = { status: 'idle', pairs: [], alerts: read<LevelAlert[]>(K_LOG, []).filter((a) => Date.now() - a.time < 3 * 24 * H1), updatedAt: 0, unseen: 0 };
+let state: LevelState = { status: 'idle', pairs: [], alerts: [], events: [], marketOpen: true, updatedAt: 0, unseen: 0 };
 const subs = new Set<() => void>();
 const set = (p: Partial<LevelState>) => { state = { ...state, ...p }; subs.forEach((f) => f()); };
-const scans = new Map<string, any>(); // `${symbol}|${bar}` → server answer
 let started = false; let busy = false; let timer: ReturnType<typeof setTimeout> | null = null;
 
 export const fmtPrice = (v: number) => (!Number.isFinite(v) ? '—' : v >= 1000 ? v.toFixed(2) : v >= 20 ? v.toFixed(3) : v.toFixed(5));
@@ -150,51 +175,29 @@ async function verifyAlert(a: LevelAlert, sig: LevelSignal | null): Promise<Leve
   return out;
 }
 
-async function fetchRankings(): Promise<{ symbol: string; display: string; side: 1 | -1; score: number }[]> {
-  const r = await fetch('/api/macro/rankings');
-  const j = await r.json();
-  const lt = j?.data?.longTerm;
-  if (!lt) throw new Error('rankings unavailable');
-  // Only markets the H1 level scanner can read (the 28 forex pairs, gold, silver); crypto / platinum are skipped,
-  // so a top list full of crypto never leaves the bearish side empty.
-  const all: any[] = (j?.data?.all?.length ? j.data.all : [...(lt.bullish || []), ...(lt.bearish || [])]).filter((p: any) => scannable(String(p.symbol)) && Number.isFinite(Number(p.longTerm)));
-  const row = (p: any, side: 1 | -1) => ({ symbol: String(p.symbol), display: String(p.display || p.symbol), side, score: Number(p.longTerm) });
-  const bulls = all.filter((p) => Number(p.longTerm) >= 10).sort((a, b) => b.longTerm - a.longTerm).slice(0, TOP_N).map((p) => row(p, 1));
-  const bears = all.filter((p) => Number(p.longTerm) <= -10).sort((a, b) => a.longTerm - b.longTerm).slice(0, TOP_N).map((p) => row(p, -1));
-  const list = [...bulls, ...bears];
-  // Gold is always watched (the owner's main market), on the side its own long-term fundamentals point to.
-  for (const sym of ALWAYS) {
-    if (list.some((p) => p.symbol === sym)) continue;
-    const row = [...(j?.data?.all || []), ...(lt.bullish || []), ...(lt.bearish || [])].find((p: any) => p.symbol === sym);
-    const sc = Number(row?.longTerm ?? NaN);
-    if (Number.isFinite(sc) && Math.abs(sc) >= 5) list.push({ symbol: sym, display: String(row.display || 'XAU/USD'), side: sc > 0 ? 1 : -1, score: sc });
-  }
-  return list;
+/** One event from the hourly engine (see server/sbt/levelEvents.ts). */
+export interface LevelEvent { id: string; kind: 'ACTIVATED' | 'READY' | 'DEACTIVATED' | 'TRADE_CLOSED' | 'MARKET_OPEN' | 'MARKET_CLOSED'; symbol: string; display: string; side: 1 | -1 | 0; level?: 1 | 2; time: number; title: string; text: string; speech: string }
+
+/** Map one hourly-engine pair into the shape the screens use. Only what is active NOW is shown as active. */
+function toPairFromHourly(h: any): PairScan {
+  const base = { symbol: String(h.symbol), display: String(h.display || h.symbol), side: h.side as 1 | -1, score: Number(h.score) };
+  if (!h.ok || h.stale) return { ...base, state: 'unavailable' };
+  const hit: LevelSignal | null = h.hit || null;
+  const sameSide = h.dir === h.side;
+  return {
+    ...base, state: 'ok', lastCandle: h.lastCandle, dir: h.dir, level1: h.level1 || null, level2: h.level2 || null,
+    hit, recent: h.inTrade ? (h.tradeFrom || null) : null, awayPips: null, lastClose: h.lastClose, pip: h.pip,
+    watching: sameSide && Boolean(h.level1 || h.level2), inTrade: Boolean(h.inTrade),
+  };
 }
 
-async function scanOne(symbol: string, bar: number): Promise<any> {
-  const key = `${symbol}|${bar}`;
-  if (scans.has(key)) return scans.get(key);
-  const r = await fetch(`/api/sbt/scan?symbol=${encodeURIComponent(chartSym(symbol))}&bar=${bar}`);
-  const j = await r.json().catch(() => ({ ok: false, code: 'run_failed' }));
-  if ((j?.ok && !j.stale) || j?.code === 'unknown_symbol' || j?.code === 'not_configured') { scans.set(key, j); while (scans.size > 80) scans.delete(scans.keys().next().value as string); }
-  return j;
-}
+const K_EVSEEN = 'ppfx_level_events_seen_v2';
+const EVENT_RING_MS = 90 * 60_000; // only an event that has just happened is spoken; re-opening the app never replays old ones
 
-function toPair(p: { symbol: string; display: string; side: 1 | -1; score: number }, j: any): PairScan {
-  if (!j) return { ...p, state: 'loading' };
-  if (!j.ok || j.stale) return { ...p, state: 'unavailable' };
-  const now = Date.now();
-  const sigs: LevelSignal[] = (j.signals || []).filter((s: LevelSignal) => s.dir === p.side);
-  // "At the level" = the strategy's test candle is the candle that has just closed (nothing older).
-  const hit = sigs.find((s) => s.time === j.lastCandle) || null;
-  const recent = hit ? null : [...sigs].reverse().find((s) => now - (s.time + H1) < FRESH_MS) || null;
-  let awayPips: number | null = null;
-  if (recent && Number.isFinite(j.lastClose) && j.pip) {
-    const c = j.lastClose as number;
-    awayPips = c >= recent.zoneBottom && c <= recent.zoneTop ? 0 : Math.round((Math.min(Math.abs(c - recent.zoneTop), Math.abs(c - recent.zoneBottom)) / j.pip) * 10) / 10;
-  }
-  return { ...p, state: 'ok', lastCandle: j.lastCandle, dir: j.dir, level1: j.level1, level2: j.level2, hit, recent, awayPips, lastClose: j.lastClose, pip: j.pip, watching: j.dir === p.side && Boolean(j.level1 || j.level2), inTrade: Boolean(j.inTrade) };
+function speakEvents(list: LevelEvent[]) {
+  const cfg = getLevelSettings();
+  if (cfg.sound) { playSound(cfg.soundId); setTimeout(() => playSound(cfg.soundId), 900); }
+  if (cfg.voice && list.length) setTimeout(() => speak(list.slice(0, 4).map((e) => e.speech).join(' ')), cfg.sound ? 1800 : 0);
 }
 
 async function cycle() {
@@ -202,78 +205,49 @@ async function cycle() {
   busy = true;
   try {
     if (state.status === 'idle') set({ status: 'loading' });
-    const top = await fetchRankings();
-    const bar = Math.floor(Date.now() / H1) * H1;
-    const answers = new Map<string, any>();
-    set({ pairs: top.map((p) => toPair(p, scans.get(`${p.symbol}|${bar}`))) });
-    let notConfigured = false;
-    const queue = top.filter((p) => !scans.has(`${p.symbol}|${bar}`));
-    const worker = async () => {
-      for (;;) {
-        const p = queue.shift();
-        if (!p || notConfigured) return;
-        try {
-          const j = await scanOne(p.symbol, bar);
-          if (j?.code === 'not_configured') { notConfigured = true; return; }
-          answers.set(p.symbol, j);
-          set({ pairs: top.map((x) => toPair(x, scans.get(`${x.symbol}|${bar}`) || answers.get(x.symbol))) });
-        } catch { answers.set(p.symbol, { ok: false }); }
-      }
-    };
-    await Promise.all([worker(), worker()]);
-    if (notConfigured) { set({ status: 'not_configured', pairs: [], updatedAt: Date.now() }); return; }
-    const pairs = top.map((x) => toPair(x, scans.get(`${x.symbol}|${bar}`) || answers.get(x.symbol) || { ok: false }));
-
-    // New aligned level touches → one alert each, ever.
-    const seen = new Set(read<string[]>(K_SEEN, []));
-    const fresh: LevelAlert[] = [];
-    for (const p of pairs) {
-      const h = p.hit; if (!h) continue;
-      const id = `${p.symbol}|${h.time}|${h.dir}|${h.level}`;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      if (Date.now() - (h.time + H1) > NOTIFY_MS) continue;
-      // A hair-line touch can differ from one broker's feed to the next: list it, but do not ring for it.
-      if (getLevelSettings().confirmedOnly && typeof h.depthPips === 'number' && h.depthPips < EDGE_PIPS) continue;
-      fresh.push({ id, symbol: p.symbol, display: p.display, side: p.side, level: h.level, price: h.price, zoneTop: h.zoneTop, zoneBottom: h.zoneBottom, models: h.models, time: h.time + H1, score: p.score, depthPips: h.depthPips });
-    }
-    write(K_SEEN, [...seen].slice(-400));
-    // Double-check every alert before it is announced (fundamentals live now, crowd, news) — never announce on stale or contradicting data.
-    const verified: LevelAlert[] = [];
-    for (const a of fresh) { const v = await verifyAlert(a, pairs.find((p) => p.symbol === a.symbol)?.hit || null); if (v) verified.push(v); }
-    fresh.length = 0; fresh.push(...verified);
-    let alerts = state.alerts;
+    const r = await fetch('/api/sbt/levels', { cache: 'no-store' });
+    const j = await r.json().catch(() => null);
+    if (!j?.ok) { set({ status: 'waiting', pairs: [], updatedAt: Date.now() }); return; }
+    const pairs: PairScan[] = (j.pairs || []).map(toPairFromHourly);
+    const events: LevelEvent[] = Array.isArray(j.events) ? j.events : [];
+    const seenRaw = localStorage.getItem(K_EVSEEN);
+    const seen = new Set(read<string[]>(K_EVSEEN, []));
+    const first = seenRaw === null;
+    const fresh = events.filter((e) => !seen.has(e.id) && !first && Date.now() - e.time < EVENT_RING_MS);
+    for (const e of events) seen.add(e.id);
+    write(K_EVSEEN, [...seen].slice(-600));
+    // The alert list shows setups that are active now (activation events), never an old log.
+    const alerts: LevelAlert[] = events.filter((e) => e.kind === 'ACTIVATED' && Date.now() - e.time < 3 * H1).map((e: any) => ({
+      id: e.id, symbol: e.symbol, display: e.display, side: e.side, level: e.level, price: e.price, zoneTop: e.zoneTop, zoneBottom: e.zoneBottom,
+      models: e.models || [], time: e.time, score: e.score ?? 0, stop: e.stop, target: e.target,
+    }));
     if (fresh.length) {
-      alerts = [...fresh, ...alerts].slice(0, 40);
-      write(K_LOG, alerts);
-      announceSetups(fresh);
-      for (const a of fresh) notify(`${a.side > 0 ? 'BUY' : 'SELL'} ${a.display} — Level ${a.level} reached (H1)`, alertSummary(a));
+      speakEvents(fresh);
+      for (const e of fresh) notify(e.title, e.text);
       try { window.dispatchEvent(new CustomEvent('ppfx:level-alert', { detail: fresh })); } catch { /* ignore */ }
     }
-    set({ status: 'ready', pairs, alerts, updatedAt: Date.now(), unseen: state.unseen + fresh.length });
-  } catch { /* offline or rankings unavailable: keep what we have and retry */ }
+    set({ status: 'ready', pairs, alerts, events, marketOpen: j.marketOpen !== false, updatedAt: Date.now(), unseen: state.unseen + fresh.filter((e) => e.kind === 'ACTIVATED').length });
+  } catch { /* offline: keep what we have and retry */ }
   finally { busy = false; }
 }
 
 function schedule() {
   if (timer) clearTimeout(timer);
-  // Next run: shortly after the next H1 candle closes (spread out so everyone does not ask at once),
-  // with a mid-hour refresh so a changed ranking is picked up.
-  const now = Date.now();
-  const nextBar = (Math.floor(now / H1) + 1) * H1 + 20_000 + Math.random() * 25_000;
-  const wait = Math.min(nextBar - now, state.status === 'ready' ? 15 * 60_000 : 90_000);
-  timer = setTimeout(async () => { if (typeof document === 'undefined' || document.visibilityState !== 'hidden' || Date.now() >= nextBar - 60_000) await cycle(); schedule(); }, Math.max(5_000, wait));
+  // The hourly engine publishes shortly after each H1 close; looking once a minute while the app is open
+  // costs nothing (the answer is a small cached file) and speaks the new events within about a minute.
+  timer = setTimeout(async () => { if (typeof document === 'undefined' || document.visibilityState !== 'hidden') await cycle(); schedule(); }, 60_000);
 }
 
 export function startLevelAlerts() {
   if (started || typeof window === 'undefined') return;
   started = true;
-  setTimeout(() => { cycle().then(schedule); }, 2500);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - state.updatedAt > 5 * 60_000) cycle(); });
+  try { localStorage.removeItem(K_LOG); localStorage.removeItem(K_SEEN); } catch { /* storage blocked */ }
+  setTimeout(() => { cycle().then(schedule); }, 1500);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - state.updatedAt > 90_000) cycle(); });
 }
 
 export const markLevelAlertsSeen = () => { if (state.unseen) set({ unseen: 0 }); };
-export const clearLevelAlerts = () => { write(K_LOG, []); set({ alerts: [], unseen: 0 }); };
+export const clearLevelAlerts = () => { set({ alerts: [], unseen: 0 }); };
 export const refreshLevelAlerts = () => cycle();
 
 export function useLevelAlerts(): LevelState {
@@ -297,6 +271,6 @@ export function pairLevel(st: LevelState, symbol: string): PairScan | undefined 
 export async function uploadSbtStrategy(source: string, token: string | null): Promise<{ ok: boolean; error?: string; version?: string; test?: any }> {
   const r = await fetch('/api/sbt/strategy', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ source }) });
   const j = await r.json().catch(() => ({ ok: false, error: `HTTP ${r.status}` }));
-  if (j.ok) { scans.clear(); set({ status: 'loading' }); void cycle(); }
+  if (j.ok) { set({ status: 'loading' }); void cycle(); }
   return j;
 }

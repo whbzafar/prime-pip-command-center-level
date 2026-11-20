@@ -1,0 +1,33 @@
+name: SBT H1 levels (hourly)
+
+# Runs the private SBT strategy on every pair with a fundamental bias once per hour (just after the H1
+# candle closes), publishes levels + events to the release asset sbt-levels/levels.json and triggers
+# phone / PC push alerts on the live site. Public repo → Actions minutes are free.
+on:
+  schedule:
+    - cron: '1 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write   # GitHub OIDC proof for the live site (no shared secret)
+
+concurrency:
+  group: sbt-levels
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Scan every pair (H1)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: npx tsx scripts/sbt-hourly.ts

@@ -217,13 +217,28 @@ export const LevelAlertsPanel: React.FC<{ onOpen: (engineSymbol: string) => void
       </div>
       <AlertControls />
       {!dense && <div className="text-[11px] text-slate-400">The top long-term bullish pairs are checked for their <b className="text-emerald-300">buy</b> levels and the top bearish pairs for their <b className="text-rose-300">sell</b> levels on the 1-hour chart. A pair is shown as “at the level” only on the H1 candle that has just closed with its wick or body inside the Level 1 / Level 2 zone and the model complete — exactly the strategy’s entry rule.</div>}
+      {st.status === 'waiting' && <div className="text-[11.5px] text-amber-200 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2.5">The hourly level engine has not published its first result yet. It runs automatically at the start of every hour — nothing is shown until then, and nothing is guessed.</div>}
+      {st.marketOpen === false && <div className="text-[11.5px] text-slate-300 rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2">Forex and metals markets are closed for the weekend — levels resume when the market opens.</div>}
       {hits.map((p) => <HitRow key={p.symbol} p={p} onOpen={onOpen} />)}
       {!hits.length && !loading && <div className="text-[11.5px] text-slate-400 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2.5">No top pair is at its level right now. You will be notified the moment one gets there.</div>}
+      {st.events.length > 0 && (
+        <div className="space-y-1" data-testid="level-events">
+          <div className="text-[10px] uppercase tracking-wider text-slate-500">Level log — activated, ready, deactivated, closed (newest first)</div>
+          {[...st.events].sort((a, b) => b.time - a.time).slice(0, 12).map((e) => (
+            <div key={e.id} className="flex flex-wrap items-center gap-x-2 px-2 py-1 rounded-lg border border-slate-800 bg-slate-950/60 text-[11px]">
+              <span className={`px-1.5 rounded font-black text-[10px] ${e.kind === 'ACTIVATED' ? 'bg-amber-400 text-amber-950' : e.kind === 'DEACTIVATED' ? 'bg-slate-600 text-slate-100' : e.kind === 'READY' ? 'bg-cyan-400/90 text-cyan-950' : 'bg-slate-700 text-slate-200'}`}>{e.kind.replace('_', ' ')}</span>
+              <span className="font-bold text-slate-100">{e.display}</span>
+              <span className="text-slate-400 truncate">{e.title.replace(e.display + ' — ', '')}</span>
+              <span className="ml-auto text-slate-500 text-[10px]">{levelTime(e.time)}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {(() => {
         const earlier = st.pairs.filter((p) => p.recent).sort((x, y) => y.recent!.time - x.recent!.time);
         return earlier.length > 0 && (
           <div className="space-y-1" data-testid="level-history">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">Earlier touches (last 24 h) — not at the level now unless marked</div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500">Open trades — entered from these levels</div>
             {earlier.map((p) => {
               const r = p.recent!; const up = p.side > 0;
               return (
