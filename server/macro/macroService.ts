@@ -250,12 +250,22 @@ export async function refreshAndCompute(force = false): Promise<MacroSnapshot> {
  * at most for the economic calendar (the core feed) within `budgetMs` — every other source lands
  * on the following request as soon as it completes.
  */
+let bgRefresh: Promise<void> | null = null;
 export async function getSnapshot(maxAgeMs = SERVERLESS ? 5 * 60_000 : 60_000, budgetMs = SERVERLESS ? 6_000 : 25_000): Promise<MacroSnapshot> {
   const age = snapshot ? Date.now() - new Date(snapshot.generatedAt).getTime() : Infinity;
   if (snapshot && age < maxAgeMs) {
     // Still fresh, but keep due sources moving in the background (cheap: runJob de-duplicates).
     const { all } = refreshSources(false);
     if (SERVERLESS) await Promise.race([all, new Promise((r) => setTimeout(r, budgetMs))]);
+    return snapshot;
+  }
+  // Long-running server with a snapshot already in memory: answer at once with it and refresh behind the
+  // scenes (stale-while-revalidate). Re-computing inline cost 2-3 s per click on the free host's slow CPU.
+  if (!SERVERLESS && snapshot) {
+    if (!bgRefresh) {
+      bgRefresh = (async () => { try { const r = refreshSources(false); await Promise.race([r.calendar, new Promise((x) => setTimeout(x, 3_000))]); recompute(); } catch { /* keep previous */ } })()
+        .finally(() => { bgRefresh = null; });
+    }
     return snapshot;
   }
   const { calendar, all } = refreshSources(false);

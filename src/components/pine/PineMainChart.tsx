@@ -165,13 +165,29 @@ export const PineMainChart: React.FC<{
   useEffect(() => pineLib.subscribe(() => setLib({ ...pineLib.get() })), []);
 
   // ── drawings auto-save (per symbol)
+  // A symbol's drawings are only ever written after they have been loaded INTO the chart for that symbol
+  // (loadedFor), and an empty chart never overwrites a stored non-empty document unless the user really
+  // deleted something (allowEmpty). Before this, the 2-second auto-save could store an empty chart while the
+  // 5,000-bar history was still loading, which wiped every drawing (and its timeframe-visibility settings).
+  const loadedFor = useRef<string>('');
+  const allowEmpty = useRef(false);
+  const lastGood = useRef<{ t: string; json: string; n: number }>({ t: '', json: '', n: 0 });
+  const countOf = (doc: any) => { try { return Array.isArray(doc?.drawings) ? doc.drawings.length : Array.isArray(doc) ? doc.length : (doc?.items?.length ?? 0); } catch { return 0; } };
   const saveDrawings = useCallback(() => {
     const chart: any = ws.current?.chart;
     const t = tickerRef.current;
-    if (!chart?.drawings || !t) return;
+    if (!chart?.drawings || !t || loadedFor.current !== t) return;
     try {
-      const s = JSON.stringify(chart.drawings.toJSON());
-      if (s !== savedJson.current) { savedJson.current = s; localStorage.setItem(DRAW_KEY(t), s); }
+      const all = chart.drawings.all?.() || [];
+      const doc = chart.drawings.toJSON();
+      const s = JSON.stringify(doc);
+      if (all.length === 0 && lastGood.current.t === t && lastGood.current.n > 0 && !allowEmpty.current && !chart.drawings.canRedo?.()) return; // transient empty state: keep what we have
+      if (s !== savedJson.current) {
+        savedJson.current = s;
+        localStorage.setItem(DRAW_KEY(t), s);
+        lastGood.current = { t, json: s, n: all.length };
+        if (all.length === 0) allowEmpty.current = false;
+      }
       localStorage.setItem(TOOLS_KEY, JSON.stringify(chart.drawings.toolDefaults?.() || {}));
     } catch { /* storage full or blocked */ }
   }, []);
@@ -182,7 +198,19 @@ export const PineMainChart: React.FC<{
       const raw = localStorage.getItem(DRAW_KEY(t));
       chart.drawings.fromJSON(raw ? JSON.parse(raw) : null);
       savedJson.current = JSON.stringify(chart.drawings.toJSON());
+      lastGood.current = { t, json: savedJson.current, n: (chart.drawings.all?.() || []).length };
     } catch { /* bad document → empty */ }
+    loadedFor.current = t;
+  }, []);
+  /** After a timeframe / market switch: if any drawing went missing from the chart, put the saved copy back. */
+  const ensureDrawings = useCallback(() => {
+    const chart: any = ws.current?.chart;
+    const t = tickerRef.current;
+    if (!chart?.drawings || loadedFor.current !== t || lastGood.current.t !== t || !lastGood.current.json) return;
+    try {
+      const have = (chart.drawings.all?.() || []).length;
+      if (have < lastGood.current.n) chart.drawings.fromJSON(JSON.parse(lastGood.current.json));
+    } catch { /* ignore */ }
   }, []);
 
   // ── build the chart
@@ -226,9 +254,10 @@ export const PineMainChart: React.FC<{
         void loadEdgeMarks(chart, t);
         cbs.current.onSymbolChange?.(REVERSE_ALIAS[t] || t);
       }
+      else window.setTimeout(ensureDrawings, 0); // timeframe-only switch: drawings must still be there (visibility is per timeframe)
       if (m.timeframe) cbs.current.onIntervalChange?.(String(m.timeframe));
     });
-    const offs = ['drawing:created', 'drawing:edited', 'drawing:removed', 'drawing:defaults'].map((e) => chart.on?.(e, () => window.setTimeout(saveDrawings, 30)));
+    const offs = ['drawing:created', 'drawing:edited', 'drawing:removed', 'drawing:defaults'].map((e) => chart.on?.(e, () => { if (e === 'drawing:removed') allowEmpty.current = true; window.setTimeout(saveDrawings, 30); }));
     const autosave = window.setInterval(saveDrawings, 2000); // also catches Undo / Redo
     const flush = () => saveDrawings();
     window.addEventListener('beforeunload', flush);
@@ -238,6 +267,7 @@ export const PineMainChart: React.FC<{
       window.clearInterval(autosave);
       window.removeEventListener('beforeunload', flush);
       saveDrawings();
+      loadedFor.current = '';
       try { offMarket?.(); offs.forEach((o: any) => o?.()); offLook?.(); offTheme?.(); } catch { /* ignore */ }
       markOnScreen(tickerRef.current, false);
       running.current.clear();
@@ -265,8 +295,11 @@ export const PineMainChart: React.FC<{
   useEffect(() => {
     const chart: any = ws.current?.chart;
     if (!chart || !ready) return;
-    if (String(chart.market?.timeframe || '') !== tf) chart.setMarket({ timeframe: tf, bars: HISTORY_BARS }).catch?.(() => {});
-  }, [tf, ready]);
+    if (String(chart.market?.timeframe || '') !== tf) {
+      saveDrawings();
+      Promise.resolve(chart.setMarket({ timeframe: tf, bars: HISTORY_BARS })).catch?.(() => {}).finally?.(() => window.setTimeout(ensureDrawings, 0));
+    }
+  }, [tf, ready, saveDrawings, ensureDrawings]);
 
   // ── indicators: exactly one instance of each shown indicator
   useEffect(() => {

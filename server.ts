@@ -7254,7 +7254,14 @@ async function startServer() {
     }
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+    // Hashed build files never change → the browser keeps them for a year (re-opening the app and every
+    // tab switch then load nothing from the network). index.html / service worker are always re-checked.
+    app.use(express.static(distPath, {
+      setHeaders: (res, file) => {
+        if (/[\\/]assets[\\/].+\.(js|css|woff2?|png|jpe?g|svg|webp|mjs)$/i.test(file)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        else if (/(index\.html|sw\.js|manifest\.json|registerSW\.js)$/i.test(file)) res.setHeader('Cache-Control', 'no-cache');
+      },
+    }));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
