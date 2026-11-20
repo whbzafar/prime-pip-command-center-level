@@ -19,7 +19,6 @@ services:
     branch: render-deploy
     buildCommand: npm ci --omit=dev --no-audit --no-fund
     startCommand: node dist/server.cjs
-    healthCheckPath: /api/__health
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
