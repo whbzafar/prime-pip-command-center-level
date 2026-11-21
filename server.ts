@@ -1,4 +1,5 @@
 // Vercel deployment sync marker: keep Git-connected production on the latest main commit.
+import compression from 'compression';
 import express from "express";
 import cookieParser from "cookie-parser";
 import path from "path";
@@ -239,6 +240,8 @@ if (isSupabaseAuthEnabled) {
 const currentAppDir = process.cwd();
 
 const app = express();
+// Speed: gzip every text reply (the app bundle, API JSON) — the biggest files shrink about 3-4x. Live streams are left alone.
+app.use(compression({ threshold: 1024, filter: (req, res) => (String(res.getHeader('Content-Type') || '').includes('text/event-stream') ? false : compression.filter(req, res)) }));
 // Wait (once, ≤2.5 s on a cold start) for the Supabase reachability check so no request races it.
 app.use((_req, _res, next) => { supabaseReady.then(() => next(), () => next()); });
 const PORT = Number(process.env.PORT) || 3000;

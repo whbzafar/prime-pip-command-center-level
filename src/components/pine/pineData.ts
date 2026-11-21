@@ -25,8 +25,17 @@ export const SOURCE_LABEL = { dukascopy: 'Dukascopy', binance: 'Binance' } as co
 export const venueSymbol = (ticker: string) => `${sourceOf(ticker).toUpperCase()}:${ticker}`;
 
 /** Vela data provider backed by the app's full-history feed (same data as Unlimited Charts / replay). */
+// Speed: bars just loaded for a pair/timeframe are kept for a minute, and a request already in flight is shared,
+// so flipping between pairs (or re-opening one) paints at once instead of re-downloading the history.
+const BARS_TTL = 60_000;
+const barsCache = new Map<string, { at: number; bars: OHLCV[] }>();
+const barsInflight = new Map<string, Promise<OHLCV[]>>();
+export function prewarmBars(ticker: string, timeframe: string, limit = 1500) {
+  try { void makeProvider(sourceOf(ticker)).getBars(ticker, timeframe, { limit } as any); } catch { /* ignore */ }
+}
+
 export function makeProvider(source: 'dukascopy' | 'binance' = 'dukascopy'): DataProvider {
-  const fetchBars = async (ticker: string, timeframe: string, range: any, onBatch?: (bars: OHLCV[]) => void, signal?: AbortSignal) => {
+  const fetchBarsRaw = async (ticker: string, timeframe: string, range: any, onBatch?: (bars: OHLCV[]) => void, signal?: AbortSignal) => {
     const entry = CATALOG.find((e) => e.ticker === ticker.replace(/^[A-Z]+:/i, '').toUpperCase());
     const text = PERIOD_TEXT[normTf(timeframe)];
     const period = PRO_PERIODS.find((p) => p.text === text);
@@ -58,6 +67,19 @@ export function makeProvider(source: 'dukascopy' | 'binance' = 'dukascopy'): Dat
       if (coveredFrom || enough || (range.from === undefined && !want)) break;
     }
     return sorted();
+  };
+  const fetchBars = async (ticker: string, timeframe: string, range: any, onBatch?: (bars: OHLCV[]) => void, signal?: AbortSignal): Promise<OHLCV[]> => {
+    const latest = range.to === undefined && range.from === undefined;
+    if (!latest) return fetchBarsRaw(ticker, timeframe, range, onBatch, signal);
+    const key = `${ticker.replace(/^[A-Z]+:/i, '').toUpperCase()}|${normTf(timeframe)}|${range.limit ?? 0}`;
+    const hit = barsCache.get(key);
+    if (hit && Date.now() - hit.at < BARS_TTL && hit.bars.length) { const copy = [...hit.bars]; onBatch?.(copy); return copy; }
+    let p = barsInflight.get(key);
+    if (!p || signal) {
+      p = fetchBarsRaw(ticker, timeframe, range, onBatch, signal).then((bars) => { if (bars.length && !signal?.aborted) barsCache.set(key, { at: Date.now(), bars }); return bars; }).finally(() => { barsInflight.delete(key); });
+      if (!signal) barsInflight.set(key, p);
+    }
+    return p;
   };
   return {
     info: () => ({ name: source, displayName: SOURCE_LABEL[source], capabilities: {} }) as any,

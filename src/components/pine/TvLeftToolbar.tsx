@@ -62,6 +62,8 @@ export const TvLeftToolbar: React.FC<{ getChart: () => Chart | null; ready: bool
   const [favs, setFavs] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch { return []; } });
   const [last, setLast] = useState<Record<string, string>>(() => { try { return JSON.parse(localStorage.getItem(LAST_KEY) || '{}'); } catch { return {}; } });
   const [trashAsk, setTrashAsk] = useState(false);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const dragMoved = useRef(false);
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => { const f = () => { try { setDark(localStorage.getItem(THEME_KEY) === 'dark'); } catch { /* ignore */ } }; window.addEventListener('ppfx:pro-theme', f); return () => window.removeEventListener('ppfx:pro-theme', f); }, []);
@@ -141,9 +143,27 @@ export const TvLeftToolbar: React.FC<{ getChart: () => Chart | null; ready: bool
       </div>
       {favs.length > 0 && (
         <div data-testid="tv-fav-bar" style={{ position: 'absolute', top: 8, left: 56, width: 'max-content', zIndex: 40, display: 'flex', alignItems: 'center', gap: 2, background: bg, color: fg, border: `1px solid ${line}`, borderRadius: 6, padding: 3, boxShadow: '0 4px 16px rgba(0,0,0,.2)', maxWidth: 'min(calc(100vw - 120px), 720px)', overflowX: 'auto' }}>
-          <span title="Favorite drawing tools" style={{ color: '#f5b50a', padding: '4px 6px', fontSize: 14 }}>★</span>
-          {favs.map((t) => (
-            <button key={t} type="button" data-testid={`tv-fav-${t}`} title={label(t)} onClick={() => arm(null, active === t ? null : t)} style={{ border: 0, cursor: 'pointer', borderRadius: 4, padding: '4px 9px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', color: active === t ? '#2962ff' : fg, background: active === t ? sel : 'transparent' }}>{label(t)}</button>
+          <span title="Favorite drawing tools — drag a tool to reorder" style={{ color: '#f5b50a', padding: '4px 6px', fontSize: 14 }}>★</span>
+          {favs.map((t, idx) => (
+            <button key={t} type="button" data-testid={`tv-fav-${t}`} data-fav={t} title={`${label(t)} — drag to reorder`}
+              onClick={() => { if (dragMoved.current) { dragMoved.current = false; return; } arm(null, active === t ? null : t); }}
+              onPointerDown={(e) => {
+                if (e.button !== 0) return;
+                const bar = (e.currentTarget.parentElement as HTMLElement); const el = e.currentTarget; const sx = e.clientX;
+                dragMoved.current = false; el.setPointerCapture?.(e.pointerId);
+                const move = (ev: PointerEvent) => {
+                  if (!dragMoved.current && Math.abs(ev.clientX - sx) < 5) return;
+                  dragMoved.current = true; setDragging(t);
+                  const items = Array.from(bar.querySelectorAll('[data-fav]')) as HTMLElement[];
+                  const cx = ev.clientX; const from = items.indexOf(el);
+                  let to = from;
+                  items.forEach((it, i) => { if (it === el) return; const r = it.getBoundingClientRect(); const mid = r.left + r.width / 2; if (i < from && cx < mid) to = Math.min(to, i); if (i > from && cx > mid) to = Math.max(to, i); });
+                  if (to !== from) { setFavs((f) => { const a = [...f]; const [m] = a.splice(from, 1); a.splice(to, 0, m); return a; }); }
+                };
+                const up = () => { setDragging(null); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); window.setTimeout(() => { dragMoved.current = false; }, 0); };
+                window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+              }}
+              style={{ border: 0, cursor: dragging === t ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none', borderRadius: 4, padding: '4px 9px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', color: active === t ? '#2962ff' : fg, background: dragging === t ? hov : active === t ? sel : 'transparent', boxShadow: dragging === t ? '0 2px 8px rgba(0,0,0,.25)' : undefined, position: 'relative', zIndex: dragging === t ? 2 : 0 }}>{label(t)}</button>
           ))}
         </div>
       )}

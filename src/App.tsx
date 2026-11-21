@@ -125,6 +125,7 @@ const PREFETCH_LIGHT: Array<() => Promise<unknown>> = [
   () => import('./components/situationSaver/SituationSaver'),
 ];
 const PREFETCH_HEAVY: Array<() => Promise<unknown>> = [
+  () => import('./components/pine/PineMainChart'), // the Pro chart engine (largest bundle) — ready before the first click
   () => import('./components/chartAnalysis/UnlimitedChartAnalysis'),
   () => import('./components/backtest/BacktestingSuite'),
   () => import('./components/backtest/BacktestingReplayPro'),
@@ -161,6 +162,14 @@ export default function App() {
   // user's MT5 session survives navigating the app instead of asking for login again.
   const [mt5Visited, setMt5Visited] = useState(false);
   useEffect(() => { if (activeTab === 'META5_PREMIUM') setMt5Visited(true); }, [activeTab]);
+  // Desktop: warm the MT5 PC terminal quietly in the background (parked invisible) so it is already loaded when opened.
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.matchMedia('(max-width: 768px)').matches) return;
+    const conn = (navigator as any).connection;
+    if (conn?.saveData || /2g/.test(conn?.effectiveType || '')) return;
+    const t = window.setTimeout(() => setMt5Visited(true), 12_000);
+    return () => window.clearTimeout(t);
+  }, []);
   useEffect(() => { prefetchTabBundles(!isLightweight); // eslint-disable-line react-hooks/exhaustive-deps
   }, []);
   // Health + usage signals (errors on screen, which sections are opened). Declared up here: hooks must run before any early return.
