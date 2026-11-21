@@ -27,11 +27,12 @@ export function snapshotOverlays(chart: Chart): SavedOverlay[] {
   try {
     const map: Map<string, any[]> | undefined = (chart as any)._chartStore?.getOverlayStore?.()._instances;
     if (!map) return out;
-    for (const [paneId, list] of map) {
-      if (paneId !== 'candle_pane') continue;
+    const data = chart.getDataList();
+    for (const [, list] of map) {
       for (const o of list) {
         if (o.currentStep !== -1 || !Array.isArray(o.points) || !o.points.length) continue;
-        const pts = o.points.map((p: any) => ({ timestamp: Number(p.timestamp), value: Number(p.value) }));
+        // a point may carry only its bar index: turn it into the bar's time so it survives reloads
+        const pts = o.points.map((p: any) => ({ timestamp: Number.isFinite(Number(p.timestamp)) && p.timestamp != null ? Number(p.timestamp) : Number(data[p.dataIndex]?.timestamp), value: Number(p.value) }));
         if (pts.some((p: any) => !Number.isFinite(p.timestamp) || !Number.isFinite(p.value))) continue;
         out.push({ name: String(o.name), points: pts, lock: Boolean(o.lock), visible: o.visible !== false, styles: o.styles ?? undefined, extendData: o.extendData ?? undefined });
       }
