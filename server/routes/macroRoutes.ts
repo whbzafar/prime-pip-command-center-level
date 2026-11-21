@@ -1,3 +1,4 @@
+import { assetBrief, pairBrief } from '../macro/brief.js';
 import { Router, type Request, type Response } from 'express';
 import { SERVERLESS, ensureStockLoaded, getSnapshot, refreshAndCompute, unmatchedCalendarTitles } from '../macro/macroService.js';
 import type { AssetResult, MacroSnapshot } from '../macro/types.js';
@@ -172,6 +173,26 @@ macroRouter.get('/pair/:symbol', async (req: Request, res: Response) => {
     const sent = await Promise.race([getSentiment().catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 6000))]);
     const sentiment = sent ? { pair: sentimentFor(sent, p.symbol), base: sent.currencies.find((c) => c.currency === p.base) || null, quote: sent.currencies.find((c) => c.currency === p.quote) || null, updatedAt: sent.updatedAt } : null;
     res.json({ ok: true, data: p, base, quote, institutional: { base: institutionalFor(p.base), quote: institutionalFor(p.quote) }, sentiment, generatedAt: s.generatedAt });
+  } catch (err) { fail(res, err); }
+});
+
+/** GET /api/macro/brief/:symbol — plain-language "why bullish / bearish" + outlook, English and Urdu, for any pair or asset. */
+macroRouter.get('/brief/:symbol', async (req: Request, res: Response) => {
+  try {
+    const sym = String(req.params.symbol).toUpperCase().replace('/', '');
+    let s = await getSnapshot();
+    const pair = s.pairs.find((x) => x.symbol === sym);
+    if (pair) {
+      cacheHeaders(res, s);
+      return res.json({ ok: true, data: pairBrief(pair, s.assets.find((x) => x.symbol === pair.base), s.assets.find((x) => x.symbol === pair.quote), s) });
+    }
+    let a = s.assets.find((x) => x.symbol === sym);
+    if (a && a.assetClass === 'STOCKS' && STOCKS.some((t) => t.ticker === sym) && a.pillars.some((p) => p.id !== 'macro' && p.score === null)) {
+      s = await ensureStockLoaded(sym); a = s.assets.find((x) => x.symbol === sym) || a;
+    }
+    if (!a) return res.status(404).json({ ok: false, error: `Unknown symbol ${sym}` });
+    cacheHeaders(res, s);
+    res.json({ ok: true, data: assetBrief(a, s) });
   } catch (err) { fail(res, err); }
 });
 

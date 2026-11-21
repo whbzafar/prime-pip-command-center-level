@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { BriefButton } from './Brief';
 import { ArrowDownRight, ArrowUpRight, FileDown, Info, LineChart, RefreshCw, Trophy } from 'lucide-react';
 import type { PairResult } from './types';
 import { fmtScore, scoreColor } from './ui';
@@ -30,6 +31,7 @@ const Row: React.FC<{ p: RankedPair; i: number; horizon: 'longTerm' | 'shortTerm
           {horizon === 'longTerm' ? 'now' : 'LT'} {fmtScore(other)}{agree ? ' ✓' : ''}
         </div>
       </div>
+      <BriefButton symbol={p.symbol} />
       <button type="button" onClick={() => openChart(p.symbol)} title={`Open ${p.display} chart`} className="p-1.5 rounded-lg border border-slate-800 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/40 cursor-pointer"><LineChart className="w-3.5 h-3.5" /></button>
     </div>
   );

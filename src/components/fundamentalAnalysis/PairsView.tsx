@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { BriefButton } from './Brief';
 import { AlarmClock, ArrowLeft, FileDown, LineChart, Search, Users } from 'lucide-react';
 import type { AssetResult, Overview, PairResult } from './types';
 import { openChart } from './LiveBiasStrip';
@@ -113,6 +114,7 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
                 <h2 className="font-military text-3xl font-bold text-white">{p.display}</h2>
                 <span className={`font-mono-code text-2xl font-bold ${scoreColor(p.score)}`}>{fmtScore(p.score)}</span>
                 <BiasPill bias={p.bias} score={p.score} />
+                <BriefButton symbol={p.symbol} className="!text-[11px] !px-2.5 !py-1" />
                 <button type="button" data-testid="export-pair-pdf" onClick={() => import('../../utils/macroPdf').then((m) => m.exportPairPdf(detail))} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-400/40 text-[12px] font-semibold text-emerald-100 hover:bg-emerald-500/25 cursor-pointer" title="Download this pair's full analysis as a PDF to share"><FileDown className="w-3.5 h-3.5" /> Export PDF</button>
                 <button type="button" onClick={() => openChart(p.symbol)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-400/40 text-[12px] font-semibold text-cyan-100 hover:bg-cyan-500/25 cursor-pointer"><LineChart className="w-3.5 h-3.5" /> Open chart</button>
               </div>
@@ -218,7 +220,7 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
               <BullBearBar bullishPct={p.bullishPct} />
               <span className="text-[10.5px] font-mono-code text-slate-400 w-10 shrink-0">{p.bullishPct === null ? '—' : `${p.bullishPct.toFixed(0)}%`}</span>
             </div>
-            <span className="text-right"><BiasPill bias={p.bias} score={p.score} /></span>
+            <span className="text-right inline-flex items-center justify-end gap-1.5"><BiasPill bias={p.bias} score={p.score} /><BriefButton symbol={p.symbol} /></span>
           </button>
         ))}
         {rows.length === 0 && <div className="p-6 text-center text-sm text-slate-500">{dir === 'ALL' ? 'No pairs match.' : `No ${dir.toLowerCase()} pairs match right now.`}</div>}

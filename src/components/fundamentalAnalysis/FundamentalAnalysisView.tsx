@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BriefButton } from './Brief';
 import {
   Activity, BarChart3, Bitcoin, Building2, CalendarClock, Coins, Gem, GitCompareArrows, Grid3x3, Info, Radio, RefreshCw,
   Crown, Newspaper, Search, ShieldCheck, TrendingUp, Trophy, Users, WifiOff, X, Zap,
@@ -226,6 +227,7 @@ export const FundamentalAnalysisView: React.FC = () => {
                     className={`rounded-xl border p-2 text-center cursor-pointer ${selected.FOREX === c.symbol ? 'border-cyan-400/60 bg-cyan-500/10' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'}`}>
                     <div className="text-[9.5px] font-mono-code text-slate-500">#{i + 1}</div>
                     <div className="font-military font-bold text-white">{c.symbol}</div>
+                    <BriefButton symbol={c.symbol} className="mt-0.5" />
                     <div className={`font-mono-code text-[12px] font-bold ${scoreColor(c.score)}`}>{fmtScore(c.score)}</div>
                     <div className="h-12 mt-1 flex items-end justify-center">
                       <div className={`w-3 rounded-t ${c.score !== null && c.score >= 0 ? 'bg-emerald-400' : 'bg-rose-400'}`} style={{ height: `${c.score === null ? 4 : Math.max(8, Math.min(100, Math.abs(c.score) * 1.5))}%` }} />
@@ -274,7 +276,7 @@ export const FundamentalAnalysisView: React.FC = () => {
                         <span className="font-military font-bold text-slate-100">{a.symbol}</span>
                         <span className="text-[11px] text-slate-500 truncate">{a.name}</span>
                       </div>
-                      <div className="mt-1"><BiasPill bias={a.bias} score={a.score} /></div>
+                      <div className="mt-1 flex items-center gap-2"><BiasPill bias={a.bias} score={a.score} /><BriefButton symbol={a.symbol} /></div>
                     </div>
                     <div className="text-right">
                       <div className={`font-mono-code text-lg font-bold ${scoreColor(a.score)}`}>{fmtScore(a.score)}</div>

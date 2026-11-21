@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, ExternalLink, Info, AlertTriangle } from 'lucide-react';
 import type { AssetResult, IndicatorResult, PillarResult } from './types';
 import { InstitutionalPanel, type InstitutionalData } from './InstitutionalPanel';
+import { BriefButton } from './Brief';
 import { BiasPill, BullBearBar, CenterBar, Gauge, StatusDot, fmtNum, fmtPkt, fmtScore, scoreColor, timeAgo } from './ui';
 
 const IndicatorRow: React.FC<{ ind: IndicatorResult }> = ({ ind }) => {
@@ -128,6 +129,7 @@ export const AssetDetail: React.FC<{ asset: AssetResult; mirrors?: Record<string
               <h2 className="font-military text-xl font-bold text-white tracking-wide">{asset.name}</h2>
               <span className="text-[11px] font-mono-code text-slate-500">{asset.symbol}</span>
               <BiasPill bias={asset.bias} score={asset.score} />
+              <BriefButton symbol={asset.symbol} />
             </div>
             <div className="flex items-center gap-3 text-[12px] font-mono-code">
               <span className="text-emerald-400 font-bold">{asset.bullishPct === null ? '—' : `${asset.bullishPct.toFixed(1)}% Bullish`}</span>

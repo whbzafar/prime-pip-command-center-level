@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { BriefButton } from './Brief';
 import { ArrowDownRight, ArrowUpRight, Crown, FileDown, ExternalLink, Flame, RefreshCw, ShieldAlert } from 'lucide-react';
 import { fetchJsonSafe, peekJson, fmtScore, scoreColor, timeAgo } from './ui';
 
@@ -56,6 +57,7 @@ export const PickCard: React.FC<{ r: PickRow; onOpen?: (r: PickRow) => void; vip
             {r.region && <span className="text-[9.5px] font-mono-code uppercase text-slate-500">{r.region}</span>}
           </div>
           <div className="text-[11px] text-slate-400 truncate">{r.name}</div>
+          <BriefButton symbol={r.symbol} className="mt-1" />
         </div>
         <div className="text-right shrink-0">
           <div className={`font-mono-code text-lg font-bold ${scoreColor(r.score)}`}>{fmtScore(r.score)}</div>

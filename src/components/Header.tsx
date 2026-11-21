@@ -69,6 +69,7 @@ import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
 import { GlobalTimeSessionModal } from './GlobalTimeSessionModal';
 import { GlobalSearch } from './GlobalSearch';
 import CommandPalette from './CommandPalette';
+import { BriefHost } from './fundamentalAnalysis/Brief';
 import { openChart } from './fundamentalAnalysis/LiveBiasStrip';
 import { isCategoryLockedInDemo } from '../data/categorySummaries';
 import { CategoryShowcase } from './CategoryShowcase';
@@ -925,6 +926,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="inline-flex items-center gap-1 rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-2 py-1.5 text-[10px] font-black uppercase tracking-wider text-cyan-200 hover:bg-cyan-500/20">
             <span>⌘K</span><span className="hidden sm:inline">Command</span>
           </button>
+          <BriefHost />
           <CommandPalette categories={allNavCategories.map((c) => ({ id: c.id, label: c.label }))} onNavigate={switchTab}
             onOpenSymbol={(sym) => { switchTab('PRO_TRADING' as MainNavTab); setTimeout(() => openChart(sym), 250); }} />
           {currentUser ? (
