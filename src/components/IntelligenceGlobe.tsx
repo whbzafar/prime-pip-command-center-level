@@ -167,7 +167,7 @@ export const IntelligenceGlobe: React.FC<{ onNavigate?: (tab: any) => void }> = 
         <div className="mt-1 text-xl sm:text-3xl font-extralight uppercase tracking-[0.22em] text-slate-100">Financial Universe</div>
         <div className="mt-1.5 flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.25em] text-cyan-300/90"><span className={`h-1.5 w-1.5 rounded-full ${coreState === 'IDLE' ? 'bg-emerald-400' : coreState === 'ANALYSING' ? 'bg-cyan-300 animate-ping' : 'bg-[#d4af37] animate-pulse'}`} />Core · {coreState}{asOf ? ` · ${asOf}` : ''}</div>
       </div>
-      <div className="pointer-events-none absolute right-4 top-3 sm:right-6 sm:top-5 flex gap-4 sm:gap-6 text-right">
+      <div className="pointer-events-none absolute right-4 top-16 sm:right-6 sm:top-16 flex gap-4 sm:gap-6 text-right">
         {[['Assets scored', shown.assets, 'text-slate-100'], ['Bullish', shown.bull, 'text-emerald-300'], ['Bearish', shown.bear, 'text-rose-300']].map(([l, v, c]) => (
           <div key={String(l)}><div className={`text-lg sm:text-2xl font-extralight tabular-nums ${c}`}>{Math.round(v as number)}</div><div className="text-[8px] sm:text-[9px] uppercase tracking-[0.28em] text-slate-500">{l}</div></div>
         ))}
