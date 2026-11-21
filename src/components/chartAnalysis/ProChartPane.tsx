@@ -1,7 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { KLineChartPro } from '@klinecharts/pro';
 import '@klinecharts/pro/dist/klinecharts-pro.css';
 import { enhanceIndicatorDialogs } from '../../utils/indicatorCategories';
+import { canvasStyles, getCanvasColor, isLightCanvas, onCanvasColor } from '../../utils/chartCanvas';
+import { loadIndicators } from '../../utils/chartPersist';
+import { useProPersistence } from '../../utils/useProPersistence';
+import { CanvasColorControl } from './CanvasColorControl';
 import { CATALOG, FullHistoryDatafeed, PRO_PERIODS, type FeedStatus } from './fullHistoryDatafeed';
 
 export interface ProPaneState { ticker: string; period: string }
@@ -41,9 +45,11 @@ export const ProChartPane: React.FC<{
     if (!host) return;
     const feed = new FullHistoryDatafeed((st) => statusRef.current?.(st));
     feedRef.current = feed;
+    const bg0 = getCanvasColor();
+    const savedInd = loadIndicators(); // indicators the user had on the chart last time
     chartRef.current = new KLineChartPro({
       container: host,
-      theme: 'dark',
+      theme: isLightCanvas(bg0) ? 'light' : 'dark',
       locale: 'en-US',
       watermark: '',
       drawingBarVisible: true,
@@ -51,10 +57,20 @@ export const ProChartPane: React.FC<{
       period: findPeriod(state.period),
       periods: PRO_PERIODS,
       timezone: 'Etc/UTC',
-      mainIndicators: ['MA'],
-      subIndicators: ['VOL'],
+      mainIndicators: savedInd ? savedInd.main.map((i) => i.name) : ['MA'],
+      subIndicators: savedInd ? savedInd.sub.map((i) => i.name) : ['VOL'],
       datafeed: feed,
     });
+    // Canvas colour: white by default, or the colour the user picked. Re-applied whenever it changes.
+    const applyCanvas = (bg: string) => {
+      const c = chartRef.current; if (!c) return;
+      host.style.setProperty('--klinecharts-pro-background-color', bg);
+      host.style.setProperty('--klinecharts-pro-popover-background-color', isLightCanvas(bg) ? '#ffffff' : '#1c1c1f');
+      try { c.setTheme(isLightCanvas(bg) ? 'light' : 'dark'); c.setStyles(canvasStyles(bg) as any); } catch { /* chart still starting */ }
+    };
+    applyCanvas(bg0);
+    const t1 = window.setTimeout(() => applyCanvas(getCanvasColor()), 600);
+    const offCanvas = onCanvasColor(applyCanvas);
     // Report changes made inside the chart (its own symbol search / period bar) back to the workspace.
     const iv = setInterval(() => {
       const c = chartRef.current;
@@ -94,12 +110,18 @@ export const ProChartPane: React.FC<{
       ro.disconnect();
       cancelAnimationFrame(raf);
       clearInterval(iv);
+      clearTimeout(t1);
+      offCanvas();
       feed.destroy();
       chartRef.current = null;
       host.innerHTML = '';
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-save: drawings and indicators come back exactly as left.
+  const liveTicker = useCallback(() => chartRef.current?.getSymbol().ticker ?? null, []);
+  useProPersistence(hostRef, liveTicker);
 
   // Apply changes coming from the workspace (quick symbols, sync, multi-timeframe)
   useEffect(() => {
@@ -113,6 +135,7 @@ export const ProChartPane: React.FC<{
   return (
     <div className="relative w-full h-full">
       <div ref={hostRef} className="ppfx-pro-chart w-full h-full" />
+      <CanvasColorControl className="absolute bottom-12 right-32 z-20" />
       <button type="button" title="Back to the latest bar" aria-label="Back to the latest bar"
         onClick={() => { const c: any = chartRef.current; if (!c) return; try { c.setPeriod({ ...c.getPeriod() }); } catch { /* ignore */ } }}
         className="absolute bottom-12 right-20 z-20 w-9 h-9 rounded-full bg-slate-900/90 border border-slate-600 text-slate-200 hover:text-white hover:border-cyan-400 shadow-lg flex items-center justify-center cursor-pointer">

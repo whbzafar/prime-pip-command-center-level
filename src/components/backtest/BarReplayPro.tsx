@@ -1,4 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { canvasStyles, getCanvasColor, onCanvasColor } from '../../utils/chartCanvas';
+import { loadOverlays, restoreOverlays, startAutoSave } from '../../utils/chartPersist';
+import { CanvasColorControl } from '../chartAnalysis/CanvasColorControl';
 import { init, dispose, registerOverlay, getSupportedIndicators, type Chart, type KLineData } from 'klinecharts';
 import { IND_CATS, indCategory } from '../../utils/indicatorCategories';
 
@@ -204,8 +207,10 @@ export const BarReplayPro: React.FC = () => {
   const setPos = (ps: Position[]) => { posRef.current = ps; setPositions(ps); };
   const setCur = (c: number) => { cursorRef.current = c; setCursor(c); };
 
+  const tickerNow = useRef('');
   const entry: CatalogEntry = useMemo(() => CATALOG.find((c) => c.ticker === ticker) || CATALOG[0], [ticker]);
   const period = useMemo(() => PRO_PERIODS.find((p) => p.text === periodText) || PRO_PERIODS[3], [periodText]);
+  tickerNow.current = entry.ticker;
   const pip = pipSize(entry);
   const ccy = pnlCurrency(entry);
 
@@ -215,14 +220,30 @@ export const BarReplayPro: React.FC = () => {
     if (!host) return;
     const chart = init(host, { styles: 'dark', timezone: 'Etc/UTC' });
     chartRef.current = chart;
-    chart?.setStyles(REPLAY_STYLES as any);
+    chart?.setStyles(canvasStyles(getCanvasColor()) as any);
+    host.style.background = getCanvasColor();
+    const offCanvas = onCanvasColor((bg) => { host.style.background = bg; chartRef.current?.setStyles(canvasStyles(bg) as any); });
     chart?.createIndicator('MA', false, { id: 'candle_pane' });
     const volPane = chart?.createIndicator('VOL');
     setActiveInd({ MA: 'candle_pane', ...(volPane ? { VOL: volPane } : {}) });
     feedRef.current = new FullHistoryDatafeed((s) => { if (s.source) setSource(s.source); if (s.state === 'error') feedErr.current = s.message || 'Data source error'; });
     const ro = new ResizeObserver(() => chart?.resize());
     ro.observe(host);
-    return () => { ro.disconnect(); dispose(host); chartRef.current = null; feedRef.current?.destroy(); };
+    return () => { offCanvas(); ro.disconnect(); dispose(host); chartRef.current = null; feedRef.current?.destroy(); };
+  }, []);
+
+  // Auto-save: drawings stay exactly as left for each instrument (restored once its bars are on screen).
+  useEffect(() => {
+    let loadedFor = ''; let ready = false; let changedAt = 0; let stop: (() => void) | null = null;
+    const iv = window.setInterval(() => {
+      const c = chartRef.current; if (!c) return;
+      if (!stop) stop = startAutoSave(c, () => loadedFor, () => ready && loadedFor === tickerNow.current);
+      const t = tickerNow.current;
+      if (t !== loadedFor) { if (!changedAt) changedAt = Date.now(); ready = false; }
+      if (ready || !changedAt || Date.now() - changedAt < 800 || c.getDataList().length === 0) return;
+      restoreOverlays(c, loadOverlays(t)); loadedFor = t; ready = true; changedAt = 0;
+    }, 400);
+    return () => { window.clearInterval(iv); stop?.(); };
   }, []);
 
   useEffect(() => { chartRef.current?.setPriceVolumePrecision(entry.pricePrecision ?? 2, entry.volumePrecision ?? 0); }, [entry]);
@@ -633,6 +654,7 @@ export const BarReplayPro: React.FC = () => {
           {notice && !error && <div className="px-3 py-1.5 text-[11.5px] text-amber-200 bg-amber-500/10 border-b border-amber-500/20">{notice}</div>}
           <div className={`relative ${fullscreen ? 'flex-1 min-h-0' : 'h-[420px] md:h-[560px]'}`}>
             <div ref={chartHost} className="absolute inset-0" />
+            <CanvasColorControl className="absolute bottom-10 right-28 z-10" />
             <button type="button" onClick={() => { try { chartRef.current?.scrollToRealTime(250); } catch { /* ignore */ } }}
               title="Back to the latest bar" aria-label="Back to the latest bar"
               className="absolute bottom-10 right-16 z-10 w-9 h-9 rounded-full bg-slate-900/90 border border-slate-600 text-slate-200 hover:text-white hover:border-cyan-400 shadow-lg flex items-center justify-center cursor-pointer">
