@@ -15,6 +15,8 @@ type SideFilter = 'ALL' | Side;
 
 const COL: Record<Side, string> = { bull: '#34d399', bear: '#fb3f5e', neutral: '#8aa4d6' };
 const CLS_LABEL: Record<Cls, string> = { FOREX: 'Forex', COMMODITIES: 'Commodities', INDICES: 'Indices', STOCKS: 'Stocks', CRYPTO: 'Crypto' };
+const CLS_PAIR: Record<Cls, string> = { FOREX: 'Forex pairs', COMMODITIES: 'Commodity pairs', INDICES: 'Index pairs', STOCKS: 'Stock pairs', CRYPTO: 'Crypto pairs' };
+const CLS_ONE: Record<Cls, string> = { FOREX: 'Forex', COMMODITIES: 'Commodity', INDICES: 'Index', STOCKS: 'Stock', CRYPTO: 'Crypto' };
 const CLASSES: Cls[] = ['FOREX', 'COMMODITIES', 'INDICES', 'STOCKS', 'CRYPTO'];
 const SIDE_WORD: Record<Side, string> = { bull: 'Bullish', bear: 'Bearish', neutral: 'Neutral' };
 export const FOCUS_KEY = 'ppfx:fa-focus';
@@ -52,7 +54,7 @@ export const FinancialUniverse: React.FC<{ onNavigate?: (tab: any) => void }> = 
   const prevScores = useRef<Map<string, number>>(new Map());
   const [uni, setUni] = useState<Universe | null>(() => peekJson<any>('/api/macro/universe')?.data ?? null);
   const [error, setError] = useState(false);
-  const [scope, setScope] = useState<'asset' | 'pair'>('asset');
+  const [scope, setScope] = useState<'asset' | 'pair'>('pair');
   const [cls, setCls] = useState<'ALL' | Cls>('ALL');
   const [side, setSide] = useState<SideFilter>('ALL');
   const [size, setSize] = useState({ w: 900, h: 420 });
@@ -132,12 +134,6 @@ export const FinancialUniverse: React.FC<{ onNavigate?: (tab: any) => void }> = 
             {error ? 'Reconnecting…' : `Live${asOf ? ` · updated ${asOf}` : ''}`}
           </div>
         </div>
-        <div className="flex rounded-full border border-slate-700 overflow-hidden">
-          {(['asset', 'pair'] as const).map((s) => (
-            <button key={s} type="button" onClick={() => { setScope(s); setCls('ALL'); setPinned(null); }} aria-pressed={scope === s}
-              className={`px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider cursor-pointer ${scope === s ? 'bg-cyan-400/20 text-cyan-200' : 'text-slate-400 hover:text-slate-200'}`}>{s === 'asset' ? 'Assets' : 'Pairs'}</button>
-          ))}
-        </div>
       </div>
       <div className="relative px-4 sm:px-6 mt-3 flex flex-wrap gap-2" role="group" aria-label="Filter by direction">
         {pill('ALL', scope === 'asset' ? 'All assets' : 'All pairs', counts.all, '#e2e8f0')}
@@ -145,9 +141,17 @@ export const FinancialUniverse: React.FC<{ onNavigate?: (tab: any) => void }> = 
         {pill('bear', 'Bearish', counts.bear, COL.bear)}
         {pill('neutral', 'Neutral', counts.neutral, COL.neutral)}
       </div>
-      <div className="relative px-4 sm:px-6 mt-2.5 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
-        {chip('ALL', 'All markets', base.length)}
-        {CLASSES.filter((c) => clsCount(c) > 0).map((c) => chip(c, CLS_LABEL[c], clsCount(c)))}
+      <div className="relative px-4 sm:px-6 mt-3 flex items-center gap-2">
+        <div className="flex shrink-0 rounded-full border border-slate-600 overflow-hidden" role="group" aria-label="What to show">
+          {(['pair', 'asset'] as const).map((k) => (
+            <button key={k} type="button" onClick={() => { setScope(k); setCls('ALL'); setPinned(null); }} aria-pressed={scope === k} data-testid={`universe-scope-${k}`}
+              className={`px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider cursor-pointer ${scope === k ? 'bg-cyan-400/25 text-cyan-100' : 'text-slate-400 hover:text-slate-200'}`}>{k === 'pair' ? 'Pairs' : 'Single assets'}</button>
+          ))}
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
+          {chip('ALL', scope === 'pair' ? 'All pairs' : 'All markets', base.length)}
+          {CLASSES.filter((c) => clsCount(c) > 0).map((c) => chip(c, scope === 'pair' ? CLS_PAIR[c] : CLS_LABEL[c], clsCount(c)))}
+        </div>
       </div>
       <div ref={box} className="relative h-[400px] sm:h-[480px] w-full mt-1" onPointerLeave={() => setHover(null)}>
         {!uni && !error && <div className="absolute inset-0 grid place-items-center text-sm text-slate-400">Loading live fundamentals…</div>}
@@ -168,7 +172,7 @@ export const FinancialUniverse: React.FC<{ onNavigate?: (tab: any) => void }> = 
                   }}>
                   {flash[k] && <circle r={pr} fill="none" stroke={c} strokeWidth={2}><animate attributeName="r" from={pr} to={pr * 2.2} dur="1.6s" repeatCount="2" /><animate attributeName="opacity" from=".9" to="0" dur="1.6s" repeatCount="2" /></circle>}
                   <circle r={pr} fill={c} fillOpacity={on ? 0.95 : 0.78} stroke={on ? '#fff' : c} strokeOpacity={on ? 1 : 0.9} strokeWidth={on ? 2 : 1} style={{ transition: 'r .7s, fill-opacity .2s' }} />
-                  {pr >= 20 && <text textAnchor="middle" y={pr >= 30 ? -2 : 3.5} fontSize={Math.min(12, pr * 0.38)} fontWeight={700} fill="#04101a" style={{ pointerEvents: 'none' }}>{item.label.length > Math.floor(pr / 3.4) ? item.label.slice(0, Math.max(3, Math.floor(pr / 3.4) - 1)) + '…' : item.label}</text>}
+                  {pr >= 17 && (() => { const L = item.label; const fs = Math.min(12.5, (pr * 1.75) / (L.length * 0.62)); const f = Math.max(fs, 6.8); const max = Math.max(3, Math.floor((pr * 1.75) / (f * 0.62))); const t = fs >= 6.8 || L.length <= max ? L : L.slice(0, max - 1) + '…'; return <text textAnchor="middle" y={pr >= 30 ? -2 : 3.5} fontSize={f} fontWeight={700} fill="#04101a" style={{ pointerEvents: 'none' }}>{t}</text>; })()}
                   {pr >= 30 && <text textAnchor="middle" y={11} fontSize={9.5} fontWeight={600} fill="#04101a" fillOpacity={0.7} style={{ pointerEvents: 'none' }}>{Math.round(strength(item))}%</text>}
                 </g>
               );
@@ -183,7 +187,7 @@ export const FinancialUniverse: React.FC<{ onNavigate?: (tab: any) => void }> = 
               onPointerEnter={() => setHover(key(i))}>
               <div className="flex items-baseline justify-between gap-2">
                 <div className="font-semibold text-slate-100 truncate">{i.label}</div>
-                <div className="text-[10px] uppercase tracking-widest text-slate-500">{CLS_LABEL[i.assetClass]}{i.kind === 'pair' ? ' pair' : ''}</div>
+                <div className="text-[10px] uppercase tracking-widest text-slate-500">{CLS_ONE[i.assetClass]}{i.kind === 'pair' ? ' pair' : ''}</div>
               </div>
               {i.kind === 'asset' && i.name !== i.label && <div className="text-[11px] text-slate-400 truncate">{i.name}</div>}
               <div className="mt-2 flex h-2 rounded-full overflow-hidden bg-slate-800">
