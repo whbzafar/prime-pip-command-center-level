@@ -133,33 +133,70 @@ export const LevelAlertEnablePrompt: React.FC = () => {
   );
 };
 
-/** Big banner shown anywhere in the app the moment a setup reaches its level (stays until closed). */
+/** How long a setup pop-up stays on screen before it hides itself (it can also be minimized or closed by hand). */
+export const BANNER_MS = 5 * 60_000;
+
+/** Pop-up shown anywhere in the app the moment a setup reaches its level: stays ~5 minutes, then hides; can be minimized. */
 export const LevelAlertBanner: React.FC<{ onOpen: (engineSymbol: string) => void }> = ({ onOpen }) => {
-  const [items, setItems] = useState<LevelAlert[]>([]);
+  const [items, setItems] = useState<Array<LevelAlert & { shownAt: number; test?: boolean; kind?: string; title?: string; text?: string }>>([]);
+  const [min, setMin] = useState(false);
   useEffect(() => {
-    const on = (e: Event) => setItems((cur) => [...((e as CustomEvent).detail as LevelAlert[]), ...cur].slice(0, 4));
+    const on = (e: Event) => {
+      const now = Date.now();
+      const add = ((e as CustomEvent).detail as any[]).map((d) => ({ ...d, models: d.models || [], shownAt: now }));
+      setItems((cur) => [...add, ...cur].slice(0, 4));
+      setMin(false);
+    };
     window.addEventListener('ppfx:level-alert', on);
-    return () => window.removeEventListener('ppfx:level-alert', on);
+    const t = window.setInterval(() => setItems((cur) => { const k = cur.filter((x) => Date.now() - x.shownAt < BANNER_MS); return k.length === cur.length ? cur : k; }), 5000);
+    return () => { window.removeEventListener('ppfx:level-alert', on); window.clearInterval(t); };
   }, []);
   if (!items.length) return null;
+  const shell = 'fixed left-1/2 -translate-x-1/2 top-[calc(env(safe-area-inset-top,0px)+4rem)] z-[2147482000]';
+  if (min) {
+    const top = items[0];
+    return (
+      <div className={shell} data-testid="level-alert-chip">
+        <button type="button" onClick={() => setMin(false)} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-400/70 bg-slate-950/95 text-[12px] font-bold text-amber-100 shadow-xl cursor-pointer">
+          <BellRing className="w-3.5 h-3.5 text-amber-300" />
+          {top.display ? `${top.side > 0 ? 'BUY' : 'SELL'} ${top.display} · L${top.level}` : 'Setup alert'}{items.length > 1 ? ` +${items.length - 1}` : ''}
+          <span className="text-cyan-300 font-semibold">Show</span>
+        </button>
+      </div>
+    );
+  }
   return (
-    <div className="fixed left-1/2 -translate-x-1/2 top-[calc(env(safe-area-inset-top,0px)+4rem)] z-[2147482000] w-[min(520px,calc(100vw-1rem))] space-y-2" data-testid="level-alert-banner" role="alert" aria-live="assertive">
+    <div className={`${shell} w-[min(520px,calc(100vw-1rem))] space-y-2`} data-testid="level-alert-banner" role="alert" aria-live="assertive">
+      <div className="flex justify-end">
+        <button type="button" data-testid="level-alert-minimize" onClick={() => setMin(true)} className="px-2.5 py-1 rounded-full border border-slate-600 bg-slate-950/90 text-[11px] font-semibold text-slate-200 hover:text-white cursor-pointer">Minimize</button>
+      </div>
       {items.map((a) => {
+        if (a.kind === 'TEST_EMPTY' || !a.display || (a as any).heads) {
+          return (
+            <div key={a.id} className="relative rounded-2xl border-2 border-cyan-400 bg-slate-950/95 p-3 pr-9 shadow-2xl">
+              <button type="button" onClick={() => setItems((c) => c.filter((x) => x.id !== a.id))} aria-label="Dismiss" className="absolute top-2 right-2 p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 cursor-pointer"><XIcon className="w-4 h-4" /></button>
+              <div className="text-[10px] font-mono-code uppercase tracking-[0.18em] text-cyan-300 font-bold">{(a as any).heads ? 'Heads-up · price nearing a level' : a.test ? 'Test alert' : 'Market update'}</div>
+              <div className="mt-1 text-[13px] font-bold text-white">{a.title}</div>
+              <div className="text-[11.5px] text-slate-300">{a.text}</div>
+              {(a as any).heads && <button type="button" onClick={() => { onOpen(a.symbol); setItems((c) => c.filter((x) => x.id !== a.id)); }} className="mt-1 text-[10.5px] text-cyan-300 font-semibold cursor-pointer">Open the chart →</button>}
+            </div>
+          );
+        }
         const up = a.side > 0;
         return (
           <div key={a.id} className={`relative rounded-2xl border-2 shadow-2xl backdrop-blur-xl p-3 pr-9 ${up ? 'border-emerald-400 bg-emerald-950/90 shadow-emerald-500/30' : 'border-rose-400 bg-rose-950/90 shadow-rose-500/30'}`}>
             <button type="button" onClick={() => setItems((c) => c.filter((x) => x.id !== a.id))} aria-label="Dismiss" className="absolute top-2 right-2 p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 cursor-pointer"><XIcon className="w-4 h-4" /></button>
             <button type="button" onClick={() => { onOpen(a.symbol); setItems((c) => c.filter((x) => x.id !== a.id)); }} className="w-full text-left cursor-pointer">
-              <div className="text-[10px] font-mono-code uppercase tracking-[0.18em] text-amber-200 font-bold">Fundamental setup · key level reached · H1</div>
+              <div className="text-[10px] font-mono-code uppercase tracking-[0.18em] text-amber-200 font-bold">{a.test ? 'TEST · most recent real setup' : 'Fundamental setup · key level reached · H1'}{a.time ? ` · ${levelTime(a.time)} PKT` : ''}</div>
               <div className="mt-1 flex items-center gap-2 flex-wrap">
                 <span className={`px-2.5 py-0.5 rounded-lg text-[15px] font-black ${up ? 'bg-emerald-400 text-emerald-950' : 'bg-rose-400 text-rose-950'}`}>{up ? 'BUY' : 'SELL'}</span>
                 <span className="text-[22px] font-black text-white tracking-wide">{a.display}</span>
-                <span className="text-[12px] font-bold text-amber-100">Level {a.level}</span>
+                {a.level ? <span className="text-[12px] font-bold text-amber-100">Level {a.level}</span> : null}
               </div>
-              <div className="mt-1 text-[11.5px] text-slate-200">H1 close {fmtPrice(a.price)} · zone {fmtPrice(a.zoneBottom)} – {fmtPrice(a.zoneTop)}{a.models.length ? ` · ${a.models.join(' + ')}` : ''}</div>
+              {Number.isFinite(a.price) && <div className="mt-1 text-[11.5px] text-slate-200">H1 close {fmtPrice(a.price)}{Number.isFinite(a.zoneBottom) ? ` · zone ${fmtPrice(a.zoneBottom)} – ${fmtPrice(a.zoneTop)}` : ''}{a.models.length ? ` · ${a.models.join(' + ')}` : ''}</div>}
               {typeof a.depthPips === 'number' && <div className={`text-[11px] font-semibold ${a.depthPips < EDGE_PIPS ? 'text-amber-200' : 'text-slate-300'}`}>{a.depthPips < EDGE_PIPS ? `⚠ Edge touch (${a.depthPips} pips) — check it on your broker's chart` : `Wick ${a.depthPips} pips into the zone`}</div>}
               {Number.isFinite(a.stop) && Number.isFinite(a.target) && <div className="text-[11.5px] text-slate-100 font-semibold">Entry next H1 open · stop {fmtPrice(a.stop as number)} · take profit 1:2 {fmtPrice(a.target as number)}</div>}
-              <div className="text-[11px] text-slate-300">Fundamental: long-term {up ? 'bullish' : 'bearish'} pair (score {a.score > 0 ? '+' : ''}{a.score.toFixed(0)}){a.crowd ? ` · ${a.crowd}` : ''}</div>
+              {Number.isFinite(a.score) && <div className="text-[11px] text-slate-300">Fundamental: long-term {up ? 'bullish' : 'bearish'} pair (score {a.score > 0 ? '+' : ''}{a.score.toFixed(0)}){a.crowd ? ` · ${a.crowd}` : ''}</div>}
               {a.news && <div className="text-[11px] font-bold text-amber-200">⚠ {a.news}</div>}
               {a.checked?.length ? <div className="text-[10px] text-emerald-300/80">Verified: level on the candle that just closed · {a.checked.join(' · ')}</div> : null}
               <div className="text-[10.5px] text-cyan-300 font-semibold">Tap to open the chart →</div>

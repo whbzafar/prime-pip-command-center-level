@@ -206,7 +206,7 @@ export const AnnouncementsCenter: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-            {!sel && (tab === 'FUNDAMENTALS' || levelHits > 0) && <LevelAlertsPanel dense onOpen={(sym) => { openChart(sym); setOpen(false); }} />}
+            {!sel && tab === 'FUNDAMENTALS' && <LevelAlertsPanel dense onOpen={(sym) => { openChart(sym); setOpen(false); }} />}
             {sel && (tab === 'FUNDAMENTALS' || tab === 'PICKS') && <AssetDetail sel={sel} levels={levels} news={news} pk={pkItems || []} onBack={() => setSel(null)} onOpen={(sym) => { openChart(sym); setOpen(false); }} />}
             {!sel && tab === 'FUNDAMENTALS' && (
               <>

@@ -10,7 +10,7 @@ const cache = new Map<string, Quote>();
 const norm = (s: string) => ({ BTCUSD: 'BTCUSDT', ETHUSD: 'ETHUSDT', XRPUSD: 'XRPUSDT', SOLUSD: 'SOLUSDT' } as Record<string, string>)[s] || s;
 const H1P = PRO_PERIODS.find((p) => p.text === '1H') || PRO_PERIODS[0];
 
-async function load(symbol: string): Promise<Quote | null> {
+export async function loadQuote(symbol: string): Promise<Quote | null> {
   const e = CATALOG.find((c) => c.ticker === norm(symbol));
   if (!e) return null;
   const f = new FullHistoryDatafeed(() => {}); f.pageSize = 30;
@@ -36,7 +36,7 @@ export function useQuotes(symbols: string[], active: boolean, everyMs = 30_000):
           const s = list[i++];
           const had = cache.get(s);
           if (had && Date.now() - had.at < everyMs - 2000) continue;
-          try { const q = await load(s); if (q && !stop) { cache.set(s, q); tick((n) => n + 1); } } catch { /* keep the previous quote */ }
+          try { const q = await loadQuote(s); if (q && !stop) { cache.set(s, q); tick((n) => n + 1); } } catch { /* keep the previous quote */ }
         }
       };
       await Promise.all([worker(), worker(), worker()]);

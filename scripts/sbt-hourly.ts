@@ -18,7 +18,7 @@ const TAG = 'sbt-levels';
 const MIN_SCORE = 10;
 // Rankings symbol → chart-feed ticker (crypto trades against USDT on the feed; copper has its own name).
 const TICKER: Record<string, string> = { XCUUSD: 'COPPER', BTCUSD: 'BTCUSDT', ETHUSD: 'ETHUSDT', SOLUSD: 'SOLUSDT', XRPUSD: 'XRPUSDT', BNBUSD: 'BNBUSDT', DOGEUSD: 'DOGEUSDT', ADAUSD: 'ADAUSDT' };
-const marketOf = (s: string) => (/USDT$/.test(s) ? 'crypto' : /^X(AU|AG|PT|PD)/.test(s) ? 'metals' : /OIL|GAS|COPPER/.test(s) ? 'energy' : /^(US|GER|UK|JP)\d/.test(s) ? 'indices' : 'forex');
+const marketOf = (s: string) => (/USDT$/.test(s) ? 'crypto' : /^X(AU|AG|PT|PD)/.test(s) ? 'metals' : /OIL|GAS|COPPER/.test(s) ? 'energy' : /^(US|GER|UK|JP|FRA|AUS|HK)\d/.test(s) ? 'indices' : 'forex');
 
 async function loadStrategy(attempt = 1): Promise<void> {
   try { await loadStrategyOnce(); } catch (e) {
