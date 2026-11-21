@@ -140,7 +140,7 @@ export const TvLeftToolbar: React.FC<{ getChart: () => Chart | null; ready: bool
                   </div>
       </div>
       {favs.length > 0 && (
-        <div data-testid="tv-fav-bar" style={{ position: 'absolute', top: 52, left: '50%', transform: 'translateX(-50%)', zIndex: 40, display: 'flex', gap: 2, background: bg, color: fg, border: `1px solid ${line}`, borderRadius: 6, padding: 3, boxShadow: '0 4px 16px rgba(0,0,0,.2)', maxWidth: '70%', overflowX: 'auto' }}>
+        <div data-testid="tv-fav-bar" style={{ position: 'absolute', top: 8, left: 56, width: 'max-content', zIndex: 40, display: 'flex', alignItems: 'center', gap: 2, background: bg, color: fg, border: `1px solid ${line}`, borderRadius: 6, padding: 3, boxShadow: '0 4px 16px rgba(0,0,0,.2)', maxWidth: 'min(calc(100vw - 120px), 720px)', overflowX: 'auto' }}>
           <span title="Favorite drawing tools" style={{ color: '#f5b50a', padding: '4px 6px', fontSize: 14 }}>★</span>
           {favs.map((t) => (
             <button key={t} type="button" data-testid={`tv-fav-${t}`} title={label(t)} onClick={() => arm(null, active === t ? null : t)} style={{ border: 0, cursor: 'pointer', borderRadius: 4, padding: '4px 9px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', color: active === t ? '#2962ff' : fg, background: active === t ? sel : 'transparent' }}>{label(t)}</button>

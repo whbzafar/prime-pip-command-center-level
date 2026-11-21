@@ -223,9 +223,7 @@ export const BarReplayPro: React.FC = () => {
     chart?.setStyles(canvasStyles(getCanvasColor()) as any);
     host.style.background = getCanvasColor();
     const offCanvas = onCanvasColor((bg) => { host.style.background = bg; chartRef.current?.setStyles(canvasStyles(bg) as any); });
-    chart?.createIndicator('MA', false, { id: 'candle_pane' });
-    const volPane = chart?.createIndicator('VOL');
-    setActiveInd({ MA: 'candle_pane', ...(volPane ? { VOL: volPane } : {}) });
+    setActiveInd({}); // starts clean: indicators are added by the user (and restored from auto-save)
     feedRef.current = new FullHistoryDatafeed((s) => { if (s.source) setSource(s.source); if (s.state === 'error') feedErr.current = s.message || 'Data source error'; });
     const ro = new ResizeObserver(() => chart?.resize());
     ro.observe(host);

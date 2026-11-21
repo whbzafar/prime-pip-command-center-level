@@ -316,8 +316,7 @@ export const FundamentalAnalysisView: React.FC = () => {
                     <button type="button" onClick={() => openPair(ov.pairs.find((p) => p.base === selSymbol)!.symbol)}
                       className="text-[12px] text-cyan-400 hover:text-cyan-300 cursor-pointer">Open {selSymbol}/USD side-by-side analysis →</button>
                   )}
-                  {(tab === 'FOREX' || tab === 'COMMODITIES' || tab === 'INDICES') && <CoverageNotice asset={detail.asset} />}
-                  <AssetDetail asset={detail.asset} mirrors={detail.mirrors} institutional={detail.institutional} />
+                                    <AssetDetail asset={detail.asset} mirrors={detail.mirrors} institutional={detail.institutional} />
                 </>
               ) : (
                 <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-8 text-center text-sm text-slate-500">Loading breakdown…</div>
@@ -412,24 +411,6 @@ const SourcesPanel: React.FC<{ ov: Overview }> = ({ ov }) => (
   </div>
 );
 
-/** Tells the reader exactly which inputs are not in this score and why (never filled with guesses). */
-const CoverageNotice: React.FC<{ asset: AssetResult }> = ({ asset }) => {
-  const inds = asset.pillars.flatMap((p) => (p.indicators || []).map((i) => ({ ...i, pillar: p.name })));
-  if (!inds.length) return null;
-  const missing = inds.filter((i) => i.status === 'missing');
-  const stale = inds.filter((i) => i.status === 'stale');
-  const pmi = missing.filter((i) => /pmi/i.test(i.name));
-  const other = missing.filter((i) => !/pmi/i.test(i.name));
-  const live = inds.length - missing.length - stale.length;
-  return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2.5 text-[11.5px] text-slate-400 leading-relaxed" data-testid="coverage-notice">
-      <b className="text-slate-200">Data coverage · {live} of {inds.length} indicators live</b>
-      {stale.length > 0 && <> · {stale.length} waiting for their next release ({stale.slice(0, 4).map((i) => i.name).join(', ')}{stale.length > 4 ? '…' : ''})</>}
-      {pmi.length > 0 && <div className="mt-1"><b className="text-amber-300">PMI surveys not included:</b> the S&amp;P Global / HCOB / au Jibun PMI numbers are licensed — every free calendar publishes the release date but withholds the figure ({pmi.map((i) => i.name).join(', ')}). The model leaves them out instead of guessing; their weight moves to the live indicators.</div>}
-      {other.length > 0 && <div className="mt-1"><b className="text-slate-300">Not published for this economy / no live reading:</b> {other.map((i) => i.name).join(', ')}.</div>}
-    </div>
-  );
-};
 
 // Warm every Fundamentals screen shortly after the app's idle prefetch pulls this module in, so categories open instantly.
 if (typeof window !== 'undefined') window.setTimeout(() => { try { prefetchFundamentals(); } catch { /* ignore */ } }, 2500);
