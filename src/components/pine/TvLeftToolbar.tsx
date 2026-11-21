@@ -32,10 +32,10 @@ const GROUPS: Array<{ id: string; title: string; tools: string[] }> = [
   { id: 'icons', title: 'Icons', tools: ['iconstamp', 'flagmark', 'arrowmarkup', 'arrowmarkdown'] },
 ];
 
-const Svg: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+export const Svg: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
-const ICONS: Record<string, React.ReactNode> = {
+export const ICONS: Record<string, React.ReactNode> = {
   cursor: <Svg><path d="M14 6v16M6 14h16" /><circle cx="14" cy="14" r="1.6" fill="currentColor" /></Svg>,
   lines: <Svg><path d="M7 21 21 7" /><circle cx="7" cy="21" r="2" /><circle cx="21" cy="7" r="2" /></Svg>,
   fib: <Svg><path d="M7 8h14M7 13h14M7 18h14M7 23h14" /><path d="M7 8v15" /></Svg>,

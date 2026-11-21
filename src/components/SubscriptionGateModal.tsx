@@ -10,7 +10,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { UserAccount } from '../types';
-import { PRICE_STANDARD, PRICE_WITH_CODE, OWNER_WHATSAPP_DISPLAY, waLink } from '../config/pricing';
+import { OWNER_WHATSAPP_DISPLAY, waLink, planPriceShort, planPriceWa } from '../config/pricing';
 import { CategorySummary } from '../data/categorySummaries';
 
 interface SubscriptionGateModalProps {
@@ -58,18 +58,18 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
     badgeColor = 'bg-rose-500/10 border-rose-500/30 text-rose-400';
   } else {
     title = 'PAYMENT VERIFICATION REQUIRED';
-    subtitle = `Your membership is pending subscription payment confirmation. Subscribe for $${PRICE_STANDARD} ($${PRICE_WITH_CODE} with a code) and message us on WhatsApp so we can verify your payment and activate full access.`;
+    subtitle = `Your membership is pending subscription payment confirmation. Subscribe — ${planPriceShort()} — and message us on WhatsApp so we can verify your payment and activate full access.`;
     icon = <AlertTriangle className="w-8 h-8 text-cyan-400" />;
     badgeColor = 'bg-blue-500/10 border-blue-500/30 text-cyan-400';
   }
 
   const whatsappMessage = lockedCategory
-    ? `Hello PrimePipFX, I want full access to ${lockedCategory.name} ($${PRICE_STANDARD}, or $${PRICE_WITH_CODE} with a code) on the PRIMEPIPFX Command Center.`
+    ? `Hello PrimePipFX, I want full access to ${lockedCategory.name} (${planPriceWa()}) on the PRIMEPIPFX Command Center.`
     : isExpired
     ? `Hello PrimePipFX, my subscription for username (${user?.username || 'trader'}) has expired. I want to renew access to the PRIMEPIPFX Trading Command Center.`
     : isSuspended
     ? `Hello PrimePipFX, my account (${user?.username || 'trader'}) is suspended. Please assist with my access to the PRIMEPIPFX Trading Command Center.`
-    : `Hello PrimePipFX, I created the account (${user?.username || 'trader'}) and want to subscribe to the PRIMEPIPFX Trading Command Center ($${PRICE_STANDARD}, or $${PRICE_WITH_CODE} with a code).`;
+    : `Hello PrimePipFX, I created the account (${user?.username || 'trader'}) and want to subscribe to the PRIMEPIPFX Trading Command Center (${planPriceWa()}).`;
 
   const whatsappUrl = waLink(whatsappMessage);
 
@@ -164,7 +164,7 @@ export const SubscriptionGateModal: React.FC<SubscriptionGateModalProps> = ({
             <div className="p-3 rounded-lg bg-gradient-to-r from-amber-500/15 via-blue-500/15 to-emerald-500/15 border border-amber-500/40 text-slate-200">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-amber-300 text-xs font-military">FULL ACCESS SUBSCRIPTION</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">${PRICE_STANDARD} · ${PRICE_WITH_CODE} WITH CODE</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">{planPriceShort().toUpperCase()}</span>
               </div>
             </div>
           </div>

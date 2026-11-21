@@ -38,3 +38,19 @@ export const isBundleOfferActive = (now = Date.now()) => now < BUNDLE_OFFER_ENDS
 export const bundleOfferDaysLeft = (now = Date.now()) => Math.max(0, Math.ceil((BUNDLE_OFFER_ENDS_AT - now) / 86400000));
 export const BUNDLE_OFFER_HEADLINE = `Buy the SBT Indicator for $${SBT_INDICATOR_PRICE} and get the full Command Center FREE`;
 export const bundleOfferWaLink = () => waLink(`Hello PrimePipFX, I want the launch offer: SBT Indicator ($${SBT_INDICATOR_PRICE}) with the Command Center included free.`);
+
+/**
+ * EARLY-BIRD OFFER — lifetime access to the complete terminal for $50 instead of the regular price.
+ * Valid for purchases made before December 2026: it ends on 1 December 2026, 00:00 Pakistan time, and every
+ * price, banner and countdown reverts / disappears on its own after that (no deploy needed).
+ */
+export const LIFETIME_OFFER_PRICE = 50;
+export const LIFETIME_OFFER_ENDS_AT = Date.parse('2026-12-01T00:00:00+05:00');
+export const LIFETIME_OFFER_END_LABEL = '1 December 2026';
+export const isLifetimeOfferActive = (now = Date.now()) => now < LIFETIME_OFFER_ENDS_AT;
+/** Price shown to a buyer right now (a coupon never stacks on the early-bird price). */
+export const currentPlanPrice = (withCode = false, now = Date.now()) => (isLifetimeOfferActive(now) ? LIFETIME_OFFER_PRICE : withCode ? PRICE_WITH_CODE : PRICE_STANDARD);
+export const planPriceShort = (now = Date.now()) => (isLifetimeOfferActive(now) ? `$${LIFETIME_OFFER_PRICE} lifetime` : `$${PRICE_STANDARD} · $${PRICE_WITH_CODE} with a code`);
+export const planPriceWa = (now = Date.now()) => (isLifetimeOfferActive(now) ? `$${LIFETIME_OFFER_PRICE} lifetime early-bird offer` : `$${PRICE_STANDARD}, or $${PRICE_WITH_CODE} with a code`);
+export const lifetimeOfferWaLink = () => waLink(`Hello PrimePipFX, I want the early-bird offer: lifetime access to the complete terminal for $${LIFETIME_OFFER_PRICE}.`);
+export const msToParts = (ms: number) => { const t = Math.max(0, Math.floor(ms / 1000)); return { d: Math.floor(t / 86400), h: Math.floor((t % 86400) / 3600), m: Math.floor((t % 3600) / 60), s: t % 60 }; };

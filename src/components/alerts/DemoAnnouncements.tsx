@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { Lock, Megaphone, X } from 'lucide-react';
 import { NewsHub } from './NewsHub';
-import { PRICE_STANDARD, PRICE_WITH_CODE } from '../../config/pricing';
+import { planPriceShort } from '../../config/pricing';
 
 export const DemoAnnouncements: React.FC<{ onOpenSubscription?: () => void }> = ({ onOpenSubscription }) => {
   const [open, setOpen] = useState(false);
@@ -28,7 +28,7 @@ export const DemoAnnouncements: React.FC<{ onOpenSubscription?: () => void }> = 
             <button type="button" onClick={() => { setOpen(false); onOpenSubscription?.(); }}
               className="w-full flex items-center gap-2 rounded-xl border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-left text-[11px] text-amber-100 hover:bg-amber-500/20 cursor-pointer">
               <Lock className="w-3.5 h-3.5 shrink-0" />
-              <span>Long-term fundamentals, stock picks, level alerts and owner announcements unlock with the subscription — ${PRICE_STANDARD} (${PRICE_WITH_CODE} with a code).</span>
+              <span>Long-term fundamentals, stock picks, level alerts and owner announcements unlock with the subscription — {planPriceShort()}.</span>
             </button>
           </div>
         </div>

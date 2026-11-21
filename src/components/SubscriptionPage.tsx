@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Check, CheckCircle2, Crown, Loader2, MessageCircle, Tag, X } from 'lucide-react';
 import { apiCheckReferral, getStoredReferral, setStoredReferral } from '../utils/authClient';
 import { UserAccount } from '../types';
+import { LifetimeOfferCountdown } from './subscription/LifetimeOfferCountdown';
 import {
-  BUNDLE_OFFER_END_LABEL, SBT_INDICATOR_PRICE, bundleOfferDaysLeft, bundleOfferWaLink, isBundleOfferActive, DISCOUNT_PERCENT, OWNER_WHATSAPP_DISPLAY, PRICE_STANDARD, PRICE_WITH_CODE, SUBSCRIPTION_INCLUDES, waLink,
+  BUNDLE_OFFER_END_LABEL, SBT_INDICATOR_PRICE, bundleOfferDaysLeft, bundleOfferWaLink, isBundleOfferActive, DISCOUNT_PERCENT, OWNER_WHATSAPP_DISPLAY, currentPlanPrice, isLifetimeOfferActive, LIFETIME_OFFER_PRICE, PRICE_STANDARD, PRICE_WITH_CODE, SUBSCRIPTION_INCLUDES, waLink,
 } from '../config/pricing';
 
 interface SubscriptionPageProps {
@@ -31,16 +32,18 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onOpenLogin,
     if (res.valid) {
       setApplied(true);
       setStoredReferral(c);
-      setMessage({ ok: true, text: `🎉 Congratulations! ${DISCOUNT_PERCENT}% off — your price is now $${PRICE_WITH_CODE}.` });
+      setMessage({ ok: true, text: isLifetimeOfferActive() ? `Code accepted — the early-bird lifetime price of $${LIFETIME_OFFER_PRICE} is already the lowest price, so it stays at $${LIFETIME_OFFER_PRICE}.` : `🎉 Congratulations! ${DISCOUNT_PERCENT}% off — your price is now $${PRICE_WITH_CODE}.` });
     } else {
       setApplied(false);
-      setMessage({ ok: false, text: 'That code is not valid. The price stays at $' + PRICE_STANDARD + '.' });
+      setMessage({ ok: false, text: 'That code is not valid. The price stays at $' + currentPlanPrice(false) + '.' });
     }
   };
 
   useEffect(() => { if (code) void apply(code); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
-  const price = applied ? PRICE_WITH_CODE : PRICE_STANDARD;
+  const offerOn = isLifetimeOfferActive();
+  const price = currentPlanPrice(applied);
+  const showStrike = offerOn || applied; // early-bird $50 (or the coupon price) shown against the regular price
   const who = currentUser?.username ? ` My username is ${currentUser.username}.` : '';
   const wa = waLink(
     `Hello PrimePipFX, I want to subscribe to the PRIMEPIPFX Trading Command Center ($${price}${applied ? `, coupon code ${code.trim()}` : ''}).${who}`,
@@ -60,6 +63,8 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onOpenLogin,
         <p className="mt-1 text-xs text-slate-400">One plan. Full access to the Command Center.</p>
       </div>
 
+      <LifetimeOfferCountdown variant="card" className="mb-4" />
+
       {isBundleOfferActive() && (
         <div data-testid="bundle-offer" className="ppfx-sbt-glow mb-4 overflow-hidden rounded-3xl border border-emerald-300/60 bg-gradient-to-br from-emerald-500/20 via-slate-950 to-amber-400/15 p-4 text-center sm:p-5">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400 px-3 py-0.5 text-[10px] font-extrabold uppercase tracking-widest text-slate-950">🎁 Launch offer · ends {BUNDLE_OFFER_END_LABEL}</div>
@@ -78,11 +83,11 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onOpenLogin,
 
       <div className="rounded-3xl border border-amber-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-5 shadow-2xl sm:p-6">
         <div className="flex items-end justify-center gap-3">
-          {applied && <span className="pb-2 text-lg text-slate-500 line-through" data-testid="price-original">${PRICE_STANDARD}</span>}
+          {showStrike && <span className="pb-2 text-lg text-slate-500 line-through" data-testid="price-original">${PRICE_STANDARD}</span>}
           <span className="text-5xl font-black text-white" data-testid="price-current">${price}</span>
-          <span className="pb-2 text-xs text-slate-400">USD</span>
+          <span className="pb-2 text-xs text-slate-400">USD{offerOn ? ' · lifetime' : ''}</span>
         </div>
-        {applied && (
+        {applied && !offerOn && (
           <div className="mt-2 text-center">
             <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-[11px] font-bold text-emerald-300">{DISCOUNT_PERCENT}% OFF APPLIED</span>
           </div>

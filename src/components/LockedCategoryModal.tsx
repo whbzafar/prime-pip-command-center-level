@@ -1,4 +1,4 @@
-import { PRICE_STANDARD, PRICE_WITH_CODE, OWNER_WHATSAPP_DISPLAY } from '../config/pricing';
+import { PRICE_STANDARD, PRICE_WITH_CODE, OWNER_WHATSAPP_DISPLAY, isLifetimeOfferActive, LIFETIME_OFFER_PRICE, LIFETIME_OFFER_END_LABEL, planPriceShort } from '../config/pricing';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -114,10 +114,10 @@ export const LockedCategoryModal: React.FC<LockedCategoryModalProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-military font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>FULL SUBSCRIPTION: ${PRICE_STANDARD}</span>
+                    <span>{isLifetimeOfferActive() ? `EARLY-BIRD LIFETIME: $${LIFETIME_OFFER_PRICE}` : `FULL SUBSCRIPTION: $${PRICE_STANDARD}`}</span>
                   </span>
                   <span className="text-[10px] font-mono-code font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                    ${PRICE_WITH_CODE} WITH A CODE
+                    {isLifetimeOfferActive() ? `ENDS ${LIFETIME_OFFER_END_LABEL.toUpperCase()}` : `$${PRICE_WITH_CODE} WITH A CODE`}
                   </span>
                 </div>
                 <p className="text-xs font-mono-code text-slate-200 leading-relaxed">
@@ -135,7 +135,7 @@ export const LockedCategoryModal: React.FC<LockedCategoryModalProps> = ({
               className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-military font-bold text-xs tracking-wider uppercase transition shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-slate-950" />
-              <span>SUBSCRIBE — ${PRICE_STANDARD} (${PRICE_WITH_CODE} WITH CODE)</span>
+              <span>SUBSCRIBE — {planPriceShort().toUpperCase()}</span>
               <ArrowRight className="w-4 h-4" />
             </button>}
 

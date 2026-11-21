@@ -28,7 +28,8 @@ import { QuantumFx } from './components/QuantumFx';
 import { SubscriptionPage } from './components/SubscriptionPage';
 import { SubscriptionGateModal } from './components/SubscriptionGateModal';
 import { SbtIndicatorBanner } from './components/subscription/SbtIndicatorBanner';
-import { PRICE_STANDARD, PRICE_WITH_CODE } from './config/pricing';
+import { planPriceShort, isLifetimeOfferActive } from './config/pricing';
+import { LifetimeOfferCountdown } from './components/subscription/LifetimeOfferCountdown';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { UserProfileModal } from './components/UserProfileModal';
 import { TraderExperienceProfileModal } from './components/evolution/TraderExperienceProfileModal';
@@ -1379,6 +1380,9 @@ export default function App() {
       {/* SBT Indicator announcement — top of the app for everyone (logged in or demo) */}
       <SbtIndicatorBanner persistClose={hasFullAccess(currentUser)} />
 
+      {/* Early-bird lifetime offer ($50 until 1 Dec 2026) with a live countdown — shown after sign-in to anyone without full access */}
+      {currentUser && !hasFullAccess(currentUser) && isLifetimeOfferActive() && <LifetimeOfferCountdown variant="bar" />}
+
       {/* 30-minute free trial countdown, then a one-time review prompt */}
       {trialActive && (
         <TrialBanner user={currentUser} onExpire={handleTrialExpired} onSubscribe={() => setIsSubscriptionModalOpen(true)} />
@@ -1400,7 +1404,7 @@ export default function App() {
             <span className="h-1.5 w-1.5 animate-ping rounded-full bg-cyan-400" /> DEMO — limited access
           </span>
           <span className="hidden text-slate-400 sm:inline">Unlock every category with the subscription:</span>
-          <span className="font-bold text-amber-300">${PRICE_STANDARD} <span className="font-normal text-slate-400">· ${PRICE_WITH_CODE} with a code</span></span>
+          <span className="font-bold text-amber-300">{planPriceShort()}</span>
           <div className="flex items-center gap-2">
             {!currentUser && (
               <button type="button" onClick={() => setIsLoginModalOpen(true)} className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-200 hover:bg-slate-800">

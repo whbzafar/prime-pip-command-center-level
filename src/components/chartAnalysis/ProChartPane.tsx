@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { KLineChartPro } from '@klinecharts/pro';
+import { ProDrawingToolbar } from './ProDrawingToolbar';
+import { resolveProChart } from '../../utils/chartPersist';
 import '@klinecharts/pro/dist/klinecharts-pro.css';
 import { enhanceIndicatorDialogs } from '../../utils/indicatorCategories';
 import { canvasStyles, getCanvasColor, isLightCanvas, onCanvasColor } from '../../utils/chartCanvas';
@@ -52,7 +54,7 @@ export const ProChartPane: React.FC<{
       theme: isLightCanvas(bg0) ? 'light' : 'dark',
       locale: 'en-US',
       watermark: '',
-      drawingBarVisible: true,
+      drawingBarVisible: false, // replaced by the TradingView-style toolbar (ProDrawingToolbar)
       symbol: findSymbol(state.ticker),
       period: findPeriod(state.period),
       periods: PRO_PERIODS,
@@ -122,6 +124,7 @@ export const ProChartPane: React.FC<{
   // Auto-save: drawings and indicators come back exactly as left.
   const liveTicker = useCallback(() => chartRef.current?.getSymbol().ticker ?? null, []);
   useProPersistence(hostRef, liveTicker);
+  const getInner = useCallback(() => (hostRef.current ? resolveProChart(hostRef.current) : null), []);
 
   // Apply changes coming from the workspace (quick symbols, sync, multi-timeframe)
   useEffect(() => {
@@ -133,8 +136,9 @@ export const ProChartPane: React.FC<{
   }, [state.ticker, state.period]);
 
   return (
-    <div className="relative w-full h-full">
-      <div ref={hostRef} className="ppfx-pro-chart w-full h-full" />
+    <div className="relative w-full h-full flex">
+      <ProDrawingToolbar getChart={getInner} />
+      <div ref={hostRef} className="ppfx-pro-chart h-full min-w-0 flex-1" />
       <CanvasColorControl className="absolute bottom-12 right-32 z-20" />
       <button type="button" title="Back to the latest bar" aria-label="Back to the latest bar"
         onClick={() => { const c: any = chartRef.current; if (!c) return; try { c.setPeriod({ ...c.getPeriod() }); } catch { /* ignore */ } }}
