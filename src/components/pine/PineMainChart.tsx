@@ -19,6 +19,7 @@ import { pineCompat } from '../../utils/pineCompat';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, BellOff, Check, Loader2, Minus, Plus, RotateCcw, Search, Trash2, X } from 'lucide-react';
 import { VelaWorkspace } from '@luxalgo/vela/workspace';
+import { TvLeftToolbar } from './TvLeftToolbar';
 import { registerIcon, registerRendererLayer, registerWidgetAction } from '@luxalgo/vela/plugin';
 import { PineWorkerEngine } from '@luxalgo/vela-pinets';
 import { catalogFor, makeProvider, normTf, velaTf, venueSymbol } from './pineData';
@@ -56,15 +57,6 @@ const TV_SKIN_CSS = `
 .ppfx-tv-skin .vela-dtb-btn:hover,.ppfx-tv-skin .vela-dtb-cell:hover{background:rgba(128,140,160,.2)}
 `;
 const TV_TIMEFRAMES = ['1', '15', '30', '60', '240', 'D', 'W'];
-const TV_DRAW_GROUPS = [
-  { id: 'lines', label: 'Trend line tools', tools: ['trendline', 'ray', 'extendedline', 'hline', 'vline', 'hray', 'crossline', 'infoline', 'trendangle', 'parallelchannel', 'disjointchannel', 'flattopbottom', 'regressionchannel'] },
-  { id: 'fib', label: 'Fib and Gann tools', tools: ['fibretracement', 'fibextension', 'fibchannel', 'fibtimezones', 'fibfan', 'fibcircles', 'fibarcs', 'fibspiral', 'gannfan', 'gannbox', 'gannsquare', 'pitchfork', 'schiffpitchfork'] },
-  { id: 'patterns', label: 'Patterns', tools: ['xabcd', 'abcd', 'headshoulders', 'gartley', 'bat', 'butterfly', 'crab', 'shark', 'cypher', 'elliottimpulse', 'elliottcorrection'] },
-  { id: 'forecast', label: 'Forecasting and measurement', tools: ['position', 'datepricerange', 'fairvaluegap', 'orderblock', 'liquidity', 'anchoredvwap', 'fixedrangevp'] },
-  { id: 'brush', label: 'Brushes and shapes', tools: ['freehand', 'highlighter', 'box', 'rotatedrect', 'circle', 'ellipse', 'triangle', 'polyline', 'path', 'arc', 'curve', 'arrow'] },
-  { id: 'text', label: 'Text and notes', tools: ['text', 'note', 'pricenote', 'comment', 'callout', 'pricelabel', 'signpost'] },
-  { id: 'icons', label: 'Icons and emojis', tools: ['iconstamp', 'flagmark', 'arrowmarkup', 'arrowmarkdown'] },
-];
 function ensureTvSkin() {
   if (typeof document === 'undefined' || document.getElementById(TV_SKIN_ID)) return;
   const st = document.createElement('style'); st.id = TV_SKIN_ID; st.textContent = TV_SKIN_CSS; document.head.appendChild(st);
@@ -278,7 +270,8 @@ export const PineMainChart: React.FC<{
       layout: false, symbol: venueSymbol(entry.ticker), timeframe: tf, bars: HISTORY_BARS, theme: savedTheme(), live: true, persist: false,
       timezone: 'Asia/Karachi',
       topbar: { left: ['timeframes', 'style', 'indicators', 'undo-redo'], right: ['alerts', 'panels', 'screenshot'] },
-      drawings: { toolbar: true, groups: TV_DRAW_GROUPS },
+      drawings: { toolbar: false },
+      timeframes: ['1', '3', '5', '15', '30', '60', '120', '240', 'D', 'W', 'M'],
       providers: { dukascopy: () => makeProvider('dukascopy'), binance: () => makeProvider('binance') },
       engines: { pine: () => new PineWorkerEngine(), [REMOTE_LANG]: () => new RemotePineEngine() },
     } as any);
@@ -286,13 +279,15 @@ export const PineMainChart: React.FC<{
     tickerRef.current = entry.ticker;
     markOnScreen(entry.ticker, true);
     let alive = true;
-    let offLook: any = null;
+    let offLook: any = null; let offGuard: any = null;
     const slowT = window.setTimeout(() => { if (alive) setSlow(true); }, 20_000);
     const chart: any = w.chart;
-    const offTheme = chart.on?.('theme:changed', (t: any) => { try { const id = t?.id || t?.name || (t?.isDark === false || t?.mode === 'light' ? 'light' : 'dark'); localStorage.setItem(THEME_KEY, String(id)); } catch { /* ignore */ } });
+    const offTheme = chart.on?.('theme:changed', (t: any) => { try { const id = t?.id || t?.name || (t?.isDark === false || t?.mode === 'light' ? 'light' : 'dark'); localStorage.setItem(THEME_KEY, String(id)); window.dispatchEvent(new Event('ppfx:pro-theme')); } catch { /* ignore */ } });
     chart.ready().then(() => {
       if (!alive) return;
       setReady(true); setSlow(false);
+      // The timeframe list used to vanish the moment the pointer moved over it: every live market update re-projected the topbar and rebuilt the open menu.
+      try { const m = (w as any).topbar?.tfMenu; if (m && !m.__ppfxGuard) { m.__ppfxGuard = true; const orig = m.setItems.bind(m); let pend: any = null; m.setItems = (it: any) => { if (m.api?.open) { pend = it; return; } orig(it); }; const t = window.setInterval(() => { if (pend && !m.api?.open) { const x = pend; pend = null; orig(x); } }, 400); offGuard = () => window.clearInterval(t); } } catch { /* ignore */ }
       // TradingView's quick timeframe chips (1m 15m 30m 1h 4h D W) as favourites, unless the user already starred their own.
       try { const st: any = (w as any).getState?.(); if (st && !(st.timeframeFavorites || []).length ) { (w as any).applyState?.({ ...st, timeframeFavorites: TV_TIMEFRAMES }); } } catch { /* ignore */ }
       try { const tools = JSON.parse(localStorage.getItem(TOOLS_KEY) || 'null'); if (tools) chart.drawings?.setToolDefaults?.(tools); } catch { /* ignore */ }
@@ -332,6 +327,7 @@ export const PineMainChart: React.FC<{
       window.removeEventListener('beforeunload', flush);
       saveDrawings();
       loadedFor.current = '';
+      try { offGuard?.(); } catch { /* ignore */ }
       try { offMarket?.(); offs.forEach((o: any) => o?.()); offLook?.(); offTheme?.(); } catch { /* ignore */ }
       markOnScreen(tickerRef.current, false);
       running.current.clear();
@@ -490,11 +486,11 @@ export const PineMainChart: React.FC<{
   }
   return (
     <div ref={wrap} className="relative w-full overflow-hidden" style={{ height }}>
-      <div ref={host} className="absolute inset-0" />
+      <div ref={host} className="absolute inset-y-0 right-0 left-[48px]" />
+      <div className="absolute inset-y-0 left-0 z-30"><TvLeftToolbar getChart={() => (ws.current?.chart ?? null)} ready={ready} onClearAll={clearAllObjects} /></div>
       {ready && (
-        <div className="absolute left-2 bottom-9 z-20 flex items-center gap-1.5">
-          <button type="button" onClick={() => { if (!clearAsk) { setClearAsk(true); window.setTimeout(() => setClearAsk(false), 4000); return; } clearAllObjects(); }} data-testid="pro-delete-all" title="Delete every object drawn on this chart"
-            className={`h-6 px-2 rounded-md border text-[10.5px] font-semibold cursor-pointer ${clearAsk ? 'border-rose-400 bg-rose-600 text-white' : 'border-slate-600/70 bg-[#1e222d]/90 text-slate-200 hover:text-white hover:border-rose-400'}`}>{clearAsk ? 'Click again: delete all' : '🗑 Delete all'}</button>
+        <div className="absolute left-14 bottom-9 z-20 flex items-center gap-1.5">
+          
       {ready && (
         <button type="button" onClick={() => setGridOn((v) => !v)} data-testid="pro-grid-toggle" aria-pressed={!gridOn} title={gridOn ? 'Hide the grid lines' : 'Show the grid lines'}
           className="h-6 px-2 rounded-md border border-slate-600/70 bg-[#1e222d]/90 text-[10.5px] font-semibold text-slate-200 hover:text-white hover:border-cyan-400 cursor-pointer">{gridOn ? 'Grid: on' : 'Grid: off'}</button>

@@ -3009,7 +3009,6 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       const existing = container.querySelector('iframe');
       const forced = tvReloadSeen.current !== tvReload; tvReloadSeen.current = tvReload;
       if (existing && !forced && existing.getAttribute('src') === src) return; // same chart already loaded
-      container.innerHTML = '';
       const iframe = document.createElement('iframe');
       iframe.src = src;
       iframe.style.width = '100%';
@@ -3018,6 +3017,18 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       iframe.setAttribute('allowtransparency', 'true');
       iframe.setAttribute('allowfullscreen', 'true');
       iframe.setAttribute('title', `${selectedSymbol} TradingView Advanced Chart`);
+      if (forced && existing) {
+        // "Delete all": the sealed TradingView frame has no API, so a clean frame is loaded BEHIND the current one and swapped in
+        // the moment it has drawn — the chart never blanks, dims or flashes.
+        container.style.position = 'relative';
+        iframe.style.position = 'absolute'; iframe.style.inset = '0'; iframe.style.visibility = 'hidden';
+        container.appendChild(iframe);
+        const swap = () => { try { existing.remove(); iframe.style.visibility = 'visible'; } catch { /* ignore */ } };
+        const guard = window.setTimeout(swap, 9000);
+        iframe.addEventListener('load', () => window.setTimeout(() => { window.clearTimeout(guard); swap(); }, 1200), { once: true });
+        return;
+      }
+      container.innerHTML = '';
       container.appendChild(iframe);
     };
 
