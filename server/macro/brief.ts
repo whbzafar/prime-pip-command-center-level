@@ -37,8 +37,8 @@ function stability(score: number, label: string): BriefLine[] {
     const toUp = Math.round(bUp - score), toDown = Math.round(score - bDown);
     out.push({
       tone: 'info',
-      en: `${label} sits at ${sgn(score)}: it needs ${toUp} more points to reach ${BIAS_EN[names(bUp)]}, and would drop to ${BIAS_EN[names(bDown - 0.1)]} if it falls below ${sgn(bDown)} (${toDown} points lower).`,
-      ur: `${label} کا اسکور ${sgn(score)} ہے: ${BIAS_UR[names(bUp)]} (${BIAS_EN[names(bUp)]}) تک پہنچنے کے لیے مزید ${toUp} پوائنٹس درکار ہیں، اور اگر یہ ${sgn(bDown)} سے نیچے گیا (${toDown} پوائنٹس کم) تو رجحان ${BIAS_UR[names(bDown - 0.1)]} (${BIAS_EN[names(bDown - 0.1)]}) میں بدل جائے گا۔`,
+      en: `${label} sits at ${sgn(score)}: a rise of ${toUp} points (to ${sgn(bUp)}) would lift it to ${BIAS_EN[names(bUp + 0.01)]}, while a fall of more than ${toDown} points (below ${sgn(bDown)}) would drop it to ${BIAS_EN[names(bDown - 0.1)]}.`,
+      ur: `${label} کا اسکور ${sgn(score)} ہے: ${toUp} پوائنٹس بڑھ کر (${sgn(bUp)} تک) یہ ${BIAS_UR[names(bUp + 0.01)]} (${BIAS_EN[names(bUp + 0.01)]}) میں آ جائے گا، جبکہ ${toDown} پوائنٹس سے زیادہ گرنے پر (${sgn(bDown)} سے نیچے) یہ ${BIAS_UR[names(bDown - 0.1)]} (${BIAS_EN[names(bDown - 0.1)]}) میں چلا جائے گا۔`,
     });
   }
   return out;

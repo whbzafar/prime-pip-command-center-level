@@ -49,7 +49,7 @@ export const BriefHost: React.FC = () => {
   useEffect(() => {
     if (!sym) return;
     let dead = false;
-    fetchJsonSafe<BriefData>(`/api/macro/brief/${encodeURIComponent(sym)}`).then((d) => { if (!dead) setData(d); }).catch((e) => { if (!dead) setErr(String(e?.message || e)); });
+    fetchJsonSafe<{ data: BriefData }>(`/api/macro/brief/${encodeURIComponent(sym)}`).then((r) => { if (!dead) setData(r.data); }).catch((e) => { if (!dead) setErr(String(e?.message || e)); });
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setSym(null); };
     window.addEventListener('keydown', k);
     return () => { dead = true; window.removeEventListener('keydown', k); };
