@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { safeReadJsonFile, safeWriteJsonFile } from './dataPath.js';
-import { durableEnabled, getShared, hydrateUsers, logLogin, persistUsers, updateShared } from './durableStore.js';
+import { durableEnabled, getShared, hydrateUsers, logLogin, persistUsers, setShared, updateShared } from './durableStore.js';
 const durableEnabledFlag = () => durableEnabled;
 
 export type UserRole = 'ADMIN' | 'CUSTOMER' | 'DEVELOPER';
@@ -129,10 +129,20 @@ let removedIds = new Set<string>();
 let removedNames = new Set<string>();
 const isProtected = (u: StoredUser) => u.isDeveloper || u.role === 'ADMIN' || u.role === 'DEVELOPER';
 export const isRemovedMember = (username?: string, id?: string) => Boolean((username && removedNames.has(username.toLowerCase())) || (id && removedIds.has(id)));
+// Names an admin or the person deliberately re-created after a removal: a stale shared copy must not re-block them.
+const reinstatedNames = new Set<string>();
+/**
+ * Merge the shared removal list into memory. It only ever ADDS: a stale or failed read (cached copy, network
+ * error, empty fallback) used to replace the in-memory list and make a just-deleted member reappear.
+ */
 export async function refreshRemovedMembers() {
   const r = await getShared<Removed>('removed_members', { ids: [], usernames: [] });
-  removedIds = new Set(r.ids || []);
-  removedNames = new Set((r.usernames || []).map((x) => String(x).toLowerCase()));
+  for (const id of r.ids || []) removedIds.add(String(id));
+  for (const n of r.usernames || []) { const k = String(n).toLowerCase(); if (!reinstatedNames.has(k)) removedNames.add(k); }
+}
+/** Write the full removal list (memory ∪ shared) at once, synchronously queued so the response waits for it. */
+function saveRemoved() {
+  return setShared('removed_members', { ids: [...removedIds].slice(-2000), usernames: [...removedNames].slice(-2000) });
 }
 
 export function readUsers(): StoredUser[] {
@@ -525,6 +535,8 @@ export function createCustomer(data: {
   if (cleanUsername === 'primepipfx-admin' || cleanUsername === 'developer' || cleanUsername === 'admin') {
     return { success: false, error: 'Reserved administrator username' };
   }
+  // Deliberately re-creating a name that was removed earlier lifts the block on that name only.
+  if (removedNames.delete(cleanUsername)) { reinstatedNames.add(cleanUsername); void saveRemoved(); }
 
   const generatedPassword = data.password && data.password.trim().length >= 4 
     ? data.password.trim() 
@@ -739,10 +751,8 @@ export function deleteCustomer(id: string): { success: boolean; error?: string }
   const updatedUsers = users.filter((u) => u.id !== id);
   removedIds.add(user.id);
   removedNames.add(user.username.toLowerCase());
-  void updateShared<Removed>('removed_members', { ids: [], usernames: [] }, (r) => ({
-    ids: [...new Set([...(r.ids || []), user.id])].slice(-2000),
-    usernames: [...new Set([...(r.usernames || []), user.username.toLowerCase()])].slice(-2000),
-  }));
+  reinstatedNames.delete(user.username.toLowerCase());
+  void saveRemoved();
   writeUsers(updatedUsers);
 
   // Remove active sessions
@@ -944,7 +954,8 @@ export function registerSelf(input: { username: string; password: string; name?:
   if (/^(admin|administrator|developer|primepipfx|primepipfx-admin|support|root|system)$/.test(username) || username.includes('admin')) return { ok: false, error: 'That username is reserved — please choose another.' };
   if (removedNames.has(username)) {
     removedNames.delete(username);
-    void updateShared<Removed>('removed_members', { ids: [], usernames: [] }, (r) => ({ ids: r.ids || [], usernames: (r.usernames || []).filter((x) => x !== username) }));
+    reinstatedNames.add(username);
+    void saveRemoved();
   }
   const res = createCustomer({
     name: String(input.name || '').trim().slice(0, 60) || username,

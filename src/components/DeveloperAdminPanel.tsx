@@ -38,7 +38,7 @@ import {
   syncStudentsToCloud,
   syncStudentsFromCloud,
 } from '../utils/localAuthStore';
-import { EvolutionCommandCenter } from './evolution/EvolutionCommandCenter';
+import { CommandCenter } from './admin/CommandCenter';
 
 interface DeveloperAdminPanelProps {
   currentUser?: UserAccount;
@@ -1913,7 +1913,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
 
       {/* TAB 7: EVOLUTION COMMAND CENTER */}
       {activeTab === 'EVOLUTION' && (
-        <EvolutionCommandCenter currentUser={currentUser} />
+        <CommandCenter />
       )}
     </div>
   );

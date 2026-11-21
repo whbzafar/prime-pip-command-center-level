@@ -203,6 +203,7 @@ import { cotRouter, verifyCftcDatasetAtBoot } from "./server/cotService.js";
 import newsCalendarRouter from "./server/routes/newsCalendarRoutes.js";
 import { sentimentRouter } from "./server/routes/sentimentRoutes.js";
 import { macroRouter } from "./server/routes/macroRoutes.js";
+import { commandCenterRouter, startCommandCenter } from "./server/routes/commandCenter.js";
 import { copilotRouter } from "./server/routes/copilotRoutes.js";
 import { radarRouter } from "./server/routes/radarRoutes.js";
 import { shockRouter } from "./server/routes/shockRoutes.js";
@@ -7197,6 +7198,7 @@ app.use('/api/dukascopy', dukascopyRouter);
 
 // Fundamental Analysis engine (macro scorecards, pairs, correlations, live release scoring)
 app.use('/api/macro', macroRouter);
+app.use('/api/admin/command-center', commandCenterRouter(requireDeveloper));
 app.use('/api/copilot', copilotRouter);
 app.use('/api/radar', radarRouter);
 app.use('/api/shock', shockRouter);
@@ -7285,6 +7287,7 @@ async function startServer() {
   httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`[PRIMEPIPFX COMMAND CENTER] Server active on port ${PORT}`);
     startAutonomousEvolution();
+    startCommandCenter();
     console.log("[EvolutionEngine] Autonomous safe-sandbox scheduler started (5 minute interval)");
     void verifyCftcDatasetAtBoot();
   });
