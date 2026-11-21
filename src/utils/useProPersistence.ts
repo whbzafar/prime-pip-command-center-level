@@ -13,7 +13,6 @@ export function useProPersistence(hostRef: RefObject<HTMLDivElement | null>, get
       const host = hostRef.current; if (!host) return;
       if (!chart) {
         chart = resolveProChart(host); if (!chart) return;
-        try { (window as any).__ppfxProChart = chart; } catch { /* diagnostics only */ }
         stopSave = startAutoSave(chart, () => loadedFor, () => ready && loadedFor === getTicker());
       }
       const t = getTicker(); if (!t) return;
