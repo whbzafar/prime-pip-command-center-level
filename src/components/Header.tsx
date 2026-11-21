@@ -68,6 +68,8 @@ import { LiquidGlassThemeToggle } from './LiquidGlassThemeToggle';
 import { EvolutionStatusBadge } from './evolution/EvolutionStatusBadge';
 import { GlobalTimeSessionModal } from './GlobalTimeSessionModal';
 import { GlobalSearch } from './GlobalSearch';
+import CommandPalette from './CommandPalette';
+import { openChart } from './fundamentalAnalysis/LiveBiasStrip';
 import { isCategoryLockedInDemo } from '../data/categorySummaries';
 import { CategoryShowcase } from './CategoryShowcase';
 import { hasFullAccess, isUserAdmin } from '../utils/authClient';
@@ -918,6 +920,13 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Global discovery and account actions */}
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 max-w-full">
           <GlobalSearch onNavigate={switchTab} />
+          <button type="button" data-testid="open-palette" title="Command palette (Ctrl/⌘+K) · voice & live briefing"
+            onClick={() => window.dispatchEvent(new Event('ppfx-open-palette'))}
+            className="inline-flex items-center gap-1 rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-2 py-1.5 text-[10px] font-black uppercase tracking-wider text-cyan-200 hover:bg-cyan-500/20">
+            <span>⌘K</span><span className="hidden sm:inline">Command</span>
+          </button>
+          <CommandPalette categories={allNavCategories.map((c) => ({ id: c.id, label: c.label }))} onNavigate={switchTab}
+            onOpenSymbol={(sym) => { switchTab('PRO_TRADING' as MainNavTab); setTimeout(() => openChart(sym), 250); }} />
           {currentUser ? (
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <button
