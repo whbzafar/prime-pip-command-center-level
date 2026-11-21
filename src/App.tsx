@@ -5,6 +5,7 @@ import { trackState, type AnalyticsState } from './services/analyticsClient';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Header } from './components/Header';
+import { AuroraScene } from './components/AuroraScene';
 import { MainDashboard } from './components/MainDashboard';
 import { TradeJournal } from './components/TradeJournal';
 import { RiskCenter, TradeLimitAlertSystem } from './components/RiskCenter';
@@ -1332,6 +1333,7 @@ export default function App() {
       <div className="fixed inset-0 pointer-events-none z-0 opacity-15" style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
 
       {/* Navigation HUD Header */}
+      <AuroraScene />
       <Header
         activeTab={activeTab as any}
         onSelectTab={handleSelectTab}
