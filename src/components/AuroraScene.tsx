@@ -35,12 +35,12 @@ function startScene(): () => void {
     ctx.lineWidth = 1;
     for (let i = 0; i < 14; i++) {
       const f = (i + phase) / 14, y = horizon + (h - horizon) * f * f;
-      ctx.strokeStyle = `rgba(99,102,241,${0.05 + f * 0.17})`;
+      ctx.strokeStyle = `rgba(99,102,241,${0.08 + f * 0.24})`;
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
     }
     for (let i = -12; i <= 12; i++) {
       const bx = cx + i * (w / 11);
-      ctx.strokeStyle = `rgba(34,211,238,${0.05 + (1 - Math.abs(i) / 13) * 0.1})`;
+      ctx.strokeStyle = `rgba(34,211,238,${0.08 + (1 - Math.abs(i) / 13) * 0.14})`;
       ctx.beginPath(); ctx.moveTo(cx + (bx - cx) * 0.04, horizon); ctx.lineTo(bx, h); ctx.stroke();
     }
     const glow = ctx.createLinearGradient(0, horizon - 40, 0, horizon + 60);

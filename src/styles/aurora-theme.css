@@ -38,7 +38,7 @@ html[data-theme='aurora']::before {
 }
 @keyframes au-drift { from { filter: hue-rotate(0deg); transform: scale(1); } to { filter: hue-rotate(-14deg); transform: scale(1.04); } }
 html[data-theme='aurora'] #ppfx-aurora-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -998; pointer-events: none; opacity: 0.9; }
-html[data-theme='aurora'] #root, html[data-theme='aurora'] .prime-command-shell { background-color: transparent !important; }
+html[data-theme='aurora'] #root, html[data-theme='aurora'] .prime-command-shell { background: transparent !important; background-image: none !important; }
 
 /* ── panels: graphite glass with a lit top edge ─────────────────────────── */
 html[data-theme='aurora'] :where(
