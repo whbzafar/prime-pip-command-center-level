@@ -36,7 +36,7 @@ function pack(items: Item[], aspect: number) {
       const gx = Math.floor(x / CELL), gy = Math.floor(y / CELL); let ok = true;
       for (let i = gx - 1; i <= gx + 1 && ok; i++) for (let j = gy - 1; j <= gy + 1 && ok; j++) {
         const cell = grid.get(`${i},${j}`); if (!cell) continue;
-        for (const p of cell) { const dx = p.x - x, dy = p.y - y, m = p.r + r + 1.2; if (dx * dx + dy * dy < m * m) { ok = false; break; } }
+        for (const p of cell) { const dx = p.x - x, dy = p.y - y, m = p.r + r + 3.2; if (dx * dx + dy * dy < m * m) { ok = false; break; } }
       }
       if (ok) break;
       th += 1.4 / (rho + 3);
@@ -109,49 +109,47 @@ export const FinancialUniverse: React.FC<{ onNavigate?: (tab: any) => void }> = 
     onNavigate?.('FUNDAMENTAL_INDICATORS');
   };
   const active = layout.items.find((p) => key(p.item) === (pinned ?? hover));
-  const stat = (id: SideFilter, label: string, n: number, color: string) => (
+  const pill = (id: SideFilter, label: string, n: number, color: string) => (
     <button type="button" onClick={() => { setSide(id); setPinned(null); }} aria-pressed={side === id} data-testid={`universe-stat-${id}`}
-      className={`pointer-events-auto text-right rounded-lg px-2 py-1 transition-colors cursor-pointer ${side === id ? 'bg-white/10 ring-1 ring-white/25' : 'hover:bg-white/5'}`}>
-      <div className="text-lg sm:text-2xl font-extralight tabular-nums" style={{ color }}>{n}</div>
-      <div className="text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-slate-400">{label}</div>
+      className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold transition-colors cursor-pointer ${side === id ? 'border-white/40 bg-white/10 text-white' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}>
+      <i className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />{label}<b className="tabular-nums" style={{ color }}>{n}</b>
     </button>
   );
   const chip = (id: 'ALL' | Cls, label: string, n: number) => (
     <button key={id} type="button" onClick={() => { setCls(id); setPinned(null); }} aria-pressed={cls === id}
-      className={`px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider cursor-pointer ${cls === id ? 'border-[#d4af37]/70 bg-[#d4af37]/15 text-[#f3d98a]' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}>{label} <span className="opacity-60">{n}</span></button>
+      className={`shrink-0 px-3 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider cursor-pointer ${cls === id ? 'border-[#d4af37]/70 bg-[#d4af37]/15 text-[#f3d98a]' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}>{label} <span className="opacity-60">{n}</span></button>
   );
   const clsCount = (c: Cls) => base.filter((i) => i.assetClass === c).length;
 
   return (
     <section data-testid="financial-universe" className="relative overflow-hidden rounded-2xl border border-[#d4af37]/30 bg-[#02050c] shadow-[0_0_60px_-20px_rgba(212,175,55,0.35)]">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_60%,rgba(34,211,238,0.07),transparent_60%)]" />
-      <div className="relative px-4 pt-3 sm:px-6 sm:pt-5 flex flex-wrap items-start justify-between gap-3">
+      <div className="relative px-4 pt-4 sm:px-6 sm:pt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pr-14 sm:pr-6">
         <div>
-          <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.42em] text-[#d4af37]">PrimePipFx · Global Intelligence Core</div>
-          <div className="mt-1 text-xl sm:text-3xl font-extralight uppercase tracking-[0.22em] text-slate-100">Financial Universe</div>
-          <div className="mt-1.5 flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.2em] text-cyan-300/90">
+          <div className="text-lg sm:text-2xl font-extralight uppercase tracking-[0.2em] text-slate-100">Financial Universe</div>
+          <div className="mt-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
             <span className={`h-1.5 w-1.5 rounded-full ${error ? 'bg-rose-400' : busy ? 'bg-cyan-300 animate-ping' : 'bg-emerald-400'}`} />
-            {error ? 'Reconnecting…' : `Live fundamentals${asOf ? ` · updated ${asOf}` : ''}`}
+            {error ? 'Reconnecting…' : `Live${asOf ? ` · updated ${asOf}` : ''}`}
           </div>
         </div>
-        <div className="flex gap-1 sm:gap-2">
-          {stat('ALL', scope === 'asset' ? 'Assets scored' : 'Pairs scored', counts.all, '#f1f5f9')}
-          {stat('bull', 'Bullish', counts.bull, COL.bull)}
-          {stat('bear', 'Bearish', counts.bear, COL.bear)}
-          {stat('neutral', 'Neutral', counts.neutral, COL.neutral)}
-        </div>
-      </div>
-      <div className="relative px-4 sm:px-6 mt-3 flex flex-wrap items-center gap-1.5">
-        <div className="flex rounded-full border border-slate-700 overflow-hidden mr-1">
+        <div className="flex rounded-full border border-slate-700 overflow-hidden">
           {(['asset', 'pair'] as const).map((s) => (
             <button key={s} type="button" onClick={() => { setScope(s); setCls('ALL'); setPinned(null); }} aria-pressed={scope === s}
-              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider cursor-pointer ${scope === s ? 'bg-cyan-400/20 text-cyan-200' : 'text-slate-400'}`}>{s === 'asset' ? 'Assets' : 'Pairs'}</button>
+              className={`px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider cursor-pointer ${scope === s ? 'bg-cyan-400/20 text-cyan-200' : 'text-slate-400 hover:text-slate-200'}`}>{s === 'asset' ? 'Assets' : 'Pairs'}</button>
           ))}
         </div>
-        {chip('ALL', 'All', base.length)}
+      </div>
+      <div className="relative px-4 sm:px-6 mt-3 flex flex-wrap gap-2" role="group" aria-label="Filter by direction">
+        {pill('ALL', scope === 'asset' ? 'All assets' : 'All pairs', counts.all, '#e2e8f0')}
+        {pill('bull', 'Bullish', counts.bull, COL.bull)}
+        {pill('bear', 'Bearish', counts.bear, COL.bear)}
+        {pill('neutral', 'Neutral', counts.neutral, COL.neutral)}
+      </div>
+      <div className="relative px-4 sm:px-6 mt-2.5 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
+        {chip('ALL', 'All markets', base.length)}
         {CLASSES.filter((c) => clsCount(c) > 0).map((c) => chip(c, CLS_LABEL[c], clsCount(c)))}
       </div>
-      <div ref={box} className="relative h-[360px] sm:h-[440px] w-full mt-1" onPointerLeave={() => setHover(null)}>
+      <div ref={box} className="relative h-[400px] sm:h-[480px] w-full mt-1" onPointerLeave={() => setHover(null)}>
         {!uni && !error && <div className="absolute inset-0 grid place-items-center text-sm text-slate-400">Loading live fundamentals…</div>}
         {!uni && error && <div className="absolute inset-0 grid place-items-center text-sm text-rose-300">Could not load the data yet — retrying automatically.</div>}
         {uni && layout.items.length === 0 && <div className="absolute inset-0 grid place-items-center text-sm text-slate-400">Nothing matches this filter right now.</div>}
@@ -170,8 +168,8 @@ export const FinancialUniverse: React.FC<{ onNavigate?: (tab: any) => void }> = 
                   }}>
                   {flash[k] && <circle r={pr} fill="none" stroke={c} strokeWidth={2}><animate attributeName="r" from={pr} to={pr * 2.2} dur="1.6s" repeatCount="2" /><animate attributeName="opacity" from=".9" to="0" dur="1.6s" repeatCount="2" /></circle>}
                   <circle r={pr} fill={c} fillOpacity={on ? 0.95 : 0.78} stroke={on ? '#fff' : c} strokeOpacity={on ? 1 : 0.9} strokeWidth={on ? 2 : 1} style={{ transition: 'r .7s, fill-opacity .2s' }} />
-                  {pr >= 15 && <text textAnchor="middle" y={pr >= 22 ? -1 : 3} fontSize={Math.min(12, pr * 0.42)} fontWeight={700} fill="#04101a" style={{ pointerEvents: 'none' }}>{item.label.length > 7 ? item.label.slice(0, 6) + '…' : item.label}</text>}
-                  {pr >= 22 && <text textAnchor="middle" y={11} fontSize={9} fontWeight={600} fill="#04101a" fillOpacity={0.75} style={{ pointerEvents: 'none' }}>{Math.round(strength(item))}%</text>}
+                  {pr >= 20 && <text textAnchor="middle" y={pr >= 30 ? -2 : 3.5} fontSize={Math.min(12, pr * 0.38)} fontWeight={700} fill="#04101a" style={{ pointerEvents: 'none' }}>{item.label.length > Math.floor(pr / 3.4) ? item.label.slice(0, Math.max(3, Math.floor(pr / 3.4) - 1)) + '…' : item.label}</text>}
+                  {pr >= 30 && <text textAnchor="middle" y={11} fontSize={9.5} fontWeight={600} fill="#04101a" fillOpacity={0.7} style={{ pointerEvents: 'none' }}>{Math.round(strength(item))}%</text>}
                 </g>
               );
             })}
@@ -200,10 +198,7 @@ export const FinancialUniverse: React.FC<{ onNavigate?: (tab: any) => void }> = 
           );
         })()}
       </div>
-      <div className="relative px-4 sm:px-6 pb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] uppercase tracking-[0.14em] text-slate-400">
-        {(['bull', 'bear', 'neutral'] as Side[]).map((s) => <span key={s} className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full" style={{ background: COL[s] }} />{SIDE_WORD[s]}</span>)}
-        <span className="normal-case tracking-normal text-slate-500">Bigger bubble = stronger lean (higher bullish or bearish %). Hover for the split, click to open.</span>
-      </div>
+      <div className="relative px-4 sm:px-6 pb-4 text-[11px] text-slate-500">Bubble size = how strong the lean is. Hover for the bullish / bearish split · click to open the full analysis.</div>
     </section>
   );
 };

@@ -2,10 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { CotReportModule } from './cot/CotReportModule';
 import { SentimentBoard } from './fundamentalAnalysis/SentimentBoard';
 import { LiquidGlassThemeToggle } from './LiquidGlassThemeToggle';
-import { ShieldAlert, Activity, Sparkles, Layers, Gauge } from 'lucide-react';
+import { ShieldAlert, Activity, Layers, Gauge, Orbit } from 'lucide-react';
+import { FinancialUniverse } from './FinancialUniverse';
 import { FundamentalAnalysisView } from './fundamentalAnalysis/FundamentalAnalysisView';
 
-export type FundamentalDashboardTab = 'ANALYSIS' | 'SEVERITY_REPORT' | 'SENTIMENT' | 'COT_REPORT' | 'MARKET_SENTIMENT';
+export type FundamentalDashboardTab = 'ANALYSIS' | 'SEVERITY_REPORT' | 'SENTIMENT' | 'UNIVERSE';
+type FiTab = 'ANALYSIS' | 'SEVERITY_REPORT' | 'SENTIMENT' | 'UNIVERSE';
+export const FI_TAB_KEY = 'ppfx:fi-tab';
+
+const SECTIONS: Array<{ id: FiTab; title: string; caption: string; icon: React.ComponentType<{ className?: string }>; activeBox: string; activeIcon: string; bar: string }> = [
+  { id: 'ANALYSIS', title: 'Fundamentals', caption: 'Bullish / bearish scores for every market', icon: Gauge, activeBox: 'bg-gradient-to-br from-emerald-500/15 to-transparent border-emerald-400/60 shadow-emerald-500/10', activeIcon: 'bg-emerald-500 text-slate-950', bar: 'bg-emerald-400' },
+  { id: 'SEVERITY_REPORT', title: 'CFTC COT Report', caption: 'What big institutions are holding', icon: ShieldAlert, activeBox: 'bg-gradient-to-br from-cyan-500/15 to-transparent border-cyan-400/60 shadow-cyan-500/10', activeIcon: 'bg-cyan-500 text-slate-950', bar: 'bg-cyan-400' },
+  { id: 'SENTIMENT', title: 'Sentiment', caption: 'Where the retail crowd is positioned', icon: Activity, activeBox: 'bg-gradient-to-br from-blue-500/15 to-transparent border-blue-400/60 shadow-blue-500/10', activeIcon: 'bg-blue-500 text-slate-950', bar: 'bg-blue-400' },
+  { id: 'UNIVERSE', title: 'Financial Universe', caption: 'Every asset on one live map', icon: Orbit, activeBox: 'bg-gradient-to-br from-amber-400/15 to-transparent border-amber-300/60 shadow-amber-400/10', activeIcon: 'bg-amber-400 text-slate-950', bar: 'bg-amber-300' },
+];
+const readStart = (): FiTab => { try { const v = sessionStorage.getItem(FI_TAB_KEY); if (v) { sessionStorage.removeItem(FI_TAB_KEY); if (SECTIONS.some((x) => x.id === v)) return v as FiTab; } } catch { /* ignore */ } return 'ANALYSIS'; };
 
 export interface FundamentalIndicatorsProps {
   currentUser?: any;
@@ -14,7 +25,7 @@ export interface FundamentalIndicatorsProps {
 }
 
 export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = () => {
-  const [activeTab, setActiveTab] = useState<'ANALYSIS' | 'SEVERITY_REPORT' | 'SENTIMENT'>('ANALYSIS');
+  const [activeTab, setActiveTab] = useState<FiTab>(readStart);
 
   // External tab navigation listener (e.g. from PreTradePlan or Dashboard shortcuts)
   useEffect(() => {
@@ -26,6 +37,8 @@ export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = () =>
         setActiveTab('SEVERITY_REPORT');
       } else if (targetTab === 'MARKET_SENTIMENT' || targetTab === 'SENTIMENT') {
         setActiveTab('SENTIMENT');
+      } else if (targetTab === 'UNIVERSE') {
+        setActiveTab('UNIVERSE');
       }
     };
 
@@ -65,139 +78,24 @@ export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = () =>
           </div>
         </div>
 
-        {/* Tab Switcher: Fundamental Analysis, Severity Report & Sentiment */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-          {/* Tab 0: Fundamental Analysis */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('ANALYSIS')}
-            className={`group relative text-left p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
-              activeTab === 'ANALYSIS'
-                ? 'bg-gradient-to-r from-emerald-500/15 via-cyan-500/10 to-transparent border-emerald-400/60 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-400/30'
-                : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/80'
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                    activeTab === 'ANALYSIS'
-                      ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/30'
-                      : 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
-                  }`}
-                >
-                  <Gauge className="w-5 h-5" />
+        {/* Four sub-categories */}
+        <div role="tablist" aria-label="Fundamentals sections" className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+          {SECTIONS.map((t) => {
+            const on = activeTab === t.id; const Icon = t.icon;
+            return (
+              <button key={t.id} type="button" role="tab" aria-selected={on} data-testid={`fi-tab-${t.id}`} onClick={() => setActiveTab(t.id)}
+                className={`group relative overflow-hidden text-left rounded-2xl border px-3.5 py-3 transition-all duration-200 cursor-pointer ${on ? `${t.activeBox} shadow-lg` : 'bg-slate-900/50 border-slate-800 hover:border-slate-600 hover:bg-slate-900/80'}`}>
+                <div className="flex items-center gap-3">
+                  <span className={`grid place-items-center w-9 h-9 shrink-0 rounded-xl transition-colors ${on ? t.activeIcon : 'bg-slate-800 text-slate-400 group-hover:text-slate-200'}`}><Icon className="w-[18px] h-[18px]" /></span>
+                  <span className="min-w-0">
+                    <span className="block font-military font-bold text-[13px] sm:text-sm tracking-wide text-white truncate">{t.title}</span>
+                    <span className="block text-[11px] text-slate-400 leading-snug line-clamp-2">{t.caption}</span>
+                  </span>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-military font-bold text-sm tracking-wide text-white">
-                      Fundamental Analysis
-                    </span>
-                    <span className="text-[9px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase">
-                      Live Scores
-                    </span>
-                  </div>
-                  <p className="text-[11px] font-mono-code text-slate-400 mt-0.5">
-                    Bullish / bearish % for Forex, Metals, Indices, Stocks &amp; Crypto
-                  </p>
-                </div>
-              </div>
-
-              {activeTab === 'ANALYSIS' && (
-                <span className="shrink-0 text-emerald-400">
-                  <Sparkles className="w-4 h-4 animate-pulse" />
-                </span>
-              )}
-            </div>
-          </button>
-
-          {/* Tab 1: Severity Report */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('SEVERITY_REPORT')}
-            className={`group relative text-left p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
-              activeTab === 'SEVERITY_REPORT'
-                ? 'bg-gradient-to-r from-cyan-500/15 via-blue-500/10 to-transparent border-cyan-400/60 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400/30'
-                : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/80'
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                    activeTab === 'SEVERITY_REPORT'
-                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/30'
-                      : 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
-                  }`}
-                >
-                  <ShieldAlert className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-military font-bold text-sm tracking-wide text-white">
-                      Severity Report
-                    </span>
-                    <span className="text-[9px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 uppercase">
-                      CFTC COT
-                    </span>
-                  </div>
-                  <p className="text-[11px] font-mono-code text-slate-400 mt-0.5">
-                    Institutional Commitment of Traders positioning &amp; extremity levels
-                  </p>
-                </div>
-              </div>
-
-              {activeTab === 'SEVERITY_REPORT' && (
-                <span className="shrink-0 text-cyan-400">
-                  <Sparkles className="w-4 h-4 animate-pulse" />
-                </span>
-              )}
-            </div>
-          </button>
-
-          {/* Tab 2: Sentiment */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('SENTIMENT')}
-            className={`group relative text-left p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
-              activeTab === 'SENTIMENT'
-                ? 'bg-gradient-to-r from-blue-500/15 via-indigo-500/10 to-transparent border-blue-400/60 shadow-lg shadow-blue-500/10 ring-1 ring-blue-400/30'
-                : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/80'
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                    activeTab === 'SENTIMENT'
-                      ? 'bg-blue-500 text-slate-950 font-bold shadow-md shadow-blue-500/30'
-                      : 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
-                  }`}
-                >
-                  <Activity className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-military font-bold text-sm tracking-wide text-white">
-                      Sentiment
-                    </span>
-                    <span className="text-[9px] font-mono-code font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40 uppercase">
-                      Retail Gauges
-                    </span>
-                  </div>
-                  <p className="text-[11px] font-mono-code text-slate-400 mt-0.5">
-                    Contrarian crowd positioning &amp; sentiment across 31 major assets
-                  </p>
-                </div>
-              </div>
-
-              {activeTab === 'SENTIMENT' && (
-                <span className="shrink-0 text-blue-400">
-                  <Sparkles className="w-4 h-4 animate-pulse" />
-                </span>
-              )}
-            </div>
-          </button>
+                <span className={`absolute inset-x-0 bottom-0 h-0.5 transition-opacity ${on ? 'opacity-100' : 'opacity-0'} ${t.bar}`} />
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -218,6 +116,12 @@ export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = () =>
         {activeTab === 'SENTIMENT' && (
           <div className="animate-in fade-in duration-200">
             <SentimentBoard />
+          </div>
+        )}
+
+        {activeTab === 'UNIVERSE' && (
+          <div className="animate-in fade-in duration-200">
+            <FinancialUniverse onNavigate={() => setActiveTab('ANALYSIS')} />
           </div>
         )}
       </div>
