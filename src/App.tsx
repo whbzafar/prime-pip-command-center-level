@@ -24,8 +24,6 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { AppPerimeterGlow } from './components/AppPerimeterGlow';
 import { MarketAura } from './components/MarketAura';
 import { QuantumFx } from './components/QuantumFx';
-import { FirewallGate, recordBreach } from './components/RiskDnaPanel';
-import { useRiskDna } from './services/useRiskDna';
 import { SubscriptionPage } from './components/SubscriptionPage';
 import { SubscriptionGateModal } from './components/SubscriptionGateModal';
 import { SbtIndicatorBanner } from './components/subscription/SbtIndicatorBanner';
@@ -1201,11 +1199,6 @@ export default function App() {
     }
   }, [metrics.accountBalance, metrics.currentEquity, activeAccount?.id]);
 
-  // Risk-DNA capsules + execution firewall (evaluated from the journal; re-checked every few seconds)
-  const dna = useRiskDna(trades, activeAccount as any);
-  const [fwBypass, setFwBypass] = useState(false);
-  useEffect(() => { if (!isEntryModalOpen) setFwBypass(false); }, [isEntryModalOpen]);
-
   // App Loading Spinner
   if (isLoading) {
     return (
@@ -1883,11 +1876,7 @@ export default function App() {
 
       {/* Unified Trade Entry & TradingView Screenshot Import Modal */}
       {isEntryModalOpen && <DisciplineToast trades={trades} />}
-      {isEntryModalOpen && dna.locked && !fwBypass && (
-        <FirewallGate dna={dna} onClose={() => { setIsEntryModalOpen(false); setIsScreenshotImportModalOpen(false); setPrefilledTradeData(null); }}
-          onRelease={() => setFwBypass(true)} onBreach={() => { recordBreach(dna.today); setFwBypass(true); }} />
-      )}
-      {isEntryModalOpen && (!dna.locked || fwBypass) && (
+      {isEntryModalOpen && (
         <TradeEntryModal
           isOpen={isEntryModalOpen}
           onClose={() => {

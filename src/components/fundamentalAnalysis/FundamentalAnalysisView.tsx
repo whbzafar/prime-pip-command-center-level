@@ -146,6 +146,20 @@ export const FundamentalAnalysisView: React.FC = () => {
   const currencies = useMemo(() => (ov ? ov.assets.filter((a) => a.assetClass === 'FOREX').sort((a, b) => (b.score ?? -999) - (a.score ?? -999)) : []), [ov]);
 
   const openPair = (sym: string) => { setPairJump(sym); setTab('PAIRS'); };
+  // Deep link from the Financial Universe map: open the exact asset or pair that was clicked.
+  useEffect(() => {
+    const go = () => {
+      let f: { kind: 'asset' | 'pair'; symbol: string; assetClass: string; t: number } | null = null;
+      try { const raw = sessionStorage.getItem('ppfx:fa-focus'); if (raw) { f = JSON.parse(raw); sessionStorage.removeItem('ppfx:fa-focus'); } } catch { /* ignore */ }
+      if (!f || Date.now() - f.t > 15_000) return;
+      setQuery(''); setRegion('ALL'); setShowAll(false);
+      if (f.kind === 'pair') { setPairJump(f.symbol); setTab('PAIRS'); return; }
+      const t = f.assetClass as Tab; const sym = f.symbol;
+      setSelected((x) => ({ ...x, [t]: sym })); setTab(t);
+    };
+    go(); window.addEventListener('ppfx:fa-focus', go);
+    return () => window.removeEventListener('ppfx:fa-focus', go);
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -321,7 +335,7 @@ export const FundamentalAnalysisView: React.FC = () => {
       }} />}
       {ov && tab === 'RANKINGS' && <RankingsView pairs={ov.pairs} onPair={openPair} />}
       {tab === 'SENTIMENT' && <SentimentBoard />}
-      {ov && tab === 'PAIRS' && <PairsView pairs={ov.pairs} generatedAt={ov.generatedAt} initial={pairJump} upcoming={ov.upcoming} />}
+      {ov && tab === 'PAIRS' && <PairsView key={pairJump || 'all'} pairs={ov.pairs} generatedAt={ov.generatedAt} initial={pairJump} upcoming={ov.upcoming} />}
       {ov && tab === 'CORRELATIONS' && <CorrelationView w30={ov.correlations.w30} w90={ov.correlations.w90} />}
       {ov && tab === 'SOURCES' && <SourcesPanel ov={ov} />}
 

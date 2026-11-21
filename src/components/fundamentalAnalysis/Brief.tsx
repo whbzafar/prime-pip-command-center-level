@@ -6,9 +6,9 @@ import { fetchJsonSafe } from './ui';
 interface L { en: string; ur: string }
 interface Line extends L { tone?: 'bull' | 'bear' | 'neutral' | 'info'; at?: number }
 interface BriefData {
-  symbol: string; display: string; kind: 'asset' | 'pair'; assetClass: string; bias: string; biasLabel: L;
-  score: number | null; confidence: number | null; updatedAt: string; asOf: string | null;
-  headline: L; why: Line[]; outlook: Line[]; counter: Line[]; disclaimer: L;
+  symbol: string; display: string; kind: 'asset' | 'pair'; assetClass: string; bias: string; biasLabel: L; side: 'bull' | 'bear' | 'neutral';
+  score: number | null; bullishPct: number | null; bearishPct: number | null; confidence: number | null; updatedAt: string; asOf: string | null;
+  headline: L; summary: L; trust: L; why: Line[]; watch: Line[]; heading: Line[]; counter: Line[]; disclaimer: L;
 }
 
 const EVT = 'ppfx:brief';
@@ -24,13 +24,16 @@ export const BriefButton: React.FC<{ symbol: string; className?: string }> = ({ 
   ><FileText className="w-3 h-3" />Brief</span>
 );
 
-const toneCls = (t?: string) => t === 'bull' ? 'border-emerald-500/60' : t === 'bear' ? 'border-rose-500/60' : 'border-slate-600';
+const toneCls = (t?: string) => t === 'bull' ? 'border-emerald-500/70' : t === 'bear' ? 'border-rose-500/70' : t === 'info' ? 'border-cyan-500/50' : 'border-slate-600';
 
-const Section: React.FC<{ title: L; lines: Line[]; ur: boolean }> = ({ title, lines, ur }) => lines.length === 0 ? null : (
-  <div className="space-y-1.5">
-    <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-400/80">{ur ? title.ur : title.en}</div>
+const Section: React.FC<{ icon: string; title: L; hint?: L; lines: Line[]; ur: boolean }> = ({ icon, title, hint, lines, ur }) => lines.length === 0 ? null : (
+  <div className="space-y-2">
+    <div>
+      <div className="text-[13px] font-bold text-white"><span className="mr-1.5 ml-1.5">{icon}</span>{ur ? title.ur : title.en}</div>
+      {hint && <div className="text-[11px] text-slate-500">{ur ? hint.ur : hint.en}</div>}
+    </div>
     {lines.map((l, i) => (
-      <div key={i} className={`border-l-2 ${toneCls(l.tone)} pl-3 py-0.5 text-[13px] leading-relaxed text-slate-200`}>{ur ? l.ur : l.en}</div>
+      <div key={i} className={`border-s-2 ${toneCls(l.tone)} ps-3 py-1 text-[13.5px] leading-relaxed text-slate-200 bg-white/[0.02] rounded-e-lg`}>{ur ? l.ur : l.en}</div>
     ))}
   </div>
 );
@@ -62,7 +65,7 @@ export const BriefHost: React.FC = () => {
         <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-3 border-b border-slate-800 bg-slate-950/95">
           <FileText className="w-4 h-4 text-cyan-400" />
           <div className="font-military font-bold text-white tracking-wide">{data?.display ?? sym} — Brief</div>
-          {data && <span className="text-[11px] font-mono-code text-slate-400">{ur ? data.biasLabel.ur : data.biasLabel.en}</span>}
+          {data && <span className="text-[11px] font-bold" style={{ color: data.side === 'bull' ? '#34d399' : data.side === 'bear' ? '#fb7185' : '#94a3b8' }}>{ur ? data.biasLabel.ur : data.biasLabel.en}</span>}
           <div className="ml-auto flex items-center rounded-lg border border-slate-700 overflow-hidden text-[11px] font-bold">
             <button type="button" onClick={() => setUr(false)} className={`px-2.5 py-1 ${!ur ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-400'}`}>English</button>
             <button type="button" onClick={() => setUr(true)} className={`px-2.5 py-1 ${ur ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-400'}`}>اردو</button>
@@ -73,13 +76,25 @@ export const BriefHost: React.FC = () => {
           {!data && !err && <div className="text-sm text-slate-400">Loading…</div>}
           {err && <div className="text-sm text-rose-400">Brief unavailable: {err}</div>}
           {data && (<>
-            <div className="text-[15px] font-semibold text-white leading-snug">{ur ? data.headline.ur : data.headline.en}</div>
-            <Section title={{ en: 'Why', ur: 'وجہ' }} lines={data.why} ur={ur} />
-            <Section title={{ en: 'What could happen next', ur: 'آگے کیا ہو سکتا ہے' }} lines={data.outlook} ur={ur} />
-            <Section title={{ en: 'Counter-forces', ur: 'مخالف عوامل' }} lines={data.counter} ur={ur} />
+            <div className={`rounded-xl border p-3.5 ${data.side === 'bull' ? 'border-emerald-500/40 bg-emerald-500/5' : data.side === 'bear' ? 'border-rose-500/40 bg-rose-500/5' : 'border-slate-600 bg-slate-800/30'}`}>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{ur ? 'مختصر جواب' : 'Quick answer'}</div>
+              <div className="mt-1 text-[16px] font-bold text-white leading-snug">{ur ? data.headline.ur : data.headline.en}</div>
+              <div className="mt-1.5 text-[13.5px] text-slate-200 leading-relaxed">{ur ? data.summary.ur : data.summary.en}</div>
+              {data.bullishPct !== null && data.bearishPct !== null && (
+                <div className="mt-3" dir="ltr">
+                  <div className="flex h-2.5 rounded-full overflow-hidden bg-slate-800"><div style={{ width: `${data.bullishPct}%`, background: '#34d399' }} /><div style={{ width: `${data.bearishPct}%`, background: '#fb3f5e' }} /></div>
+                  <div className="mt-1 flex justify-between text-[12px] font-semibold tabular-nums"><span className="text-emerald-300">{Math.round(data.bullishPct)}% {ur ? 'تیزی' : 'bullish'}</span><span className="text-rose-300">{Math.round(data.bearishPct)}% {ur ? 'مندی' : 'bearish'}</span></div>
+                </div>
+              )}
+              <div className="mt-2 text-[11.5px] text-slate-400">{ur ? data.trust.ur : data.trust.en}</div>
+            </div>
+            <Section icon="❓" title={{ en: 'Why is it like this?', ur: 'ایسا کیوں ہے؟' }} hint={{ en: 'The main reasons, strongest first', ur: 'اہم وجوہات، سب سے مضبوط پہلے' }} lines={data.why} ur={ur} />
+            <Section icon="📅" title={{ en: 'What to watch next', ur: 'آگے کیا دیکھیں' }} hint={{ en: 'Upcoming releases (Pakistan time)', ur: 'آنے والی ریلیزز (پاکستانی وقت)' }} lines={data.watch} ur={ur} />
+            <Section icon="🧭" title={{ en: 'Where it may head', ur: 'یہ کس طرف جا سکتا ہے' }} lines={data.heading} ur={ur} />
+            <Section icon="⚖️" title={{ en: 'What could change this', ur: 'اسے کیا بدل سکتا ہے' }} lines={data.counter} ur={ur} />
             <div className="text-[11px] text-slate-500 border-t border-slate-800 pt-3">
               {ur ? data.disclaimer.ur : data.disclaimer.en}
-              <div className="mt-1 font-mono-code" dir="ltr">Updated {new Date(data.updatedAt).toUTCString()}{data.asOf ? ` · data as of ${data.asOf}` : ''}</div>
+              <div className="mt-1 font-mono-code" dir="ltr">Updated {new Date(data.updatedAt).toLocaleString()}</div>
             </div>
           </>)}
         </div>

@@ -7,6 +7,7 @@ import { getSentiment, sentimentFor } from '../macro/sources/sentiment.js';
 import { STOCKS } from '../macro/sources/edgar.js';
 import { snapshotMeta } from '../macro/sources/snapshot.js';
 import { UNIVERSE } from '../macro/universe.js';
+import { buildUniverseMap } from '../macro/universeMap.js';
 
 export const macroRouter = Router();
 
@@ -73,6 +74,15 @@ macroRouter.get('/overview', async (_req: Request, res: Response) => {
     const [s] = await Promise.all([getSnapshot(), sentimentReady]);
     cacheHeaders(res, s);
     res.json({ ok: true, data: overview(s) });
+  } catch (err) { fail(res, err); }
+});
+
+/** GET /api/macro/universe — lean list of every scored asset and pair for the Financial Universe map. */
+macroRouter.get('/universe', async (_req: Request, res: Response) => {
+  try {
+    const s = await getSnapshot();
+    cacheHeaders(res, s);
+    res.json({ ok: true, data: buildUniverseMap(s) });
   } catch (err) { fail(res, err); }
 });
 

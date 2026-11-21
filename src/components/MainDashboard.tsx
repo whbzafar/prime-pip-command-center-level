@@ -1,6 +1,4 @@
-import { IntelligenceGlobe } from './IntelligenceGlobe';
-import { RiskDnaPanel } from './RiskDnaPanel';
-import { useRiskDna } from '../services/useRiskDna';
+import { FinancialUniverse } from './FinancialUniverse';
 import React, { useEffect, useState } from 'react';
 import {
   TrendingUp,
@@ -209,7 +207,6 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   const topSession = sessMetrics[0];
   const topPair = pMetrics[0];
 
-  const dna = useRiskDna(trades, account as any);
   const readiness = calculateNextTradeReadiness(trades, account);
   const isLimitReached = metrics.tradesToday >= account.maxDailyTrades;
 
@@ -273,8 +270,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
 
   return (
     <div className="space-y-6">
-      <IntelligenceGlobe onNavigate={onNavigateToTab} />
-      <RiskDnaPanel dna={dna} />
+      <FinancialUniverse onNavigate={onNavigateToTab} />
       {/* Top Header Row: Profile / Account & Psychological Center */}
       <div className="flex items-center justify-between flex-wrap gap-3 p-3.5 sm:p-4 rounded-2xl bg-[#0B0F19]/90 border border-slate-800/80 shadow-xl backdrop-blur-md">
         <div className="flex items-center gap-3 flex-wrap">
