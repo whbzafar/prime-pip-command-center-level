@@ -8,6 +8,7 @@ import { STOCKS } from '../macro/sources/edgar.js';
 import { snapshotMeta } from '../macro/sources/snapshot.js';
 import { UNIVERSE } from '../macro/universe.js';
 import { buildUniverseMap } from '../macro/universeMap.js';
+import { PRESETS, runScenario, type Shock } from '../macro/scenario.js';
 
 export const macroRouter = Router();
 
@@ -83,6 +84,39 @@ macroRouter.get('/universe', async (_req: Request, res: Response) => {
     const s = await getSnapshot();
     cacheHeaders(res, s);
     res.json({ ok: true, data: buildUniverseMap(s) });
+  } catch (err) { fail(res, err); }
+});
+
+/** GET /api/macro/scenario/presets — ready-made what-ifs plus every pillar a custom shock can target. */
+macroRouter.get('/scenario/presets', async (_req: Request, res: Response) => {
+  try {
+    const s = await getSnapshot();
+    cacheHeaders(res, s);
+    const targets = s.assets.filter((a) => a.assetClass !== 'STOCKS' && a.score !== null).map((a) => ({
+      symbol: a.symbol, name: a.name, assetClass: a.assetClass, score: a.score,
+      pillars: a.pillars.filter((p) => p.indicators.length && p.score !== null).map((p) => ({ id: p.id, name: p.name, score: p.score })),
+    })).filter((a) => a.pillars.length);
+    res.json({ ok: true, data: { presets: PRESETS, targets, generatedAt: s.generatedAt } });
+  } catch (err) { fail(res, err); }
+});
+
+/** POST /api/macro/scenario/run — { presetId } or { shocks:[{asset,pillar,delta}] } → what flips. */
+macroRouter.post('/scenario/run', async (req: Request, res: Response) => {
+  try {
+    const body = (req.body || {}) as { presetId?: string; shocks?: unknown };
+    let shocks: Shock[] = [];
+    let title = 'Custom scenario';
+    if (body.presetId) {
+      const pr = PRESETS.find((p) => p.id === body.presetId);
+      if (!pr) return res.status(400).json({ ok: false, error: 'Unknown scenario' });
+      shocks = pr.shocks; title = pr.title;
+    } else if (Array.isArray(body.shocks)) {
+      shocks = body.shocks.slice(0, 20).map((x: any) => ({ asset: String(x?.asset || '').toUpperCase().slice(0, 12), pillar: String(x?.pillar || '').slice(0, 24), delta: Math.max(-100, Math.min(100, Number(x?.delta))) }));
+    }
+    if (!shocks.length) return res.status(400).json({ ok: false, error: 'Choose a scenario or add at least one shock' });
+    const s = await getSnapshot();
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true, data: { title, generatedAt: s.generatedAt, ...runScenario(s, shocks) } });
   } catch (err) { fail(res, err); }
 });
 
