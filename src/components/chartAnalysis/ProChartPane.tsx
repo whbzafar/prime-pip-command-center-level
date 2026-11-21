@@ -138,7 +138,7 @@ export const ProChartPane: React.FC<{
   return (
     <div className="relative w-full h-full flex">
       <ProDrawingToolbar getChart={getInner} />
-      <div ref={hostRef} className="ppfx-pro-chart h-full min-w-0 flex-1" />
+      <div ref={hostRef} className="ppfx-pro-chart h-full min-w-0 flex-1 ml-12" />
       <CanvasColorControl className="absolute bottom-12 right-32 z-20" />
       <button type="button" title="Back to the latest bar" aria-label="Back to the latest bar"
         onClick={() => { const c: any = chartRef.current; if (!c) return; try { c.setPeriod({ ...c.getPeriod() }); } catch { /* ignore */ } }}

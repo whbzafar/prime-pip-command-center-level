@@ -91,7 +91,7 @@ export const ProDrawingToolbar: React.FC<{ getChart: () => Chart | null }> = ({ 
   return (
     <>
       <style>{'.ppfx-unl-row:hover button[aria-label$="more tools"]{opacity:1!important}.ppfx-unl-row button[aria-label$="more tools"]{opacity:.55}'}</style>
-      <div ref={root} data-testid="unl-left-toolbar" style={{ width: 48, flex: '0 0 48px', background: bg, borderRight: `1px solid ${line}`, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px 0', gap: 2, height: '100%', overflowY: 'auto', overflowX: 'visible', position: 'relative', zIndex: 30 }}>
+      <div ref={root} data-testid="unl-left-toolbar" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 48, background: bg, borderRight: `1px solid ${line}`, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px 0', gap: 2, overflowY: 'auto', overflowX: 'visible', zIndex: 30 }}>
         <Btn id="cursor" icon={ICONS.cursor} title="Cross / Cursor" on={!active} onClick={() => arm(null)} />
         {GROUPS.map((g) => {
           const cur = last[g.id] && NAME[last[g.id]] && g.tools.some(([k]) => k === last[g.id]) ? last[g.id] : g.tools[0][0];
