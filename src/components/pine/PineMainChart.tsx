@@ -41,7 +41,34 @@ const bindings = new Map<HTMLElement, Binding>();
 const LOOK_KEY = 'ppfx_pro_chart_look_v1';
 const GRID_KEY = 'ppfx_pro_chart_grid_v1'; // '0' = grid lines hidden
 const THEME_KEY = 'ppfx_pro_chart_theme_v1';
-const savedTheme = (): string => { try { const t = localStorage.getItem(THEME_KEY); return t === 'light' || t === 'dark' ? t : 'dark'; } catch { return 'dark'; } };
+const savedTheme = (): string => { try { const t = localStorage.getItem(THEME_KEY); return t === 'light' || t === 'dark' ? t : 'light'; } catch { return 'light'; } };
+
+/** TradingView-style chrome for the Pro chart: same top row (timeframe chips · style · Indicators · Alert · camera) and the same left tool order. */
+const TV_SKIN_ID = 'ppfx-tv-skin';
+const TV_SKIN_CSS = `
+.ppfx-tv-skin .vela-widget-topbar{padding:4px 8px;gap:2px;border-bottom:1px solid rgba(128,140,160,.28);min-height:38px}
+.ppfx-tv-skin .vela-widget-tf,.ppfx-tv-skin .vela-widget-style,.ppfx-tv-skin .vela-widget-indicators,.ppfx-tv-skin .vela-widget-action-left{border-radius:4px;padding:5px 9px;font-weight:600;font-size:13px;transition:background .12s}
+.ppfx-tv-skin .vela-widget-tf[data-current='1']{background:rgba(41,98,255,.14);color:#2962ff}
+.ppfx-tv-skin .vela-widget-tf:hover,.ppfx-tv-skin .vela-widget-style:hover,.ppfx-tv-skin .vela-widget-indicators:hover{background:rgba(128,140,160,.18)}
+.ppfx-tv-skin .vela-widget-indicators{font-weight:600}
+.ppfx-tv-skin .vela-dtb{border-right:1px solid rgba(128,140,160,.28)}
+.ppfx-tv-skin .vela-dtb-btn,.ppfx-tv-skin .vela-dtb-cell{border-radius:4px}
+.ppfx-tv-skin .vela-dtb-btn:hover,.ppfx-tv-skin .vela-dtb-cell:hover{background:rgba(128,140,160,.2)}
+`;
+const TV_TIMEFRAMES = ['1', '15', '30', '60', '240', 'D', 'W'];
+const TV_DRAW_GROUPS = [
+  { id: 'lines', label: 'Trend line tools', tools: ['trendline', 'ray', 'extendedline', 'hline', 'vline', 'hray', 'crossline', 'infoline', 'trendangle', 'parallelchannel', 'disjointchannel', 'flattopbottom', 'regressionchannel'] },
+  { id: 'fib', label: 'Fib and Gann tools', tools: ['fibretracement', 'fibextension', 'fibchannel', 'fibtimezones', 'fibfan', 'fibcircles', 'fibarcs', 'fibspiral', 'gannfan', 'gannbox', 'gannsquare', 'pitchfork', 'schiffpitchfork'] },
+  { id: 'patterns', label: 'Patterns', tools: ['xabcd', 'abcd', 'headshoulders', 'gartley', 'bat', 'butterfly', 'crab', 'shark', 'cypher', 'elliottimpulse', 'elliottcorrection'] },
+  { id: 'forecast', label: 'Forecasting and measurement', tools: ['position', 'datepricerange', 'fairvaluegap', 'orderblock', 'liquidity', 'anchoredvwap', 'fixedrangevp'] },
+  { id: 'brush', label: 'Brushes and shapes', tools: ['freehand', 'highlighter', 'box', 'rotatedrect', 'circle', 'ellipse', 'triangle', 'polyline', 'path', 'arc', 'curve', 'arrow'] },
+  { id: 'text', label: 'Text and notes', tools: ['text', 'note', 'pricenote', 'comment', 'callout', 'pricelabel', 'signpost'] },
+  { id: 'icons', label: 'Icons and emojis', tools: ['iconstamp', 'flagmark', 'arrowmarkup', 'arrowmarkdown'] },
+];
+function ensureTvSkin() {
+  if (typeof document === 'undefined' || document.getElementById(TV_SKIN_ID)) return;
+  const st = document.createElement('style'); st.id = TV_SKIN_ID; st.textContent = TV_SKIN_CSS; document.head.appendChild(st);
+}
 let registered = false;
 function registerPlugins() {
   if (registered) return;
@@ -246,10 +273,12 @@ export const PineMainChart: React.FC<{
   // ── build the chart
   useEffect(() => {
     if (!host.current || !entry) return;
-    registerPlugins();
+    registerPlugins(); ensureTvSkin(); host.current.classList.add('ppfx-tv-skin');
     const w = new VelaWorkspace(host.current, {
       layout: false, symbol: venueSymbol(entry.ticker), timeframe: tf, bars: HISTORY_BARS, theme: savedTheme(), live: true, persist: false,
       timezone: 'Asia/Karachi',
+      topbar: { left: ['timeframes', 'style', 'indicators', 'undo-redo'], right: ['alerts', 'panels', 'screenshot'] },
+      drawings: { toolbar: true, groups: TV_DRAW_GROUPS },
       providers: { dukascopy: () => makeProvider('dukascopy'), binance: () => makeProvider('binance') },
       engines: { pine: () => new PineWorkerEngine(), [REMOTE_LANG]: () => new RemotePineEngine() },
     } as any);
@@ -264,6 +293,8 @@ export const PineMainChart: React.FC<{
     chart.ready().then(() => {
       if (!alive) return;
       setReady(true); setSlow(false);
+      // TradingView's quick timeframe chips (1m 15m 30m 1h 4h D W) as favourites, unless the user already starred their own.
+      try { const st: any = (w as any).getState?.(); if (st && !(st.timeframeFavorites || []).length ) { (w as any).applyState?.({ ...st, timeframeFavorites: TV_TIMEFRAMES }); } } catch { /* ignore */ }
       try { const tools = JSON.parse(localStorage.getItem(TOOLS_KEY) || 'null'); if (tools) chart.drawings?.setToolDefaults?.(tools); } catch { /* ignore */ }
       // Chart look (background colour, grid, candle colours, …) from Settings → Canvas, kept across pairs and visits.
       try { const cfg = JSON.parse(localStorage.getItem(LOOK_KEY) || 'null'); if (cfg) chart.renderer?.applyConfig?.(cfg); } catch { /* ignore */ }

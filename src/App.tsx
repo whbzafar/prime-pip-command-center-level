@@ -22,6 +22,7 @@ import { LoginModal } from './components/LoginModal';
 import { FirstOpenLoginScreen } from './components/FirstOpenLoginScreen';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { AppPerimeterGlow } from './components/AppPerimeterGlow';
+import { MarketAura } from './components/MarketAura';
 import { SubscriptionPage } from './components/SubscriptionPage';
 import { SubscriptionGateModal } from './components/SubscriptionGateModal';
 import { SbtIndicatorBanner } from './components/subscription/SbtIndicatorBanner';
@@ -1322,6 +1323,7 @@ export default function App() {
 
       {/* Top Prismatic Ambient Theme Optical Ribbon */}
       {!isLightweight && <AmbientThemeRibbon />}
+      {!isLightweight && <MarketAura />}
 
       {/* Global Animated Background Elements with Calibrated Clean Cyber Atmosphere */}
       <div className="fixed inset-0 pointer-events-none z-0" style={{ background: 'radial-gradient(circle at 18% 30%, rgba(14, 165, 233, 0.05), transparent 45%), radial-gradient(circle at 82% 25%, rgba(168, 85, 247, 0.04), transparent 45%), radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.03), transparent 55%)' }}></div>
