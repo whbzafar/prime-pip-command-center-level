@@ -56,6 +56,7 @@ const TV_SKIN_CSS = `
 .ppfx-tv-skin .vela-dtb-btn,.ppfx-tv-skin .vela-dtb-cell{border-radius:4px}
 .ppfx-tv-skin .vela-dtb-btn:hover,.ppfx-tv-skin .vela-dtb-cell:hover{background:rgba(128,140,160,.2)}
 `;
+const PRO_TF_LIST: Array<[string, string]> = [['1', '1 minute'], ['3', '3 minutes'], ['5', '5 minutes'], ['15', '15 minutes'], ['30', '30 minutes'], ['60', '1 hour'], ['120', '2 hours'], ['240', '4 hours'], ['D', '1 day'], ['W', '1 week'], ['M', '1 month']];
 const TV_TIMEFRAMES = ['1', '15', '30', '60', '240', 'D', 'W'];
 function ensureTvSkin() {
   if (typeof document === 'undefined' || document.getElementById(TV_SKIN_ID)) return;
@@ -204,6 +205,8 @@ export const PineMainChart: React.FC<{
   };
   const lastGood = useRef<{ t: string; json: string; n: number }>({ t: '', json: '', n: 0 });
   const countOf = (doc: any) => { try { return Array.isArray(doc?.drawings) ? doc.drawings.length : Array.isArray(doc) ? doc.length : (doc?.items?.length ?? 0); } catch { return 0; } };
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [tfMenu, setTfMenu] = useState<{ x: number; y: number } | null>(null);
   const saveDrawings = useCallback(() => {
     const chart: any = ws.current?.chart;
     const t = tickerRef.current;
@@ -218,6 +221,7 @@ export const PineMainChart: React.FC<{
         localStorage.setItem(DRAW_KEY(t), s);
         lastGood.current = { t, json: s, n: all.length };
         if (all.length === 0) allowEmpty.current = false;
+        setSavedAt(Date.now());
       }
       localStorage.setItem(TOOLS_KEY, JSON.stringify(chart.drawings.toolDefaults?.() || {}));
     } catch { /* storage full or blocked */ }
@@ -279,14 +283,26 @@ export const PineMainChart: React.FC<{
     tickerRef.current = entry.ticker;
     markOnScreen(entry.ticker, true);
     let alive = true;
-    let offLook: any = null; let offGuard: any = null;
+    let offLook: any = null; let offGuard: any = null; let offGrab: any = null;
     const slowT = window.setTimeout(() => { if (alive) setSlow(true); }, 20_000);
     const chart: any = w.chart;
     const offTheme = chart.on?.('theme:changed', (t: any) => { try { const id = t?.id || t?.name || (t?.isDark === false || t?.mode === 'light' ? 'light' : 'dark'); localStorage.setItem(THEME_KEY, String(id)); window.dispatchEvent(new Event('ppfx:pro-theme')); } catch { /* ignore */ } });
     chart.ready().then(() => {
       if (!alive) return;
       setReady(true); setSlow(false);
-      // The timeframe list used to vanish the moment the pointer moved over it: every live market update re-projected the topbar and rebuilt the open menu.
+      // The chart library's own timeframe list closed as soon as the pointer reached it, so its caret opens OUR menu instead.
+      try {
+        const hostEl = host.current!;
+        const grab = (e: Event) => {
+          const el = (e.target as HTMLElement | null)?.closest?.('.vela-widget-tf-caret') as HTMLElement | null;
+          if (!el) return;
+          e.stopPropagation(); e.preventDefault();
+          if (e.type === 'click') { const r = el.getBoundingClientRect(); const wr = wrap.current?.getBoundingClientRect(); setTfMenu((cur) => (cur ? null : { x: r.left - (wr?.left || 0), y: r.bottom - (wr?.top || 0) + 2 })); }
+        };
+        ['pointerdown', 'mousedown', 'click', 'keydown'].forEach((ev) => hostEl.addEventListener(ev, grab, true));
+        offGrab = () => ['pointerdown', 'mousedown', 'click', 'keydown'].forEach((ev) => hostEl.removeEventListener(ev, grab, true));
+      } catch { /* ignore */ }
+      // (legacy guard, kept as a fallback)  The timeframe list used to vanish the moment the pointer moved over it: every live market update re-projected the topbar and rebuilt the open menu.
       try { const m = (w as any).topbar?.tfMenu; if (m && !m.__ppfxGuard) { m.__ppfxGuard = true; const orig = m.setItems.bind(m); let pend: any = null; m.setItems = (it: any) => { if (m.api?.open) { pend = it; return; } orig(it); }; const t = window.setInterval(() => { if (pend && !m.api?.open) { const x = pend; pend = null; orig(x); } }, 400); offGuard = () => window.clearInterval(t); } } catch { /* ignore */ }
       // TradingView's quick timeframe chips (1m 15m 30m 1h 4h D W) as favourites, unless the user already starred their own.
       try { const st: any = (w as any).getState?.(); if (st && !(st.timeframeFavorites || []).length ) { (w as any).applyState?.({ ...st, timeframeFavorites: TV_TIMEFRAMES }); } } catch { /* ignore */ }
@@ -327,7 +343,7 @@ export const PineMainChart: React.FC<{
       window.removeEventListener('beforeunload', flush);
       saveDrawings();
       loadedFor.current = '';
-      try { offGuard?.(); } catch { /* ignore */ }
+      try { offGuard?.(); offGrab?.(); } catch { /* ignore */ }
       try { offMarket?.(); offs.forEach((o: any) => o?.()); offLook?.(); offTheme?.(); } catch { /* ignore */ }
       markOnScreen(tickerRef.current, false);
       running.current.clear();
@@ -497,6 +513,25 @@ export const PineMainChart: React.FC<{
       )}        </div>
       )}
 
+      {tfMenu && ready && (
+        <>
+          <div className="absolute inset-0 z-40" onPointerDown={() => setTfMenu(null)} />
+          <div role="menu" data-testid="pro-tf-menu" className="absolute z-50 w-[150px] rounded-md border border-slate-300 bg-white py-1 text-[13px] text-slate-900 shadow-[0_8px_28px_rgba(0,0,0,.28)]" style={{ left: tfMenu.x, top: tfMenu.y }}>
+            {PRO_TF_LIST.map(([id, lab]) => {
+              const cur = normTf(String(ws.current?.chart?.market?.timeframe || tf)) === id;
+              return (
+                <button key={id} type="button" data-testid={`pro-tf-${id}`} onClick={() => { setTfMenu(null); try { ws.current?.chart?.setMarket({ timeframe: id, bars: HISTORY_BARS }); } catch { /* ignore */ } }}
+                  className={`flex h-8 w-full items-center justify-between px-3 text-left hover:bg-slate-100 ${cur ? 'bg-blue-50 font-bold text-blue-700' : ''}`}><span>{lab}</span>{cur && <span>✓</span>}</button>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {ready && (
+        <div data-testid="pro-autosave" title="Drawings, tool settings, favourites and chart look are saved automatically in this browser" className="pointer-events-none absolute bottom-1.5 right-20 z-20 rounded px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 bg-white/80">
+          ● Auto-save on{savedAt ? ` · saved ${new Date(savedAt).toLocaleTimeString()}` : ''}
+        </div>
+      )}
       {ready && <AlertOverlay wrap={wrap} host={host} chartRef={ws} ticker={tickerRef.current || entry.ticker} digits={digits} panel={panel} setPanel={setPanel} />}
       {indMenu && <IndicatorMenu lib={lib} natives={indMenu.natives} addNative={indMenu.addNative} onClose={() => setIndMenu(null)} />}
       {!ready && (

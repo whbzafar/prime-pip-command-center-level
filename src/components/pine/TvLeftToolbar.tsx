@@ -58,6 +58,7 @@ export const TvLeftToolbar: React.FC<{ getChart: () => Chart | null; ready: bool
   const [snap, setSnap] = useState<'off' | 'weak' | 'strong'>('off');
   const [stay, setStay] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [favs, setFavs] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch { return []; } });
   const [last, setLast] = useState<Record<string, string>>(() => { try { return JSON.parse(localStorage.getItem(LAST_KEY) || '{}'); } catch { return {}; } });
   const [trashAsk, setTrashAsk] = useState(false);
@@ -94,11 +95,11 @@ export const TvLeftToolbar: React.FC<{ getChart: () => Chart | null; ready: bool
 
   const bg = dark ? '#131722' : '#ffffff', fg = dark ? '#b2b5be' : '#131722', hov = dark ? '#2a2e39' : '#f0f3fa', line = dark ? '#363a45' : '#e0e3eb', sel = dark ? '#2a2e39' : '#e3effd';
   const btn = (on: boolean): React.CSSProperties => ({ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: on ? '#2962ff' : fg, background: on ? sel : 'transparent', borderRadius: 4, border: 0, cursor: 'pointer', position: 'relative' });
-  const Btn: React.FC<{ id: string; icon: string; on: boolean; title: string; onClick: () => void; arrow?: boolean; onArrow?: () => void; extra?: React.ReactNode }> = ({ id, icon, on, title, onClick, arrow, onArrow, extra }) => (
+  const Btn: React.FC<{ id: string; icon: string; on: boolean; title: string; onClick: () => void; arrow?: boolean; onArrow?: (e: React.MouseEvent<HTMLButtonElement>) => void; extra?: React.ReactNode }> = ({ id, icon, on, title, onClick, arrow, onArrow, extra }) => (
     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }} className="ppfx-tvl-row">
       <button type="button" data-testid={`tvl-${id}`} title={title} aria-label={title} aria-pressed={on} onClick={onClick} style={btn(on)}
         onMouseEnter={(e) => { if (!on) e.currentTarget.style.background = hov; }} onMouseLeave={(e) => { e.currentTarget.style.background = on ? sel : 'transparent'; }}>{ICONS[icon]}{extra}</button>
-      {arrow && <button type="button" aria-label={`${title} — more`} onClick={onArrow} style={{ position: 'absolute', right: -2, top: 8, width: 12, height: 24, border: 0, borderRadius: 3, background: hov, color: fg, fontSize: 9, cursor: 'pointer', padding: 0, opacity: 0.0 }} className="ppfx-tvl-arrow">›</button>}
+      {arrow && <button type="button" aria-label={`${title} — more`} onClick={onArrow} style={{ position: 'absolute', right: -3, top: 8, width: 13, height: 24, border: 0, borderRadius: 3, background: hov, color: fg, fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0, opacity: 1, lineHeight: '24px' }} className="ppfx-tvl-arrow">›</button>}
     </div>
   );
 
@@ -110,10 +111,10 @@ export const TvLeftToolbar: React.FC<{ getChart: () => Chart | null; ready: bool
         {GROUPS.map((g) => {
           const cur = last[g.id] && g.tools.includes(last[g.id]) ? last[g.id] : g.tools[0];
           return (
-            <div key={g.id} style={{ position: 'relative' }}>
-              <Btn id={g.id} icon={g.id} title={label(cur)} on={!!active && g.tools.includes(active)} onClick={() => arm(g.id, cur)} arrow onArrow={() => setOpen(open === g.id ? null : g.id)} />
+            <div key={g.id} data-grp={g.id} style={{ position: 'relative' }}>
+              <Btn id={g.id} icon={g.id} title={label(cur)} on={!!active && g.tools.includes(active)} onClick={() => arm(g.id, cur)} arrow onArrow={(e) => { const r = (e.currentTarget.closest('[data-grp]') as HTMLElement).getBoundingClientRect(); setPos({ x: r.right + 4, y: Math.max(8, Math.min(r.top, window.innerHeight - 380)) }); setOpen(open === g.id ? null : g.id); }} />
               {open === g.id && (
-                <div role="menu" style={{ position: 'absolute', left: 48, top: 0, width: 280, maxHeight: 360, overflowY: 'auto', background: bg, color: fg, border: `1px solid ${line}`, borderRadius: 6, boxShadow: '0 8px 28px rgba(0,0,0,.28)', padding: '4px 0', zIndex: 80 }}>
+                <div role="menu" style={{ position: 'fixed', left: pos.x, top: pos.y, width: 280, maxHeight: 360, overflowY: 'auto', background: bg, color: fg, border: `1px solid ${line}`, borderRadius: 6, boxShadow: '0 8px 28px rgba(0,0,0,.28)', padding: '4px 0', zIndex: 80 }}>
                   <div style={{ padding: '6px 14px', fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', opacity: .6 }}>{g.title}</div>
                   {g.tools.map((t) => (
                     <div key={t} style={{ display: 'flex', alignItems: 'center', height: 32, padding: '0 8px 0 14px', cursor: 'pointer', fontSize: 13, background: active === t ? sel : 'transparent' }}
@@ -134,10 +135,9 @@ export const TvLeftToolbar: React.FC<{ getChart: () => Chart | null; ready: bool
         <Btn id="magnet" icon="magnet" title={`Magnet mode: ${snap}`} on={snap !== 'off'} onClick={cycleSnap} extra={snap === 'strong' ? <span style={{ position: 'absolute', right: 6, bottom: 6, width: 6, height: 6, borderRadius: 3, background: '#2962ff' }} /> : null} />
         <Btn id="stay" icon="stay" title="Stay in drawing mode" on={stay} onClick={() => { const n = !stay; try { getChart()?.drawings?.setStayMode(n); setStay(n); } catch { /* ignore */ } }} />
         <div style={{ flex: 1 }} />
-        <div style={{ position: 'relative' }}>
-          <Btn id="trash" icon="trash" title="Remove drawings" on={trashAsk} onClick={() => { if (!trashAsk) { setTrashAsk(true); window.setTimeout(() => setTrashAsk(false), 4000); return; } setTrashAsk(false); onClearAll(); }} />
-          {trashAsk && <div style={{ position: 'absolute', left: 48, bottom: 4, whiteSpace: 'nowrap', background: '#f23645', color: '#fff', fontSize: 12, fontWeight: 600, padding: '6px 10px', borderRadius: 4, zIndex: 90 }}>Click again to remove all drawings</div>}
-        </div>
+        <div data-grp="trash" style={{ position: 'relative' }}>
+          <Btn id="trash" icon="trash" title={trashAsk ? 'Click again to remove ALL drawings' : 'Remove drawings'} on={trashAsk} onClick={() => { if (!trashAsk) { setTrashAsk(true); window.setTimeout(() => setTrashAsk(false), 4000); return; } setTrashAsk(false); onClearAll(); }} />
+                  </div>
       </div>
       {favs.length > 0 && (
         <div data-testid="tv-fav-bar" style={{ position: 'absolute', top: 52, left: '50%', transform: 'translateX(-50%)', zIndex: 40, display: 'flex', gap: 2, background: bg, color: fg, border: `1px solid ${line}`, borderRadius: 6, padding: 3, boxShadow: '0 4px 16px rgba(0,0,0,.2)', maxWidth: '70%', overflowX: 'auto' }}>
