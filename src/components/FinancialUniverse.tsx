@@ -23,21 +23,26 @@ export const FOCUS_KEY = 'ppfx:fa-focus';
 const strength = (i: Item) => Math.max(i.bullishPct, i.bearishPct);
 const radiusOf = (i: Item) => 5 + ((Math.min(100, Math.max(50, strength(i))) - 50) / 50) * 15;
 
-/** Deterministic spiral circle-packing (largest first, stretched to the box shape). */
+/** Deterministic spiral circle-packing (largest first, stretched to the box shape, grid-accelerated). */
 function pack(items: Item[], aspect: number) {
   const ax = Math.min(2.4, Math.max(1, aspect));
+  const CELL = 44; const grid = new Map<string, Array<{ x: number; y: number; r: number }>>();
   const placed: Array<{ item: Item; x: number; y: number; r: number }> = [];
   const sorted = [...items].sort((a, b) => radiusOf(b) - radiusOf(a) || a.symbol.localeCompare(b.symbol));
   for (const item of sorted) {
     const r = radiusOf(item); let rho = 0, th = 0, x = 0, y = 0;
-    for (let k = 0; k < 4000; k++) {
-      x = Math.cos(th) * rho * ax; y = Math.sin(th) * rho;
-      let ok = true;
-      for (const p of placed) { const dx = p.x - x, dy = p.y - y, m = p.r + r + 1.2; if (dx * dx + dy * dy < m * m) { ok = false; break; } }
+    for (let k = 0; k < 60000; k++) {
+      rho = 0.35 * th; x = Math.cos(th) * rho * ax; y = Math.sin(th) * rho;
+      const gx = Math.floor(x / CELL), gy = Math.floor(y / CELL); let ok = true;
+      for (let i = gx - 1; i <= gx + 1 && ok; i++) for (let j = gy - 1; j <= gy + 1 && ok; j++) {
+        const cell = grid.get(`${i},${j}`); if (!cell) continue;
+        for (const p of cell) { const dx = p.x - x, dy = p.y - y, m = p.r + r + 1.2; if (dx * dx + dy * dy < m * m) { ok = false; break; } }
+      }
       if (ok) break;
-      rho += 0.9; th += Math.max(0.05, 5 / (rho + 4));
+      th += 1.4 / (rho + 3);
     }
-    placed.push({ item, x, y, r });
+    const c = { x, y, r }; const key = `${Math.floor(x / CELL)},${Math.floor(y / CELL)}`;
+    (grid.get(key) ?? grid.set(key, []).get(key)!).push(c); placed.push({ item, ...c });
   }
   return placed;
 }
