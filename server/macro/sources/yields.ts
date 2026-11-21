@@ -221,7 +221,42 @@ async function loadGbp(): Promise<void> {
   put('GBP', '10Y', parseBoe(csv), 'Bank of England nominal par yield (10Y)');
 }
 
-const LOADERS: Array<[string, () => Promise<void>]> = [['CAD', loadCad], ['EUR', loadEur], ['JPY', loadJpy], ['GBP', loadGbp]];
+// ───────────────────────────────────────── AUD / CHF / NZD via Stooq daily government-bond closes
+export function parseStooq(csv: string): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const l of csv.split(/\r?\n/)) {
+    const c = l.split(',');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(c[0] || '')) continue;
+    const v = toNum(c[4]);
+    if (plausible(v) && c[0] >= sinceIso()) out.set(c[0], v);
+  }
+  return out;
+}
+async function stooqSeries(codes: string[]): Promise<Map<string, number>> {
+  for (const code of codes) {
+    try {
+      const csv = await fetchText(`https://stooq.com/q/d/l/?s=${code}&i=d`, { timeoutMs: 15_000, retries: 1, headers: BROWSER_HEADERS });
+      const m = parseStooq(csv);
+      if (m.size >= 10) return m;
+    } catch { /* try next candidate symbol */ }
+  }
+  return new Map();
+}
+const STOOQ: Record<string, { two: string[]; ten: string[] }> = {
+  AUD: { two: ['2yaud.b', '2yauy.b'], ten: ['10yaud.b', '10yauy.b'] },
+  CHF: { two: ['2ychf.b', '2ychy.b'], ten: ['10ychf.b', '10ychy.b'] },
+  NZD: { two: ['2ynzd.b', '2ynzy.b'], ten: ['10ynzd.b', '10ynzy.b'] },
+};
+function stooqLoader(ccy: 'AUD' | 'CHF' | 'NZD', official?: () => Promise<void>): () => Promise<void> {
+  return async () => {
+    if (official) { try { await official(); if (store.has(`${ccy}_10Y`) || store.has(`${ccy}_2Y`)) return; } catch { /* fall through to Stooq */ } }
+    const [two, ten] = await Promise.all([stooqSeries(STOOQ[ccy].two), stooqSeries(STOOQ[ccy].ten)]);
+    if (!two.size && !ten.size) throw new Error('no Stooq series reachable');
+    put(ccy, '2Y', two, `Stooq daily ${ccy} 2Y government bond close`); put(ccy, '10Y', ten, `Stooq daily ${ccy} 10Y government bond close`);
+  };
+}
+
+const LOADERS: Array<[string, () => Promise<void>]> = [['CAD', loadCad], ['EUR', loadEur], ['JPY', loadJpy], ['GBP', loadGbp], ['AUD', stooqLoader('AUD', loadAud)], ['CHF', stooqLoader('CHF', loadChf)], ['NZD', stooqLoader('NZD')]];
 
 export async function refreshYields(force = false): Promise<void> {
   if (!force && Date.now() - lastRun < TTL && store.size) return;
@@ -230,7 +265,7 @@ export async function refreshYields(force = false): Promise<void> {
   await Promise.all(LOADERS.map(async ([ccy, fn]) => { try { await fn(); } catch (e: any) { failed.push(`${ccy}: ${e?.message || e}`); } }));
   const have = new Set([...store.keys()].map((k) => k.split('_')[0]));
   const missing = LOADERS.map(([c]) => c).filter((c) => !have.has(c));
-  setSourceNote(YIELDS_SOURCE_ID, `Live for ${[...have].sort().join(', ') || 'none'}${missing.length ? `; unavailable right now: ${missing.join(', ')}` : ''}${failed.length ? ` [${failed.map((f) => f.slice(0, 90)).join(' | ')}]` : ''}. AUD/CHF/NZD: no free daily feed reachable (RBA blocks cloud servers, SNB is monthly). ${jpyInfo}`);
+  setSourceNote(YIELDS_SOURCE_ID, `Live for ${[...have].sort().join(', ') || 'none'}${missing.length ? `; unavailable right now: ${missing.join(', ')}` : ''}${failed.length ? ` [${failed.map((f) => f.slice(0, 90)).join(' | ')}]` : ''}. AUD/CHF/NZD: official RBA/SNB first, then Stooq daily closes. ${jpyInfo}`);
   if (have.size) markSuccess(YIELDS_SOURCE_ID, store.size);
   else markFailure(YIELDS_SOURCE_ID, failed.join(' | ') || 'no data');
 }

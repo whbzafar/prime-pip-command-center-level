@@ -208,8 +208,15 @@ export async function refreshCalendar(opts: { force?: boolean; minLiveIntervalMs
   else if (failed) throw failed.reason;
 }
 
+let supplemental: () => TvEvent[] = () => [];
+export function setSupplementalProvider(fn: () => TvEvent[]): void { supplemental = fn; }
+
 export function getAllEvents(): TvEvent[] {
-  return Array.from(store.values()).sort((a, b) => a.timestamp - b.timestamp);
+  const base = Array.from(store.values());
+  // Supplemental (OECD) core-inflation prints only where the calendar carries none for that country.
+  const have = new Set(base.filter((e) => /^core inflation rate yoy$|^core cpi yoy$/.test(e.key) && e.actual != null).map((e) => e.country));
+  const extra = supplemental().filter((e) => !have.has(e.country));
+  return base.concat(extra).sort((a, b) => a.timestamp - b.timestamp);
 }
 
 export function calendarLoaded(): boolean {

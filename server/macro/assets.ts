@@ -218,8 +218,8 @@ function currencySpec(ccy: string): AssetSpec {
   ];
   {
     // Official 2Y/10Y government yields vs the US, only where a free daily official feed is reachable (EUR, GBP, CAD, JPY).
-    if (['EUR', 'CAD', 'JPY'].includes(ccy)) monetary.push(yieldSpreadInd(ccy, '2Y', 2.5));
-    if (['EUR', 'CAD', 'JPY', 'GBP'].includes(ccy)) monetary.push(yieldSpreadInd(ccy, '10Y', ccy === 'JPY' ? 1 : 1.5));
+    if (['EUR', 'CAD', 'JPY', 'AUD', 'CHF', 'NZD'].includes(ccy)) monetary.push(yieldSpreadInd(ccy, '2Y', 2.5));
+    if (['EUR', 'CAD', 'JPY', 'GBP', 'AUD', 'CHF', 'NZD'].includes(ccy)) monetary.push(yieldSpreadInd(ccy, '10Y', ccy === 'JPY' ? 1 : 1.5));
   }
   if (ccy === 'USD') {
     monetary.push(fredInd({ id: 'us2y', name: '2-Year Treasury Yield', desc: 'The market’s pricing of the Fed path over the next two years.',
