@@ -192,7 +192,7 @@ export const FinancialUniverse: React.FC<{ onNavigate?: (tab: any) => void }> = 
                 <div style={{ width: `${i.bullishPct}%`, background: COL.bull }} /><div style={{ width: `${i.bearishPct}%`, background: COL.bear }} />
               </div>
               <div className="mt-1 flex justify-between text-[12px] font-semibold tabular-nums">
-                <span style={{ color: COL.bull }}>{Math.round(i.bullishPct)}% bullish</span><span style={{ color: COL.bear }}>{Math.round(i.bearishPct)}% bearish</span>
+                <span style={{ color: COL.bull }}>{Math.round(i.bullishPct)}% bullish</span><span style={{ color: COL.bear }}>{100 - Math.round(i.bullishPct)}% bearish</span>
               </div>
               <div className="mt-1.5 text-[11px] text-slate-300">Overall: <b style={{ color: COL[i.side] }}>{SIDE_WORD[i.side]}</b> · score {i.score > 0 ? '+' : ''}{Math.round(i.score)} · data confidence {i.confidence}%</div>
               <button type="button" onClick={() => open(i)} className="mt-2 w-full rounded-lg border border-[#d4af37]/50 bg-[#d4af37]/10 px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#f3d98a] hover:bg-[#d4af37]/20 cursor-pointer">Open full analysis</button>

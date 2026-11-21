@@ -83,7 +83,7 @@ export const BriefHost: React.FC = () => {
               {data.bullishPct !== null && data.bearishPct !== null && (
                 <div className="mt-3" dir="ltr">
                   <div className="flex h-2.5 rounded-full overflow-hidden bg-slate-800"><div style={{ width: `${data.bullishPct}%`, background: '#34d399' }} /><div style={{ width: `${data.bearishPct}%`, background: '#fb3f5e' }} /></div>
-                  <div className="mt-1 flex justify-between text-[12px] font-semibold tabular-nums"><span className="text-emerald-300">{Math.round(data.bullishPct)}% {ur ? 'تیزی' : 'bullish'}</span><span className="text-rose-300">{Math.round(data.bearishPct)}% {ur ? 'مندی' : 'bearish'}</span></div>
+                  <div className="mt-1 flex justify-between text-[12px] font-semibold tabular-nums"><span className="text-emerald-300">{Math.round(data.bullishPct)}% {ur ? 'تیزی' : 'bullish'}</span><span className="text-rose-300">{100 - Math.round(data.bullishPct)}% {ur ? 'مندی' : 'bearish'}</span></div>
                 </div>
               )}
               <div className="mt-2 text-[11.5px] text-slate-400">{ur ? data.trust.ur : data.trust.en}</div>
