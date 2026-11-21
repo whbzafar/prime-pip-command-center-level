@@ -1,0 +1,30 @@
+{
+  "name": "PRIMEPIPFX Trading Command Center",
+  "short_name": "PRIMEPIPFX",
+  "description": "PrimePipFX trading command center — journal, fundamentals, Pro charts with alerts, backtesting, risk and psychology tools.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#070A11",
+  "theme_color": "#070A11",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

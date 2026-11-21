@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>PRIMEPIPFX Trading Command Center</title>
+    <meta name="description" content="Professional institutional trading command center featuring real-time community, 1-on-1 messaging, WebRTC video calling, dedicated Psychological Command Center, Freehand Workspace, and the autonomous multi-agent PRIMEPIPFX Evolution Engine." />
+    <meta property="og:title" content="PRIMEPIPFX Trading Command Center" />
+    <meta property="og:description" content="Professional institutional trading command center featuring real-time community, 1-on-1 messaging, WebRTC video calling, dedicated Psychological Command Center, Freehand Workspace, and the autonomous multi-agent PRIMEPIPFX Evolution Engine." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#070A11" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="PRIMEPIPFX" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.tradingview-widget.com">
+    <link rel="preconnect" href="https://s3.tradingview.com">
+    <link rel="dns-prefetch" href="https://www.tradingview.com">
+    <link rel="preconnect" href="https://metatraderweb.app">
+    <link rel="preconnect" href="https://web.metatrader.app">
+    <link rel="dns-prefetch" href="https://data.binance.vision">
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          // Enforce Full HD crisp native resolution across the application
+          localStorage.setItem('primepip_display_resolution', 'FULL_HD');
+          document.documentElement.setAttribute('data-display-resolution', 'FULL_HD');
+          document.documentElement.style.fontSize = '16px';
+
+          var t = localStorage.getItem('primepipfx_theme') || 'midnight';
+          document.documentElement.dataset.theme = t;
+          var isBright = localStorage.getItem('primepipfx_is_bright');
+          if (isBright === 'true' || t === 'daylight' || t === 'liquid-glass' || t === 'google-paper' || t === 'swiss-light' || t === 'nordic-light' || t === 'tokyo-sakura-light' || t === 'cyber-mint-light' || t === 'google-coral' || t === 'google-amber' || t === 'frosted-opal' || t === 'rose-quartz-glass') {
+            document.documentElement.dataset.brightnessMode = 'bright';
+          } else {
+            document.documentElement.dataset.brightnessMode = 'dark';
+          }
+          var b = localStorage.getItem('primepipfx_brightness') || '100';
+          document.documentElement.style.setProperty('--prime-brightness', b + '%');
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-DYO0SG_G.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-7f-He8EF.css">
+  </head>
+  <body class="bg-[#090D14] text-slate-100 antialiased selection:bg-amber-500/30 selection:text-amber-300">
+    <div id="root"></div>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+  </body>
+</html>
+

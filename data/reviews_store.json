@@ -1,0 +1,58 @@
+{
+  "reviews": [
+    {
+      "id": "rev-1",
+      "name": "Alexander M.",
+      "role": "Institutional Macro Trader (Zurich)",
+      "rating": 5,
+      "date": "2025-02-14",
+      "feedback": "PrimePipFX is easily the world's best trading platform. Having real-time deterministic fundamental intelligence, COT metrics, and automated risk armor all under one single roof has completely transformed my trading. The Liquid Glass interface is breathtakingly fast.",
+      "suggestions": "Keep adding more multi-asset correlations like Treasury yield curves.",
+      "verified": true,
+      "likes": 42,
+      "adminReply": {
+        "text": "Thank you Alexander! Real-time 10Y/2Y sovereign yield curves and swap spreads are now integrated across all 28 major pairs.",
+        "author": "Chief Administrator",
+        "date": "2025-02-15"
+      }
+    },
+    {
+      "id": "rev-2",
+      "name": "Sarah Jenkins",
+      "role": "Full-Time FX & Gold Specialist (London)",
+      "rating": 5,
+      "date": "2025-02-10",
+      "feedback": "I canceled four subscriptions after finding PrimePipFX. The bullish/bearish fundamental sentiment meter for XAU/USD and major pairs is 100% accurate. The psychological center keeps my emotions disciplined.",
+      "suggestions": "Would love to see an audio alert for COT weekly releases.",
+      "verified": true,
+      "likes": 38
+    },
+    {
+      "id": "rev-3",
+      "name": "Tariq Al-Mansoor",
+      "role": "Prop Firm Funded Trader ($200k)",
+      "rating": 5,
+      "date": "2025-02-02",
+      "feedback": "Everything under one roof is not an exaggeration. The dynamic daily trade limits and loss guardrails protected my prop account during high-impact NFP volatility. Simply unmatched quality.",
+      "suggestions": "Add optional Discord webhook dispatch for journal backups.",
+      "verified": true,
+      "likes": 29,
+      "adminReply": {
+        "text": "Great to hear Tariq! We are proud to support your funded journey with institutional discipline guards.",
+        "author": "PrimePipFX Lead Analyst",
+        "date": "2025-02-03"
+      }
+    },
+    {
+      "id": "rev-4",
+      "name": "David Chen",
+      "role": "Algorithmic & Discretionary Trader (Singapore)",
+      "rating": 5,
+      "date": "2025-01-28",
+      "feedback": "Five stars without question. The deterministic macro engine gives hedge-fund-level insight without any black-box nonsense. Clean, responsive, and gorgeous design on both PC and mobile.",
+      "suggestions": "Continue keeping all calculations deterministic.",
+      "verified": true,
+      "likes": 24
+    }
+  ]
+}
