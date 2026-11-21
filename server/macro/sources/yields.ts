@@ -256,7 +256,9 @@ function stooqLoader(ccy: 'AUD' | 'CHF' | 'NZD', official?: () => Promise<void>)
   };
 }
 
-const LOADERS: Array<[string, () => Promise<void>]> = [['CAD', loadCad], ['EUR', loadEur], ['JPY', loadJpy], ['GBP', loadGbp], ['AUD', stooqLoader('AUD', loadAud)], ['CHF', stooqLoader('CHF', loadChf)], ['NZD', stooqLoader('NZD')]];
+const LOADERS: Array<[string, () => Promise<void>]> = [['CAD', loadCad], ['EUR', loadEur], ['JPY', loadJpy], ['GBP', loadGbp]];
+// AUD/CHF/NZD: Stooq + RBA + SNB were all unreachable from the production host when tested, so they are not scored (honest gap).
+export const OPTIONAL_LOADERS = { AUD: stooqLoader('AUD', loadAud), CHF: stooqLoader('CHF', loadChf), NZD: stooqLoader('NZD') };
 
 export async function refreshYields(force = false): Promise<void> {
   if (!force && Date.now() - lastRun < TTL && store.size) return;
@@ -265,7 +267,7 @@ export async function refreshYields(force = false): Promise<void> {
   await Promise.all(LOADERS.map(async ([ccy, fn]) => { try { await fn(); } catch (e: any) { failed.push(`${ccy}: ${e?.message || e}`); } }));
   const have = new Set([...store.keys()].map((k) => k.split('_')[0]));
   const missing = LOADERS.map(([c]) => c).filter((c) => !have.has(c));
-  setSourceNote(YIELDS_SOURCE_ID, `Live for ${[...have].sort().join(', ') || 'none'}${missing.length ? `; unavailable right now: ${missing.join(', ')}` : ''}${failed.length ? ` [${failed.map((f) => f.slice(0, 90)).join(' | ')}]` : ''}. AUD/CHF/NZD: official RBA/SNB first, then Stooq daily closes. ${jpyInfo}`);
+  setSourceNote(YIELDS_SOURCE_ID, `Live for ${[...have].sort().join(', ') || 'none'}${missing.length ? `; unavailable right now: ${missing.join(', ')}` : ''}${failed.length ? ` [${failed.map((f) => f.slice(0, 90)).join(' | ')}]` : ''}. AUD/CHF/NZD: RBA, SNB and Stooq are not reachable from the host, so these yields are left unscored rather than estimated. ${jpyInfo}`);
   if (have.size) markSuccess(YIELDS_SOURCE_ID, store.size);
   else markFailure(YIELDS_SOURCE_ID, failed.join(' | ') || 'no data');
 }

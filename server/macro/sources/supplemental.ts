@@ -38,6 +38,8 @@ export async function refreshSupplemental(): Promise<void> {
     try {
       const pts = parseCsv(await fetchText(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${s.id}&cosd=${since}`, { timeoutMs: 15_000, retries: 1 }));
       if (pts.length < 3) throw new Error(`only ${pts.length} points`);
+      const ageDays = (Date.now() - Date.parse(pts[pts.length - 1].date)) / 86_400_000;
+      if (ageDays > 200) throw new Error(`OECD series stale (last ${pts[pts.length - 1].date}); not used`);
       for (let i = 0; i < pts.length; i++) {
         const p = pts[i]; const span = s.period === 'Q' ? 92 : 31;
         const ts = Math.min(Date.parse(p.date) + (span + s.lagDays) * 86_400_000, Date.now());
