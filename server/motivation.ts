@@ -110,7 +110,7 @@ async function searchPage(q: string): Promise<MVideo[]> {
   const rs: any[] = []; walk(JSON.parse(m[1]), rs);
   return rs.map((r) => {
     const views = /([\d,]+)\s*views/.exec(r.viewCountText?.simpleText || '')?.[1];
-    return { id: r.videoId as string, title: String(r.title?.runs?.[0]?.text || ''), channel: String(r.ownerText?.runs?.[0]?.text || ''), cid: r.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId as string | undefined, thumb: thumb(r.videoId), duration: r.lengthText?.simpleText as string | undefined, views: views ? Number(views.replace(/,/g, '')) : undefined, source: 'search' as const };
+    return { id: r.videoId as string, title: String(r.title?.runs?.[0]?.text || ''), channel: String(r.ownerText?.runs?.[0]?.text || ''), cid: /"browseId":"(UC[\w-]{20,24})"/.exec(JSON.stringify([r.ownerText, r.longBylineText, r.shortBylineText]))?.[1], thumb: thumb(r.videoId), duration: r.lengthText?.simpleText as string | undefined, views: views ? Number(views.replace(/,/g, '')) : undefined, source: 'search' as const };
   }).filter((v) => v.title && v.duration && !MUSIC.test(v.title) && secs(v.duration) >= 90 && secs(v.duration) <= 1800) // speeches & stories, not songs, albums or clips
     .sort((a, b) => Number(GOOD.test(b.title)) - Number(GOOD.test(a.title)));
 }
