@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldShowNewEra } from './newEra';
+import { shouldShowNewEra, welcomeName } from './newEra';
 const u = (o: any = {}) => ({ id: 'u1', role: 'USER', subscriptionStatus: 'ACTIVE', expiryDate: new Date(Date.now() + 864e5).toISOString(), startDate: new Date().toISOString(), ...o }) as any;
 describe('shouldShowNewEra', () => {
   const no = () => false;
@@ -8,4 +8,13 @@ describe('shouldShowNewEra', () => {
   it('not for free users or guests', () => { expect(shouldShowNewEra(u({ subscriptionStatus: 'NONE' }), Date.now(), no)).toBe(false); expect(shouldShowNewEra(null, Date.now(), no)).toBe(false); });
   it('not for admins', () => expect(shouldShowNewEra(u({ role: 'ADMIN' }), Date.now(), no)).toBe(false));
   it('not for long-time subscribers', () => expect(shouldShowNewEra(u({ startDate: new Date(Date.now() - 40 * 864e5).toISOString() }), Date.now(), no)).toBe(false));
+});
+
+describe('welcomeName', () => {
+  it('uses the real name, else the username, never "Student"', () => {
+    expect(welcomeName({ name: 'ali khan', username: 'ali99' })).toBe('Ali');
+    expect(welcomeName({ name: 'Student', username: 'zain_tr' })).toBe('Zain tr');
+    expect(welcomeName({ username: 'bilal' })).toBe('Bilal');
+    expect(welcomeName(null)).toBe('');
+  });
 });

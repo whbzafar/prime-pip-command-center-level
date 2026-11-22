@@ -199,3 +199,5 @@ html[data-theme='aurora'] main { perspective: 1400px; }
 html[data-fx='off'] #ppfx-spot, html[data-fx='lite'] #ppfx-spot { display: none; }
 html[data-theme='aurora'] #ppfx-aurora-canvas { opacity: 1; }
 #ppfx-spot.on { opacity: var(--spot-op, 1); }
+.ne-link { color: #67e8f9; font-weight: 700; text-decoration: underline; text-underline-offset: 4px; background: none; border: 0; padding: 4px 0; cursor: pointer; text-align: left; font-size: 15px; }
+.ne-link:hover { color: #fff; }

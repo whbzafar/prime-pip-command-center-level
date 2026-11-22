@@ -5,7 +5,7 @@ import { NewEraWelcome } from '../welcome/NewEraWelcome';
 /** Admin-only: shows the first-subscription "Welcome to a New Era" pop-up exactly as a new subscriber sees it (nothing is saved or marked as seen). */
 export function PopupPreviewPanel({ adminName }: { adminName?: string }) {
   const [open, setOpen] = useState(false);
-  const [asName, setAsName] = useState(adminName || 'Student');
+  const [asName, setAsName] = useState(adminName || 'Ahmed');
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-fuchsia-500/25 bg-slate-950/70 p-5">
@@ -20,7 +20,7 @@ export function PopupPreviewPanel({ adminName }: { adminName?: string }) {
         </div>
         <p className="mt-3 text-xs text-slate-400">Tip: sound plays during the preview (muted with the button top-right). Press "Enter the New Era" to close it.</p>
       </div>
-      {open && <NewEraWelcome name={asName} onEnter={() => setOpen(false)} />}
+      {open && <NewEraWelcome name={asName} onEnter={() => setOpen(false)} onFounder={() => { setOpen(false); window.dispatchEvent(new Event('ppfx-open-founder')); }} />}
     </div>
   );
 }

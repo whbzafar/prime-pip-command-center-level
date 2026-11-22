@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { startNoirAmbient, Ambient } from './noirAmbient';
 
-export function NewEraWelcome({ name, onEnter }: { name?: string; onEnter: () => void }) {
+export function NewEraWelcome({ name, onEnter, onFounder }: { name?: string; onEnter: () => void; onFounder?: () => void }) {
   const amb = useRef<Ambient | null>(null);
   const [muted, setMuted] = useState(false);
   const [needTap, setNeedTap] = useState(false);
@@ -34,6 +34,9 @@ export function NewEraWelcome({ name, onEnter }: { name?: string; onEnter: () =>
           <p>You are capable of what others find impossible. Ignore the noise and keep yourself motivated.</p>
           <p>Respect the application, and it will respect you back. Keep working hard, say your name, and your dreams will come true one day. Challenges will come — do not lose heart, and do not be afraid. That is normal.</p>
           <p className="text-slate-300">And remember <b className="text-white">Wahab</b> — the one who built every piece of this. Will you ever forget?</p>
+          {onFounder && <p><button type="button" onClick={(e) => { e.stopPropagation(); setLeaving(true); amb.current?.stop(); setTimeout(onFounder, 450); }} className="ne-link">Who is Wahab? Read his story →</button></p>}
+          <p>Life knocked me down three times — three serious injuries — and I never lost my resolve. And along the way I found something so unexpected that people could not even imagine it.</p>
+          <p><button type="button" onClick={enter} className="ne-link">Open the application now →</button></p>
         </div>
         <button type="button" onClick={enter} className="ne-rise ne-cta mt-8 w-full rounded-2xl px-6 py-4 text-base font-extrabold tracking-wide text-white" style={{ animationDelay: '1.2s' }}>
           Enter the New Era

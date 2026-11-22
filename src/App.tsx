@@ -1,7 +1,8 @@
 // Force HMR refresh
 import { SecurityWarningModal } from './components/SecurityWarningModal';
 import { NewEraWelcome } from './components/welcome/NewEraWelcome';
-import { shouldShowNewEra, markNewEraSeen } from './components/welcome/newEra';
+import { shouldShowNewEra, markNewEraSeen, welcomeName } from './components/welcome/newEra';
+const FounderExperienceModal = React.lazy(() => import('./components/FounderExperienceModal').then((m) => ({ default: m.FounderExperienceModal })));
 import { setOpenTrades } from './services/openPositions';
 import { DisciplineGuard, DisciplineToast, TraderDnaPanel } from './components/dna/TraderDnaPanel';
 import { startInsights, trackSection } from './utils/insights';
@@ -183,6 +184,9 @@ export default function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<MainNavTab>('DASHBOARD');
   const [newEraOpen, setNewEraOpen] = useState(false);
+  const [founderOpen, setFounderOpen] = useState(false);
+  const [founderMin, setFounderMin] = useState(false);
+  useEffect(() => { const f = () => { setFounderMin(false); setFounderOpen(true); }; window.addEventListener('ppfx-open-founder', f); return () => window.removeEventListener('ppfx-open-founder', f); }, []);
   // Once the MT5 terminal has been opened, keep it mounted (hidden) across tab switches so the
   // user's MT5 session survives navigating the app instead of asking for login again.
   const [mt5Visited, setMt5Visited] = useState(false);
@@ -1371,7 +1375,8 @@ export default function App() {
       {!isLightweight && <MarketAura />}
       {!isLightweight && <QuantumFx />}
       <AuroraScene />
-      {newEraOpen && currentUser && <NewEraWelcome name={currentUser.name || currentUser.username} onEnter={() => { markNewEraSeen(currentUser.id); setNewEraOpen(false); }} />}
+      {newEraOpen && currentUser && <NewEraWelcome name={welcomeName(currentUser)} onEnter={() => { markNewEraSeen(currentUser.id); setNewEraOpen(false); }} onFounder={() => { markNewEraSeen(currentUser.id); setNewEraOpen(false); setFounderMin(false); setFounderOpen(true); }} />}
+      {founderOpen && <React.Suspense fallback={null}><FounderExperienceModal isOpen isMinimized={founderMin} onClose={() => { setFounderOpen(false); setFounderMin(false); }} onMinimize={() => setFounderMin(true)} onReopen={() => setFounderMin(false)} /></React.Suspense>}
       <SecurityWarningModal userId={currentUser && !isUserAdmin(currentUser) ? currentUser.id : undefined} />
       <Header
         activeTab={activeTab as any}
