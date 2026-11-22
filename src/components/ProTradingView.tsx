@@ -50,6 +50,7 @@ import {
   Cpu,
   Radar,
   GitMerge,
+  Sunrise,
   Camera,
   Check,
   Copy,
@@ -126,6 +127,7 @@ import { PairDeepDiveModal } from './fundamental/PairDeepDiveModal';
 import { TradeCopilot } from './copilot/TradeCopilot';
 import { MarketRadar } from './copilot/MarketRadar';
 import { CorrelationGuard } from './copilot/CorrelationGuard';
+import { DailyBriefing } from './copilot/DailyBriefing';
 import { EventShockSimulator } from './copilot/EventShockSimulator';
 import { ExposureGuard } from './copilot/ExposureGuard';
 import { QuantEdge } from './copilot/QuantEdge';
@@ -1480,6 +1482,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [radarOpen, setRadarOpen] = useState(false);
   const [corrOpen, setCorrOpen] = useState(false);
+  const [briefOpen, setBriefOpen] = useState(false);
   const [shockOpen, setShockOpen] = useState(false);
   const [exposureOpen, setExposureOpen] = useState(false);
   const [edgeOpen, setEdgeOpen] = useState(false);
@@ -4296,6 +4299,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 items={[
                   { id: 'edge', label: 'Quant Edge signals', desc: 'Research-backed buy/sell setup with its 10-year record', Icon: Cpu, cls: 'text-cyan-300', onClick: () => setEdgeOpen(true) },
                   { id: 'copilot', label: 'Trade Copilot', desc: 'Live plan for this pair: bias, entry, stop, targets, lots', Icon: Sparkles, cls: 'text-violet-300', onClick: () => setCopilotOpen(true) },
+                  { id: 'brief', label: 'Daily Briefing', desc: 'Your trading day on one page: fundamentals, set-ups and news', Icon: Sunrise, cls: 'text-amber-300', onClick: () => setBriefOpen(true) },
                   { id: 'corr', label: 'Correlation & Exposure Guard', desc: 'Which markets move together — and the hidden risk in your trades', Icon: GitMerge, cls: 'text-emerald-300', onClick: () => setCorrOpen(true) },
                   { id: 'radar', label: 'Market Regime Radar', desc: 'Every market: trending, ranging, coiling or breaking out', Icon: Radar, cls: 'text-fuchsia-300', onClick: () => setRadarOpen(true) },
                   { id: 'shock', label: 'News Shock Simulator', desc: 'How price moved after past releases of upcoming news', Icon: Zap, cls: 'text-amber-300', onClick: () => setShockOpen(true) },
@@ -4306,6 +4310,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               <TradeCopilot open={copilotOpen} symbol={copilotSymbol || selectedSymbol} onClose={() => { setCopilotOpen(false); setCopilotSymbol(null); }} />
               <EventShockSimulator open={shockOpen} onClose={() => setShockOpen(false)} />
               <ExposureGuard open={exposureOpen} onClose={() => setExposureOpen(false)} trades={trades || []} />
+              <DailyBriefing open={briefOpen} onClose={() => setBriefOpen(false)} onOpenSymbol={(sym) => handleSelectSymbol(sym)} />
               <CorrelationGuard open={corrOpen} onClose={() => setCorrOpen(false)} />
               <MarketRadar open={radarOpen} onClose={() => setRadarOpen(false)} onOpenSymbol={(sym) => handleSelectSymbol(sym)} onCopilot={(sym) => { setCopilotSymbol(sym); setRadarOpen(false); setCopilotOpen(true); }} />
 

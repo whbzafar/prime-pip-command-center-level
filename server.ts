@@ -208,6 +208,7 @@ import { commandCenterRouter, startCommandCenter } from "./server/routes/command
 import { copilotRouter } from "./server/routes/copilotRoutes.js";
 import { radarRouter } from "./server/routes/radarRoutes.js";
 import { correlationRouter } from "./server/routes/correlationRoutes.js";
+import { briefingRouter } from "./server/routes/briefingRoutes.js";
 import { shockRouter } from "./server/routes/shockRoutes.js";
 import { strengthRouter } from "./server/routes/strengthRoutes.js";
 import { quantEdgeRouter } from "./server/routes/quantEdgeRoutes.js";
@@ -7208,6 +7209,7 @@ app.use('/api/admin/command-center', commandCenterRouter(requireDeveloper));
 app.use('/api/copilot', copilotRouter);
 app.use('/api/radar', radarRouter);
 app.use('/api/correlation', correlationRouter);
+app.use('/api/briefing', briefingRouter);
 app.use('/api/shock', shockRouter);
 app.use('/api/strength', strengthRouter);
 app.use('/api/quant-edge', quantEdgeRouter);

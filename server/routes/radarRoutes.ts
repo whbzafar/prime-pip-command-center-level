@@ -113,6 +113,18 @@ async function build() {
   };
 }
 
+/** Shared by the Daily Briefing: the cached radar body (builds it if needed). */
+export async function getRadarBody(): Promise<any | null> {
+  try {
+    if (!cache || Date.now() - cache.at > 10 * 60_000) {
+      building = building || build().finally(() => { building = null; });
+      const body = await building;
+      if (body.count > 0) cache = { at: Date.now(), body };
+    }
+    return cache?.body ?? null;
+  } catch { return cache?.body ?? null; }
+}
+
 radarRouter.get('/', async (_req: Request, res: Response) => {
   try {
     if (!cache || Date.now() - cache.at > 10 * 60_000) {
