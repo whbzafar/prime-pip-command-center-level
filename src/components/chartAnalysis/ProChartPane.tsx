@@ -126,6 +126,10 @@ export const ProChartPane: React.FC<{
   useProPersistence(hostRef, liveTicker);
   const getInner = useCallback(() => (hostRef.current ? resolveProChart(hostRef.current) : null), []);
 
+  // Zoom +/−: zoom, then snap back to the live edge so you are never lost in old history. Reset: latest bar at default zoom.
+  const zoomBy = useCallback((k: number) => { const c = getInner(); if (!c) return; try { c.zoomAtCoordinate(k, undefined, 120); window.setTimeout(() => { try { c.scrollToRealTime(160); } catch { /* ignore */ } }, 140); } catch { /* ignore */ } }, [getInner]);
+  const resetView = useCallback(() => { const c = getInner(); if (!c) return; try { c.setBarSpace(8); c.scrollToRealTime(200); } catch { /* ignore */ } }, [getInner]);
+
   // Apply changes coming from the workspace (quick symbols, sync, multi-timeframe)
   useEffect(() => {
     const c = chartRef.current;
@@ -140,11 +144,13 @@ export const ProChartPane: React.FC<{
       <ProDrawingToolbar getChart={getInner} />
       <div ref={hostRef} className="ppfx-pro-chart h-full min-w-0 flex-1 ml-12" />
       <CanvasColorControl className="absolute bottom-12 right-32 z-20" />
-      <button type="button" title="Back to the latest bar" aria-label="Back to the latest bar"
-        onClick={() => { const c: any = chartRef.current; if (!c) return; try { c.setPeriod({ ...c.getPeriod() }); } catch { /* ignore */ } }}
-        className="absolute bottom-12 right-20 z-20 w-9 h-9 rounded-full bg-slate-900/90 border border-slate-600 text-slate-200 hover:text-white hover:border-cyan-400 shadow-lg flex items-center justify-center cursor-pointer">
-        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 17 5-5-5-5" /><path d="m13 17 5-5-5-5" /></svg>
-      </button>
+      <div className="absolute bottom-12 right-20 z-20 flex items-center gap-1.5" data-testid="unl-zoom-controls">
+        <button type="button" title="Zoom out — returns to the latest price" aria-label="Zoom out" data-testid="unl-zoom-out" onClick={() => zoomBy(0.8)} className="w-9 h-9 rounded-full bg-slate-900/90 border border-slate-600 text-slate-200 hover:text-white hover:border-cyan-400 shadow-lg flex items-center justify-center text-lg font-bold leading-none cursor-pointer">−</button>
+        <button type="button" title="Zoom in — returns to the latest price" aria-label="Zoom in" data-testid="unl-zoom-in" onClick={() => zoomBy(1.25)} className="w-9 h-9 rounded-full bg-slate-900/90 border border-slate-600 text-slate-200 hover:text-white hover:border-cyan-400 shadow-lg flex items-center justify-center text-lg font-bold leading-none cursor-pointer">+</button>
+        <button type="button" title="Reset chart: back to the latest bar at normal zoom" aria-label="Reset chart" data-testid="unl-reset" onClick={resetView} className="w-9 h-9 rounded-full bg-slate-900/90 border border-slate-600 text-slate-200 hover:text-white hover:border-cyan-400 shadow-lg flex items-center justify-center text-lg font-bold leading-none cursor-pointer">
+          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 17 5-5-5-5" /><path d="m13 17 5-5-5-5" /></svg>
+        </button>
+      </div>
     </div>
   );
 };
