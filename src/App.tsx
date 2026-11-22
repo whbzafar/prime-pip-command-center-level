@@ -24,6 +24,7 @@ import { LoginModal } from './components/LoginModal';
 import { FirstOpenLoginScreen } from './components/FirstOpenLoginScreen';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { AppPerimeterGlow } from './components/AppPerimeterGlow';
+import { MarketAura } from './components/MarketAura';
 import { QuantumFx } from './components/QuantumFx';
 import { SubscriptionPage } from './components/SubscriptionPage';
 import { SubscriptionGateModal } from './components/SubscriptionGateModal';
@@ -1336,6 +1337,7 @@ export default function App() {
 
       {/* Top Prismatic Ambient Theme Optical Ribbon */}
       {!isLightweight && <AmbientThemeRibbon />}
+      {!isLightweight && <MarketAura />}
       {!isLightweight && <QuantumFx />}
 
       {/* Global Animated Background Elements with Calibrated Clean Cyber Atmosphere */}
