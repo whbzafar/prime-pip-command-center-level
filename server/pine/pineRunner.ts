@@ -1,4 +1,5 @@
 import path from 'path';
+import { createHash } from 'crypto';
 import { pathToFileURL } from 'url';
 import { pineCompat } from '../../src/utils/pineCompat';
 /**
@@ -21,7 +22,33 @@ const loadEngine = () => (enginePromise ??= bundled()
   // Test runners (vm contexts) cannot use the Function-based import; use a regular one there.
   .catch(() => import('@luxalgo/vela-pinets'))
   .then((m: any) => m.PineEngine || m.default?.PineEngine));
-const newEngine = async () => { const PineEngine = await loadEngine(); return new PineEngine(); };
+// Speed: one engine for the whole process, and a parsed copy of each script (re-parsing on every run cost time).
+let sharedEngine: Promise<any> | null = null;
+const newEngine = async () => (sharedEngine ??= loadEngine().then((PineEngine: any) => new PineEngine()).catch((e: any) => { sharedEngine = null; throw e; }));
+const preparedCache = new Map<string, any>();
+const sourceKey = (src: string) => `${src.length}:${createHash('sha1').update(src).digest('hex')}`;
+async function prepareCached(engine: any, source: string) {
+  const k = sourceKey(source);
+  const hit = preparedCache.get(k);
+  if (hit) return hit;
+  const prepared = await engine.prepare(pineCompat(source), 'srv');
+  preparedCache.set(k, prepared);
+  if (preparedCache.size > 24) preparedCache.delete(preparedCache.keys().next().value as string);
+  return prepared;
+}
+
+// Speed: an identical request (same script, market, bars, inputs and supplied series) is answered from memory for 45 s —
+// switching back to a pair/timeframe, or the browser's repeated runs on unchanged bars, then costs nothing.
+const resultCache = new Map<string, { at: number; out: RunOutput }>();
+const RESULT_TTL = 45_000;
+const runKey = (input: RunInput, bars: any[]) => {
+  const h = createHash('sha1');
+  h.update(sourceKey(input.source)); h.update(JSON.stringify([input.market, input.inputs || null, input.props || null]));
+  h.update(JSON.stringify(bars));
+  const sup = input.series || {};
+  for (const k of Object.keys(sup).sort()) { h.update(k); h.update(String(sup[k]?.length || 0)); const last = sup[k]?.[sup[k].length - 1]; h.update(JSON.stringify(last ?? null)); }
+  return h.digest('hex');
+};
 
 export interface SeriesNeed { symbol: string; timeframe: string; range: { from?: number; to?: number; limit?: number } }
 export interface RunInput {
@@ -47,15 +74,19 @@ export const MAX_BARS = 5000;
 const RUN_TIMEOUT_MS = 40_000;
 export const seriesKey = (symbol: string, timeframe: string) => `${String(symbol).toUpperCase()}|${timeframe}`;
 
+// Rows arrive either as objects or as compact arrays [time, open, high, low, close, volume] (half the upload).
 const cleanBars = (bars: any[]) =>
   (Array.isArray(bars) ? bars : [])
-    .map((b) => ({ time: Number(b.time), open: Number(b.open), high: Number(b.high), low: Number(b.low), close: Number(b.close), volume: Number(b.volume ?? 0) }))
+    .map((b) => (Array.isArray(b)
+      ? { time: Number(b[0]), open: Number(b[1]), high: Number(b[2]), low: Number(b[3]), close: Number(b[4]), volume: Number(b[5] ?? 0) }
+      : { time: Number(b.time), open: Number(b.open), high: Number(b.high), low: Number(b.low), close: Number(b.close), volume: Number(b.volume ?? 0) }))
     .filter((b) => Number.isFinite(b.time) && Number.isFinite(b.close))
     .slice(-MAX_BARS);
 
 /** Prepare (parse) a script and return its schema WITHOUT the source-bearing token. */
 export async function prepareScript(source: string, instanceId: string) {
-  const prepared: any = await (await newEngine()).prepare(pineCompat(source), instanceId);
+  const engine0 = await newEngine();
+  const prepared: any = await engine0.prepare(pineCompat(source), instanceId);
   const { token: _token, ...safe } = prepared;
   return safe;
 }
@@ -76,12 +107,15 @@ export async function runScript(input: RunInput): Promise<RunOutput> {
   const alerts: any[] = [];
   let prepared: any;
   try {
-    prepared = await engine.prepare(pineCompat(input.source), 'srv');
+    prepared = await prepareCached(engine, input.source);
   } catch (err: any) {
     return { ok: false, error: String(err?.message || err), line: errorLine(err), ms: Date.now() - t0 };
   }
   const bars = cleanBars(input.bars);
   if (!bars.length) return { ok: false, error: 'No bars to run on.', ms: Date.now() - t0 };
+  const cacheKey = runKey(input, bars);
+  const cached = resultCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < RESULT_TTL) return { ...cached.out, ms: Date.now() - t0 };
 
   const fetchSeries = async (symbol: string, timeframe: string, range: any) => {
     const key = seriesKey(symbol, timeframe);
@@ -101,7 +135,9 @@ export async function runScript(input: RunInput): Promise<RunOutput> {
       settled = true;
       clearTimeout(timer);
       try { session?.stop(); } catch { /* ignore */ }
-      resolve({ ...out, ms: Date.now() - t0 });
+      const full = { ...out, ms: Date.now() - t0 };
+      if (full.ok && !full.need) { resultCache.set(cacheKey, { at: Date.now(), out: full }); if (resultCache.size > 40) resultCache.delete(resultCache.keys().next().value as string); }
+      resolve(full);
     };
     const timer = setTimeout(() => finish({ ok: false, error: 'The script took too long to run on this many bars.' }), RUN_TIMEOUT_MS);
     let session: any;

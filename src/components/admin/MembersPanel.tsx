@@ -4,10 +4,10 @@
  * one-way hashes, so they can never be shown (use "reset password" in the Customers tab instead).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Database, LogIn, RefreshCw, Search, Trash2, UserPlus, Users } from 'lucide-react';
+import { Activity, AlertTriangle, Database, LogIn, RefreshCw, Search, Trash2, UserPlus, Users } from 'lucide-react';
 import { getStoredToken, handleDeadAdminSession } from '../../utils/authClient';
 
-interface Member { id: string; name: string; username: string; email: string; role: string; subscriptionStatus: string; expiryDate?: string; isLifetime?: boolean; signupSource: string; createdAt: string; lastLoginAt: string | null; loginCount: number; lastLoginIp: string; lastLoginDevice: string }
+interface Member { id: string; name: string; username: string; email: string; role: string; subscriptionStatus: string; expiryDate?: string; isLifetime?: boolean; signupSource: string; createdAt: string; lastLoginAt: string | null; loginCount: number; lastLoginIp: string; lastLoginDevice: string; sbtIndicator?: boolean }
 interface LoginRow { at: string; userId: string; username: string; name?: string; kind: 'login' | 'signup'; ip?: string; device?: string }
 
 const fmt = (d?: string | null) => (d ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Karachi', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(d)) : '—');
@@ -54,6 +54,20 @@ export const MembersPanel: React.FC = () => {
     setLoading(false);
   }, [headers]);
   useEffect(() => { load(); const t = window.setInterval(load, 30_000); return () => window.clearInterval(t); }, [load]);
+
+  const paid = (m: Member) => { const l = status(m)[0]; return l.startsWith('Active') || l === 'Lifetime'; };
+  const toggleSbt = async (m: Member) => {
+    const next = !m.sbtIndicator;
+    setMembers((ms) => ms.map((x) => (x.id === m.id ? { ...x, sbtIndicator: next } : x))); // instant
+    try {
+      const r = await fetch(`/api/pine/grants/${encodeURIComponent(m.id)}`, { method: 'PUT', credentials: 'include', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ granted: next }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) throw new Error(j.error || `HTTP ${r.status}`);
+    } catch (e: any) {
+      setMembers((ms) => ms.map((x) => (x.id === m.id ? { ...x, sbtIndicator: !next } : x)));
+      setErr(`Could not ${next ? 'activate' : 'deactivate'} the SBT indicator for ${m.username}: ${String(e?.message || e)}`);
+    }
+  };
 
   const remove = async (m: Member) => {
     if (!window.confirm(`Remove ${m.username}? Their account is deleted and they can no longer sign in. This cannot be undone.`)) return;
@@ -117,19 +131,25 @@ export const MembersPanel: React.FC = () => {
       )}
 
       <div className="overflow-x-auto rounded-xl border border-slate-800">
-        <table className="w-full min-w-[860px] text-[12.5px]">
+        <table className="w-full min-w-[1000px] text-[12.5px]">
           <thead className="bg-slate-900/80 text-[10.5px] uppercase tracking-wider text-slate-400"><tr>
             <th className="px-3 py-2 w-8"><input type="checkbox" aria-label="Select all members" className="accent-rose-400 w-4 h-4 cursor-pointer"
               checked={list.filter((m) => !isOwner(m)).length > 0 && list.filter((m) => !isOwner(m)).every((m) => selected.has(m.id))}
               onChange={(e) => setSelected(e.target.checked ? new Set(list.filter((m) => !isOwner(m)).map((m) => m.id)) : new Set())} /></th>
-            <th className="text-left px-3 py-2">Member</th><th className="text-left px-3 py-2">Subscription</th><th className="text-left px-3 py-2">Signed up</th><th className="text-left px-3 py-2">Last login</th><th className="text-right px-3 py-2">Logins</th><th className="text-left px-3 py-2">Last device</th><th className="text-left px-3 py-2">How</th><th className="px-3 py-2" />
+            <th className="text-left px-3 py-2">Member</th><th className="text-left px-3 py-2">Terminal purchase</th><th className="text-left px-3 py-2">SBT Indicator</th><th className="text-left px-3 py-2">Signed up</th><th className="text-left px-3 py-2">Last login</th><th className="text-right px-3 py-2">Logins</th><th className="text-left px-3 py-2">Last device</th><th className="text-left px-3 py-2">How</th><th className="px-3 py-2" />
           </tr></thead>
           <tbody>
             {list.map((m) => (
               <tr key={m.id} className={`border-t border-slate-800/80 hover:bg-slate-900/40 ${selected.has(m.id) ? 'bg-rose-500/5' : ''}`}>
                 <td className="px-3 py-2">{!isOwner(m) && <input type="checkbox" aria-label={`Select ${m.username}`} checked={selected.has(m.id)} onChange={() => toggle(m.id)} className="accent-rose-400 w-4 h-4 cursor-pointer" />}</td>
                 <td className="px-3 py-2"><div className="font-semibold text-slate-100">{m.username}</div>{m.name && m.name !== m.username && <div className="text-[11px] text-slate-500">{m.name}</div>}</td>
-                <td className="px-3 py-2"><span className={`px-1.5 py-0.5 rounded text-[10.5px] font-bold whitespace-nowrap ${status(m)[1]}`}>{status(m)[0]}</span></td>
+                <td className="px-3 py-2"><span className={`px-1.5 py-0.5 rounded text-[10.5px] font-bold whitespace-nowrap ${status(m)[1]}`}>{status(m)[0]}</span>{paid(m) && <div className="mt-0.5 text-[10.5px] text-emerald-300/90">{m.lastLoginAt ? '✓ purchased · logged in' : '✓ purchased · not logged in yet'}</div>}</td>
+                <td className="px-3 py-2">{isOwner(m) ? <span className="text-[11px] text-slate-500">always</span> : (
+                  <button type="button" data-testid={`sbt-toggle-${m.username}`} onClick={() => void toggleSbt(m)} aria-pressed={!!m.sbtIndicator}
+                    title={m.sbtIndicator ? 'Click to take the SBT indicator away from this student' : 'Click to give this student the SBT indicator in their Premium TradingView'}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md border text-[11px] font-bold cursor-pointer whitespace-nowrap ${m.sbtIndicator ? 'border-violet-400/60 bg-violet-500/25 text-violet-100' : 'border-slate-600 text-slate-200 hover:border-violet-400 hover:text-white'}`}>
+                    <Activity className="w-3 h-3" />{m.sbtIndicator ? 'Active · click to deactivate' : 'Activate SBT Indicator'}
+                  </button>)}</td>
                 <td className="px-3 py-2 text-slate-300">{fmt(m.createdAt)}</td>
                 <td className="px-3 py-2"><span className="text-slate-200">{ago(m.lastLoginAt)}</span><div className="text-[10.5px] text-slate-500">{fmt(m.lastLoginAt)}</div></td>
                 <td className="px-3 py-2 text-right font-mono text-slate-200">{m.loginCount}</td>
@@ -138,7 +158,7 @@ export const MembersPanel: React.FC = () => {
                 <td className="px-3 py-2 text-right"><button type="button" onClick={() => remove(m)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-rose-500/40 text-rose-200 hover:bg-rose-500/10 cursor-pointer text-[11.5px]"><Trash2 className="w-3.5 h-3.5" />Remove</button></td>
               </tr>
             ))}
-            {!list.length && <tr><td colSpan={9} className="px-3 py-6 text-center text-slate-500">{loading ? 'Loading…' : 'No members yet.'}</td></tr>}
+            {!list.length && <tr><td colSpan={10} className="px-3 py-6 text-center text-slate-500">{loading ? 'Loading…' : 'No members yet.'}</td></tr>}
           </tbody>
         </table>
       </div>

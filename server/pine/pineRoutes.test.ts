@@ -10,6 +10,12 @@ indicator("Secret SBT", overlay=true)
 mySecretFactor = 0.777
 plot(ta.sma(close, 10) * mySecretFactor / mySecretFactor)`;
 
+const granted = new Set<string>();
+const memGrants = {
+  has: async (id: string) => granted.has(id),
+  list: async () => [...granted],
+  set: async (id: string, on: boolean) => { if (on) granted.add(id); else granted.delete(id); return [...granted]; },
+};
 let base = '';
 let server: any;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pine-'));
@@ -24,8 +30,9 @@ beforeAll(async () => {
     const who = req.headers['x-test-user'];
     if (who === 'admin') return { id: 'a1', username: 'boss', role: 'ADMIN' };
     if (who === 'student') return { id: 's1', username: 'kid', role: 'CUSTOMER' };
+    if (who === 'student2') return { id: 's2', username: 'kid2', role: 'CUSTOMER' };
     return null;
-  }));
+  }, memGrants));
   await new Promise<void>((r) => { server = app.listen(0, () => r()); });
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
@@ -69,6 +76,25 @@ describe('private Pine indicators', () => {
     await call('admin', 'PUT', '/api/pine/scripts', { id, source: SRC, published: false });
     const j = await (await call('student', 'GET', '/api/pine/scripts')).json();
     expect(j.scripts.length).toBe(0);
+    expect((await call('student', 'POST', '/api/pine/run', { id, market: { symbol: 'EURUSD', timeframe: '60' }, bars })).status).toBe(404);
+  });
+
+  it('an unpublished SBT indicator reaches only the student the admin switched it on for — never its source', async () => {
+    await call('admin', 'PUT', '/api/pine/scripts', { id, source: SRC.replace('Secret SBT', 'Prime Pip SBT Pro'), published: false });
+    const none = await (await call('student', 'GET', '/api/pine/scripts')).json();
+    expect(none.scripts.length).toBe(0);
+    expect((await call('student', 'PUT', '/api/pine/grants/s1', { granted: true })).status).toBe(403); // students cannot self-activate
+    expect((await call('admin', 'PUT', '/api/pine/grants/s1', { granted: true })).status).toBe(200);
+    const t = await (await call('student', 'GET', '/api/pine/scripts')).text();
+    expect(t).toContain('Prime Pip SBT Pro');
+    expect(t).not.toContain('mySecretFactor');
+    expect(t).not.toContain('ta.sma');
+    expect(JSON.parse(await (await call('student2', 'GET', '/api/pine/scripts')).text()).scripts.length).toBe(0); // other students still see nothing
+    expect((await call('student2', 'POST', '/api/pine/run', { id, market: { symbol: 'EURUSD', timeframe: '60' }, bars })).status).toBe(404);
+    const run = await call('student', 'POST', '/api/pine/run', { id, market: { symbol: 'EURUSD', timeframe: '60' }, bars: bars.map((b) => [b.time, b.open, b.high, b.low, b.close, 0]) });
+    expect(run.status).toBe(200);
+    expect(await run.text()).not.toContain('mySecretFactor');
+    await call('admin', 'PUT', '/api/pine/grants/s1', { granted: false });
     expect((await call('student', 'POST', '/api/pine/run', { id, market: { symbol: 'EURUSD', timeframe: '60' }, bars })).status).toBe(404);
   });
 });

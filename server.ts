@@ -212,6 +212,7 @@ import { strengthRouter } from "./server/routes/strengthRoutes.js";
 import { quantEdgeRouter } from "./server/routes/quantEdgeRoutes.js";
 import { historyRouter } from "./server/routes/historyRoutes.js";
 import { createPineRouter } from "./server/routes/pineRoutes.js";
+import { sbtGrants } from "./server/pine/sbtGrants.js";
 import { sbtRouter, uploadStrategy } from "./server/routes/sbtRoutes.js";
 import { levelPushRouter } from "./server/routes/levelPushRoutes.js";
 import { createHubRouter } from "./server/routes/hubRoutes.js";
@@ -3886,11 +3887,12 @@ app.get('/api/admin/analytics', requireDeveloper, async (req, res) => {
 
 app.get('/api/admin/members', requireDeveloper, async (_req, res) => {
   const last = await getShared<Record<string, any>>('last_logins', {}, 0);
+  const sbtIds = new Set(await sbtGrants.list().catch(() => [] as string[]));
   const users = getAllCustomers().map((u) => {
     const s: any = sanitizeUser(u);
     const l = last?.[u.id] || {};
     const at = [l.at, (u as any).lastLoginAt].filter(Boolean).sort().pop() || null;
-    return { id: s.id, name: s.name, username: s.username, email: s.email || '', role: s.role, subscriptionStatus: s.subscriptionStatus, expiryDate: u.expiryDate, isLifetime: u.isLifetime, signupSource: (u as any).signupSource || 'admin', createdAt: u.createdAt, lastLoginAt: at, loginCount: Math.max(l.count || 0, (u as any).loginCount || 0), lastLoginIp: l.ip || (u as any).lastLoginIp || '', lastLoginDevice: l.device || (u as any).lastLoginDevice || '' };
+    return { id: s.id, name: s.name, username: s.username, email: s.email || '', role: s.role, subscriptionStatus: s.subscriptionStatus, expiryDate: u.expiryDate, isLifetime: u.isLifetime, sbtIndicator: sbtIds.has(u.id), signupSource: (u as any).signupSource || 'admin', createdAt: u.createdAt, lastLoginAt: at, loginCount: Math.max(l.count || 0, (u as any).loginCount || 0), lastLoginIp: l.ip || (u as any).lastLoginIp || '', lastLoginDevice: l.device || (u as any).lastLoginDevice || '' };
   }).sort((a, b) => String(b.lastLoginAt || '').localeCompare(String(a.lastLoginAt || '')) || String(b.createdAt).localeCompare(String(a.createdAt)));
   let logins: any[] = await recentLogins(300);
   if (!logins.length) logins = await getShared<any[]>('login_log', [], 0);

@@ -12,6 +12,7 @@
 import { Router, type Request, type Response } from 'express';
 import { deleteScript, getScript, pineStoreBackend, readScripts, toPublic, upsertScript } from '../pine/pineStore.js';
 import { prepareScript, runScript } from '../pine/pineRunner.js';
+import { isGrantable, sbtGrants, type GrantStore } from '../pine/sbtGrants.js';
 
 type UserLike = { id: string; username?: string; role?: string; isDeveloper?: boolean } | null;
 
@@ -20,7 +21,7 @@ export const isPineAdmin = (u: UserLike) => Boolean(u && (u.isDeveloper || u.rol
 /** Error text a student may see: first line only, no code excerpts. */
 const studentError = (msg: string) => String(msg || 'The indicator could not run.').split('\n')[0].slice(0, 160);
 
-export function createPineRouter(getUser: (req: Request) => Promise<UserLike>) {
+export function createPineRouter(getUser: (req: Request) => Promise<UserLike>, grants: GrantStore = sbtGrants) {
   const r = Router();
 
   const auth = async (req: Request, res: Response) => {
@@ -36,7 +37,8 @@ export function createPineRouter(getUser: (req: Request) => Promise<UserLike>) {
     try {
       const rows = await readScripts();
       if (isPineAdmin(user)) return res.json({ ok: true, isAdmin: true, backend: pineStoreBackend(), scripts: rows });
-      return res.json({ ok: true, isAdmin: false, scripts: rows.filter((s) => s.published).map(toPublic) });
+      const granted = await grants.has(user.id).catch(() => false);
+      return res.json({ ok: true, isAdmin: false, sbtGranted: granted, scripts: rows.filter((s) => s.published || (granted && isGrantable(s))).map(toPublic) });
     } catch (err: any) {
       return res.status(503).json({ ok: false, error: 'Indicator library is temporarily unavailable.', detail: isPineAdmin(user) ? err?.message : undefined });
     }
@@ -60,10 +62,26 @@ export function createPineRouter(getUser: (req: Request) => Promise<UserLike>) {
     catch (err: any) { return res.status(500).json({ ok: false, error: err?.message }); }
   });
 
+  // Administrator: who has the SBT indicator switched on
+  r.get('/grants', async (req, res) => {
+    const user = await auth(req, res); if (!user) return;
+    if (!isPineAdmin(user)) return res.status(403).json({ ok: false, error: 'Only the administrator can see this.' });
+    return res.json({ ok: true, ids: await grants.list() });
+  });
+  r.put('/grants/:userId', async (req, res) => {
+    const user = await auth(req, res); if (!user) return;
+    if (!isPineAdmin(user)) return res.status(403).json({ ok: false, error: 'Only the administrator can give out the indicator.' });
+    const ids = await grants.set(String(req.params.userId), Boolean(req.body?.granted));
+    return res.json({ ok: true, ids });
+  });
+
   const loadAllowed = async (user: UserLike, id: string) => {
     const s = await getScript(String(id || ''));
     if (!s) return null;
-    if (!s.published && !isPineAdmin(user)) return null;
+    if (!s.published && !isPineAdmin(user)) {
+      // an unpublished SBT indicator the administrator switched on for this very student
+      if (!(isGrantable(s) && (await grants.has(user.id).catch(() => false)))) return null;
+    }
     return s;
   };
 
