@@ -29,6 +29,8 @@ describe('premium gates', () => {
     expect(passes(mv('p2', 'Thomas Shelby mindset edit', { duration: '1:10', views: 2_400_000 }), 'intense', false)).toBe(true);
     expect(passes(mv('p3', 'Dream mansion cinematic', { duration: '3:00', views: 5_000_000 }), 'dreamy', false)).toBe(true);
   });
+  it('intense must be an actual edit/Shelby-style clip, not a generic speech', () => { expect(passes(mv('q1', 'RICH VS POOR MINDSET interview', { duration: '10:00', views: 9e6 }), 'intense', false)).toBe(false); expect(passes(mv('q2', 'Thomas Shelby | Peaky Blinders edit', { duration: '1:00', views: 9e5 }), 'intense', false)).toBe(true); });
+  it('dreams reject listings, vlogs and price tours', () => { expect(passes(mv('q3', 'Yacht For Sale tour $40 million', { duration: '3:00', views: 9e5 }), 'dreamy', false)).toBe(false); });
   it('dreams keep luxury cars/villas with music, reject party/model clips', () => {
     expect(passes(mv('p4', 'Luxury villa ocean view cinematic music', { duration: '4:00', views: 100000 }), 'dreamy', false)).toBe(true);
     expect(passes(mv('p5', 'Luxury yacht party girls', { duration: '4:00', views: 100000 }), 'dreamy', false)).toBe(false);

@@ -36,14 +36,14 @@ export type Vibe = 'stories' | 'sigma' | 'intense' | 'nature' | 'serene' | 'drea
 export const VIBES: Vibe[] = ['intense', 'dreamy', 'sigma', 'stories', 'nature', 'serene'];
 /** Until the viewer has shown a taste, lean energetic & aspirational (calm is one tap away). */
 const DEFAULT_W: Record<string, number> = { intense: 3, dreamy: 3, sigma: 2, stories: 1, nature: 1, serene: 0 };
-interface Cfg { queries: string[]; min: number; max: number; strictMusic: boolean; extraBad?: RegExp; minViews?: number }
+interface Cfg { queries: string[]; min: number; max: number; strictMusic: boolean; extraBad?: RegExp; minViews?: number; must?: RegExp; prefer?: RegExp }
 const CFG: Record<Vibe, Cfg> = {
   stories: { queries: TOPICS.map((t) => `${t} motivational speech`), min: 90, max: 1800, strictMusic: true },
   sigma: { queries: ['sigma mindset discipline edit', 'silent grind motivation cinematic', 'sigma edit phonk discipline', 'stoic discipline motivation', 'lone wolf mindset cinematic', 'self mastery motivation edit', 'build yourself in silence', 'gym discipline motivation edit', 'mental toughness motivation cinematic'], min: 25, max: 1200, strictMusic: true, minViews: 20000, extraBad: /(women|woman|girls?|female|simp|red ?pill|toxic|dating|pick ?up|ex[- ]girlfriend|revenge|gangster|cartel)/i },
-  intense: { queries: ['thomas shelby motivation edit', 'peaky blinders mindset edit', 'dark cinematic motivation', 'boss mindset cinematic edit', 'villain arc motivation edit', 'peaky blinders discipline motivation', 'ruthless focus motivation edit', 'cinematic mafia aesthetic motivation', 'walk alone motivation cinematic', 'war mindset discipline cinematic edit'], min: 20, max: 900, strictMusic: false, minViews: 20000, extraBad: /(women|woman|girls?|female|simp|red ?pill|toxic|dating|gangster|cartel|criminal|revenge|killer)/i },
+  intense: { queries: ['thomas shelby edit motivation', 'peaky blinders edit mindset', 'tommy shelby speech edit', 'peaky blinders attitude edit', 'shelby discipline edit phonk', 'peaky blinders cinematic motivation', 'villain arc edit motivation', 'dark mindset phonk edit discipline', 'shelby brothers edit', 'boss mindset cinematic edit'], min: 15, max: 600, strictMusic: false, minViews: 15000, must: /(shelby|peaky|\bedit\b|cinematic|villain|phonk|dark|boss)/i, prefer: /(shelby|peaky)/i, extraBad: /(women|woman|girls?|female|simp|red ?pill|toxic|dating|gangster|cartel|criminal|revenge|killer|\bgun\b)/i },
   nature: { queries: ['relaxing nature 4k', 'forest ambience relaxing', 'misty mountain sunrise cinematic', 'ocean waves relaxing', 'waterfall nature sounds', 'rain on leaves calming', 'peaceful lake morning', 'northern lights relaxing', 'autumn forest walk 4k', 'beautiful nature scenery drone'], min: 30, max: 10800, strictMusic: false },
   serene: { queries: ['calming aesthetic relaxing', 'cozy rain window ambience', 'zen garden peaceful', 'sunset timelapse relaxing', 'dreamy clouds sky calming', 'peaceful piano relaxing music', 'soft morning light aesthetic', 'cozy cabin fireplace ambience', 'lofi calm nature', 'tranquil meditation visuals'], min: 30, max: 10800, strictMusic: false },
-  dreamy: { queries: ['luxury lifestyle cinematic music', 'dream cars and mansions cinematic', 'luxury villa ocean view cinematic', 'billionaire lifestyle visualization music', 'luxury mansion tour cinematic music', 'supercar luxury cinematic edit', 'rich lifestyle motivation cinematic', 'yacht life cinematic luxury', 'dream home luxury aesthetic music', 'penthouse city view luxury cinematic', 'luxury travel resort cinematic'], min: 25, max: 1500, strictMusic: false, minViews: 30000, extraBad: /(girls?|women|woman|model|party|flex|gold ?digger|prank|roast|react)/i },
+  dreamy: { queries: ['luxury lifestyle cinematic edit music', 'dream cars mansions cinematic edit', 'luxury villa cinematic music aesthetic', 'billionaire lifestyle visualization music', 'luxury mansion cinematic music edit', 'supercar cinematic edit luxury music', 'rich lifestyle motivation cinematic edit', 'luxury life aesthetic edit', 'dream home luxury cinematic music', 'penthouse luxury cinematic edit', 'luxury travel cinematic edit'], min: 20, max: 900, strictMusic: false, minViews: 30000, must: /(luxury|mansion|villa|supercar|cars?|lifestyle|dream|penthouse|yacht|billionaire|rich|aesthetic|cinematic|estate)/i, prefer: /(cinematic|edit|aesthetic|music|motivation|visuali[sz]ation)/i, extraBad: /(girls?|women|woman|model|party|flex|gold ?digger|prank|roast|react|for sale|review|price|how much|vlog|unboxing|buying|tour|\$|cost|worth)/i },
 };
 export const VIBE_LABEL: Record<Vibe, string> = { stories: 'Stories', sigma: 'Sigma', intense: 'Intense', nature: 'Nature', serene: 'Serene', dreamy: 'Dreams' };
 const LIGHT_MUSIC = /(lyric|lyrics|official (audio|video)|music video|remix|\bft\.|\bfeat\.?|karaoke|nursery|\bkids?\b)/i;
@@ -139,7 +139,7 @@ async function searchPage(q: string, filter: 'v' | 's'): Promise<MVideo[]> {
   }
   return out;
 }
-const search = (q: string, filter: 'v' | 's' = 'v') => cached(`s:${filter}:${q.toLowerCase()}`, 15 * 60_000, () => searchPage(q, filter)).catch(() => [] as MVideo[]);
+const search = (q: string, filter: 'v' | 's' = 'v') => cached(`s:${filter}:${q.toLowerCase()}`, 40 * 60_000, () => searchPage(q, filter)).catch(() => [] as MVideo[]);
 
 /** Per-vibe quality gate: safe, on-theme, right length, not a song/clip dump. */
 export function passes(v: MVideo, vibe: Vibe, reel: boolean): boolean {
@@ -147,6 +147,7 @@ export function passes(v: MVideo, vibe: Vibe, reel: boolean): boolean {
   const text = `${v.title} ${v.channel}`;
   if (!clean(text) || (cfg.extraBad && cfg.extraBad.test(text))) return false;
   if (cfg.strictMusic ? MUSIC.test(v.title) : LIGHT_MUSIC.test(v.title)) return false;
+  if (cfg.must && !cfg.must.test(text)) return false;
   if (cfg.minViews && v.views !== undefined && v.views < cfg.minViews) return false;
   const d = secs(v.duration);
   if (reel) return v.short ? true : d > 0 && d <= 90;
@@ -166,8 +167,11 @@ async function vibeStream(vibe: Vibe, seed: number, need: number, reel: boolean,
   }
   const seen = new Set<string>(); const items: MVideo[] = []; let i = 0;
   while (items.length < need && i < sources.length) {
-    const batch = (await sources[i++]()).filter((v) => passes(v, vibe, reel)).sort((a, b) => (b.views || 0) - (a.views || 0)); // best-performing first within each search
+    const group = sources.slice(i, i + 3); i += group.length; // three searches at once keeps first load quick
+    for (const raw of await Promise.all(group.map((f) => f()))) {
+    const batch = raw.filter((v) => passes(v, vibe, reel)).sort((a, b) => Number(!!cfg.prefer?.test(b.title)) - Number(!!cfg.prefer?.test(a.title)) || (b.views || 0) - (a.views || 0)); // on-theme first, then best-performing, within each search
     for (const v of batch) if (!seen.has(v.id)) { seen.add(v.id); items.push({ ...v, vibe }); }
+    }
   }
   return { items, done: i >= sources.length };
 }
@@ -196,7 +200,7 @@ export async function stream(o: StreamOpts) {
   const given = o.weights && Object.keys(o.weights).length ? o.weights : DEFAULT_W;
   const w: Record<string, number> = {}; for (const v of vibes) w[v] = 1 + Math.min(10, Math.max(0, Number(given[v]) || 0));
   const sum = vibes.reduce((a, v) => a + w[v], 0);
-  const res = await Promise.all(vibes.map((v) => vibeStream(v, seed, Math.ceil((want * w[v]) / sum) + 8, reel, q).then((r) => [v, r] as const)));
+  const res = await Promise.all(vibes.map((v) => vibeStream(v, seed, Math.ceil((want * w[v]) / sum) + 3, reel, q).then((r) => [v, r] as const)));
   const lists: Partial<Record<Vibe, MVideo[]>> = {}; let anyMore = false;
   for (const [v, r] of res) { lists[v] = r.items; if (!r.done) anyMore = true; }
   let all = vibes.length === 1 ? (lists[vibes[0]] as MVideo[]) : mixLists(lists, w);
@@ -223,4 +227,14 @@ export async function trending() {
   const cutoff = Date.now() - 30 * 86400_000;
   const hot = pool.filter((v) => v.published && Date.parse(v.published) >= cutoff && v.views).sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 10);
   return { topics: TOPICS, hot, diag };
+}
+
+/** Warm the search cache in the background (slowly, so we don't hammer YouTube) so the first visitor isn't waiting. */
+let warming = false;
+export async function prewarm() {
+  if (warming) return; warming = true;
+  try {
+    void feedPool();
+    for (const v of VIBES) for (const q of CFG[v].queries) { await search(q); await new Promise((r) => setTimeout(r, 350)); }
+  } catch { /* best effort */ } finally { warming = false; }
 }

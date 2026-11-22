@@ -245,7 +245,7 @@ const currentAppDir = process.cwd();
 
 import { trackLogin, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
 import { clientIp } from './server/geoip.js';
-import { stream as motivationStream, similar as motivationSimilar, trending as motivationTrending, classifyQuery, SUPPORT as MOTIVATION_SUPPORT } from './server/motivation.js';
+import { stream as motivationStream, similar as motivationSimilar, trending as motivationTrending, prewarm as motivationPrewarm, classifyQuery, SUPPORT as MOTIVATION_SUPPORT } from './server/motivation.js';
 import { privateListUpdate as secListUpdate } from './server/durableStore.js';
 
 const app = express();
@@ -3916,6 +3916,7 @@ app.get('/api/motivation/similar', async (req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   try { res.json({ ok: true, items: await motivationSimilar(title, String(req.query.vibe || '')) }); } catch { res.json({ ok: true, items: [] }); }
 });
+setTimeout(() => { void motivationPrewarm(); setInterval(() => void motivationPrewarm(), 35 * 60_000); }, 20_000);
 app.get('/api/motivation/trending', async (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   try { res.json({ ok: true, ...(await motivationTrending()) }); } catch { res.json({ ok: true, topics: [], hot: [] }); }
