@@ -9,7 +9,6 @@ import { trackState, type AnalyticsState } from './services/analyticsClient';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Header } from './components/Header';
-import { AuroraScene } from './components/AuroraScene';
 import { MainDashboard } from './components/MainDashboard';
 import { TradeJournal } from './components/TradeJournal';
 import { RiskCenter, TradeLimitAlertSystem } from './components/RiskCenter';
@@ -22,9 +21,6 @@ import { calculateDashboardMetrics } from './utils/tradeAnalytics';
 import { LoginModal } from './components/LoginModal';
 import { FirstOpenLoginScreen } from './components/FirstOpenLoginScreen';
 import { MobileBottomNav } from './components/MobileBottomNav';
-import { AppPerimeterGlow } from './components/AppPerimeterGlow';
-import { MarketAura } from './components/MarketAura';
-import { QuantumFx } from './components/QuantumFx';
 import { SubscriptionPage } from './components/SubscriptionPage';
 import { SubscriptionGateModal } from './components/SubscriptionGateModal';
 import { SbtIndicatorBanner } from './components/subscription/SbtIndicatorBanner';
@@ -62,9 +58,7 @@ import { Loader2, Shield, AlertTriangle, X, Lock } from 'lucide-react';
 import { playDisciplineAlert } from './utils/audioAlerts';
 import { getKarachiDate, getKarachiTime } from './utils/time';
 import { AppearanceControls } from './components/AppearanceControls';
-import { AmbientThemeRibbon } from './components/AmbientThemeRibbon';
 import { AppFooter } from './components/AppFooter';
-import { CommandCenterAtmosphere } from './components/CommandCenterAtmosphere';
 import { AllCategoriesModal } from './components/AllCategoriesModal';
 import { CommunicationNotifications } from './components/CommunicationNotifications';
 import { TabErrorBoundary } from './components/common/TabErrorBoundary';
@@ -1357,19 +1351,15 @@ export default function App() {
       <CommunicationNotifications currentUser={currentUser} onOpenCommunication={() => setActiveTab('COMMUNITY')} onOpenSubscription={() => setIsSubscriptionModalOpen(true)} />
 
       {/* 4-Side Animated Laser Perimeter Frame */}
-      {!isLightweight && typeof document !== 'undefined' && document.documentElement.classList.contains('ppfx-fx') && <AppPerimeterGlow />}
+      
 
       {/* Top Prismatic Ambient Theme Optical Ribbon */}
-      {!isLightweight && <AmbientThemeRibbon />}
-      {!isLightweight && <MarketAura />}
-      {!isLightweight && <QuantumFx />}
 
       {/* Global Animated Background Elements with Calibrated Clean Cyber Atmosphere */}
       <div className="fixed inset-0 pointer-events-none z-0" style={{ background: 'radial-gradient(circle at 18% 30%, rgba(14, 165, 233, 0.05), transparent 45%), radial-gradient(circle at 82% 25%, rgba(168, 85, 247, 0.04), transparent 45%), radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.03), transparent 55%)' }}></div>
       <div className="fixed inset-0 pointer-events-none z-0 opacity-15" style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
 
       {/* Navigation HUD Header */}
-      <AuroraScene />
       {newEraOpen && currentUser && <NewEraWelcome name={currentUser.name || currentUser.username} onEnter={() => { markNewEraSeen(currentUser.id); setNewEraOpen(false); }} />}
       <SecurityWarningModal userId={currentUser && !isUserAdmin(currentUser) ? currentUser.id : undefined} />
       <Header
@@ -1480,7 +1470,6 @@ export default function App() {
       )}
 
       {/* Cinematic pro-level command atmosphere inspired by the supplied interface references */}
-      {!isLightweight && <CommandCenterAtmosphere account={activeAccount} metrics={metrics} currentUser={currentUser} activeTab={activeTab} />}
 
       {/* Main Content Area */}
       <main

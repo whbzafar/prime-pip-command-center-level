@@ -474,7 +474,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       </div>
 
       {/* Compact Top Mobile/Desktop Status Bar (Natural flow, no blank displacement) */}
-      <div className="w-full max-w-md mx-auto mb-2.5 z-20">
+      <div className="hidden">
         <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 backdrop-blur-md shadow-md text-[10px] sm:text-[11px] font-mono-code text-slate-300">
           <div className="flex items-center gap-1.5 text-emerald-400 font-semibold truncate" title="Live Gold Spot Price — Connected to Premium Trading Feed">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
@@ -549,7 +549,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
       </motion.div>
 
       {/* Full HD High-Definition Display Resolution Bar */}
-      <div className="w-full max-w-md mx-auto mb-2.5 z-20">
+      <div className="hidden">
         <div className="flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-[10px] font-mono-code shadow-md backdrop-blur-md">
           <span className="text-slate-300 font-bold flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
