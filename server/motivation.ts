@@ -24,11 +24,15 @@ const clean = (t: string) => !BAD.test(t) && !SELFHARM.test(t);
 
 const decode = (s: string) => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'");
 const UA = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36', 'Accept-Language': 'en-US,en;q=0.9', Cookie: 'CONSENT=YES+cb; SOCS=CAI' };
+const hard = <T,>(p: Promise<T>, ms: number): Promise<T> => new Promise<T>((res, rej) => { const t = setTimeout(() => rej(new Error('timeout')), ms); p.then((v) => { clearTimeout(t); res(v); }, (e) => { clearTimeout(t); rej(e); }); });
 async function get(url: string, ms = 6000): Promise<string> {
-  const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(ms) });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.text();
+  return hard((async () => {
+    const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(ms), redirect: 'follow' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.text();
+  })(), ms + 1500);
 }
+export const diag: Record<string, string> = {};
 const memo = new Map<string, { at: number; v: any }>();
 async function cached<T>(key: string, ttl: number, fn: () => Promise<T>): Promise<T> {
   const h = memo.get(key); if (h && Date.now() - h.at < ttl) return h.v as T;
@@ -40,10 +44,10 @@ const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 async function channelId(handle: string): Promise<string | null> {
   return cached(`ch:${handle}`, 30 * 86400_000, async () => {
     const html = await get(`https://www.youtube.com/@${handle}`);
-    const m = /"channelId":"(UC[\w-]{20,24})"/.exec(html) || /channel_id=(UC[\w-]{20,24})/.exec(html);
+    const m = /"channelId":"(UC[\w-]{20,24})"/.exec(html) || /channel_id=(UC[\w-]{20,24})/.exec(html) || /"externalId":"(UC[\w-]{20,24})"/.exec(html);
     if (!m) throw new Error('no id');
     return m[1];
-  }).catch(() => null);
+  }).catch((e) => { diag[handle] = `id: ${e?.message}`; return null; });
 }
 async function feed(handle: string): Promise<MVideo[]> {
   const id = await channelId(handle); if (!id) return [];
@@ -57,11 +61,12 @@ async function feed(handle: string): Promise<MVideo[]> {
       if (!clean(t) || /#shorts?\b/i.test(t)) continue;
       out.push({ id: vid, title: t, channel: decode(/<author>\s*<name>([^<]*)<\/name>/.exec(e)?.[1] || handle), thumb: thumb(vid), published: /<published>([^<]*)<\/published>/.exec(e)?.[1], views: Number(/<media:statistics views="(\d+)"/.exec(e)?.[1] || 0) || undefined, source: 'feed' });
     }
+    diag[handle] = `ok ${out.length}`;
     return out;
-  }).catch(() => []);
+  }).catch((e) => { diag[handle] = `feed: ${e?.message}`; return [] as MVideo[]; });
 }
 const feedPool = (): Promise<MVideo[]> => cached('pool', 20 * 60_000, async () => {
-  const lists = await Promise.all(CHANNELS.map(feed));
+  const lists = await Promise.all(CHANNELS.map((h) => hard(feed(h), 9000).catch(() => [] as MVideo[])));
   const ids = new Set<string>(); const out: MVideo[] = [];
   const rows = lists.map((l) => [...l].sort((a, b) => String(b.published).localeCompare(String(a.published))));
   for (let i = 0; i < 15; i++) for (const r of rows) { const v = r[i]; if (v && !ids.has(v.id)) { ids.add(v.id); out.push(v); } } // round-robin: newest first, no channel dominates
@@ -113,5 +118,5 @@ export async function trending() {
   const pool = await feedPool();
   const cutoff = Date.now() - 30 * 86400_000;
   const hot = pool.filter((v) => v.published && Date.parse(v.published) >= cutoff && v.views).sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 10);
-  return { topics: TOPICS, hot };
+  return { topics: TOPICS, hot, diag };
 }
