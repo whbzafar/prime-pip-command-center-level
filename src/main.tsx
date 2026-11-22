@@ -4,6 +4,7 @@ import App from './App.tsx';
 import './index.css';
 import './community-layout-fix.css';
 import './styles/liquid-glass-ui-kit.css';
+import './styles/aurora-theme.css';
 import { applyInterfaceTemplate } from './data/interfaceTemplates';
 import './utils/installApp';
 
@@ -26,9 +27,9 @@ if (typeof window !== 'undefined') {
 }
 
 try {
+  // One-time move to the new flagship look; afterwards the visitor's own choice (Themes) always wins.
   let savedTheme = localStorage.getItem('primepipfx_theme') || 'liquid-glass-neon';
-  // The experimental 3D "Aurora" theme was withdrawn: anyone who was moved onto it returns to the classic look.
-  if (savedTheme === 'aurora') { savedTheme = 'liquid-glass-neon'; localStorage.setItem('primepipfx_theme', savedTheme); }
+  if (localStorage.getItem('primepipfx_theme_gen') !== 'aurora-1') { savedTheme = 'aurora'; localStorage.setItem('primepipfx_theme_gen', 'aurora-1'); }
   const rawBrightness = localStorage.getItem('primepipfx_brightness');
   // Brightness controls intentionally support the full 60%-160% range.
   // The previous 90%-110% clamp made the +/- buttons appear to respond while
