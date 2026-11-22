@@ -14,12 +14,8 @@ import { MainDashboard } from './components/MainDashboard';
 import { TradeJournal } from './components/TradeJournal';
 import { RiskCenter, TradeLimitAlertSystem } from './components/RiskCenter';
 import { MainNavTab } from './components/Header';
-import { TradeEntryModal } from './components/TradeEntryModal';
-import { TradingViewScreenshotImportModal } from './components/TradingViewScreenshotImportModal';
 import { AccountOnboardingModal } from './components/AccountOnboardingModal';
 import { OnboardingModal } from './components/OnboardingModal';
-import { AccountManagerModal } from './components/AccountManagerModal';
-import { DataBackupModal } from './components/DataBackupModal';
 import { initialRules, initialGoals } from './data/initialTrades';
 import { Trade, TradingRule, TradingGoal, AccountSettings, UserAccount } from './types';
 import { calculateDashboardMetrics } from './utils/tradeAnalytics';
@@ -32,7 +28,7 @@ import { QuantumFx } from './components/QuantumFx';
 import { SubscriptionPage } from './components/SubscriptionPage';
 import { SubscriptionGateModal } from './components/SubscriptionGateModal';
 import { SbtIndicatorBanner } from './components/subscription/SbtIndicatorBanner';
-import { planPriceShort, isLifetimeOfferActive } from './config/pricing';
+import { planPriceShort, isLifetimeOfferActive, PRICE_STANDARD, PRICE_WITH_CODE } from './config/pricing';
 import { LifetimeOfferCountdown } from './components/subscription/LifetimeOfferCountdown';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { UserProfileModal } from './components/UserProfileModal';
@@ -40,8 +36,6 @@ import { TraderExperienceProfileModal } from './components/evolution/TraderExper
 import { CATEGORY_SUMMARIES, CategorySummary, isCategoryLockedInDemo } from './data/categorySummaries';
 import { LockedCategoryModal } from './components/LockedCategoryModal';
 import { PostTradeGuidanceModal } from './components/account/PostTradeGuidanceModal';
-import { CreateAccountWizard } from './components/account/CreateAccountWizard';
-import { CommunityReviewsModal } from './components/CommunityReviewsModal';
 import { PostTradeImpactSummary } from './types';
 import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
 import { apiRecordTelemetrySignal } from './utils/evolutionClient';
@@ -75,12 +69,34 @@ import { AllCategoriesModal } from './components/AllCategoriesModal';
 import { CommunicationNotifications } from './components/CommunicationNotifications';
 import { TabErrorBoundary } from './components/common/TabErrorBoundary';
 
+// Heavy modals load only when opened (keeps the first download small).
+function lazyModal<P extends object>(load: () => Promise<any>, name: string): React.FC<P> { const C = React.lazy(() => load().then((m) => ({ default: m[name] }))); return (props: P) => <React.Suspense fallback={null}><C {...(props as any)} /></React.Suspense>; }
+const TradeEntryModal = lazyModal<any>(() => import('./components/TradeEntryModal'), 'TradeEntryModal');
+const AccountManagerModal = lazyModal<any>(() => import('./components/AccountManagerModal'), 'AccountManagerModal');
+const DataBackupModal = lazyModal<any>(() => import('./components/DataBackupModal'), 'DataBackupModal');
+const CreateAccountWizard = lazyModal<any>(() => import('./components/account/CreateAccountWizard'), 'CreateAccountWizard');
+const CommunityReviewsModal = lazyModal<any>(() => import('./components/CommunityReviewsModal'), 'CommunityReviewsModal');
 // Heavy category screens load on demand so the first screen opens fast (big win on phones).
 const LearningHub = React.lazy(() => import('./components/learning/LearningHub').then((m) => ({ default: m.LearningHub })));
 const PerformanceLab = React.lazy(() => import('./components/PerformanceLab').then((m) => ({ default: m.PerformanceLab })));
 const loadMotivation = () => import('./components/motivation/MotivationHub');
 if (typeof window !== 'undefined') { const idle = (window as any).requestIdleCallback || ((f: () => void) => setTimeout(f, 4000)); idle(() => { void loadMotivation(); fetch('/api/motivation/feed?offset=0').catch(() => undefined); }); }
 const MotivationHub = React.lazy(() => loadMotivation().then((m) => ({ default: m.MotivationHub })));
+// After first paint, quietly fetch the main category screens one by one so every tab opens instantly (skipped on Data Saver / 2G).
+if (typeof window !== 'undefined') {
+  const conn = (navigator as any).connection;
+  if (!(conn && (conn.saveData || /2g/.test(conn.effectiveType || '')))) {
+    const jobs: Array<() => Promise<unknown>> = [
+      () => import('./components/FundamentalIndicators'), () => import('./components/ProTradingView'), () => import('./components/FundamentalCalendar'),
+      () => import('./components/chartAnalysis/UnlimitedChartAnalysis'), () => import('./components/PsychologyCenter'), () => import('./components/PerformanceLab'),
+      () => import('./components/learning/LearningHub'), () => import('./components/calming/CalmingSuiteMaster'), () => import('./components/AiTradingCoach'),
+      () => import('./components/PersonalImprovementHub'), () => import('./components/PremiumSignalsHub'), () => import('./components/backtest/BacktestingSuite'),
+    ];
+    const idle: (f: () => void) => void = (window as any).requestIdleCallback ? (f) => (window as any).requestIdleCallback(f, { timeout: 4000 }) : (f) => setTimeout(f, 1500);
+    const run = (i: number) => { if (i >= jobs.length) return; idle(() => { jobs[i]().catch(() => undefined).finally(() => setTimeout(() => run(i + 1), 400)); }); };
+    window.addEventListener('load', () => setTimeout(() => run(0), 3500), { once: true });
+  }
+}
 const PsychologyCenter = React.lazy(() => import('./components/PsychologyCenter').then((m) => ({ default: m.PsychologyCenter })));
 const AiTradingCoach = React.lazy(() => import('./components/AiTradingCoach').then((m) => ({ default: m.AiTradingCoach })));
 const GoalsProgress = React.lazy(() => import('./components/GoalsProgress').then((m) => ({ default: m.GoalsProgress })));
@@ -1770,7 +1786,7 @@ export default function App() {
                   onClick={() => setIsSubscriptionModalOpen(true)}
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-military font-bold text-xs uppercase cursor-pointer hover:from-amber-400 hover:to-yellow-300 shadow-lg shadow-amber-500/20"
                 >
-                  Unlock Access ($200)
+                  Unlock Access (${PRICE_STANDARD})
                 </button>
                 <button
                   type="button"
@@ -2072,11 +2088,11 @@ export default function App() {
       )}
 
       {/* Community Ratings & Reviews Modal */}
-      <CommunityReviewsModal
+      {isReviewsOpen && <CommunityReviewsModal
         isOpen={isReviewsOpen}
         onClose={() => setIsReviewsOpen(false)}
         currentUser={currentUser}
-      />
+      />}
 
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { PRICE_STANDARD, PRICE_WITH_CODE } from '../config/pricing';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import {
@@ -926,7 +927,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   
                 </button>
                 <p className="text-[10px] text-center text-slate-400 font-mono-code mt-1.5">
-                  Create a free account for 30 minutes of full access. A subscription ($200, or $100 with a code) unlocks everything permanently.
+                  Create a free account for 30 minutes of full access. A subscription (${PRICE_STANDARD}, or ${PRICE_WITH_CODE} with a code) unlocks everything permanently.
                 </p>
               </form>
             ) : step === 'LINK_STORAGE' ? (

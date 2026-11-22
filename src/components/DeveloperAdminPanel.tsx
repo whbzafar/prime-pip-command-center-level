@@ -32,6 +32,7 @@ import { getStoredToken, apiChangePassword, isUserAdmin } from '../utils/authCli
 import { MembersPanel } from './admin/MembersPanel';
 import { LiveAnalyticsPanel } from './admin/LiveAnalyticsPanel';
 import { LoginSecurityPanel } from './admin/LoginSecurityPanel';
+import { PopupPreviewPanel } from './admin/PopupPreviewPanel';
 import {
   saveLocalStudent,
   getLocalStudents,
@@ -51,7 +52,7 @@ interface DeveloperAdminPanelProps {
 export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ currentUser, onClose, onUserUpdated }) => {
   const isAuthorized = isUserAdmin(currentUser);
 
-  const [activeTab, setActiveTab] = useState<'MEMBERS' | 'HUB' | 'CUSTOMERS' | 'CREATE' | 'APPOINTMENTS' | 'MODERATION' | 'REFERRALS' | 'ANALYTICS' | 'LOGIN_SECURITY' | 'DEVELOPER_SECURITY' | 'EVOLUTION'>('MEMBERS');
+  const [activeTab, setActiveTab] = useState<'MEMBERS' | 'HUB' | 'CUSTOMERS' | 'CREATE' | 'APPOINTMENTS' | 'MODERATION' | 'REFERRALS' | 'ANALYTICS' | 'LOGIN_SECURITY' | 'POPUP_PREVIEW' | 'DEVELOPER_SECURITY' | 'EVOLUTION'>('MEMBERS');
   const [customers, setCustomers] = useState<UserAccount[]>([]);
   const [referrals, setReferrals] = useState<ReferralRecord[]>([]);
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
@@ -734,6 +735,17 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
         >
           <ShieldAlert className="w-4 h-4" />
           LOGIN SECURITY
+        </button>
+
+        <button
+          onClick={() => setActiveTab('POPUP_PREVIEW')}
+          className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
+            activeTab === 'POPUP_PREVIEW'
+              ? 'border-fuchsia-400 text-fuchsia-300'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          POP-UP PREVIEW
         </button>
 
         <button
@@ -1465,6 +1477,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       {/* TAB 3: REFERRALS */}
       {activeTab === 'ANALYTICS' && <LiveAnalyticsPanel />}
       {activeTab === 'LOGIN_SECURITY' && <LoginSecurityPanel />}
+      {activeTab === 'POPUP_PREVIEW' && <PopupPreviewPanel />}
 
       {activeTab === 'REFERRALS' && (
         <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">

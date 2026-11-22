@@ -6,7 +6,6 @@
  */
 
 import { BackupData, UserAccount } from '../types';
-import { signInWithGoogleForDrive, signOutGoogleUser } from './firebaseOAuth';
 
 export type DriveSyncState = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'SYNCING' | 'OFFLINE' | 'ERROR';
 
@@ -280,7 +279,7 @@ class GoogleDriveService {
 
     // Method 1: Firebase Auth Popup (reliable across modern browsers)
     try {
-      const fbResult = await signInWithGoogleForDrive();
+      const fbResult = await (await import('./firebaseOAuth')).signInWithGoogleForDrive();
       if (fbResult && fbResult.accessToken) {
         const expiresIn = 3599;
         const expiry = Date.now() + expiresIn * 1000;
@@ -372,7 +371,7 @@ class GoogleDriveService {
       localStorage.removeItem(this.getStorageKey(DRIVE_USER_NAME_KEY));
       localStorage.removeItem(this.getStorageKey(DRIVE_ROOT_FOLDER_KEY));
       this.cachedFolders.clear();
-      await signOutGoogleUser();
+      await (await import('./firebaseOAuth')).signOutGoogleUser();
       this.notifyStatus({ state: 'DISCONNECTED' });
     } catch {}
   }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { PRICE_STANDARD, PRICE_WITH_CODE } from '../config/pricing';
 import {
   TrendingUp,
   TrendingDown,
@@ -341,7 +342,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                 )}
               </div>
               <span className="text-[9px] text-slate-400 font-sans block leading-none">
-                {isPsychLocked ? 'Subscription Required ($200 · $100 with a code)' : 'Discipline • Tilt Defense • Focus'}
+                {isPsychLocked ? `Subscription Required ($${PRICE_STANDARD} · $${PRICE_WITH_CODE} with a code)` : 'Discipline • Tilt Defense • Focus'}
               </span>
             </div>
           </button>
