@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export interface V { id: string; title: string; channel: string; thumb: string; published?: string; views?: number; duration?: string; vibe?: string; short?: boolean }
 export const TABS = [
   { id: 'foryou', label: 'For You', tag: 'Made for your mind', grad: 'from-cyan-950 via-slate-900 to-emerald-950' },
+  { id: 'intense', label: 'Intense', tag: 'Walk in like you own the room.', grad: 'from-red-950/80 via-zinc-950 to-amber-950/50' },
   { id: 'sigma', label: 'Sigma', tag: 'Silent discipline. Loud results.', grad: 'from-zinc-900 via-slate-900 to-indigo-950' },
   { id: 'nature', label: 'Nature', tag: 'Breathe. Look at the trees.', grad: 'from-emerald-950 via-slate-900 to-teal-950' },
   { id: 'serene', label: 'Serene', tag: 'Slow down. You are safe here.', grad: 'from-sky-950 via-slate-900 to-violet-950' },
-  { id: 'dreamy', label: 'Dreamy', tag: 'Dream it. Then build it.', grad: 'from-fuchsia-950/70 via-slate-900 to-amber-950/60' },
+  { id: 'dreamy', label: 'Dreams', tag: 'Luxury is a decision. Start by seeing it.', grad: 'from-amber-950/70 via-slate-900 to-fuchsia-950/60' },
   { id: 'stories', label: 'Stories', tag: 'People who rose from the bottom.', grad: 'from-amber-950/60 via-slate-900 to-cyan-950' },
 ] as const;
 export const secs = (d?: string) => (d ? d.split(':').reverse().reduce((a, x, i) => a + Number(x) * 60 ** i, 0) : 0);

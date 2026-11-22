@@ -32,17 +32,20 @@ async function get(url: string, ms = 6000): Promise<string> {
     return r.text();
   })(), ms + 1500);
 }
-export type Vibe = 'stories' | 'sigma' | 'nature' | 'serene' | 'dreamy';
-export const VIBES: Vibe[] = ['stories', 'sigma', 'nature', 'serene', 'dreamy'];
-interface Cfg { queries: string[]; min: number; max: number; strictMusic: boolean; extraBad?: RegExp }
+export type Vibe = 'stories' | 'sigma' | 'intense' | 'nature' | 'serene' | 'dreamy';
+export const VIBES: Vibe[] = ['intense', 'dreamy', 'sigma', 'stories', 'nature', 'serene'];
+/** Until the viewer has shown a taste, lean energetic & aspirational (calm is one tap away). */
+const DEFAULT_W: Record<string, number> = { intense: 3, dreamy: 3, sigma: 2, stories: 1, nature: 1, serene: 0 };
+interface Cfg { queries: string[]; min: number; max: number; strictMusic: boolean; extraBad?: RegExp; minViews?: number }
 const CFG: Record<Vibe, Cfg> = {
   stories: { queries: TOPICS.map((t) => `${t} motivational speech`), min: 90, max: 1800, strictMusic: true },
-  sigma: { queries: ['sigma mindset discipline', 'silent grind motivation', 'stoic discipline motivation', 'focus and consistency motivation', 'lone wolf mindset discipline', 'self mastery motivation', 'build yourself in silence', 'wake up early discipline motivation', 'mental toughness motivation'], min: 40, max: 1500, strictMusic: true, extraBad: /(women|woman|girls?|female|simp|red ?pill|toxic|dating|pick ?up|ex[- ]girlfriend|revenge)/i },
+  sigma: { queries: ['sigma mindset discipline edit', 'silent grind motivation cinematic', 'sigma edit phonk discipline', 'stoic discipline motivation', 'lone wolf mindset cinematic', 'self mastery motivation edit', 'build yourself in silence', 'gym discipline motivation edit', 'mental toughness motivation cinematic'], min: 25, max: 1200, strictMusic: true, minViews: 20000, extraBad: /(women|woman|girls?|female|simp|red ?pill|toxic|dating|pick ?up|ex[- ]girlfriend|revenge|gangster|cartel)/i },
+  intense: { queries: ['thomas shelby motivation edit', 'peaky blinders mindset edit', 'dark cinematic motivation', 'boss mindset cinematic edit', 'villain arc motivation edit', 'peaky blinders discipline motivation', 'ruthless focus motivation edit', 'cinematic mafia aesthetic motivation', 'walk alone motivation cinematic', 'war mindset discipline cinematic edit'], min: 20, max: 900, strictMusic: false, minViews: 20000, extraBad: /(women|woman|girls?|female|simp|red ?pill|toxic|dating|gangster|cartel|criminal|revenge|killer)/i },
   nature: { queries: ['relaxing nature 4k', 'forest ambience relaxing', 'misty mountain sunrise cinematic', 'ocean waves relaxing', 'waterfall nature sounds', 'rain on leaves calming', 'peaceful lake morning', 'northern lights relaxing', 'autumn forest walk 4k', 'beautiful nature scenery drone'], min: 30, max: 10800, strictMusic: false },
   serene: { queries: ['calming aesthetic relaxing', 'cozy rain window ambience', 'zen garden peaceful', 'sunset timelapse relaxing', 'dreamy clouds sky calming', 'peaceful piano relaxing music', 'soft morning light aesthetic', 'cozy cabin fireplace ambience', 'lofi calm nature', 'tranquil meditation visuals'], min: 30, max: 10800, strictMusic: false },
-  dreamy: { queries: ['luxury lifestyle aesthetic', 'dream house tour luxury', 'luxury cars cinematic', 'luxury villa ocean view', 'dream home interior aesthetic', 'yacht cinematic luxury', 'luxury resort travel aesthetic', 'vision board dream life aesthetic', 'modern mansion architecture tour', 'penthouse city view luxury'], min: 30, max: 3600, strictMusic: false },
+  dreamy: { queries: ['luxury lifestyle cinematic music', 'dream cars and mansions cinematic', 'luxury villa ocean view cinematic', 'billionaire lifestyle visualization music', 'luxury mansion tour cinematic music', 'supercar luxury cinematic edit', 'rich lifestyle motivation cinematic', 'yacht life cinematic luxury', 'dream home luxury aesthetic music', 'penthouse city view luxury cinematic', 'luxury travel resort cinematic'], min: 25, max: 1500, strictMusic: false, minViews: 30000, extraBad: /(girls?|women|woman|model|party|flex|gold ?digger|prank|roast|react)/i },
 };
-export const VIBE_LABEL: Record<Vibe, string> = { stories: 'Stories', sigma: 'Sigma', nature: 'Nature', serene: 'Serene', dreamy: 'Dreamy' };
+export const VIBE_LABEL: Record<Vibe, string> = { stories: 'Stories', sigma: 'Sigma', intense: 'Intense', nature: 'Nature', serene: 'Serene', dreamy: 'Dreams' };
 const LIGHT_MUSIC = /(lyric|lyrics|official (audio|video)|music video|remix|\bft\.|\bfeat\.?|karaoke|nursery|\bkids?\b)/i;
 const rng = (seed: number) => () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const shuffled = <T,>(a: T[], seed: number): T[] => { const r = rng(seed), o = [...a]; for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; } return o; };
@@ -144,6 +147,7 @@ export function passes(v: MVideo, vibe: Vibe, reel: boolean): boolean {
   const text = `${v.title} ${v.channel}`;
   if (!clean(text) || (cfg.extraBad && cfg.extraBad.test(text))) return false;
   if (cfg.strictMusic ? MUSIC.test(v.title) : LIGHT_MUSIC.test(v.title)) return false;
+  if (cfg.minViews && v.views !== undefined && v.views < cfg.minViews) return false;
   const d = secs(v.duration);
   if (reel) return v.short ? true : d > 0 && d <= 90;
   if (v.source === 'feed') return true;
@@ -162,7 +166,8 @@ async function vibeStream(vibe: Vibe, seed: number, need: number, reel: boolean,
   }
   const seen = new Set<string>(); const items: MVideo[] = []; let i = 0;
   while (items.length < need && i < sources.length) {
-    for (const v of await sources[i++]()) if (!seen.has(v.id) && passes(v, vibe, reel)) { seen.add(v.id); items.push({ ...v, vibe }); }
+    const batch = (await sources[i++]()).filter((v) => passes(v, vibe, reel)).sort((a, b) => (b.views || 0) - (a.views || 0)); // best-performing first within each search
+    for (const v of batch) if (!seen.has(v.id)) { seen.add(v.id); items.push({ ...v, vibe }); }
   }
   return { items, done: i >= sources.length };
 }
@@ -188,7 +193,8 @@ export async function stream(o: StreamOpts) {
   const q = (o.q || '').trim().slice(0, 80); const reel = !!o.reel; const seed = o.seed || 1;
   const want = o.offset + o.limit;
   const vibes: Vibe[] = (VIBES as string[]).includes(o.vibe || '') ? [o.vibe as Vibe] : VIBES;
-  const w: Record<string, number> = {}; for (const v of vibes) w[v] = 1 + Math.min(10, Math.max(0, Number(o.weights?.[v]) || 0));
+  const given = o.weights && Object.keys(o.weights).length ? o.weights : DEFAULT_W;
+  const w: Record<string, number> = {}; for (const v of vibes) w[v] = 1 + Math.min(10, Math.max(0, Number(given[v]) || 0));
   const sum = vibes.reduce((a, v) => a + w[v], 0);
   const res = await Promise.all(vibes.map((v) => vibeStream(v, seed, Math.ceil((want * w[v]) / sum) + 8, reel, q).then((r) => [v, r] as const)));
   const lists: Partial<Record<Vibe, MVideo[]>> = {}; let anyMore = false;

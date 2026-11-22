@@ -4,7 +4,7 @@ import { TABS, V, secs, useFeed } from './shared';
 import type { Signal } from '../../utils/tasteProfile';
 
 /** Full-screen vertical video scroller (Reels / Shorts style). One player mounted at a time; swipe / scroll / arrow keys to move. */
-export const ReelsViewer: React.FC<{ initialVibe: string; seed: number; weights: string; saved: (id: string) => boolean; onSave: (v: V) => void; onSignal: (s: Signal, v: V) => void; onClose: () => void }> = ({ initialVibe, seed, weights, saved, onSave, onSignal, onClose }) => {
+export const ReelsViewer: React.FC<{ startIndex?: number; initialVibe: string; seed: number; weights: string; saved: (id: string) => boolean; onSave: (v: V) => void; onSignal: (s: Signal, v: V) => void; onClose: () => void }> = ({ startIndex = 0, initialVibe, seed, weights, saved, onSave, onSignal, onClose }) => {
   const [vibe, setVibe] = useState(initialVibe === 'stories' || initialVibe === 'foryou' || TABS.some((t) => t.id === initialVibe) ? initialVibe : 'foryou');
   const feed = useFeed({ vibe, q: '', reel: true, seed, weights });
   const [active, setActive] = useState(0);
@@ -15,7 +15,12 @@ export const ReelsViewer: React.FC<{ initialVibe: string; seed: number; weights:
   const since = useRef(Date.now());
 
   useEffect(() => { const prev = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = prev; }; }, []);
-  useEffect(() => { setActive(0); box.current?.scrollTo({ top: 0 }); }, [vibe]);
+  const jumped = useRef(startIndex === 0);
+  useEffect(() => { jumped.current = true; setActive(0); box.current?.scrollTo({ top: 0 }); }, [vibe]);
+  useEffect(() => { // opened from a tapped reel card: jump straight to it
+    if (jumped.current || feed.items.length <= startIndex) return;
+    jumped.current = true; setActive(startIndex); box.current?.querySelector(`[data-i="${startIndex}"]`)?.scrollIntoView({ behavior: 'auto' });
+  }, [feed.items.length, startIndex]);
 
   const cmd = useCallback((func: string) => { try { frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args: [] }), '*'); } catch { /* player not ready */ } }, []);
   // dwell → taste signal when the viewer moves on

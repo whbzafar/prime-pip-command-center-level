@@ -4,6 +4,7 @@ import { TABS, V, useFeed } from './shared';
 import { VideoCard } from './VideoCard';
 import { PlayerModal } from './PlayerModal';
 import { ReelsViewer } from './ReelsViewer';
+import { Spotlight } from './Spotlight';
 import { Signal, Taste, decay, emptyTaste, record, topVibe, weightParam, weights } from '../../utils/tasteProfile';
 
 const SAVE_KEY = 'ppfx_motivation_saved_v1', TASTE_KEY = 'ppfx_taste_v1';
@@ -11,7 +12,7 @@ const read = <T,>(k: string, d: T): T => { try { return JSON.parse(localStorage.
 const write = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage full or blocked */ } };
 const today = () => new Date().toISOString().slice(0, 10);
 const greeting = () => { const h = new Date().getHours(); return h < 5 ? 'Still up' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
-const SUGGEST = ['never give up', 'rise from rock bottom', 'sigma discipline', 'forest rain', 'luxury homes', 'calm sunset', 'comeback story', 'ocean waves', 'dream life', 'morning motivation', 'overcoming loss', 'mountain sunrise'];
+const SUGGEST = ['thomas shelby motivation', 'luxury mansion cinematic', 'peaky blinders mindset', 'supercar luxury', 'never give up', 'rise from rock bottom', 'sigma discipline', 'forest rain', 'luxury homes', 'calm sunset', 'comeback story', 'ocean waves', 'dream life', 'morning motivation', 'overcoming loss', 'mountain sunrise'];
 
 const Shelf: React.FC<{ title: string; icon?: React.ReactNode; items: V[]; saved: (id: string) => boolean; onOpen: (v: V) => void; onSave: (v: V) => void }> = ({ title, icon, items, saved, onOpen, onSave }) => items.length === 0 ? null : (
   <section>
@@ -28,7 +29,8 @@ export const MotivationHub: React.FC = () => {
   const [saved, setSaved] = useState<V[]>(() => read<V[]>(SAVE_KEY, []));
   const [taste, setTaste] = useState<Taste>(() => decay(read<Taste>(TASTE_KEY, emptyTaste()), today()));
   const [open, setOpen] = useState<V | null>(null);
-  const [reels, setReels] = useState(false);
+  const [reels, setReels] = useState<number | null>(null);
+  const [reelPicks, setReelPicks] = useState<V[]>([]);
   const [picks, setPicks] = useState<V[]>([]);
   const [because, setBecause] = useState<{ from: string; items: V[] } | null>(null);
   const [hot, setHot] = useState<V[]>([]);
@@ -50,8 +52,9 @@ export const MotivationHub: React.FC = () => {
     if (tv) fetch(`/api/motivation/feed?vibe=${tv}&offset=0&seed=${seed + 7}`).then((r) => r.json()).then((j) => setPicks((j.items || []).filter((x: V) => !t.seen.includes(x.id)).slice(0, 8))).catch(() => undefined);
     const last = t.recent[0];
     if (last) fetch(`/api/motivation/similar?title=${encodeURIComponent(last.title)}&vibe=${last.vibe}`).then((r) => r.json()).then((j) => setBecause({ from: last.title, items: (j.items || []).filter((x: V) => !t.seen.includes(x.id)).slice(0, 8) })).catch(() => undefined);
+    fetch(`/api/motivation/feed?reel=1&seed=${seed + 1}${wParam ? `&w=${encodeURIComponent(wParam)}` : ''}&offset=0`).then((r) => r.json()).then((j) => setReelPicks((j.items || []).slice(0, 8))).catch(() => undefined);
     fetch('/api/motivation/trending').then((r) => r.json()).then((j) => setHot(j.hot || [])).catch(() => undefined);
-  }, [seed]);
+  }, [seed, wParam]);
 
   useEffect(() => {
     const el = sentinel.current; if (!el || showSaved) return;
@@ -63,12 +66,14 @@ export const MotivationHub: React.FC = () => {
   const run = (term: string) => { const s = term.trim(); setQ(s); setActive(s); setFocus(false); if (showSaved) setTab('foryou'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const seen = useMemo(() => new Set(taste.seen), [taste.seen]);
   const shelfIds = useMemo(() => new Set([...picks, ...(because?.items || [])].map((x) => x.id)), [picks, because]);
+  const firstId = feed.items[0]?.id;
+  const spot = useMemo(() => { const pool = (showSaved ? [] : feed.items).slice(0, 10).filter((v) => v.views); return [...pool].sort((a, b) => (b.views || 0) - (a.views || 0))[0] || feed.items[0] || null; }, [showSaved, firstId]); // eslint-disable-line react-hooks/exhaustive-deps — pick once per feed, don't swap while scrolling
   const mainItems = useMemo(() => {
     if (showSaved) return saved;
-    if (tab !== 'foryou' || active) return feed.items;
-    const fresh = feed.items.filter((v) => !seen.has(v.id) && !shelfIds.has(v.id)); // fresh content first, nothing you've already watched
+    if (tab !== 'foryou' || active) return feed.items.filter((v) => v.id !== spot?.id);
+    const fresh = feed.items.filter((v) => !seen.has(v.id) && !shelfIds.has(v.id) && v.id !== spot?.id); // fresh content first, nothing you've already watched
     return fresh.length >= 6 || feed.more ? fresh : feed.items;
-  }, [showSaved, saved, tab, active, feed.items, feed.more, seen, shelfIds]);
+  }, [showSaved, saved, tab, active, feed.items, feed.more, seen, shelfIds, spot]);
   const sugg = q.trim() ? SUGGEST.filter((t) => t.includes(q.toLowerCase())).slice(0, 5) : SUGGEST.slice(0, 6);
 
   return (
@@ -84,13 +89,13 @@ export const MotivationHub: React.FC = () => {
           <h2 className="text-2xl font-black leading-tight text-white sm:text-4xl">{showSaved ? 'Your saved moments' : meta.tag}</h2>
           <p className="mt-2 max-w-xl text-sm text-slate-300/90">{tab === 'foryou' && taste.recent.length ? 'Your feed learns what calms and drives you — fresh every time you come back.' : 'Calm visuals, quiet discipline and real comeback stories. Fresh every visit, endless, and tuned to you.'}</p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button onClick={() => setReels(true)} className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-slate-950 shadow-[0_0_30px_rgba(255,255,255,.25)] transition hover:scale-105"><Clapperboard className="h-4 w-4" />Watch Reels</button>
+            <button onClick={() => setReels(0)} className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-slate-950 shadow-[0_0_30px_rgba(255,255,255,.25)] transition hover:scale-105"><Clapperboard className="h-4 w-4" />Watch Reels</button>
             <button onClick={() => setTab('saved')} className="flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur hover:bg-white/20"><Bookmark className="h-4 w-4" />Saved ({saved.length})</button>
           </div>
           <div className="relative mt-4">
             <form onSubmit={(e) => { e.preventDefault(); run(q); }} className="flex items-center gap-2 rounded-2xl border border-white/15 bg-slate-950/60 px-3 py-2 backdrop-blur focus-within:border-cyan-300/70">
               <Search className="h-4 w-4 shrink-0 text-slate-400" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => setFocus(true)} onBlur={() => setTimeout(() => setFocus(false), 150)} placeholder="Search — forest rain, never give up, luxury homes…" maxLength={80} className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => setFocus(true)} onBlur={() => setTimeout(() => setFocus(false), 150)} placeholder="Search — Shelby mindset, luxury villas, forest rain…" maxLength={80} className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500" />
               {(q || active) && <button type="button" onClick={() => { setQ(''); setActive(''); }} aria-label="Clear" className="text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>}
               <button type="submit" className="rounded-xl bg-cyan-300 px-4 py-1.5 text-xs font-bold text-slate-950 hover:bg-cyan-200">Search</button>
             </form>
@@ -101,10 +106,19 @@ export const MotivationHub: React.FC = () => {
 
       <nav className="sticky top-0 z-20 -mx-3 flex gap-2 overflow-x-auto bg-slate-950/70 px-3 py-2 backdrop-blur-xl [scrollbar-width:none] sm:mx-0 sm:rounded-2xl sm:px-3" aria-label="Categories">
         {TABS.map((t) => <button key={t.id} onClick={() => go(t.id)} className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${tab === t.id ? 'bg-white text-slate-950 shadow-lg' : 'bg-white/5 text-slate-300 hover:bg-white/10'}`}>{t.id === 'foryou' && <Wand2 className="-mt-0.5 mr-1 inline h-3.5 w-3.5" />}{t.label}</button>)}
-        <button onClick={() => setReels(true)} className="shrink-0 rounded-full bg-gradient-to-r from-fuchsia-500 to-amber-400 px-4 py-2 text-xs font-bold text-slate-950"><Clapperboard className="-mt-0.5 mr-1 inline h-3.5 w-3.5" />Reels</button>
+        <button onClick={() => setReels(0)} className="shrink-0 rounded-full bg-gradient-to-r from-fuchsia-500 to-amber-400 px-4 py-2 text-xs font-bold text-slate-950"><Clapperboard className="-mt-0.5 mr-1 inline h-3.5 w-3.5" />Reels</button>
       </nav>
 
       <div className="relative z-10 space-y-6">
+        {!showSaved && !active && spot && <Spotlight v={spot} onWatch={() => play(spot)} onReels={() => setReels(0)} />}
+        {!showSaved && !active && reelPicks.length > 3 && (
+          <section>
+            <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-white"><Clapperboard className="h-4 w-4 text-fuchsia-300" />Reels</h3>
+            <div className="-mx-3 flex snap-x gap-3 overflow-x-auto px-3 pb-2 [scrollbar-width:none] sm:mx-0 sm:px-0">
+              {reelPicks.map((v, i) => <button key={v.id} onClick={() => setReels(i)} className="group relative aspect-[9/16] w-32 shrink-0 snap-start overflow-hidden rounded-2xl border border-white/10 bg-slate-900 sm:w-40"><img src={v.thumb} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-110" /><span className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/20" /><span className="absolute inset-x-0 bottom-0 line-clamp-3 p-2 text-left text-[11px] font-bold leading-snug text-white">{v.title}</span></button>)}
+            </div>
+          </section>
+        )}
         {tab === 'foryou' && !active && (
           <>
             <Shelf title="Picked for you" icon={<Wand2 className="h-4 w-4 text-cyan-300" />} items={picks} saved={isSaved} onOpen={play} onSave={toggleSave} />
@@ -128,7 +142,7 @@ export const MotivationHub: React.FC = () => {
       </div>
 
       {open && <PlayerModal v={open} saved={isSaved(open.id)} onSave={() => toggleSave(open)} onClose={() => setOpen(null)} onPick={play} />}
-      {reels && <ReelsViewer initialVibe={tab === 'saved' ? 'foryou' : tab} seed={seed + 1} weights={wParam} saved={isSaved} onSave={toggleSave} onSignal={signal} onClose={() => setReels(false)} />}
+      {reels !== null && <ReelsViewer startIndex={reels} initialVibe={tab === 'saved' ? 'foryou' : tab} seed={seed + 1} weights={wParam} saved={isSaved} onSave={toggleSave} onSignal={signal} onClose={() => setReels(null)} />}
     </div>
   );
 };

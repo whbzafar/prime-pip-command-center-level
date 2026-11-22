@@ -13,7 +13,7 @@ describe('vibe quality gates', () => {
   it('nature allows long ambience, stories do not', () => { const v = mv('a', 'Relaxing forest rain 2 hours', { duration: '2:00:00' }); expect(passes(v, 'nature', false)).toBe(true); expect(passes(v, 'stories', false)).toBe(false); });
   it('lyric/music-video dumps are rejected', () => { expect(passes(mv('b', 'Sia - Never Give Up (Lyrics)'), 'stories', false)).toBe(false); expect(passes(mv('c', 'Sad song official video ft. X', { duration: '3:00' }), 'serene', false)).toBe(false); });
   it('sigma drops woman-bashing / dating content but keeps discipline', () => { expect(passes(mv('d', 'Silent discipline mindset'), 'sigma', false)).toBe(true); expect(passes(mv('e', 'Sigma rules for dating women'), 'sigma', false)).toBe(false); });
-  it('explicit titles never pass any vibe', () => { for (const v of ['sigma', 'nature', 'serene', 'dreamy', 'stories'] as const) expect(passes(mv('f', 'Hot bikini luxury yacht party'), v, false)).toBe(false); });
+  it('explicit titles never pass any vibe', () => { for (const v of ['sigma', 'intense', 'nature', 'serene', 'dreamy', 'stories'] as const) expect(passes(mv('f', 'Hot bikini luxury yacht party'), v, false)).toBe(false); });
   it('reels need short clips or flagged shorts', () => { expect(passes(mv('g', 'Calm ocean', { duration: '0:45' }), 'nature', true)).toBe(true); expect(passes(mv('h', 'Calm ocean', { duration: '12:00' }), 'nature', true)).toBe(false); expect(passes(mv('i', 'Sigma short', { short: true, duration: '0:30' }), 'sigma', true)).toBe(true); });
   it('for-you mix favours the viewer’s taste but still includes every vibe, with no duplicates', () => {
     const mk = (p: string, n: number) => Array.from({ length: n }, (_, i) => mv(`${p}${i}`, p));
@@ -21,4 +21,17 @@ describe('vibe quality gates', () => {
     const first24 = out.slice(0, 24); const c = (p: string) => first24.filter((v) => v.id.startsWith(p)).length;
     expect(c('n')).toBeGreaterThan(c('s') * 3); expect(c('s')).toBeGreaterThanOrEqual(1); expect(c('d')).toBeGreaterThanOrEqual(1); expect(new Set(out.map((v) => v.id)).size).toBe(out.length);
   });
+});
+
+describe('premium gates', () => {
+  it('drops low-traction uploads for intense/dreams but not when views are unknown', () => {
+    expect(passes(mv('p1', 'Thomas Shelby mindset edit', { duration: '1:10', views: 900 }), 'intense', false)).toBe(false);
+    expect(passes(mv('p2', 'Thomas Shelby mindset edit', { duration: '1:10', views: 2_400_000 }), 'intense', false)).toBe(true);
+    expect(passes(mv('p3', 'Dream mansion cinematic', { duration: '3:00', views: 5_000_000 }), 'dreamy', false)).toBe(true);
+  });
+  it('dreams keep luxury cars/villas with music, reject party/model clips', () => {
+    expect(passes(mv('p4', 'Luxury villa ocean view cinematic music', { duration: '4:00', views: 100000 }), 'dreamy', false)).toBe(true);
+    expect(passes(mv('p5', 'Luxury yacht party girls', { duration: '4:00', views: 100000 }), 'dreamy', false)).toBe(false);
+  });
+  it('intense rejects gang/crime glorification', () => { expect(passes(mv('p6', 'Gangster revenge edit', { duration: '2:00', views: 900000 }), 'intense', false)).toBe(false); });
 });
