@@ -29,6 +29,7 @@ import {
 import { formatCurrency } from '../utils/currencyFormatter';
 import { formatTradeDateTime, formatTo12Hour } from '../utils/time';
 import { EvaluationEngine } from './EvaluationEngine';
+import { PersonalEdgeReport } from './PersonalEdgeReport';
 
 interface PerformanceLabProps {
   trades: Trade[];
@@ -166,6 +167,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
 
   return (
     <div className="space-y-6">
+      <PersonalEdgeReport trades={trades} />
       {/* Top Directive Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-900/90 to-[#0F172A] border border-blue-500/30 rounded-xl p-5 shadow-2xl relative overflow-hidden">
         <div className="absolute right-0 top-0 w-80 h-full bg-blue-500/5 blur-3xl pointer-events-none"></div>
