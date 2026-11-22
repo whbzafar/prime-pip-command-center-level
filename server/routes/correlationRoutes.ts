@@ -136,3 +136,9 @@ correlationRouter.post('/exposure', async (req: Request, res: Response) => {
     res.json({ ok: true, ...analyseExposure(positions, corr), covered: positions.filter((p) => c.series[p.symbol]).length === positions.length });
   } catch (e: any) { res.status(503).json({ ok: false, error: String(e?.message || 'Exposure check unavailable.') }); }
 });
+
+/** Shared correlation lookup (90-day) for other engines, e.g. the pre-trade checklist. */
+export async function getCorrFn(): Promise<(a: string, b: string) => number | null> {
+  const c = await load();
+  return (a, b) => (a === b ? 1 : c.series[a] && c.series[b] ? corrOver(c.series[a], c.series[b], 90).r : null);
+}
