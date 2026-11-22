@@ -4,7 +4,7 @@
  * and YouTube search for the user's topic (YouTube Data API instead when YOUTUBE_API_KEY is set — strict safe-search, embeddable only).
  * Everything is filtered: inappropriate searches return nothing, and self-harm searches get a support message instead of videos.
  */
-export interface MVideo { id: string; title: string; channel: string; thumb: string; published?: string; views?: number; duration?: string; source: 'feed' | 'search' }
+export interface MVideo { id: string; title: string; channel: string; thumb: string; published?: string; views?: number; duration?: string; cid?: string; source: 'feed' | 'search' }
 
 export const TOPICS = [
   'never give up', 'rise from rock bottom', 'comeback story', 'overcoming loss', 'discipline', 'morning motivation', 'success story', 'mindset shift',
@@ -62,7 +62,7 @@ async function channelId(handle: string): Promise<string | null> {
   }).catch((e) => { diag[handle] = `id: ${e?.message}`; return null; });
 }
 async function feed(handle: string): Promise<MVideo[]> {
-  const id = await channelId(handle); if (!id) return [];
+  const id = /^UC[\w-]{20,24}$/.test(handle) ? handle : await channelId(handle); if (!id) return [];
   return cached(`feed:${id}`, 30 * 60_000, async () => {
     const xml = await get(`https://www.youtube.com/feeds/videos.xml?channel_id=${id}`);
     const out: MVideo[] = [];
@@ -77,11 +77,20 @@ async function feed(handle: string): Promise<MVideo[]> {
     return out;
   }).catch((e) => { diag[handle] = `feed: ${e?.message}`; return [] as MVideo[]; });
 }
+/** Channels that YouTube itself ranks for motivational speeches — found by search, so no handle lookups needed. */
+const discovered = () => cached('disc', 6 * 3600_000, async () => {
+  const seeds = ['motivational speech', 'inspirational story never give up', 'rise from rock bottom motivation', 'powerful motivation video'];
+  const ids = new Map<string, number>();
+  for (const v of (await Promise.all(seeds.map((q) => search(q)))).flat()) if (v.cid && GOOD.test(v.title)) ids.set(v.cid, (ids.get(v.cid) || 0) + 1);
+  return [...ids.entries()].sort((a, b) => b[1] - a[1]).slice(0, 14).map(([id]) => id);
+}).catch(() => [] as string[]);
 const feedPool = (): Promise<MVideo[]> => cached('pool', 20 * 60_000, async () => {
-  const lists = await Promise.all(CHANNELS.map((h) => hard(feed(h), 12000).catch(() => [] as MVideo[])));
+  const targets = [...new Set([...(await discovered()), ...CHANNELS])];
+  const lists = await Promise.all(targets.map((h) => hard(feed(h), 10000).catch(() => [] as MVideo[])));
+  if (lists.filter((l) => l.length).length < 6) setTimeout(() => memo.delete('pool'), 45_000); // too thin — retry soon rather than hold for 20 min
   const ids = new Set<string>(); const out: MVideo[] = [];
   const rows = lists.map((l) => [...l].sort((a, b) => String(b.published).localeCompare(String(a.published))));
-  for (let i = 0; i < 15; i++) for (const r of rows) { const v = r[i]; if (v && !ids.has(v.id)) { ids.add(v.id); out.push(v); } } // round-robin: newest first, no channel dominates
+  for (let i = 0; i < 12; i++) for (const r of rows) { const v = r[i]; if (v && !ids.has(v.id)) { ids.add(v.id); out.push(v); } } // round-robin: newest first, no channel dominates
   return out;
 });
 
@@ -101,7 +110,7 @@ async function searchPage(q: string): Promise<MVideo[]> {
   const rs: any[] = []; walk(JSON.parse(m[1]), rs);
   return rs.map((r) => {
     const views = /([\d,]+)\s*views/.exec(r.viewCountText?.simpleText || '')?.[1];
-    return { id: r.videoId as string, title: String(r.title?.runs?.[0]?.text || ''), channel: String(r.ownerText?.runs?.[0]?.text || ''), thumb: thumb(r.videoId), duration: r.lengthText?.simpleText as string | undefined, views: views ? Number(views.replace(/,/g, '')) : undefined, source: 'search' as const };
+    return { id: r.videoId as string, title: String(r.title?.runs?.[0]?.text || ''), channel: String(r.ownerText?.runs?.[0]?.text || ''), cid: r.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId as string | undefined, thumb: thumb(r.videoId), duration: r.lengthText?.simpleText as string | undefined, views: views ? Number(views.replace(/,/g, '')) : undefined, source: 'search' as const };
   }).filter((v) => v.title && v.duration && !MUSIC.test(v.title) && secs(v.duration) >= 90 && secs(v.duration) <= 1800) // speeches & stories, not songs, albums or clips
     .sort((a, b) => Number(GOOD.test(b.title)) - Number(GOOD.test(a.title)));
 }
