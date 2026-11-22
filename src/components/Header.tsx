@@ -35,6 +35,7 @@ import {
   TrendingUp,
   Cpu,
   Wind,
+  Sparkles,
   Radio,
   ChevronLeft,
   ChevronRight,
@@ -88,6 +89,7 @@ export type MainNavTab =
   | 'REPORTS'
   | 'PSYCHOLOGY'
   | 'CALMING_TOOLS'
+  | 'MOTIVATION'
   | 'FUNDAMENTAL_CALENDAR'
   | 'FUNDAMENTAL_INDICATORS'
   | 'FREEHAND_WORKSPACE'
@@ -457,6 +459,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'DAILY_DEV' as MainNavTab, label: '16. DAILY DEVELOPMENT', icon: Award },
     { id: 'PSYCHOLOGY' as MainNavTab, label: '17. PSYCHOLOGICAL CENTER', icon: Brain, highlight: true },
     { id: 'CALMING_TOOLS' as MainNavTab, label: '18. TRADING TOOL SUITE', icon: Wind, highlight: true },
+    { id: 'MOTIVATION' as MainNavTab, label: '18b. MOTIVATION', icon: Sparkles, highlight: true },
     { id: 'RESEARCH' as MainNavTab, label: '19. ACADEMIC RESEARCH', icon: Compass, highlight: true },
     { id: 'FREEHAND_WORKSPACE' as MainNavTab, label: '20. FREEHAND CANVAS', icon: PenTool },
     { id: 'SITUATION_SAVER' as MainNavTab, label: '21. SITUATION SAVER', icon: Bookmark, highlight: true },

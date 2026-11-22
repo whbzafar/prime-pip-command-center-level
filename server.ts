@@ -245,6 +245,7 @@ const currentAppDir = process.cwd();
 
 import { trackLogin, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
 import { clientIp } from './server/geoip.js';
+import { stream as motivationStream, trending as motivationTrending, classifyQuery, SUPPORT as MOTIVATION_SUPPORT } from './server/motivation.js';
 import { privateListUpdate as secListUpdate } from './server/durableStore.js';
 
 const app = express();
@@ -3892,6 +3893,23 @@ app.get('/api/admin/analytics', requireDeveloper, async (req, res) => {
   const days = Math.min(30, Math.max(1, Number(req.query.days) || 1));
   res.set('Cache-Control', 'no-store');
   res.json({ ok: true, ...(await analyticsSummary(days)) });
+});
+
+// ---- Motivation feed (public, read-only, safe-filtered) ----
+app.get('/api/motivation/feed', async (req, res) => {
+  const q = String(req.query.q || '').slice(0, 80);
+  const kind = classifyQuery(q);
+  res.set('Cache-Control', 'public, max-age=60');
+  if (kind === 'support') return res.json({ ok: true, items: [], next: 0, hasMore: false, support: MOTIVATION_SUPPORT });
+  if (kind === 'blocked') return res.json({ ok: true, items: [], next: 0, hasMore: false, blocked: true, message: 'This space only shows uplifting, motivational content. Try a topic like "never give up" or "comeback story".' });
+  try {
+    const offset = Math.max(0, Math.min(2000, Number(req.query.offset) || 0));
+    res.json({ ok: true, ...(await motivationStream(q, offset, 12)) });
+  } catch { res.json({ ok: true, items: [], next: 0, hasMore: false }); }
+});
+app.get('/api/motivation/trending', async (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  try { res.json({ ok: true, ...(await motivationTrending()) }); } catch { res.json({ ok: true, topics: [], hot: [] }); }
 });
 
 // ---- Login security (admin) ----

@@ -229,6 +229,16 @@ export const ALL_CATEGORIES_DATA: CategoryItem[] = [
     highlight: true,
   },
   {
+    id: 'MOTIVATION',
+    num: '14b',
+    label: 'Motivation',
+    name: 'Motivation Hub',
+    desc: 'Endless, fresh, uplifting videos — comeback stories and speeches to keep you going.',
+    section: 'Mindset & Health',
+    icon: Sparkles,
+    highlight: true,
+  },
+  {
     id: 'RESEARCH',
     num: '15',
     label: 'Academic Research',

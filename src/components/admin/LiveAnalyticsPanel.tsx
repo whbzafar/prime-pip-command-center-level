@@ -15,7 +15,7 @@ const LABELS: Record<string, string> = {
   LOGIN: 'Login screen', DASHBOARD: 'Dashboard', JOURNAL: 'Trade Journal', SBT_MODELS: 'SBT Models', LOT_SIZE: 'Lot Size', RISK: 'Risk Management', PRE_TRADE_PLAN: 'Pre-Trade Plan',
   FUNDAMENTAL_CALENDAR: 'Live News Calendar', FUNDAMENTAL_INDICATORS: 'Fundamentals', SIGNALS: 'Premium Signals', PRO_TRADING: 'Premium TradingView', BACKTESTING: 'Backtesting', BACKTEST_REPLAY: 'Bar Replay',
   CHART_ANALYSIS: 'Chart Analysis', META5_PREMIUM: 'Meta 5', COMPOUNDING: 'Compounding', PERFORMANCE: 'Performance', REPORTS: 'Reports', DAILY_DEV: 'Daily Development', PSYCHOLOGY: 'Psychological Center',
-  CALMING_TOOLS: 'Trading Tool Suite', RESEARCH: 'Research', FREEHAND_WORKSPACE: 'Freehand Canvas', SITUATION_SAVER: 'Situation Saver', PAIR_SAVER: 'Pair Saver', PRO_LEARNING: 'Pro Trading Learning',
+  CALMING_TOOLS: 'Trading Tool Suite', MOTIVATION: 'Motivation Hub', RESEARCH: 'Research', FREEHAND_WORKSPACE: 'Freehand Canvas', SITUATION_SAVER: 'Situation Saver', PAIR_SAVER: 'Pair Saver', PRO_LEARNING: 'Pro Trading Learning',
   COMMUNITY: 'Community', BOOK_SESSION: 'Book a Session', SETTINGS: 'Data Export & Backup', ADMIN: 'Admin Panel', ACCOUNTS: 'Accounts', EVOLUTION: 'Evolution',
 };
 const label = (t: string) => LABELS[t] || t.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());

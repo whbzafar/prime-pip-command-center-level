@@ -28,6 +28,7 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { title: 'Performance Report', category: 'Analytics', subcategory: 'Metrics & R:R', description: 'Expectancy, win rate, drawdown analysis, and strategy insights.', tab: 'PERFORMANCE' },
   { title: 'Daily Development', category: 'Mindset & Health', subcategory: 'Habits & Routine', description: 'Backtesting tracker, forward testing, and daily trader routines.', tab: 'DAILY_DEV' },
   { title: 'Psychological Center', category: 'Mindset & Health', subcategory: 'Cognitive Audit', description: 'Emotional regulation, cognitive bias audits, and discipline resets.', tab: 'PSYCHOLOGY' },
+  { title: 'Motivation Hub', category: 'Mindset & Health', subcategory: 'Inspiration', description: 'Endless uplifting videos: never give up, comeback stories, discipline.', tab: 'MOTIVATION' },
   { title: 'Trading Tool Suite', category: 'Mindset & Health', subcategory: 'Regulation', description: 'Diaphragmatic breathing, binaural focus audio, and calming tools.', tab: 'CALMING_TOOLS' },
   { title: 'Academic Research', category: 'Research & Tools', subcategory: 'Market Science', description: 'OpenAlex academic quantitative and market literature engine.', tab: 'RESEARCH' },
   { title: 'Freehand Canvas', category: 'Research & Tools', subcategory: 'Markup Workspace', description: 'Drawings, chart markups, and diagramming canvas.', tab: 'FREEHAND_WORKSPACE' },

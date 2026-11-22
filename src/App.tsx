@@ -76,6 +76,7 @@ import { TabErrorBoundary } from './components/common/TabErrorBoundary';
 // Heavy category screens load on demand so the first screen opens fast (big win on phones).
 const LearningHub = React.lazy(() => import('./components/learning/LearningHub').then((m) => ({ default: m.LearningHub })));
 const PerformanceLab = React.lazy(() => import('./components/PerformanceLab').then((m) => ({ default: m.PerformanceLab })));
+const MotivationHub = React.lazy(() => import('./components/motivation/MotivationHub').then((m) => ({ default: m.MotivationHub })));
 const PsychologyCenter = React.lazy(() => import('./components/PsychologyCenter').then((m) => ({ default: m.PsychologyCenter })));
 const AiTradingCoach = React.lazy(() => import('./components/AiTradingCoach').then((m) => ({ default: m.AiTradingCoach })));
 const GoalsProgress = React.lazy(() => import('./components/GoalsProgress').then((m) => ({ default: m.GoalsProgress })));
@@ -1775,6 +1776,8 @@ export default function App() {
             </div>
           )
         )}
+
+        {activeTab === 'MOTIVATION' && <MotivationHub />}
 
         {activeTab === 'CALMING_TOOLS' && (
           <CalmingSuiteMaster
