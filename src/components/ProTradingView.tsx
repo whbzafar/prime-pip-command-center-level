@@ -4300,18 +4300,12 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 </select>
               </label>
 
-              {/* PRO TOOLS — Quant Edge, Copilot, Radar, News shock, Exposure (one menu keeps the bar on one line) */}
+              {/* PRO TOOLS — Daily Briefing, Market Regime Radar, Trade Copilot (one menu keeps the bar on one line) */}
               <ProToolsMenu
                 items={[
-                  { id: 'edge', label: 'Quant Edge signals', desc: 'Research-backed buy/sell setup with its 10-year record', Icon: Cpu, cls: 'text-cyan-300', onClick: () => setEdgeOpen(true) },
-                  { id: 'copilot', label: 'Trade Copilot', desc: 'Live plan for this pair: bias, entry, stop, targets, lots', Icon: Sparkles, cls: 'text-violet-300', onClick: () => setCopilotOpen(true) },
                   { id: 'brief', label: 'Daily Briefing', desc: 'Your trading day on one page: fundamentals, set-ups and news', Icon: Sunrise, cls: 'text-amber-300', onClick: () => setBriefOpen(true) },
-                  { id: 'mind', label: 'Mind Lab — Trading Psychology', desc: 'Readiness, your patterns, Fear Ladder, calm tools, lessons', Icon: Brain, cls: 'text-violet-300', onClick: () => setMindOpen(true) },
-                  { id: 'pretrade', label: 'Pre-Trade Checklist', desc: 'News, correlation, risk and fundamentals — checked before you enter', Icon: ClipboardCheck, cls: 'text-cyan-300', onClick: () => setPreOpen(true) },
-                  { id: 'corr', label: 'Correlation & Exposure Guard', desc: 'Which markets move together — and the hidden risk in your trades', Icon: GitMerge, cls: 'text-emerald-300', onClick: () => setCorrOpen(true) },
                   { id: 'radar', label: 'Market Regime Radar', desc: 'Every market: trending, ranging, coiling or breaking out', Icon: Radar, cls: 'text-fuchsia-300', onClick: () => setRadarOpen(true) },
-                  { id: 'shock', label: 'News Shock Simulator', desc: 'How price moved after past releases of upcoming news', Icon: Zap, cls: 'text-amber-300', onClick: () => setShockOpen(true) },
-                  { id: 'exposure', label: 'Exposure Guard', desc: 'Currency strength, correlations, your real exposure', Icon: Scale, cls: 'text-emerald-300', onClick: () => setExposureOpen(true) },
+                  { id: 'copilot', label: 'Trade Copilot', desc: 'Live plan for this pair: bias, entry, stop, targets, lots', Icon: Sparkles, cls: 'text-violet-300', onClick: () => setCopilotOpen(true) },
                 ]}
               />
               <QuantEdge open={edgeOpen} onClose={() => setEdgeOpen(false)} onOpenSymbol={(sym) => handleSelectSymbol(sym)} />
