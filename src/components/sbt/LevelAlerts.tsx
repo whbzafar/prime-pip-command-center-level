@@ -3,6 +3,7 @@ import { ArrowDownRight, ArrowUpRight, Crosshair, RefreshCw } from 'lucide-react
 import { uploadSbtStrategy, EDGE_PIPS, enableLevelAlerts, fmtPrice, getLevelSettings, levelTime, pairLevel, setLevelSettings, testLevelAlert, useLevelAlerts, type LevelAlert, type LevelState, type PairScan } from '../../services/sbtSetups';
 import { BellRing, Mic, MicOff, Volume2, VolumeX, X as XIcon } from 'lucide-react';
 import { SOUNDS } from '../../utils/alertSounds';
+import { alertContext } from '../../services/openPositions';
 import { getStoredToken, getStoredUser, isUserAdmin } from '../../utils/authClient';
 
 const ago = (t: number) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : `${Math.floor(m / 60)}h ${m % 60}m ago`; };
@@ -143,7 +144,10 @@ export const LevelAlertBanner: React.FC<{ onOpen: (engineSymbol: string) => void
   useEffect(() => {
     const on = (e: Event) => {
       const now = Date.now();
-      const add = ((e as CustomEvent).detail as any[]).map((d) => ({ ...d, models: d.models || [], shownAt: now }));
+      const add = ((e as CustomEvent).detail as any[]).map((d) => {
+        const ctx = !d.test && d.display && d.side ? alertContext(d.symbol, d.side, d.display) : null;
+        return ctx ? { ...d, kind: 'TEST_EMPTY', title: ctx.title, text: ctx.text, models: [], shownAt: now } : { ...d, models: d.models || [], shownAt: now };
+      });
       setItems((cur) => [...add, ...cur].slice(0, 4));
       setMin(false);
     };

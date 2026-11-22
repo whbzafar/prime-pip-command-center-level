@@ -1,4 +1,5 @@
 // Force HMR refresh
+import { setOpenTrades } from './services/openPositions';
 import { DisciplineGuard, DisciplineToast, TraderDnaPanel } from './components/dna/TraderDnaPanel';
 import { startInsights, trackSection } from './utils/insights';
 import { trackState, type AnalyticsState } from './services/analyticsClient';
@@ -293,6 +294,7 @@ export default function App() {
   const [accounts, setAccounts] = useState<AccountSettings[]>([]);
   const [activeAccount, setActiveAccount] = useState<AccountSettings | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
+  useEffect(() => { setOpenTrades(trades); }, [trades]);
   const [rules, setRules] = useState<TradingRule[]>([]);
   const [goals, setGoals] = useState<TradingGoal[]>([]);
   const [selectedInstrument, setSelectedInstrument] = useState<string>('XAUUSD');
