@@ -4315,7 +4315,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               <EventShockSimulator open={shockOpen} onClose={() => setShockOpen(false)} />
               <ExposureGuard open={exposureOpen} onClose={() => setExposureOpen(false)} trades={trades || []} />
               <DailyBriefing open={briefOpen} onClose={() => setBriefOpen(false)} onOpenSymbol={(sym) => handleSelectSymbol(sym)} />
-              <PreTradeChecklist open={preOpen} onClose={() => setPreOpen(false)} symbol={selectedSymbol} />
+              <PreTradeChecklist open={preOpen} onClose={() => setPreOpen(false)} symbol={selectedSymbol} trades={trades || []} balance={activeAccount?.currentBalance ?? 0} />
               <CorrelationGuard open={corrOpen} onClose={() => setCorrOpen(false)} />
               <MarketRadar open={radarOpen} onClose={() => setRadarOpen(false)} onOpenSymbol={(sym) => handleSelectSymbol(sym)} onCopilot={(sym) => { setCopilotSymbol(sym); setRadarOpen(false); setCopilotOpen(true); }} />
 
