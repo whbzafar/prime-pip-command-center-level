@@ -243,6 +243,10 @@ if (isSupabaseAuthEnabled) {
 // Safe directory reference for CJS/ESM
 const currentAppDir = process.cwd();
 
+import { trackLogin, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
+import { clientIp } from './server/geoip.js';
+import { privateListUpdate as secListUpdate } from './server/durableStore.js';
+
 const app = express();
 // Speed: gzip every text reply (the app bundle, API JSON) — the biggest files shrink about 3-4x. Live streams are left alone.
 app.use(compression({ threshold: 1024, filter: (req, res) => (String(res.getHeader('Content-Type') || '').includes('text/event-stream') ? false : compression.filter(req, res)) }));
@@ -3664,6 +3668,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
   if (localResult?.user) {
     try { recordLogin(localResult.user.id, { ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim(), device: String(req.headers['user-agent'] || '').slice(0, 160), kind: 'login' }); } catch { /* tracking is best-effort */ }
+    void trackLogin({ id: localResult.user.id, username: localResult.user.username, name: localResult.user.name || localResult.user.username }, clientIp(req as any), String(req.headers['user-agent'] || ''), 'login').catch(() => undefined);
   }
 
   // Administrator authentication is authoritative in the server auth store.
@@ -3839,6 +3844,7 @@ app.post('/api/auth/register', async (req, res) => {
   const login = loginUser(r.user.username, String(password), true);
   if (!login) return res.status(500).json({ ok: false, error: 'Account created — please sign in.' });
   try { recordLogin(r.user.id, { ip, device: String(req.headers['user-agent'] || '').slice(0, 160), kind: 'signup' }); } catch { /* best-effort */ }
+  void trackLogin({ id: r.user.id, username: r.user.username, name: r.user.name || r.user.username }, ip, String(req.headers['user-agent'] || ''), 'signup').catch(() => undefined);
   res.cookie('primepipfx_session', login.token, { httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL), sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000, path: '/' });
   return res.json({ ok: true, user: sanitizeUser(login.user), token: login.token });
 });
@@ -3886,6 +3892,42 @@ app.get('/api/admin/analytics', requireDeveloper, async (req, res) => {
   const days = Math.min(30, Math.max(1, Number(req.query.days) || 1));
   res.set('Cache-Control', 'no-store');
   res.json({ ok: true, ...(await analyticsSummary(days)) });
+});
+
+// ---- Login security (admin) ----
+app.get('/api/admin/login-security', requireDeveloper, async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const [events, warnings] = await Promise.all([listEvents(), listWarnings()]);
+  const users = summariseUsers(events, warnings);
+  res.json({ ok: true, users, events: events.slice(0, 200).map((e) => ({ ...e, place: placeOf(e), ipMasked: e.ip })), warnings: warnings.slice(0, 100), flagText: FLAG_TEXT, stored: events.length > 0 || warnings.length > 0 });
+});
+app.post('/api/admin/login-security/warn', requireDeveloper, async (req, res) => {
+  const { userId, note } = req.body || {};
+  if (!userId) return res.status(400).json({ ok: false, error: 'userId required' });
+  const events = await listEvents();
+  const mine = events.filter((e) => e.userId === userId);
+  if (!mine.length) return res.status(404).json({ ok: false, error: 'No sign-ins recorded for this account' });
+  const places = [...new Set(mine.slice(0, 10).map((e) => placeOf(e)))].slice(0, 4).join(' · ');
+  const flags = [...new Set(mine.slice(0, 20).flatMap((e) => e.flags))].map((f) => FLAG_TEXT[f] || f);
+  const w: SecurityWarning = { id: `sw_${Date.now()}`, userId, username: mine[0].username, at: new Date().toISOString(), location: places,
+    reason: flags.join('; ') || 'Account sharing suspected', ack: false,
+    message: `Security warning from Prime Pip FX: your account was used from different locations (${places}). Sharing your login with anyone is not allowed and can lead to your access being removed without refund. Please change your password now and use the account only yourself.${note ? ' Note from admin: ' + String(note).slice(0, 300) : ''}` };
+  try { await secListUpdate('security_warnings', (l: any[]) => [w, ...l].slice(0, 500)); }
+  catch { return res.status(503).json({ ok: false, error: 'Private storage unavailable (needs Redis or SEAL_SECRET)' }); }
+  res.json({ ok: true, warning: w });
+});
+app.get('/api/security/my-warnings', async (req, res) => {
+  const u = resolveRequestUser(req);
+  if (!u) return res.json({ ok: true, warnings: [] });
+  res.set('Cache-Control', 'no-store');
+  res.json({ ok: true, warnings: (await listWarnings()).filter((w) => w.userId === u.id && !w.ack).map((w) => ({ id: w.id, at: w.at, message: w.message })) });
+});
+app.post('/api/security/ack', async (req, res) => {
+  const u = resolveRequestUser(req);
+  if (!u) return res.status(401).json({ ok: false });
+  const id = String(req.body?.id || '');
+  await secListUpdate('security_warnings', (l: any[]) => l.map((w: any) => (w.id === id && w.userId === u.id ? { ...w, ack: true, ackAt: new Date().toISOString() } : w))).catch(() => undefined);
+  res.json({ ok: true });
 });
 
 app.get('/api/admin/members', requireDeveloper, async (_req, res) => {

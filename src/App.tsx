@@ -1,4 +1,5 @@
 // Force HMR refresh
+import { SecurityWarningModal } from './components/SecurityWarningModal';
 import { setOpenTrades } from './services/openPositions';
 import { DisciplineGuard, DisciplineToast, TraderDnaPanel } from './components/dna/TraderDnaPanel';
 import { startInsights, trackSection } from './utils/insights';
@@ -1346,6 +1347,7 @@ export default function App() {
 
       {/* Navigation HUD Header */}
       <AuroraScene />
+      <SecurityWarningModal userId={currentUser && !isUserAdmin(currentUser) ? currentUser.id : undefined} />
       <Header
         activeTab={activeTab as any}
         onSelectTab={handleSelectTab}
