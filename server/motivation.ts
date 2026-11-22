@@ -17,6 +17,9 @@ const BAD = /\b(sex|sexy|porn|nude|naked|xxx|nsfw|onlyfans|erotic|fetish|escort|
 const SELFHARM = /\b(suicide|suicidal|kill myself|end my life|self[- ]?harm|cut myself|want to die|don'?t want to live|hurt myself)\b/i;
 export const SUPPORT = 'You are not alone, and this moment will not last forever. If you are thinking about harming yourself, please reach out to someone you trust or a local crisis line right now — findahelpline.com lists free, confidential support in almost every country. Talking to someone can change how today feels.';
 export const classifyQuery = (q: string): 'ok' | 'blocked' | 'support' => (SELFHARM.test(q) ? 'support' : BAD.test(q) ? 'blocked' : 'ok');
+const MUSIC = /(lyric|lyrics|official (audio|video|music)|music video|\bsong\b|\bost\b|remix|album|instrumental|soundtrack|karaoke|\bft\.|\bfeat\.?|\bamv\b|gameplay|\bcover\b|playlist|kids?\b|nursery|\bmix\b|\bbeat\b|no copyright|copyright free|gospel|worship|\d+\s*hours?\b)/i;
+const secs = (d?: string) => (d ? d.split(':').reverse().reduce((a, x, i) => a + Number(x) * 60 ** i, 0) : 0);
+const GOOD = /(motivat|inspir|speech|story|transform|comeback|mindset|discipline|success|overcome|resilien|heal|struggle|rock bottom|lesson|believe)/i;
 const clean = (t: string) => !BAD.test(t) && !SELFHARM.test(t);
 
 const decode = (s: string) => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'");
@@ -82,17 +85,18 @@ async function searchPage(q: string): Promise<MVideo[]> {
   return rs.map((r) => {
     const views = /([\d,]+)\s*views/.exec(r.viewCountText?.simpleText || '')?.[1];
     return { id: r.videoId as string, title: String(r.title?.runs?.[0]?.text || ''), channel: String(r.ownerText?.runs?.[0]?.text || ''), thumb: thumb(r.videoId), duration: r.lengthText?.simpleText as string | undefined, views: views ? Number(views.replace(/,/g, '')) : undefined, source: 'search' as const };
-  }).filter((v) => v.title && v.duration); // duration missing = live/upcoming
+  }).filter((v) => v.title && v.duration && !MUSIC.test(v.title) && secs(v.duration) >= 90 && secs(v.duration) <= 1800) // speeches & stories, not songs, albums or clips
+    .sort((a, b) => Number(GOOD.test(b.title)) - Number(GOOD.test(a.title)));
 }
 const search = (q: string) => cached(`s:${q.toLowerCase()}`, 15 * 60_000, () => searchPage(q)).catch(() => [] as MVideo[]);
-const shape = (q: string) => (/(motiv|inspir|never give up|success|mindset|discipline|resilien|comeback|overcom|hope|courage|heal|strong)/i.test(q) ? q : `${q} motivation`);
+const shape = (q: string) => `${q} motivational speech`;
 
 /** Endless, de-duplicated stream. offset is an index into the stream; more sources are pulled in only as needed. */
 export async function stream(q: string, offset: number, limit: number) {
   const qq = q.trim().slice(0, 80);
   const sources: Array<() => Promise<MVideo[]>> = qq
-    ? [() => search(shape(qq)), () => search(`${qq} story`), () => search(`${qq} speech`), () => search(`${qq} never give up`), () => search(`${qq} motivational video`), ...TOPICS.slice(0, 6).map((t) => () => search(`${qq} ${t}`))]
-    : [feedPool, ...TOPICS.map((t) => () => search(`${t} motivation`))];
+    ? [() => search(shape(qq)), () => search(`${qq} true story inspiring`), () => search(`${qq} motivation video`), () => search(`${qq} comeback story`), () => search(`${qq} life lessons`), ...TOPICS.slice(0, 6).map((t) => () => search(`${qq} ${t}`))]
+    : [feedPool, ...TOPICS.map((t) => () => search(`${t} motivational speech`))];
   const seen = new Set<string>(); const all: MVideo[] = []; let i = 0;
   while (all.length < offset + limit && i < sources.length) {
     for (const v of await sources[i++]()) if (!seen.has(v.id) && clean(`${v.title} ${v.channel}`)) { seen.add(v.id); all.push(v); }
