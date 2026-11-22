@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { AccountCoachCard } from './AccountCoachCard';
+import { coachFor } from '../utils/accountCoach';
 import { createPortal } from 'react-dom';
 import {
   X,
@@ -921,6 +923,22 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
   const isFundedLocked =
     isFunded && fundedRiskEval && fundedRiskEval.tradingStatus === 'LOCKED';
 
+  const accountCoach = useMemo(() => {
+    const category = isFunded ? 'FUNDED' : account.accountCategory === 'DEMO' || account.isDemo || account.accountType === 'DEMO' ? 'DEMO' : 'PERSONAL';
+    const ev: any = fundedRiskEval;
+    const days = new Set((existingTrades || []).map((t) => t.date)).size;
+    return coachFor({
+      category, balance: activeAccountBalance, riskPct: calculatedRiskPercent, riskAmount, trades: existingTrades || [],
+      funded: ev ? {
+        phaseLabel: ev.phaseLabel, remainingDaily: ev.remainingDailyDrawdown, remainingOverall: ev.remainingOverallDrawdown,
+        dailyLimit: ev.dailyDrawdownLimitDollars, overallLimit: ev.overallDrawdownLimitDollars, profitRemaining: ev.remainingProfitTarget,
+        targetDollars: ev.activeProfitTargetDollars, recommendedRiskDollars: ev.recommendedRiskDollars, recommendedRiskPct: ev.recommendedRiskPercent,
+        consecutiveLosses: ev.consecutiveLosses, tradesToday: ev.tradesToday, maxDailyTrades: ev.maxDailyTrades,
+        locked: ev.tradingStatus === 'LOCKED', targetPassed: !!ev.isTargetPassed, tradingDaysDone: days, tradingDaysRequired: ev.config?.minimumTradingDays || 0,
+      } : null,
+    });
+  }, [isFunded, account.accountCategory, account.isDemo, fundedRiskEval, activeAccountBalance, calculatedRiskPercent, riskAmount, existingTrades]);
+
   const qualityScoreResult = calculateTradeQualityScore({
     htfAlignment:
       (htfTrend === 'BULLISH' && direction === 'BUY') || (htfTrend === 'BEARISH' && direction === 'SELL'),
@@ -1658,6 +1676,7 @@ export const TradeEntryModal: React.FC<TradeEntryModalProps> = ({
                           </div>
                         </div>
 
+                        <AccountCoachCard coach={accountCoach} onApplyRisk={(pct) => applyRiskPercentToLotSize(pct)} />
                         {/* Live Risk %, Lot Size & Potential Dollar Outcome Indicator right in Screenshot Card */}
                         <div className="p-3 rounded-xl bg-slate-900/95 border border-cyan-500/40 space-y-2.5">
                           <div className="flex flex-wrap items-center justify-between gap-2">

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { AccountGuide } from '../AccountGuide';
 import {
   Shield,
   Compass,
@@ -595,6 +596,7 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
       {/* ===================================================================== */}
       {currentStep === 1 && selectedKind === 'DEMO' && (
         <div className="p-5 sm:p-8 space-y-6">
+          <AccountGuide accountType="Demo Account" />
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
               <h3 className="text-base font-bold text-white">Configure Demo Account</h3>
@@ -686,6 +688,7 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
       {/* ===================================================================== */}
       {currentStep === 1 && selectedKind === 'PERSONAL' && (
         <div className="p-5 sm:p-8 space-y-6">
+          <AccountGuide accountType="Personal Account" />
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
               <h3 className="text-base font-bold text-white">Configure Personal Account</h3>
@@ -841,6 +844,7 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
       {/* ===================================================================== */}
       {currentStep === 1 && selectedKind === 'FUNDED' && (
         <div className="p-5 sm:p-8 space-y-6">
+          <AccountGuide accountType="Funded Account" />
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
               <h3 className="text-base font-bold text-white">Screen A: Account &amp; Provider Details</h3>
