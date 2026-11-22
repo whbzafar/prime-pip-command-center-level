@@ -55,7 +55,7 @@ export const ScenarioLab: React.FC = () => {
 
   return (
     <div className="space-y-4" data-testid="scenario-lab">
-      <div className="aurora-tilt relative rounded-3xl border border-fuchsia-400/30 bg-gradient-to-br from-fuchsia-500/10 via-slate-950 to-slate-950 p-5">
+      <div className="rounded-3xl border border-fuchsia-400/30 bg-gradient-to-br from-fuchsia-500/10 via-slate-950 to-slate-950 p-5">
         <div className="flex items-center gap-3"><span className="grid place-items-center w-11 h-11 rounded-2xl bg-fuchsia-500 text-slate-950"><FlaskConical className="w-5 h-5" /></span>
           <div><div className="font-military font-bold text-lg text-white tracking-wide">Scenario Lab</div><div className="text-[12px] text-slate-400">Pick a “what if” and see which markets would flip — using today’s real data.</div></div></div>
         <div className="mt-3 flex items-start gap-2 text-[11.5px] text-slate-300 rounded-xl border border-slate-800 bg-slate-900/50 p-2.5"><Info className="w-3.5 h-3.5 mt-0.5 text-fuchsia-300 shrink-0" /><span>This is not a forecast and has no made-up probabilities. It takes the live fundamental scores, applies the shock <b>you</b> choose (the size is an assumption), and re-scores everything with the same engine and weights.</span></div>

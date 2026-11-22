@@ -60,26 +60,6 @@ export const INTERFACE_TEMPLATES: InterfaceTemplate[] = [
     glassStyle: 'NEON_DARK',
     glowColor: 'rgba(0, 240, 255, 0.4)',
   },
-  // ── FLAGSHIP DEFAULT: AURORA OBSIDIAN ───────────────────────────────
-  {
-    id: 'aurora',
-    label: 'Aurora Obsidian',
-    category: 'GLASS',
-    badge: 'NEW • 3D AURORA',
-    description: 'Calm, premium obsidian interface: graphite glass panels with a lit edge, a single cyan–indigo–violet aurora accent, and a slow 3D perspective scene behind the app.',
-    accent: '#22d3ee',
-    accentSecondary: '#a78bfa',
-    bg: '#05070d',
-    surface: 'rgba(15, 20, 34, 0.74)',
-    elevated: 'rgba(22, 29, 48, 0.82)',
-    border: 'rgba(148, 163, 255, 0.20)',
-    ink: '#eef2ff',
-    inkMuted: '#94a3c4',
-    isGlass: true,
-    isBright: false,
-    glassStyle: 'NEON_DARK',
-    glowColor: 'rgba(99, 102, 241, 0.40)',
-  },
   // ── FLAGSHIP: LIQUID GLASS UI KIT PRO (REF: USER IMAGE 2) ───────────
   {
     id: 'liquid-glass-ui-kit',
