@@ -9,9 +9,9 @@ describe('early-bird lifetime offer', () => {
     expect(currentPlanPrice(false, before)).toBe(50);
     expect(currentPlanPrice(true, before)).toBe(50);
     expect(isLifetimeOfferActive(after)).toBe(false);
-    expect(currentPlanPrice(false, after)).toBe(200);
-    expect(currentPlanPrice(true, after)).toBe(100);
-    expect(planPriceShort(after)).toContain('$200');
+    expect(currentPlanPrice(false, after)).toBe(100);
+    expect(currentPlanPrice(true, after)).toBe(50);
+    expect(planPriceShort(after)).toContain("$100");
   });
   it('splits a duration into countdown parts', () => {
     expect(msToParts(LIFETIME_OFFER_ENDS_AT - Date.parse('2026-11-29T21:58:55+05:00'))).toEqual({ d: 1, h: 2, m: 1, s: 5 });

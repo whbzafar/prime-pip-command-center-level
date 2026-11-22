@@ -1,6 +1,6 @@
 /** The ONE way into the application: a subscription. There is no free tier. */
-export const PRICE_STANDARD = 200;
-export const PRICE_WITH_CODE = 100;
+export const PRICE_STANDARD = 100;
+export const PRICE_WITH_CODE = 50;
 export const DISCOUNT_PERCENT = 50;
 export const SBT_INDICATOR_PRICE = 500;
 export const OWNER_WHATSAPP = '923406671495';
