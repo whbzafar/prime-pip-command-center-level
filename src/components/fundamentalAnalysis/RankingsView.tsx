@@ -108,8 +108,6 @@ export const RankingsView: React.FC<{ pairs: PairResult[]; onPair: (symbol: stri
       {!data && !error && <div className="rounded-2xl border border-slate-800 p-8 text-center text-sm text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-cyan-400" />Ranking every pair…</div>}
       {error && !data && <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-[12px] text-amber-200">{error} — retrying automatically.</div>}
 
-      <LevelAlertsPanel onOpen={openChart} />
-
       {set && (
         <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-2 gap-4">
           {([['bullish', `${horizon === 'longTerm' ? 'Long-term' : 'Current'} bullish`, 'text-emerald-300'], ['bearish', `${horizon === 'longTerm' ? 'Long-term' : 'Current'} bearish`, 'text-rose-300']] as const).map(([k, title, cls]) => (
@@ -121,6 +119,8 @@ export const RankingsView: React.FC<{ pairs: PairResult[]; onPair: (symbol: stri
           ))}
         </div>
       )}
+      <LevelAlertsPanel onOpen={openChart} />
+
       {data && <p className="text-[10.5px] text-slate-500 leading-relaxed flex gap-1.5"><Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />{data.method} Pairs need ≥ 25% data confidence to be ranked.</p>}
 
       <CurrencyMatrix pairs={pairs} onPair={onPair} />
