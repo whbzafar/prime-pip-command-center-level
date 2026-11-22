@@ -41,12 +41,24 @@ async function cached<T>(key: string, ttl: number, fn: () => Promise<T>): Promis
 }
 const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 
+/** Reads only the start of a channel page (the id is in the first few KB), then stops — big channel pages are slow to download whole. */
 async function channelId(handle: string): Promise<string | null> {
   return cached(`ch:${handle}`, 30 * 86400_000, async () => {
-    const html = await get(`https://www.youtube.com/@${handle}`);
-    const m = /"channelId":"(UC[\w-]{20,24})"/.exec(html) || /channel_id=(UC[\w-]{20,24})/.exec(html) || /"externalId":"(UC[\w-]{20,24})"/.exec(html);
-    if (!m) throw new Error('no id');
-    return m[1];
+    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 14000);
+    try {
+      const r = await fetch(`https://www.youtube.com/@${handle}`, { headers: UA, signal: ctl.signal });
+      if (!r.ok || !r.body) throw new Error(`HTTP ${r.status}`);
+      const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '';
+      for (let n = 0; n < 60; n++) {
+        const { done, value } = await reader.read(); if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const m = /(?:channel_id=|\/channel\/|"channelId":"|"externalId":")(UC[\w-]{20,24})/.exec(buf);
+        if (m) { void reader.cancel().catch(() => undefined); return m[1]; }
+        if (buf.length > 900_000) break;
+      }
+      void reader.cancel().catch(() => undefined);
+      throw new Error('no id');
+    } finally { clearTimeout(timer); }
   }).catch((e) => { diag[handle] = `id: ${e?.message}`; return null; });
 }
 async function feed(handle: string): Promise<MVideo[]> {
@@ -66,7 +78,7 @@ async function feed(handle: string): Promise<MVideo[]> {
   }).catch((e) => { diag[handle] = `feed: ${e?.message}`; return [] as MVideo[]; });
 }
 const feedPool = (): Promise<MVideo[]> => cached('pool', 20 * 60_000, async () => {
-  const lists = await Promise.all(CHANNELS.map((h) => hard(feed(h), 9000).catch(() => [] as MVideo[])));
+  const lists = await Promise.all(CHANNELS.map((h) => hard(feed(h), 12000).catch(() => [] as MVideo[])));
   const ids = new Set<string>(); const out: MVideo[] = [];
   const rows = lists.map((l) => [...l].sort((a, b) => String(b.published).localeCompare(String(a.published))));
   for (let i = 0; i < 15; i++) for (const r of rows) { const v = r[i]; if (v && !ids.has(v.id)) { ids.add(v.id); out.push(v); } } // round-robin: newest first, no channel dominates
