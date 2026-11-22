@@ -9,6 +9,12 @@ import { trackState, type AnalyticsState } from './services/analyticsClient';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Header } from './components/Header';
+import { AuroraScene } from './components/AuroraScene';
+import { AppPerimeterGlow } from './components/AppPerimeterGlow';
+import { MarketAura } from './components/MarketAura';
+import { QuantumFx } from './components/QuantumFx';
+import { AmbientThemeRibbon } from './components/AmbientThemeRibbon';
+import { CommandCenterAtmosphere } from './components/CommandCenterAtmosphere';
 import { MainDashboard } from './components/MainDashboard';
 import { TradeJournal } from './components/TradeJournal';
 import { RiskCenter, TradeLimitAlertSystem } from './components/RiskCenter';
@@ -1360,6 +1366,11 @@ export default function App() {
       <div className="fixed inset-0 pointer-events-none z-0 opacity-15" style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
 
       {/* Navigation HUD Header */}
+      {!isLightweight && typeof document !== 'undefined' && document.documentElement.classList.contains('ppfx-fx') && <AppPerimeterGlow />}
+      {!isLightweight && <AmbientThemeRibbon />}
+      {!isLightweight && <MarketAura />}
+      {!isLightweight && <QuantumFx />}
+      <AuroraScene />
       {newEraOpen && currentUser && <NewEraWelcome name={currentUser.name || currentUser.username} onEnter={() => { markNewEraSeen(currentUser.id); setNewEraOpen(false); }} />}
       <SecurityWarningModal userId={currentUser && !isUserAdmin(currentUser) ? currentUser.id : undefined} />
       <Header
@@ -1468,6 +1479,8 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {!isLightweight && <CommandCenterAtmosphere account={activeAccount} metrics={metrics} currentUser={currentUser} activeTab={activeTab} />}
 
       {/* Cinematic pro-level command atmosphere inspired by the supplied interface references */}
 
