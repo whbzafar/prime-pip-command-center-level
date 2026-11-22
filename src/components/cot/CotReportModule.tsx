@@ -9,7 +9,7 @@ import { CotMarketSummary, CotReleaseStatus } from '../../types/cotTypes';
 import { fetchCotMarketSummaries, checkCotReleaseStatus, peekCotSummaries } from '../../services/cotService';
 import { CheckCircle2, X, Scale, BarChart3 } from 'lucide-react';
 
-export const CotReportModule: React.FC = () => {
+export const CotReportModule: React.FC<{ onOpenAnalysis?: () => void }> = ({ onOpenAnalysis }) => {
   const [viewMode, setViewMode] = useState<'PAIRS' | 'MARKETS'>('PAIRS');
   const [selectedCategory, setSelectedCategory] = useState<MarketCategory>('Currencies');
   const [selectedMarket, setSelectedMarket] = useState<CotMarketSummary | null>(null);
@@ -104,6 +104,11 @@ export const CotReportModule: React.FC = () => {
   return (
     <CotErrorBoundary>
       <div className="space-y-5">
+        {/* Disclaimer: this section is COT-only */}
+        <div role="note" data-testid="cot-disclaimer" className="rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-xs sm:text-[13px] leading-relaxed text-amber-100">
+          <b className="text-amber-300">Disclaimer — COT data only.</b> Everything in this section (including the Cross-Asset view) is based <b>exclusively on the CFTC Commitments of Traders (COT) report</b>, which shows only how large traders are positioned. Please do not rely on it alone — use it together with the broader <b>Fundamental</b> category, which covers a comprehensive range of data.
+          {onOpenAnalysis && <button type="button" onClick={onOpenAnalysis} className="ml-2 font-bold text-cyan-300 underline underline-offset-4 hover:text-white">Open full Fundamental analysis →</button>}
+        </div>
         {/* Release Toast Notification */}
         {toastMessage && (
           <div className="p-3.5 bg-emerald-500/20 border border-emerald-500/50 rounded-xl flex items-center justify-between text-xs font-mono-code text-emerald-200 shadow-xl animate-bounce">

@@ -13,7 +13,7 @@ export const FI_TAB_KEY = 'ppfx:fi-tab';
 
 const SECTIONS: Array<{ id: FiTab; title: string; caption: string; icon: React.ComponentType<{ className?: string }>; activeBox: string; activeIcon: string; bar: string }> = [
   { id: 'ANALYSIS', title: 'Fundamentals', caption: 'Bullish / bearish scores for every market', icon: Gauge, activeBox: 'bg-gradient-to-br from-emerald-500/15 to-transparent border-emerald-400/60 shadow-emerald-500/10', activeIcon: 'bg-emerald-500 text-slate-950', bar: 'bg-emerald-400' },
-  { id: 'SEVERITY_REPORT', title: 'CFTC COT Report', caption: 'What big institutions are holding', icon: ShieldAlert, activeBox: 'bg-gradient-to-br from-cyan-500/15 to-transparent border-cyan-400/60 shadow-cyan-500/10', activeIcon: 'bg-cyan-500 text-slate-950', bar: 'bg-cyan-400' },
+  { id: 'SEVERITY_REPORT', title: 'CFTC COT Report', caption: 'COT positioning only — not the full picture', icon: ShieldAlert, activeBox: 'bg-gradient-to-br from-cyan-500/15 to-transparent border-cyan-400/60 shadow-cyan-500/10', activeIcon: 'bg-cyan-500 text-slate-950', bar: 'bg-cyan-400' },
   { id: 'SENTIMENT', title: 'Sentiment', caption: 'Where the retail crowd is positioned', icon: Activity, activeBox: 'bg-gradient-to-br from-blue-500/15 to-transparent border-blue-400/60 shadow-blue-500/10', activeIcon: 'bg-blue-500 text-slate-950', bar: 'bg-blue-400' },
   { id: 'UNIVERSE', title: 'Financial Universe', caption: 'Every asset on one live map', icon: Orbit, activeBox: 'bg-gradient-to-br from-amber-400/15 to-transparent border-amber-300/60 shadow-amber-400/10', activeIcon: 'bg-amber-400 text-slate-950', bar: 'bg-amber-300' },
   { id: 'SCENARIO', title: 'Scenario Lab', caption: 'What if the Fed cuts? See what flips', icon: FlaskConical, activeBox: 'bg-gradient-to-br from-fuchsia-500/15 to-transparent border-fuchsia-400/60 shadow-fuchsia-500/10', activeIcon: 'bg-fuchsia-500 text-slate-950', bar: 'bg-fuchsia-400' },
@@ -113,7 +113,7 @@ export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = () =>
 
         {activeTab === 'SEVERITY_REPORT' && (
           <div className="animate-in fade-in duration-200">
-            <CotReportModule />
+            <CotReportModule onOpenAnalysis={() => setActiveTab('ANALYSIS')} />
           </div>
         )}
 
