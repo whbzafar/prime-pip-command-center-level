@@ -37,3 +37,16 @@ describe('premium gates', () => {
   });
   it('intense rejects gang/crime glorification', () => { expect(passes(mv('p6', 'Gangster revenge edit', { duration: '2:00', views: 900000 }), 'intense', false)).toBe(false); });
 });
+
+import { hostAllowed, rankSrcs, guessVibe } from '../pinResolve';
+describe('pin resolver', () => {
+  it('only fetches Pinterest hosts (no SSRF)', () => {
+    for (const u of ['https://pin.it/abc', 'https://www.pinterest.com/pin/1/', 'https://in.pinterest.com/pin/2/']) expect(hostAllowed(u)).toBe(true);
+    for (const u of ['http://pin.it/abc', 'https://evil.com/?pinterest.com', 'https://pinterest.com.evil.com/', 'https://localhost/pin/1', 'file:///etc/passwd', 'https://169.254.169.254/']) expect(hostAllowed(u)).toBe(false);
+  });
+  it('ranks H.264 before AV1 before HEVC and drops non-video hosts', () => {
+    const r = rankSrcs(['https://v1.pinimg.com/videos/iht/hevcMp4V3/a_720w.mp4', 'https://v1.pinimg.com/videos/iht/av1Mp4-enabled-v4-t/a_720w.mp4', 'https://v1.pinimg.com/videos/iht/expMp4/a_720w.mp4', 'https://evil.com/x.mp4']);
+    expect(r[0]).toContain('expMp4'); expect(r[1]).toContain('av1'); expect(r[2]).toContain('hevc'); expect(r.length).toBe(3);
+  });
+  it('guesses a sensible category', () => { expect(guessVibe('Thomas Shelby')).toBe('intense'); expect(guessVibe('Luxury villa')).toBe('dreamy'); expect(guessVibe('Rain forest')).toBe('nature'); expect(guessVibe('Soft clouds')).toBe('serene'); });
+});

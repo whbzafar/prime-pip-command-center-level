@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bookmark, BookmarkCheck, Play } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Play, Volume2, VolumeX } from 'lucide-react';
 import { V, ago, fmtViews, secs } from './shared';
 
 const canHover = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
@@ -7,28 +7,32 @@ let activePreview: (() => void) | null = null; // only one preview plays at a ti
 
 const BADGE: Record<string, string> = { intense: 'bg-red-600/85', sigma: 'bg-indigo-500/80', nature: 'bg-emerald-500/80', serene: 'bg-sky-500/80', dreamy: 'bg-amber-500/85', stories: 'bg-cyan-600/80' };
 
-export const VideoCard: React.FC<{ v: V; saved: boolean; onOpen: () => void; onSave: () => void; compact?: boolean }> = ({ v, saved, onOpen, onSave, compact }) => {
+export const VideoCard: React.FC<{ v: V; saved: boolean; onOpen: () => void; onSave: () => void; compact?: boolean; delay?: number }> = ({ v, saved, onOpen, onSave, compact, delay }) => {
   const [preview, setPreview] = useState(false);
+  const [sound, setSound] = useState(false);
+  const frame = useRef<HTMLIFrameElement>(null);
+  const toggleSound = () => { const n = !sound; setSound(n); const post = (f: string) => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: f, args: [] }), '*'); post(n ? 'unMute' : 'mute'); if (n) post('setVolume'); };
   const timer = useRef<number>();
-  const stop = () => { window.clearTimeout(timer.current); setPreview(false); if (activePreview === stopRef.current) activePreview = null; };
+  const stop = () => { window.clearTimeout(timer.current); setPreview(false); setSound(false); if (activePreview === stopRef.current) activePreview = null; };
   const stopRef = useRef(stop); stopRef.current = stop;
   useEffect(() => () => { window.clearTimeout(timer.current); if (activePreview === stopRef.current) activePreview = null; }, []);
   const enter = () => {
     if (!canHover()) return;
-    timer.current = window.setTimeout(() => { activePreview?.(); activePreview = stopRef.current; setPreview(true); }, 450);
+    timer.current = window.setTimeout(() => { activePreview?.(); activePreview = stopRef.current; setPreview(true); }, 380);
   };
   const start = secs(v.duration) > 90 ? 12 : 0;
   return (
-    <article className={`group overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/40 hover:shadow-[0_10px_40px_-10px_rgba(34,211,238,.35)] ${compact ? 'w-64 shrink-0 snap-start' : ''}`}>
+    <article style={{ animationDelay: `${(delay || 0)}ms` }} className={`mh-rise group overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 shadow-lg backdrop-blur transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/40 hover:shadow-[0_10px_40px_-10px_rgba(34,211,238,.35)] ${compact ? 'w-64 shrink-0 snap-start' : ''}`}>
       <div className="relative aspect-video w-full overflow-hidden bg-black" onMouseEnter={enter} onMouseLeave={stop}>
         <button onClick={onOpen} className="absolute inset-0 h-full w-full" aria-label={`Watch ${v.title}`}>
           <img src={v.thumb} alt="" loading="lazy" className={`h-full w-full object-cover transition duration-700 ${preview ? 'opacity-0' : 'group-hover:scale-105'}`} onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.15'; }} />
           <span className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           {!preview && <span className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white opacity-0 backdrop-blur-md transition group-hover:opacity-100"><Play className="ml-0.5 h-5 w-5 fill-current" /></span>}
         </button>
-        {preview && <iframe className="pointer-events-none absolute inset-0 h-full w-full" title="preview" tabIndex={-1} allow="autoplay; encrypted-media" src={`https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1&mute=1&controls=0&disablekb=1&modestbranding=1&playsinline=1&rel=0&start=${start}&loop=1&playlist=${v.id}`} />}
+        {preview && <iframe ref={frame} className="pointer-events-none absolute inset-0 h-full w-full animate-[mhfade_.4s_ease]" title="preview" tabIndex={-1} allow="autoplay; encrypted-media" src={`https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1&mute=1&controls=0&disablekb=1&modestbranding=1&playsinline=1&rel=0&start=${start}&loop=1&playlist=${v.id}&enablejsapi=1`} />}
+        {preview && <button onClick={(e) => { e.stopPropagation(); toggleSound(); }} aria-label={sound ? 'Mute preview' : 'Turn sound on'} className="absolute bottom-2 right-2 z-20 rounded-full bg-black/65 p-2.5 text-white backdrop-blur transition hover:scale-110 hover:bg-black/85">{sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}</button>}
         {preview && <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white">Preview · click to watch</span>}
-        {v.duration && <span className="pointer-events-none absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-bold text-white">{v.duration}</span>}
+        {v.duration && !preview && <span className="pointer-events-none absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-bold text-white">{v.duration}</span>}
         {v.vibe && <span className={`pointer-events-none absolute left-2 bottom-2 rounded-full px-2 py-0.5 text-[10px] font-bold capitalize text-white ${BADGE[v.vibe] || 'bg-slate-600'}`}>{v.vibe}</span>}
       </div>
       <div className="flex items-start gap-2 p-3">

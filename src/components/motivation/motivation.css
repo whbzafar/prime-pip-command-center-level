@@ -1,0 +1,14 @@
+@keyframes mhrise { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes mhfade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mhpop { from { opacity: 0; transform: scale(.94) translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes mhheart { 0% { transform: scale(0); opacity: 0; } 30% { transform: scale(1.25); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+@keyframes mhshimmer { to { background-position: -200% 0; } }
+@keyframes mhslide { from { opacity: 0; transform: translateY(40px) scale(.97); } to { opacity: 1; transform: none; } }
+.mh-rise { animation: mhrise .55s cubic-bezier(.2,.8,.2,1) both; }
+.mh-pop { animation: mhpop .35s cubic-bezier(.2,.8,.2,1) both; }
+.mh-slide { animation: mhslide .45s cubic-bezier(.2,.8,.2,1) both; }
+.mh-heart { animation: mhheart .8s ease-out both; }
+.mh-skel { background: linear-gradient(100deg, rgba(255,255,255,.04) 30%, rgba(255,255,255,.12) 50%, rgba(255,255,255,.04) 70%); background-size: 200% 100%; animation: mhshimmer 1.4s linear infinite; }
+.mh-tab { transition: transform .25s ease, background-color .25s ease, color .25s ease, box-shadow .25s ease; }
+.mh-tab:active { transform: scale(.94); }
+@media (prefers-reduced-motion: reduce) { .mh-rise, .mh-pop, .mh-slide, .mh-heart, .mh-skel { animation: none !important; } }

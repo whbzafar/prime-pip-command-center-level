@@ -245,6 +245,7 @@ const currentAppDir = process.cwd();
 
 import { trackLogin, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
 import { clientIp } from './server/geoip.js';
+import { resolvePin } from './server/pinResolve.js';
 import { stream as motivationStream, similar as motivationSimilar, trending as motivationTrending, prewarm as motivationPrewarm, classifyQuery, SUPPORT as MOTIVATION_SUPPORT } from './server/motivation.js';
 import { privateListUpdate as secListUpdate } from './server/durableStore.js';
 
@@ -3909,6 +3910,13 @@ app.get('/api/motivation/feed', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     res.json({ ok: true, ...(await motivationStream({ q, vibe: String(req.query.vibe || ''), reel, seed: Number(req.query.seed) || 1, weights, offset, limit: reel ? 8 : 12 })) });
   } catch { res.json({ ok: true, items: [], next: 0, hasMore: false }); }
+});
+const pinCache = new Map<string, { at: number; v: any }>();
+app.get('/api/motivation/pin', async (req, res) => {
+  const url = String(req.query.url || '').trim().slice(0, 300);
+  const hit = pinCache.get(url); if (hit && Date.now() - hit.at < 6 * 3600_000) return res.json({ ok: true, pin: hit.v });
+  try { const pin = await resolvePin(url); pinCache.set(url, { at: Date.now(), v: pin }); if (pinCache.size > 300) pinCache.delete(pinCache.keys().next().value as string); res.json({ ok: true, pin }); }
+  catch (e: any) { res.status(422).json({ ok: false, error: String(e?.message || 'Could not read that pin').slice(0, 140) }); }
 });
 app.get('/api/motivation/similar', async (req, res) => {
   const title = String(req.query.title || '').slice(0, 160);

@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bookmark, Clapperboard, Flame, HeartHandshake, Loader2, RefreshCw, Search, Sparkles, Wand2, X } from 'lucide-react';
-import { TABS, V, useFeed } from './shared';
+import { Bookmark, Clapperboard, Flame, HeartHandshake, Link2, Loader2, Plus, RefreshCw, Search, Sparkles, Wand2, X } from 'lucide-react';
+import { TABS, V, shuffleSeeded, useCols, useFeed, useMasonry, weave } from './shared';
+import './motivation.css';
+import { PINS } from './pinsData';
+import { PinCard } from './PinCard';
 import { VideoCard } from './VideoCard';
 import { PlayerModal } from './PlayerModal';
 import { ReelsViewer } from './ReelsViewer';
@@ -31,20 +34,37 @@ export const MotivationHub: React.FC = () => {
   const [open, setOpen] = useState<V | null>(null);
   const [reels, setReels] = useState<number | null>(null);
   const [reelPicks, setReelPicks] = useState<V[]>([]);
+  const [userPins, setUserPins] = useState<V[]>(() => read<V[]>('ppfx_user_pins_v1', []));
+  const [pinUrl, setPinUrl] = useState(''); const [pinBusy, setPinBusy] = useState(false); const [pinMsg, setPinMsg] = useState('');
+  const [pinCat, setPinCat] = useState('all');
+  const cols = useCols();
+  const allPins = useMemo(() => shuffleSeeded([...userPins, ...PINS], seed), [userPins, seed]);
   const [picks, setPicks] = useState<V[]>([]);
   const [because, setBecause] = useState<{ from: string; items: V[] } | null>(null);
   const [hot, setHot] = useState<V[]>([]);
   const tasteRef = useRef(taste); tasteRef.current = taste;
   const wParam = useMemo(() => weightParam(weights(tasteRef.current)), []); // taste read once per visit; feed doesn't reshuffle while you watch
   const showSaved = tab === 'saved';
+  const pinsTab = tab === 'pins';
   const meta = TABS.find((t) => t.id === tab) || TABS[0];
-  const feed = useFeed({ vibe: showSaved ? 'foryou' : tab, q: active, reel: false, seed, weights: wParam, enabled: !showSaved });
+  const feed = useFeed({ vibe: showSaved ? 'foryou' : tab, q: active, reel: false, seed, weights: wParam, enabled: !showSaved && !pinsTab });
   const sentinel = useRef<HTMLDivElement>(null);
 
   const signal = useCallback((s: Signal, v: V) => setTaste((t) => { const n = record(t, s, v); write(TASTE_KEY, n); return n; }), []);
   const isSaved = useCallback((id: string) => saved.some((x) => x.id === id), [saved]);
   const toggleSave = useCallback((v: V) => setSaved((s) => { const had = s.some((x) => x.id === v.id); const n = had ? s.filter((x) => x.id !== v.id) : [v, ...s].slice(0, 300); write(SAVE_KEY, n); if (!had) signal('save', v); return n; }), [signal]);
   const play = (v: V) => { signal('play', v); setOpen(v); };
+  const addPin = async () => {
+    const u = pinUrl.trim(); if (!u) return; setPinBusy(true); setPinMsg('');
+    try {
+      const j = await (await fetch(`/api/motivation/pin?url=${encodeURIComponent(u)}`)).json();
+      if (!j.ok) throw new Error(j.error || 'Could not read that pin');
+      const p = j.pin; const v: V = { id: `pin_${p.id}`, kind: 'pin', pinId: p.id, title: p.title, channel: 'Pinterest', thumb: p.poster, vibe: p.vibe, srcs: p.srcs };
+      setUserPins((l) => { const n = [v, ...l.filter((x) => x.id !== v.id)].slice(0, 100); write('ppfx_user_pins_v1', n); return n; });
+      setPinUrl(''); setPinMsg('Added to your Pins ✓');
+    } catch (e: any) { setPinMsg(e?.message || 'Could not read that pin'); }
+    setPinBusy(false); setTimeout(() => setPinMsg(''), 6000);
+  };
 
   // proactive suggestions: strongest interest, and "because you watched …"
   useEffect(() => {
@@ -57,10 +77,10 @@ export const MotivationHub: React.FC = () => {
   }, [seed, wParam]);
 
   useEffect(() => {
-    const el = sentinel.current; if (!el || showSaved) return;
+    const el = sentinel.current; if (!el || showSaved || pinsTab) return;
     const io = new IntersectionObserver((es) => { if (es[0].isIntersecting && feed.more && !feed.loading && !feed.err) feed.loadMore(); }, { rootMargin: '1000px' });
     io.observe(el); return () => io.disconnect();
-  }, [feed, showSaved]);
+  }, [feed, showSaved, pinsTab]);
 
   const go = (t: string) => { setTab(t); setActive(''); setQ(''); };
   const run = (term: string) => { const s = term.trim(); setQ(s); setActive(s); setFocus(false); if (showSaved) setTab('foryou'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
@@ -68,12 +88,16 @@ export const MotivationHub: React.FC = () => {
   const shelfIds = useMemo(() => new Set([...picks, ...(because?.items || [])].map((x) => x.id)), [picks, because]);
   const firstId = feed.items[0]?.id;
   const spot = useMemo(() => { const pool = (showSaved ? [] : feed.items).slice(0, 10).filter((v) => v.views); return [...pool].sort((a, b) => (b.views || 0) - (a.views || 0))[0] || feed.items[0] || null; }, [showSaved, firstId]); // eslint-disable-line react-hooks/exhaustive-deps — pick once per feed, don't swap while scrolling
+  const pinsForTab = useMemo(() => (tab === 'foryou' ? allPins : allPins.filter((p) => p.vibe === tab)), [allPins, tab]);
   const mainItems = useMemo(() => {
     if (showSaved) return saved;
-    if (tab !== 'foryou' || active) return feed.items.filter((v) => v.id !== spot?.id);
-    const fresh = feed.items.filter((v) => !seen.has(v.id) && !shelfIds.has(v.id) && v.id !== spot?.id); // fresh content first, nothing you've already watched
-    return fresh.length >= 6 || feed.more ? fresh : feed.items;
-  }, [showSaved, saved, tab, active, feed.items, feed.more, seen, shelfIds, spot]);
+    if (pinsTab) return pinCat === 'all' ? allPins : allPins.filter((p) => p.vibe === pinCat);
+    if (active) return feed.items.filter((v) => v.id !== spot?.id);
+    let base = feed.items.filter((v) => v.id !== spot?.id);
+    if (tab === 'foryou') { const fresh = base.filter((v) => !seen.has(v.id) && !shelfIds.has(v.id)); base = fresh.length >= 6 || feed.more ? fresh : base; }
+    return weave(base, pinsForTab, 4);
+  }, [showSaved, saved, pinsTab, pinCat, allPins, active, feed.items, feed.more, tab, seen, shelfIds, spot, pinsForTab]);
+  const columns = useMasonry(mainItems, pinsTab ? Math.max(2, cols) : cols);
   const sugg = q.trim() ? SUGGEST.filter((t) => t.includes(q.toLowerCase())).slice(0, 5) : SUGGEST.slice(0, 6);
 
   return (
@@ -105,7 +129,7 @@ export const MotivationHub: React.FC = () => {
       </header>
 
       <nav className="sticky top-0 z-20 -mx-3 flex gap-2 overflow-x-auto bg-slate-950/70 px-3 py-2 backdrop-blur-xl [scrollbar-width:none] sm:mx-0 sm:rounded-2xl sm:px-3" aria-label="Categories">
-        {TABS.map((t) => <button key={t.id} onClick={() => go(t.id)} className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${tab === t.id ? 'bg-white text-slate-950 shadow-lg' : 'bg-white/5 text-slate-300 hover:bg-white/10'}`}>{t.id === 'foryou' && <Wand2 className="-mt-0.5 mr-1 inline h-3.5 w-3.5" />}{t.label}</button>)}
+        {TABS.map((t) => <button key={t.id} onClick={() => go(t.id)} className={`mh-tab shrink-0 rounded-full px-4 py-2 text-xs font-bold ${tab === t.id ? 'bg-white text-slate-950 shadow-lg' : 'bg-white/5 text-slate-300 hover:bg-white/10'}`}>{t.id === 'foryou' && <Wand2 className="-mt-0.5 mr-1 inline h-3.5 w-3.5" />}{t.label}</button>)}
         <button onClick={() => setReels(0)} className="shrink-0 rounded-full bg-gradient-to-r from-fuchsia-500 to-amber-400 px-4 py-2 text-xs font-bold text-slate-950"><Clapperboard className="-mt-0.5 mr-1 inline h-3.5 w-3.5" />Reels</button>
       </nav>
 
@@ -130,19 +154,36 @@ export const MotivationHub: React.FC = () => {
 
         {feed.note && !showSaved && <div className={`flex gap-3 rounded-2xl border p-4 text-sm ${feed.note.kind === 'support' ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100' : 'border-amber-400/30 bg-amber-500/10 text-amber-100'}`}><HeartHandshake className="mt-0.5 h-5 w-5 shrink-0" /><p>{feed.note.text}</p></div>}
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {mainItems.map((v) => <VideoCard key={v.id} v={v} saved={isSaved(v.id)} onOpen={() => play(v)} onSave={() => toggleSave(v)} />)}
-          {feed.loading && mainItems.length === 0 && !showSaved && Array.from({ length: 6 }).map((_, i) => <div key={i} className="aspect-video animate-pulse rounded-2xl bg-white/5" />)}
+        {pinsTab && (
+          <div className="space-y-3">
+            <form onSubmit={(e) => { e.preventDefault(); void addPin(); }} className="mh-rise flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/60 p-3 backdrop-blur">
+              <Link2 className="h-4 w-4 shrink-0 text-rose-300" />
+              <input value={pinUrl} onChange={(e) => setPinUrl(e.target.value)} placeholder="Paste a Pinterest video link (pin.it/… or pinterest.com/pin/…)" className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500" />
+              <button disabled={pinBusy || !pinUrl.trim()} className="flex items-center gap-1.5 rounded-xl bg-rose-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-400 disabled:opacity-40">{pinBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}Add pin</button>
+              {pinMsg && <p className="w-full text-xs text-rose-200">{pinMsg}</p>}
+            </form>
+            <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">{['all', 'nature', 'serene', 'dreamy', 'intense', 'sigma', 'stories'].map((c) => <button key={c} onClick={() => setPinCat(c)} className={`mh-tab shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold capitalize ${pinCat === c ? 'bg-rose-400 text-slate-950' : 'bg-white/5 text-slate-300 hover:bg-white/10'}`}>{c === 'dreamy' ? 'dreams' : c}</button>)}</div>
+          </div>
+        )}
+        <div className="flex items-start gap-4">
+          {columns.map((col, ci) => (
+            <div key={ci} className="flex min-w-0 flex-1 flex-col gap-4">
+              {col.map((v, k) => (v.kind === 'pin'
+                ? <PinCard key={v.id} v={v} ratio={cols === 1 && !pinsTab ? '4/5' : '9/16'} delay={Math.min(k, 6) * 70} saved={isSaved(v.id)} onOpen={() => play(v)} onSave={() => toggleSave(v)} />
+                : <VideoCard key={v.id} v={v} delay={Math.min(k, 6) * 70} saved={isSaved(v.id)} onOpen={() => play(v)} onSave={() => toggleSave(v)} />))}
+            </div>
+          ))}
         </div>
+        {feed.loading && mainItems.length === 0 && !showSaved && !pinsTab && <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="mh-skel aspect-video rounded-2xl" />)}</div>}
         {showSaved && saved.length === 0 && <p className="py-12 text-center text-sm text-slate-500">Tap the bookmark on any video to keep it here for the heavy days.</p>}
-        {!showSaved && !feed.loading && !feed.err && !feed.note && mainItems.length === 0 && <p className="py-12 text-center text-sm text-slate-400">Nothing found for that. Try “forest rain” or “never give up”.</p>}
-        {feed.err && !showSaved && <div className="flex flex-col items-center gap-2 py-6 text-sm text-slate-300"><p>Couldn’t load videos right now.</p><button onClick={feed.retry} className="flex items-center gap-1.5 rounded-lg bg-cyan-300 px-4 py-2 text-xs font-bold text-slate-950"><RefreshCw className="h-3.5 w-3.5" />Try again</button></div>}
-        {!showSaved && <div ref={sentinel} className="flex h-16 items-center justify-center">{feed.loading && mainItems.length > 0 && <Loader2 className="h-5 w-5 animate-spin text-cyan-300" />}{!feed.more && mainItems.length > 0 && !feed.loading && <span className="text-xs text-slate-500">You’ve reached the end — come back later for fresh videos.</span>}</div>}
+        {!showSaved && !pinsTab && !feed.loading && !feed.err && !feed.note && mainItems.length === 0 && <p className="py-12 text-center text-sm text-slate-400">Nothing found for that. Try “forest rain” or “never give up”.</p>}
+        {feed.err && !showSaved && !pinsTab && <div className="flex flex-col items-center gap-2 py-6 text-sm text-slate-300"><p>Couldn’t load videos right now.</p><button onClick={feed.retry} className="flex items-center gap-1.5 rounded-lg bg-cyan-300 px-4 py-2 text-xs font-bold text-slate-950"><RefreshCw className="h-3.5 w-3.5" />Try again</button></div>}
+        {!showSaved && !pinsTab && <div ref={sentinel} className="flex h-16 items-center justify-center">{feed.loading && mainItems.length > 0 && <Loader2 className="h-5 w-5 animate-spin text-cyan-300" />}{!feed.more && mainItems.length > 0 && !feed.loading && <span className="text-xs text-slate-500">You’ve reached the end — come back later for fresh videos.</span>}</div>}
         <p className="text-center text-[11px] leading-relaxed text-slate-500">Videos play from YouTube and belong to their creators. If things feel too heavy, talk to someone you trust — findahelpline.com lists free support worldwide.</p>
       </div>
 
       {open && <PlayerModal v={open} saved={isSaved(open.id)} onSave={() => toggleSave(open)} onClose={() => setOpen(null)} onPick={play} />}
-      {reels !== null && <ReelsViewer startIndex={reels} initialVibe={tab === 'saved' ? 'foryou' : tab} seed={seed + 1} weights={wParam} saved={isSaved} onSave={toggleSave} onSignal={signal} onClose={() => setReels(null)} />}
+      {reels !== null && <ReelsViewer startIndex={reels} pins={allPins} initialVibe={tab === 'saved' ? 'foryou' : tab} seed={seed + 1} weights={wParam} saved={isSaved} onSave={toggleSave} onSignal={signal} onClose={() => setReels(null)} />}
     </div>
   );
 };
