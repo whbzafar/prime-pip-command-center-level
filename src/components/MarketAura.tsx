@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { fetchJsonSafe } from './fundamentalAnalysis/ui';
+import { getFx, onFx, probe, isAwake } from '../utils/perfGovernor';
 
 /**
  * MarketAura — a GPU (WebGL) domain-warped aurora that sits over the whole terminal as a soft blend layer.
@@ -30,8 +31,10 @@ void main(){
 
 export const MarketAura: React.FC = () => {
   const ref = useRef<HTMLCanvasElement>(null);
+  const [on, setOn] = useState(() => getFx() === 'full');
+  useEffect(() => onFx(() => setOn(getFx() === 'full')), []);
   useEffect(() => {
-    const cv = ref.current; if (!cv) return;
+    const cv = ref.current; if (!cv || !on) return;
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     const gl = (cv.getContext('webgl', { alpha: false, antialias: false, powerPreference: 'low-power' }) as WebGLRenderingContext | null);
     if (!gl) return;
@@ -46,7 +49,7 @@ export const MarketAura: React.FC = () => {
     const loc = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     const U = (n: string) => gl.getUniformLocation(pr, n);
     const uR = U('r'), uT = U('t'), uM = U('m'), uMood = U('mood'), uPulse = U('pulse');
-    const size = () => { const k = 0.3; cv.width = Math.max(64, Math.round(window.innerWidth * k)); cv.height = Math.max(64, Math.round(window.innerHeight * k)); gl.viewport(0, 0, cv.width, cv.height); };
+    const size = () => { const k = 0.22; cv.width = Math.max(64, Math.round(window.innerWidth * k)); cv.height = Math.max(64, Math.round(window.innerHeight * k)); gl.viewport(0, 0, cv.width, cv.height); };
     size(); window.addEventListener('resize', size);
     const mouse = { x: 0.5, y: 0.5 }; let target = { x: 0.5, y: 0.5 }; let pulse = 0;
     const onMove = (e: PointerEvent) => { target = { x: e.clientX / window.innerWidth, y: 1 - e.clientY / window.innerHeight }; };
@@ -59,17 +62,21 @@ export const MarketAura: React.FC = () => {
       if (v.length >= 5) moodT = Math.max(-1, Math.min(1, v.reduce((a, b) => a + b, 0) / v.length / 25));
     }).catch(() => undefined);
     void pull(); const poll = window.setInterval(pull, 120_000);
-    let raf = 0, last = 0, alive = true; const t0 = performance.now();
+    let raf = 0, last = 0, alive = true, settled = false; const t0 = performance.now();
     const frame = (now: number) => {
       if (!alive) return; raf = requestAnimationFrame(frame);
-      if (document.hidden || now - last < 33) return; last = now;
+      probe(now);
+      if (document.hidden || now - last < 40) return;
+      if (!isAwake(now) && settled) return;   // idle: freeze on the last frame
+      settled = !isAwake(now); last = now;
       mouse.x += (target.x - mouse.x) * 0.08; mouse.y += (target.y - mouse.y) * 0.08; mood += (moodT - mood) * 0.02;
       gl.uniform2f(uR, cv.width, cv.height); gl.uniform1f(uT, (now - t0) / 1000); gl.uniform2f(uM, mouse.x, mouse.y); gl.uniform1f(uMood, mood); gl.uniform1f(uPulse, pulse);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     };
     raf = requestAnimationFrame(frame);
     return () => { alive = false; cancelAnimationFrame(raf); window.clearInterval(poll); window.removeEventListener('resize', size); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerdown', onDown); gl.getExtension('WEBGL_lose_context')?.loseContext(); };
-  }, []);
+  }, [on]);
+  if (!on) return null;
   return <canvas ref={ref} aria-hidden="true" data-testid="market-aura" className="fixed inset-0 h-full w-full pointer-events-none select-none" style={{ zIndex: 2, mixBlendMode: 'screen', opacity: 0.2 }} />;
 };
 export default MarketAura;

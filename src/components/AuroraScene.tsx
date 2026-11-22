@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { getFx, onFx, probe, isAwake } from '../utils/perfGovernor';
 
 /**
  * AURORA 3D SCENE — a slow perspective world behind the whole app (only while the Aurora theme is active):
@@ -6,7 +7,7 @@ import { useEffect } from 'react';
  * Cheap by design: 2D canvas, ≤ 30 fps, devicePixelRatio ≤ 1.5, paused when the tab is hidden, switched off for
  * "reduce motion". Also powers the optional card tilt (class "aurora-tilt").
  */
-const isAurora = () => document.documentElement.dataset.theme === 'aurora';
+const isAurora = () => document.documentElement.dataset.theme === 'aurora' && getFx() !== 'off';
 
 function startScene(): () => void {
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -15,16 +16,19 @@ function startScene(): () => void {
   document.body.prepend(canvas);
   const ctx = canvas.getContext('2d');
   if (!ctx) return () => canvas.remove();
-  let w = 0, h = 0, dpr = 1, raf = 0, last = 0, px = 0, py = 0, tx = 0, ty = 0;
+  let w = 0, h = 0, dpr = 1, raf = 0, last = 0, px = 0, py = 0, tx = 0, ty = 0, settled = false;
   const small = window.innerWidth < 700;
   const N = small ? 34 : 70;
   const pts = Array.from({ length: N }, () => ({ x: (Math.random() - 0.5) * 2, y: (Math.random() - 0.5) * 1.2, z: Math.random(), s: 0.4 + Math.random() * 1.1 }));
-  const resize = () => { dpr = Math.min(1.5, window.devicePixelRatio || 1); w = window.innerWidth; h = window.innerHeight; canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+  const resize = () => { dpr = 1; w = window.innerWidth; h = window.innerHeight; canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
   const onMove = (e: PointerEvent) => { tx = (e.clientX / w - 0.5) * 2; ty = (e.clientY / h - 0.5) * 2; };
 
   const frame = (t: number) => {
     raf = requestAnimationFrame(frame);
-    if (document.hidden || t - last < 33) return;
+    probe(t);
+    if (document.hidden || t - last < 40) return;
+    if (!isAwake(t) && settled) return;   // idle: keep the last frame, cost nothing
+    settled = !isAwake(t);
     const dt = Math.min(0.1, (t - last) / 1000); last = t;
     px += (tx - px) * 0.05; py += (ty - py) * 0.05;
     ctx.clearRect(0, 0, w, h);
@@ -62,7 +66,7 @@ function startScene(): () => void {
   };
   resize();
   window.addEventListener('resize', resize); window.addEventListener('pointermove', onMove, { passive: true });
-  if (reduce) { last = -1000; frame(0); cancelAnimationFrame(raf); } else raf = requestAnimationFrame(frame);
+  if (reduce || getFx() === 'lite') { last = -1000; frame(0); cancelAnimationFrame(raf); } else raf = requestAnimationFrame(frame);
   return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); window.removeEventListener('pointermove', onMove); canvas.remove(); };
 }
 
@@ -92,8 +96,9 @@ export const AuroraScene = (): null => {
       else if (!isAurora() && stopScene) { stopScene(); stopScene = null; stopTilt?.(); stopTilt = null; }
     };
     sync();
+    const offFx = onFx(() => { stopScene?.(); stopScene = null; stopTilt?.(); stopTilt = null; sync(); });
     const mo = new MutationObserver(sync); mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    return () => { mo.disconnect(); stopScene?.(); stopTilt?.(); };
+    return () => { offFx(); mo.disconnect(); stopScene?.(); stopTilt?.(); };
   }, []);
   return null;
 };

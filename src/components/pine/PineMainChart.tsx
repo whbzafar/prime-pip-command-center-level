@@ -22,7 +22,7 @@ import { VelaWorkspace } from '@luxalgo/vela/workspace';
 import { TvLeftToolbar } from './TvLeftToolbar';
 import { registerIcon, registerRendererLayer, registerWidgetAction } from '@luxalgo/vela/plugin';
 import { PineWorkerEngine } from '@luxalgo/vela-pinets';
-import { catalogFor, makeProvider, normTf, velaTf, venueSymbol } from './pineData';
+import { catalogFor, makeProvider, normTf, prewarmPopular, velaTf, venueSymbol } from './pineData';
 import { DRAFT_ID, hideIndicator, indicatorStatus, loadLibrary, pineLib, setIndicatorStatus, showIndicator, type LibraryScript } from './pineLibrary';
 import { RemotePineEngine, REMOTE_LANG, remoteRef } from './remoteEngine';
 import { markOnScreen, priceAlerts, type AlertCondition, type PriceAlert } from './priceAlerts';
@@ -353,6 +353,12 @@ export const PineMainChart: React.FC<{
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Boolean(entry), build]);
+
+  // ── speed: once the chart is up, quietly pre-load the most-used pairs for this timeframe
+  useEffect(() => {
+    if (!ready || !entry) return;
+    return prewarmPopular(entry.ticker, tf, HISTORY_BARS);
+  }, [ready, entry?.ticker, tf]);
 
   // ── follow the terminal's pair and timeframe
   useEffect(() => {

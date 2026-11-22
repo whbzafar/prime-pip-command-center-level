@@ -5,6 +5,8 @@ import './index.css';
 import './community-layout-fix.css';
 import './styles/liquid-glass-ui-kit.css';
 import './styles/aurora-theme.css';
+import { startGovernor } from './utils/perfGovernor';
+import { startNetBar } from './utils/netBar';
 import { applyInterfaceTemplate } from './data/interfaceTemplates';
 import './utils/installApp';
 
@@ -25,6 +27,9 @@ if (typeof window !== 'undefined') {
     true
   );
 }
+
+startGovernor();
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startNetBar); else startNetBar();
 
 try {
   // One-time move to the new flagship look; afterwards the visitor's own choice (Themes) always wins.

@@ -27,11 +27,28 @@ export const venueSymbol = (ticker: string) => `${sourceOf(ticker).toUpperCase()
 /** Vela data provider backed by the app's full-history feed (same data as Unlimited Charts / replay). */
 // Speed: bars just loaded for a pair/timeframe are kept for a minute, and a request already in flight is shared,
 // so flipping between pairs (or re-opening one) paints at once instead of re-downloading the history.
-const BARS_TTL = 60_000;
+const BARS_TTL = 5 * 60_000;
 const barsCache = new Map<string, { at: number; bars: OHLCV[] }>();
 const barsInflight = new Map<string, Promise<OHLCV[]>>();
 export function prewarmBars(ticker: string, timeframe: string, limit = 1500) {
   try { void makeProvider(sourceOf(ticker)).getBars(ticker, timeframe, { limit } as any); } catch { /* ignore */ }
+}
+
+/** After the chart is up, quietly pre-loads the most-used pairs (one at a time, only while idle) so switching to them is instant. */
+export function prewarmPopular(current: string, timeframe: string, limit: number, extra: string[] = []): () => void {
+  const nav: any = navigator;
+  if (nav.connection?.saveData) return () => {};
+  const want = [...extra, 'XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'BTCUSD', 'NAS100', 'US30', 'GBPJPY', 'AUDUSD', 'USDCAD']
+    .filter((t, i, a) => a.indexOf(t) === i && t !== current && CATALOG.some((e) => e.ticker === t)).slice(0, 8);
+  let stopped = false; let timer = 0;
+  const next = () => {
+    if (stopped) return;
+    const t = want.shift(); if (!t) return;
+    if (!document.hidden) prewarmBars(t, timeframe, limit);
+    timer = window.setTimeout(next, 2500);
+  };
+  timer = window.setTimeout(next, 4000);
+  return () => { stopped = true; window.clearTimeout(timer); };
 }
 
 export function makeProvider(source: 'dukascopy' | 'binance' = 'dukascopy'): DataProvider {
