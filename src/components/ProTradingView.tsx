@@ -49,6 +49,7 @@ import {
   Sparkles,
   Cpu,
   Radar,
+  GitMerge,
   Camera,
   Check,
   Copy,
@@ -124,6 +125,7 @@ import { fetchLiveGoldQuote } from '../services/liveChartDataService';
 import { PairDeepDiveModal } from './fundamental/PairDeepDiveModal';
 import { TradeCopilot } from './copilot/TradeCopilot';
 import { MarketRadar } from './copilot/MarketRadar';
+import { CorrelationGuard } from './copilot/CorrelationGuard';
 import { EventShockSimulator } from './copilot/EventShockSimulator';
 import { ExposureGuard } from './copilot/ExposureGuard';
 import { QuantEdge } from './copilot/QuantEdge';
@@ -1477,6 +1479,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
 
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [radarOpen, setRadarOpen] = useState(false);
+  const [corrOpen, setCorrOpen] = useState(false);
   const [shockOpen, setShockOpen] = useState(false);
   const [exposureOpen, setExposureOpen] = useState(false);
   const [edgeOpen, setEdgeOpen] = useState(false);
@@ -4293,6 +4296,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 items={[
                   { id: 'edge', label: 'Quant Edge signals', desc: 'Research-backed buy/sell setup with its 10-year record', Icon: Cpu, cls: 'text-cyan-300', onClick: () => setEdgeOpen(true) },
                   { id: 'copilot', label: 'Trade Copilot', desc: 'Live plan for this pair: bias, entry, stop, targets, lots', Icon: Sparkles, cls: 'text-violet-300', onClick: () => setCopilotOpen(true) },
+                  { id: 'corr', label: 'Correlation & Exposure Guard', desc: 'Which markets move together — and the hidden risk in your trades', Icon: GitMerge, cls: 'text-emerald-300', onClick: () => setCorrOpen(true) },
                   { id: 'radar', label: 'Market Regime Radar', desc: 'Every market: trending, ranging, coiling or breaking out', Icon: Radar, cls: 'text-fuchsia-300', onClick: () => setRadarOpen(true) },
                   { id: 'shock', label: 'News Shock Simulator', desc: 'How price moved after past releases of upcoming news', Icon: Zap, cls: 'text-amber-300', onClick: () => setShockOpen(true) },
                   { id: 'exposure', label: 'Exposure Guard', desc: 'Currency strength, correlations, your real exposure', Icon: Scale, cls: 'text-emerald-300', onClick: () => setExposureOpen(true) },
@@ -4302,6 +4306,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               <TradeCopilot open={copilotOpen} symbol={copilotSymbol || selectedSymbol} onClose={() => { setCopilotOpen(false); setCopilotSymbol(null); }} />
               <EventShockSimulator open={shockOpen} onClose={() => setShockOpen(false)} />
               <ExposureGuard open={exposureOpen} onClose={() => setExposureOpen(false)} trades={trades || []} />
+              <CorrelationGuard open={corrOpen} onClose={() => setCorrOpen(false)} />
               <MarketRadar open={radarOpen} onClose={() => setRadarOpen(false)} onOpenSymbol={(sym) => handleSelectSymbol(sym)} onCopilot={(sym) => { setCopilotSymbol(sym); setRadarOpen(false); setCopilotOpen(true); }} />
 
               {/* PINE EDITOR — real Pine Script v5/v6 on the Pine chart (Vela + PineTS) */}
