@@ -152,9 +152,9 @@ export const ProChartPane: React.FC<{
   }, [state.ticker, state.period]);
 
   return (
-    <div className="relative w-full h-full flex">
+    <div className="relative w-full h-full min-h-[360px]">
       <ProDrawingToolbar getChart={getInner} />
-      <div ref={hostRef} className="ppfx-pro-chart h-full min-w-0 flex-1 ml-12" />
+      <div ref={hostRef} className="ppfx-pro-chart absolute top-0 bottom-0" style={{ left: 48, top: 0, width: "calc(100% - 48px)", height: "100%", margin: 0 }} />
       <CanvasColorControl className="absolute bottom-12 right-32 z-20" />
       <div className="absolute bottom-12 right-20 z-20 flex items-center gap-1.5" data-testid="unl-zoom-controls">
         <button type="button" title="Zoom out — returns to the latest price" aria-label="Zoom out" data-testid="unl-zoom-out" onClick={() => zoomBy(0.8)} className="w-9 h-9 rounded-full bg-slate-900/90 border border-slate-600 text-slate-200 hover:text-white hover:border-cyan-400 shadow-lg flex items-center justify-center text-lg font-bold leading-none cursor-pointer">−</button>
