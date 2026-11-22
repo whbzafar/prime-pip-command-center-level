@@ -29,7 +29,7 @@ if (typeof window !== 'undefined') {
 try {
   // One-time move to the new flagship look; afterwards the visitor's own choice (Themes) always wins.
   let savedTheme = localStorage.getItem('primepipfx_theme') || 'liquid-glass-neon';
-  if (localStorage.getItem('primepipfx_theme_gen') !== 'aurora-1') { savedTheme = 'aurora'; localStorage.setItem('primepipfx_theme_gen', 'aurora-1'); }
+  if (localStorage.getItem('primepipfx_theme_gen') !== 'aurora-2') { savedTheme = 'aurora'; localStorage.setItem('primepipfx_theme_gen', 'aurora-2'); }
   const rawBrightness = localStorage.getItem('primepipfx_brightness');
   // Brightness controls intentionally support the full 60%-160% range.
   // The previous 90%-110% clamp made the +/- buttons appear to respond while
