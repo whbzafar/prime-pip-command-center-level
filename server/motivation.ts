@@ -40,7 +40,7 @@ interface Cfg { queries: string[]; min: number; max: number; strictMusic: boolea
 const CFG: Record<Vibe, Cfg> = {
   stories: { queries: TOPICS.map((t) => `${t} motivational speech`), min: 90, max: 1800, strictMusic: true },
   sigma: { queries: ['sigma mindset discipline edit', 'silent grind motivation cinematic', 'sigma edit phonk discipline', 'stoic discipline motivation', 'lone wolf mindset cinematic', 'self mastery motivation edit', 'build yourself in silence', 'gym discipline motivation edit', 'mental toughness motivation cinematic'], min: 25, max: 1200, strictMusic: true, minViews: 20000, extraBad: /(women|woman|girls?|female|simp|red ?pill|toxic|dating|pick ?up|ex[- ]girlfriend|revenge|gangster|cartel)/i },
-  intense: { queries: ['thomas shelby edit motivation', 'peaky blinders edit mindset', 'tommy shelby speech edit', 'peaky blinders attitude edit', 'shelby discipline edit phonk', 'peaky blinders cinematic motivation', 'villain arc edit motivation', 'dark mindset phonk edit discipline', 'shelby brothers edit', 'boss mindset cinematic edit'], min: 15, max: 600, strictMusic: false, minViews: 15000, must: /(shelby|peaky|\bedit\b|cinematic|villain|phonk|dark|boss)/i, prefer: /(shelby|peaky)/i, extraBad: /(women|woman|girls?|female|simp|red ?pill|toxic|dating|gangster|cartel|criminal|revenge|killer|\bgun\b)/i },
+  intense: { queries: ['thomas shelby edit motivation', 'peaky blinders edit mindset', 'tommy shelby speech edit', 'peaky blinders attitude edit', 'shelby discipline edit phonk', 'peaky blinders cinematic motivation', 'villain arc edit motivation', 'dark mindset phonk edit discipline', 'shelby brothers edit', 'boss mindset cinematic edit'], min: 15, max: 600, strictMusic: false, minViews: 15000, must: /(shelby|peaky|\bedit\b|cinematic|villain|phonk|dark|boss)/i, prefer: /(shelby|peaky)/i, extraBad: /(women|woman|girls?|female|simp|red ?pill|toxic|dating|gangster|cartel|criminal|revenge|killer|\bgun\b|trailer|sneak peek|netflix|official|episode|reaction)/i },
   nature: { queries: ['relaxing nature 4k', 'forest ambience relaxing', 'misty mountain sunrise cinematic', 'ocean waves relaxing', 'waterfall nature sounds', 'rain on leaves calming', 'peaceful lake morning', 'northern lights relaxing', 'autumn forest walk 4k', 'beautiful nature scenery drone'], min: 30, max: 10800, strictMusic: false },
   serene: { queries: ['calming aesthetic relaxing', 'cozy rain window ambience', 'zen garden peaceful', 'sunset timelapse relaxing', 'dreamy clouds sky calming', 'peaceful piano relaxing music', 'soft morning light aesthetic', 'cozy cabin fireplace ambience', 'lofi calm nature', 'tranquil meditation visuals'], min: 30, max: 10800, strictMusic: false },
   dreamy: { queries: ['luxury lifestyle cinematic edit music', 'dream cars mansions cinematic edit', 'luxury villa cinematic music aesthetic', 'billionaire lifestyle visualization music', 'luxury mansion cinematic music edit', 'supercar cinematic edit luxury music', 'rich lifestyle motivation cinematic edit', 'luxury life aesthetic edit', 'dream home luxury cinematic music', 'penthouse luxury cinematic edit', 'luxury travel cinematic edit'], min: 20, max: 900, strictMusic: false, minViews: 30000, must: /(luxury|mansion|villa|supercar|cars?|lifestyle|dream|penthouse|yacht|billionaire|rich|aesthetic|cinematic|estate)/i, prefer: /(cinematic|edit|aesthetic|music|motivation|visuali[sz]ation)/i, extraBad: /(girls?|women|woman|model|party|flex|gold ?digger|prank|roast|react|for sale|review|price|how much|vlog|unboxing|buying|tour|\$|cost|worth)/i },
@@ -125,7 +125,7 @@ async function searchPage(q: string, filter: 'v' | 's'): Promise<MVideo[]> {
     const j = JSON.parse(await get(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=25&safeSearch=strict&videoEmbeddable=true${filter === 's' ? '&videoDuration=short' : ''}&relevanceLanguage=en&q=${encodeURIComponent(q)}&key=${key}`));
     return (j.items || []).map((i: any) => ({ id: i.id.videoId, title: decode(i.snippet.title), channel: decode(i.snippet.channelTitle), thumb: thumb(i.id.videoId), published: i.snippet.publishedAt, source: 'search' as const }));
   }
-  const html = await get(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=${filter === 's' ? 'EgQQARgB' : 'EgIQAQ%253D%253D'}`, 8000);
+  const html = await get(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=${filter === 's' ? 'EgIYAQ%253D%253D' : 'EgIQAQ%253D%253D'}`, 8000);
   const m = /var ytInitialData = (\{.*?\});<\/script>/s.exec(html); if (!m) throw new Error('parse');
   const rs: any[] = [], reels: any[] = []; walk(JSON.parse(m[1]), rs, reels);
   const out: MVideo[] = rs.map((r) => {
@@ -139,7 +139,7 @@ async function searchPage(q: string, filter: 'v' | 's'): Promise<MVideo[]> {
   }
   return out;
 }
-const search = (q: string, filter: 'v' | 's' = 'v') => cached(`s:${filter}:${q.toLowerCase()}`, 40 * 60_000, () => searchPage(q, filter)).catch(() => [] as MVideo[]);
+const search = (q: string, filter: 'v' | 's' = 'v') => cached(`s:${filter}:${q.toLowerCase()}`, 40 * 60_000, () => searchPage(q, filter)).catch((e) => { diag[`search:${filter}`] = `${q} → ${e?.message}`; return [] as MVideo[]; });
 
 /** Per-vibe quality gate: safe, on-theme, right length, not a song/clip dump. */
 export function passes(v: MVideo, vibe: Vibe, reel: boolean): boolean {
@@ -166,7 +166,7 @@ async function vibeStream(vibe: Vibe, seed: number, need: number, reel: boolean,
     for (const v of variants) sources.push(() => search(reel ? `${v} shorts` : v, reel ? 's' : 'v'));
   }
   const seen = new Set<string>(); const items: MVideo[] = []; let i = 0;
-  while (items.length < need && i < sources.length && !(items.length > 0 && Date.now() > deadline)) {
+  while (items.length < need && i < sources.length && Date.now() < deadline) {
     const group = sources.slice(i, i + 3); i += group.length; // three searches at once keeps first load quick
     // time-boxed: a slow search can't hold the page hostage — it keeps running and lands in the cache for the next request
     for (const raw of await Promise.all(group.map((f) => hard(f(), Math.max(2000, deadline - Date.now())).catch(() => [] as MVideo[])))) {
@@ -201,7 +201,7 @@ export async function stream(o: StreamOpts) {
   const given = o.weights && Object.keys(o.weights).length ? o.weights : DEFAULT_W;
   const w: Record<string, number> = {}; for (const v of vibes) w[v] = 1 + Math.min(10, Math.max(0, Number(given[v]) || 0));
   const sum = vibes.reduce((a, v) => a + w[v], 0);
-  const deadline = Date.now() + 10_000;
+  const deadline = Date.now() + 8_000;
   const res = await Promise.all(vibes.map((v) => vibeStream(v, seed, Math.ceil((want * w[v]) / sum) + 3, reel, q, deadline).then((r) => [v, r] as const)));
   const lists: Partial<Record<Vibe, MVideo[]>> = {}; let anyMore = false;
   for (const [v, r] of res) { lists[v] = r.items; if (!r.done) anyMore = true; }
