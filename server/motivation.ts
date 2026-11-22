@@ -156,7 +156,7 @@ export function passes(v: MVideo, vibe: Vibe, reel: boolean): boolean {
 }
 
 /** Pull one vibe's videos (de-duplicated, seeded order so every visit feels fresh) until `need` are ready. */
-async function vibeStream(vibe: Vibe, seed: number, need: number, reel: boolean, q = ''): Promise<{ items: MVideo[]; done: boolean }> {
+async function vibeStream(vibe: Vibe, seed: number, need: number, reel: boolean, q = '', deadline = Date.now() + 10_000): Promise<{ items: MVideo[]; done: boolean }> {
   const cfg = CFG[vibe];
   const variants = shuffled(cfg.queries, seed + VIBES.indexOf(vibe) * 97);
   const sources: Array<() => Promise<MVideo[]>> = [];
@@ -166,9 +166,10 @@ async function vibeStream(vibe: Vibe, seed: number, need: number, reel: boolean,
     for (const v of variants) sources.push(() => search(reel ? `${v} shorts` : v, reel ? 's' : 'v'));
   }
   const seen = new Set<string>(); const items: MVideo[] = []; let i = 0;
-  while (items.length < need && i < sources.length) {
+  while (items.length < need && i < sources.length && !(items.length > 0 && Date.now() > deadline)) {
     const group = sources.slice(i, i + 3); i += group.length; // three searches at once keeps first load quick
-    for (const raw of await Promise.all(group.map((f) => f()))) {
+    // time-boxed: a slow search can't hold the page hostage — it keeps running and lands in the cache for the next request
+    for (const raw of await Promise.all(group.map((f) => hard(f(), Math.max(2000, deadline - Date.now())).catch(() => [] as MVideo[])))) {
     const batch = raw.filter((v) => passes(v, vibe, reel)).sort((a, b) => Number(!!cfg.prefer?.test(b.title)) - Number(!!cfg.prefer?.test(a.title)) || (b.views || 0) - (a.views || 0)); // on-theme first, then best-performing, within each search
     for (const v of batch) if (!seen.has(v.id)) { seen.add(v.id); items.push({ ...v, vibe }); }
     }
@@ -200,7 +201,8 @@ export async function stream(o: StreamOpts) {
   const given = o.weights && Object.keys(o.weights).length ? o.weights : DEFAULT_W;
   const w: Record<string, number> = {}; for (const v of vibes) w[v] = 1 + Math.min(10, Math.max(0, Number(given[v]) || 0));
   const sum = vibes.reduce((a, v) => a + w[v], 0);
-  const res = await Promise.all(vibes.map((v) => vibeStream(v, seed, Math.ceil((want * w[v]) / sum) + 3, reel, q).then((r) => [v, r] as const)));
+  const deadline = Date.now() + 10_000;
+  const res = await Promise.all(vibes.map((v) => vibeStream(v, seed, Math.ceil((want * w[v]) / sum) + 3, reel, q, deadline).then((r) => [v, r] as const)));
   const lists: Partial<Record<Vibe, MVideo[]>> = {}; let anyMore = false;
   for (const [v, r] of res) { lists[v] = r.items; if (!r.done) anyMore = true; }
   let all = vibes.length === 1 ? (lists[vibes[0]] as MVideo[]) : mixLists(lists, w);
