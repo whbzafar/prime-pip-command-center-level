@@ -29,6 +29,7 @@ import {
   synthesizeThemeFromQuery,
 } from '../utils/themeSynthesizer';
 import { BrightnessController } from './BrightnessController';
+import { CursorLightControl } from './CursorLightControl';
 import { LiquidGlassThemeToggle } from './LiquidGlassThemeToggle';
 
 const readStored = (key: string, fallback: string) => {
@@ -671,6 +672,8 @@ export const AppearanceControls: React.FC<{ isOpen: boolean; onClose: () => void
               </div>
             )}
           </div>
+
+          <CursorLightControl />
 
           {/* Themes Grid */}
           <div>

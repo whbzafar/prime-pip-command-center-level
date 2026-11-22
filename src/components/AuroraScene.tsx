@@ -89,8 +89,8 @@ function startScene(): () => void {
   // cursor light: a soft spotlight that follows the pointer (or finger) over the whole app
   const spot = document.createElement('div'); spot.id = 'ppfx-spot'; spot.setAttribute('aria-hidden', 'true'); document.body.appendChild(spot);
   let sx = -400, sy = -400, sraf = 0;
-  const onSpot = (e: PointerEvent) => { sx = e.clientX; sy = e.clientY; if (!sraf) sraf = requestAnimationFrame(() => { sraf = 0; spot.style.transform = `translate3d(${sx - 260}px, ${sy - 260}px, 0)`; spot.style.opacity = '1'; }); };
-  const offSpot = () => { spot.style.opacity = '0'; };
+  const onSpot = (e: PointerEvent) => { sx = e.clientX; sy = e.clientY; if (!sraf) sraf = requestAnimationFrame(() => { sraf = 0; spot.style.transform = `translate3d(${sx - 260}px, ${sy - 260}px, 0)`; spot.classList.add('on'); }); };
+  const offSpot = () => { spot.classList.remove('on'); };
   window.addEventListener('pointermove', onSpot, { passive: true }); document.addEventListener('pointerleave', offSpot);
   resize();
   window.addEventListener('resize', resize); window.addEventListener('pointermove', onMove, { passive: true });

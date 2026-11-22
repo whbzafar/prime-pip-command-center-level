@@ -77,6 +77,6 @@ export const MarketAura: React.FC = () => {
     return () => { alive = false; cancelAnimationFrame(raf); window.clearInterval(poll); window.removeEventListener('resize', size); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerdown', onDown); gl.getExtension('WEBGL_lose_context')?.loseContext(); };
   }, [on]);
   if (!on) return null;
-  return <canvas ref={ref} aria-hidden="true" data-testid="market-aura" className="fixed inset-0 h-full w-full pointer-events-none select-none" style={{ zIndex: 2, mixBlendMode: 'screen', opacity: 0.34 }} />;
+  return <canvas ref={ref} aria-hidden="true" data-testid="market-aura" className="fixed inset-0 h-full w-full pointer-events-none select-none" style={{ zIndex: 2, mixBlendMode: 'screen', opacity: 'calc(0.34 * var(--spot-op, 1))' as any }} />;
 };
 export default MarketAura;

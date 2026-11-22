@@ -194,7 +194,8 @@ html[data-theme='aurora'] main { perspective: 1400px; }
 @media (hover: none), (prefers-reduced-motion: reduce) { html[data-theme='aurora'] .aurora-tilt { transform: none !important; } }
 
 /* cursor light + scene visibility */
-#ppfx-spot { position: fixed; left: 0; top: 0; width: 520px; height: 520px; border-radius: 50%; pointer-events: none; z-index: 3; opacity: 0; transition: opacity .35s ease; will-change: transform;
+#ppfx-spot { position: fixed; left: 0; top: 0; width: 520px; height: 520px; border-radius: 50%; pointer-events: none; z-index: 3; opacity: 0; transition: opacity .35s ease; will-change: transform; filter: brightness(var(--spot-br, 1));
   background: radial-gradient(circle, rgba(129,140,248,.20) 0%, rgba(56,189,248,.09) 38%, transparent 66%); mix-blend-mode: screen; }
 html[data-fx='off'] #ppfx-spot, html[data-fx='lite'] #ppfx-spot { display: none; }
 html[data-theme='aurora'] #ppfx-aurora-canvas { opacity: 1; }
+#ppfx-spot.on { opacity: var(--spot-op, 1); }

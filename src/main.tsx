@@ -29,6 +29,7 @@ if (typeof window !== 'undefined') {
 }
 
 startGovernor();
+import('./utils/cursorLight').then((m) => m.applyCursorLight()).catch(() => undefined);
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startNetBar); else startNetBar();
 
 try {
