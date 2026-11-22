@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Trade } from '../../types';
 import { disciplineChecks, DEFAULT_LIMITS, type Limits } from '../../utils/dailyGuard';
+import { loadCheckins, COOLDOWN_KEY } from '../mind/MindLab';
+import { readinessScore, readinessAdvice, todayKey } from '../../utils/mindEngine';
 import { ClipboardCheck, X, CheckCircle2, AlertTriangle, XCircle, MinusCircle, Loader2 } from 'lucide-react';
 
 /** PRE-TRADE CHECKLIST — news, correlation, risk size and fundamentals in one pass (live data only). */
@@ -36,7 +38,13 @@ export const PreTradeChecklist: React.FC<{ open: boolean; onClose: () => void; s
     try {
       const j = await fetch('/api/pretrade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trade: { symbol: sym, side, riskPct: Number(risk) }, open: held }) }).then((r) => r.json());
       if (j?.ok) {
-        const d = disciplineChecks(trades, balance, limits);
+        const d: Check[] = [];
+        const until = Number(localStorage.getItem(COOLDOWN_KEY) || 0);
+        if (until > Date.now()) d.push({ id: 'cool', title: 'Cooldown', status: 'fail', detail: `Your tilt-breaker cooldown still has ${Math.ceil((until - Date.now()) / 60000)} min left. Wait it out.` });
+        const ck = loadCheckins()[todayKey()];
+        if (ck) { const sc = readinessScore(ck), a = readinessAdvice(sc); d.push({ id: 'ready', title: 'Readiness', status: a.level === 'go' ? 'pass' : a.level === 'careful' ? 'warn' : 'fail', detail: `Today's check-in: ${sc}/100. ${a.text}` }); }
+        else d.push({ id: 'ready', title: 'Readiness', status: 'skip', detail: 'No check-in yet today — do the 30-second one in Mind Lab.' });
+        d.push(...disciplineChecks(trades, balance, limits));
         const checks = [...d, ...j.checks];
         const bad = checks.filter((c: Check) => c.status === 'fail').length, warn = checks.filter((c: Check) => c.status === 'warn').length;
         j.checks = checks; j.verdict = bad ? 'stop' : warn ? 'caution' : 'clear';

@@ -30,6 +30,7 @@ import { formatCurrency } from '../utils/currencyFormatter';
 import { formatTradeDateTime, formatTo12Hour } from '../utils/time';
 import { EvaluationEngine } from './EvaluationEngine';
 import { PersonalEdgeReport } from './PersonalEdgeReport';
+import { MindLab } from './mind/MindLab';
 
 interface PerformanceLabProps {
   trades: Trade[];
@@ -44,6 +45,7 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
   onOpenNewTrade,
   onNavigateToTab,
 }) => {
+  const [mindLabOpen, setMindLabOpen] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'OVERVIEW' | 'EVALUATION' | 'STRATEGY' | 'SESSIONS' | 'PAIRS' | 'TIMEFRAMES' | 'GRADES'>('OVERVIEW');
   const currency = account?.currency || 'USD';
 
@@ -167,6 +169,10 @@ export const PerformanceLab: React.FC<PerformanceLabProps> = ({
 
   return (
     <div className="space-y-6">
+      <button onClick={() => setMindLabOpen(true)} className="w-full flex items-center justify-between gap-3 rounded-xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 px-4 py-3 text-left hover:border-violet-400/60">
+        <span><span className="block text-sm font-black text-white">Mind Lab — trading psychology</span><span className="block text-[11.5px] text-slate-400">Readiness check-in · your patterns · Fear Ladder · calm tools</span></span><Sparkles className="w-5 h-5 text-violet-300" />
+      </button>
+      <MindLab open={mindLabOpen} onClose={() => setMindLabOpen(false)} trades={trades} balance={account?.currentBalance ?? 0} />
       <PersonalEdgeReport trades={trades} />
       {/* Top Directive Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-900/90 to-[#0F172A] border border-blue-500/30 rounded-xl p-5 shadow-2xl relative overflow-hidden">

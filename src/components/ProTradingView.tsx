@@ -52,6 +52,7 @@ import {
   GitMerge,
   Sunrise,
   ClipboardCheck,
+  Brain,
   Camera,
   Check,
   Copy,
@@ -130,6 +131,7 @@ import { MarketRadar } from './copilot/MarketRadar';
 import { CorrelationGuard } from './copilot/CorrelationGuard';
 import { DailyBriefing } from './copilot/DailyBriefing';
 import { PreTradeChecklist } from './copilot/PreTradeChecklist';
+import { MindLab } from './mind/MindLab';
 import { EventShockSimulator } from './copilot/EventShockSimulator';
 import { ExposureGuard } from './copilot/ExposureGuard';
 import { QuantEdge } from './copilot/QuantEdge';
@@ -1486,6 +1488,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const [corrOpen, setCorrOpen] = useState(false);
   const [briefOpen, setBriefOpen] = useState(false);
   const [preOpen, setPreOpen] = useState(false);
+  const [mindOpen, setMindOpen] = useState(false);
   const [shockOpen, setShockOpen] = useState(false);
   const [exposureOpen, setExposureOpen] = useState(false);
   const [edgeOpen, setEdgeOpen] = useState(false);
@@ -4303,6 +4306,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   { id: 'edge', label: 'Quant Edge signals', desc: 'Research-backed buy/sell setup with its 10-year record', Icon: Cpu, cls: 'text-cyan-300', onClick: () => setEdgeOpen(true) },
                   { id: 'copilot', label: 'Trade Copilot', desc: 'Live plan for this pair: bias, entry, stop, targets, lots', Icon: Sparkles, cls: 'text-violet-300', onClick: () => setCopilotOpen(true) },
                   { id: 'brief', label: 'Daily Briefing', desc: 'Your trading day on one page: fundamentals, set-ups and news', Icon: Sunrise, cls: 'text-amber-300', onClick: () => setBriefOpen(true) },
+                  { id: 'mind', label: 'Mind Lab — Trading Psychology', desc: 'Readiness, your patterns, Fear Ladder, calm tools, lessons', Icon: Brain, cls: 'text-violet-300', onClick: () => setMindOpen(true) },
                   { id: 'pretrade', label: 'Pre-Trade Checklist', desc: 'News, correlation, risk and fundamentals — checked before you enter', Icon: ClipboardCheck, cls: 'text-cyan-300', onClick: () => setPreOpen(true) },
                   { id: 'corr', label: 'Correlation & Exposure Guard', desc: 'Which markets move together — and the hidden risk in your trades', Icon: GitMerge, cls: 'text-emerald-300', onClick: () => setCorrOpen(true) },
                   { id: 'radar', label: 'Market Regime Radar', desc: 'Every market: trending, ranging, coiling or breaking out', Icon: Radar, cls: 'text-fuchsia-300', onClick: () => setRadarOpen(true) },
@@ -4315,6 +4319,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               <EventShockSimulator open={shockOpen} onClose={() => setShockOpen(false)} />
               <ExposureGuard open={exposureOpen} onClose={() => setExposureOpen(false)} trades={trades || []} />
               <DailyBriefing open={briefOpen} onClose={() => setBriefOpen(false)} onOpenSymbol={(sym) => handleSelectSymbol(sym)} />
+              <MindLab open={mindOpen} onClose={() => setMindOpen(false)} trades={trades || []} balance={activeAccount?.currentBalance ?? 0} />
               <PreTradeChecklist open={preOpen} onClose={() => setPreOpen(false)} symbol={selectedSymbol} trades={trades || []} balance={activeAccount?.currentBalance ?? 0} />
               <CorrelationGuard open={corrOpen} onClose={() => setCorrOpen(false)} />
               <MarketRadar open={radarOpen} onClose={() => setRadarOpen(false)} onOpenSymbol={(sym) => handleSelectSymbol(sym)} onCopilot={(sym) => { setCopilotSymbol(sym); setRadarOpen(false); setCopilotOpen(true); }} />
