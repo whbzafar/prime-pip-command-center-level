@@ -245,7 +245,7 @@ const currentAppDir = process.cwd();
 
 import { trackLogin, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
 import { clientIp } from './server/geoip.js';
-import { stream as motivationStream, trending as motivationTrending, classifyQuery, SUPPORT as MOTIVATION_SUPPORT } from './server/motivation.js';
+import { stream as motivationStream, similar as motivationSimilar, trending as motivationTrending, classifyQuery, SUPPORT as MOTIVATION_SUPPORT } from './server/motivation.js';
 import { privateListUpdate as secListUpdate } from './server/durableStore.js';
 
 const app = express();
@@ -3899,13 +3899,22 @@ app.get('/api/admin/analytics', requireDeveloper, async (req, res) => {
 app.get('/api/motivation/feed', async (req, res) => {
   const q = String(req.query.q || '').slice(0, 80);
   const kind = classifyQuery(q);
-  res.set('Cache-Control', 'public, max-age=60');
   if (kind === 'support') return res.json({ ok: true, items: [], next: 0, hasMore: false, support: MOTIVATION_SUPPORT });
   if (kind === 'blocked') return res.json({ ok: true, items: [], next: 0, hasMore: false, blocked: true, message: 'This space only shows uplifting, motivational content. Try a topic like "never give up" or "comeback story".' });
   try {
     const offset = Math.max(0, Math.min(2000, Number(req.query.offset) || 0));
-    res.json({ ok: true, ...(await motivationStream(q, offset, 12)) });
+    const weights: Record<string, number> = {};
+    for (const part of String(req.query.w || '').split(',')) { const [k, v] = part.split(':'); if (k && Number.isFinite(Number(v))) weights[k.slice(0, 12)] = Number(v); }
+    const reel = req.query.reel === '1';
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, ...(await motivationStream({ q, vibe: String(req.query.vibe || ''), reel, seed: Number(req.query.seed) || 1, weights, offset, limit: reel ? 8 : 12 })) });
   } catch { res.json({ ok: true, items: [], next: 0, hasMore: false }); }
+});
+app.get('/api/motivation/similar', async (req, res) => {
+  const title = String(req.query.title || '').slice(0, 160);
+  if (classifyQuery(title) !== 'ok') return res.json({ ok: true, items: [] });
+  res.set('Cache-Control', 'public, max-age=300');
+  try { res.json({ ok: true, items: await motivationSimilar(title, String(req.query.vibe || '')) }); } catch { res.json({ ok: true, items: [] }); }
 });
 app.get('/api/motivation/trending', async (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
