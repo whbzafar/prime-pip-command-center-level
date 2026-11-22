@@ -8,7 +8,7 @@
  */
 html[data-theme='aurora'] {
   --au-bg: #05070d;
-  --au-panel: rgba(15, 20, 34, 0.74);
+  --au-panel: rgba(15, 20, 34, 0.6);
   --au-panel-2: rgba(22, 29, 48, 0.82);
   --au-hair: rgba(148, 163, 255, 0.14);
   --au-hair-strong: rgba(129, 140, 248, 0.42);
@@ -192,3 +192,9 @@ html[data-theme='aurora'] .aurora-tilt.is-tilting { box-shadow: 0 30px 60px -24p
 html[data-theme='aurora'] .aurora-tilt::after { background: radial-gradient(360px circle at var(--tx, 50%) var(--ty, 0%), rgba(255,255,255,0.13), rgba(129,140,248,0.06) 38%, transparent 62%); mix-blend-mode: screen; z-index: 1; }
 html[data-theme='aurora'] main { perspective: 1400px; }
 @media (hover: none), (prefers-reduced-motion: reduce) { html[data-theme='aurora'] .aurora-tilt { transform: none !important; } }
+
+/* cursor light + scene visibility */
+#ppfx-spot { position: fixed; left: 0; top: 0; width: 520px; height: 520px; border-radius: 50%; pointer-events: none; z-index: 3; opacity: 0; transition: opacity .35s ease; will-change: transform;
+  background: radial-gradient(circle, rgba(129,140,248,.20) 0%, rgba(56,189,248,.09) 38%, transparent 66%); mix-blend-mode: screen; }
+html[data-fx='off'] #ppfx-spot, html[data-fx='lite'] #ppfx-spot { display: none; }
+html[data-theme='aurora'] #ppfx-aurora-canvas { opacity: 1; }

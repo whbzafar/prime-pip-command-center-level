@@ -5,8 +5,8 @@
  * A saved choice (Auto / Full / Off) is kept per device; "auto" is the default.
  */
 export type Fx = 'full' | 'lite' | 'off';
-const KEY_MODE = 'ppfx_fx_mode_v2';      // 'auto' | 'full' | 'off'
-const KEY_AUTO = 'ppfx_fx_auto_v2';      // last level the governor settled on
+const KEY_MODE = 'ppfx_fx_mode_v3';      // 'auto' | 'full' | 'off'
+const KEY_AUTO = 'ppfx_fx_auto_v3';      // last level the governor settled on
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
 
@@ -36,8 +36,8 @@ export function probe(now: number) {
     const d = now - lastT; if (d < 1000) deltas.push(d);
     if (deltas.length >= 45) {
       const s = [...deltas].sort((a, b) => a - b); const med = s[s.length >> 1]; deltas.length = 0;
-      slowRuns = med > 34 ? slowRuns + 1 : 0;           // median frame slower than ~30 fps
-      if (slowRuns >= 2 && pref === 'auto') { slowRuns = 0; auto = auto === 'full' ? 'lite' : 'off'; write(KEY_AUTO, auto); publish(); }
+      slowRuns = med > 50 ? slowRuns + 1 : 0;           // median frame slower than ~30 fps
+      if (slowRuns >= 4 && pref === 'auto') { slowRuns = 0; auto = 'lite'; write(KEY_AUTO, auto); publish(); }
     }
   }
   lastT = now;

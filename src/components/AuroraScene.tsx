@@ -26,9 +26,8 @@ function startScene(): () => void {
   const frame = (t: number) => {
     raf = requestAnimationFrame(frame);
     probe(t);
-    if (document.hidden || t - last < 40) return;
-    if (!isAwake(t) && settled) return;   // idle: keep the last frame, cost nothing
-    settled = !isAwake(t);
+    if (document.hidden || t - last < (isAwake(t) ? 33 : 80)) return;   // always alive: smooth while you move, gentle ~12 fps when idle
+    settled = false;
     const dt = Math.min(0.1, (t - last) / 1000); last = t;
     px += (tx - px) * 0.05; py += (ty - py) * 0.05;
     ctx.clearRect(0, 0, w, h);
@@ -87,10 +86,16 @@ function startScene(): () => void {
     }
     for (const p of proj) { ctx.fillStyle = `rgba(165,243,252,${p.a * 0.7})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill(); }
   };
+  // cursor light: a soft spotlight that follows the pointer (or finger) over the whole app
+  const spot = document.createElement('div'); spot.id = 'ppfx-spot'; spot.setAttribute('aria-hidden', 'true'); document.body.appendChild(spot);
+  let sx = -400, sy = -400, sraf = 0;
+  const onSpot = (e: PointerEvent) => { sx = e.clientX; sy = e.clientY; if (!sraf) sraf = requestAnimationFrame(() => { sraf = 0; spot.style.transform = `translate3d(${sx - 260}px, ${sy - 260}px, 0)`; spot.style.opacity = '1'; }); };
+  const offSpot = () => { spot.style.opacity = '0'; };
+  window.addEventListener('pointermove', onSpot, { passive: true }); document.addEventListener('pointerleave', offSpot);
   resize();
   window.addEventListener('resize', resize); window.addEventListener('pointermove', onMove, { passive: true });
   if (reduce || getFx() === 'lite') { last = -1000; frame(0); cancelAnimationFrame(raf); } else raf = requestAnimationFrame(frame);
-  return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); window.removeEventListener('pointermove', onMove); canvas.remove(); };
+  return () => { cancelAnimationFrame(raf); window.removeEventListener('pointermove', onSpot); document.removeEventListener('pointerleave', offSpot); spot.remove(); window.removeEventListener('resize', resize); window.removeEventListener('pointermove', onMove); canvas.remove(); };
 }
 
 const TILT_SEL = '.aurora-tilt, .prime-card, .prime-card-elevated, [class*="rounded-2xl"][class*="bg-slate-9"], [class*="rounded-3xl"][class*="bg-slate-9"]';
