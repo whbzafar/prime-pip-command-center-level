@@ -101,15 +101,27 @@ export const ProChartPane: React.FC<{
     const unEnhance = enhanceIndicatorDialogs(host);
     // Keep the canvas sized to its pane (layout changes, full screen, height slider).
     let raf = 0;
-    const ro = new ResizeObserver(() => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
-    });
-    ro.observe(host);
+    const fit = () => {
+      window.dispatchEvent(new Event('resize'));
+      try { const inner = resolveProChart(host); inner?.resize(); } catch { /* chart still starting */ }
+    };
+    const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fit); });
+    ro.observe(host); if (host.parentElement) ro.observe(host.parentElement);
+    const fitTimers = [300, 1200, 3000].map((ms) => window.setTimeout(fit, ms)); // layout settles after first paint / data load
+    window.addEventListener('orientationchange', fit);
+    // Keep the chart's top-right buttons (Settings / Screenshot) clear of the floating Announcements buttons.
+    const clearFloat = () => {
+      const r = host.getBoundingClientRect();
+      const under = r.top < 56 && r.bottom > 80 && r.right > window.innerWidth - 300;
+      document.documentElement.classList.toggle('ppfx-chart-under-float', under);
+    };
+    window.addEventListener('scroll', clearFloat, { passive: true }); window.addEventListener('resize', clearFloat); clearFloat();
     return () => {
       host.removeEventListener('click', onClickCapture, true);
       unEnhance();
       ro.disconnect();
+      fitTimers.forEach(clearTimeout); window.removeEventListener('orientationchange', fit);
+      window.removeEventListener('scroll', clearFloat); window.removeEventListener('resize', clearFloat); document.documentElement.classList.remove('ppfx-chart-under-float');
       cancelAnimationFrame(raf);
       clearInterval(iv);
       clearTimeout(t1);
