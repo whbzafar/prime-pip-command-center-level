@@ -1,5 +1,7 @@
 // Force HMR refresh
 import { SecurityWarningModal } from './components/SecurityWarningModal';
+import { NewEraWelcome } from './components/welcome/NewEraWelcome';
+import { shouldShowNewEra, markNewEraSeen } from './components/welcome/newEra';
 import { setOpenTrades } from './services/openPositions';
 import { DisciplineGuard, DisciplineToast, TraderDnaPanel } from './components/dna/TraderDnaPanel';
 import { startInsights, trackSection } from './utils/insights';
@@ -76,7 +78,9 @@ import { TabErrorBoundary } from './components/common/TabErrorBoundary';
 // Heavy category screens load on demand so the first screen opens fast (big win on phones).
 const LearningHub = React.lazy(() => import('./components/learning/LearningHub').then((m) => ({ default: m.LearningHub })));
 const PerformanceLab = React.lazy(() => import('./components/PerformanceLab').then((m) => ({ default: m.PerformanceLab })));
-const MotivationHub = React.lazy(() => import('./components/motivation/MotivationHub').then((m) => ({ default: m.MotivationHub })));
+const loadMotivation = () => import('./components/motivation/MotivationHub');
+if (typeof window !== 'undefined') { const idle = (window as any).requestIdleCallback || ((f: () => void) => setTimeout(f, 4000)); idle(() => { void loadMotivation(); fetch('/api/motivation/feed?offset=0').catch(() => undefined); }); }
+const MotivationHub = React.lazy(() => loadMotivation().then((m) => ({ default: m.MotivationHub })));
 const PsychologyCenter = React.lazy(() => import('./components/PsychologyCenter').then((m) => ({ default: m.PsychologyCenter })));
 const AiTradingCoach = React.lazy(() => import('./components/AiTradingCoach').then((m) => ({ default: m.AiTradingCoach })));
 const GoalsProgress = React.lazy(() => import('./components/GoalsProgress').then((m) => ({ default: m.GoalsProgress })));
@@ -162,6 +166,7 @@ const TabFallback = () => (
 export default function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<MainNavTab>('DASHBOARD');
+  const [newEraOpen, setNewEraOpen] = useState(false);
   // Once the MT5 terminal has been opened, keep it mounted (hidden) across tab switches so the
   // user's MT5 session survives navigating the app instead of asking for login again.
   const [mt5Visited, setMt5Visited] = useState(false);
@@ -217,6 +222,7 @@ export default function App() {
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
+  useEffect(() => { if (activeTab === 'DASHBOARD' && shouldShowNewEra(currentUser)) { const t = setTimeout(() => setNewEraOpen(true), 700); return () => clearTimeout(t); } }, [activeTab, currentUser]);
 
   // Owner analytics: which screen is open, and what kind of visitor (guest / demo / subscriber). Declared before any early return.
   // Phones and "reduce motion" users skip the decorative always-on animations (glow, ribbon, atmosphere) — much faster scrolling and taps.
@@ -1348,6 +1354,7 @@ export default function App() {
 
       {/* Navigation HUD Header */}
       <AuroraScene />
+      {newEraOpen && currentUser && <NewEraWelcome name={currentUser.name || currentUser.username} onEnter={() => { markNewEraSeen(currentUser.id); setNewEraOpen(false); }} />}
       <SecurityWarningModal userId={currentUser && !isUserAdmin(currentUser) ? currentUser.id : undefined} />
       <Header
         activeTab={activeTab as any}

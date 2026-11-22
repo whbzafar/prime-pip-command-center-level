@@ -2,7 +2,7 @@
  * On-device taste profile for the Motivation feed. Nothing leaves the phone except coarse weights (e.g. nature:6,sigma:3).
  * Signals: played +3, saved +5, watched a reel >6 s +2, skipped a reel <2 s −1. Old interest fades (×0.9 per new day of use).
  */
-export const VIBE_KEYS = ['stories', 'sigma', 'intense', 'nature', 'serene', 'dreamy'] as const;
+export const VIBE_KEYS = ['stories', 'sigma', 'intense', 'trader', 'nature', 'serene', 'dreamy'] as const;
 export type VibeKey = (typeof VIBE_KEYS)[number];
 export interface Taste { scores: Record<string, number>; day: string; seen: string[]; recent: { id: string; title: string; vibe: string }[] }
 export const emptyTaste = (): Taste => ({ scores: {}, day: '', seen: [], recent: [] });

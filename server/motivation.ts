@@ -4,6 +4,8 @@
  * and YouTube search for the user's topic (YouTube Data API instead when YOUTUBE_API_KEY is set — strict safe-search, embeddable only).
  * Everything is filtered: inappropriate searches return nothing, and self-harm searches get a support message instead of videos.
  */
+import zlib from 'node:zlib';
+import { getShared, setShared } from './durableStore.js';
 export interface MVideo { id: string; title: string; channel: string; thumb: string; published?: string; views?: number; duration?: string; cid?: string; vibe?: string; short?: boolean; source: 'feed' | 'search' }
 
 export const TOPICS = [
@@ -25,36 +27,50 @@ const clean = (t: string) => !BAD.test(t) && !SELFHARM.test(t);
 const decode = (s: string) => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'");
 const UA = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36', 'Accept-Language': 'en-US,en;q=0.9', Cookie: 'CONSENT=YES+cb; SOCS=CAI; PREF=f2=8000000' };
 const hard = <T,>(p: Promise<T>, ms: number): Promise<T> => new Promise<T>((res, rej) => { const t = setTimeout(() => rej(new Error('timeout')), ms); p.then((v) => { clearTimeout(t); res(v); }, (e) => { clearTimeout(t); rej(e); }); });
+let running = 0; const waiters: Array<() => void> = [];
+const slot = async () => { if (running >= 4) await new Promise<void>((r) => waiters.push(r)); running++; };
+const release = () => { running--; waiters.shift()?.(); };
 async function get(url: string, ms = 6000): Promise<string> {
+  await slot(); // at most 4 requests to YouTube at once — gentler on their servers, and no pile-ups
   return hard((async () => {
     const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(ms), redirect: 'follow' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return r.text();
-  })(), ms + 1500);
+  })(), ms + 1500).finally(release);
 }
-export type Vibe = 'stories' | 'sigma' | 'intense' | 'nature' | 'serene' | 'dreamy';
-export const VIBES: Vibe[] = ['intense', 'dreamy', 'sigma', 'stories', 'nature', 'serene'];
+export type Vibe = 'stories' | 'sigma' | 'intense' | 'trader' | 'nature' | 'serene' | 'dreamy';
+export const VIBES: Vibe[] = ['intense', 'dreamy', 'sigma', 'trader', 'stories', 'nature', 'serene'];
 /** Until the viewer has shown a taste, lean energetic & aspirational (calm is one tap away). */
-const DEFAULT_W: Record<string, number> = { intense: 3, dreamy: 3, sigma: 2, stories: 1, nature: 1, serene: 0 };
+const DEFAULT_W: Record<string, number> = { intense: 3, dreamy: 3, sigma: 2, trader: 2, stories: 1, nature: 1, serene: 0 };
 interface Cfg { queries: string[]; min: number; max: number; strictMusic: boolean; extraBad?: RegExp; minViews?: number; must?: RegExp; prefer?: RegExp }
 const CFG: Record<Vibe, Cfg> = {
   stories: { queries: TOPICS.map((t) => `${t} motivational speech`), min: 90, max: 1800, strictMusic: true },
-  sigma: { queries: ['sigma mindset discipline edit', 'silent grind motivation cinematic', 'sigma edit phonk discipline', 'stoic discipline motivation', 'lone wolf mindset cinematic', 'self mastery motivation edit', 'build yourself in silence', 'gym discipline motivation edit', 'mental toughness motivation cinematic'], min: 25, max: 1200, strictMusic: true, minViews: 20000, extraBad: /(women|woman|girls?|female|simp|red ?pill|toxic|dating|pick ?up|ex[- ]girlfriend|revenge|gangster|cartel)/i },
-  intense: { queries: ['thomas shelby edit motivation', 'peaky blinders edit mindset', 'tommy shelby speech edit', 'peaky blinders attitude edit', 'shelby discipline edit phonk', 'peaky blinders cinematic motivation', 'villain arc edit motivation', 'dark mindset phonk edit discipline', 'shelby brothers edit', 'boss mindset cinematic edit'], min: 15, max: 600, strictMusic: false, minViews: 15000, must: /(shelby|peaky|\bedit\b|cinematic|villain|phonk|dark|boss)/i, prefer: /(shelby|peaky)/i, extraBad: /(women|woman|girls?|female|simp|red ?pill|toxic|dating|gangster|cartel|criminal|revenge|killer|\bgun\b|trailer|sneak peek|netflix|official|episode|reaction)/i },
-  nature: { queries: ['relaxing nature 4k', 'forest ambience relaxing', 'misty mountain sunrise cinematic', 'ocean waves relaxing', 'waterfall nature sounds', 'rain on leaves calming', 'peaceful lake morning', 'northern lights relaxing', 'autumn forest walk 4k', 'beautiful nature scenery drone'], min: 30, max: 10800, strictMusic: false },
-  serene: { queries: ['calming aesthetic relaxing', 'cozy rain window ambience', 'zen garden peaceful', 'sunset timelapse relaxing', 'dreamy clouds sky calming', 'peaceful piano relaxing music', 'soft morning light aesthetic', 'cozy cabin fireplace ambience', 'lofi calm nature', 'tranquil meditation visuals'], min: 30, max: 10800, strictMusic: false },
-  dreamy: { queries: ['luxury lifestyle cinematic edit music', 'dream cars mansions cinematic edit', 'luxury villa cinematic music aesthetic', 'billionaire lifestyle visualization music', 'luxury mansion cinematic music edit', 'supercar cinematic edit luxury music', 'rich lifestyle motivation cinematic edit', 'luxury life aesthetic edit', 'dream home luxury cinematic music', 'penthouse luxury cinematic edit', 'luxury travel cinematic edit'], min: 20, max: 900, strictMusic: false, minViews: 30000, must: /(luxury|mansion|villa|supercar|cars?|lifestyle|dream|penthouse|yacht|billionaire|rich|aesthetic|cinematic|estate)/i, prefer: /(cinematic|edit|aesthetic|music|motivation|visuali[sz]ation)/i, extraBad: /(girls?|women|woman|model|party|flex|gold ?digger|prank|roast|react|for sale|review|price|how much|vlog|unboxing|buying|tour|\$|cost|worth)/i },
+  sigma: { queries: ['sigma mindset discipline edit', 'silent grind motivation cinematic', 'sigma edit phonk discipline', 'stoic discipline motivation', 'lone wolf mindset cinematic', 'lone wolf solo training motivation edit', 'self mastery motivation edit', 'train alone discipline aesthetic', 'gym discipline motivation edit', 'mental toughness motivation cinematic'], min: 25, max: 1200, strictMusic: true, minViews: 20000, extraBad: /(women|woman|girls?|female|simp|red ?pill|toxic|dating|pick ?up|ex[- ]girlfriend|revenge|gangster|cartel)/i },
+  intense: { queries: ['thomas shelby edit motivation', 'peaky blinders edit mindset', 'tommy shelby speech edit', 'peaky blinders attitude edit', 'shelby discipline edit phonk', 'peaky blinders cinematic motivation', 'villain arc edit motivation', 'aura edit motivation cinematic', 'dark mindset phonk edit discipline', 'shelby brothers edit', 'boss mindset cinematic edit'], min: 15, max: 600, strictMusic: false, minViews: 15000, must: /(shelby|peaky|\bedit\b|cinematic|villain|phonk|dark|boss)/i, prefer: /(shelby|peaky)/i, extraBad: /(women|woman|girls?|female|simp|red ?pill|toxic|dating|gangster|cartel|criminal|revenge|killer|\bgun\b|trailer|sneak peek|netflix|official|episode|reaction)/i },
+  trader: { queries: ['trading psychology discipline', 'forex trader mindset', 'how to control emotions trading', 'overcoming fear of losing trading', 'revenge trading how to stop', 'trader discipline patience consistency', 'Mark Douglas trading in the zone', 'trading mindset motivation', 'trading journal habits discipline', 'handling a losing streak trader psychology'], min: 90, max: 2400, strictMusic: true, minViews: 5000, must: /(psycholog|mindset|discipline|emotion|fear|patience|revenge|tilt|journal|consisten|risk|routine|trader|trading|losing streak|zone)/i, extraBad: /(signals?|guaranteed|100%|win ?rate|telegram|dm me|copy ?trad|payout|discount|get rich|lambo|millionaire in|\bbot\b|prediction)/i },
+  nature: { queries: ['aesthetic nature cinematic 4k vertical', 'relaxing nature 4k', 'rainy night cozy fire aesthetic', 'misty mountain sunrise cinematic', 'ocean waves relaxing', 'waterfall nature sounds', 'bonsai zen aesthetic', 'northern lights relaxing', 'autumn forest walk 4k', 'beautiful nature scenery drone', 'surreal nature transitions aesthetic'], min: 30, max: 10800, strictMusic: false },
+  serene: { queries: ['calming aesthetic relaxing', 'chill vibe fantasy aesthetic', 'glowing in nature aesthetic edit', 'cozy rain window ambience', 'zen garden peaceful', 'sunset timelapse relaxing', 'dreamy clouds sky calming', 'peaceful piano relaxing music', 'floating planet fantasy aesthetic', 'night drive aesthetic chill', 'tranquil meditation visuals', 'surreal dreamy aesthetic video'], min: 30, max: 10800, strictMusic: false },
+  dreamy: { queries: ['luxury lifestyle cinematic edit music', 'dream cars mansions cinematic edit', 'luxury villa cinematic music aesthetic', 'billionaire lifestyle visualization music', 'luxury mansion cinematic music edit', 'supercar cinematic edit luxury music', 'rich lifestyle motivation cinematic edit', 'luxury life aesthetic edit', 'dream home luxury cinematic music', 'penthouse luxury cinematic edit', 'luxury travel cinematic edit', 'evening drive road trip cinematic aesthetic', 'night drive luxury car cinematic'], min: 20, max: 900, strictMusic: false, minViews: 30000, must: /(luxury|mansion|villa|supercar|cars?|lifestyle|dream|penthouse|yacht|billionaire|rich|aesthetic|cinematic|estate)/i, prefer: /(cinematic|edit|aesthetic|music|motivation|visuali[sz]ation)/i, extraBad: /(girls?|women|woman|model|party|flex|gold ?digger|prank|roast|react|for sale|review|price|how much|vlog|unboxing|buying|tour|\$|cost|worth)/i },
 };
-export const VIBE_LABEL: Record<Vibe, string> = { stories: 'Stories', sigma: 'Sigma', intense: 'Intense', nature: 'Nature', serene: 'Serene', dreamy: 'Dreams' };
+export const VIBE_LABEL: Record<Vibe, string> = { stories: 'Stories', sigma: 'Sigma', intense: 'Intense', nature: 'Nature', serene: 'Serene', dreamy: 'Dreams', trader: 'Trader Mind' };
 const LIGHT_MUSIC = /(lyric|lyrics|official (audio|video)|music video|remix|\bft\.|\bfeat\.?|karaoke|nursery|\bkids?\b)/i;
 const rng = (seed: number) => () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const shuffled = <T,>(a: T[], seed: number): T[] => { const r = rng(seed), o = [...a]; for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; } return o; };
 export const diag: Record<string, string> = {};
 const memo = new Map<string, { at: number; v: any }>();
+const flying = new Map<string, Promise<any>>();
+const HARD = 12 * 3600_000;
+/** Stale-while-revalidate: fresh → instant; stale (but < 12 h) → answer instantly from the old copy and refresh in the background; empty → wait once. */
 async function cached<T>(key: string, ttl: number, fn: () => Promise<T>): Promise<T> {
-  const h = memo.get(key); if (h && Date.now() - h.at < ttl) return h.v as T;
-  try { const v = await fn(); memo.set(key, { at: Date.now(), v }); if (memo.size > 400) memo.delete(memo.keys().next().value as string); return v; }
-  catch (e) { if (h) return h.v as T; throw e; }
+  const h = memo.get(key); const age = h ? Date.now() - h.at : Infinity;
+  if (h && age < ttl) return h.v as T;
+  const refresh = (): Promise<T> => {
+    let p = flying.get(key); if (p) return p;
+    p = fn().then((v) => { memo.set(key, { at: Date.now(), v }); if (memo.size > 700) memo.delete(memo.keys().next().value as string); return v; }).finally(() => flying.delete(key));
+    flying.set(key, p); return p;
+  };
+  if (h && age < HARD) { void refresh().catch(() => undefined); return h.v as T; }
+  try { return await refresh(); } catch (e) { if (h) return h.v as T; throw e; }
 }
 const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 
@@ -101,6 +117,8 @@ const discovered = () => cached('disc', 6 * 3600_000, async () => {
   for (const v of (await Promise.all(seeds.map((q) => search(q)))).flat()) if (v.cid && GOOD.test(v.title)) ids.set(v.cid, (ids.get(v.cid) || 0) + 1);
   return [...ids.entries()].sort((a, b) => b[1] - a[1]).slice(0, 14).map(([id]) => id);
 }).catch(() => [] as string[]);
+/** Never waits: the cached channel pool (or nothing yet) while a refresh runs in the background. */
+const poolNow = (): MVideo[] => { const h = memo.get('pool'); if (!h || Date.now() - h.at > 20 * 60_000) void feedPool().catch(() => undefined); return (h?.v as MVideo[]) || []; };
 const feedPool = (): Promise<MVideo[]> => cached('pool', 20 * 60_000, async () => {
   const targets = [...new Set([...(await discovered()), ...CHANNELS])];
   const lists = await Promise.all(targets.map((h) => hard(feed(h), 10000).catch(() => [] as MVideo[])));
@@ -162,7 +180,7 @@ async function vibeStream(vibe: Vibe, seed: number, need: number, reel: boolean,
   const sources: Array<() => Promise<MVideo[]>> = [];
   if (q) for (const v of variants.slice(0, 6)) sources.push(() => search(`${q} ${v.split(' ').slice(0, 2).join(' ')}`, reel ? 's' : 'v'));
   else {
-    if (vibe === 'stories' && !reel) sources.push(feedPool);
+    if (vibe === 'stories' && !reel) sources.push(async () => poolNow());
     for (const v of variants) sources.push(() => search(reel ? `${v} shorts` : v, reel ? 's' : 'v'));
   }
   const seen = new Set<string>(); const items: MVideo[] = []; let i = 0;
@@ -208,7 +226,7 @@ export async function stream(o: StreamOpts) {
   let all = vibes.length === 1 ? (lists[vibes[0]] as MVideo[]) : mixLists(lists, w);
   if (q && all.length === 0 && !reel) { // search unavailable: match words in real recent uploads
     const words = q.toLowerCase().split(/\s+/).filter((x) => x.length > 2);
-    all = (await feedPool()).filter((v) => words.some((x) => v.title.toLowerCase().includes(x)));
+    all = poolNow().filter((v) => words.some((x) => v.title.toLowerCase().includes(x)));
   }
   const items = all.slice(o.offset, want);
   return { items, next: o.offset + items.length, hasMore: all.length > want || (anyMore && items.length > 0) };
@@ -225,18 +243,37 @@ export async function similar(title: string, vibe: string, limit = 10) {
 }
 
 export async function trending() {
-  const pool = await feedPool();
+  const pool = poolNow();
   const cutoff = Date.now() - 30 * 86400_000;
   const hot = pool.filter((v) => v.published && Date.parse(v.published) >= cutoff && v.views).sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 10);
   return { topics: TOPICS, hot, diag };
 }
 
-/** Warm the search cache in the background (slowly, so we don't hammer YouTube) so the first visitor isn't waiting. */
+const SNAP_KEY = 'motivation_cache_v1';
+async function restore() {
+  try {
+    const snap = await getShared<{ at: number; z: string } | null>(SNAP_KEY, null, 0);
+    if (!snap?.z || Date.now() - snap.at > HARD) return;
+    const data = JSON.parse(zlib.gunzipSync(Buffer.from(snap.z, 'base64')).toString('utf8')) as Record<string, { at: number; v: any }>;
+    for (const [k, e] of Object.entries(data)) if (!memo.has(k) && Date.now() - e.at < HARD) memo.set(k, e);
+  } catch { /* no snapshot yet */ }
+}
+async function persist() {
+  try {
+    const out: Record<string, { at: number; v: any }> = {};
+    for (const [k, e] of memo) if (k.startsWith('s:') || k === 'pool') out[k] = { at: e.at, v: (e.v as MVideo[]).map(({ id, title, channel, duration, views, cid, short, published, source }) => ({ id, title, channel, thumb: thumb(id), duration, views, cid, short, published, source })) };
+    const z = zlib.gzipSync(Buffer.from(JSON.stringify(out), 'utf8')).toString('base64');
+    if (z.length < 900_000) await setShared(SNAP_KEY, { at: Date.now(), z });
+  } catch { /* best effort */ }
+}
+/** Fill the caches in the background (slowly), restoring last run's copy first so even a cold start answers instantly. */
 let warming = false;
 export async function prewarm() {
   if (warming) return; warming = true;
   try {
-    void feedPool();
-    for (const v of VIBES) for (const q of CFG[v].queries) { await search(q); await new Promise((r) => setTimeout(r, 350)); }
+    await restore();
+    void feedPool().catch(() => undefined);
+    for (const v of VIBES) for (const q of CFG[v].queries) { await search(q); await search(`${q} shorts`, 's'); await new Promise((r) => setTimeout(r, 250)); }
+    await persist();
   } catch { /* best effort */ } finally { warming = false; }
 }

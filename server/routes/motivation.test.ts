@@ -13,7 +13,7 @@ describe('vibe quality gates', () => {
   it('nature allows long ambience, stories do not', () => { const v = mv('a', 'Relaxing forest rain 2 hours', { duration: '2:00:00' }); expect(passes(v, 'nature', false)).toBe(true); expect(passes(v, 'stories', false)).toBe(false); });
   it('lyric/music-video dumps are rejected', () => { expect(passes(mv('b', 'Sia - Never Give Up (Lyrics)'), 'stories', false)).toBe(false); expect(passes(mv('c', 'Sad song official video ft. X', { duration: '3:00' }), 'serene', false)).toBe(false); });
   it('sigma drops woman-bashing / dating content but keeps discipline', () => { expect(passes(mv('d', 'Silent discipline mindset'), 'sigma', false)).toBe(true); expect(passes(mv('e', 'Sigma rules for dating women'), 'sigma', false)).toBe(false); });
-  it('explicit titles never pass any vibe', () => { for (const v of ['sigma', 'intense', 'nature', 'serene', 'dreamy', 'stories'] as const) expect(passes(mv('f', 'Hot bikini luxury yacht party'), v, false)).toBe(false); });
+  it('explicit titles never pass any vibe', () => { for (const v of ['sigma', 'intense', 'trader', 'nature', 'serene', 'dreamy', 'stories'] as const) expect(passes(mv('f', 'Hot bikini luxury yacht party'), v, false)).toBe(false); });
   it('reels need short clips or flagged shorts', () => { expect(passes(mv('g', 'Calm ocean', { duration: '0:45' }), 'nature', true)).toBe(true); expect(passes(mv('h', 'Calm ocean', { duration: '12:00' }), 'nature', true)).toBe(false); expect(passes(mv('i', 'Sigma short', { short: true, duration: '0:30' }), 'sigma', true)).toBe(true); });
   it('for-you mix favours the viewer’s taste but still includes every vibe, with no duplicates', () => {
     const mk = (p: string, n: number) => Array.from({ length: n }, (_, i) => mv(`${p}${i}`, p));
@@ -49,4 +49,12 @@ describe('pin resolver', () => {
     expect(r[0]).toContain('expMp4'); expect(r[1]).toContain('av1'); expect(r[2]).toContain('hevc'); expect(r.length).toBe(3);
   });
   it('guesses a sensible category', () => { expect(guessVibe('Thomas Shelby')).toBe('intense'); expect(guessVibe('Luxury villa')).toBe('dreamy'); expect(guessVibe('Rain forest')).toBe('nature'); expect(guessVibe('Soft clouds')).toBe('serene'); });
+});
+
+describe('trader mind', () => {
+  it('keeps real trading-psychology teaching, rejects signal sellers and hype', () => {
+    expect(passes(mv('t1', 'Trading Psychology: How to Control Your Emotions', { duration: '14:00', views: 400000 }), 'trader', false)).toBe(true);
+    expect(passes(mv('t2', 'Forex Signals 100% win rate telegram', { duration: '8:00', views: 400000 }), 'trader', false)).toBe(false);
+    expect(passes(mv('t3', 'Best pasta recipe', { duration: '8:00', views: 400000 }), 'trader', false)).toBe(false);
+  });
 });

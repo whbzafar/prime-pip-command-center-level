@@ -5,7 +5,7 @@ import { PinVideo } from './PinVideo';
 
 const canHover = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
 let current: (() => void) | null = null; // one pin plays at a time
-const BADGE: Record<string, string> = { intense: 'bg-red-600/85', sigma: 'bg-indigo-500/80', nature: 'bg-emerald-500/80', serene: 'bg-sky-500/80', dreamy: 'bg-amber-500/85', stories: 'bg-cyan-600/80' };
+const BADGE: Record<string, string> = { intense: 'bg-red-600/85', sigma: 'bg-indigo-500/80', trader: 'bg-teal-600/85', nature: 'bg-emerald-500/80', serene: 'bg-sky-500/80', dreamy: 'bg-amber-500/85', stories: 'bg-cyan-600/80' };
 
 /** Pinterest-format card: tall poster; plays on hover (desktop) or when scrolled into view (touch); sound button on the preview. */
 export const PinCard: React.FC<{ v: V; saved: boolean; onOpen: () => void; onSave: () => void; ratio: string; delay?: number }> = ({ v, saved, onOpen, onSave, ratio, delay = 0 }) => {

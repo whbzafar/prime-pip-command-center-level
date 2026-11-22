@@ -167,3 +167,58 @@ html[data-theme='aurora'] :where(.prime-card, [class*="rounded-2xl"][class*="bg-
 @media (prefers-reduced-motion: reduce) {
   #ppfx-netbar i, html[data-theme='aurora'] :where(.prime-card, .prime-card-elevated, [class*="rounded-2xl"][class*="bg-slate-9"], [class*="rounded-3xl"][class*="bg-slate-9"]) { animation: none !important; }
 }
+
+/* ===== New Era welcome ===== */
+.ne-root { background: #04030a; color: #fff; animation: ne-fade .9s ease both; }
+.ne-out { animation: ne-fadeout .65s ease both; }
+.ne-bg { position: fixed; inset: 0; background: #04030a url('/img/new-era.jpg') center 30% / cover no-repeat; filter: saturate(1.15) contrast(1.05); transform: scale(1.06); animation: ne-drift 28s ease-in-out infinite alternate; }
+.ne-veil { position: fixed; inset: 0; background: linear-gradient(180deg, rgba(4,3,10,.35) 0%, rgba(4,3,10,.55) 40%, rgba(4,3,10,.92) 78%, #04030a 100%), radial-gradient(120% 80% at 50% 0%, rgba(124,58,237,.28), transparent 60%); }
+.ne-grain { position: fixed; inset: 0; opacity: .12; pointer-events: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); mix-blend-mode: overlay; }
+.ne-title { text-shadow: 0 2px 24px rgba(0,0,0,.8); }
+.ne-neon { background: linear-gradient(90deg, #22d3ee, #a78bfa 50%, #f0abfc); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 14px rgba(167,139,250,.55)); }
+.ne-root p { text-shadow: 0 1px 12px rgba(0,0,0,.85); }
+.ne-cta { background: linear-gradient(90deg, #0891b2, #6d28d9 60%, #c026d3); box-shadow: 0 0 0 1px rgba(255,255,255,.18) inset, 0 10px 40px -8px rgba(139,92,246,.7); transition: transform .18s ease, box-shadow .18s ease; }
+.ne-cta:hover { transform: translateY(-2px); } .ne-cta:active { transform: scale(.98); }
+.ne-rise { opacity: 0; transform: translateY(18px); animation: ne-rise .9s cubic-bezier(.2,.7,.2,1) forwards; }
+@keyframes ne-rise { to { opacity: 1; transform: none; } }
+@keyframes ne-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ne-fadeout { to { opacity: 0; } }
+@keyframes ne-drift { from { transform: scale(1.06) translateY(0); } to { transform: scale(1.14) translateY(-1.5%); } }
+@media (prefers-reduced-motion: reduce) { .ne-bg { animation: none; } .ne-rise { animation-duration: .01s; animation-delay: 0s !important; } }
+
+/* ===== NEON-NOIR (3 AM) — dimmer, atmospheric: near-black violet, magenta + cyan neon, vignette ===== */
+html[data-theme='aurora'] {
+  --au-bg: #04030a;
+  --au-panel: rgba(12, 9, 22, 0.78);
+  --au-panel-2: rgba(19, 13, 34, 0.86);
+  --au-hair: rgba(168, 120, 255, 0.16);
+  --au-hair-strong: rgba(217, 70, 239, 0.45);
+  --au-cyan: #22e0f5;
+  --au-indigo: #7c3aed;
+  --au-violet: #c084fc;
+  --au-rose: #fb5d9a;
+  --au-ink: #f3efff;
+  --au-muted: #9d93c0;
+  --au-grad: linear-gradient(105deg, #22e0f5 0%, #7c3aed 52%, #e879f9 100%);
+}
+html[data-theme='aurora']::before {
+  background:
+    radial-gradient(820px 560px at 6% -8%, rgba(34,224,245,0.10), transparent 62%),
+    radial-gradient(900px 640px at 98% 2%, rgba(217,70,239,0.15), transparent 60%),
+    radial-gradient(900px 700px at 62% 108%, rgba(124,58,237,0.16), transparent 62%),
+    linear-gradient(180deg, #04030a 0%, #07040f 55%, #04030a 100%);
+}
+/* vignette that dims the edges like a night street */
+html[data-theme='aurora'] body::after {
+  content: ''; position: fixed; inset: 0; z-index: 2147482999; pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(2,1,6,.55) 100%);
+}
+html[data-theme='aurora'] body::before { background: linear-gradient(90deg, transparent, #22e0f5, #7c3aed, #e879f9, transparent); opacity: .7; box-shadow: 0 0 18px rgba(217,70,239,.55); }
+html[data-theme='aurora'] ::selection { background: rgba(217,70,239,0.45); }
+html[data-theme='aurora'] { accent-color: #d946ef; caret-color: #e879f9; }
+html[data-theme='aurora'] :where(h1, h2) { text-shadow: 0 0 22px rgba(167,139,250,.28); }
+html[data-theme='aurora'] ::-webkit-scrollbar { width: 8px; height: 8px; }
+html[data-theme='aurora'] ::-webkit-scrollbar-thumb { background: linear-gradient(#7c3aed, #d946ef); border-radius: 8px; }
+html[data-theme='aurora'] ::-webkit-scrollbar-track { background: rgba(255,255,255,.03); }
+html[data-theme='aurora'] :where(.prime-card, .prime-card-elevated, [class*="rounded-2xl"][class*="bg-slate-9"], [class*="rounded-3xl"][class*="bg-slate-9"]):hover { border-color: rgba(217,70,239,.38) !important; box-shadow: 0 0 0 1px rgba(217,70,239,.18), 0 18px 50px -18px rgba(124,58,237,.45); }
+html[data-fx='off'][data-theme='aurora'] body::after { display: none; }

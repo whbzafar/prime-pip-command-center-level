@@ -68,12 +68,16 @@ export const MotivationHub: React.FC = () => {
 
   // proactive suggestions: strongest interest, and "because you watched …"
   useEffect(() => {
+    // secondary shelves wait so the main feed gets the network first
+    const timer = setTimeout(() => {
     const t = tasteRef.current; const tv = topVibe(t);
     if (tv) fetch(`/api/motivation/feed?vibe=${tv}&offset=0&seed=${seed + 7}`).then((r) => r.json()).then((j) => setPicks((j.items || []).filter((x: V) => !t.seen.includes(x.id)).slice(0, 8))).catch(() => undefined);
     const last = t.recent[0];
     if (last) fetch(`/api/motivation/similar?title=${encodeURIComponent(last.title)}&vibe=${last.vibe}`).then((r) => r.json()).then((j) => setBecause({ from: last.title, items: (j.items || []).filter((x: V) => !t.seen.includes(x.id)).slice(0, 8) })).catch(() => undefined);
     fetch(`/api/motivation/feed?reel=1&seed=${seed + 1}${wParam ? `&w=${encodeURIComponent(wParam)}` : ''}&offset=0`).then((r) => r.json()).then((j) => setReelPicks((j.items || []).slice(0, 8))).catch(() => undefined);
     fetch('/api/motivation/trending').then((r) => r.json()).then((j) => setHot(j.hot || [])).catch(() => undefined);
+    }, 1600);
+    return () => clearTimeout(timer);
   }, [seed, wParam]);
 
   useEffect(() => {

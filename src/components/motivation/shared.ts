@@ -3,6 +3,7 @@ export interface V { id: string; title: string; channel: string; thumb: string; 
 export const TABS = [
   { id: 'foryou', label: 'For You', tag: 'Made for your mind', grad: 'from-cyan-950 via-slate-900 to-emerald-950' },
   { id: 'intense', label: 'Intense', tag: 'Walk in like you own the room.', grad: 'from-red-950/80 via-zinc-950 to-amber-950/50' },
+  { id: 'trader', label: 'Trader Mind', tag: 'Master the market by mastering yourself.', grad: 'from-teal-950 via-slate-900 to-cyan-950' },
   { id: 'sigma', label: 'Sigma', tag: 'Silent discipline. Loud results.', grad: 'from-zinc-900 via-slate-900 to-indigo-950' },
   { id: 'nature', label: 'Nature', tag: 'Breathe. Look at the trees.', grad: 'from-emerald-950 via-slate-900 to-teal-950' },
   { id: 'serene', label: 'Serene', tag: 'Slow down. You are safe here.', grad: 'from-sky-950 via-slate-900 to-violet-950' },
@@ -27,7 +28,12 @@ export function useFeed(opts: { vibe: string; q: string; reel: boolean; seed: nu
   const load = useCallback(async (reset: boolean) => {
     if (busy.current && !reset) return;
     const my = reset ? ++gen.current : gen.current;
-    if (reset) { next.current = 0; setItems([]); setMore(true); setNote(null); }
+    const ck = `mh_feed_v1_${vibe}_${reel ? 'r' : 'v'}`;
+    let shown = false;
+    if (reset) {
+      next.current = 0; setMore(true); setNote(null);
+      try { const c = !q && JSON.parse(localStorage.getItem(ck) || 'null'); if (c && Array.isArray(c.items) && c.items.length) { setItems(c.items); shown = true; } else setItems([]); } catch { setItems([]); }
+    }
     busy.current = true; setLoading(true); setErr(false);
     try {
       const url = `/api/motivation/feed?vibe=${encodeURIComponent(vibe === 'foryou' ? '' : vibe)}&q=${encodeURIComponent(q)}&offset=${next.current}&seed=${seed}${reel ? '&reel=1' : ''}${vibe === 'foryou' && weights ? `&w=${encodeURIComponent(weights)}` : ''}`;
@@ -36,7 +42,9 @@ export function useFeed(opts: { vibe: string; q: string; reel: boolean; seed: nu
       if (j.support) { setNote({ kind: 'support', text: j.support }); setMore(false); return; }
       if (j.blocked) { setNote({ kind: 'blocked', text: j.message }); setMore(false); return; }
       next.current = j.next || next.current;
-      setItems((prev) => { const seen = new Set(prev.map((x) => x.id)); return [...prev, ...(j.items as V[]).filter((x) => !seen.has(x.id))]; });
+      if (reset && !q && j.items?.length) { try { localStorage.setItem(ck, JSON.stringify({ items: (j.items as V[]).slice(0, 12) })); } catch { /* quota */ } }
+      if (shown) setItems(j.items as V[]);
+      else setItems((prev) => { const seen = new Set(prev.map((x) => x.id)); return [...prev, ...(j.items as V[]).filter((x) => !seen.has(x.id))]; });
       setMore(!!j.hasMore && (j.items?.length || 0) > 0);
     } catch { if (my === gen.current) setErr(true); }
     finally { if (my === gen.current) { busy.current = false; setLoading(false); } }

@@ -5,7 +5,7 @@ import { V, ago, fmtViews, secs } from './shared';
 const canHover = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
 let activePreview: (() => void) | null = null; // only one preview plays at a time
 
-const BADGE: Record<string, string> = { intense: 'bg-red-600/85', sigma: 'bg-indigo-500/80', nature: 'bg-emerald-500/80', serene: 'bg-sky-500/80', dreamy: 'bg-amber-500/85', stories: 'bg-cyan-600/80' };
+const BADGE: Record<string, string> = { intense: 'bg-red-600/85', sigma: 'bg-indigo-500/80', trader: 'bg-teal-600/85', nature: 'bg-emerald-500/80', serene: 'bg-sky-500/80', dreamy: 'bg-amber-500/85', stories: 'bg-cyan-600/80' };
 
 export const VideoCard: React.FC<{ v: V; saved: boolean; onOpen: () => void; onSave: () => void; compact?: boolean; delay?: number }> = ({ v, saved, onOpen, onSave, compact, delay }) => {
   const [preview, setPreview] = useState(false);
