@@ -548,7 +548,7 @@ export const Header: React.FC<HeaderProps> = ({
         <DailyPrayerBar />
 
       {/* Phones: one compact row instead of three rows of status pills and tools */}
-      <div className="md:hidden px-2.5 py-1 border-b border-slate-800/60 bg-[#020617] flex items-center gap-2 text-[10px] font-mono-code text-slate-400">
+      <div className="px-2.5 sm:px-4 py-1 border-b border-slate-800/60 bg-[#020617] flex items-center gap-2 text-[10px] font-mono-code text-slate-400">
         <span className="truncate min-w-0"><LiveClockText /></span>
         <button type="button" onClick={() => setToolsOpen((v) => !v)} aria-expanded={toolsOpen} data-testid="header-tools-toggle"
           className="ml-auto shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-slate-200 text-[10.5px] font-bold cursor-pointer">
@@ -566,7 +566,7 @@ export const Header: React.FC<HeaderProps> = ({
       />
 
       {/* Top Tactical Status Bar */}
-      <div className={`${toolsOpen ? 'flex' : 'hidden'} md:flex px-2.5 sm:px-4 py-1 border-b border-slate-800/60 bg-[#020617] flex-wrap items-center justify-between gap-y-1 gap-x-1.5 text-[10px] font-mono-code text-slate-400`}>
+      <div className={`${toolsOpen ? 'flex' : 'hidden'} px-2.5 sm:px-4 py-1 border-b border-slate-800/60 bg-[#020617] flex-wrap items-center justify-between gap-y-1 gap-x-1.5 text-[10px] font-mono-code text-slate-400`}>
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 flex-wrap">
           {/* Offline/Online Status */}
           <OfflineIndicator />
