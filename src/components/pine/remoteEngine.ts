@@ -10,6 +10,12 @@ import { authInit, pineLib } from './pineLibrary';
 
 /** The SBT indicator's own right-hand "models" table is not shown on the chart (everything else it draws stays). */
 const hidesTables = (id: string) => /\bSBT\b/i.test(pineLib.get().scripts.find((s) => s.id === id)?.name || '');
+/** Statistics panels (SBT model table, win-rate / trade-statistics box) are never shown on the chart; the small status box stays. */
+const STATS_TABLE = /WIN RATE|Total R\b|Avg R\b|\bSkipped\b|Zone R\b|TP\/Hurdle|\bTrades\b|SBT ?\d+[AB]?\b.*(Bull|Bear)|\bBull\b.*\bBear\b/i;
+const dropStatsTables = (tables: any) => (Array.isArray(tables) ? tables.filter((t) => { try { return !STATS_TABLE.test(JSON.stringify(t)); } catch { return true; } }) : tables);
+/** Last model per indicator + pair + timeframe: shown instantly on the next visit while the fresh run is on its way. */
+const modelCache = new Map<string, any>();
+const rememberModel = (k: string, m: any) => { modelCache.delete(k); modelCache.set(k, m); if (modelCache.size > 16) modelCache.delete(modelCache.keys().next().value as string); };
 
 /**
  * Speed: the server asks for extra series (other timeframes/symbols) in rounds, and every round re-runs the script.
@@ -77,6 +83,8 @@ export class RemotePineEngine {
       needTemplates.set(id, cur);
     };
     let firstRound = true;
+    const mkey = () => `${id}|${String(req.market.symbol).toUpperCase()}|${req.market.timeframe}|${JSON.stringify(inputs)}`;
+    { const hit = modelCache.get(mkey()); if (hit) setTimeout(() => { if (!stopped && !lastRunAt) handlers.onModel({ ...hit, id: instanceId }); }, 0); }
     const run = async () => {
       if (stopped) return;
       if (running) { dirty = true; return; }
@@ -109,7 +117,9 @@ export class RemotePineEngine {
           }
           for (const w of j.warnings || []) handlers.onWarning?.({ message: w });
           for (const a of j.alerts || []) handlers.onAlert?.(a);
-          handlers.onModel({ ...j.model, ...(hidesTables(id) ? { tables: [] } : {}), id: instanceId });
+          const out = { ...j.model, tables: hidesTables(id) ? [] : dropStatsTables(j.model?.tables), id: instanceId };
+          rememberModel(mkey(), out);
+          handlers.onModel(out);
           handlers.onDone?.();
           lastRunAt = Date.now();
           return;
