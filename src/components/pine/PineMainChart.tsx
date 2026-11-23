@@ -24,7 +24,7 @@ import { registerIcon, registerRendererLayer, registerWidgetAction } from '@luxa
 import { PineWorkerEngine } from '@luxalgo/vela-pinets';
 import { catalogFor, makeProvider, normTf, prewarmPopular, velaTf, venueSymbol } from './pineData';
 import { DRAFT_ID, hideIndicator, indicatorStatus, loadLibrary, pineLib, setIndicatorStatus, showIndicator, type LibraryScript } from './pineLibrary';
-import { RemotePineEngine, REMOTE_LANG, remoteRef } from './remoteEngine';
+import { RemotePineEngine, REMOTE_LANG, remoteRef, warmPine } from './remoteEngine';
 import { markOnScreen, priceAlerts, type AlertCondition, type PriceAlert } from './priceAlerts';
 
 interface Running { key: string; remove: () => void }
@@ -184,6 +184,7 @@ export const PineMainChart: React.FC<{
   cbs.current = { onSymbolChange, onIntervalChange, onToggleFullscreen };
 
   useEffect(() => pineLib.subscribe(() => setLib({ ...pineLib.get() })), []);
+  useEffect(() => { if (lib.scripts.length) warmPine(lib.scripts); }, [lib.scripts]);
 
   // ── drawings auto-save (per symbol)
   // A symbol's drawings are only ever written after they have been loaded INTO the chart for that symbol

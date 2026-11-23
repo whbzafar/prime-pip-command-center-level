@@ -26,6 +26,19 @@ type NeedTpl = { symbol: string; timeframe: string; range?: any };
 const needTemplates = new Map<string, NeedTpl[]>();
 const SYM = '$SYM';
 
+let warmed = false;
+/** Compile every strategy on the server in the background (once per visit), so clicking one later skips the compile wait. */
+export function warmPine(scripts: Array<{ id: string }>) {
+  if (warmed || !scripts.length) return;
+  warmed = true;
+  const idle = (f: () => void) => (typeof (window as any).requestIdleCallback === 'function' ? (window as any).requestIdleCallback(f, { timeout: 2500 }) : setTimeout(f, 800));
+  idle(async () => {
+    for (const sc of scripts) {
+      try { await fetch('/api/pine/prepare', authInit({ method: 'POST', body: JSON.stringify({ id: sc.id, instanceId: `warm-${sc.id}` }) })); } catch { /* best effort */ }
+    }
+  });
+}
+
 export const REMOTE_LANG = 'ppfx';
 export const remoteRef = (id: string) => `ppfx:${id}`;
 const idOf = (source: string) => source.replace(/^ppfx:/, '');

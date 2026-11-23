@@ -39,6 +39,13 @@ async function prepareCached(engine: any, source: string) {
 
 // Speed: an identical request (same script, market, bars, inputs and supplied series) is answered from memory for 45 s —
 // switching back to a pair/timeframe, or the browser's repeated runs on unchanged bars, then costs nothing.
+/** Statistics panels (SBT model table, win-rate box) are never sent to the browser; the small status box is. */
+const STATS = /WIN RATE|Total R\b|Avg R\b|\bSkipped\b|Zone R\b|TP\/Hurdle|\bTrades\b|\bBull\b[\s\S]*\bBear\b/i;
+export function stripStatsTables(model: any) {
+  if (!model || !Array.isArray(model.tables)) return model;
+  const keep = model.tables.filter((t: any) => { try { return !STATS.test((t?.cells || []).flat().map((c: any) => String(c?.text ?? '')).join(' | ')); } catch { return true; } });
+  return { ...model, tables: keep };
+}
 const resultCache = new Map<string, { at: number; out: RunOutput }>();
 const RESULT_TTL = 45_000;
 const runKey = (input: RunInput, bars: any[]) => {
@@ -161,7 +168,7 @@ export async function runScript(input: RunInput): Promise<RunOutput> {
           onError: (err: any) => { if (process.env.PPFX_PINE_DEBUG) console.error('PINE-ERR', err?.stack || err, JSON.stringify(err)?.slice(0, 500)); finish({ ok: false, error: String(err?.message || err), line: errorLine(err) }); },
           onDone: () => {
             if (need.size) finish({ ok: true, need: [...need.values()] });
-            else finish({ ok: true, model, warnings, alerts: alerts.slice(-50) });
+            else finish({ ok: true, model: stripStatsTables(model), warnings, alerts: alerts.slice(-50) });
           },
         },
       );
