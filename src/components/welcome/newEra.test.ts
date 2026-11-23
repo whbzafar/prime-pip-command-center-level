@@ -7,7 +7,7 @@ describe('shouldShowNewEra', () => {
   it('not twice', () => expect(shouldShowNewEra(u(), Date.now(), () => true)).toBe(false));
   it('not for free users or guests', () => { expect(shouldShowNewEra(u({ subscriptionStatus: 'NONE' }), Date.now(), no)).toBe(false); expect(shouldShowNewEra(null, Date.now(), no)).toBe(false); });
   it('not for admins', () => expect(shouldShowNewEra(u({ role: 'ADMIN' }), Date.now(), no)).toBe(false));
-  it('not for long-time subscribers', () => expect(shouldShowNewEra(u({ startDate: new Date(Date.now() - 40 * 864e5).toISOString() }), Date.now(), no)).toBe(false));
+  it('existing long-time subscribers see it once on first open', () => expect(shouldShowNewEra(u({ startDate: new Date(Date.now() - 400 * 864e5).toISOString() }), Date.now(), no)).toBe(true));
 });
 
 describe('welcomeName', () => {
