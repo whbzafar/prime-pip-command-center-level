@@ -8,7 +8,8 @@
  *    (works while the app is open in a tab or installed as an app). Mute / unmute any time.
  * A red badge shows how many new items arrived since the panel was last opened.
  */
-import { NewsHub } from './NewsHub';
+import { TradeBoard } from './TradeBoard';
+import { BreakingNewsPanel } from '../calendar/BreakingNewsPanel';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, BellRing, BellOff, ExternalLink, FileDown, Flame, Megaphone, RefreshCw, Trash2, Volume2, X } from 'lucide-react';
 import { SOUNDS, playSound, type SoundId } from '../../utils/alertSounds';
@@ -53,7 +54,8 @@ async function notify(title: string, body: string) {
 export const AnnouncementsCenter: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState<Sel | null>(null);
-  const [tab, setTab] = useState<'FUNDAMENTALS' | 'PICKS' | 'PAKISTAN' | 'ANNOUNCEMENTS' | 'ALERTS'>('FUNDAMENTALS');
+  const [tab, setTab] = useState<'TRADE' | 'FUNDAMENTALS' | 'PICKS' | 'ANNOUNCEMENTS' | 'ALERTS'>('TRADE');
+  const [newsSub, setNewsSub] = useState<'IMPORTANT' | 'BREAKING' | 'WORLD' | 'POLITICAL' | 'PAKISTAN'>('IMPORTANT');
   const { data: rankings } = useRankings(5 * 60_000);
   const levels = useLevelAlerts();
   const { items: pkItems } = usePkNews();
@@ -171,7 +173,7 @@ export const AnnouncementsCenter: React.FC = () => {
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    if (next) { markLevelAlertsSeen(); if (levels.unseen) setTab('FUNDAMENTALS'); const now = Date.now(); write(K_SEEN, now); window.setTimeout(() => setSeenAt(now), 1500); }
+    if (next) { markLevelAlertsSeen(); if (levels.unseen) setTab('TRADE'); const now = Date.now(); write(K_SEEN, now); window.setTimeout(() => setSeenAt(now), 1500); }
   };
   const enableNotifications = async () => {
     if (typeof Notification === 'undefined') return;
@@ -200,17 +202,20 @@ export const AnnouncementsCenter: React.FC = () => {
             <button type="button" onClick={() => setOpen(false)} className="ml-auto p-1 text-slate-400 hover:text-white cursor-pointer" aria-label="Close"><X className="w-4 h-4" /></button>
           </div>
           <div className="flex gap-1 px-3 pt-2">
-            {([['FUNDAMENTALS', `Long-term${levelHits ? ` · ${levelHits} setup${levelHits > 1 ? 's' : ''}` : ''}`], ['PICKS', 'Stocks & indices'], ['PAKISTAN', 'News'], ['ANNOUNCEMENTS', `Important${visibleAnns.length + highlights.length ? ` (${visibleAnns.length + highlights.length})` : ''}`], ['ALERTS', `Alerts${alerts.length ? ` (${alerts.length})` : ''}`]] as const).map(([k, l]) => (
+            {([['TRADE', `Trade${levelHits ? ` · ${levelHits}` : ''}`], ['FUNDAMENTALS', 'Long-term'], ['PICKS', 'Stock Indices'], ['ANNOUNCEMENTS', `News / Important${visibleAnns.length + highlights.length ? ` (${visibleAnns.length + highlights.length})` : ''}`]] as const).map(([k, l]) => (
               <button key={k} type="button" onClick={() => setTab(k)} className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer ${tab === k ? 'bg-violet-500/20 border border-violet-400/50 text-violet-100' : 'text-slate-400 hover:text-white border border-transparent'}`}>{l}</button>
             ))}
-          </div>
+
+            <button type="button" data-testid="ann-settings" onClick={() => setTab('ALERTS')} title="Alert settings: sounds, interval, notifications" aria-label="Alert settings" className={`ml-auto px-2 py-1 rounded-lg text-[11px] font-semibold cursor-pointer ${tab === 'ALERTS' ? 'bg-violet-500/20 border border-violet-400/50 text-violet-100' : 'text-slate-400 hover:text-white border border-transparent'}`}>⚙ Settings{alerts.length ? ` (${alerts.length})` : ''}</button>          </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-            {!sel && tab === 'FUNDAMENTALS' && <LevelAlertsPanel dense onOpen={(sym) => { openChart(sym); setOpen(false); }} />}
+            {tab === 'TRADE' && <TradeBoard onOpen={(sym) => { openChart(sym); setOpen(false); }} />}
             {sel && (tab === 'FUNDAMENTALS' || tab === 'PICKS') && <AssetDetail sel={sel} levels={levels} news={news} pk={pkItems || []} onBack={() => setSel(null)} onOpen={(sym) => { openChart(sym); setOpen(false); }} />}
             {!sel && tab === 'FUNDAMENTALS' && (
               <>
                 <button type="button" disabled={!rankings} onClick={() => rankings && import('../../utils/macroPdf').then((m) => m.exportRankingsPdf(rankings as any, 'longTerm'))} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-400/50 bg-emerald-500/10 text-[11.5px] font-semibold text-emerald-100 hover:bg-emerald-500/20 cursor-pointer disabled:opacity-40"><FileDown className="w-3.5 h-3.5" />Export top long-term picks (PDF)</button>
+                <div className="flex items-center gap-2" data-testid="lt-mute-row"><span className="text-[10.5px] text-slate-500">Long-term summary alerts (every {settings.everyMin || 180} min)</span>
+                  <button type="button" data-testid="lt-mute" onClick={() => saveSettings({ ...settings, muted: !settings.muted })} className={`ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-md border text-[10.5px] font-bold cursor-pointer ${settings.muted ? 'border-rose-400/60 text-rose-100 bg-rose-500/15' : 'border-emerald-400/50 text-emerald-100 bg-emerald-500/10'}`}>{settings.muted ? <><BellOff className="w-3 h-3" />Muted</> : <><BellRing className="w-3 h-3" />Alerts on</>}</button></div>
                 <div className="text-[10.5px] text-slate-500">Live long-term fundamental ranking · {rankings?.generatedAt ? `updated ${when(Date.parse(rankings.generatedAt))} PKT` : 'loading…'} · tap a pair for its key levels, news and alerts</div>
                 {[['Long-term bullish', bull, true], ['Long-term bearish', bear, false]].map(([title, list, up]) => (
                   <div key={title as string} className={`rounded-xl border p-2.5 ${up ? 'border-emerald-500/25 bg-emerald-500/[0.04]' : 'border-rose-500/25 bg-rose-500/[0.04]'}`}>
@@ -229,10 +234,24 @@ export const AnnouncementsCenter: React.FC = () => {
               </>
             )}
 
-            {tab === 'PAKISTAN' && <NewsHub />}
             {!sel && tab === 'PICKS' && <StockPicksPanel onSelect={(r, up) => setSel({ symbol: r.symbol, name: r.name, side: up ? 1 : -1, score: Number(r.score ?? 0), fx: false, region: r.region || undefined })} />}
 
             {tab === 'ANNOUNCEMENTS' && (
+              <div className="flex items-center gap-1 overflow-x-auto" role="tablist" data-testid="news-subtabs">
+                {([['IMPORTANT', 'Important'], ['BREAKING', 'Breaking'], ['WORLD', 'World News'], ['POLITICAL', 'Political News'], ['PAKISTAN', 'Pakistan']] as const).map(([k, l]) => (
+                  <button key={k} type="button" role="tab" aria-selected={newsSub === k} data-testid={`news-sub-${k}`} onClick={() => setNewsSub(k)} className={`shrink-0 px-2.5 py-1 rounded-full border text-[11px] font-bold cursor-pointer ${newsSub === k ? 'border-violet-400/60 bg-violet-500/20 text-violet-100' : 'border-slate-700 text-slate-400 hover:text-white'}`}>{l}</button>
+                ))}
+                <button type="button" data-testid="news-mute" onClick={() => saveSettings({ ...settings, newsOn: settings.newsOn === false })} title={settings.newsOn === false ? 'News alerts are muted — tap to turn them on' : 'Tap to mute news alerts'}
+                  className={`ml-auto shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md border text-[10.5px] font-bold cursor-pointer ${settings.newsOn === false ? 'border-rose-400/60 text-rose-100 bg-rose-500/15' : 'border-emerald-400/50 text-emerald-100 bg-emerald-500/10'}`}>
+                  {settings.newsOn === false ? <><BellOff className="w-3 h-3" />Muted</> : <><BellRing className="w-3 h-3" />Alerts on</>}
+                </button>
+              </div>
+            )}
+            {tab === 'ANNOUNCEMENTS' && newsSub === 'BREAKING' && <BreakingNewsPanel key="b" />}
+            {tab === 'ANNOUNCEMENTS' && newsSub === 'WORLD' && <BreakingNewsPanel key="w" initialCat="Geopolitics" />}
+            {tab === 'ANNOUNCEMENTS' && newsSub === 'POLITICAL' && <BreakingNewsPanel key="p" initialCat="Politics" />}
+            {tab === 'ANNOUNCEMENTS' && newsSub === 'PAKISTAN' && <PakistanNewsView compact />}
+            {tab === 'ANNOUNCEMENTS' && newsSub === 'IMPORTANT' && (
               <>
                 <div className="flex items-center gap-2">
                   <span className="text-[10.5px] text-slate-500">Owner announcements and the market's hottest stories</span>
