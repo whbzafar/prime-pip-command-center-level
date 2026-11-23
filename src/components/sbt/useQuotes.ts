@@ -21,6 +21,22 @@ export async function loadQuote(symbol: string): Promise<Quote | null> {
   return { price: b.close, changePct: ref && ref.close ? ((b.close - ref.close) / ref.close) * 100 : null, digits: (e as any).pricePrecision ?? 2, at: Date.now() };
 }
 
+/** Latest price from the newest 1-minute bar (fresher than the H1 bar's last close) — used by the real-time level alerts. */
+export async function loadLiveQuote(symbol: string): Promise<Quote | null> {
+  const e = CATALOG.find((c) => c.ticker === norm(symbol));
+  if (!e) return null;
+  try {
+    const m1 = PRO_PERIODS.find((p) => p.text === '1m');
+    if (m1) {
+      const f = new FullHistoryDatafeed(() => {}); f.pageSize = 5;
+      const rows = await f.getHistoryKLineData(e as any, m1, 0, Date.now() + 60_000);
+      const b = rows?.[rows.length - 1];
+      if (b && Number.isFinite(b.close)) return { price: b.close, changePct: null, digits: (e as any).pricePrecision ?? 2, at: Date.now() };
+    }
+  } catch { /* fall back to the H1 quote */ }
+  return loadQuote(symbol);
+}
+
 export function useQuotes(symbols: string[], active: boolean, everyMs = 30_000): Map<string, Quote> {
   const [, tick] = useState(0);
   const key = symbols.join(',');

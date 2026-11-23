@@ -278,8 +278,8 @@ async function livePrice(symbol: string): Promise<number | null> {
       const r = await fetch(`https://data-api.binance.vision/api/v3/ticker/price?symbol=${symbol}`, { cache: 'no-store' }).then((x) => x.json());
       const v = Number(r?.price); if (Number.isFinite(v) && v > 0) return v;
     }
-    const { loadQuote } = await import('../components/sbt/useQuotes');
-    const q = await loadQuote(symbol);
+    const { loadLiveQuote } = await import('../components/sbt/useQuotes');
+    const q = await loadLiveQuote(symbol);
     return q && Number.isFinite(q.price) ? q.price : null;
   } catch { return null; }
 }
@@ -296,13 +296,14 @@ async function headsUpCycle() {
   if (headsBusy || state.status !== 'ready' || !state.marketOpen) return;
   const now = Date.now();
   const minLeft = 60 - new Date(now).getUTCMinutes();
-  if (minLeft < MIN_LEFT_MIN) return;
   const hour = Math.floor(now / H1MS);
   const done = new Set(read<string[]>(K_HEADS, []));
   const todo: Array<{ p: PairScan; level: 1 | 2; z: LevelZone }> = [];
   for (const p of state.pairs) {
     if (p.state !== 'ok' || !p.watching || p.inTrade) continue;
-    for (const [level, z] of [[1, p.level1], [2, p.level2]] as const) if (z && !done.has(`${p.symbol}:${level}:${hour}`)) todo.push({ p, level, z });
+    for (const [level, z] of [[1, p.level1], [2, p.level2]] as const) {
+      if (z && !(done.has(`${p.symbol}:${level}:${hour}`) && done.has(`${p.symbol}:${level}:${hour}:in`))) todo.push({ p, level, z });
+    }
   }
   if (!todo.length) return;
   headsBusy = true;
@@ -310,29 +311,34 @@ async function headsUpCycle() {
     const prices = new Map<string, number | null>();
     const syms = [...new Set(todo.map((t) => t.p.symbol))];
     let i = 0;
-    await Promise.all(Array.from({ length: 3 }, async () => { while (i < syms.length) { const s = syms[i++]; prices.set(s, await livePrice(s)); } }));
+    await Promise.all(Array.from({ length: 4 }, async () => { while (i < syms.length) { const s = syms[i++]; prices.set(s, await livePrice(s)); } }));
     const fired: LevelEvent[] = [];
     for (const { p, level, z } of todo) {
       const px = prices.get(p.symbol); if (px == null) continue;
-      const near = Math.max((p.pip || 0) * 15, (z.top - z.bottom) * 0.5);
+      const near = Math.max((p.pip || 0) * 30, (z.top - z.bottom) * 1.0);
       const d = distanceToZone(px, z, p.side);
       if (d < 0 || d > near) continue;
-      done.add(`${p.symbol}:${level}:${hour}`);
       const dir = p.side > 0 ? 'buy' : 'sell';
-      const away = d === 0 ? 'price is inside the zone now' : p.pip ? `${(d / p.pip).toFixed(1)} pips away` : 'very close';
+      const inside = d === 0;
+      const key = `${p.symbol}:${level}:${hour}${inside ? ':in' : ''}`;
+      if (done.has(key)) continue;
+      if (!inside && minLeft < MIN_LEFT_MIN) continue; // last minutes: only the "inside the zone" alert is still useful
+      done.add(key);
+      if (inside) done.add(`${p.symbol}:${level}:${hour}`); // being inside covers the earlier heads-up
+      const away = inside ? 'price is INSIDE the zone right now' : p.pip ? `${(d / p.pip).toFixed(1)} pips away` : 'very close';
       const model = z.modelReady ? 'Confirmation models are ready.' : 'Confirmation models are not complete yet.';
       fired.push({
-        id: `heads-${p.symbol}-${level}-${hour}`, kind: 'READY', symbol: p.symbol, display: p.display, side: p.side, level, time: now,
-        title: `HEADS-UP · ${p.display} nearing Level ${level} ${dir} zone`,
-        text: `${p.display} is ${away} (${fmtPrice(px)}; zone ${fmtPrice(z.bottom)}–${fmtPrice(z.top)}). ${minLeft} min left in this H1 candle. ${model} Get ready — the confirmation follows when the candle closes.`,
-        speech: `Heads up. ${p.display} is nearing level ${level} ${dir} zone. ${minLeft} minutes left in the candle.`,
+        id: `heads-${p.symbol}-${level}-${hour}${inside ? '-in' : ''}`, kind: 'READY', symbol: p.symbol, display: p.display, side: p.side, level, time: now,
+        title: inside ? `AT LEVEL NOW · ${p.display} entered Level ${level} ${dir} zone` : `HEADS-UP · ${p.display} nearing Level ${level} ${dir} zone`,
+        text: `${p.display}: ${away} (${fmtPrice(px)}; zone ${fmtPrice(z.bottom)}–${fmtPrice(z.top)}). ${minLeft} min left in this H1 candle. ${model} ${inside ? 'Watch the candle — confirmation follows at the close.' : 'Get ready.'}`,
+        speech: inside ? `Alert. ${spokenPair(p.display)} has entered the level ${level} ${dir} zone now.` : `Heads up. ${spokenPair(p.display)} is nearing level ${level} ${dir} zone. ${minLeft} minutes left in the candle.`,
       });
     }
     write(K_HEADS, [...done].filter((k) => Number(k.split(':')[2]) >= hour - 3));
     if (fired.length) {
       speakEvents(fired);
       for (const e of fired) void notify(e.title, e.text);
-      try { window.dispatchEvent(new CustomEvent('ppfx:level-alert', { detail: fired.map((e) => ({ ...e, heads: true })) })); } catch { /* ignore */ }
+      try { window.dispatchEvent(new CustomEvent('ppfx:level-alert', { detail: fired.map((e) => ({ ...e, heads: true, now: e.title.startsWith('AT LEVEL NOW') })) })); } catch { /* ignore */ }
     }
   } finally { headsBusy = false; }
 }
@@ -343,7 +349,7 @@ export function startLevelAlerts() {
   try { localStorage.removeItem(K_LOG); localStorage.removeItem(K_SEEN); } catch { /* storage blocked */ }
   setTimeout(() => { cycle().then(schedule); }, 1500);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - state.updatedAt > 90_000) cycle(); });
-  setInterval(() => { if (document.visibilityState !== 'hidden') void headsUpCycle(); }, 30_000);
+  setInterval(() => { if (document.visibilityState !== 'hidden') void headsUpCycle(); }, 10_000);
 }
 
 export const markLevelAlertsSeen = () => { if (state.unseen) set({ unseen: 0 }); };

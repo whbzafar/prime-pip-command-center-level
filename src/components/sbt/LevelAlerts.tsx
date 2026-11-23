@@ -156,7 +156,7 @@ export const LevelAlertBanner: React.FC<{ onOpen: (engineSymbol: string) => void
     return () => { window.removeEventListener('ppfx:level-alert', on); window.clearInterval(t); };
   }, []);
   if (!items.length) return null;
-  const shell = 'fixed left-1/2 -translate-x-1/2 top-[calc(env(safe-area-inset-top,0px)+4rem)] z-[2147482000]';
+  const shell = 'fixed left-1/2 -translate-x-1/2 top-[calc(env(safe-area-inset-top,0px)+4rem)] z-[2147482000] isolate';
   if (min) {
     const top = items[0];
     return (
@@ -172,23 +172,24 @@ export const LevelAlertBanner: React.FC<{ onOpen: (engineSymbol: string) => void
   return (
     <div className={`${shell} w-[min(520px,calc(100vw-1rem))] space-y-2`} data-testid="level-alert-banner" role="alert" aria-live="assertive">
       <div className="flex justify-end">
-        <button type="button" data-testid="level-alert-minimize" onClick={() => setMin(true)} className="px-2.5 py-1 rounded-full border border-slate-600 bg-slate-950/90 text-[11px] font-semibold text-slate-200 hover:text-white cursor-pointer">Minimize</button>
+        <button type="button" data-testid="level-alert-minimize" onClick={() => setMin(true)} className="px-2.5 py-1 rounded-full border border-slate-500 bg-slate-900 text-[11px] font-semibold text-slate-200 hover:text-white cursor-pointer">Minimize</button>
       </div>
       {items.map((a) => {
         if (a.kind === 'TEST_EMPTY' || !a.display || (a as any).heads) {
           return (
-            <div key={a.id} className="relative rounded-2xl border-2 border-cyan-400 bg-slate-950/95 p-3 pr-9 shadow-2xl">
-              <button type="button" onClick={() => setItems((c) => c.filter((x) => x.id !== a.id))} aria-label="Dismiss" className="absolute top-2 right-2 p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 cursor-pointer"><XIcon className="w-4 h-4" /></button>
-              <div className="text-[10px] font-mono-code uppercase tracking-[0.18em] text-cyan-300 font-bold">{(a as any).heads ? 'Heads-up · price nearing a level' : a.test ? 'Test alert' : 'Market update'}</div>
-              <div className="mt-1 text-[13px] font-bold text-white">{a.title}</div>
-              <div className="text-[11.5px] text-slate-300">{a.text}</div>
-              {(a as any).heads && <button type="button" onClick={() => { onOpen(a.symbol); setItems((c) => c.filter((x) => x.id !== a.id)); }} className="mt-1 text-[10.5px] text-cyan-300 font-semibold cursor-pointer">Open the chart →</button>}
+            <div key={a.id} data-testid={(a as any).now ? 'level-alert-now' : 'level-alert-heads'} className="relative rounded-2xl p-3 pr-9 shadow-2xl"
+              style={{ background: (a as any).now ? '#7f1020' : '#4a2a00', border: `2px solid ${(a as any).now ? '#ff5468' : '#fbbf24'}`, boxShadow: `0 10px 34px ${(a as any).now ? 'rgba(255,60,80,.55)' : 'rgba(251,191,36,.35)'}`, backdropFilter: 'none', opacity: 1 }}>
+              <button type="button" onClick={() => setItems((c) => c.filter((x) => x.id !== a.id))} aria-label="Dismiss" className="absolute top-2 right-2 p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/15 cursor-pointer"><XIcon className="w-4 h-4" /></button>
+              <div className="text-[10px] font-mono-code uppercase tracking-[0.18em] font-black" style={{ color: (a as any).now ? '#ffd2d8' : '#fde68a' }}>{(a as any).now ? 'AT THE LEVEL NOW · live price' : (a as any).heads ? 'Heads-up · price nearing a level' : a.test ? 'Test alert' : 'Market update'}</div>
+              <div className="mt-1 text-[14px] font-extrabold text-white">{a.title}</div>
+              <div className="text-[12px] text-white/90">{a.text}</div>
+              {(a as any).heads && <button type="button" onClick={() => { onOpen(a.symbol); setItems((c) => c.filter((x) => x.id !== a.id)); }} className="mt-1.5 px-2.5 py-1 rounded-lg bg-white text-slate-900 text-[11px] font-extrabold cursor-pointer">Open the chart →</button>}
             </div>
           );
         }
         const up = a.side > 0;
         return (
-          <div key={a.id} className={`relative rounded-2xl border-2 shadow-2xl backdrop-blur-xl p-3 pr-9 ${up ? 'border-emerald-400 bg-emerald-950/90 shadow-emerald-500/30' : 'border-rose-400 bg-rose-950/90 shadow-rose-500/30'}`}>
+          <div key={a.id} className={`relative rounded-2xl border-2 shadow-2xl p-3 pr-9 ${up ? 'border-emerald-400 bg-emerald-950 shadow-emerald-500/30' : 'border-rose-400 bg-rose-950 shadow-rose-500/30'}`}>
             <button type="button" onClick={() => setItems((c) => c.filter((x) => x.id !== a.id))} aria-label="Dismiss" className="absolute top-2 right-2 p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 cursor-pointer"><XIcon className="w-4 h-4" /></button>
             <button type="button" onClick={() => { onOpen(a.symbol); setItems((c) => c.filter((x) => x.id !== a.id)); }} className="w-full text-left cursor-pointer">
               <div className="text-[10px] font-mono-code uppercase tracking-[0.18em] text-amber-200 font-bold">{a.test ? 'TEST · most recent real setup' : 'Fundamental setup · key level reached · H1'}{a.time ? ` · ${levelTime(a.time)} PKT` : ''}</div>
