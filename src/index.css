@@ -2806,3 +2806,10 @@ html:not(.ppfx-fx) .animate-category-beam-top,
 html:not(.ppfx-fx) .animate-category-beam-right,
 html:not(.ppfx-fx) .animate-category-beam-bottom,
 html:not(.ppfx-fx) .animate-category-beam-left { opacity: 0 !important; }
+
+/* Motivation: keep videos sharp — no fog canvases / glow layers over or behind the feed */
+html.ppfx-clear-video [data-testid='market-aura'],
+html.ppfx-clear-video #ppfx-spot,
+html.ppfx-clear-video #app-perimeter-animated-frame { display: none !important; }
+html.ppfx-clear-video #ppfx-aurora-canvas { opacity: 0.28 !important; filter: none !important; }
+html.ppfx-clear-video video, html.ppfx-clear-video iframe, html.ppfx-clear-video article img { filter: none !important; mix-blend-mode: normal !important; opacity: 1 !important; }

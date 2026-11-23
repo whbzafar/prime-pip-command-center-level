@@ -27,6 +27,8 @@ const Shelf: React.FC<{ title: string; icon?: React.ReactNode; items: V[]; saved
 export const MotivationHub: React.FC = () => {
   const seed = useRef(Math.floor(Math.random() * 2 ** 31) + 1).current; // new every visit → fresh feed
   const [tab, setTab] = useState<string>('foryou');
+  // Videos must stay crisp: while this page is open, the app's fog / glow layers are switched off (see index.css).
+  useEffect(() => { const el = document.documentElement; el.classList.add('ppfx-clear-video'); return () => el.classList.remove('ppfx-clear-video'); }, []);
   const [q, setQ] = useState(''); const [active, setActive] = useState('');
   const [focus, setFocus] = useState(false);
   const [saved, setSaved] = useState<V[]>(() => read<V[]>(SAVE_KEY, []));
@@ -107,7 +109,7 @@ export const MotivationHub: React.FC = () => {
   return (
     <div className="relative mx-auto max-w-6xl space-y-5 px-3 pb-28 pt-4 sm:px-5">
       <div className="pointer-events-none fixed inset-0 -z-0 overflow-hidden" aria-hidden>
-        <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" /><div className="absolute -right-24 top-1/3 h-80 w-80 rounded-full bg-emerald-500/10 blur-3xl" /><div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-violet-500/10 blur-3xl" />
+        <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-cyan-500/[0.04] blur-3xl" /><div className="absolute -right-24 top-1/3 h-80 w-80 rounded-full bg-emerald-500/[0.04] blur-3xl" />
       </div>
 
       <header className={`relative z-10 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br ${showSaved ? 'from-slate-900 via-slate-900 to-cyan-950' : meta.grad} p-5 transition-colors duration-700 sm:p-8`}>

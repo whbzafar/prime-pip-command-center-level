@@ -460,7 +460,7 @@ export const LearningHub: React.FC<{ onNavigateTab?: (tab: string) => void }> = 
             <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-violet-400 transition-all duration-700" style={{ width: `${lessonTotal ? (lessonDone / lessonTotal) * 100 : 0}%` }} /></div>
             <span className="text-[12px] font-semibold text-slate-300 whitespace-nowrap" style={uf(ur)}>{T(`Your progress: ${lessonDone} of ${lessonTotal} lessons`, `آپ کی پیش رفت: ${lessonDone} / ${lessonTotal} اسباق`)}</span>
           </div>
-          <div className="mt-4 grid md:grid-cols-2 gap-3">
+          <div className="mt-4 grid md:grid-cols-3 gap-3">
             <button type="button" onClick={() => setTab('BOT')} data-testid="bot-banner" dir={ur ? 'rtl' : 'ltr'} style={{ animationDelay: '260ms' }}
               className="ppfx-up ppfx-card relative overflow-hidden flex items-center gap-3 rounded-2xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 via-teal-500/10 to-transparent px-4 py-3.5 text-start cursor-pointer hover:border-emerald-300">
               <span className="ppfx-float w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-300 to-teal-500 flex items-center justify-center text-emerald-950 shrink-0"><Bot className="w-5 h-5" /></span>
@@ -478,6 +478,15 @@ export const LearningHub: React.FC<{ onNavigateTab?: (tab: string) => void }> = 
                 <span className="block text-[12px] text-sky-100/80" style={uf(ur)}>{T(`Structure, models and zones marked for you · $${INDICATOR_FEE}`, `اسٹرکچر، ماڈلز اور زونز خود نشان زد · $${INDICATOR_FEE}`)}</span>
               </span>
               <ArrowRight className={`w-5 h-5 text-sky-300 shrink-0 ${ur ? 'rotate-180' : ''}`} />
+            </button>
+            <button type="button" onClick={() => setTab('VOICE')} data-testid="voice-banner" dir={ur ? 'rtl' : 'ltr'} style={{ animationDelay: '400ms' }}
+              className="ppfx-up ppfx-card relative overflow-hidden flex items-center gap-3 rounded-2xl border border-fuchsia-400/40 bg-gradient-to-r from-fuchsia-500/20 via-violet-500/10 to-transparent px-4 py-3.5 text-start cursor-pointer hover:border-fuchsia-300">
+              <span className="ppfx-float w-11 h-11 rounded-xl bg-gradient-to-br from-fuchsia-400 to-violet-500 flex items-center justify-center text-slate-950 shrink-0" style={{ animationDelay: '-1.2s' }}><Lightbulb className="w-5 h-5" /></span>
+              <span className="flex-1 min-w-0">
+                <span className="block font-black text-white text-[15px]" style={uf(ur)}>{T('Feelings → Solutions', 'احساسات ← حل')}</span>
+                <span className="block text-[12px] text-fuchsia-100/80" style={uf(ur)}>{T('Tell us how you feel — get a clear solution', 'اپنی کیفیت بتائیں — واضح حل پائیں')}</span>
+              </span>
+              <ArrowRight className={`w-5 h-5 text-fuchsia-300 shrink-0 ${ur ? 'rotate-180' : ''}`} />
             </button>
           </div>
         </div>
