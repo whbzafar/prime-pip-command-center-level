@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { archiveBefore, getManifest } from '../history/archive.js';
+import { forexcomBefore, forexcomStatus } from '../history/forexcom.js';
 import { TF_LIST, dukaBefore, listDukaInstruments, yahooAny, yahooBefore, type Tf } from '../history/historyService.js';
 
 export const historyRouter = Router();
@@ -23,6 +24,14 @@ historyRouter.get('/candles', async (req: Request, res: Response) => {
     let r: { candles: any[]; reachedStart: boolean } = { candles: [], reachedStart: false };
     let used = src;
     let primaryError: string | null = null;
+    // 0) FOREX.com prices (forex + commodities) when the owner has configured API access — same candles they trade on.
+    if (src === 'duka' && req.query.feed !== 'duka') {
+      const fx = await forexcomBefore(id, tf, before, count);
+      if (fx && fx.candles.length) {
+        res.setHeader('Cache-Control', before < Date.now() - 3 * 86_400_000 ? 'public, max-age=3600, s-maxage=86400' : 'public, max-age=5, s-maxage=10, stale-while-revalidate=30');
+        return res.json({ ok: true, src: 'forexcom', id, tf, candles: fx.candles, reachedStart: fx.reachedStart, fallback: false });
+      }
+    }
     // 1) Deep-history archive (Dukascopy datafeed mirrored by GitHub Actions) — full depth on Vercel.
     if (src === 'duka' && arch) {
       try {
@@ -61,6 +70,9 @@ historyRouter.get('/candles', async (req: Request, res: Response) => {
     res.status(502).json({ ok: false, error: err?.message || 'History source unavailable' });
   }
 });
+
+/** GET /api/history/forexcom — is the FOREX.com feed configured and working? (no secrets) */
+historyRouter.get('/forexcom', (_req: Request, res: Response) => { res.setHeader('Cache-Control', 'no-store'); res.json({ ok: true, ...forexcomStatus() }); });
 
 /** GET /api/history/archive?ticker=EURUSD — what the deep-history archive holds for an instrument. */
 historyRouter.get('/archive', async (req: Request, res: Response) => {
