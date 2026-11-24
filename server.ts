@@ -2,12 +2,18 @@
 import { clearArchiveCache } from './server/history/archive.js';
 import { clearHistoryCache } from './server/history/historyService.js';
 import { clearPineCaches } from './server/pine/pineRunner.js';
-// Memory guard for the 512 MB server: drop rebuildable caches before the process can run out of memory.
+// Memory guard for the 512 MB server: drop rebuildable caches only when the JS heap itself is big
+// (most of the ~420 MB resident memory is fixed runtime overhead that clearing caches cannot free).
+let lastMemLog = 0;
 setInterval(() => {
   const m = process.memoryUsage();
-  if (m.rss > 400 * 1024 * 1024 || m.heapUsed > 300 * 1024 * 1024) {
+  const mb = (n: number) => Math.round(n / 1048576);
+  if (m.heapUsed > 240 * 1048576 || m.rss > 485 * 1048576) {
     clearArchiveCache(); clearHistoryCache(); clearPineCaches();
-    console.warn(`[MemoryGuard] rss ${Math.round(m.rss / 1048576)} MB, heap ${Math.round(m.heapUsed / 1048576)} MB — caches cleared`);
+    console.warn(`[MemoryGuard] rss ${mb(m.rss)} MB, heap ${mb(m.heapUsed)} MB — caches cleared`);
+  } else if (Date.now() - lastMemLog > 10 * 60_000) {
+    lastMemLog = Date.now();
+    console.log(`[Memory] rss ${mb(m.rss)} MB · heap ${mb(m.heapUsed)}/${mb(m.heapTotal)} MB · external ${mb(m.external)} MB · buffers ${mb(m.arrayBuffers)} MB`);
   }
 }, 15_000).unref();
 import { describeDevice, ACCEPT_CH } from './server/deviceInfo.js';
