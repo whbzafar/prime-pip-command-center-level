@@ -1,4 +1,15 @@
 // Vercel deployment sync marker: keep Git-connected production on the latest main commit.
+import { clearArchiveCache } from './server/history/archive.js';
+import { clearHistoryCache } from './server/history/historyService.js';
+import { clearPineCaches } from './server/pine/pineRunner.js';
+// Memory guard for the 512 MB server: drop rebuildable caches before the process can run out of memory.
+setInterval(() => {
+  const m = process.memoryUsage();
+  if (m.rss > 400 * 1024 * 1024 || m.heapUsed > 300 * 1024 * 1024) {
+    clearArchiveCache(); clearHistoryCache(); clearPineCaches();
+    console.warn(`[MemoryGuard] rss ${Math.round(m.rss / 1048576)} MB, heap ${Math.round(m.heapUsed / 1048576)} MB — caches cleared`);
+  }
+}, 15_000).unref();
 import { describeDevice, ACCEPT_CH } from './server/deviceInfo.js';
 import compression from 'compression';
 import express from "express";

@@ -38,9 +38,22 @@ historyRouter.get('/candles', async (req: Request, res: Response) => {
     // 1) Deep-history archive (Dukascopy datafeed mirrored by GitHub Actions) — full depth on Vercel.
     if (src === 'duka' && arch) {
       try {
-        const a = await archiveBefore(arch, tf, before, count, alt
-          ? async (native, after, until) => (await yahooAny(alt, native, until, Math.min(5000, Math.ceil((until - after) / ({ m1: 60_000, h1: 3_600_000, d1: 86_400_000 } as const)[native]) + 5))).candles
-          : undefined);
+        // Live right edge: Dukascopy itself first (same feed as the archive, minutes behind), Yahoo as backup.
+        const a = await archiveBefore(arch, tf, before, count, async (native, after, until) => {
+          const n = Math.min(5000, Math.ceil((until - after) / ({ m1: 60_000, h1: 3_600_000, d1: 86_400_000 } as const)[native]) + 5);
+          const [d, y] = await Promise.all([
+            dukaBefore(id.toLowerCase(), native as Tf, until, n, 6_000).then((r) => r.candles).catch(() => [] as any[]),
+            alt ? yahooAny(alt, native, until, n).then((r) => r.candles).catch(() => [] as any[]) : Promise.resolve([] as any[]),
+          ]);
+          // Dukascopy publishes each hour once it is complete; Yahoo covers the still-forming minutes after that.
+          if (!d.length) return y;
+          const last = d[d.length - 1];
+          const tailY = y.filter((c: any) => c.timestamp > last.timestamp);
+          // Only stitch the backup feed on when it prices the same market (futures vs spot would jump the chart).
+          const ref = y.filter((c: any) => c.timestamp <= last.timestamp).pop();
+          const same = ref && Math.abs(ref.close - last.close) / last.close < 0.0015;
+          return same ? d.concat(tailY) : d;
+        });
         if (a && a.candles.length) {
           const historicA = before < Date.now() - 3 * 86_400_000;
           res.setHeader('Cache-Control', historicA ? 'public, max-age=86400, s-maxage=604800' : 'public, max-age=5, s-maxage=10, stale-while-revalidate=30');

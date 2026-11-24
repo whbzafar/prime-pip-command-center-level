@@ -47,6 +47,7 @@ export function listDukaInstruments() {
 // ───────────────────────────────────────── small LRU cache
 
 const cache = new Map<string, { at: number; data: Candle[] }>();
+export const clearHistoryCache = () => cache.clear();
 function cacheGet(k: string, ttl: number): Candle[] | null {
   const v = cache.get(k);
   if (!v || Date.now() - v.at > ttl) return null;
@@ -55,7 +56,7 @@ function cacheGet(k: string, ttl: number): Candle[] | null {
 }
 function cacheSet(k: string, data: Candle[]) {
   cache.set(k, { at: Date.now(), data });
-  while (cache.size > 300) cache.delete(cache.keys().next().value as string);
+  while (cache.size > 120) cache.delete(cache.keys().next().value as string);
 }
 
 function clean(rows: any[]): Candle[] {

@@ -33,7 +33,7 @@ async function prepareCached(engine: any, source: string) {
   if (hit) return hit;
   const prepared = await engine.prepare(pineCompat(source), 'srv');
   preparedCache.set(k, prepared);
-  if (preparedCache.size > 24) preparedCache.delete(preparedCache.keys().next().value as string);
+  if (preparedCache.size > 8) preparedCache.delete(preparedCache.keys().next().value as string);
   return prepared;
 }
 
@@ -47,6 +47,7 @@ export function stripStatsTables(model: any) {
   return { ...model, tables: keep };
 }
 const resultCache = new Map<string, { at: number; out: RunOutput }>();
+export const clearPineCaches = () => { resultCache.clear(); preparedCache.clear(); };
 const RESULT_TTL = 45_000;
 const runKey = (input: RunInput, bars: any[]) => {
   const h = createHash('sha1');
@@ -143,7 +144,7 @@ export async function runScript(input: RunInput): Promise<RunOutput> {
       clearTimeout(timer);
       try { session?.stop(); } catch { /* ignore */ }
       const full = { ...out, ms: Date.now() - t0 };
-      if (full.ok && !full.need) { resultCache.set(cacheKey, { at: Date.now(), out: full }); if (resultCache.size > 40) resultCache.delete(resultCache.keys().next().value as string); }
+      if (full.ok && !full.need) { resultCache.set(cacheKey, { at: Date.now(), out: full }); if (resultCache.size > 10) resultCache.delete(resultCache.keys().next().value as string); }
       resolve(full);
     };
     const timer = setTimeout(() => finish({ ok: false, error: 'The script took too long to run on this many bars.' }), RUN_TIMEOUT_MS);

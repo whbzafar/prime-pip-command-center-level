@@ -24,6 +24,7 @@ export interface ArchiveManifest {
 }
 
 const fileCache = new Map<string, { at: number; ttl: number; data: any }>();
+export const clearArchiveCache = () => fileCache.clear();
 function cget(k: string) {
   const v = fileCache.get(k);
   if (!v || Date.now() - v.at > v.ttl) return undefined;
@@ -33,10 +34,10 @@ function cget(k: string) {
 const sizeOf = (d: any) => (Array.isArray(d) ? d.length : 1);
 function cset(k: string, data: any, ttl: number) {
   fileCache.set(k, { at: Date.now(), ttl, data });
-  // Bound memory: at most 160 entries and ~2.5 M cached candles (a yearly minute file is ~370 k).
+  // Bound memory (512 MB server): at most 60 entries and ~600 k cached candles (a yearly minute file is ~370 k).
   let total = 0;
   for (const v of fileCache.values()) total += sizeOf(v.data);
-  while (fileCache.size > 160 || (total > 2_500_000 && fileCache.size > 1)) {
+  while (fileCache.size > 60 || (total > 600_000 && fileCache.size > 1)) {
     const oldest = fileCache.keys().next().value as string;
     total -= sizeOf(fileCache.get(oldest)?.data);
     fileCache.delete(oldest);
