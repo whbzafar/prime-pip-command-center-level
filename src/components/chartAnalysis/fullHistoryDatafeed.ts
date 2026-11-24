@@ -199,7 +199,7 @@ export class FullHistoryDatafeed implements Datafeed {
         j = await getJson(`/api/history/candles?src=duka&id=${encodeURIComponent(e.duka)}&tf=${base}&before=${Math.floor(before)}&count=${count}`);
       }
       if (!j?.ok) throw new Error(j?.error || 'History source unavailable');
-      const label = j.src === 'forexcom' ? 'FOREX.com' : j.src === 'yahoo' ? (j.fallback ? 'Yahoo Finance (backup)' : 'Yahoo Finance') : j.src === 'archive' ? 'Dukascopy Bank SA · full archive' : 'Dukascopy Bank SA';
+      const label = j.src === 'forexcom' ? 'FOREX.com' : j.src === 'oanda' ? 'OANDA' : j.src === 'yahoo' ? (j.fallback ? 'Yahoo Finance (backup)' : 'Yahoo Finance') : j.src === 'archive' ? 'Dukascopy Bank SA · full archive' : 'Dukascopy Bank SA';
       return done(combine(j.candles as KLineData[], base, mult), label, !!j.reachedStart);
     } catch (err: any) {
       this.report({ state: 'error', source: '', message: err?.message || String(err) });
