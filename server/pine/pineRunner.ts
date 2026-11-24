@@ -41,8 +41,14 @@ async function prepareCached(engine: any, source: string) {
 // switching back to a pair/timeframe, or the browser's repeated runs on unchanged bars, then costs nothing.
 /** Statistics panels (SBT model table, win-rate box) are never sent to the browser; the small status box is. */
 const STATS = /WIN RATE|Total R\b|Avg R\b|\bSkipped\b|Zone R\b|TP\/Hurdle|\bTrades\b|\bBull\b[\s\S]*\bBear\b/i;
+const HEAVY = /SBT ?6\b|\bRR ?1:\d|\blot\b|\bTP\b|\bSL\b|\bTP ?\d|Target|\bExit\b|\bBE\b|\b(BUY|SELL) L\d/i;
+const leanArr = (arr: any) => (Array.isArray(arr) ? arr.filter((x) => { const t = x?.text ?? x?.title ?? ''; return !(t && HEAVY.test(String(t))); }) : arr);
 export function stripStatsTables(model: any) {
-  if (!model || !Array.isArray(model.tables)) return model;
+  if (!model) return model;
+  model = { ...model };
+  for (const k of ['labels', 'boxes', 'lines']) if (Array.isArray(model[k])) model[k] = leanArr(model[k]);
+  if ('trades' in model) model.trades = [];
+  if (!Array.isArray(model.tables)) return model;
   const keep = model.tables.filter((t: any) => { try { return !STATS.test((t?.cells || []).flat().map((c: any) => String(c?.text ?? '')).join(' | ')); } catch { return true; } });
   return { ...model, tables: keep };
 }
@@ -105,7 +111,7 @@ export function errorLine(err: any): number | null {
   return Number.isFinite(line) ? line : null;
 }
 
-export async function runScript(input: RunInput): Promise<RunOutput> {
+export async function runScriptInProcess(input: RunInput): Promise<RunOutput> {
   const t0 = Date.now();
   let engine: any;
   try { engine = await newEngine(); } catch (err: any) { return { ok: false, error: `Pine engine unavailable: ${err?.message || err}`, ms: Date.now() - t0 }; }
@@ -177,4 +183,34 @@ export async function runScript(input: RunInput): Promise<RunOutput> {
       finish({ ok: false, error: String(err?.message || err), line: errorLine(err) });
     }
   });
+}
+
+
+// ── Worker thread: Pine runs never block the web server (other users, charts, data keep answering).
+import { Worker } from 'worker_threads';
+import fs from 'fs';
+let worker: Worker | null = null; let seq = 0;
+const pending = new Map<number, (o: RunOutput) => void>();
+function getWorker(): Worker | null {
+  if (worker) return worker;
+  const file = path.join(process.cwd(), 'dist', 'pine-worker.cjs');
+  if (!fs.existsSync(file)) return null;
+  try {
+    worker = new Worker(file, { resourceLimits: { maxOldGenerationSizeMb: 160 } });
+    worker.on('message', (m: { id: number; out: RunOutput }) => { const f = pending.get(m.id); if (f) { pending.delete(m.id); f(m.out); } });
+    const fail = (why: string) => { for (const f of pending.values()) f({ ok: false, error: why, ms: 0 }); pending.clear(); worker = null; };
+    worker.on('error', (e) => fail(`Indicator worker error: ${e?.message || e}`));
+    worker.on('exit', () => fail('The indicator worker restarted — please try again.'));
+    worker.unref();
+  } catch { worker = null; }
+  return worker;
+}
+export async function runScript(input: RunInput): Promise<RunOutput> {
+  const w = getWorker();
+  if (!w) return runScriptInProcess(input);
+  const t0 = Date.now();
+  const out = await new Promise<RunOutput>((resolve) => { const id = ++seq; pending.set(id, resolve); w.postMessage({ id, input }); });
+  const ms = Date.now() - t0;
+  if (ms > 1500) console.log(`[Pine] ${input.market?.symbol} ${input.market?.timeframe} · ${Array.isArray(input.bars) ? input.bars.length : 0} bars · ${ms} ms${out.need ? ' (needs series)' : ''}${out.ok ? '' : ' · ' + out.error}`);
+  return out;
 }
