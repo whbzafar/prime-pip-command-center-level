@@ -66,7 +66,7 @@ export const MarketAura: React.FC = () => {
     const frame = (now: number) => {
       if (!alive) return; raf = requestAnimationFrame(frame);
       probe(now);
-      if (document.hidden || now - last < 40 || document.getElementById('ppfx-ocean')) return; // the ocean shader replaces this layer
+      if (document.hidden || now - last < 40 || document.getElementById('ppfx-space')) return; // the space shader replaces this layer
       if (!isAwake(now) && settled) return;   // idle: freeze on the last frame
       settled = !isAwake(now); last = now;
       mouse.x += (target.x - mouse.x) * 0.08; mouse.y += (target.y - mouse.y) * 0.08; mood += (moodT - mood) * 0.02;

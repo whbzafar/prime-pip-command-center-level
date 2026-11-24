@@ -202,10 +202,10 @@ html[data-theme='aurora'] #ppfx-aurora-canvas { opacity: 1; }
 .ne-link { color: #67e8f9; font-weight: 700; text-decoration: underline; text-underline-offset: 4px; background: none; border: 0; padding: 4px 0; cursor: pointer; text-align: left; font-size: 15px; }
 .ne-link:hover { color: #fff; }
 /* Ocean: rolling waves along the lower part of the background, behind every panel */
-#ppfx-ocean { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -997; pointer-events: none; opacity: .85; }
-html:not([data-theme='aurora']) #ppfx-ocean, html[data-fx='off'] #ppfx-ocean { display: none !important; }
-#ppfx-vessels { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -996; pointer-events: none; opacity: .9; }
-html:not([data-theme='aurora']) #ppfx-vessels, html[data-fx='off'] #ppfx-vessels { display: none !important; }
+#ppfx-space { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -997; pointer-events: none; opacity: .95; }
+html:not([data-theme='aurora']) #ppfx-space, html[data-fx='off'] #ppfx-space { display: none !important; }
+#ppfx-space-objects { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -996; pointer-events: none; opacity: .9; }
+html:not([data-theme='aurora']) #ppfx-space-objects, html[data-fx='off'] #ppfx-space-objects { display: none !important; }
 /* One full-screen shader is enough: the ocean replaces the MarketAura WebGL layer (big GPU saving) */
 html[data-theme='aurora'][data-fx='full'] [data-testid='market-aura'] { display: none !important; }
-html[data-fx='lite'] #ppfx-ocean, html[data-fx='lite'] #ppfx-vessels { display: none !important; }
+html[data-fx='lite'] #ppfx-space, html[data-fx='lite'] #ppfx-space-objects { display: none !important; }

@@ -1,51 +1,46 @@
 /**
- * Realistic ocean in the background: a WebGL shader with layered rolling swells (Gerstner-style sum of
+ * Neon deep-space background (replaced the ocean): drifting magenta/cyan nebula, a milky-way band and
+ * three twinkling star layers with parallax — plus planets, rockets and comets drawn by spaceObjects.ts.
+ * Formerly: realistic ocean in the background: a WebGL shader with layered rolling swells (Gerstner-style sum of
  * directional waves), fresnel sky reflection, a moonlit specular path, foam on the crests and a horizon
  * fog line. It sits behind the app (aurora theme only), renders at reduced resolution, caps at ~40 fps,
  * pauses in hidden tabs and is skipped when effects are off / reduced-motion is requested.
  */
 import { useEffect } from 'react';
-import { startVessels } from './oceanVessels';
+import { startSpaceObjects } from './spaceObjects';
 
 const FRAG = `precision mediump float;
 uniform vec2 R; uniform float T;
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float noise(vec2 p){ vec2 i=floor(p),f=fract(p); vec2 u=f*f*(3.0-2.0*f);
-  return -1.0+2.0*mix(mix(hash(i),hash(i+vec2(1,0)),u.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),u.x),u.y); }
-float oct(vec2 uv,float ch){ uv+=noise(uv); vec2 wv=1.0-abs(sin(uv)); vec2 sw=abs(cos(uv)); wv=mix(wv,sw,wv); return pow(1.0-pow(wv.x*wv.y,0.65),ch); }
-float sea(vec2 p){
-  float f=0.16, a=0.6, ch=4.0, d, hgt=0.0; float t=T*0.8; mat2 m=mat2(1.6,1.2,-1.2,1.6);
-  for(int i=0;i<4;i++){ d=oct((p+t)*f,ch); d+=oct((p-t)*f,ch); hgt+=d*a; p*=m; f*=1.9; a*=0.22; ch=mix(ch,1.0,0.2); }
-  return hgt;
-}
+  return mix(mix(hash(i),hash(i+vec2(1,0)),u.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),u.x),u.y); }
+float fbm(vec2 p){ float v=0.0,a=0.5; for(int i=0;i<5;i++){ v+=a*noise(p); p=p*2.03+vec2(1.7,9.2); a*=0.5; } return v; }
+float stars(vec2 uv,float s,float t){ vec2 g=floor(uv*s); vec2 f=fract(uv*s)-0.5; float h=hash(g);
+  if(h<0.965) return 0.0; vec2 o=vec2(hash(g+3.1),hash(g+7.7))-0.5; float d=length(f-o*0.7);
+  float tw=0.6+0.4*sin(t*(1.0+h*3.0)+h*40.0); return smoothstep(0.08,0.0,d)*tw*(h-0.965)*28.0; }
 void main(){
-  vec2 uv=gl_FragCoord.xy/R; float horizon=0.40;
-  if(uv.y>horizon+0.015){ gl_FragColor=vec4(0.0); return; }
-  float y=max(horizon-uv.y,0.0012);
-  float z=0.35/y; vec2 p=vec2((uv.x-0.5)*z*(R.x/R.y)*1.4, z*2.2+T*1.4);
-  float e=0.12; float c=sea(p);
-  vec3 n=normalize(vec3(c-sea(p+vec2(e,0.0)), e*1.6, c-sea(p+vec2(0.0,e))));
-  vec3 v=normalize(vec3(0.0,0.28,1.0));
-  float fres=clamp(pow(1.0-max(dot(n,v),0.0),3.0)*0.7,0.0,1.0);
-  vec3 deep=vec3(0.0,0.035,0.085), water=vec3(0.03,0.16,0.24), sky=vec3(0.20,0.27,0.58);
-  vec3 col=mix(deep,water,clamp(c*0.55,0.0,1.0)*0.6);
-  col=mix(col,sky,fres);
-  vec3 L=normalize(vec3(0.25,0.45,-1.0));
-  float spec=pow(max(dot(reflect(-L,n),v),0.0),80.0);
-  float path=exp(-pow((uv.x-0.64)*4.0,2.0));
-  col+=vec3(0.80,0.90,1.0)*spec*(0.35+1.4*path);
-  col+=vec3(0.65,0.85,0.95)*smoothstep(1.05,1.35,c)*0.18;
-  float fog=smoothstep(0.0,0.22,y);
-  col=mix(vec3(0.10,0.13,0.30),col,fog);
-  float alpha=(0.35+0.55*fog)*smoothstep(horizon+0.015,horizon-0.02,uv.y);
-  gl_FragColor=vec4(col*alpha,alpha);
+  vec2 uv=gl_FragCoord.xy/R; vec2 p=(gl_FragCoord.xy-0.5*R)/R.y; float t=T*0.02;
+  // drifting neon nebula: magenta / cyan / violet clouds
+  float n1=fbm(p*1.6+vec2(t,t*0.6)); float n2=fbm(p*2.4-vec2(t*0.7,-t)+n1);
+  vec3 col=vec3(0.006,0.008,0.03);
+  col+=vec3(0.55,0.08,0.60)*pow(smoothstep(0.40,0.90,n2),1.8)*0.95;
+  col+=vec3(0.05,0.55,0.75)*pow(smoothstep(0.45,0.95,fbm(p*1.9+vec2(-t,t*0.4)+n2*0.6)),1.8)*0.85;
+  col+=vec3(0.25,0.15,0.75)*pow(n1,3.0)*0.35;
+  // milky-way band
+  float band=exp(-pow((p.y-p.x*0.35+0.05)*3.2,2.0));
+  col+=vec3(0.30,0.32,0.55)*band*fbm(p*6.0+t)*0.28;
+  // three star layers with slow parallax
+  col+=vec3(0.75,0.85,1.0)*stars(uv+vec2(t*0.6,0.0),90.0,T);
+  col+=vec3(1.0,0.85,0.95)*stars(uv+vec2(t*1.2,0.0),55.0,T)*0.9;
+  col+=vec3(0.7,1.0,1.0)*stars(uv+vec2(t*2.2,0.0),28.0,T)*1.1;
+  gl_FragColor=vec4(col,1.0);
 }`;
 
 export function OceanWaves() {
   useEffect(() => {
     const html = document.documentElement;
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    const cv = document.createElement('canvas'); cv.id = 'ppfx-ocean'; cv.setAttribute('aria-hidden', 'true');
+    const cv = document.createElement('canvas'); cv.id = 'ppfx-space'; cv.setAttribute('aria-hidden', 'true');
     document.body.appendChild(cv);
     const gl = cv.getContext('webgl', { premultipliedAlpha: true, antialias: false, alpha: true, powerPreference: 'low-power' });
     if (!gl) { cv.remove(); return; }
@@ -60,12 +55,12 @@ export function OceanWaves() {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(pr, 'a'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     const uR = gl.getUniformLocation(pr, 'R'), uT = gl.getUniformLocation(pr, 'T');
-    const size = () => { const s = Math.min(window.devicePixelRatio || 1, 1) * (window.innerWidth < 700 ? 0.33 : 0.4); cv.width = Math.round(window.innerWidth * s); cv.height = Math.round(window.innerHeight * s); gl.viewport(0, 0, cv.width, cv.height); };
+    const size = () => { const s = Math.min(window.devicePixelRatio || 1, 1) * (window.innerWidth < 700 ? 0.35 : 0.45); cv.width = Math.round(window.innerWidth * s); cv.height = Math.round(window.innerHeight * s); gl.viewport(0, 0, cv.width, cv.height); };
     size(); window.addEventListener('resize', size);
     let raf = 0, last = 0; const t0 = performance.now();
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
-      if (document.hidden || now - last < 40 || (window as any).__ppfxScrolling) return;
+      if (document.hidden || now - last < 50 || (window as any).__ppfxScrolling) return;
       const fx = html.dataset.fx; if (fx !== 'full' || html.dataset.theme !== 'aurora' || html.classList.contains('ppfx-clear-video')) { cv.style.display = 'none'; return; }
       cv.style.display = '';
       last = now;
@@ -75,7 +70,7 @@ export function OceanWaves() {
     raf = requestAnimationFrame(frame);
     let st = 0; const onScroll = () => { (window as any).__ppfxScrolling = true; clearTimeout(st); st = window.setTimeout(() => { (window as any).__ppfxScrolling = false; }, 180); };
     window.addEventListener('scroll', onScroll, { passive: true, capture: true });
-    const stopVessels = startVessels();
+    const stopVessels = startSpaceObjects();
     return () => { cancelAnimationFrame(raf); stopVessels(); window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', size); cv.remove(); };
   }, []);
   return null;
