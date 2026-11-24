@@ -59,6 +59,7 @@ export const remoteRef = (id: string) => `ppfx:${id}`;
 const idOf = (source: string) => source.replace(/^ppfx:/, '');
 
 const MAX_BARS = 5000;
+const QUICK_BARS = 800;
 const TICK_RERUN_MS = 20_000;
 
 type Handlers = { onModel(m: any): void; onError?(e: Error): void; onWarning?(w: any): void; onAlert?(a: any): void; onDone?(): void };
@@ -119,7 +120,8 @@ export class RemotePineEngine {
       running = true; dirty = false;
       try {
         const all = (req.getBars?.() || req.bars || []) as any[];
-        const bars = all.slice(-MAX_BARS).map((b) => [b.time, b.open, b.high, b.low, b.close, b.volume ?? 0]); // compact rows: half the upload
+        const quick = firstRound && all.length > QUICK_BARS; // first paint: a short run on the newest bars, then the full history right after
+        const bars = all.slice(quick ? -QUICK_BARS : -MAX_BARS).map((b) => [b.time, b.open, b.high, b.low, b.close, b.volume ?? 0]); // compact rows: half the upload
         if (!bars.length) return;
         lastBarTime = bars[bars.length - 1][0] as number;
         if (firstRound) { firstRound = false; await prefetch(); if (stopped) return; }
@@ -150,6 +152,7 @@ export class RemotePineEngine {
           handlers.onModel(out);
           handlers.onDone?.();
           lastRunAt = Date.now();
+          if (quick) dirty = true; // follow up with the full-history run
           return;
         }
       } catch (err: any) {
