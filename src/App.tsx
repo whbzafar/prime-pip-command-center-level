@@ -1,4 +1,5 @@
 // Force HMR refresh
+import { OceanWaves } from './components/OceanWaves';
 import { SecurityWarningModal } from './components/SecurityWarningModal';
 import { NewEraWelcome } from './components/welcome/NewEraWelcome';
 import { shouldShowNewEra, markNewEraSeen, welcomeName } from './components/welcome/newEra';
@@ -1375,6 +1376,7 @@ export default function App() {
       {!isLightweight && <MarketAura />}
       {!isLightweight && <QuantumFx />}
       <AuroraScene />
+      <OceanWaves />
       {newEraOpen && currentUser && <NewEraWelcome name={welcomeName(currentUser)} onEnter={() => { markNewEraSeen(currentUser.id); setNewEraOpen(false); }} onFounder={() => { markNewEraSeen(currentUser.id); setNewEraOpen(false); setFounderMin(false); setFounderOpen(true); }} />}
       {founderOpen && <React.Suspense fallback={null}><FounderExperienceModal isOpen isMinimized={founderMin} onClose={() => { setFounderOpen(false); setFounderMin(false); }} onMinimize={() => setFounderMin(true)} onReopen={() => setFounderMin(false)} /></React.Suspense>}
       <SecurityWarningModal userId={currentUser && !isUserAdmin(currentUser) ? currentUser.id : undefined} />

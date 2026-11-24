@@ -56,7 +56,7 @@ export const LoginSecurityPanel: React.FC = () => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div><h3 className="flex items-center gap-2 text-lg font-bold text-white"><ShieldAlert className="h-5 w-5 text-cyan-400" />Login Security</h3>
-          <p className="text-xs text-slate-400">Where each account signs in from. Location is approximate (the visitor's network, usually the nearest city). Red = likely shared password.</p></div>
+          <p className="text-xs text-slate-400">Where each account signs in from. Location comes from the internet connection (IP address): it shows where the mobile/ISP network is registered — often the provider's hub city (e.g. Lahore, Karachi, Islamabad), not the person's exact town or village. Mobile data is the least accurate; home Wi-Fi is usually right to the city. The device column shows phone model, OS and browser when the browser reports it. Red = likely shared password.</p></div>
         <button onClick={load} className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700"><RefreshCw className="h-3.5 w-3.5" />Refresh</button>
       </div>
       {err && <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300">{err}</div>}
@@ -88,7 +88,7 @@ export const LoginSecurityPanel: React.FC = () => {
         <h4 className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-slate-200"><ShieldCheck className="h-4 w-4 text-emerald-400" />Recent sign-ins{sel ? ' (selected user)' : ''}</h4>
         <div className="overflow-x-auto rounded-xl border border-slate-700/60">
           <table className="w-full text-left text-[11px] text-slate-300"><thead className="bg-slate-800/70 text-slate-400"><tr><th className="p-2">When</th><th>User</th><th>Place</th><th>Network</th><th>Device</th><th>Risk</th></tr></thead>
-            <tbody>{events.map((e) => <tr key={e.id} className="border-t border-slate-800"><td className="p-2 whitespace-nowrap">{when(e.at)}</td><td>{e.username}</td><td>{flag(e.countryCode)} {e.place}</td><td className="max-w-[160px] truncate">{e.isp || e.ip}</td><td className="max-w-[140px] truncate">{e.device}</td><td><span className={`rounded-full border px-1.5 py-0.5 ${riskCls(e.risk)}`}>{e.risk}</span></td></tr>)}</tbody></table>
+            <tbody>{events.map((e) => <tr key={e.id} className="border-t border-slate-800"><td className="p-2 whitespace-nowrap">{when(e.at)}</td><td>{e.username}</td><td>{flag(e.countryCode)} {e.place}</td><td className="max-w-[160px] truncate">{e.isp || e.ip}</td><td className="max-w-[140px] truncate">{e.device.split(' — ')[0]}</td><td><span className={`rounded-full border px-1.5 py-0.5 ${riskCls(e.risk)}`}>{e.risk}</span></td></tr>)}</tbody></table>
         </div>
       </div>
     </div>

@@ -201,3 +201,6 @@ html[data-theme='aurora'] #ppfx-aurora-canvas { opacity: 1; }
 #ppfx-spot.on { opacity: var(--spot-op, 1); }
 .ne-link { color: #67e8f9; font-weight: 700; text-decoration: underline; text-underline-offset: 4px; background: none; border: 0; padding: 4px 0; cursor: pointer; text-align: left; font-size: 15px; }
 .ne-link:hover { color: #fff; }
+/* Ocean: rolling waves along the lower part of the background, behind every panel */
+#ppfx-ocean { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -997; pointer-events: none; opacity: .85; }
+html:not([data-theme='aurora']) #ppfx-ocean, html[data-fx='off'] #ppfx-ocean { display: none !important; }

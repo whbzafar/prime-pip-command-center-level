@@ -58,7 +58,7 @@ export const placeOf = (g: { city?: string; region?: string; country?: string })
 export async function trackLogin(u: { id: string; username: string; name: string }, ip: string, device: string, kind: 'login' | 'signup' = 'login') {
   const geo: Geo = await lookupIp(ip);
   const at = new Date().toISOString();
-  const base = { id: `lg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, at, userId: u.id, username: u.username, name: u.name, kind, ip, device: device.slice(0, 160), ...geo };
+  const base = { id: `lg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, at, userId: u.id, username: u.username, name: u.name, kind, ip, device: device.slice(0, 300), ...geo };
   await privateListUpdate('login_geo', (list) => {
     const mine = (list as LoginEvent[]).filter((e) => e.userId === u.id);
     const a = assess(mine, base);

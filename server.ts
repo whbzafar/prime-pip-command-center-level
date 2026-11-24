@@ -1,4 +1,5 @@
 // Vercel deployment sync marker: keep Git-connected production on the latest main commit.
+import { describeDevice, ACCEPT_CH } from './server/deviceInfo.js';
 import compression from 'compression';
 import express from "express";
 import cookieParser from "cookie-parser";
@@ -304,6 +305,8 @@ app.use((req, _res, next) => {
   next();
 });
 
+// Ask Chromium browsers for the real device model / OS version (used by the admin sign-in log).
+app.use((_req, res, next) => { res.setHeader('Accept-CH', ACCEPT_CH); next(); });
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
@@ -3669,8 +3672,8 @@ app.post('/api/auth/login', async (req, res) => {
     void syncLegacyStudentsToServer().catch(() => undefined);
   }
   if (localResult?.user) {
-    try { recordLogin(localResult.user.id, { ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim(), device: String(req.headers['user-agent'] || '').slice(0, 160), kind: 'login' }); } catch { /* tracking is best-effort */ }
-    void trackLogin({ id: localResult.user.id, username: localResult.user.username, name: localResult.user.name || localResult.user.username }, clientIp(req as any), String(req.headers['user-agent'] || ''), 'login').catch(() => undefined);
+    try { recordLogin(localResult.user.id, { ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim(), device: describeDevice(req.headers as any).slice(0, 160), kind: 'login' }); } catch { /* tracking is best-effort */ }
+    void trackLogin({ id: localResult.user.id, username: localResult.user.username, name: localResult.user.name || localResult.user.username }, clientIp(req as any), describeDevice(req.headers as any), 'login').catch(() => undefined);
   }
 
   // Administrator authentication is authoritative in the server auth store.
@@ -3845,8 +3848,8 @@ app.post('/api/auth/register', async (req, res) => {
   hits.push(now); signupHits.set(ip, hits);
   const login = loginUser(r.user.username, String(password), true);
   if (!login) return res.status(500).json({ ok: false, error: 'Account created — please sign in.' });
-  try { recordLogin(r.user.id, { ip, device: String(req.headers['user-agent'] || '').slice(0, 160), kind: 'signup' }); } catch { /* best-effort */ }
-  void trackLogin({ id: r.user.id, username: r.user.username, name: r.user.name || r.user.username }, ip, String(req.headers['user-agent'] || ''), 'signup').catch(() => undefined);
+  try { recordLogin(r.user.id, { ip, device: describeDevice(req.headers as any).slice(0, 160), kind: 'signup' }); } catch { /* best-effort */ }
+  void trackLogin({ id: r.user.id, username: r.user.username, name: r.user.name || r.user.username }, ip, describeDevice(req.headers as any), 'signup').catch(() => undefined);
   res.cookie('primepipfx_session', login.token, { httpOnly: true, secure: process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL), sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000, path: '/' });
   return res.json({ ok: true, user: sanitizeUser(login.user), token: login.token });
 });
