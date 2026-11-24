@@ -1307,6 +1307,22 @@ export default function App() {
     />
   ) : null;
 
+  // Sign-in screen opened from anywhere ("Sign in to existing account" etc.). Rendered on document.body and
+  // included in every early-return screen too — before, it only existed inside the dashboard, so the button did nothing elsewhere.
+  const loginModalEl = isLoginModalOpen ? createPortal(
+    <FirstOpenLoginScreen
+      isModal={true}
+      onClose={() => setIsLoginModalOpen(false)}
+      onLoginSuccess={(...a: any[]) => { setIsLoginModalOpen(false); return (handleAuthenticatedUser as any)(...a); }}
+      onExploreDemo={() => setIsLoginModalOpen(false)}
+      onOpenSubscription={() => {
+        setIsLoginModalOpen(false);
+        setIsSubscriptionModalOpen(true);
+      }}
+    />,
+    document.body
+  ) : null;
+
   // Section 1: FIRST-OPEN LOGIN SCREEN
   // When the application is opened for the first time, immediately display the Login screen.
   // Do not open the Dashboard before authentication.
@@ -1329,6 +1345,7 @@ export default function App() {
       <div className="prime-command-shell w-full min-h-screen text-slate-100 flex items-center justify-center">
         {gateEl}
         {subscriptionEl}
+        {loginModalEl}
       </div>
     );
   }
@@ -1340,19 +1357,24 @@ export default function App() {
         <div className="prime-command-shell w-full min-h-screen text-slate-100 flex items-center justify-center text-xs font-mono-code text-slate-400">
           Opening your demo workspace…
           {subscriptionEl}
+          {loginModalEl}
         </div>
       );
     }
     return (
-      <AccountOnboardingModal
-        onAccountCreated={handleAccountCreated}
-        onExploreDemo={() => handleEnterDemoMode({ quickStart: true })}
-        onOpenSignIn={() => {
-          setIsDemoMode(false);
-          setIsLoginModalOpen(true);
-        }}
-        onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
-      />
+      <>
+        <AccountOnboardingModal
+          onAccountCreated={handleAccountCreated}
+          onExploreDemo={() => handleEnterDemoMode({ quickStart: true })}
+          onOpenSignIn={() => {
+            setIsDemoMode(false);
+            setIsLoginModalOpen(true);
+          }}
+          onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
+        />
+        {loginModalEl}
+        {subscriptionEl}
+      </>
     );
   }
 
@@ -1995,19 +2017,7 @@ export default function App() {
 
       {/* User Login Modal - Renders authentic first screen in modal mode */}
       {/* Rendered on document.body: inside the app shell it could end up underneath the header / off-screen. */}
-      {isLoginModalOpen && createPortal(
-        <FirstOpenLoginScreen
-          isModal={true}
-          onClose={() => setIsLoginModalOpen(false)}
-          onLoginSuccess={handleAuthenticatedUser}
-          onExploreDemo={() => setIsLoginModalOpen(false)}
-          onOpenSubscription={() => {
-            setIsLoginModalOpen(false);
-            setIsSubscriptionModalOpen(true);
-          }}
-        />,
-        document.body
-      )}
+      {loginModalEl}
 
       {subscriptionEl}
 
