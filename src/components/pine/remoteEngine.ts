@@ -15,7 +15,19 @@ const STATS_TABLE = /WIN RATE|Total R\b|Avg R\b|\bSkipped\b|Zone R\b|TP\/Hurdle|
 const tableText = (t: any) => { try { return (t?.cells || []).flat().map((c: any) => String(c?.text ?? '')).join(' | '); } catch { return ''; } };
 export const dropStatsTables = (tables: any) => (Array.isArray(tables) ? tables.filter((t) => !STATS_TABLE.test(tableText(t))) : tables);
 /** Local (worker) engine too: the same statistics panels are stripped from every model before it reaches the chart. */
-export const withoutStatsPanels = (handlers: any) => ({ ...handlers, onModel: (m: any) => handlers.onModel(m && Array.isArray(m.tables) ? { ...m, tables: dropStatsTables(m.tables) } : m) });
+/** Lightweight chart: no SBT 6 model drawings and no entry / stop / target / exit markers — fewer objects to draw, faster to apply. */
+const HEAVY = /SBT ?6\b|\bRR ?1:\d|\blot\b|\bTP\b|\bSL\b|\bTP ?\d|Target|\bExit\b|\bBE\b|\b(BUY|SELL) L\d/i;
+const lean = (arr: any) => (Array.isArray(arr) ? arr.filter((x) => { try { return !HEAVY.test(JSON.stringify(x)); } catch { return true; } }) : arr);
+export const leanModel = (m: any) => {
+  if (!m) return m;
+  const o: any = { ...m };
+  if (Array.isArray(m.tables)) o.tables = dropStatsTables(m.tables);
+  for (const k of ['labels', 'boxes', 'lines', 'polylines', 'linefills', 'priceLines']) if (Array.isArray(m[k])) o[k] = lean(m[k]);
+  if (Array.isArray(m.series)) o.series = m.series.filter((x: any) => { try { return !(x?.kind !== 'line' && HEAVY.test(JSON.stringify(x?.title ?? '') + JSON.stringify(x?.style?.text ?? ''))); } catch { return true; } });
+  if ('trades' in m) o.trades = [];
+  return o;
+};
+export const withoutStatsPanels = (handlers: any) => ({ ...handlers, onModel: (m: any) => handlers.onModel(leanModel(m)) });
 /** Last model per indicator + pair + timeframe: shown instantly on the next visit while the fresh run is on its way. */
 const modelCache = new Map<string, any>();
 const rememberModel = (k: string, m: any) => { modelCache.delete(k); modelCache.set(k, m); if (modelCache.size > 16) modelCache.delete(modelCache.keys().next().value as string); };
@@ -133,7 +145,7 @@ export class RemotePineEngine {
           }
           for (const w of j.warnings || []) handlers.onWarning?.({ message: w });
           for (const a of j.alerts || []) handlers.onAlert?.(a);
-          const out = { ...j.model, tables: hidesTables(id) ? [] : dropStatsTables(j.model?.tables), id: instanceId };
+          const out = { ...leanModel(j.model), ...(hidesTables(id) ? { tables: [] } : {}), id: instanceId };
           rememberModel(mkey(), out);
           handlers.onModel(out);
           handlers.onDone?.();
