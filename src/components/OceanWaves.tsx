@@ -9,59 +9,78 @@
 import { useEffect } from 'react';
 import { startSpaceObjects } from './spaceObjects';
 
-const FRAG = `precision mediump float;
+const FRAG = `precision highp float;
 uniform vec2 R; uniform float T;
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float noise(vec2 p){ vec2 i=floor(p),f=fract(p); vec2 u=f*f*(3.0-2.0*f);
   return -1.0+2.0*mix(mix(hash(i),hash(i+vec2(1,0)),u.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),u.x),u.y); }
 float oct(vec2 uv,float ch){ uv+=noise(uv); vec2 wv=1.0-abs(sin(uv)); vec2 sw=abs(cos(uv)); wv=mix(wv,sw,wv); return pow(1.0-pow(wv.x*wv.y,0.65),ch); }
-float sea(vec2 p){
+// sea height: long swells + choppy wind waves (more octaves = finer detail, used for the normals)
+float seaH(vec2 p,int N){
   float f=0.16, a=0.6, ch=4.0, d, hgt=0.0; float t=T*0.8; mat2 m=mat2(1.6,1.2,-1.2,1.6);
-  for(int i=0;i<4;i++){ d=oct((p+t)*f,ch); d+=oct((p-t)*f,ch); hgt+=d*a; p*=m; f*=1.9; a*=0.22; ch=mix(ch,1.0,0.2); }
+  for(int i=0;i<6;i++){ if(i>=N) break; d=oct((p+t)*f,ch); d+=oct((p-t)*f,ch); hgt+=d*a; p*=m; f*=1.9; a*=0.22; ch=mix(ch,1.0,0.2); }
   return hgt;
 }
-float fbm(vec2 p){ float v=0.0,a=0.5; for(int i=0;i<5;i++){ v+=a*noise(p); p=p*2.03+vec2(1.7,9.2); a*=0.5; } return v; }
+float fbm(vec2 p){ float v=0.0,a=0.5; for(int i=0;i<5;i++){ v+=a*(noise(p)*0.5+0.5); p=p*2.03+vec2(1.7,9.2); a*=0.5; } return v; }
 float stars(vec2 uv,float s,float t){ vec2 g=floor(uv*s); vec2 f=fract(uv*s)-0.5; float h=hash(g);
   if(h<0.965) return 0.0; vec2 o=vec2(hash(g+3.1),hash(g+7.7))-0.5; float d=length(f-o*0.7);
   float tw=0.6+0.4*sin(t*(1.0+h*3.0)+h*40.0); return smoothstep(0.08,0.0,d)*tw*(h-0.965)*28.0; }
+// spiral galaxy: two log-spiral arms + bright core, slowly rotating
+vec3 galaxy(vec2 p, vec2 c, float sz, float rot){
+  vec2 q=(p-c)/sz; q=vec2(q.x, q.y*2.2); float r=length(q); if(r>1.3) return vec3(0.0);
+  float a=atan(q.y,q.x)+rot; float arm=0.5+0.5*cos(2.0*(a-log(r+0.001)*3.2));
+  float dust=fbm(q*6.0+rot);
+  float body=pow(arm,3.0)*exp(-r*2.6)*(0.6+0.8*dust);
+  return vec3(0.75,0.55,1.0)*body*0.9 + vec3(1.0,0.9,0.8)*exp(-r*14.0)*1.2;
+}
 vec3 spaceSky(vec2 uv){
-
-  vec2 p=(gl_FragCoord.xy-0.5*R)/R.y; float t=T*0.02;
-  // drifting neon nebula: magenta / cyan / violet clouds
+  vec2 p=(uv-0.5)*vec2(R.x/R.y,1.0); float t=T*0.02;
   float n1=fbm(p*1.6+vec2(t,t*0.6)); float n2=fbm(p*2.4-vec2(t*0.7,-t)+n1);
-  vec3 col=vec3(0.006,0.008,0.03);
-  col+=vec3(0.55,0.08,0.60)*pow(smoothstep(0.40,0.90,n2),1.8)*0.95;
-  col+=vec3(0.05,0.55,0.75)*pow(smoothstep(0.45,0.95,fbm(p*1.9+vec2(-t,t*0.4)+n2*0.6)),1.8)*0.85;
-  col+=vec3(0.25,0.15,0.75)*pow(n1,3.0)*0.35;
-  // milky-way band
-  float band=exp(-pow((p.y-p.x*0.35+0.05)*3.2,2.0));
-  col+=vec3(0.30,0.32,0.55)*band*fbm(p*6.0+t)*0.28;
-  // three star layers with slow parallax
+  vec3 col=vec3(0.004,0.006,0.022);
+  col+=vec3(0.55,0.08,0.60)*pow(smoothstep(0.42,0.85,n2),1.8)*0.85;
+  col+=vec3(0.05,0.50,0.75)*pow(smoothstep(0.48,0.90,fbm(p*1.9+vec2(-t,t*0.4)+n2*0.6)),1.8)*0.75;
+  float band=exp(-pow((p.y-p.x*0.35-0.05)*3.2,2.0));
+  col+=vec3(0.32,0.34,0.58)*band*pow(fbm(p*7.0+t),2.0)*0.55;
+  col+=galaxy(p, vec2(-0.30,0.32), 0.16, T*0.015);
+  col+=galaxy(p, vec2(0.48,0.42), 0.06, -T*0.02)*0.7;
   col+=vec3(0.75,0.85,1.0)*stars(uv+vec2(t*0.6,0.0),90.0,T);
   col+=vec3(1.0,0.85,0.95)*stars(uv+vec2(t*1.2,0.0),55.0,T)*0.9;
   col+=vec3(0.7,1.0,1.0)*stars(uv+vec2(t*2.2,0.0),28.0,T)*1.1;
-    return col;
+  return col;
 }
 void main(){
   vec2 uv=gl_FragCoord.xy/R; float horizon=0.40;
-  if(uv.y>horizon){ vec3 sk=spaceSky(uv); float hz=exp(-(uv.y-horizon)*28.0); sk+=vec3(0.20,0.25,0.55)*hz*0.35; gl_FragColor=vec4(sk,1.0); return; }
+  if(uv.y>horizon){ vec3 sk=spaceSky(uv); float hz=exp(-(uv.y-horizon)*24.0); sk+=vec3(0.16,0.20,0.48)*hz*0.45; gl_FragColor=vec4(sk,1.0); return; }
   float y=max(horizon-uv.y,0.0012);
   float z=0.35/y; vec2 p=vec2((uv.x-0.5)*z*(R.x/R.y)*1.4, z*2.2+T*1.4);
-  float e=0.12; float c=sea(p);
-  vec3 n=normalize(vec3(c-sea(p+vec2(e,0.0)), e*1.6, c-sea(p+vec2(0.0,e))));
-  vec3 v=normalize(vec3(0.0,0.28,1.0));
-  float fres=clamp(pow(1.0-max(dot(n,v),0.0),3.0)*0.7,0.0,1.0);
-  vec3 deep=vec3(0.0,0.035,0.085), water=vec3(0.03,0.16,0.24), sky=vec3(0.20,0.27,0.58);
-  vec3 col=mix(deep,water,clamp(c*0.55,0.0,1.0)*0.6);
-  col=mix(col,sky,fres);
-  vec3 L=normalize(vec3(0.25,0.45,-1.0));
-  float spec=pow(max(dot(reflect(-L,n),v),0.0),80.0);
-  float path=exp(-pow((uv.x-0.64)*4.0,2.0));
-  col+=vec3(0.80,0.90,1.0)*spec*(0.35+1.4*path);
-  col+=vec3(0.65,0.85,0.95)*smoothstep(1.05,1.35,c)*0.18;
-  float fog=smoothstep(0.0,0.22,y);
-  col=mix(vec3(0.10,0.13,0.30),col,fog);
-  vec3 refl=spaceSky(vec2(uv.x,2.0*horizon-uv.y))*0.35; col+=refl*(1.0-fog*0.6);
+  // farther water needs fewer octaves (saves GPU and avoids shimmering)
+  int N=y<0.04?3:(y<0.12?4:6);
+  float e=0.12; float c=seaH(p,N);
+  vec3 n=normalize(vec3(c-seaH(p+vec2(e,0.0),N), e*1.6, c-seaH(p+vec2(0.0,e),N)));
+  vec3 v=normalize(vec3(0.0,0.24,1.0));
+  float fres=clamp(0.02+0.98*pow(1.0-max(dot(n,v),0.0),5.0),0.0,1.0);
+  // reflection of the actual sky (galaxy, nebula, stars), distorted by the wave normals
+  vec2 ruv=vec2(uv.x+n.x*0.06, horizon+(horizon-uv.y)*0.9+n.z*0.05);
+  vec3 refl=spaceSky(clamp(ruv,0.0,1.0));
+  // body colour + subsurface scattering on the lit side of crests
+  vec3 deep=vec3(0.01,0.05,0.11), water=vec3(0.04,0.17,0.27), sss=vec3(0.0,0.28,0.30);
+  float dif=max(dot(n,normalize(vec3(0.2,1.0,0.6))),0.0);
+  vec3 col=mix(deep,water,clamp(c*0.5,0.0,1.0)*0.7)*(0.45+0.75*dif);
+  col+=sss*pow(max(c-0.6,0.0),2.0)*0.8*(0.6+0.4*n.x);
+  col=mix(col, refl*0.9+vec3(0.14,0.18,0.42)*0.45, clamp(fres*1.1,0.0,0.6));
+  // glitter paths from the pink giant (right) and the cyan planet (left)
+  vec3 L1=normalize(vec3(0.45,0.40,-1.0)), L2=normalize(vec3(-0.50,0.45,-1.0));
+  float s1=pow(max(dot(reflect(-L1,n),v),0.0),70.0), s2=pow(max(dot(reflect(-L2,n),v),0.0),90.0);
+  float p1=exp(-pow((uv.x-0.80)*3.2,2.0)), p2=exp(-pow((uv.x-0.14)*4.5,2.0));
+  col+=vec3(1.0,0.60,0.95)*s1*(0.4+2.6*p1);
+  col+=vec3(0.60,0.95,1.0)*s2*(0.35+2.2*p2);
+  // white foam on breaking crests
+  float foam=smoothstep(1.15,1.45,c)*(0.5+0.5*noise(p*3.0+T));
+  col=mix(col, vec3(0.85,0.92,1.0), foam*0.22*smoothstep(0.02,0.15,y));
+  // distance haze toward the horizon (picks up the horizon glow)
+  float fog=smoothstep(0.0,0.20,y);
+  col=mix(vec3(0.07,0.09,0.24)+refl*0.25, col, fog);
+  col=pow(col, vec3(0.92));
   gl_FragColor=vec4(col,1.0);
 }`;
 
@@ -84,7 +103,7 @@ export function OceanWaves() {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(pr, 'a'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     const uR = gl.getUniformLocation(pr, 'R'), uT = gl.getUniformLocation(pr, 'T');
-    const size = () => { const s = Math.min(window.devicePixelRatio || 1, 1) * (window.innerWidth < 700 ? 0.35 : 0.45); cv.width = Math.round(window.innerWidth * s); cv.height = Math.round(window.innerHeight * s); gl.viewport(0, 0, cv.width, cv.height); };
+    const size = () => { const s = Math.min(window.devicePixelRatio || 1, 1) * (window.innerWidth < 700 ? 0.4 : 0.5); cv.width = Math.round(window.innerWidth * s); cv.height = Math.round(window.innerHeight * s); gl.viewport(0, 0, cv.width, cv.height); };
     size(); window.addEventListener('resize', size);
     let raf = 0, last = 0; const t0 = performance.now();
     const frame = (now: number) => {

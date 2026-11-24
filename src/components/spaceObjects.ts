@@ -65,7 +65,7 @@ export function startSpaceObjects(): () => void {
     // soft reflections of the two big planets on the ocean below the horizon
     const hy = H * 0.60;
     for (const [img, x, y] of [[giant, gx, gy], [cyan, cx, cy]] as const) {
-      g.save(); g.globalAlpha = 0.16; g.translate(x, 2 * hy - y + Math.sin(t * 1.2) * 2); g.scale(1, -0.7); g.drawImage(img, -img.width / 2, -img.height / 2); g.restore();
+      g.save(); g.globalAlpha = 0.09; g.translate(x + Math.sin(t * 1.7) * 2, 2 * hy - y + Math.sin(t * 1.2) * 3); g.scale(1.03, -0.62); g.drawImage(img, -img.width / 2, -img.height / 2); g.restore();
     }
     g.drawImage(violet, W * 0.55 - violet.width / 2, H * 0.09 - violet.height / 2);
     // space station: slowly rotating neon ring
