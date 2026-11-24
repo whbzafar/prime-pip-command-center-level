@@ -5,6 +5,7 @@
  * pauses in hidden tabs and is skipped when effects are off / reduced-motion is requested.
  */
 import { useEffect } from 'react';
+import { startVessels } from './oceanVessels';
 
 const FRAG = `precision mediump float;
 uniform vec2 R; uniform float T;
@@ -72,7 +73,8 @@ export function OceanWaves() {
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     };
     raf = requestAnimationFrame(frame);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', size); cv.remove(); };
+    const stopVessels = startVessels();
+    return () => { cancelAnimationFrame(raf); stopVessels(); window.removeEventListener('resize', size); cv.remove(); };
   }, []);
   return null;
 }

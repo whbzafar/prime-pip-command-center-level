@@ -204,3 +204,5 @@ html[data-theme='aurora'] #ppfx-aurora-canvas { opacity: 1; }
 /* Ocean: rolling waves along the lower part of the background, behind every panel */
 #ppfx-ocean { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -997; pointer-events: none; opacity: .85; }
 html:not([data-theme='aurora']) #ppfx-ocean, html[data-fx='off'] #ppfx-ocean { display: none !important; }
+#ppfx-vessels { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -996; pointer-events: none; opacity: .9; }
+html:not([data-theme='aurora']) #ppfx-vessels, html[data-fx='off'] #ppfx-vessels { display: none !important; }
