@@ -56,21 +56,26 @@ export function startSpaceObjects(): () => void {
     const dt = last ? Math.min(0.2, (now - last) / 1000) : 0; last = now; const t = now / 1000;
     g.clearRect(0, 0, W, H);
     // planets drift very slowly (parallax float)
-    const gx = W * 0.80 + Math.sin(t * 0.03) * 14 * k, gy = H * 0.72 + Math.cos(t * 0.025) * 10 * k;
+    const gx = W * 0.80 + Math.sin(t * 0.03) * 14 * k, gy = H * 0.30 + Math.cos(t * 0.025) * 10 * k;
     g.drawImage(giant, gx - giant.width / 2, gy - giant.height / 2);
-    const cx = W * 0.14 + Math.sin(t * 0.04 + 1) * 10 * k, cy = H * 0.26 + Math.cos(t * 0.035) * 8 * k;
+    const cx = W * 0.14 + Math.sin(t * 0.04 + 1) * 10 * k, cy = H * 0.20 + Math.cos(t * 0.035) * 8 * k;
     g.drawImage(cyan, cx - cyan.width / 2, cy - cyan.height / 2);
     const ma = t * 0.18; const mx = cx + Math.cos(ma) * 82 * k, my = cy + Math.sin(ma) * 26 * k;
     if (Math.sin(ma) > 0 || true) g.drawImage(moon, mx - moon.width / 2, my - moon.height / 2);
-    g.drawImage(violet, W * 0.55 - violet.width / 2, H * 0.14 - violet.height / 2);
+    // soft reflections of the two big planets on the ocean below the horizon
+    const hy = H * 0.60;
+    for (const [img, x, y] of [[giant, gx, gy], [cyan, cx, cy]] as const) {
+      g.save(); g.globalAlpha = 0.16; g.translate(x, 2 * hy - y + Math.sin(t * 1.2) * 2); g.scale(1, -0.7); g.drawImage(img, -img.width / 2, -img.height / 2); g.restore();
+    }
+    g.drawImage(violet, W * 0.55 - violet.width / 2, H * 0.09 - violet.height / 2);
     // space station: slowly rotating neon ring
-    g.save(); g.translate(W * 0.38, H * 0.80); g.rotate(t * 0.15); g.strokeStyle = 'rgba(120,255,240,.55)'; g.lineWidth = 2 * k;
+    g.save(); g.translate(W * 0.40, H * 0.44); g.rotate(t * 0.15); g.strokeStyle = 'rgba(120,255,240,.55)'; g.lineWidth = 2 * k;
     g.beginPath(); g.ellipse(0, 0, 26 * k, 26 * k, 0, 0, Math.PI * 2); g.stroke();
     for (let i = 0; i < 4; i++) { g.rotate(Math.PI / 2); g.beginPath(); g.moveTo(5 * k, 0); g.lineTo(26 * k, 0); g.stroke(); }
     g.fillStyle = 'rgba(255,90,210,.9)'; g.fillRect(-4 * k, -4 * k, 8 * k, 8 * k); g.restore();
     // rockets
     if (now > nextRocket && rockets.length < 2) {
-      const fromLeft = rnd(now) > 0.5; const y = H * (0.2 + rnd(now * 1.7) * 0.6);
+      const fromLeft = rnd(now) > 0.5; const y = H * (0.10 + rnd(now * 1.7) * 0.38);
       rockets.push({ x: fromLeft ? -40 : W + 40, y, vx: (fromLeft ? 1 : -1) * (90 + rnd(now * 3) * 80) * k, vy: -(10 + rnd(now * 5) * 30) * k, life: 0, hue: rnd(now * 7) > 0.5 ? '0,240,255' : '255,80,210' });
       nextRocket = now + 9000 + rnd(now * 11) * 12000;
     }
@@ -89,7 +94,7 @@ export function startSpaceObjects(): () => void {
       g.restore();
     }
     // shooting stars
-    if (now > nextComet) { comets.push({ x: W * rnd(now), y: H * rnd(now * 2) * 0.5, vx: (300 + rnd(now * 3) * 300) * k, vy: (120 + rnd(now * 4) * 120) * k, life: 0 }); nextComet = now + 3000 + rnd(now * 9) * 6000; }
+    if (now > nextComet) { comets.push({ x: W * rnd(now), y: H * rnd(now * 2) * 0.35, vx: (300 + rnd(now * 3) * 300) * k, vy: (120 + rnd(now * 4) * 120) * k, life: 0 }); nextComet = now + 3000 + rnd(now * 9) * 6000; }
     for (let i = comets.length - 1; i >= 0; i--) {
       const c = comets[i]; c.x += c.vx * dt; c.y += c.vy * dt; c.life += dt;
       if (c.life > 1.4) { comets.splice(i, 1); continue; }
