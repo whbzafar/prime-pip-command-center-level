@@ -71,14 +71,20 @@ export const PairsView: React.FC<{ pairs: PairResult[]; generatedAt: string; ini
   useEffect(() => {
     if (!sel) { setDetail(null); return; }
     let alive = true;
-    const pk = peekJson<any>(`/api/macro/pair/${encodeURIComponent(sel)}`, 10 * 60_000);
-    if (pk?.ok) { setDetail({ data: pk.data, base: pk.base, quote: pk.quote, institutional: pk.institutional, sentiment: pk.sentiment }); setLoading(false); } else setLoading(true);
+    const pk = peekJson<any>(`/api/macro/pair/${encodeURIComponent(sel)}`, 6 * 3600_000);
+    if (pk?.ok) { setDetail({ data: pk.data, base: pk.base, quote: pk.quote, institutional: pk.institutional, sentiment: pk.sentiment }); setLoading(false); }
+    else {
+      // Open the pair instantly from the list data we already have; the full breakdown fills in when it arrives.
+      const row = pairs.find((p) => p.symbol === sel);
+      if (row) setDetail({ data: row, base: null, quote: null }); else setDetail(null);
+      setLoading(true);
+    }
     fetchJsonSafe<any>(`/api/macro/pair/${encodeURIComponent(sel)}`)
       .then((j) => { if (alive && j?.ok) setDetail({ data: j.data, base: j.base, quote: j.quote, institutional: j.institutional, sentiment: j.sentiment }); })
       .catch(() => undefined)
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
-  }, [sel, generatedAt]);
+  }, [sel, generatedAt, pairs]);
 
   const byClass = useMemo(() => pairs
     .filter((p) => filter === 'ALL' || p.assetClass === filter)

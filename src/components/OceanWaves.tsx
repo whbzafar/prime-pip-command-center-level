@@ -60,21 +60,23 @@ export function OceanWaves() {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(pr, 'a'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     const uR = gl.getUniformLocation(pr, 'R'), uT = gl.getUniformLocation(pr, 'T');
-    const size = () => { const s = Math.min(window.devicePixelRatio || 1, 1) * (window.innerWidth < 700 ? 0.5 : 0.6); cv.width = Math.round(window.innerWidth * s); cv.height = Math.round(window.innerHeight * s); gl.viewport(0, 0, cv.width, cv.height); };
+    const size = () => { const s = Math.min(window.devicePixelRatio || 1, 1) * (window.innerWidth < 700 ? 0.33 : 0.4); cv.width = Math.round(window.innerWidth * s); cv.height = Math.round(window.innerHeight * s); gl.viewport(0, 0, cv.width, cv.height); };
     size(); window.addEventListener('resize', size);
     let raf = 0, last = 0; const t0 = performance.now();
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
-      if (document.hidden || now - last < 25) return;
-      const fx = html.dataset.fx; if (fx === 'off' || html.dataset.theme !== 'aurora' || html.classList.contains('ppfx-clear-video')) { cv.style.display = 'none'; return; }
+      if (document.hidden || now - last < 40 || (window as any).__ppfxScrolling) return;
+      const fx = html.dataset.fx; if (fx !== 'full' || html.dataset.theme !== 'aurora' || html.classList.contains('ppfx-clear-video')) { cv.style.display = 'none'; return; }
       cv.style.display = '';
       last = now;
       gl.uniform2f(uR, cv.width, cv.height); gl.uniform1f(uT, (now - t0) / 1000);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     };
     raf = requestAnimationFrame(frame);
+    let st = 0; const onScroll = () => { (window as any).__ppfxScrolling = true; clearTimeout(st); st = window.setTimeout(() => { (window as any).__ppfxScrolling = false; }, 180); };
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true });
     const stopVessels = startVessels();
-    return () => { cancelAnimationFrame(raf); stopVessels(); window.removeEventListener('resize', size); cv.remove(); };
+    return () => { cancelAnimationFrame(raf); stopVessels(); window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', size); cv.remove(); };
   }, []);
   return null;
 }

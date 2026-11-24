@@ -75,8 +75,8 @@ export function startVessels(): () => void {
   let raf = 0, last = 0;
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame);
-    if (document.hidden || now - last < 40) return;
-    const hide = html.dataset.fx === 'off' || html.dataset.theme !== 'aurora' || html.classList.contains('ppfx-clear-video');
+    if (document.hidden || now - last < 50 || (window as any).__ppfxScrolling) return;
+    const hide = html.dataset.fx !== 'full' || html.dataset.theme !== 'aurora' || html.classList.contains('ppfx-clear-video');
     cv.style.display = hide ? 'none' : ''; if (hide) return;
     const dt = last ? Math.min(0.2, (now - last) / 1000) : 0; last = now;
     const t = now / 1000; const hy = Hh * HORIZON; const base = Math.min(1.4, Math.max(0.6, W / 1400));
@@ -109,7 +109,7 @@ export function startVessels(): () => void {
       if (v.x > 1.25 || v.x < -0.25) { v.dir = rnd(now + v.seed) > 0.5 ? 1 : -1; v.x = v.dir > 0 ? -0.2 : 1.2; v.depth = 0.02 + rnd(now * 0.3 + v.seed) * 0.16; }
       const sc = base * (0.75 + v.depth * 6), x = v.x * W, y = hy + v.depth * Hh;
       g.save(); g.translate(x, y); drawVessel(g, v, sc, t); g.restore();
-      g.save(); g.translate(x, y + 1); g.scale(1, -0.55); g.globalAlpha = 0.22; g.filter = 'blur(1.5px)'; drawVessel(g, v, sc, t); g.restore();
+      g.save(); g.translate(x, y + 1); g.scale(1, -0.55); g.globalAlpha = 0.18; drawVessel(g, v, sc, t); g.restore();
     }
   };
   raf = requestAnimationFrame(frame);

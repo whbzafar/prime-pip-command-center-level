@@ -206,3 +206,6 @@ html[data-theme='aurora'] #ppfx-aurora-canvas { opacity: 1; }
 html:not([data-theme='aurora']) #ppfx-ocean, html[data-fx='off'] #ppfx-ocean { display: none !important; }
 #ppfx-vessels { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -996; pointer-events: none; opacity: .9; }
 html:not([data-theme='aurora']) #ppfx-vessels, html[data-fx='off'] #ppfx-vessels { display: none !important; }
+/* One full-screen shader is enough: the ocean replaces the MarketAura WebGL layer (big GPU saving) */
+html[data-theme='aurora'][data-fx='full'] [data-testid='market-aura'] { display: none !important; }
+html[data-fx='lite'] #ppfx-ocean, html[data-fx='lite'] #ppfx-vessels { display: none !important; }
