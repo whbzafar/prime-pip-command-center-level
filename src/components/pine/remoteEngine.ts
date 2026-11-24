@@ -11,8 +11,11 @@ import { authInit, pineLib } from './pineLibrary';
 /** The SBT indicator's own right-hand "models" table is not shown on the chart (everything else it draws stays). */
 const hidesTables = (id: string) => /\bSBT\b/i.test(pineLib.get().scripts.find((s) => s.id === id)?.name || '');
 /** Statistics panels (SBT model table, win-rate / trade-statistics box) are never shown on the chart; the small status box stays. */
-const STATS_TABLE = /WIN RATE|Total R\b|Avg R\b|\bSkipped\b|Zone R\b|TP\/Hurdle|\bTrades\b|SBT ?\d+[AB]?\b.*(Bull|Bear)|\bBull\b.*\bBear\b/i;
-const dropStatsTables = (tables: any) => (Array.isArray(tables) ? tables.filter((t) => { try { return !STATS_TABLE.test(JSON.stringify(t)); } catch { return true; } }) : tables);
+const STATS_TABLE = /WIN RATE|Total R\b|Avg R\b|\bSkipped\b|Zone R\b|TP\/Hurdle|\bTrades\b|\bBull\b[\s\S]*\bBear\b/i;
+const tableText = (t: any) => { try { return (t?.cells || []).flat().map((c: any) => String(c?.text ?? '')).join(' | '); } catch { return ''; } };
+export const dropStatsTables = (tables: any) => (Array.isArray(tables) ? tables.filter((t) => !STATS_TABLE.test(tableText(t))) : tables);
+/** Local (worker) engine too: the same statistics panels are stripped from every model before it reaches the chart. */
+export const withoutStatsPanels = (handlers: any) => ({ ...handlers, onModel: (m: any) => handlers.onModel(m && Array.isArray(m.tables) ? { ...m, tables: dropStatsTables(m.tables) } : m) });
 /** Last model per indicator + pair + timeframe: shown instantly on the next visit while the fresh run is on its way. */
 const modelCache = new Map<string, any>();
 const rememberModel = (k: string, m: any) => { modelCache.delete(k); modelCache.set(k, m); if (modelCache.size > 16) modelCache.delete(modelCache.keys().next().value as string); };

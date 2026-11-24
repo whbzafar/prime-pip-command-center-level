@@ -241,7 +241,18 @@ async function cycle() {
     const seenRaw = localStorage.getItem(K_EVSEEN);
     const seen = new Set(read<string[]>(K_EVSEEN, []));
     const first = seenRaw === null;
-    const fresh = events.filter((e) => !seen.has(e.id) && !first && Date.now() - e.time < EVENT_RING_MS);
+    const memRaw = read<Record<string, number>>('ppfx_level_ev_mem_v1', {});
+    const nowT = Date.now();
+    for (const k of Object.keys(memRaw)) if (nowT - memRaw[k] > 24 * 3_600_000) delete memRaw[k];
+    // The same setup (pair + level + kind) is announced once per 24h even if its zone numbers shift from hour to hour.
+    const fresh = events.filter((e) => {
+      if (seen.has(e.id) || first || nowT - e.time >= EVENT_RING_MS) return false;
+      if (e.kind === 'ACTIVATED') return true;
+      const k = `${e.kind}:${e.symbol}:${e.level ?? 0}:${e.side}`;
+      if (memRaw[k]) return false;
+      memRaw[k] = nowT; return true;
+    });
+    write('ppfx_level_ev_mem_v1', memRaw);
     for (const e of events) seen.add(e.id);
     write(K_EVSEEN, [...seen].slice(-600));
     // The alert list shows setups that are active now (activation events), never an old log.
@@ -268,7 +279,7 @@ function schedule() {
 
 // ── Stage 1: "price is approaching a level" heads-up (while the app is open) ──────────────────────────────
 const H1MS = 3_600_000;
-const K_HEADS = 'ppfx_level_heads_v1';
+const K_HEADS = 'ppfx_level_heads_v2'; // zone-based memory: one alert per zone, never repeated hour after hour
 const MIN_LEFT_MIN = 4; // no heads-up in the last minutes of the candle: the close alert follows straight away
 let headsBusy = false;
 
@@ -292,18 +303,18 @@ export function distanceToZone(price: number, zone: { top: number; bottom: numbe
   return price < zone.bottom ? zone.bottom - price : -1;
 }
 
+const HEADS_MEMORY_MS = 24 * 3_600_000;
+const lastDist = new Map<string, number>(); // this visit only: where price was relative to each zone on the previous check
 async function headsUpCycle() {
   if (headsBusy || state.status !== 'ready' || !state.marketOpen) return;
   const now = Date.now();
   const minLeft = 60 - new Date(now).getUTCMinutes();
-  const hour = Math.floor(now / H1MS);
-  const done = new Set(read<string[]>(K_HEADS, []));
+  const done = read<Record<string, number>>(K_HEADS, {});
+  for (const k of Object.keys(done)) if (now - done[k] > HEADS_MEMORY_MS) delete done[k];
   const todo: Array<{ p: PairScan; level: 1 | 2; z: LevelZone }> = [];
   for (const p of state.pairs) {
     if (p.state !== 'ok' || !p.watching || p.inTrade) continue;
-    for (const [level, z] of [[1, p.level1], [2, p.level2]] as const) {
-      if (z && !(done.has(`${p.symbol}:${level}:${hour}`) && done.has(`${p.symbol}:${level}:${hour}:in`))) todo.push({ p, level, z });
-    }
+    for (const [level, z] of [[1, p.level1], [2, p.level2]] as const) if (z) todo.push({ p, level, z });
   }
   if (!todo.length) return;
   headsBusy = true;
@@ -315,26 +326,32 @@ async function headsUpCycle() {
     const fired: LevelEvent[] = [];
     for (const { p, level, z } of todo) {
       const px = prices.get(p.symbol); if (px == null) continue;
+      const zk = `${p.symbol}:${level}:${z.bottom}:${z.top}`;
       const near = Math.max((p.pip || 0) * 30, (z.top - z.bottom) * 1.0);
       const d = distanceToZone(px, z, p.side);
-      if (d < 0 || d > near) continue;
-      const dir = p.side > 0 ? 'buy' : 'sell';
+      const prev = lastDist.get(zk);
+      lastDist.set(zk, d < 0 ? Infinity : d);
+      if (d < 0) continue;
+      if (d > near * 2) { delete done[`${zk}:near`]; delete done[`${zk}:in`]; } // price walked away: the zone can alert again later
+      // Only a NEW approach is announced: price must have been seen outside during this visit. A zone that price already sits in when the app opens is old news.
+      if (prev === undefined) continue;
       const inside = d === 0;
-      const key = `${p.symbol}:${level}:${hour}${inside ? ':in' : ''}`;
-      if (done.has(key)) continue;
-      if (!inside && minLeft < MIN_LEFT_MIN) continue; // last minutes: only the "inside the zone" alert is still useful
-      done.add(key);
-      if (inside) done.add(`${p.symbol}:${level}:${hour}`); // being inside covers the earlier heads-up
+      const key = `${zk}:${inside ? 'in' : 'near'}`;
+      if (done[key]) continue;
+      if (inside ? !(prev > 0) : !(d <= near && prev > near)) continue;
+      if (!inside && minLeft < MIN_LEFT_MIN) continue;
+      done[key] = now; if (inside) done[`${zk}:near`] = now;
+      const dir = p.side > 0 ? 'buy' : 'sell';
       const away = inside ? 'price is INSIDE the zone right now' : p.pip ? `${(d / p.pip).toFixed(1)} pips away` : 'very close';
       const model = z.modelReady ? 'Confirmation models are ready.' : 'Confirmation models are not complete yet.';
       fired.push({
-        id: `heads-${p.symbol}-${level}-${hour}${inside ? '-in' : ''}`, kind: 'READY', symbol: p.symbol, display: p.display, side: p.side, level, time: now,
+        id: `heads-${zk}-${inside ? 'in' : 'near'}-${now}`, kind: 'READY', symbol: p.symbol, display: p.display, side: p.side, level, time: now,
         title: inside ? `AT LEVEL NOW · ${p.display} entered Level ${level} ${dir} zone` : `HEADS-UP · ${p.display} nearing Level ${level} ${dir} zone`,
         text: `${p.display}: ${away} (${fmtPrice(px)}; zone ${fmtPrice(z.bottom)}–${fmtPrice(z.top)}). ${minLeft} min left in this H1 candle. ${model} ${inside ? 'Watch the candle — confirmation follows at the close.' : 'Get ready.'}`,
         speech: inside ? `Alert. ${spokenPair(p.display)} has entered the level ${level} ${dir} zone now.` : `Heads up. ${spokenPair(p.display)} is nearing level ${level} ${dir} zone. ${minLeft} minutes left in the candle.`,
       });
     }
-    write(K_HEADS, [...done].filter((k) => Number(k.split(':')[2]) >= hour - 3));
+    write(K_HEADS, done);
     if (fired.length) {
       speakEvents(fired);
       for (const e of fired) void notify(e.title, e.text);

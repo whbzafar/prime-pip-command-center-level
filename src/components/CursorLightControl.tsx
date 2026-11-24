@@ -14,7 +14,7 @@ export function CursorLightControl() {
         <button type="button" onClick={() => set(v - 20)} className="h-8 w-8 rounded-lg border border-slate-700 bg-slate-900 text-lg font-bold text-slate-200" aria-label="Dimmer">−</button>
         <input type="range" min={0} max={200} step={5} value={v} onChange={(e) => set(Number(e.target.value))} className="flex-1" aria-label="Mouse light brightness" />
         <button type="button" onClick={() => set(v + 20)} className="h-8 w-8 rounded-lg border border-slate-700 bg-slate-900 text-lg font-bold text-slate-200" aria-label="Brighter">+</button>
-        <button type="button" onClick={() => set(100)} className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-[10px] font-bold text-slate-300">Reset</button>
+        <button type="button" onClick={() => set(35)} className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-[10px] font-bold text-slate-300">Reset</button>
       </div>
       <p className="mt-1.5 text-[10px] text-slate-400">The soft light that follows your mouse (or finger). Move the slider while you move the mouse to see it.</p>
     </div>

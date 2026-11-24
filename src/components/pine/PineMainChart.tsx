@@ -24,7 +24,7 @@ import { registerIcon, registerRendererLayer, registerWidgetAction } from '@luxa
 import { PineWorkerEngine } from '@luxalgo/vela-pinets';
 import { catalogFor, makeProvider, normTf, prewarmPopular, velaTf, venueSymbol } from './pineData';
 import { DRAFT_ID, hideIndicator, indicatorStatus, loadLibrary, pineLib, setIndicatorStatus, showIndicator, type LibraryScript } from './pineLibrary';
-import { RemotePineEngine, REMOTE_LANG, remoteRef, warmPine } from './remoteEngine';
+import { RemotePineEngine, REMOTE_LANG, remoteRef, warmPine, withoutStatsPanels } from './remoteEngine';
 import { markOnScreen, priceAlerts, type AlertCondition, type PriceAlert } from './priceAlerts';
 
 interface Running { key: string; remove: () => void }
@@ -275,10 +275,10 @@ export const PineMainChart: React.FC<{
       layout: false, symbol: venueSymbol(entry.ticker), timeframe: tf, bars: HISTORY_BARS, theme: savedTheme(), live: true, persist: false,
       timezone: 'Asia/Karachi',
       topbar: { left: ['timeframes', 'style', 'indicators', 'undo-redo'], right: ['alerts', 'panels', 'screenshot'] },
-      drawings: { toolbar: false },
+      drawings: { toolbar: false }, volume: false,
       timeframes: ['1', '3', '5', '15', '30', '60', '120', '240', 'D', 'W', 'M'],
       providers: { dukascopy: () => makeProvider('dukascopy'), binance: () => makeProvider('binance') },
-      engines: { pine: () => new PineWorkerEngine(), [REMOTE_LANG]: () => new RemotePineEngine() },
+      engines: { pine: () => { const e: any = new PineWorkerEngine(); const ex = e.execute.bind(e); e.execute = (req: any, h: any) => ex(req, withoutStatsPanels(h)); return e; }, [REMOTE_LANG]: () => new RemotePineEngine() },
     } as any);
     ws.current = w;
     tickerRef.current = entry.ticker;
