@@ -3022,6 +3022,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
       const existing = container.querySelector('iframe');
       const forced = tvReloadSeen.current !== tvReload; tvReloadSeen.current = tvReload;
       if (existing && !forced && existing.getAttribute('src') === src) return; // same chart already loaded
+      // Keep-drawings mode: only the timeframe differs (the chart's own bar changed it) → leave the chart alone.
+      const noIv = (u: string | null) => String(u || '').replace(/([?&])interval=[^&]*&?/, '$1');
+      if (existing && !forced && tvKeep && noIv(existing.getAttribute('src')) === noIv(src)) return;
       const iframe = document.createElement('iframe');
       iframe.src = src;
       iframe.style.width = '100%';
@@ -3052,6 +3055,35 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     };
   // Full-screen / minimise only resize the same container, so they must NOT rebuild the chart (that reloaded it).
   }, [containerId, tradingViewSymbol, selectedInterval, chartSettings.backgroundColor, chartSettings.timezone, isLightBg, selectedSymbol, pineOnChart, tvVolume, tvKeep, tvReload, tvKeep ? 0 : selectedInterval]);
+
+  // LIVE TIMEFRAME FROM TRADINGVIEW: the embedded chart answers a "symbolInfo" request with its current interval
+  // (verified against the live widget: it follows every change made with TradingView's own timeframe bar). Asking once a
+  // second keeps the bar-close timer on exactly the timeframe the chart is showing, including the arrow's extra timeframes.
+  useEffect(() => {
+    if (pineOnChart || !tvKeep) return;
+    const clientId = `ppfx_${containerId}`;
+    let seq = 1;
+    const frame = () => document.getElementById(containerId)?.querySelector('iframe') as HTMLIFrameElement | null;
+    const onMsg = (e: MessageEvent) => {
+      const f = frame();
+      if (!f || e.source !== f.contentWindow || typeof e.data !== 'string') return;
+      let m: any; try { m = JSON.parse(e.data); } catch { return; }
+      if (!m || m.provider !== 'TradingView' || m.type !== 'on' || m.name !== 'symbolInfo' || m.client_id !== clientId) return;
+      const raw = m.data && m.data.interval;
+      if (!raw) return;
+      const norm = normalizeInterval(String(raw));
+      tvInitialInterval.current = norm; // a reload (new pair) opens on the timeframe the chart is showing
+      setSelectedInterval((cur) => (cur === norm ? cur : norm));
+    };
+    window.addEventListener('message', onMsg);
+    const ask = () => {
+      if (document.hidden) return;
+      try { frame()?.contentWindow?.postMessage(JSON.stringify({ id: seq++, type: 'get', name: 'symbolInfo', client_id: clientId, data: {}, provider: 'TradingView' }), '*'); } catch { /* frame not ready */ }
+    };
+    const t = window.setInterval(ask, 1000);
+    window.setTimeout(ask, 1500);
+    return () => { window.removeEventListener('message', onMsg); window.clearInterval(t); };
+  }, [containerId, pineOnChart, tvKeep]);
 
   // --------------------------------------------------------------------------
   // CATEGORY & SYMBOL SELECTOR (Immediately opens pair + syncs broker settings!)
