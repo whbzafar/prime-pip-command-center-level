@@ -13,7 +13,7 @@ import { CATALOG, FullHistoryDatafeed, PRO_PERIODS } from '../chartAnalysis/full
 
 const TFS: [string, string][] = [['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'], ['60', '1h'], ['240', '4h'], ['D', '1D'], ['W', '1W']];
 
-export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInterval?: (iv: string) => void; onClearAll?: () => void; countdown: { label: string; text: string; closed?: boolean; progressPercent?: number; session?: string } }> = ({ symbol, interval, onInterval, onClearAll, countdown }) => {
+export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInterval?: (iv: string) => void; syncOnly?: boolean; onClearAll?: () => void; countdown: { label: string; text: string; closed?: boolean; progressPercent?: number; session?: string } }> = ({ symbol, interval, onInterval, syncOnly, onClearAll, countdown }) => {
   const [tfOpen, setTfOpen] = useState(false);
   const [clearAsk, setClearAsk] = useState(false);
   const entry = catalogFor(symbol);
@@ -79,8 +79,8 @@ export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInter
         </div>
         <div className="flex h-[19px] bg-[#131722] text-[10px] font-semibold text-slate-200">
           {onInterval && (
-            <button type="button" onClick={() => setTfOpen((v) => !v)} data-testid="tv-scale-tf" title="Timeframe of the chart and of this countdown"
-              className="flex-1 hover:bg-[#1e222d] hover:text-white cursor-pointer border-r border-slate-700">{(TFS.find((t) => t[0] === interval) || ['', countdown.label])[1]} ▾</button>
+            <button type="button" onClick={() => setTfOpen((v) => !v)} data-testid="tv-scale-tf" title={syncOnly ? "Timer timeframe — set it to the same timeframe as the chart (the chart's own bar cannot tell the timer)" : "Timeframe of the chart and of this countdown"}
+              className={`flex-1 hover:bg-[#1e222d] hover:text-white cursor-pointer border-r border-slate-700 ${syncOnly ? 'text-amber-300' : ''}`}>{(TFS.find((t) => t[0] === interval) || ['', countdown.label])[1]} ▾</button>
           )}
           {ticker && (
             <button type="button" onClick={() => setOpen((v) => !v)} data-testid="tv-scale-plus" title="Add a price alert" aria-label="Add a price alert"
