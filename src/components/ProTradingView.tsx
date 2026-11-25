@@ -3002,9 +3002,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         enable_publishing: 'false',
         hide_top_toolbar: 'false',
         hide_side_toolbar: 'false',
-        // The chart's own symbol box changes the symbol inside the sealed frame without telling the app, so the Pair Widget,
-        // fundamentals and alerts stayed on the old pair. Symbols are chosen with the app's search (it drives chart AND widget).
-        allow_symbol_change: 'false',
+        // TradingView's own pair search (left of its header) is back, like every trading platform. A pair picked inside the chart
+        // does not reach the app's Pair Widget / fundamentals — use the app's "Search pair" to move those together with the chart.
+        allow_symbol_change: 'true',
         save_image: 'true',
         hideideas: 'false',
         show_popup_button: 'true',
