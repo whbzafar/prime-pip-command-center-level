@@ -19,6 +19,7 @@ import { AmbientThemeRibbon } from './components/AmbientThemeRibbon';
 import { CommandCenterAtmosphere } from './components/CommandCenterAtmosphere';
 import { RiskCenter, TradeLimitAlertSystem } from './components/RiskCenter';
 import { MainNavTab } from './components/Header';
+import { popupSeen, markPopup, GATE_TTL } from './utils/popupMemory';
 import { LocationPromptModal } from './components/LocationPromptModal';
 import { AccountOnboardingModal } from './components/AccountOnboardingModal';
 import { initialRules, initialGoals } from './data/initialTrades';
@@ -241,7 +242,7 @@ export default function App() {
   });
   const [demoToast, setDemoToast] = useState<string | null>(null);
   // The "Payment Verification Required" prompt: closing it, or choosing Continue with Demo, dismisses it for this session.
-  const [gateDismissed, setGateDismissed] = useState<boolean>(false);
+  const [gateDismissed, setGateDismissed] = useState<boolean>(() => { const id = getCurrentUser()?.id; return !!id && popupSeen(`gate:${id}`, GATE_TTL); });
 
 
   // Modal States
@@ -325,7 +326,8 @@ export default function App() {
         try {
           localStorage.removeItem('primepipfx_demo_mode');
         } catch {}
-        if ((user.needsOnboarding || !user.hasCompletedOnboarding) && !isUserAdmin(user)) {
+        if ((user.needsOnboarding || !user.hasCompletedOnboarding) && !isUserAdmin(user) && !popupSeen(`onb:${user.id}`)) {
+          markPopup(`onb:${user.id}`);
           setIsStudentOnboardingOpen(true);
         }
       } else {
@@ -421,6 +423,7 @@ export default function App() {
         } catch {}
       }
       setGateDismissed(true);
+      { const id = getCurrentUser()?.id; if (id) markPopup(`gate:${id}`); }
       setIsLoginModalOpen(false);
       setIsSubscriptionModalOpen(false);
       setIsCreateAccountWizardOpen(false);
@@ -476,6 +479,7 @@ export default function App() {
     setTrialTick((n) => n + 1);
     setIsDemoMode(true);
     setGateDismissed(true);
+    { const id = getCurrentUser()?.id; if (id) markPopup(`gate:${id}`); }
     try { localStorage.setItem('primepipfx_demo_mode', 'true'); } catch {}
     setActiveTab('DASHBOARD');
     const key = `ppfx_trial_review_${currentUser?.id || 'anon'}`;
@@ -692,7 +696,7 @@ export default function App() {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       setCurrentUser(user);
       setIsDemoMode(!hasFullAccess(user));
-      setGateDismissed(false);
+      setGateDismissed(popupSeen(`gate:${user.id}`, GATE_TTL));
       try {
         localStorage.removeItem('primepipfx_demo_mode');
       } catch {}
@@ -1407,8 +1411,8 @@ export default function App() {
   return (
     <div className="prime-command-shell w-full max-w-full min-h-screen text-slate-100 flex flex-col selection:bg-blue-500/30 selection:text-cyan-200 relative overflow-x-clip">
       <CommunicationNotifications currentUser={currentUser} onOpenCommunication={() => setActiveTab('COMMUNITY')} onOpenSubscription={() => setIsSubscriptionModalOpen(true)} />
-      {sessionChecked && currentUser && !isUserAdmin(currentUser) && !(currentUser.province && currentUser.city) && (
-        <LocationPromptModal user={currentUser} onSaved={(u) => setCurrentUser(u)} />
+      {sessionChecked && currentUser && !isUserAdmin(currentUser) && !(currentUser.province && currentUser.city) && !popupSeen(`loc:${currentUser.id}`) && (
+        <LocationPromptModal user={currentUser} onSaved={(u) => { markPopup(`loc:${u.id}`); setCurrentUser(u); }} />
       )}
 
       {/* 4-Side Animated Laser Perimeter Frame */}
