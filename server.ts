@@ -324,6 +324,14 @@ app.use((req, _res, next) => {
 
 // Ask Chromium browsers for the real device model / OS version (used by the admin sign-in log).
 app.use((_req, res, next) => { res.setHeader('Accept-CH', ACCEPT_CH); next(); });
+// Always HTTPS: a plain-http link (some students open one) is sent to https at once, and browsers are told to use https for a year,
+// so a returning visitor never travels over the insecure path that some mobile networks reset ("Connection is not secure" / ERR_CONNECTION_RESET).
+app.use((req, res, next) => {
+  const proto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  if (proto === 'http' && req.method === 'GET' && process.env.NODE_ENV === 'production') { res.redirect(308, `https://${req.headers.host}${req.originalUrl}`); return; }
+  if (proto === 'https') res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+  next();
+});
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
