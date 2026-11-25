@@ -156,7 +156,9 @@ function templatePost(platform: Platform, pillar: { id: string; brief: string },
     ...v.slides.slice(0, 3).map((x, i) => ({ t: `${3 + i * 5}-${8 + i * 5}s`, onScreen: x, voice: x })),
     { t: '18-22s', onScreen: 'Link in bio', voice: 'Open the PRIMEPIPFX terminal. Link in bio.' },
   ] : [];
-  return { platform, pillar: pillar.id, title: t.title, caption: `${t.title}\n\n${t.body}`, hashtags: [...base, ...t.tags], keywords: ['forex trading app', 'XAUUSD', 'gold trading', 'backtesting', 'PRIMEPIPFX'], cta: `Open ${url}`, imageUrl: platform === 'youtube' ? undefined : DEFAULT_IMAGE, hooks: v.hooks, slides: v.slides, beats, source: 'template' };
+  const link = t.body.split('\n\n').pop() as string; const st = n % 3;
+  const caption = st === 1 ? `${v.hooks[n % v.hooks.length]}\n\n${v.slides.map((x) => `✅ ${x}`).join('\n')}\n\n${link}` : st === 2 ? `${t.title}\n\n${v.slides.join(' • ')}.\n\n${link}` : `${t.title}\n\n${t.body}`;
+  return { platform, pillar: pillar.id, title: t.title, caption, hashtags: [...base, ...t.tags], keywords: ['forex trading app', 'XAUUSD', 'gold trading', 'backtesting', 'PRIMEPIPFX'], cta: `Open ${url}`, imageUrl: platform === 'youtube' ? undefined : DEFAULT_IMAGE, hooks: v.hooks, slides: v.slides, beats, source: 'template' };
 }
 
 async function aiPost(ai: any, platform: Platform, pillar: { id: string; brief: string }, cfg: AgentConfig, recent: string[]): Promise<Draft | null> {
@@ -274,4 +276,14 @@ export async function schedulerTick(ai: any) {
       }
     }
   } catch { /* keep running */ } finally { ticking = false; }
+}
+
+/** One fresh post for the Quick Post screen: not saved to the queue. `variant` and `exclude` keep regenerations different. */
+export async function previewPost(ai: any, platform: Platform, variant = 0, exclude: string[] = []): Promise<SocialPost> {
+  const cfg = getConfig();
+  const pool = PILLARS.filter((p) => !exclude.includes(p.id)); const list = pool.length ? pool : PILLARS;
+  const pillar = list[Math.floor(Math.random() * list.length)];
+  const raw = (await aiPost(ai, platform, pillar, cfg, exclude.map((id) => PILLARS.find((p) => p.id === id)?.id || id))) || templatePost(platform, pillar, cfg, variant + Math.floor(Math.random() * 3));
+  const c = clean(raw);
+  return { ...c, score: scorePost(c), id: crypto.randomUUID(), createdAt: now(), scheduledAt: now(), status: 'draft' };
 }
