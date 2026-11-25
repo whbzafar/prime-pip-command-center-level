@@ -9,7 +9,6 @@ const PineMainChartLazy = React.lazy(() => import('./pine/PineMainChart'));
 import { pineLib, loadLibrary as loadPineLibrary, hideAll as hideAllPine } from './pine/pineLibrary';
 import { catalogFor } from './pine/pineData';
 import { TvChartTools } from './pine/TvChartTools';
-import { TvHeaderBar } from './pine/TvHeaderBar';
 import { PineIndicatorChips } from './pine/PineIndicatorChips';
 import {
   CandlestickChart,
@@ -3163,14 +3162,14 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
     }
   };
 
-  const submitPair = (raw: string) => {
-    const q = raw.trim();
-    if (!q) return;
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    const q = searchQuery.trim();
     const alias: Record<string, string> = { GOLD: 'XAUUSD', SILVER: 'XAGUSD', OIL: 'USOIL', WTI: 'USOIL', BRENT: 'UKOIL', BITCOIN: 'BTCUSD', BTC: 'BTCUSD', ETHEREUM: 'ETHUSD', ETH: 'ETHUSD', DOW: 'US30', NASDAQ: 'NAS100', SP500: 'SPX500', DAX: 'GER40', FTSE: 'UK100', NIKKEI: 'JP225' };
     handleSelectSymbol(alias[q.toUpperCase()] || q);
     setSearchQuery('');
   };
-  const handleSearchSubmit = (e: React.FormEvent) => { e.preventDefault(); submitPair(searchQuery); };
 
   // --------------------------------------------------------------------------
   // DEMO TRADE EXECUTION (BUY / SELL with SL, TP, and Lot Size)
@@ -4444,13 +4443,11 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
             </div>
           )}
 
-          {/* TRADINGVIEW: header bar (pair search + timeframes + live timer) above the chart */}
-          {!pineOnChart && <Ticking compute={() => sessionCountdown(selectedInterval)}>{(cd) => <TvHeaderBar symbol={selectedSymbol} interval={selectedInterval} onInterval={(iv) => handleIntervalChange(iv)} onSearch={submitPair} symbols={[...new Set(WATCHLIST_CATEGORIES.flatMap((c) => c.symbols.map((x) => x.symbol)))]} countdown={cd} showTf={!tvKeep} />}</Ticking>}
-          <div className={`relative ${pineOnChart ? 'hidden' : 'flex-1 min-h-0 flex flex-col'}`}>
-            <div id={containerId} className={`w-full relative z-10 ${pineOnChart ? 'hidden' : 'flex-1 min-h-0'}`} />
+          {/* TRADINGVIEW IFRAME CONTAINER */}
+          <div id={containerId} className={`w-full relative z-10 ${pineOnChart ? 'hidden' : 'flex-1 min-h-0'}`} />
+
           {/* LIVE BAR-CLOSE COUNTDOWN — on the right price scale, like TradingView. Drag it up/down to sit beside the price. */}
-          {!pineOnChart && <Ticking compute={() => sessionCountdown(selectedInterval)}>{(cd) => <TvChartTools symbol={selectedSymbol} interval={selectedInterval} onInterval={tvKeep ? (iv) => setSelectedInterval(normalizeInterval(iv)) : undefined} syncOnly={tvKeep} showChip={tvKeep && tvChip} onClearAll={() => setTvReload((n) => n + 1)} countdown={cd} />}</Ticking>}
-          </div>
+          {!pineOnChart && <Ticking compute={() => sessionCountdown(selectedInterval)}>{(cd) => <TvChartTools symbol={selectedSymbol} interval={selectedInterval} onInterval={tvKeep ? (iv) => setSelectedInterval(normalizeInterval(iv)) : (iv) => handleIntervalChange(iv)} syncOnly={tvKeep} showChip={!tvKeep || tvChip} onClearAll={() => setTvReload((n) => n + 1)} countdown={cd} />}</Ticking>}
           {false && !pineOnChart && !tvHintHidden && (
             <div data-testid="tv-countdown-hint" className="absolute top-12 left-1/2 -translate-x-1/2 z-30 max-w-[92%] flex items-center gap-2 rounded-lg border border-[#2962FF]/50 bg-[#131722]/95 px-3 py-2 text-[11.5px] text-slate-200 shadow-xl">
               <span><b className="text-white">Bar-close countdown:</b> right-click the price scale → <b className="text-white">Labels</b> → <b className="text-white">Countdown to bar close</b> (TradingView's embedded chart resets it on reload). The countdown, price alerts (+) and your indicators are always on in the <button type="button" onClick={() => setChartEngine('pro')} className="underline text-cyan-300 cursor-pointer">Pro chart</button>.</span>
