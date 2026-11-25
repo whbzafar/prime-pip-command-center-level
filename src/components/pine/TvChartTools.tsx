@@ -13,7 +13,7 @@ import { CATALOG, FullHistoryDatafeed, PRO_PERIODS } from '../chartAnalysis/full
 
 const TFS: [string, string][] = [['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'], ['60', '1h'], ['240', '4h'], ['D', '1D'], ['W', '1W']];
 
-export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInterval?: (iv: string) => void; syncOnly?: boolean; onClearAll?: () => void; countdown: { label: string; text: string; closed?: boolean; progressPercent?: number; session?: string } }> = ({ symbol, interval, onInterval, syncOnly, onClearAll, countdown }) => {
+export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInterval?: (iv: string) => void; syncOnly?: boolean; showChip?: boolean; onClearAll?: () => void; countdown: { label: string; text: string; closed?: boolean; progressPercent?: number; session?: string } }> = ({ symbol, interval, onInterval, syncOnly, showChip = true, onClearAll, countdown }) => {
   const [tfOpen, setTfOpen] = useState(false);
   const [clearAsk, setClearAsk] = useState(false);
   const entry = catalogFor(symbol);
@@ -71,7 +71,7 @@ export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInter
 
   return (
     <>
-      <div ref={chipRef} data-testid="tv-scale-chip" style={{ top: `${chipY}%` }}
+      {showChip && <div ref={chipRef} data-testid="tv-scale-chip" style={{ top: `${chipY}%` }}
         className="absolute right-[3px] z-30 flex flex-col items-stretch w-[62px] rounded-[4px] overflow-hidden shadow-lg border border-[#2962FF]/70 select-none">
         <div onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} title="Time left until this candle closes — drag up or down to sit beside the price"
           className={`flex items-center justify-center gap-0.5 h-[19px] text-[11px] font-mono tabular-nums font-semibold cursor-ns-resize touch-none ${countdown.closed ? 'bg-[#2a2e39] text-slate-300' : 'bg-[#2962FF] text-white'}`}>
@@ -94,7 +94,7 @@ export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInter
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {onClearAll && (
         <button type="button" data-testid="tv-delete-all" aria-label="Remove objects" title={clearAsk ? 'Click again to remove every drawing' : 'Remove objects (all drawings)'}
@@ -107,7 +107,7 @@ export const TvChartTools: React.FC<{ symbol: string; interval?: string; onInter
 
 
       <div className="absolute top-[5px] right-[46px] md:right-[92px] z-30 flex items-center gap-1.5" data-testid="tv-chart-tools">
-        {onInterval && (
+        {onInterval && !syncOnly && (
           <>
             <div className="hidden lg:flex items-center h-[28px] rounded-md border border-slate-700 bg-[#1e222d] overflow-hidden" role="radiogroup" aria-label="Timeframe" data-testid="tv-tf-buttons">
               {TFS.map(([v, l]) => (

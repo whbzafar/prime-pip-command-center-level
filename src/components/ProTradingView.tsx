@@ -1591,6 +1591,9 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   const [tvKeep, setTvKeep] = useState<boolean>(() => { try { return localStorage.getItem('ppfx_tv_keep_drawings') !== 'off'; } catch { return true; } });
   useEffect(() => { try { localStorage.setItem('ppfx_tv_keep_drawings', tvKeep ? 'on' : 'off'); } catch {} }, [tvKeep]);
   const tvInitialInterval = useRef<string>('');
+  // Timer chip: with 'Keep drawings' ON the chart's timeframe is chosen in TradingView's own bar (the single place), and TradingView's own countdown shows on the price label. The chip is only a fallback.
+  const [tvChip, setTvChip] = useState<boolean>(() => { try { return localStorage.getItem('ppfx_tv_chip') === 'on'; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem('ppfx_tv_chip', tvChip ? 'on' : 'off'); } catch {} }, [tvChip]);
   const [tvReload, setTvReload] = useState(0);
   const tvReloadSeen = useRef(0);
   const [tvVolume, setTvVolume] = useState<boolean>(() => { try { return localStorage.getItem('ppfx_tv_volume') !== 'off'; } catch { return true; } });
@@ -3001,6 +3004,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         toolbar_bg: chartSettings.backgroundColor,
         enable_publishing: 'false',
         hide_top_toolbar: 'false',
+        // TradingView's own bar-close countdown on the price label (follows the timeframe chosen in TradingView's bar, like tradingview.com).
+        ...(chartSettings.showCountdown !== false ? { overrides: JSON.stringify({ 'mainSeriesProperties.showCountdown': true }) } : {}),
         hide_side_toolbar: 'false',
         // The chart's own symbol box changes the symbol inside the sealed frame without telling the app, so the Pair Widget,
         // fundamentals and alerts stayed on the old pair. Symbols are chosen with the app's search (it drives chart AND widget).
@@ -4284,6 +4289,12 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                   Keep drawings {tvKeep ? 'ON' : 'OFF'}
                 </button>
               )}
+              {chartEngine === 'tv' && tvKeep && (
+                <button type="button" onClick={() => setTvChip((v) => !v)} data-testid="tv-timer-chip-toggle" title="TradingView's own countdown shows on the price label. If it is not showing, switch this ON for the app's timer (set its small timeframe button to match the chart)."
+                  className={`rounded-xl border px-2.5 py-1 text-[11px] font-bold cursor-pointer ${tvChip ? 'border-amber-400/60 bg-amber-500/15 text-amber-100' : 'border-slate-700 bg-slate-950 text-slate-400'}`}>
+                  Timer chip {tvChip ? 'ON' : 'OFF'}
+                </button>
+              )}
               {chartEngine === 'tv' && (
                 <button type="button" onClick={() => setTvVolume((v) => !v)} title="Show or hide volume on the TradingView chart — remembered for every pair"
                   className={`rounded-xl border px-2.5 py-1 text-[11px] font-bold cursor-pointer ${tvVolume ? 'border-cyan-400/60 bg-cyan-500/15 text-cyan-100' : 'border-slate-700 bg-slate-950 text-slate-400'}`}>
@@ -4437,7 +4448,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
           <div id={containerId} className={`w-full relative z-10 ${pineOnChart ? 'hidden' : 'flex-1 min-h-0'}`} />
 
           {/* LIVE BAR-CLOSE COUNTDOWN — on the right price scale, like TradingView. Drag it up/down to sit beside the price. */}
-          {!pineOnChart && <Ticking compute={() => sessionCountdown(selectedInterval)}>{(cd) => <TvChartTools symbol={selectedSymbol} interval={selectedInterval} onInterval={tvKeep ? (iv) => setSelectedInterval(normalizeInterval(iv)) : (iv) => handleIntervalChange(iv)} syncOnly={tvKeep} onClearAll={() => setTvReload((n) => n + 1)} countdown={cd} />}</Ticking>}
+          {!pineOnChart && <Ticking compute={() => sessionCountdown(selectedInterval)}>{(cd) => <TvChartTools symbol={selectedSymbol} interval={selectedInterval} onInterval={tvKeep ? (iv) => setSelectedInterval(normalizeInterval(iv)) : (iv) => handleIntervalChange(iv)} syncOnly={tvKeep} showChip={!tvKeep || tvChip} onClearAll={() => setTvReload((n) => n + 1)} countdown={cd} />}</Ticking>}
           {false && !pineOnChart && !tvHintHidden && (
             <div data-testid="tv-countdown-hint" className="absolute top-12 left-1/2 -translate-x-1/2 z-30 max-w-[92%] flex items-center gap-2 rounded-lg border border-[#2962FF]/50 bg-[#131722]/95 px-3 py-2 text-[11.5px] text-slate-200 shadow-xl">
               <span><b className="text-white">Bar-close countdown:</b> right-click the price scale → <b className="text-white">Labels</b> → <b className="text-white">Countdown to bar close</b> (TradingView's embedded chart resets it on reload). The countdown, price alerts (+) and your indicators are always on in the <button type="button" onClick={() => setChartEngine('pro')} className="underline text-cyan-300 cursor-pointer">Pro chart</button>.</span>
