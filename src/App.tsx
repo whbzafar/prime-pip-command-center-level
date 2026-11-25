@@ -19,6 +19,7 @@ import { AmbientThemeRibbon } from './components/AmbientThemeRibbon';
 import { CommandCenterAtmosphere } from './components/CommandCenterAtmosphere';
 import { RiskCenter, TradeLimitAlertSystem } from './components/RiskCenter';
 import { MainNavTab } from './components/Header';
+import { LocationPromptModal } from './components/LocationPromptModal';
 import { AccountOnboardingModal } from './components/AccountOnboardingModal';
 import { initialRules, initialGoals } from './data/initialTrades';
 import { Trade, TradingRule, TradingGoal, AccountSettings, UserAccount } from './types';
@@ -314,8 +315,10 @@ export default function App() {
   }, [activeTab, currentUser?.id]);
 
   // Background Server-authoritative Session Verification
+  const [sessionChecked, setSessionChecked] = useState(false);
   useEffect(() => {
     verifyCurrentSession().then((user) => {
+      setSessionChecked(true);
       if (user) {
         setCurrentUser(user);
         setIsDemoMode(!hasFullAccess(user));
@@ -1404,6 +1407,9 @@ export default function App() {
   return (
     <div className="prime-command-shell w-full max-w-full min-h-screen text-slate-100 flex flex-col selection:bg-blue-500/30 selection:text-cyan-200 relative overflow-x-clip">
       <CommunicationNotifications currentUser={currentUser} onOpenCommunication={() => setActiveTab('COMMUNITY')} onOpenSubscription={() => setIsSubscriptionModalOpen(true)} />
+      {sessionChecked && currentUser && !isUserAdmin(currentUser) && !(currentUser.province && currentUser.city) && (
+        <LocationPromptModal user={currentUser} onSaved={(u) => setCurrentUser(u)} />
+      )}
 
       {/* 4-Side Animated Laser Perimeter Frame */}
       

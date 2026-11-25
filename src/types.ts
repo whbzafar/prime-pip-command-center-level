@@ -934,6 +934,11 @@ export interface UserAccount {
   adminNotes?: string;
   isDeveloper?: boolean;
   phone?: string;
+  country?: string;
+  province?: string;
+  city?: string;
+  whatsapp?: string;
+  locationUpdatedAt?: string;
   mustChangePassword?: boolean;
   createdAt: string;
   updatedAt?: string;

@@ -56,6 +56,7 @@ import {
   getAllRegisteredTraders,
   isActiveCommunityMember,
   updatePresencePrivacy,
+  updateUserLocation,
   registerSelf,
   recordLogin,
   syncUsersFromDurable,
@@ -4029,7 +4030,7 @@ app.get('/api/admin/members', requireDeveloper, async (_req, res) => {
     const s: any = sanitizeUser(u);
     const l = last?.[u.id] || {};
     const at = [l.at, (u as any).lastLoginAt].filter(Boolean).sort().pop() || null;
-    return { id: s.id, name: s.name, username: s.username, email: s.email || '', role: s.role, subscriptionStatus: s.subscriptionStatus, expiryDate: u.expiryDate, isLifetime: u.isLifetime, sbtIndicator: sbtIds.has(u.id), signupSource: (u as any).signupSource || 'admin', createdAt: u.createdAt, lastLoginAt: at, loginCount: Math.max(l.count || 0, (u as any).loginCount || 0), lastLoginIp: l.ip || (u as any).lastLoginIp || '', lastLoginDevice: l.device || (u as any).lastLoginDevice || '' };
+    return { id: s.id, name: s.name, username: s.username, email: s.email || '', role: s.role, subscriptionStatus: s.subscriptionStatus, expiryDate: u.expiryDate, isLifetime: u.isLifetime, sbtIndicator: sbtIds.has(u.id), signupSource: (u as any).signupSource || 'admin', createdAt: u.createdAt, lastLoginAt: at, loginCount: Math.max(l.count || 0, (u as any).loginCount || 0), lastLoginIp: l.ip || (u as any).lastLoginIp || '', lastLoginDevice: l.device || (u as any).lastLoginDevice || '', country: (u as any).country || '', province: (u as any).province || '', city: (u as any).city || '', whatsapp: (u as any).whatsapp || u.phone || '', locationUpdatedAt: (u as any).locationUpdatedAt || null };
   }).sort((a, b) => String(b.lastLoginAt || '').localeCompare(String(a.lastLoginAt || '')) || String(b.createdAt).localeCompare(String(a.createdAt)));
   let logins: any[] = await recentLogins(300);
   if (!logins.length) logins = await getShared<any[]>('login_log', [], 0);
@@ -5311,6 +5312,17 @@ app.post('/api/user/heartbeat', async (req, res) => {
     return res.json({ ok: true, userId: user.id, isOnline: true });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err?.message });
+  }
+});
+
+app.post('/api/user/location', async (req, res) => {
+  try {
+    const user = resolveRequestUser(req);
+    if (!user) return res.status(401).json({ ok: false, error: 'Please log in again.' });
+    const r = updateUserLocation(user.id, req.body || {});
+    return r.ok ? res.json({ ok: true, user: sanitizeUser(r.user!) }) : res.status(400).json({ ok: false, error: r.error });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err?.message || 'Could not save location' });
   }
 });
 

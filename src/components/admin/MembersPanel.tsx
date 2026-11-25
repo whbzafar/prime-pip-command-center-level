@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, Database, LogIn, RefreshCw, Search, Trash2, UserPlus, Users } from 'lucide-react';
 import { getStoredToken, handleDeadAdminSession } from '../../utils/authClient';
 
-interface Member { id: string; name: string; username: string; email: string; role: string; subscriptionStatus: string; expiryDate?: string; isLifetime?: boolean; signupSource: string; createdAt: string; lastLoginAt: string | null; loginCount: number; lastLoginIp: string; lastLoginDevice: string; sbtIndicator?: boolean }
+interface Member { id: string; name: string; username: string; email: string; role: string; subscriptionStatus: string; expiryDate?: string; isLifetime?: boolean; signupSource: string; createdAt: string; lastLoginAt: string | null; loginCount: number; lastLoginIp: string; lastLoginDevice: string; sbtIndicator?: boolean; country?: string; province?: string; city?: string; whatsapp?: string; locationUpdatedAt?: string | null }
 interface LoginRow { at: string; userId: string; username: string; name?: string; kind: 'login' | 'signup'; ip?: string; device?: string }
 
 const fmt = (d?: string | null) => (d ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Karachi', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(d)) : '—');
@@ -96,7 +96,7 @@ export const MembersPanel: React.FC = () => {
     } finally { setBusy(false); window.setTimeout(load, 1500); }
   };
 
-  const list = members.filter((m) => (!q || `${m.username} ${m.name} ${m.email}`.toLowerCase().includes(q.toLowerCase())) && (!onlyLogged || m.lastLoginAt));
+  const list = members.filter((m) => (!q || `${m.username} ${m.name} ${m.email} ${m.city || ''} ${m.province || ''} ${m.country || ''} ${m.whatsapp || ''}`.toLowerCase().includes(q.toLowerCase())) && (!onlyLogged || m.lastLoginAt));
   const today = members.filter((m) => m.lastLoginAt && Date.now() - Date.parse(m.lastLoginAt) < 86400_000).length;
   const newToday = members.filter((m) => Date.now() - Date.parse(m.createdAt) < 86400_000).length;
 
@@ -117,7 +117,7 @@ export const MembersPanel: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="flex-1 flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5"><Search className="w-4 h-4 text-slate-500" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search username or name" className="flex-1 bg-transparent outline-none text-[13px] text-slate-100" /></div>
+        <div className="flex-1 flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5"><Search className="w-4 h-4 text-slate-500" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, city, province or number" className="flex-1 bg-transparent outline-none text-[13px] text-slate-100" /></div>
         <label className="inline-flex items-center gap-1.5 text-[12px] text-slate-300 cursor-pointer whitespace-nowrap"><input type="checkbox" checked={onlyLogged} onChange={(e) => setOnlyLogged(e.target.checked)} className="accent-amber-400" />Only members who logged in</label>
         <button type="button" onClick={load} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 text-[12px] text-slate-200 hover:text-white cursor-pointer"><RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
       </div>
@@ -131,12 +131,12 @@ export const MembersPanel: React.FC = () => {
       )}
 
       <div className="overflow-x-auto rounded-xl border border-slate-800">
-        <table className="w-full min-w-[1000px] text-[12.5px]">
+        <table className="w-full min-w-[1200px] text-[12.5px]">
           <thead className="bg-slate-900/80 text-[10.5px] uppercase tracking-wider text-slate-400"><tr>
             <th className="px-3 py-2 w-8"><input type="checkbox" aria-label="Select all members" className="accent-rose-400 w-4 h-4 cursor-pointer"
               checked={list.filter((m) => !isOwner(m)).length > 0 && list.filter((m) => !isOwner(m)).every((m) => selected.has(m.id))}
               onChange={(e) => setSelected(e.target.checked ? new Set(list.filter((m) => !isOwner(m)).map((m) => m.id)) : new Set())} /></th>
-            <th className="text-left px-3 py-2">Member</th><th className="text-left px-3 py-2">Terminal purchase</th><th className="text-left px-3 py-2">SBT Indicator</th><th className="text-left px-3 py-2">Signed up</th><th className="text-left px-3 py-2">Last login</th><th className="text-right px-3 py-2">Logins</th><th className="text-left px-3 py-2">Last device</th><th className="text-left px-3 py-2">How</th><th className="px-3 py-2" />
+            <th className="text-left px-3 py-2">Member</th><th className="text-left px-3 py-2">Terminal purchase</th><th className="text-left px-3 py-2">SBT Indicator</th><th className="text-left px-3 py-2">Signed up</th><th className="text-left px-3 py-2">Last login</th><th className="text-right px-3 py-2">Logins</th><th className="text-left px-3 py-2">Location</th><th className="text-left px-3 py-2">WhatsApp</th><th className="text-left px-3 py-2">Last device</th><th className="text-left px-3 py-2">How</th><th className="px-3 py-2" />
           </tr></thead>
           <tbody>
             {list.map((m) => (
@@ -153,12 +153,14 @@ export const MembersPanel: React.FC = () => {
                 <td className="px-3 py-2 text-slate-300">{fmt(m.createdAt)}</td>
                 <td className="px-3 py-2"><span className="text-slate-200">{ago(m.lastLoginAt)}</span><div className="text-[10.5px] text-slate-500">{fmt(m.lastLoginAt)}</div></td>
                 <td className="px-3 py-2 text-right font-mono text-slate-200">{m.loginCount}</td>
+                <td className="px-3 py-2" data-testid={`loc-${m.username}`}>{m.city || m.province ? <><div className="text-slate-100">{[m.city, m.province].filter(Boolean).join(', ')}</div><div className="text-[10.5px] text-slate-500">{m.country || ''}</div></> : <span className="text-[11px] text-amber-300/80">not given yet</span>}</td>
+                <td className="px-3 py-2 font-mono text-[12px] text-slate-200">{m.whatsapp ? <a href={`https://wa.me/${m.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-300 hover:underline">{m.whatsapp}</a> : <span className="text-slate-600">—</span>}</td>
                 <td className="px-3 py-2 text-slate-400"><div>{device(m.lastLoginDevice) || '—'}</div><div className="text-[10.5px] text-slate-600 font-mono">{m.lastLoginIp}</div></td>
                 <td className="px-3 py-2"><span className={`px-1.5 py-0.5 rounded text-[10.5px] font-bold ${m.signupSource === 'self' ? 'bg-amber-400/15 text-amber-200' : 'bg-cyan-500/15 text-cyan-200'}`}>{m.signupSource === 'self' ? 'signed up' : 'added by admin'}</span></td>
                 <td className="px-3 py-2 text-right"><button type="button" onClick={() => remove(m)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-rose-500/40 text-rose-200 hover:bg-rose-500/10 cursor-pointer text-[11.5px]"><Trash2 className="w-3.5 h-3.5" />Remove</button></td>
               </tr>
             ))}
-            {!list.length && <tr><td colSpan={10} className="px-3 py-6 text-center text-slate-500">{loading ? 'Loading…' : 'No members yet.'}</td></tr>}
+            {!list.length && <tr><td colSpan={12} className="px-3 py-6 text-center text-slate-500">{loading ? 'Loading…' : 'No members yet.'}</td></tr>}
           </tbody>
         </table>
       </div>

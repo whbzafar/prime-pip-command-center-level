@@ -46,6 +46,12 @@ export interface StoredUser {
   hasCompletedOnboarding?: boolean;
   needsOnboarding?: boolean;
   showActiveStatus?: boolean;
+  /** Where the member is (collected by the location pop-up; shown to the owner in Members). */
+  country?: string;
+  province?: string;
+  city?: string;
+  whatsapp?: string;
+  locationUpdatedAt?: string;
   tradingFocus?: string;
   experienceLevel?: string;
   traderStatus?: string;
@@ -911,6 +917,22 @@ export function updatePresencePrivacy(userId: string, showActiveStatus: boolean)
   user.updatedAt = new Date().toISOString();
   writeUsers(users);
   return true;
+}
+
+export interface LocationInput { province?: unknown; city?: unknown; country?: unknown; whatsapp?: unknown }
+const cleanText = (v: unknown, max = 80) => String(v ?? '').replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+/** Province and city are required; country and WhatsApp are optional. */
+export function updateUserLocation(userId: string, input: LocationInput): { ok: boolean; error?: string; user?: StoredUser } {
+  const province = cleanText(input.province); const city = cleanText(input.city); const country = cleanText(input.country);
+  const whatsappRaw = String(input.whatsapp ?? '').trim(); const whatsapp = whatsappRaw.replace(/[^0-9+]/g, '').slice(0, 20);
+  if (province.length < 2) return { ok: false, error: 'Please enter your province.' };
+  if (city.length < 2) return { ok: false, error: 'Please enter your city.' };
+  if (whatsappRaw && whatsapp.replace(/\D/g, '').length < 7) return { ok: false, error: 'That WhatsApp number looks too short. Leave it empty if you prefer not to share it.' };
+  const users = readUsers(); const user = users.find((u) => u.id === userId);
+  if (!user) return { ok: false, error: 'User not found' };
+  user.province = province; user.city = city; user.country = country || user.country || ''; if (whatsapp) user.whatsapp = whatsapp;
+  user.locationUpdatedAt = new Date().toISOString(); user.updatedAt = user.locationUpdatedAt;
+  writeUsers(users); return { ok: true, user };
 }
 
 export function isActiveCommunityMember(user: StoredUser | null | undefined): boolean {
