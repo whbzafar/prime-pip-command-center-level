@@ -8,3 +8,4 @@ coverage/
 !.env.example
 data/macro_fundamentals_store.json
 data/pine_private_scripts.json
+data/social_agent.json
