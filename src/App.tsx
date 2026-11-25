@@ -1,6 +1,5 @@
 // Force HMR refresh
 import { startBackupNotice } from './utils/backupNotice';
-import { OceanWaves } from './components/OceanWaves';
 import { SecurityWarningModal } from './components/SecurityWarningModal';
 import { NewEraWelcome } from './components/welcome/NewEraWelcome';
 import { shouldShowNewEra, markNewEraSeen, welcomeName } from './components/welcome/newEra';
@@ -177,6 +176,25 @@ const prefetchTabBundles = (includeHeavy: boolean) => {
   };
   setTimeout(next, 700);
 };
+// Prefetch only once the person is signed in (login screen stays light: Lighthouse/mobile) and the page has finished loading.
+const startPrefetchWhenReady = (includeHeavy: boolean) => {
+  if (typeof window === 'undefined') return;
+  const tick = () => { if (document.readyState !== 'complete') return false; if (!getCurrentUser()) return false; prefetchTabBundles(includeHeavy); return true; };
+  const iv = window.setInterval(() => { if (tick()) window.clearInterval(iv); }, 1500);
+};
+
+const OceanWaves = React.lazy(() => import('./components/OceanWaves').then((m) => ({ default: m.OceanWaves })));
+// Decorative background: mount only after the first screen has painted and the browser is idle, so it never competes with login/LCP.
+const DeferredOcean: React.FC = () => {
+  const [on, setOn] = React.useState(false);
+  React.useEffect(() => {
+    let t = 0;
+    const go = () => { const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, o?: { timeout: number }) => number); if (ric) ric(() => setOn(true), { timeout: 4000 }); else t = window.setTimeout(() => setOn(true), 2500); };
+    if (document.readyState === 'complete') t = window.setTimeout(go, 800); else window.addEventListener('load', () => { t = window.setTimeout(go, 800); }, { once: true });
+    return () => window.clearTimeout(t);
+  }, []);
+  return on ? <React.Suspense fallback={null}><OceanWaves /></React.Suspense> : null;
+};
 
 const TabFallback = () => (
   <div className="flex items-center justify-center gap-2 py-24 text-xs font-mono-code text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
@@ -201,7 +219,7 @@ export default function App() {
     const t = window.setTimeout(() => setMt5Visited(true), 12_000);
     return () => window.clearTimeout(t);
   }, []);
-  useEffect(() => { prefetchTabBundles(!isLightweight); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { startPrefetchWhenReady(!isLightweight); // eslint-disable-line react-hooks/exhaustive-deps
   }, []);
   // Health + usage signals (errors on screen, which sections are opened). Declared up here: hooks must run before any early return.
   useEffect(() => { startInsights(); }, []);
@@ -1400,7 +1418,7 @@ export default function App() {
       {!isLightweight && <MarketAura />}
       {!isLightweight && <QuantumFx />}
       <AuroraScene />
-      <OceanWaves />
+      <DeferredOcean />
       {newEraOpen && currentUser && <NewEraWelcome name={welcomeName(currentUser)} onEnter={() => { markNewEraSeen(currentUser.id); setNewEraOpen(false); }} onFounder={() => { markNewEraSeen(currentUser.id); setNewEraOpen(false); setFounderMin(false); setFounderOpen(true); }} />}
       {founderOpen && <React.Suspense fallback={null}><FounderExperienceModal isOpen isMinimized={founderMin} onClose={() => { setFounderOpen(false); setFounderMin(false); }} onMinimize={() => setFounderMin(true)} onReopen={() => setFounderMin(false)} /></React.Suspense>}
       <SecurityWarningModal userId={currentUser && !isUserAdmin(currentUser) ? currentUser.id : undefined} />
