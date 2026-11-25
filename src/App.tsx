@@ -174,7 +174,7 @@ const prefetchTabBundles = (includeHeavy: boolean) => {
       if (ric) ric(next, { timeout: 1500 }); else setTimeout(next, 250);
     });
   };
-  setTimeout(next, 2500);
+  setTimeout(next, 700);
 };
 
 const TabFallback = () => (

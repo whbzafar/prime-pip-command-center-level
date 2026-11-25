@@ -139,8 +139,8 @@ html[data-theme='aurora'] body::before {
 @keyframes ppfx-net { from { transform: translateX(-110%); } to { transform: translateX(290%); } }
 
 /* panels rise into place the first time they appear (opacity + transform only) */
-@keyframes au-rise { from { opacity: 0; transform: translate3d(0,10px,0); } to { opacity: 1; transform: none; } }
-html[data-theme='aurora'] :where(.prime-card, .prime-card-elevated, [class*="rounded-2xl"][class*="bg-slate-9"], [class*="rounded-3xl"][class*="bg-slate-9"]) { animation: au-rise .42s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes au-rise { from { opacity: 0; transform: translate3d(0,5px,0); } to { opacity: 1; transform: none; } }
+html[data-theme='aurora'] :where(.prime-card, .prime-card-elevated, [class*="rounded-2xl"][class*="bg-slate-9"], [class*="rounded-3xl"][class*="bg-slate-9"]) { animation: au-rise .16s cubic-bezier(.2,.8,.2,1) both; }
 
 /* depth: a bright hairline on the top edge of every glass panel, like light catching bevelled glass */
 html[data-theme='aurora'] :where(.prime-card, .prime-card-elevated, [class*="rounded-2xl"][class*="bg-slate-9"], [class*="rounded-3xl"][class*="bg-slate-9"]) {
@@ -209,3 +209,45 @@ html:not([data-theme='aurora']) #ppfx-space-objects, html[data-fx='off'] #ppfx-s
 /* One full-screen shader is enough: the ocean replaces the MarketAura WebGL layer (big GPU saving) */
 html[data-theme='aurora'][data-fx='full'] [data-testid='market-aura'] { display: none !important; }
 html[data-fx='lite'] #ppfx-space, html[data-fx='lite'] #ppfx-space-objects { display: none !important; }
+
+
+/* ═══════════════ PREMIUM POLISH v3 — static paint only (no extra per-frame work) ═══════════════ */
+html[data-theme='aurora'] body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; letter-spacing: .003em; }
+
+/* glass panels: a gradient hairline border (light from the top-left), inner glow and deeper, softer shadow */
+html[data-theme='aurora'] :where(.prime-card, .prime-card-elevated, .prime-glass-card, .prime-premium-card, [class*="rounded-2xl"][class*="bg-slate-9"], [class*="rounded-3xl"][class*="bg-slate-9"]) {
+  border-color: rgba(165,180,255,0.16) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.09) inset, 0 -1px 0 rgba(0,0,0,0.35) inset, 0 0 0 1px rgba(8,11,24,0.55), 0 26px 60px -26px rgba(0,0,0,0.85), 0 6px 18px -8px rgba(0,0,0,0.5) !important;
+}
+html[data-theme='aurora'] :where(.prime-card, .prime-card-elevated, [class*="rounded-2xl"][class*="bg-slate-9"], [class*="rounded-3xl"][class*="bg-slate-9"]):hover {
+  box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset, 0 0 0 1px rgba(129,140,248,0.38), 0 28px 64px -24px rgba(0,0,0,0.88), 0 0 54px -14px rgba(99,102,241,0.5), 0 0 30px -18px rgba(34,211,238,0.45) !important;
+}
+
+/* depth vignette: the edges of the screen fall into darkness so the glass and the galaxy stand out */
+html[data-theme='aurora'] #root::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(2,3,10,0.55) 100%); }
+
+/* pills, tabs and chips: crisp, pressed-glass look */
+html[data-theme='aurora'] [role='tab'] { transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .2s ease; }
+html[data-theme='aurora'] [role='tab'][aria-selected='true'] { background: linear-gradient(105deg, rgba(34,211,238,0.14), rgba(99,102,241,0.2)) !important; color: #fff !important; }
+html[data-theme='aurora'] :where(nav, aside) { border-color: rgba(165,180,255,0.1) !important; }
+html[data-theme='aurora'] [data-active-nav='true'] { box-shadow: 0 0 0 1px rgba(129,140,248,0.3), 0 10px 30px -12px rgba(99,102,241,0.6), 0 0 22px -8px rgba(34,211,238,0.35) !important; }
+
+/* headings: premium gradient on every top-level title, tighter tracking */
+html[data-theme='aurora'] :where(h1, h2).font-military { letter-spacing: .04em; }
+html[data-theme='aurora'] h2.font-military.text-lg, html[data-theme='aurora'] h2.font-military.text-xl {
+  background: linear-gradient(100deg, #fff 8%, #dbe4ff 50%, #8be9fd 100%); -webkit-background-clip: text; background-clip: text; color: transparent !important;
+}
+
+/* modals and pop-ups sit on frosted, darker glass */
+html[data-theme='aurora'] :where([role='dialog'], [aria-modal='true']) { box-shadow: 0 40px 100px -30px rgba(0,0,0,0.9), 0 0 0 1px rgba(129,140,248,0.28), 0 0 70px -24px rgba(99,102,241,0.5) !important; border-radius: 18px; }
+
+/* tables: calmer rows, glowing hover */
+html[data-theme='aurora'] :where(tbody tr) { transition: background-color .12s ease; }
+html[data-theme='aurora'] :where(tbody tr):hover { background-color: rgba(99,102,241,0.09) !important; }
+
+/* inputs: lit inner edge */
+html[data-theme='aurora'] :where(input, select, textarea) { box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 6px 14px -10px rgba(0,0,0,0.8); }
+
+/* galaxy: slightly brighter and sharper behind the glass, planets a touch stronger */
+#ppfx-space { opacity: 1; }
+#ppfx-space-objects { opacity: .95; }

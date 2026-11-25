@@ -57,6 +57,8 @@ export function startSpaceObjects(): () => void {
     g.clearRect(0, 0, W, H);
     // planets drift very slowly (parallax float)
     const gx = W * 0.80 + Math.sin(t * 0.03) * 14 * k, gy = H * 0.30 + Math.cos(t * 0.025) * 10 * k;
+    const pulse = 0.5 + 0.5 * Math.sin(t * 0.35);
+    const hr = giant.width * (0.62 + 0.04 * pulse); const hg0 = g.createRadialGradient(gx, gy, hr * 0.25, gx, gy, hr); hg0.addColorStop(0, `rgba(255,70,200,${0.10 + 0.05 * pulse})`); hg0.addColorStop(1, 'rgba(255,70,200,0)'); g.fillStyle = hg0; g.fillRect(gx - hr, gy - hr, hr * 2, hr * 2);
     g.drawImage(giant, gx - giant.width / 2, gy - giant.height / 2);
     const cx = W * 0.14 + Math.sin(t * 0.04 + 1) * 10 * k, cy = H * 0.20 + Math.cos(t * 0.035) * 8 * k;
     g.drawImage(cyan, cx - cyan.width / 2, cy - cyan.height / 2);
@@ -73,6 +75,8 @@ export function startSpaceObjects(): () => void {
     g.beginPath(); g.ellipse(0, 0, 26 * k, 26 * k, 0, 0, Math.PI * 2); g.stroke();
     for (let i = 0; i < 4; i++) { g.rotate(Math.PI / 2); g.beginPath(); g.moveTo(5 * k, 0); g.lineTo(26 * k, 0); g.stroke(); }
     g.fillStyle = 'rgba(255,90,210,.9)'; g.fillRect(-4 * k, -4 * k, 8 * k, 8 * k); g.restore();
+    // satellite: a tiny blinking light crossing the sky on a long, slow orbit
+    { const sp = (t * 0.012) % 1; const sx = W * (1.1 - sp * 1.2), sy = H * (0.06 + 0.2 * Math.sin(sp * Math.PI)); const bl = (Math.sin(t * 3) > 0.6) ? 1 : 0.35; g.fillStyle = `rgba(255,255,255,${0.75 * bl})`; g.fillRect(sx, sy, 1.8 * k, 1.8 * k); g.fillStyle = `rgba(120,255,240,${0.25 * bl})`; g.fillRect(sx - 1.5 * k, sy - 1.5 * k, 4.8 * k, 4.8 * k); }
     // rockets
     if (now > nextRocket && rockets.length < 2) {
       const fromLeft = rnd(now) > 0.5; const y = H * (0.10 + rnd(now * 1.7) * 0.38);
@@ -100,7 +104,8 @@ export function startSpaceObjects(): () => void {
       if (c.life > 1.4) { comets.splice(i, 1); continue; }
       const a = Math.sin((c.life / 1.4) * Math.PI);
       const tg = g.createLinearGradient(c.x - c.vx * 0.18, c.y - c.vy * 0.18, c.x, c.y); tg.addColorStop(0, 'rgba(180,240,255,0)'); tg.addColorStop(1, `rgba(220,250,255,${0.9 * a})`);
-      g.strokeStyle = tg; g.lineWidth = 1.6 * k; g.beginPath(); g.moveTo(c.x - c.vx * 0.18, c.y - c.vy * 0.18); g.lineTo(c.x, c.y); g.stroke();
+      g.strokeStyle = tg; g.lineWidth = 1.8 * k; g.lineCap = 'round'; g.beginPath(); g.moveTo(c.x - c.vx * 0.22, c.y - c.vy * 0.22); g.lineTo(c.x, c.y); g.stroke();
+      const hg = g.createRadialGradient(c.x, c.y, 0, c.x, c.y, 9 * k); hg.addColorStop(0, `rgba(255,255,255,${0.95 * a})`); hg.addColorStop(0.35, `rgba(150,230,255,${0.4 * a})`); hg.addColorStop(1, 'rgba(150,230,255,0)'); g.fillStyle = hg; g.fillRect(c.x - 9 * k, c.y - 9 * k, 18 * k, 18 * k);
     }
   };
   raf = requestAnimationFrame(frame);
