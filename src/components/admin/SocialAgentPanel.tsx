@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Bot, Check, Copy, Palette, RefreshCw, Send, Sparkles, Trash2, X } from 'lucide-react';
 import { PostStudio } from './PostStudio';
-import { QuickPost } from './QuickPost';
+import { AutoStudio } from './AutoStudio';
 import { getStoredToken } from '../../utils/authClient';
 
 type Platform = 'facebook' | 'instagram' | 'youtube' | 'tiktok';
@@ -44,14 +44,14 @@ export const SocialAgentPanel: React.FC = () => {
   const saveHeads = async (id: string, hooks: string[], slides: string[]) => { const { ok, j } = await call(`/api/admin/social-agent/post/${id}`, 'POST', { hooks, slides }); if (!ok) throw new Error(j.error || 'Save failed'); await load(); };
   const copy = (p: Post) => void navigator.clipboard?.writeText(`${p.title}\n\n${p.caption}\n\n${p.hashtags.join(' ')}`);
 
-  if (!d) return <div className="space-y-3 p-1"><QuickPost /><div className="p-3 text-sm text-slate-400">{err || 'Loading the agent…'}</div></div>;
+  if (!d) return <div className="space-y-3 p-1"><AutoStudio /><div className="p-3 text-sm text-slate-400">{err || 'Loading the agent…'}</div></div>;
   const c = d.config;
   const posts = d.posts.filter((p) => filter === 'all' || p.platform === filter);
   const card = 'rounded-2xl border border-slate-700/60 bg-slate-900/60 p-4';
 
   return (
     <div className="space-y-4 p-1" data-testid="social-agent-panel">
-      <QuickPost />
+      <AutoStudio />
       <div className={`${card} flex flex-wrap items-center gap-3`}>
         <Bot className="h-6 w-6 text-amber-300" />
         <div className="min-w-0 flex-1">

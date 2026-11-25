@@ -93,7 +93,7 @@ export async function captureScreen(): Promise<HTMLImageElement> {
 export const fileToImage = (f: File) => loadImage(URL.createObjectURL(f));
 
 // ---------- Quick Post: varied layouts, themes and optional free AI artwork ----------
-export type Layout = 'hero' | 'chart' | 'features' | 'quote' | 'shot';
+export type Layout = 'hero' | 'chart' | 'features' | 'quote' | 'shot' | 'shotfeat' | 'shotbig';
 export const LAYOUTS: Layout[] = ['hero', 'chart', 'features', 'quote'];
 export const THEMES = [
   { name: 'Gold', a: '#fbbf24', b: '#f97316', up: '#34d399', dn: '#f87171', bg0: '#05070d', bg1: '#161028' },
@@ -123,7 +123,7 @@ function drawCandles(ctx: CanvasRenderingContext2D, w: number, h: number, th: Th
   ctx.save(); ctx.strokeStyle = th.a; ctx.globalAlpha = 0.35; ctx.lineWidth = 3; ctx.setLineDash([10, 14]);
   for (const f of [0.3, 0.5, 0.7]) { ctx.beginPath(); ctx.moveTo(0, h * f); ctx.lineTo(w, h * f); ctx.stroke(); } ctx.restore();
 }
-export interface VariantOpts { format: VisualFormat; layout: Layout; theme: number; seed: number; headline: string; sub?: string; slides: string[]; features?: { icon: string; label: string }[]; art?: HTMLImageElement | null; hero?: HTMLImageElement | null; cta?: string; shot?: HTMLImageElement | null; shotLabel?: string }
+export interface VariantOpts { format: VisualFormat; layout: Layout; theme: number; seed: number; headline: string; sub?: string; slides: string[]; features?: { icon: string; label: string }[]; art?: HTMLImageElement | null; hero?: HTMLImageElement | null; cta?: string; shot?: HTMLImageElement | null; shotLabel?: string; bullets?: string[] }
 
 export function renderVariant(o: VariantOpts): HTMLCanvasElement {
   const th = THEMES[o.theme % THEMES.length];
@@ -142,10 +142,15 @@ export function renderVariant(o: VariantOpts): HTMLCanvasElement {
     ctx.fillStyle = '#111827'; ctx.textBaseline = 'middle'; ctx.fillText(cta, pad + bf, cy + bf); ctx.textBaseline = 'top';
     ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.font = `500 ${Math.round(w * 0.0185)}px ${FONT}`; ctx.fillText('Trading carries risk. Educational content, not financial advice.', pad, h - pad * 0.95);
   };
-  if (o.layout === 'shot' && o.shot) {
-    const t = fitText(ctx, o.headline.toUpperCase(), w - pad * 2, h * (tall ? 0.17 : 0.2), Math.round(w * 0.075));
-    ctx.font = `800 ${t.size}px ${FONT}`; t.lines.forEach((ln, i) => { ctx.fillStyle = i === t.lines.length - 1 && t.lines.length > 1 ? th.a : '#fff'; ctx.fillText(ln, pad, pad * 2 + i * t.size * 1.12); });
-    const top2 = pad * 2 + t.lines.length * t.size * 1.12 + 24; const maxW = w - pad * 2; const maxH = h - top2 - pad * 3.9 - 40;
+  if ((o.layout === 'shot' || o.layout === 'shotfeat' || o.layout === 'shotbig') && o.shot) {
+    const mode = o.layout; const big = mode === 'shotbig'; const withList = mode === 'shotfeat' && !!o.bullets?.length;
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    ctx.save(); ctx.globalAlpha = 0.34; try { ctx.filter = 'blur(26px)'; } catch { /* older Safari */ } cover(ctx, o.shot, -40, -40, w + 80, h + 80); ctx.restore(); ctx.fillStyle = 'rgba(2,6,23,.55)'; ctx.fillRect(0, 0, w, h);
+    ctx.textBaseline = 'top'; ctx.fillStyle = th.a; ctx.font = `800 ${Math.round(w * 0.03)}px ${FONT}`; ctx.fillText('PRIMEPIPFX', pad, pad * 0.8);
+    const t = fitText(ctx, o.headline.toUpperCase(), w - pad * 2, h * (big ? 0.11 : tall ? 0.17 : 0.2), Math.round(w * (big ? 0.058 : 0.075)));
+    const headTop = pad * 1.9; ctx.font = `800 ${t.size}px ${FONT}`; t.lines.forEach((ln, i) => { ctx.fillStyle = i === t.lines.length - 1 && t.lines.length > 1 ? th.a : '#fff'; ctx.fillText(ln, pad, headTop + i * t.size * 1.12); });
+    const top2 = headTop + t.lines.length * t.size * 1.12 + 22; const listH = withList ? Math.min(h * 0.26, (o.bullets!.slice(0, 3).length) * w * 0.082 + 20) : 0;
+    const maxW = w - pad * 2; const maxH = h - top2 - pad * 3.9 - 40 - listH;
     const ar = o.shot.width / o.shot.height; let sw = maxW; let sh = sw / ar; if (sh > maxH) { sh = maxH; sw = sh * ar; }
     const sx = (w - sw) / 2; const bar = Math.round(w * 0.04);
     ctx.save(); ctx.shadowColor = th.a + '99'; ctx.shadowBlur = 50; ctx.fillStyle = '#0b1220'; rr(ctx, sx - 6, top2 - 6, sw + 12, sh + bar + 12, 26); ctx.fill(); ctx.restore();
@@ -153,6 +158,7 @@ export function renderVariant(o: VariantOpts): HTMLCanvasElement {
     ['#ef4444', '#f59e0b', '#22c55e'].forEach((col, i) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(sx + bar * (0.6 + i * 0.7), top2 + bar / 2, bar * 0.2, 0, 7); ctx.fill(); });
     ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.font = `600 ${Math.round(bar * 0.42)}px ${FONT}`; ctx.textBaseline = 'middle'; ctx.fillText(`primepipfx.site · ${o.shotLabel || 'Command Center'}`, sx + bar * 3, top2 + bar / 2); ctx.textBaseline = 'top';
     ctx.drawImage(o.shot, sx, top2 + bar, sw, sh); ctx.restore();
+    if (withList) { let by = top2 + bar + sh + 26; const bf = Math.round(w * 0.036); ctx.font = `700 ${bf}px ${FONT}`; o.bullets!.slice(0, 3).forEach((b) => { ctx.fillStyle = th.a; ctx.fillText('✓', pad, by); ctx.fillStyle = '#fff'; ctx.fillText(wrap(ctx, b, w - pad * 2 - bf * 1.6)[0] || b, pad + bf * 1.6, by); by += w * 0.082; }); }
     footer(); return c;
   }
   if (o.layout === 'features') {
